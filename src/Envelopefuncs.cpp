@@ -267,116 +267,12 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
     cbars2=f3_binomial_logit(G4,y, x,mu,P,alpha,wt,progbar);
   
   }
-    // --- New prep step immediately afterwards
-    //   This returns:
-    //     xb_mat  : n_obs × n_grid matrix of p_i = 1/(1+exp(−α − x·b))
-    //     qf_vec  : length n_grid vector of 0.5*(b−μ)'P(b−μ)
-//     if (verbose) {
-//       
-//     Rcpp::Rcout << "Initiating f2_binomial_logit_prep: "
-//                 << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-//                 << "\n";
-//   }
-//   
-// // 1. Run your OpenCL prep
-//   
-// // prep$xb : n × m matrix
-// // prep$qf : length-m vector
-//   
-//     Rcpp::List prep = f2_binomial_logit_prep(
-//       G4,       // NumericMatrix b
-//       y,        // NumericVector y
-//       x,        // NumericMatrix x
-//       mu,       // NumericMatrix mu
-//       P,        // NumericMatrix P
-//       alpha,    // NumericVector alpha
-//       wt,       // NumericVector wt
-//       progbar   // int progbar
-//     );
-//     
-//     if (verbose) {
-//       
-//       Rcpp::Rcout << "Initiating f2_binomial_logit_prep_v2: "
-//                   << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-//                   << "\n";
-//     }
-//     
-//     
-//     Rcpp::List prep_v2 = f2_binomial_logit_prep_v2(
-//       G4,       // NumericMatrix b
-//       y,        // NumericVector y
-//       x,        // NumericMatrix x
-//       mu,       // NumericMatrix mu
-//       P,        // NumericMatrix P
-//       alpha,    // NumericVector alpha
-//       wt,       // NumericVector wt
-//       progbar   // int progbar
-//     );
-
-        
-    // if (verbose) {
-    //   
-    //   Rcpp::Rcout << "Initiating f2_binomial_logit_prep_v3: "
-    //               << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-    //               << "\n";
-    // }
-    // 
-    // 
-    // Rcpp::List prep_v3 = f2_binomial_logit_prep_v3(
-    //   G4,       // NumericMatrix b
-    //   y,        // NumericVector y
-    //   x,        // NumericMatrix x
-    //   mu,       // NumericMatrix mu
-    //   P,        // NumericMatrix P
-    //   alpha,    // NumericVector alpha
-    //   wt,       // NumericVector wt
-    //   progbar   // int progbar
-    // );
 
     else{
-    // if (verbose) {
-    //   
-    //   Rcpp::Rcout << "Initiating f2_binomial_logit_prep_opencl: "
-    //               << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-    //               << "\n";
-    // }
-    // 
-    // 
-    // Rcpp::List prep_v4 = f2_binomial_logit_prep_opencl(
-    //   G4,       // NumericMatrix b
-    //   y,        // NumericVector y
-    //   x,        // NumericMatrix x
-    //   mu,       // NumericMatrix mu
-    //   P,        // NumericMatrix P
-    //   alpha,    // NumericVector alpha
-    //   wt,       // NumericVector wt
-    //   progbar   // int progbar
-    // );
-    // 
-    
-    // if (verbose) {
-      
-    //   Rcpp::Rcout << "Initiating f2_binomial_logit_prep_grad_opencl: "
-    //               << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-    //               << "\n";
-    // }
-    // 
-    // 
-    // // New wrapper: precompute grid info and accumulate gradients in one go
-    // Rcpp::List prepGrad_v1 = f2_binomial_logit_prep_grad_opencl(
-    //   G4,          // NumericMatrix b
-    //   y,           // NumericVector y
-    //   x,           // NumericMatrix x
-    //   mu,          // NumericMatrix mu 
-    //   P,           // NumericMatrix P
-    //   alpha,       // NumericVector alpha
-    //   wt,          // NumericVector wt
-    //   progbar     // int progbar
-    // );
+
 
     if (verbose) {
-      
-      Rcpp::Rcout << "Initiating f2_prep_grad_opencl: "
+            Rcpp::Rcout << "Initiating f2_prep_grad_opencl: "
                   << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
                   << "\n";
     }
@@ -396,45 +292,18 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
     );
     
     
-    
     NumericMatrix xb = prepGrad_v2["xb"];
     NumericVector qf = prepGrad_v2["qf"];
-//    cbars2 =prepGrad_v1["grad"];
     cbars2 = Rcpp::as<arma::mat>(prepGrad_v2["grad"]);
-// 
-//     for (arma::uword i = 0; i < std::min((arma::uword)10, cbars2.n_rows); ++i) {
-//       Rcpp::Rcout << "Grid point " << i << ": ";
-//       for (arma::uword j = 0; j < cbars2.n_cols; ++j) {
-//         Rcpp::Rcout << cbars2(i, j);
-//         if (j < cbars2.n_cols - 1) Rcpp::Rcout << ", ";
-//       }
-//       Rcpp::Rcout << "\n";
-//     }
-//     
-//     
-//     Rcpp::Rcout << "\n🧮 cbars2 dimensions: " 
-//                 << cbars2.n_rows << " rows × " 
-//                 << cbars2.n_cols << " columns\n";
-    
-  //  NumericMatrix xb = prep["xb"];
-  //  NumericVector qf = prep["qf"];
-    
-    // NumericMatrix xb = prep_v4["xb"];
-    // NumericVector qf = prep_v4["qf"];
-    
 
-//    NumericMatrix xb2 = prep["xb"];
-//    NumericVector qf2 = prep["qf"];
-    
         
         if(verbose){
     Rcpp::Rcout << "Initiating f2_binomial_logit_accumulator: "
                 << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
                 << "\n";
       }
-  
-    
-    // 2. Call the accumulator with identical signature style
+
+            // 2. Call the accumulator with identical signature style
     NegLL = f2_binomial_logit_accum(
         xb      ,
         qf      ,
@@ -445,47 +314,6 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
     
     }
 
-  
-  // After computing NegLL and NegLL_Alt, for example inside your envelope build:
-  
-//   Rcpp::Rcout << "i   NegLL       NegLL_Alt    diff\n";
-// //  for (int i = 0; i < l2; ++i) {
-//     for (int i = 0; i < 100; ++i) {
-//     double a = NegLL[i];
-//     double b = NegLL_Alt[i];
-//     Rcpp::Rcout 
-//     << std::setw(12) << i << " " 
-//     << std::setw(12) << a << " " 
-//     << std::setw(12) << b << " " 
-//     << std::setw(12) << (a - b) << "\n";
-//   }
-//   
-    
-    // 
-    // if (verbose) {
-    //   Rcpp::Rcout << "Initiating Gradient Evaluations: "
-    //               << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
-    //               << "\n";
-    // }
-    
-//         cbars2=f3_binomial_logit(G4,y, x,mu,P,alpha,wt,progbar);
-     
-    // for (arma::uword i = 0; i < std::min((arma::uword)10, cbars2.n_rows); ++i) {
-    //   Rcpp::Rcout << "Grid point " << i << ": ";
-    //   for (arma::uword j = 0; j < cbars2.n_cols; ++j) {
-    //     Rcpp::Rcout << cbars2(i, j);
-    //     if (j < cbars2.n_cols - 1) Rcpp::Rcout << ", ";
-    //   }
-    //   Rcpp::Rcout << "\n";
-    // }
-    // 
-    // 
-    // Rcpp::Rcout << "\n🧮 cbars2 dimensions: " 
-    //             << cbars2.n_rows << " rows × " 
-    //             << cbars2.n_cols << " columns\n";
-    
-    
-    
     
   }
   if(family=="binomial"  && link=="probit"){
