@@ -7,6 +7,7 @@
 #' @param y a vector of observations of length \code{m}.
 #' @param x for \code{rglmb} a design matrix of dimension \code{m * p} and for \code{print.rglmb} the object to be printed. 
 #' @inheritParams glmb
+#' @param Gridtype an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.
 #' @param use_parallel Logical. Whether to use parallel processing during simulation.
 #' @param use_opencl Logical. Whether to use OpenCL acceleration during Envelope construction.
 #' @param verbose Logical. Whether to print progress messages.
@@ -79,7 +80,7 @@
 
 
 
-rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,
+rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,Gridtype=2,
                 use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE){
   
   ## Pull in information from the pfamily  
@@ -121,9 +122,12 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,
   
 #  outlist=simfun(n=n,y=y,x=x,prior_list=prior_list,offset=offset,weights=weights,family=family)
 
-  outlist = simfun(n = n, y = y, x = x, prior_list = prior_list,offset = offset, weights = weights, family = family, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
+  ##outlist = simfun(n = n, y = y, x = x, prior_list = prior_list,offset = offset, weights = weights, family = family, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
+  outlist = simfun(n = n, y = y, x = x, prior_list = prior_list,offset = offset, weights = weights, family = family, Gridtype=Gridtype, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
   
-  outlist$pfamily=pfamily
+
+  
+    outlist$pfamily=pfamily
   
   return(outlist)
   

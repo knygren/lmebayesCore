@@ -8,6 +8,7 @@
 #' @param weights a weighting variable
 #' @param max_disp_perc parameter currently used to control upper bound in accept-reject procedure 
 #' @inheritParams glmb
+#' @param Gridtype an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.
 #' @param use_parallel Logical. Whether to use parallel processing during simulation.
 #' @param use_opencl Logical. Whether to use OpenCL acceleration during Envelope construction.
 #' @param verbose Logical. Whether to print progress messages.
@@ -60,6 +61,7 @@
 
 
 rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
+                                      Gridtype=2,
                                       use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
                                       max_disp_perc=0.99){
   

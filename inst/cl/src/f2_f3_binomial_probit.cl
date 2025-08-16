@@ -17,7 +17,7 @@ __kernel void f2_f3_binomial_probit(
     __global const double* y,      // successes (0/1),  length = l1
     __global const double* wt,     // trials,           length = l1
     __global double*       qf,     // out: neg‐log‐posterior, length = m1
-    __global double*       xb,     // out: Φ(η),           size = m1 × l1
+//    __global double*       xb,     // out: Φ(η),           size = m1 × l1
     __global double*       grad,   // out: ∂(neg‐log‐post)/∂B, size = m1 × l2 (col-major)
     const int l1,                  // # observations
     const int l2,                  // # predictors
@@ -69,7 +69,7 @@ __kernel void f2_f3_binomial_probit(
         double d  = dnorm4(dot, 0.0, 1.0, 0);      // φ(dot)
 
         // Store probit probability for this grid point and observation
-        xb[base + i] = p1;
+//        xb[base + i] = p1;
 
        // <— replace manual log‐lik term with dbinom’s log‐binomial
         double ll = dbinom(y[i], wt[i], p1, /*give_log=*/1);

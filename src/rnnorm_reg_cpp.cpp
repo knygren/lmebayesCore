@@ -287,6 +287,9 @@ Function f2,Rcpp::List  Envelope,Rcpp::CharacterVector   family,Rcpp::CharacterV
   arma::mat btemp2(btemp.begin(),l1,1,false); 
   NumericVector testll(1);
 
+  
+
+  
   //Rcout << "PLSD"  << PLSD << std::endl;
   //Rcout << "cbars"  << cbars << std::endl;
   //Rcout << "LLconst"  << LLconst << std::endl;
@@ -319,6 +322,10 @@ Function f2,Rcpp::List  Envelope,Rcpp::CharacterVector   family,Rcpp::CharacterV
 							}
         //a2=1; 
           }
+      
+
+      
+      
        for(int j=0;j<l1;j++){  
           
           out(i,j)=ctrnorm_cpp(logrt(J(i),j),loglt(J(i),j),-cbars(J(i),j),1.0);    
@@ -376,9 +383,14 @@ Function f2,Rcpp::List  Envelope,Rcpp::CharacterVector   family,Rcpp::CharacterV
         testll=f2_gaussian(btemp,y, x,mu,P,alpha,wt);
       }
       
+      ////
+      
+      
       test=LLconst(J(i))+testtemp(0,0)-log(U2)-testll(0);
+      
 
-      if(test>=0) a1=1;
+      if(test>=0) 
+      {        a1=1;      }
 	    if(test<0) draws(i)=draws(i)+1;
       
       }
@@ -488,6 +500,9 @@ List rnnorm_reg_std_cpp_parallel(
     Named("draws") = draws
   );
 }
+
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////

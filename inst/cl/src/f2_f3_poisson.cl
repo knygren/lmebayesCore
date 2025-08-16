@@ -15,7 +15,7 @@ __kernel void f2_f3_poisson(
     __global const double* y,      // counts,          length = l1
     __global const double* wt,     // weights,         length = l1
     __global double*       qf,     // out: neg-log-post, length = m1
-    __global double*       xb,     // out: μ = exp(η),    size = m1 × l1
+//    __global double*       xb,     // out: μ = exp(η),    size = m1 × l1
     __global double*       grad,   // out: ∂(neg-log-post)/∂B, size = l2 × m1 (col-major)
     const int l1,
     const int l2,
@@ -59,7 +59,7 @@ __kernel void f2_f3_poisson(
 
         // fitted mean
         double mui = exp(dot);
-        xb[base + i] = mui;
+//        xb[base + i] = mui;
 
         // negate log-likelihood contribution
 

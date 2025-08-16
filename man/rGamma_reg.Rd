@@ -14,6 +14,7 @@ rGamma_reg(
   offset = NULL,
   weights = 1,
   family = gaussian(),
+  Gridtype = 2,
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE
@@ -38,6 +39,8 @@ prior distribution and a vector with the assumed value (beta) for the regression
 \item{weights}{an optional vector of \sQuote{prior weights} to be used in the fitting process. Should be NULL or a numeric vector.}
 
 \item{family}{a description of the error distribution and link function to be used in the model. This can be a character string naming a family function, a family function or the result of a call to a family function. (See \code{\link{family}} for details of family functions.)}
+
+\item{Gridtype}{an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.}
 
 \item{use_parallel}{Logical. Whether to use parallel processing during simulation.}
 

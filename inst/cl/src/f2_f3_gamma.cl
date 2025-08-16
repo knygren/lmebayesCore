@@ -15,7 +15,7 @@ __kernel void f2_f3_gamma(
     __global const double* y,      // responses y:         length = l1
     __global const double* wt,     // weights/shape:       length = l1
     __global double*       qf,     // out: log-posterior:  length = m1
-    __global double*       xb,     // out: xb = μ/ wt:     size = m1 × l1
+//    __global double*       xb,     // out: xb = μ/ wt:     size = m1 × l1
     __global double*       grad,   // out: ∂ℓ/∂β:           size = m1 × l2
     const int l1,
     const int l2,
@@ -60,7 +60,7 @@ __kernel void f2_f3_gamma(
         // μ_i and scaled xb_i
         double mui    = exp(eta);
         double xb_i   = mui / wt[i];
-        xb[base + i]  = xb_i;
+//        xb[base + i]  = xb_i;
 
         // exact log-likelihood term from your C: ll = dgamma(y, wt, xb, TRUE)
         double ll     = dgamma(y[i], wt[i], xb_i, 1);

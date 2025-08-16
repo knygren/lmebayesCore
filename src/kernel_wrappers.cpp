@@ -408,13 +408,40 @@ Rcpp::List f2_f3_opencl(
   auto y_flat     = copyVector(y);
   auto wt_flat    = copyVector(wt);
   
+  
+
+    
+    Rcpp::Rcout << "Allocating Required Memory: "
+                << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
+                << "\n";
+
+  
+  
+  
   // allocate outputs
   std::vector<double> qf_flat(m1);
-  std::vector<double> xb_flat(static_cast<size_t>(l1) * m1);
   std::vector<double> grad_flat(static_cast<size_t>(m1) * l2);
+
   
-  Rcpp::NumericMatrix xb(l1, m1);
   Rcpp::NumericVector qf(m1);
+  
+
+    Rcpp::Rcout << "Allocating xb Memory: "
+                << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
+                << "\n";
+
+  
+    std::vector<double> xb_flat(static_cast<size_t>(l1) * m1);
+  // Rcpp::NumericMatrix xb(l1, m1);
+  
+
+    Rcpp::Rcout << "Dispatch kernel: "
+                << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
+                << "\n";
+
+  
+    
+  
   
   // Dispatch kernel name and source
   std::string kernel_name;
@@ -499,9 +526,9 @@ Rcpp::List f2_f3_opencl(
   // rebuild xb, qf exactly as before
   for (int j = 0; j < m1; ++j) {
     qf[j] = qf_flat[j];
-    for (int i = 0; i < l1; ++i) {
-      xb(i, j) = xb_flat[static_cast<size_t>(j) * l1 + i];
-    }
+    // for (int i = 0; i < l1; ++i) {
+    //   xb(i, j) = xb_flat[static_cast<size_t>(j) * l1 + i];
+    // }
   }
   
 #else
@@ -521,7 +548,7 @@ Rcpp::List f2_f3_opencl(
   );
   
   return Rcpp::List::create(
-    Rcpp::Named("xb")   = xb,
+    // Rcpp::Named("xb")   = xb,
     Rcpp::Named("qf")   = qf,
     Rcpp::Named("grad") = grad_arma
   );

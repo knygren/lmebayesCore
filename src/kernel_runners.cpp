@@ -221,7 +221,7 @@ void f2_binomial_logit_prep_grad_kernel_runner(
   clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufY);
   clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufW);
   clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufQF);
-  clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufXB);
+//  clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufXB);
   clSetKernelArg(kernel, arg++, sizeof(cl_mem), &bufGrad);
   clSetKernelArg(kernel, arg++, sizeof(int),    &l1);
   clSetKernelArg(kernel, arg++, sizeof(int),    &l2);
@@ -244,21 +244,49 @@ void f2_binomial_logit_prep_grad_kernel_runner(
                                sizeof(double)*grad_flat.size(), grad_flat.data(),
                                0, nullptr, nullptr);
   
-  // 9) Cleanup
-  clReleaseMemObject(bufX);
-  clReleaseMemObject(bufB);
-  clReleaseMemObject(bufMu);
-  clReleaseMemObject(bufP);
-  clReleaseMemObject(bufA);
-  clReleaseMemObject(bufY);
-  clReleaseMemObject(bufW);
-  clReleaseMemObject(bufQF);
-  clReleaseMemObject(bufXB);
-  clReleaseMemObject(bufGrad);
   
+  // 8a) Sanity-check: error out if both outputs are all zeros
+                               {
+                                 auto all_zero = [](auto& vec){
+                                   return std::all_of(vec.begin(), vec.end(),
+                                                      [](double x){ return x == 0.0; });
+                                 };
+                                 
+                                 bool qf_is_zero   = all_zero(qf_flat);
+                                 bool grad_is_zero = all_zero(grad_flat);
+                                 
+                                 if (qf_is_zero || grad_is_zero) {
+                                   std::ostringstream msg;
+                                   msg << "OpenCL kernel returned "
+                                       << (qf_is_zero   ? "qf_flat all zeros "   : "")
+                                       << (grad_is_zero ? "grad_flat all zeros." : "");
+                                   throw std::runtime_error(msg.str());
+                                 }
+                               }
+  
+  // --- Begin modified cleanup section ---
+  // 9a) Drain any pending commands
+  clFlush(queue);
+  clFinish(queue);
+  
+  // 9b) Release buffers (inverse creation order)
+  clReleaseMemObject(bufGrad);
+  clReleaseMemObject(bufXB);
+  clReleaseMemObject(bufQF);
+  clReleaseMemObject(bufW);
+  clReleaseMemObject(bufY);
+  clReleaseMemObject(bufA);
+  clReleaseMemObject(bufP);
+  clReleaseMemObject(bufMu);
+  clReleaseMemObject(bufB);
+  clReleaseMemObject(bufX);
+  
+  // 9c) Release kernel, program, queue, context
   clReleaseKernel       (kernel);
   clReleaseProgram      (program);
   clReleaseCommandQueue (queue);
   clReleaseContext      (context);
-}
+  // --- End modified cleanup section ---
+  
+  }
 #endif

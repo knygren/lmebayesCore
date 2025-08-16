@@ -12,6 +12,7 @@ rNormal_Gamma_reg(
   offset = NULL,
   weights = 1,
   family = gaussian(),
+  Gridtype = 2,
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE
@@ -37,6 +38,8 @@ prior distribution.}
     result of a call to a family function.  For \code{glm.fit} only the
     third option is supported.  (See \code{\link[stats]{family}} for details of
     family functions.)}
+
+\item{Gridtype}{an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.}
 
 \item{use_parallel}{Logical. Whether to use parallel processing during simulation.}
 

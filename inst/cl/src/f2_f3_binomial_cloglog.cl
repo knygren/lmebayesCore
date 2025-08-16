@@ -19,7 +19,7 @@ __kernel void f2_f3_binomial_cloglog(
     __global const double* y,      // response,    length = l1
     __global const double* wt,     // weights,     length = l1
     __global double*       qf,     // out: quadratics,    length = m1
-    __global double*       xb,     // out: p = cloglog,   size = m1×l1
+//    __global double*       xb,     // out: p = cloglog,   size = m1×l1
     __global double*       grad,   // out: dfdB,          size = m1×l2
     const int l1,
     const int l2,
@@ -66,7 +66,7 @@ __kernel void f2_f3_binomial_cloglog(
         double p1 = 1.0 - exp(-exp(dot));
         double p2 = exp(-exp(dot));
         double atemp = exp(dot - exp(dot));
-        xb[base + i] = p1;
+//        xb[base + i] = p1;
 
 
 //      int trials  = (int)(rint(wt[i]));

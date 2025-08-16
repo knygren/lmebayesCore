@@ -13,6 +13,7 @@ rglmb(
   pfamily,
   offset = NULL,
   weights = 1,
+  Gridtype = 2,
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE
@@ -45,6 +46,8 @@ if more than one is specified their sum is used.  See documentation for \code{mo
 
 \item{weights}{an optional vector of \sQuote{prior weights} to be used
     in the fitting process.  Should be \code{NULL} or a numeric vector.}
+
+\item{Gridtype}{an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.}
 
 \item{use_parallel}{Logical. Whether to use parallel processing during simulation.}
 

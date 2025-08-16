@@ -16,7 +16,7 @@ __kernel void f2_f3_binomial_logit(
     __global const double* y,      // response,    length = l1
     __global const double* wt,     // weights,     length = l1
     __global double*       qf,     // out: quadratics,    length = m1
-    __global double*       xb,     // out: p = logistic, size = m1×l1
+//    __global double*       xb,     // out: p = logistic, size = m1×l1
     __global double*       grad,   // out: dfdB,        size = m1×l2
     const int l1,
     const int l2,
@@ -61,7 +61,7 @@ __kernel void f2_f3_binomial_logit(
             dot -= X[k*l1 + i] * B[j*l2 + k];
         }
         double p = 1.0 / (1.0 + exp(dot));
-        xb[base + i] = p;
+//        xb[base + i] = p;
 
         // call dbinom on log‐scale and negate to match yy = -dbinom_glmb(...)
         // give_log=1 returns log-density

@@ -257,7 +257,7 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   
   
   
-  sim<-rglmb(n=n,y=y,x=x,family=family,pfamily=pfamily,offset=offset,weights=wtin, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
+  sim<-rglmb(n=n,y=y,x=x,family=family,pfamily=pfamily,offset=offset,weights=wtin, Gridtype=Gridtype,use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
   
   
   #dispersion2<-dispersion

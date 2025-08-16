@@ -210,6 +210,16 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
   NumericMatrix G4(G3.ncol(),G3.nrow());
   int l2=GIndex.nrow();
   
+  // print grid size if requested
+  if (verbose) {
+    Rcpp::Rcout 
+    << ">>> EnvelopeBuild_c: grid size (l2) = " 
+    << l2 
+    << "\n";
+  }
+  
+  
+  
   arma::mat G3b(G3.begin(), G3.nrow(), G3.ncol(), false);
   arma::mat G4b(G4.begin(), G4.nrow(), G4.ncol(), false);
   
@@ -412,6 +422,8 @@ else{
          progbar     // int progbar
        );
        
+       
+       
        NegLL = prepGrad_v3["qf"];
        cbars2 = Rcpp::as<arma::mat>(prepGrad_v3["grad"]);
 
@@ -588,7 +600,14 @@ else{
         progbar     // int progbar
       );
       
+      if (verbose) {
+        
+        Rcpp::Rcout << "Existing f2_f3_opencl: "
+                    << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
+                    << "\n";
+      }
       
+            
       NegLL = prepGrad_v3["qf"];
       cbars2 = Rcpp::as<arma::mat>(prepGrad_v3["grad"]);
 
