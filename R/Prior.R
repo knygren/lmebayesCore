@@ -6,7 +6,8 @@
 #' The \code{factory-fresh} default is \code{na.omit}. Another possible value is \code{NULL}.
 #' @param family a description of the error distribution and linke function to be used in the model.
 #' @param pwt Weight on the prior relative to the likelihood function at the the maximum likelihood estimate.
-#' @param intercept_source Specifys the method through which the prior mean for the intercept term is set. Options are based on the frequentist intercept only (null_model) or full models.  
+#' @param intercept_source Specifies the method through which the prior mean for the intercept term is set. Options are based on the classical intercept only (null_model) or full_models.  
+#' @param effects_source Specifies the method through which the prior means for the effects terms are set. Options are null_effects (prior means set to zero) or full_model (effect means set to match maximum likelihood estimates).  
 #' @inheritParams stats::model.frame
 #' @return A list with items related to the prior.
 #' \item{mu}{An initial version of the prior mean vector, populated with all zeros}
@@ -24,7 +25,8 @@
 ## Note arguments outside of first two are currently not used
 
 Prior_Setup<-function(formula,data=NULL,family=gaussian,pwt=0.05 ,
-                      intercept_source = c("null_model", "full_model"),
+                      intercept_source = c("full_model", "null_model"),
+                      effects_source = c("null_effects", "full_model"),
                       subset = NULL, na.action = na.fail, 
                          drop.unused.levels = FALSE, xlev = NULL, ...){
   
@@ -32,6 +34,15 @@ Prior_Setup<-function(formula,data=NULL,family=gaussian,pwt=0.05 ,
   #                drop.unused.levels=drop.unused.levels,xlev=xlev)
   
   intercept_source <- match.arg(intercept_source)
+  effects_source <- match.arg(effects_source)
+  
+  # inside Prior_Setup(), after reading `pwt` from the args
+  if (!is.numeric(pwt) || length(pwt) != 1 || is.na(pwt)) {
+    stop("`pwt` must be a single, non-missing numeric value.")
+  }
+  if (pwt <= 0 || pwt >= 1) {
+    stop("`pwt` must be strictly between 0 and 1; you supplied: ", pwt)
+  }
   
   
   mf<-model.frame(formula,data)
@@ -45,7 +56,37 @@ Prior_Setup<-function(formula,data=NULL,family=gaussian,pwt=0.05 ,
   var_names <- colnames(x)
   colnames(x) <- var_names
   #nvar=length(object$coefficients)
-  mu=matrix(0,nrow=nvar,ncol=1)
+  mu=matrix(0,nrow=nvar,ncol=1, 
+            dimnames = list(var_names, "mu")
+            )
+
+  glm_full=glm(formula, family = family,data=data)
+  V0 <- vcov(glm_full)
+  
+  # —— begin PD check ——
+  # 1. square matrix, no NAs
+  if (!is.matrix(V0) || nrow(V0) != ncol(V0)) {
+    stop("`vcov(glm_full)` (V0) must be a square matrix.")
+  }
+  if (anyNA(V0)) {
+    stop("`vcov(glm_full)` (V0) contains missing values.")
+  }
+  
+  # 2. symmetry (up to numerical tolerance)
+  if (!isSymmetric(V0, tol = sqrt(.Machine$double.eps))) {
+    stop("`vcov(glm_full)` (V0) is not symmetric.")
+  }
+  
+  # 3. positive-definiteness via Cholesky
+  pd_try <- try(chol(V0), silent = TRUE)
+  if (inherits(pd_try, "try-error")) {
+    stop(
+      "Variance-covariance matrix V0 is not positive-definite.\n",
+      "This usually means the classical GLM is rank-deficient."
+    )
+  }
+  
+  
   
   if(var_names[1]=='(Intercept)'){
     ##lm_out=lm(formula,data=mf,y=TRUE)
@@ -57,7 +98,6 @@ Prior_Setup<-function(formula,data=NULL,family=gaussian,pwt=0.05 ,
     lhs<-f[[2]]
     intercept_only<-as.formula(paste(deparse(lhs),"~1") ,env=environment(f))
     
-    glm_full=glm(formula, family = family,data=data)
 
     glm_null=update(glm_full,formula=intercept_only)
     
@@ -67,10 +107,21 @@ Prior_Setup<-function(formula,data=NULL,family=gaussian,pwt=0.05 ,
     mu[1, 1] <- chosen_int
     
     
-    V0 <- vcov(glm_full)
     
     
   } 
+  
+  
+  # 5) effects prior means
+  if (nvar > 1) {
+    effect_names <- var_names[-1]
+    if (effects_source == "full_model") {
+      coefs <- coef(glm_full)[effect_names]
+      mu[effect_names, 1] <- coefs
+    }
+    # else null_effects leaves mu[...] as zero
+  }
+  
   
   
 #  Sigma=as.matrix(diag(nvar))

@@ -9,7 +9,8 @@ Prior_Setup(
   data = NULL,
   family = gaussian,
   pwt = 0.05,
-  intercept_source = c("null_model", "full_model"),
+  intercept_source = c("full_model", "null_model"),
+  effects_source = c("null_effects", "full_model"),
   subset = NULL,
   na.action = na.fail,
   drop.unused.levels = FALSE,
@@ -30,7 +31,9 @@ Prior_Setup(
 
 \item{pwt}{Weight on the prior relative to the likelihood function at the the maximum likelihood estimate.}
 
-\item{intercept_source}{Specifys the method through which the prior mean for the intercept term is set. Options are based on the frequentist intercept only (null_model) or full models.}
+\item{intercept_source}{Specifies the method through which the prior mean for the intercept term is set. Options are based on the classical intercept only (null_model) or full_models.}
+
+\item{effects_source}{Specifies the method through which the prior means for the effects terms are set. Options are null_effects (prior means set to zero) or full_model (effect means set to match maximum likelihood estimates).}
 
 \item{subset}{a specification of the rows/observations to be used:
     defaults to all. This can be any valid indexing vector (see

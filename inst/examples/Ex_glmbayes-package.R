@@ -10,7 +10,7 @@ glm.D93 <- glm(counts ~ outcome + treatment,
 
 ## Using glmb
 ## Step 1: Set up Prior
-ps=Prior_Setup(counts ~ outcome + treatment)
+ps=Prior_Setup(counts ~ outcome + treatment,family = poisson())
 mu=ps$mu
 V=ps$Sigma
 # Step2A: Check the Prior
