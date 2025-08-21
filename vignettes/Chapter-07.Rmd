@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter 7: Using Custom Prior Families"
+title: "Chapter 7: Models for the Binomial Family"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter 7: Using Custom Prior Families}
+  %\VignetteIndexEntry{Chapter 7: Models for the Binomial Family}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

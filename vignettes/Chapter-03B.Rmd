@@ -1,12 +1,12 @@
 Yaml
 
 ---
-title: "Chapter 3: Tailoring Priors - Leveraging the Prior_Setup Function"
+title: "Chapter 3B: Using the Prior_Setup and Prior_Check Functions"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter 3: Tailoring Priors - Leveraging the Prior_Setup Function}
+  %\VignetteIndexEntry{Chapter 3B: Using the Prior_Setup and Prior_Check Functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

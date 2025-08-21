@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter 9: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 1"
+title: "Chapter 9: Models for the Gammma Family"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter 9: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 1}
+  %\VignetteIndexEntry{Chapter 9: Models for the Gammma Family}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

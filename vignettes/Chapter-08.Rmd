@@ -1,11 +1,11 @@
 Yaml
 
 ---
-title: "Chapter 8: Working with the Gamma regression Model"
+title: "Chapter 8: Models for the Poisson Family"
 output: rmarkdown::html_vignette
 bibliography: bibliography.json
 vignette: >
-  %\VignetteIndexEntry{Chapter 8: Working with the Gamma regression Model}
+  %\VignetteIndexEntry{Chapter 8: Models for the Poisson Family}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

@@ -1,0 +1,84 @@
+Yaml
+
+---
+title: "Chapter 00: Introduction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Chapter 00: Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(glmbayes)
+```
+
+---
+title: "Chapter 00: Introduction"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+vignette:
+  engine: knitr::rmarkdown
+  encoding: UTF-8
+---
+
+**Chapter 00: Introduction**
+
+This vignette introduces glmbayes, a package for fitting Bayesian generalized linear models via efficient envelope-based sampling. Over the next thirteen chapters you’ll progress from installing the package and running your first Bayesian GLM, through custom prior construction and model diagnostics, to specialized extensions such as multinomial outcomes and GPU acceleration. Each chapter builds on the last, guiding you from basic workflows to advanced techniques for large-scale and complex models.
+
+**Overview of Chapters**
+
+- **Chapter 1: Getting Started with glmbayes**  
+  Learn how to install and load glmbayes, set up your first Bayesian GLM using `glmb()`, and interpret posterior summaries (means, credible intervals) in an interface that mirrors R’s `glm()`.
+
+- **Chapter 2: Estimating Bayesian Linear Models**  
+  Focus on the Gaussian identity-link case with `rglmb()`. Draw directly from the multivariate normal posterior, compare Bayesian estimates to classical least squares, and explore shrinkage benefits.
+
+- **Chapter 3: Tailoring Priors – Leveraging the Prior_Setup Function**  
+  Construct multivariate normal priors via `Prior_Setup()`. Choose prior mean vectors and covariance matrices, then observe how these hyperparameters shape posterior inference.
+
+- **Chapter 4: Reviewing Model Predictions, Deviance Residuals and Model** Statistics  
+  Generate fitted values and posterior predictive draws, compute deviance residuals, and summarize model-fit statistics such as the Deviance Information Criterion (DIC).
+
+- **Chapter 5: Foundations of GLMs – Families, Links, and Log-Concave Likelihoods**  
+  Delve into theoretical underpinnings: review exponential-family GLMs, link functions, and the log-concave likelihood property that enables envelope-based rejection sampling.
+
+- **Chapter 6: Estimating Bayesian Generalized Linear Models**  
+  Generalize beyond Gaussian models: fit Binomial, Poisson, and Gamma GLMs with `glmb()`, learn how the envelope engine adapts to each family, and compare posterior summaries across links.
+
+- **Chapter 7: Models for the Binomial Family**  
+  Walk through logistic and probit regressions. Handle binomial outcomes, specify informative priors, and interpret posterior distributions for classification tasks.
+
+- **Chapter 8: Models for the Poisson Family**  
+  Fit count models with a log link. Cover overdispersion diagnostics, zero-inflation checks, and the impact of prior choice on rate parameters.
+
+- **Chapter 9: Models for the Gamma Family**  
+  Address positive continuous outcomes. Jointly sample regression coefficients and dispersion parameters via a two-stage sampler, and interpret overdispersion in applications like insurance claims or reaction times.
+
+- **Chapter 10: Informative Priors: Centering and Differentiated Prior Weights**  
+  Build advanced priors: center on domain-specific values, assign variable-specific scales, and see how differentiated weights influence regularization.
+
+- **Chapter 11: Estimating Models with Unknown Dispersion Parameters**  
+  Extend envelope sampling to families with extra dispersion (e.g., Gamma, quasi-families). Use `rglmbdisp()` for joint posterior draws and quantify overdispersion uncertainty.
+
+- **Chapter 12: Large Models: GPU Acceleration using OpenCL**  
+  Scale Bayesian GLMs to high-dimensional data by offloading gradient and envelope calculations to the GPU. Set up OpenCL kernels, tune workgroup sizes, and benchmark performance gains.
+
+- **Chapter 13: Models for Multinomial Responses**  
+  Fit multinomial logistic and probit models for multi-category outcomes. Specify reference levels, set category-specific priors, interpret coefficient matrices, and extract predictive probabilities. Illustrate with choice and survey data, discussing identifiability constraints.
+
+- **Chapter A1: Overview of Estimation Procedures**
+  As a technical appendix, this chapter lays out the mathematical foundations behind each sampler. You’ll review the derivation of the full posterior, understand how the enveloping functions are constructed, and see the theoretical acceptance-rate bounds that guarantee algorithmic efficiency.
+
+
+- **Chapter A2: Simulation_Methods – Likelihood Subgradient Densities**
+  This appendix dives into the likelihood-subgradient approach for non-Gaussian families. It details how subgradients define tangent envelopes, walks through envelope construction step by step, and explains why this method yields valid acceptance-rejection sampling for log-concave likelihoods.

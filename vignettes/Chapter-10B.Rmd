@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter 10: Informative Priors: Centering and priors with differential prior weights"
+title: "Chapter 10: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 2"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter 10: Informative Priors: Centering and priors with differentiated prior weights}
+  %\VignetteIndexEntry{Chapter 10: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 2}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
