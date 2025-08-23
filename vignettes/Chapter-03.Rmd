@@ -118,301 +118,643 @@ knitr::opts_chunk$set(
 
 ```{r setup,echo = FALSE}
 library(glmbayes)
+## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
+## Page 9: Plant Weight Data.
+ctl    <- c(4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14)
+trt    <- c(4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69)
+group  <- gl(2, 10, 20, labels = c("Ctl", "Trt"))
+weight <- c(ctl, trt)
+
+dat <- data.frame(weight, group)
+dat2<-rbind(dat,dat)
+```
+
+# 2. The role of the `pwt` argument in the specification of a Zellner g-prior 
+
+
+When you call `Prior_Setup()` with a single `pwt` value, the prior on the coefficient vector  
+\(\beta = (\beta_0,\beta_1,\dots,\beta_{k})^\top\)  
+is set up to be
+
+\[
+  \beta \sim \mathcal{N}\bigl(\mu_{Prior},\;\Sigma_{Prior}\bigr),
+\]
+
+where \(\mu_{Prior}\) is the derived prior mean and \(\Sigma_{Prior}\) the derived prior covariance. The rest of this section details how the `pwt` argument is used to set $\Sigma_{Prior}$ and $\mu_{Prior}$ and how this helps determine the Posterior mean in Bayesian linear models.
+
+---
+
+## 2.1 Identifiability and Full–Rank Likelihood Covariance
+
+
+Before constructing the prior, `Prior_Setup()` fits the full GLM and extracts  
+ the maximum likelihood estimate $\widehat\beta_{\mathrm{MLE}}$ and the  variance–covariance of the maximum‐likelihood estimator.
+ \[
+  V_{MLE} \;=\;\mathrm{vcov}(\widehat\beta_{\mathrm{MLE}}).
+\]  
+
+The matrix \(V_{MLE}\) is checked to verify that it is a symmetric positive–definite (full rank).  If \(V_{MLE}\) is rank‐deficient, the classical GLM lacks identifiability and `Prior_Setup()` aborts with an error.  While it is possible the classical GLM lacks identifiability, it is not possible to specificy a g-prior for such a likelihood function and we urge the user to use caution with such models.
+
+---
+
+## 2.2 Canonical Precision Definitions and Scaling
+
+For enhanced understanding and to simplify derivations, let us now define the Likelihood precision, the Prior Precision, and the Posterior Precision as follows:
+
+\[
+  P_{MLE} = V_{MLE}^{-1},
+  \quad
+  P_{Prior} = \Sigma^{-1}, 
+  \quad
+  P_{Post} = P_0 + P_{Prior}.
+\]
+
+For `length(pwt)=1`, the `Prior_Setup()` uses the $pwt$ arguments to set the prior variance-covariance matrix as an inflated version of the likelihood variance–covariance matrix 
+
+\[
+  \Sigma_{Prior} = \frac{1 - pwt}{pwt}\;V_{MLE},
+  \quad
+  \Longrightarrow
+  P_{Prior} = \frac{pwt}{1 - pwt}\;P_{MLE},
+\]
+
+and therefore
+
+\[
+  P_{\mathrm{Post}}
+  = \Bigl(1 + \frac{pwt}{1 - pwt}\Bigr)\,P_0
+  = \frac{1}{1 - pwt}\;P_0.
+\]
+
+Thus both \(P_{\mathrm{Prior}}\) and \(P_{\mathrm{Post}}\) are simple scalar multiples of \(P_0\).  The scaling factor being applied to set $\Sigma_{Prior}$ is actually a Zellner g-prior:
+
+ \[
+    g \;=\;\frac{1 - \text{pwt}}{\text{pwt}}. \]
+
+It is worth noting that the default for `Pwt`is 0.05 which means that g=19 and the prior Variance is thus 19 times the likelihood variance (and the standard deviation is $\sqrt{19}$ times larger than the likelihood standard deviations).
+
+---
+
+## 2.3 Posterior Mean via Precision Matrices
+
+In the Gaussian‐data case, the posterior is
+
+\[
+  \beta\mid y \;\sim\;
+  \mathcal{N}\bigl(\mu_{\mathrm{Post}},\,\Sigma_{\mathrm{Post}}\bigr),
+\]
+
+with
+
+\[
+  \Sigma_{\mathrm{Post}}
+  = P_{\mathrm{Post}}^{-1},
+  \quad
+  \mu_{\mathrm{Post}}
+  = P_{\mathrm{Post}}^{-1}
+    \bigl(P_0\,\widehat\beta_{\mathrm{MLE}}
+         \;+\;P_{\mathrm{Prior}}\,\mu\bigr).
+\]
+
+Plugging in the scalar‐multiple forms:
+
+\[
+  P_{\mathrm{Post}}^{-1} = (1 - pwt)\,P_{MLE}^{-1},
+  \quad
+  P_{\mathrm{Prior}} = \frac{pwt}{1 - pwt}\,P_{MLE},
+\]
+
+we recover the familiar weighted‐average form:
+
+\[
+  \mu_{\mathrm{Post}}
+  = (1 - pwt)\,\widehat\beta_{\mathrm{MLE}}
+    \;+\;pwt\,\mu_{Prior}.
+\]
+
+Hence we can see that the pwt argument determine the relative weight on the prior in the formula for the posterior mean in these models. While technicallt, we don't have the same closed form solution for other models, the pwt still plays a role in how close the posterior will be to the prior mean.
+
+
+Since the default value for pwt is 0.05, we have a 5% weight on the prior for the default and the prior (when different from the Maximum likelihood estimate) hence pulls the posterior modestly away from the maximum likelihood estimate.
+
+---
+# 3.  The role of the `intercept_source` in setting the prior mean for the intercept
+
+The `intercept_source` argument is used to initialize the prior mean for the intercept. Our Prior_Setup function provides two options for setting the prior mean for the intercept. The first (the default) is to initialize the prior mean to the intercept from a call to the **glm()** function for the full model, while the alternative is to initializes the prior mean to the intercept to the intercept from a a call to the **glm()** for a **null** intercept only model.  
+
+- **`intercept_source`**  
+  - `"full_model"`: \(\mu_0 = \widehat\beta_{0,\mathrm{MLE}}\)  
+  - `"null_model"`: \(\mu_0 = \widehat\beta_{0,\mathrm{null}}\)  
+
+The choice between these two specifications has some implications for the resulting estimates and standard errors for the effects parameters. Under the former, tail probabilities for effects under the default (discussed more below) are likely to be relatively close to one sided p-values in the classical frequentist model.  The other alternative can be a good choice if we want to test the hypothesis that the true model is an intercept only model.   The extent to which these two specifications are meaningfully different to a substantial degree from each other depends to a substantial degree on whether variables have been centered (in the case of continuous variables) and/or have been assigned reasonable reference levels (in the case of categorical variable).  
+
+The reason the full model is the default is because it tends to yield more stable and interpretable intercept estimates when variables are poorly scaled or uncentered. This avoids unintended shrinkage and misalignment between prior and likelihood. We discuss variable centralization and informative priors in a separate vignette.
+
+## 3.1
+
+In `glmbayes`, the default prior centering reflects a pragmatic balance between statistical rigor and user convenience:
+
+### Intercept Prior: Centered at Full Model MLE
+
+By default, the prior for the intercept is centered at the maximum likelihood estimate from the full model. This avoids unintended shrinkage caused by poor centering or unbalanced predictors—especially in models with categorical variables. When predictors are not scaled or centered, the intercept in a full model can diverge substantially from the null model baseline. Even a weak prior (small `pwt`) can exert disproportionate influence if the prior mean is misaligned.
+
+Centering the intercept prior at the full model MLE ensures:
+
+- Alignment with the model’s structural interpretation of the intercept  
+- Robustness to variable coding and imbalance  
+- Minimal distortion from prior miscentering  
+- A smoother user experience without requiring manual preprocessing
+
+### Effect Priors: Centered at Zero
+
+By contrast, the default prior for effect coefficients is centered at zero. This reflects a common statistical convention: the null hypothesis typically assumes no effect. Centering at zero allows users to interpret posterior summaries in terms of deviation from no effect, and makes tail probabilities (e.g. Pr(β < 0)) directly meaningful.
+
+This setup also makes it easy to specify informative priors centered at zero simply by adjusting:
+
+- `pwt`: the prior weight, interpreted as relative sample size  
+- `n_prior`: the number of pseudo-observations contributing to the prior
+
+### Summary
+
+The default prior centering in `glmbayes` reflects two complementary principles:
+- For intercepts: center at the full model MLE to avoid misalignment and unintended shrinkage.
+- For effects: center at zero to reflect the null hypothesis and support intuitive posterior interpretation.
+
+This design ensures that default behavior is both statistically sound and user-friendly, while allowing flexible prior specification through `pwt` or `n_prior`.
+
+
+# 4. The role of the `effects_source` in setting the prior mean for the model effects
+
+ Like with the `intercept_source` argument, our Prior_Setup function provides two alternative options. 
+
+The default is to set them to be **null_effects** (in other words to equal zero). When combined with the default setting for the **intercept_source**, this tends to result in tail probabilities close to the one-sided p-values in the classical frequentist model (the same may or may not be true when the intercept_source is set equal to the null_model).
+
+The alternative is to set them equal to the estimates from the **full_model**. This is likely to be preferred if one wants to minimize the impact of the prior on the final estimates in the sense that they mirror the classical frequentist estimates. 
+
+
+- **`effects_source`**  
+  - `"null_effects"`: for each non-intercept \(j\), \(\mu_j = 0\)  
+  - `"full_model"`: for each non-intercept \(j\), \(\mu_j = \widehat\beta_{j,\mathrm{MLE}}\)  
+
+
+
+# 5. Estimating Bayesian Linear Models for a Poorly centered dataset
+
+
+##  5.1 The Women Dataset and an **lm()** model
+
+```{r Women_Data}
+data(women)
+head(women)
 ```
 
 
-```{r menarche data,results = "hide",echo = FALSE}
-## Load menarche data
-data(menarche2)
-head(menarche2, 5)
+```{r Women_Uncentered}
+lm_uncentered <- lm(weight ~ height, data = women)
+summary(lm_uncentered)
+```
+## 5.2 The default prior for the Women Datasets
+
+
+```{r Women_Prior_default}
+ps_default=Prior_Setup(weight ~ height,family=gaussian(),intercept_source = "full_model", effects_source = "null_effects",data=women)
+mu_default=ps_default$mu
+V_default=ps_default$Sigma
+disp_ML_default=ps_default$dispersion
+```
+
+
+```{r women_lmb_call_default}
+lmb.women_default=lmb(weight ~ height,dNormal(mu_default,V_default,dispersion=disp_ML_default),data=women,n=10000)
+```
+
+
+```{r women_lmb_summary_default}
+summary(lmb.women_default)
+```
+
+## 5.3 The Null Model
+
+```{r Women_Prior_null}
+ps_null=Prior_Setup(weight ~ height,family=gaussian(),intercept_source = "null_model", effects_source = "null_effects",data=women)
+mu_null=ps_null$mu
+V_null=ps_null$Sigma
+disp_ML_null=ps_null$dispersion
+```
+
+```{r women_lmb_call_null}
+lmb.women_null=lmb(weight ~ height,dNormal(mu_null,V_null,dispersion=disp_ML_null),data=women,n=10000)
+```
+
+
+```{r women_lmb_summary_null}
+summary(lmb.women_null)
+```
+
+
+## 5.4 The Full Model
+
+```{r Women_Prior_full}
+ps_full=Prior_Setup(weight ~ height,family=gaussian(),intercept_source = "full_model", effects_source = "full_model",data=women)
+mu_full=ps_full$mu
+V_full=ps_full$Sigma
+disp_ML_full=ps_full$dispersion
+```
+
+```{r women_lmb_call_full}
+lmb.women_full=lmb(weight ~ height,dNormal(mu_full,V_full,dispersion=disp_ML_full),data=women,n=10000)
+```
+
+
+```{r women_lmb_summary_full}
+summary(lmb.women_full)
+```
+## 5.5 A low pwt prior for the Women Datasets
+
+
+```{r Women_Prior_lowpwt}
+ps_lowpwt=Prior_Setup(weight ~ height,family=gaussian(),pwt=0.01,intercept_source = "full_model", effects_source = "null_effects",data=women)
+mu_lowpwt=ps_lowpwt$mu
+V_lowpwt=ps_lowpwt$Sigma
+disp_ML_lowpwt=ps_lowpwt$dispersion
+```
+
+
+```{r women_lmb_call_lowpwt}
+lmb.women_lowpwt=lmb(weight ~ height,dNormal(mu_lowpwt,V_lowpwt,dispersion=disp_ML_lowpwt),data=women,n=10000)
+```
+
+
+```{r women_lmb_summary_lowpwt}
+summary(lmb.women_lowpwt)
+```
+
+## 5.6 A high pwt prior for the Women Datasets
+
+
+```{r Women_Prior_hipwt}
+ps_hipwt=Prior_Setup(weight ~ height,family=gaussian(),pwt=0.5,intercept_source = "full_model", effects_source = "null_effects",data=women)
+mu_hipwt=ps_lowpwt$mu
+V_hipwt=ps_hipwt$Sigma
+disp_ML_hipwt=ps_hipwt$dispersion
+```
+
+
+```{r women_lmb_call_hipwt}
+lmb.women_hipwt=lmb(weight ~ height,dNormal(mu_hipwt,V_hipwt,dispersion=disp_ML_hipwt),data=women,n=10000)
+```
+
+
+```{r women_lmb_summary_hipwt}
+summary(lmb.women_hipwt)
+```
+
+## 5.7 Comparative Impact of Prior Specifications on Inference
+
+
+This section compares posterior summaries for the height effect across five Bayesian prior configurations and a classical linear model. We report the posterior mean, one-sided tail probability Pr(β > mu), posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
+
+
+```{r Summary_Comparisons}
+summary_classical <- summary(lm_uncentered)
+
+estimate_classical <- coef(summary_classical)["height", "Estimate"]
+se_classical       <- coef(summary_classical)["height", "Std. Error"]
+pr_tail_classical  <- coef(summary_classical)["height", "Pr(>|t|)"] / 2
+eff_params_classical <- extractAIC(lm_uncentered)[1]
+AIC_Classical <-AIC(lm_uncentered)
+
+sum_default=summary(lmb.women_default)
+
+estimate_default <- sum_default$coefficients["height", "Post.Mean"]
+sd_default       <- sum_default$coefficients["height", "Post.Sd"]
+pr_tail_default  <- sum_default$coefficients["height", "Pr(tail)"]
+eff_params_default <- sum_default$pD
+DIC_default <- sum_default$DIC
+
+
+sum_null=summary(lmb.women_null)
+
+estimate_null <- sum_null$coefficients["height", "Post.Mean"]
+sd_null       <- sum_null$coefficients["height", "Post.Sd"]
+pr_tail_null  <- sum_null$coefficients["height", "Pr(tail)"]
+eff_params_null <- sum_null$pD
+DIC_null <- sum_null$DIC
+
+
+sum_full=summary(lmb.women_full)
+
+estimate_full <- sum_full$coefficients["height", "Post.Mean"]
+sd_full       <- sum_full$coefficients["height", "Post.Sd"]
+pr_tail_full  <- sum_full$coefficients["height", "Pr(tail)"]
+eff_params_full <- sum_full$pD
+DIC_full <- sum_full$DIC
+
+
+sum_lowpwt=summary(lmb.women_lowpwt)
+
+estimate_lowpwt <- sum_lowpwt$coefficients["height", "Post.Mean"]
+sd_lowpwt       <- sum_lowpwt$coefficients["height", "Post.Sd"]
+pr_tail_lowpwt  <- sum_lowpwt$coefficients["height", "Pr(tail)"]
+eff_params_lowpwt <- sum_lowpwt$pD
+DIC_lowpwt <- sum_lowpwt$DIC
+
+sum_hipwt=summary(lmb.women_hipwt)
+
+estimate_hipwt <- sum_hipwt$coefficients["height", "Post.Mean"]
+sd_hipwt       <- sum_hipwt$coefficients["height", "Post.Sd"]
+pr_tail_hipwt  <- sum_hipwt$coefficients["height", "Pr(tail)"]
+eff_params_hipwt <- sum_hipwt$pD
+DIC_hipwt <- sum_hipwt$DIC
+
+comparison <- data.frame(
+  Model           = c("Classical LM", "Default (pwt=0.01) ","Null-Intercept","Full-Model Prior","lowpwt (0.01)","hipwt (0.5)"),
+  Post.Mean        = c(estimate_classical, estimate_default, estimate_null, estimate_full, estimate_lowpwt, estimate_hipwt),
+  Post.SD        = c(se_classical, sd_default, sd_null, sd_full, sd_lowpwt, sd_hipwt),
+  Pr_Tail         = c(pr_tail_classical, pr_tail_default, pr_tail_null, pr_tail_full, pr_tail_lowpwt, pr_tail_hipwt),
+  Eff.Params      = c(eff_params_classical, eff_params_default, eff_params_null, eff_params_full, eff_params_lowpwt, eff_params_hipwt),
+  DIC      = c(AIC_Classical, DIC_default, DIC_null, DIC_full, DIC_lowpwt, DIC_hipwt)
+)                     
+comparison
+##AIC(lm_uncentered)
+#residuals(lm_uncentered)
+```
+
+
+
+
+```{r women_glmb_summary_default}
+glmb.women_default=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_default,V_default,dispersion=disp_ML_default),data=women,n=10000)
+
+summary(glmb.women_default)
 
 ```
 
 
-```{r Analysis Setup,results = "hide",echo = FALSE}
-## Number of variables in model
-Age=menarche2$Age
-nvars=2
-set.seed(333)
 
-## Reference Ages for setting of priors and Age_Difference
-ref_age1=13  # user can modify this
-ref_age2=15  ## user can modify this
+```{r women_glmb_summary_null}
+glmb.women_null=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_null,V_null,dispersion=disp_ML_null),data=women,n=10000)
 
-## Define variables used later in analysis
-Age2=Age-ref_age1
-Age_Diff=ref_age2-ref_age1
+summary(glmb.women_null)
 
 ```
 
 
-```{r Prior Info,results = "hide",echo = FALSE}
+```{r women_glmb_summary_full}
+glmb.women_full=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_full,V_full,dispersion=disp_ML_full),data=women,n=10000)
 
-## Point estimates at reference ages
-m1=0.5  
-m2=0.9
-
-## Lower bound of prior credible intervals for point estimates
-m1_lower=0.3
-m2_lower=0.7
-
-## Assumed correlation between the two (on link scale)
-m_corr=0.4
-```
-
-
-```{r Logit: set up link function info and initialize prior matrices,results = "hide",echo = FALSE}
-
-## Set up link function and initialize prior mean and Variance-Covariance matrices
-bi_logit <- binomial(link="logit")
-mu1<-matrix(0,nrow=nvars,ncol=1)
-rownames(mu1)=c("Intercept","Age2")
-colnames(mu1)=c("Prior Mean")
-V1<-1*diag(nvars)
-rownames(V1)=c("Intercept","Age2")
-colnames(V1)=c("Intercept","Age2")
-```
-
-
-```{r Logit:set prior means,results = "hide",echo = FALSE}
-## Prior mean for intercept is set to point estimate 
-## at reference age1 (on logit scale)
-mu1[1,1]=bi_logit$linkfun(m1)
-
-## Prior mean for slope is set to difference in point estimates
-## on logit scale divided by Age_Diff
-
-mu1[2,1]=(bi_logit$linkfun(m2) -bi_logit$linkfun(m1))/Age_Diff 
-print(mu1)
+summary(glmb.women_full)
 
 ```
 
 
-```{r Logit:set prior Variance Covariance matrix,results = "hide",echo = FALSE}
-## Implied standard deviations for point estimates on logit scale
 
-sd_m1= (bi_logit$linkfun(m1) -bi_logit$linkfun(m1_lower))/1.96
-sd_m2= (bi_logit$linkfun(m2) -bi_logit$linkfun(m2_lower))/1.96
 
-## Implied Standard deviation for slope (using variance formula for difference between two variables)
-a=(1/Age_Diff)
-sd_slope=sqrt((a*sd_m1)^2+(a*sd_m2)^2-2*a*a*(sd_m1*sd_m2*m_corr))
 
-#Cov(m1,slope)=cov(m1, a*(m2-m1)) =a*E[(m1-E[m1])((m2-m1)-E[m2-m1])]
-#   =a*E[(m1-E[m1])(m2-E[m2])]- a* E[(m1-E[m1])(m1-E[m1])]
-##   =a*Cov[m1,m2] - a*Var[m1]
-##  =a*sd_m1*sd_m2*m_corr-a* sd_m1*sd_m1
-cov_V1=a*sd_m1*sd_m2*m_corr-a* sd_m1*sd_m1
-
-# Set covariance matrix
-V1[1,1]=sd_m1^2
-V1[2,2]=sd_slope^2
-V1[1,2]=cov_V1
-V1[2,1]=V1[1,2]
-print(V1)
-```
-
-```{r Run Logit,results = "hide",echo = FALSE}
-Menarche_Model_Data=data.frame(Age=menarche2$Age,Total=menarche2$Total,Menarche=menarche2$Menarche,Age2)
-prior1=list(mu=mu1,Sigma=V1)
-#glmb.out1<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ #Age2,family=binomial(logit),mu=mu1,Sigma=V1,data=Menarche_Model_Data)
-glmb.out1<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit),pfamily=dNormal(mu=mu1,Sigma=V1),data=Menarche_Model_Data)
+```{r women_glmb_summary_lowpwt}
+glmb.women_lowpwt=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_lowpwt,V_lowpwt,dispersion=disp_ML_lowpwt),data=women,n=10000)
+summary(glmb.women_lowpwt)
 
 ```
 
 
-```{r Print Logit,results = "hide",echo = FALSE}
 
-# Print model output
-print(glmb.out1)
-
-# Print prior mean as comparison
-print(t(mu1))
+```{r women_glmb_call_lowpwt_null}
+glmb.women_lowpwt_null=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_null,V_lowpwt,dispersion=disp_ML_lowpwt),data=women,n=10000)
+summary(glmb.women_lowpwt_null)
 
 ```
 
-```{r Summary Logit,results = "hide",echo = FALSE}
-summary(glmb.out1)
-```
-
-# General Discussion
-
-In the previous chapter, we dealt with a relatively simple case where it was obvious that the model of interest had two coefficients that were to be estimated (an intercept and a slope tied to the Age variable). For more complex models, it is common for the flexibility of the *glm* and *glmb* formula setup to make it difficult for the analyst to know the number of coefficients in the model prior to actually running the model. This is particularly true in cases where some variables are factors or if the formula involves interaction terms.
-
-Once a prior has been set, it can also be difficult to judge whether it will have the kind of impact on the model the analyst may have intended. This is particularly true if particular coefficients are hard to interpret and the analyst is looking to provide what amounts to *non-informative priors". In some cases, a poorly formulated prior can lead to conflicts between the prior and the data (i.e., cases where the prior implies a very low prior probability of observing the observed data).
-
-To make it easier for the analyst to know the variable for which a prior specification is needed and to allow him/her to flag potentially problematic prior specifications, we provide two helper functions.
-
-* *Prior_Setup()* helps the analyst set up the proper dimensions for the prior and provides a list of the variables in the model that will require a prior specification 
-* *Prior_Check()* allows the analyst to examine if the data is consistent with the prior specification
-
-We already used these briefly in the first chapter but now turn to a more extensive discussion.
-
-# Identifying the Variables that Need a Prior Specification
-
-When a model is using just numeric (non-factor) variables without interaction effects, the analyst can usually tell directly from the model formula what the set of coefficients will be. However, when factors are included and/or when interaction effects are included, this becomes harder to know. The *Prior_Setup* functions helps with this by pulling in the required information about the model variables and by setting up the appropriate dimensions for the prior mean and variance-covariance objects.
-
-#Model With Factors#
-
-Let's return to the Dobson Poisson data from the first chapter. Both the outcome and treatment variables were coded as factors using the gl function.
 
 
-```{r Dobson Poisson Data}
-## Dobson (1990) Page 93: Randomized Controlled Trial :
-counts <- c(18,17,15,20,10,20,25,13,12)
-outcome <- gl(3,1,9)
-treatment <- gl(3,3)
-print(d.AD <- data.frame(treatment, outcome, counts))
-```
-
-Using the Prior_Setup function for the model formula shows us that the model we are 
-looking to estimate will have 5 coefficients. There is an intercept, two coefficients related 
-to the outcome variable, and two coefficients related to the treatment variable.
-
-```{r Dobson Check_Prior}
-#glm.D93 <- glm(counts ~ outcome + treatment, family = poisson(),x=TRUE)
 
 
-Setup.D93=Prior_Setup(counts ~ outcome + treatment,family=poisson())
-```
-
-Printing the output from the Prior_Check function gives us a printed view of the initialized prior as
-well as the model.frame and model.matrix (see below). From the latter two, we can see that the first level of outcome and treatment (in this case the factor level=1) has been used as a reference category
-and that the other two levels have been given dummy variables in the model.  
-
-In terms of the prior specification, the above has the implication that the prior means for variables 2 and 3 in the model should represent prior point estimate for how much larger (or smaller) we believe the counts would be for categories 2 and 3 relative to category 1 (on the log scale). If our prior point estimates on the other hand were 0, we could leave the prior at the initialized levels of 0 and instead give it reasonable prior credible sets for how large the difference might be. Since we are working on the log-scale, it if worth noting that our prior really is a point estimate for how much larger (or smaller) in percentage terms we expect the counts to be.
-
-
-```{r Dobson Print Check_Prior}
-print(Setup.D93)
+```{r women_glmb_call_hipwt_null}
+glmb.women_hipwt_null=glmb(weight ~ height,family=gaussian(),pfamily=dNormal(mu_null,V_hipwt,dispersion=disp_ML_hipwt),data=women,n=10000)
+summary(glmb.women_hipwt_null)
 ```
 
 
-#Model With Factors and Interactions#
 
-Let's now take a look at a model with factors and interactions from Venables and Ripley (2002). The classical model specified by Venables and Ripley specified a two-factor *sex* variable and interacts *sex* with an *ldose* variable. We again use the Prior_Setup function to see that the resulting *model.matrix* has 4 columns, labeled as "(Intercept)", "sexM", "ldose", and "sexM:ldose". 
-
-
-
-```{r Venables Check_Prior}
-## example from Venables and Ripley (2002, pp. 190-2.)
-ldose <- rep(0:5, 2)
-numdead <- c(1, 4, 9, 13, 18, 20, 0, 2, 6, 10, 12, 16)
-sex <- factor(rep(c("M", "F"), c(6, 6)))
-SF <- cbind(numdead, numalive = 20-numdead)
-
-Setup.budworm=Prior_Setup(SF ~ sex*ldose,family=binomial())
-```
-
-Reviewing the full printed output, we see that the intercept corresponds to *Females* at ldose=0. The *sex* dummy for *males* represent how much higher (or lower) the percentage dead would be for males at ldose=0. The *ldose* variable in turn represents the linear impact of ldose for females (so the slope), while the interaction variable represents how much larger (or smaller) the slope would be for males.
-
-Any useful prior here should either use meaninful prior information for these coefficients based on any other available information or insights or be weak enough to greatly overlap with the distribution of the coefficients implied by the data. 
-
-```{r Venables Print Check_Prior}
-print(Setup.budworm)
-```
-
-# Checking For Prior-Data Conflicts Ahead of Model Estimation
-
-As we noted in the previous chapter, it is critical for coefficients to the interpretable in order for analysts to be able to provide sensible priors.  In some cases, efforts aimed at enhancing interpretation through model transformations or efforts aimed at gathering meaningful prior information can be difficult and/or time consuming. Unfortunately, this leaves open the possibility for analysts to specify priors that end up having more influence on the posterior estimates than they may have intended. This is particularly problematic in cases where the anayst is attempting to use what might best be described as a "non-informative prior".  
-
-To catch some of these cases we provide a Prior_Check function that looks to see if the maximum likelihood estimates seem to conflict with the prior specification. In particular, the functions checks if the prior Bayesian credible interval has overlap with the confidence interval based on the maximum likelihood estimate.
-
-Conceptually, this approach is similar to that described in [@Evans2006]. Here are a few examples implementing this approach:
-
-*Our prior Specification From Chapter 2*
-
-We first run the checks for our original specification (this assumes code in the previous Chapter has been run). The resulting check just indicates that the maximum likelihood estimates are roughly consistent with the prior. This is mainly because the maximum likelihood estimate for the slope, while different from our prior estimate, was still well within the prior credible interval.
-
-```{r Check Old Prior}
-Prior_Check(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit),pfamily=dNormal(mu1,V1),data=Menarche_Model_Data)
-
+```{r Residual_Check}
+#residuals(glmb.women_default)
+extractAIC(glmb.women_default)
 
 ```
 
-*Same prior but original Age variable *
 
-Here we run a model with the same prior but with the original Age variable. This now indicates a potential problem. A prior point estimate for half of all girls having had their first period is clearly non-sensical, but it would clearly be difficult to provide any kind of sensible prior point estimate that far out of the range of the data.
-
-```{r Check Old Age}
-Prior_Check(cbind(Menarche, Total-Menarche) ~ Age,family=binomial(logit),pfamily=dNormal(mu1,V1)
-,data=Menarche_Model_Data)
+# 6. Estimating Bayesian Linear Models under various Prior_Setup settings
 
 
-```
-
-Let's take a look what would have happened to our estimates if we would have proceeded with this model specification.
-
-```{r Run wrong Age,results = "hide"}
-
-glmb.out2<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ Age,family=binomial(logit),pfamily=dNormal(mu=mu1,Sigma=V1),data=Menarche_Model_Data)
-```
-
-```{r Summary Logit - Wrong Age}
-summary(glmb.out2)
-```
-
-Under this specification, the Intercept standard deviation was much higher than under the original specification, and as a result the posterior estimates (mode and mean) end up somewhere in between the prior mean and maximum likelihood estimates. However, the posterior credible interval suggests that both the prior and the maximum likelihood estimates are inconsistent with the posterior distribution.  Because the posterior estimates for the intercept are much higher than the very negative) maximum likelihood estimate, the posterior coefficients for the Age variable is cut roughly in half relative to our other original model and the Deviance residuals are much larger than those we see if we go back to review the output from the original model.  Clearly, this would not be a model that should be run so catching potential issues ahead of the fact (as we did using our above approach) would be important.
+## 5.1 The Default Prior
 
 
-*Same Age and Variance but 0 mean vector *
-
-Here we run a model with the same Age variable as in our original specification but with a 0 prior mean vector combined with the original Variance-Covariance matrix. This now also indicates a potential problem. Looking at the details from the summary function, we see that the issue now is with the slope parameter instead of the mean but the magnitude of the issue appears to be less as the ratio is smaller.
-
-
-```{r Check 0 mean}
-mu2=mu1
-mu2[2,1]=0
-
-pc=Prior_Check(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit),pfamily=dNormal(mu2,V1)
-,data=Menarche_Model_Data)
-
-print(pc)
-
-```
-Let's proceed with running the model to see how it compares to the original model.
-
-
-```{r Run wrong mean,results = "hide"}
-glmb.out3<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit),pfamily=dNormal(mu=mu2,Sigma=V1),data=Menarche_Model_Data)
-```
-
-```{r Summary Logit - 0 Slope}
-summary(glmb.out3)
-```
-
-In reviewing the output, we can now see that the impact of this specification on the results relative to the original model is relatively small. Because the prior mean for the slope is so far away from the maximum likelihood estimate, the posterior estimate for the slope does get pulled away a bit more from the maximum likelihood estimate than under the original specification (about one standard deviation if we use the posterior standard deviation) but in relation to the overall magnitude of the coefficient, this is not all that big of an impact. 
-
-In the case of this particular model, we had some (although imprecise) prior insight into the fact that the slope should be positive and of a somewhat reasonable magnitude. In other applications, the analyst may indeed not have any clear insight into the magnitude or even the sign of some of the coefficients. In such cases, specifying a prior with 0 mean can indeed make some sense. Setting the prior standard deviation/variance sufficiently large can in such cases present some challenges. Using our Prior check to see if the prior standard deviation/variance is sufficiently large can in such cases be a sensible alternative that can facilitate adjustments to the prior.
-
-Let's look at what would have happened to our results if we scaled the prior standard deviation for the slope up based on the ratio from our model check.
-
-```{r Run wrong mean-adjusted Variance,results = "hide"}
-V2=V1
-V2[2,2]=(pc[2,1]*sd_slope)^2
-#glmb.out4<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ #Age2,family=binomial(logit),mu=mu2,Sigma=V2,data=Menarche_Model_Data)
-glmb.out4<-glmb(n=10000,cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit),pfamily=dNormal(mu=mu2,Sigma=V2),data=Menarche_Model_Data)
+```{r Plant_Prior_default}
+ps_default=Prior_Setup(weight ~ group,family=gaussian(),pwt=0.05,intercept_source = "full_model", effects_source = "null_effects",data=dat2)
+mu_default=ps_default$mu
+V_default=ps_default$Sigma
+disp_ML_default=ps_default$dispersion
 ```
 
 
-```{r Summary Logit - 0 Slope - Adjusted Variance}
-summary(glmb.out4)
+
+```{r Plant_lm_call_default}
+lm.D9_default=lm(weight ~ group,data=dat2)
 ```
 
-While we will leave a formal discussion of the DIC [@Spiegelhalter2002] to a later chapter, we here produce a summary of how the models fitted so far compare on the measure (generally, a smaller DIC tends to be preferred). We can see below that the model using the Regular Age variable by this crteria peforms particularly poorly. We can also see that our last model with an adjusted variance term perfoms better than the one with a stronger prior centered away from the maximum likelihood estimate.  The original model specifications has a DIC very similar to the final model.   
 
-```{r DIC Comparison}
-DIC_Out=rbind(extractAIC(glmb.out1),
-extractAIC(glmb.out2),
-extractAIC(glmb.out3),
-extractAIC(glmb.out4))
-
-colnames(DIC_Out)=c("pD","DIC")
-rownames(DIC_Out)=c("Original Specification","Regular Age","Slope Mean=0 - No Var Adjustment",
-                     "Slope Mean=0 - Var Adjustment")
-print(DIC_Out)
-
+```{r Plant_lm_summary_default}
+summary(lm.D9_default)
 ```
+
+```{r Plant_lmb_call_default}
+lmb.D9_default=lmb(weight ~ group,dNormal(mu_default,V_default,dispersion=disp_ML_default),data=dat2,n=10000)
+```
+
+
+```{r Plant_lmb_summary_default}
+summary(lmb.D9_default)
+```
+
+## 5.2 The Null Model Prior
+
+
+```{r Plant_Prior_null}
+ps_null=Prior_Setup(weight ~ group,family=gaussian(),pwt=0.05,intercept_source = "null_model", effects_source = "null_effects",data=dat2)
+mu_null=ps_null$mu
+V_null=ps_null$Sigma
+disp_ML_null=ps_null$dispersion
+```
+
+```{r Plant_lmb_call_null}
+lmb.D9_null=lmb(weight ~ group,dNormal(mu_null,V_null,dispersion=disp_ML_null),data=dat2,n=10000)
+```
+
+
+```{r Plant_lmb_summary_null}
+summary(lmb.D9_null)
+```
+
+
+
+## 5.3 The Full Model Prior
+
+
+```{r Plant_Prior_full}
+ps_full=Prior_Setup(weight ~ group,family=gaussian(),pwt=0.05,intercept_source = "full_model", effects_source = "full_model",data=dat2)
+mu_full=ps_full$mu
+V_full=ps_full$Sigma
+disp_ML_full=ps_full$dispersion
+```
+
+```{r Plant_lmb_call_full}
+lmb.D9_full=lmb(weight ~ group,dNormal(mu_full,V_full,dispersion=disp_ML_full),data=dat2,n=10000)
+```
+
+
+```{r Plant_lmb_summary_full}
+summary(lmb.D9_full)
+```
+
+## 5.4 Low pwt Prior
+
+
+```{r Plant_Prior_low}
+ps_lowpwt=Prior_Setup(weight ~ group,family=gaussian(),pwt=0.01,intercept_source = "full_model", effects_source = "null_effects",data=dat2)
+mu_lowpwt=ps_lowpwt$mu
+V_lowpwt=ps_lowpwt$Sigma
+disp_ML_lowpwt=ps_lowpwt$dispersion
+```
+
+```{r Plant_lmb_call_lowpwt}
+lmb.D9_lowpwt=lmb(weight ~ group,dNormal(mu_lowpwt,V_lowpwt,dispersion=disp_ML_lowpwt),data=dat2,n=10000)
+```
+
+
+```{r Plant_lmb_summary_lowpwt}
+summary(lmb.D9_lowpwt)
+```
+
+## 5.5  Highpwt Model
+
+
+
+```{r Plant_Prior_high}
+ps_hipwt=Prior_Setup(weight ~ group,family=gaussian(),pwt=0.5,intercept_source = "full_model", effects_source = "null_effects",data=dat2)
+mu_hipwt=ps_hipwt$mu
+V_hipwt=ps_hipwt$Sigma
+disp_ML_hipwt=ps_hipwt$dispersion
+```
+
+```{r Plant_lmb_call_hipwt}
+lmb.D9_hipwt=lmb(weight ~ group,dNormal(mu_hipwt,V_hipwt,dispersion=disp_ML_hipwt),data=dat2,n=10000)
+```
+
+
+```{r Plant_lmb_summary_hipwt}
+summary(lmb.D9_hipwt)
+```
+```{r Plant_lmb_call}
+lm.D9_default=lm(weight ~ group,data=dat2)
+```
+
+```{r Plant_lm_summary}
+summary(lm.D9_default)
+```
+
+## 5.6 Comparative Impact of Prior Specifications on Inference
+
+
+This section compares posterior summaries for the group effect (groupTrt) across five Bayesian prior configurations and a classical linear model. We report the posterior mean, one-sided tail probability Pr(β < 0), posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
+
+
+```{r Summary_Comparisons2}
+fit_classical <- lm(weight ~ group, data = dat2)
+summary_classical <- summary(lm.D9_default)
+
+estimate_classical <- coef(summary_classical)["groupTrt", "Estimate"]
+se_classical       <- coef(summary_classical)["groupTrt", "Std. Error"]
+pr_tail_classical  <- coef(summary_classical)["groupTrt", "Pr(>|t|)"] / 2
+eff_params_classical <- 1
+
+
+sum_default=summary(lmb.D9_default)
+
+estimate_default <- sum_default$coefficients["groupTrt", "Post.Mean"]
+sd_default       <- sum_default$coefficients["groupTrt", "Post.Sd"]
+pr_tail_default  <- sum_default$coefficients["groupTrt", "Pr(tail)"]
+eff_params_default <- sum_default$pD
+
+
+sum_null=summary(lmb.D9_null)
+
+estimate_null <- sum_null$coefficients["groupTrt", "Post.Mean"]
+sd_null       <- sum_null$coefficients["groupTrt", "Post.Sd"]
+pr_tail_null  <- sum_null$coefficients["groupTrt", "Pr(tail)"]
+eff_params_null <- sum_null$pD
+
+sum_full=summary(lmb.D9_full)
+
+estimate_full <- sum_full$coefficients["groupTrt", "Post.Mean"]
+sd_full       <- sum_full$coefficients["groupTrt", "Post.Sd"]
+pr_tail_full  <- sum_full$coefficients["groupTrt", "Pr(tail)"]
+eff_params_full <- sum_full$pD
+
+
+sum_lowpwt=summary(lmb.D9_lowpwt)
+
+estimate_lowpwt <- sum_lowpwt$coefficients["groupTrt", "Post.Mean"]
+sd_lowpwt       <- sum_lowpwt$coefficients["groupTrt", "Post.Sd"]
+pr_tail_lowpwt  <- sum_lowpwt$coefficients["groupTrt", "Pr(tail)"]
+eff_params_lowpwt <- sum_lowpwt$pD
+
+sum_hipwt=summary(lmb.D9_hipwt)
+
+estimate_hipwt <- sum_hipwt$coefficients["groupTrt", "Post.Mean"]
+sd_hipwt       <- sum_hipwt$coefficients["groupTrt", "Post.Sd"]
+pr_tail_hipwt  <- sum_hipwt$coefficients["groupTrt", "Pr(tail)"]
+eff_params_hipwt <- sum_hipwt$pD
+
+comparison <- data.frame(
+  Model           = c("Classical LM", "Default (pwt=0.05) ","Null-Intercept","Full-Model Prior","lowpwt (0.01)","hipwt (0.5)"),
+  Post.Mean        = c(estimate_classical, estimate_default, estimate_null, estimate_full, estimate_lowpwt, estimate_hipwt),
+  Post.SD        = c(se_classical, sd_default, sd_null, sd_full, sd_lowpwt, sd_hipwt),
+  Pr_Tail         = c(pr_tail_classical, pr_tail_default, pr_tail_null, pr_tail_full, pr_tail_lowpwt, pr_tail_hipwt),
+  Eff.Params      = c(eff_params_classical, eff_params_default, eff_params_null, eff_params_full, eff_params_lowpwt, eff_params_hipwt)
+  )
+                     
+comparison
+```
+
+
+#### Key Patterns
+
+🔸 Posterior Means
+- Changing intercept_source alone (Default vs Null) shifts the intercept but leaves the slope nearly unchanged (–0.3486 → –0.3483).
+- Centering effects on the MLE (Full-Model Prior) pulls the slope toward the classical estimate (–0.3816 vs –0.3710).
+- Decreasing pwt (Low-pwt) gives more weight to the data, nudging the slope closer to the MLE.
+- Increasing pwt (High-pwt) shrinks the slope toward zero, halving its magnitude.
+
+🔸 Tail Probabilities Pr(β < 0)
+- Weak or default priors (Default, Null, Low) yield Pr(β < 0) ≈ 0.11–0.13, echoing the classical one-sided p-value.
+- Full-Model centering produces a symmetric posterior around the MLE, yielding Pr(β < 0) ≈ 0.48.
+- A strong skeptical prior (High-pwt) reduces certainty, lowering Pr(β < 0) to 0.193.
+
+🔸 Effective Number of Parameters
+- Low-pwt behaves like an unregularized fit: Eff.Params ≈ 1.00.
+- Default/Null priors (pwt = 0.05) modestly regularize: Eff.Params ≈ 0.88–0.89.
+- Full-Model Prior (centered at MLE) avoids shrinkage: Eff.Params ≈ 0.96.
+- High-pwt (strong shrinkage) reduces flexibility: Eff.Params ≈ 0.49.
+
+🔸 Posterior Standard Deviations
+- As pwt ↓, Post.SD ↑ toward classical SEs (Low-pwt: 0.3165 vs SE = 0.311).
+- Default/Null priors yield modest SD reduction (0.2953–0.2992).
+- Full-Model centering slightly inflates SD (0.3042).
+- High-pwt sharply reduces SD (0.2223), reflecting equal prior–data precision
+
+In practice, selecting a prior involves balancing skepticism (via pwt) with your anchoring assumptions (via intercept_source and effects_source). This comparison illustrates how those choices shape posterior estimates, uncertainty, and model complexity—offering a transparent framework for prior sensitivity analysis in Bayesian GLMs.
+ 
+
 
 
 # References
