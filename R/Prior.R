@@ -188,8 +188,6 @@ Prior_Setup<-function(formula,data=NULL,family=gaussian(),pwt=0.01 ,
   rownames(Sigma)=var_names
   colnames(Sigma)=var_names
   
-  print("Variable names are:")
-  print(var_names)
   return(list(mu=mu,Sigma=Sigma,dispersion=dispersion,model=mf,x=x))    
   
 }

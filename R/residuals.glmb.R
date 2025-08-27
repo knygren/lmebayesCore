@@ -21,39 +21,23 @@ residuals.glmb<-function(object,ysim=NULL,...)
   ## Updated to use prior.weights - likely matters for binomial data
   ## Need to verify this performs as expected
   wts <- object$prior.weights
-
+  
   
   fitted.values<-object$fitted.values
   dev.residuals<-object$family$dev.resids
   DevRes<-matrix(0,nrow=n,ncol=length(y))
-  ### Adjustment for Gaussian 08/22/25
   
-  ##for(i in 1:n)
-  ##{
-  ##  if(is.null(ysim))    DevRes[i,]<-sign(y-fitted.values[i,])*sqrt(dev.residuals(y,fitted.values[i,],wts))
-  ##  else(DevRes[i,]<-sign(ysim[i,]-fitted.values[i,])*sqrt(dev.residuals(ysim[i,],fitted.values[i,],wts)))
-  ##}
-  
-  for (i in 1:n) {
-    if (object$family$family == "gaussian") {
-      if (is.null(ysim)) {
-        DevRes[i, ] <- (y - fitted.values[i, ]) / sqrt(object$dispersion)
-      } else {
-        DevRes[i, ] <- (ysim[i, ] - fitted.values[i, ]) / sqrt(object$dispersion)
-      }
-    } else {
-      if (is.null(ysim)) {
-        DevRes[i, ] <- sign(y - fitted.values[i, ]) * sqrt(dev.residuals(y, fitted.values[i, ], wts))
-      } else {
-        DevRes[i, ] <- sign(ysim[i, ] - fitted.values[i, ]) * sqrt(dev.residuals(ysim[i, ], fitted.values[i, ], wts))
-      }
-    }
+  for(i in 1:n)
+  {
+    if(is.null(ysim))    DevRes[i,]<-sign(y-fitted.values[i,])*sqrt(dev.residuals(y,fitted.values[i,],wts))
+    else(DevRes[i,]<-sign(ysim[i,]-fitted.values[i,])*sqrt(dev.residuals(ysim[i,],fitted.values[i,],wts)))
   }
-  
   
   colnames(DevRes)<-names(y)
   DevRes
 }
+
+
 
 #' @rdname residuals.glmb
 #' @export 
