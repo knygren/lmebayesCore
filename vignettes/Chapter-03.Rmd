@@ -374,7 +374,17 @@ V_full=ps_full$Sigma
 disp_ML_full=ps_full$dispersion
 lmb.women_full_midpwt=lmb(weight ~ height,dNormal(mu_full,V_full,dispersion=disp_ML_full),data=women,n=10000)
 
-summary(lmb.women_full_midpwt)
+
+```
+
+```{r Women_Prior_full_hipwt}
+ps_full=Prior_Setup(weight ~ height,family=gaussian(),pwt=0.5,intercept_source = "full_model", effects_source = "full_model",data=women)
+mu_full=ps_full$mu
+V_full=ps_full$Sigma
+disp_ML_full=ps_full$dispersion
+lmb.women_full_hipwt=lmb(weight ~ height,dNormal(mu_full,V_full,dispersion=disp_ML_full),data=women,n=10000)
+
+
 ```
 
 ## 5.4 The "Control" prior
@@ -491,6 +501,24 @@ pr_tail_full  <- sum_full$coefficients["height", "Pr(tail)"]
 eff_params_full <- sum_full$pD
 DIC_full <- sum_full$DIC
 
+sum_full_midpwt=summary(lmb.women_full_midpwt)
+
+intercept_full_midpwt <- coef(sum_full_midpwt)["(Intercept)", "Post.Mean"]
+estimate_full_midpwt <- sum_full_midpwt$coefficients["height", "Post.Mean"]
+sd_full_midpwt       <- sum_full_midpwt$coefficients["height", "Post.Sd"]
+pr_tail_full_midpwt  <- sum_full_midpwt$coefficients["height", "Pr(tail)"]
+eff_params_full_midpwt <- sum_full_midpwt$pD
+DIC_full_midpwt <- sum_full_midpwt$DIC
+
+sum_full_hipwt=summary(lmb.women_full_hipwt)
+
+intercept_full_hipwt <- coef(sum_full_hipwt)["(Intercept)", "Post.Mean"]
+estimate_full_hipwt <- sum_full_hipwt$coefficients["height", "Post.Mean"]
+sd_full_hipwt       <- sum_full_hipwt$coefficients["height", "Post.Sd"]
+pr_tail_full_hipwt  <- sum_full_hipwt$coefficients["height", "Pr(tail)"]
+eff_params_full_hipwt <- sum_full_hipwt$pD
+DIC_full_hipwt <- sum_full_hipwt$DIC
+
 
 sum_midpwt=summary(lmb.women_midpwt)
 
@@ -512,13 +540,13 @@ DIC_hipwt <- sum_hipwt$DIC
 
 
 comparison <- data.frame(
-  Model           = c("Classical LM Null","Classical LM", "Null Model Prior (pwt=0.01)","Null Model Prior (pwt=0.05)","Null Model Prior (pwt=0.5)","Full-Model Prior  (pwt=0.01)","Control Prior (pwt=0.01) ","Control Prior (pwt=0.05)","Control Prior (pwt=0.5)"),
-  Post.Intercept_Mean        = c(intercept_classical_null,intercept_classical, intercept_null,intercept_null_midpwt,intercept_null_hipwt, intercept_full, intercept_default, intercept_midpwt, intercept_hipwt),
-    Post.Mean        = c(estimate_classical_null,estimate_classical,  estimate_null,estimate_null_midpwt,estimate_null_hipwt, estimate_full, estimate_default,estimate_midpwt, estimate_hipwt),
-  Post.SD        = c(se_classical_null,se_classical, sd_null,sd_null_midpwt, sd_null_hipwt,sd_full,  sd_default,sd_midpwt, sd_hipwt),
-  Pr_Tail         = c(pr_tail_classical_null,pr_tail_classical,  pr_tail_null, pr_tail_null_midpwt,pr_tail_null_hipwt, pr_tail_full,pr_tail_default, pr_tail_midpwt, pr_tail_hipwt),
-  Eff.Params      = c(eff_params_classical_null,eff_params_classical,  eff_params_null,eff_params_null_midpwt,eff_params_null_hipwt, eff_params_full, eff_params_default,eff_params_midpwt, eff_params_hipwt),
-  DIC      = c(AIC_Classical_null,AIC_Classical,  DIC_null,DIC_null_midpwt, DIC_null_hipwt, DIC_full,DIC_default, DIC_midpwt, DIC_hipwt)
+  Model           = c("Classical LM Null","Classical LM", "Null Model Prior (pwt=0.01)","Null Model Prior (pwt=0.05)","Null Model Prior (pwt=0.5)","Full-Model Prior  (pwt=0.01)","Full-Model Prior  (pwt=0.05)","Full-Model Prior  (pwt=0.5)","Control Prior (pwt=0.01) ","Control Prior (pwt=0.05)","Control Prior (pwt=0.5)"),
+  Post.Intercept_Mean        = c(intercept_classical_null,intercept_classical, intercept_null,intercept_null_midpwt,intercept_null_hipwt, intercept_full,intercept_full_midpwt,intercept_full_hipwt, intercept_default, intercept_midpwt, intercept_hipwt),
+    Post.Mean        = c(estimate_classical_null,estimate_classical,  estimate_null,estimate_null_midpwt,estimate_null_hipwt, estimate_full,estimate_full_midpwt,estimate_full_hipwt, estimate_default,estimate_midpwt, estimate_hipwt),
+  Post.SD        = c(se_classical_null,se_classical, sd_null,sd_null_midpwt, sd_null_hipwt,sd_full, sd_full_midpwt,sd_full_hipwt,  sd_default,sd_midpwt, sd_hipwt),
+  Pr_Tail         = c(pr_tail_classical_null,pr_tail_classical,  pr_tail_null, pr_tail_null_midpwt,pr_tail_null_hipwt, pr_tail_full, pr_tail_full_midpwt,pr_tail_full_hipwt,pr_tail_default, pr_tail_midpwt, pr_tail_hipwt),
+  Eff.Params      = c(eff_params_classical_null,eff_params_classical,  eff_params_null,eff_params_null_midpwt,eff_params_null_hipwt, eff_params_full,eff_params_full_midpwt,eff_params_full_hipwt, eff_params_default,eff_params_midpwt, eff_params_hipwt),
+  DIC      = c(AIC_Classical_null,AIC_Classical,  DIC_null,DIC_null_midpwt, DIC_null_hipwt, DIC_full,DIC_full_midpwt,DIC_full_hipwt,DIC_default, DIC_midpwt, DIC_hipwt)
 )                     
 #comparison
 
@@ -534,7 +562,68 @@ knitr::kable(
 #residuals(lm_uncentered)
 ```
 
-# 6. Analyzing a Ceentered Version of the Women Dataset
+# 7.5 
+
+```{r half_space_tail}
+
+directional_half_space_tail <- function(fit,
+                                               normalize = TRUE) {
+  # 1. Extract posterior draws and prior moments
+  post        <- fit$coefficients            # S × p matrix
+  mu_prior    <- as.numeric(fit$Prior$mean)  # length-p
+  V0          <- as.matrix(fit$Prior$Variance)  # p × p
+  
+  # 2. Compute prior precision and its symmetric square root
+  P0    <- solve(V0)   # prior precision = Σ_prior^{-1}
+  eig   <- eigen(P0, symmetric = TRUE)
+  P0_sqrt <- eig$vectors %*% diag(sqrt(eig$values)) %*% t(eig$vectors)
+  # Now P0_sqrt %*% P0_sqrt = P0
+  
+  # 3. Whiten draws and prior mean
+  #    Z = Σ_prior^{-1/2} * (post - mu_prior)
+  centered <- sweep(post, 2, mu_prior, FUN = "-")   # S × p
+  Z        <- t(P0_sqrt %*% t(centered))            # S × p
+  # In this whitened space the prior is N(0, I)
+  
+  # 4. Compute posterior mean in whitened space
+  mu_post_z <- colMeans(Z)     # length-p
+  delta     <- mu_post_z       # shift from zero
+  
+  # 5. Choose signed weights: +1 if delta>0, -1 if delta<0
+  sign_vec <- sign(delta)      # length-p of ±1
+  
+  # 6. Raw weights (no need to divide by any SD since prior sd=1 in Z-space)
+  w_raw    <- sign_vec         # length-p
+  
+  # 7. Optional normalization to unit length
+  if (normalize) {
+    w <- w_raw / sqrt(sum(w_raw^2))
+  } else {
+    w <- w_raw
+  }
+  
+  # 8. Project and get reverse‐tail probability
+  proj      <- Z %*% w         # S×1 vector of wᵀZ
+  tail_prob <- mean(proj < 0)  # P(wᵀZ < 0)
+  
+  # 9. Return results
+  list(
+    tail_prob = as.numeric(tail_prob),
+    weights   = as.numeric(w),
+    proj      = as.numeric(proj),
+    delta     = delta
+  )
+}
+```
+
+
+```{r test1}
+
+directional_half_space_tail(lmb.women_null)
+```
+
+
+# 6. Analyzing a Centered Version of the Women Dataset
 
 
 ## 6.1 The Classical Models 
@@ -1027,6 +1116,76 @@ summary(lm.D9_default)
 
 This section compares posterior summaries for the group effect (groupTrt) across five Bayesian prior configurations and a classical linear model. We report the posterior mean, one-sided tail probability Pr(β < 0), posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
 
+```{r Null_Dev_residuals}
+
+# 1a) Fit the null model via glm (Gaussian identity link)
+fit_glm_null <- glm(weight ~ 1,
+                    data   = dat2,
+                    family = gaussian(link = "identity"))
+
+# 1b) Extract deviance residuals directly
+dev_resids <- residuals(fit_glm_null, type = "deviance")
+
+# 1c) Check: sum of squared deviance residuals = residual deviance
+sum(dev_resids^2)         # should equal deviance(fit_glm_null)
+deviance(fit_glm_null)
+```
+
+```{r Plant_glmb_call_null}
+glmb.D9_null=glmb(weight ~ group,family=gaussian(),pfamily=dNormal(mu_null,V_null,dispersion=disp_ML_null),data=dat2,n=10000)
+summary(glmb.D9_null)
+```
+
+```{r Revised_p_val}
+# A) Classical fits and observed statistic
+fit_glm_null   <- glm(weight ~ 1,                  data = dat2, family = gaussian())
+fit_glm_full   <- glm(weight ~ group ,    data = dat2, family = gaussian())
+
+D0             <- deviance(fit_glm_null)           # null deviance
+Df_mle         <- deviance(fit_glm_full)           # full-model deviance
+T_obs          <- D0 - Df_mle                      # observed drop
+
+ps_null <- Prior_Setup(
+  formula = weight ~ 1,
+  data    = dat2
+)
+
+
+# B) Bayesian fits via glmbayes
+glmb_null      <- glmb(
+  weight ~ 1,
+  family   = gaussian(),
+  pfamily  = dNormal(ps_null$mu,ps_null$Sigma,dispersion=disp_ML_null),
+  data     = dat2,
+  n        = 5000
+)
+
+glmb_full      <- glmb(
+  weight ~ group ,
+  family   = gaussian(),
+  pfamily  = dNormal(mu_null,V_null,dispersion=disp_ML_null),
+  data     = dat2,
+  n        = 5000
+)
+
+# C) Posterior-draw deviances under null & full
+R0_draws       <- residuals(glmb_null, type = "deviance")   # S × n
+R1_draws       <- residuals(glmb_full, type = "deviance")   # S × n
+
+D0_draws       <- rowSums(R0_draws^2)                       # null deviance draws
+D1_draws       <- rowSums(R1_draws^2)                       # full deviance draws
+
+# D) Compute replicate drops and Bayesian p-value
+T_draws        <- D0_draws - D1_draws
+p_Bayes        <- mean(T_draws >= T_obs)
+
+p_Bayes
+
+#sprintf("Classical F-test p ≈ %.3f;  Bayesian deviance-drop p = %.3f",
+#        pf(q = T_obs, df1 = p, df2 = n - (p+1), lower.tail = FALSE),
+#        p_Bayes)
+```
+
 
 ```{r Summary_Comparisons2}
 fit_classical <- lm(weight ~ group, data = dat2)
@@ -1182,6 +1341,15 @@ summary_classical <- summary(fit_classical)
 sum_null_hipwt
 ```
 
+
+```{r test2}
+
+directional_half_space_tail(lmb.D9_null)
+```
+
+```{r QC}
+directional_half_space_tail
+```
 
 #### Key Patterns
 
