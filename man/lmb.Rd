@@ -168,26 +168,29 @@ group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
 weight <- c(ctl, trt)
 
 ps=Prior_Setup(weight ~ group)
-mu=ps$mu
-V=ps$Sigma
-mu[1,1]=mean(weight)
+#mu=ps$mu
+#V=ps$Sigma
+#mu[1,1]=mean(weight)
 
-Prior_Check(weight ~ group,family =gaussian(),
-           pfamily=dNormal(mu=mu,Sigma=V))
-
+## Classical model 
 lm.D9 <- lm(weight ~ group,x=TRUE,y=TRUE)
-disp_ML=sigma(lm.D9)^2
-n_prior=2
-shape=n_prior/2
-rate= disp_ML*shape
+summary(lm.D9)
 
-# Conjugate Normal_Gamma Prior 
-lmb.D9=lmb(weight ~ group,dNormal_Gamma(mu,V/disp_ML,shape=shape,rate=rate))
+## Conjugate Normal Prior (fixed dispersion)
+lmb.D9=lmb(weight ~ group,pfamily=dNormal(mu=ps$mu,ps$Sigma,dispersion = ps$dispersion))
 summary(lmb.D9)
 
-# Independent_Normal_Gamma_Prior
-lmb.D9_v2=lmb(weight ~ group,dIndependent_Normal_Gamma(mu,V,shape=shape,rate=rate))
+## Conjugate Normal_Gamma Prior 
+lmb.D9_v2=lmb(weight ~ group,pfamily=dNormal_Gamma(ps$mu,ps$Sigma/ps$dispersion,shape=ps$shape,rate=ps$rate))
 summary(lmb.D9_v2)
+
+## Independent_Normal_Gamma_Prior 
+lmb.D9_v3=lmb(weight ~ group,dIndependent_Normal_Gamma(ps$mu,ps$Sigma,shape=ps$shape,rate=ps$rate))
+summary(lmb.D9_v3)
+
+## 
+
+#anova(lmb.D9)
 }
 \references{
 Chambers, J.M.(1992) \emph{Linear models.} Chapter 4 of \emph{Statistical Models in S}

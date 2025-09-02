@@ -287,6 +287,7 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   colnames(Prior$Variance)<-colnames(fit$x)
   rownames(Prior$Variance)<-colnames(fit$x)
   
+  
   ### Set dispersion to null for quasi-families to prevent DIC from calculating
   
   if (!is.null(offset)) {
@@ -402,6 +403,8 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   class(outlist)<-c(outlist$class,"glmb","glm","lm")
   outlist
 }
+
+
 
 #' @rdname glmb
 #' @method print glmb

@@ -246,18 +246,25 @@ lmb <- function ( formula, pfamily, n=1000,data, subset, weights, na.action,meth
   
   if (!is.null(offset)) {
     
+    
     if(length(dispersion2)==1){
+      
+
       #DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wtin/dispersion2,dispersion=dispersion2)
 ##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wtin,dispersion=dispersion2)
       DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
       
           }
     
+    
     if(length(dispersion2)>1){
+    
       #DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wtin,dispersion=dispersion2)
 ##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wtin,dispersion=dispersion2)
-        DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
-      
+##        DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=offset,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
+      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt = wtin, dispersion = dispersion2)
+##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt = wt_scaled, dispersion = dispersion2)
+        
           }
     
     linear.predictors<-t(offset+x%*%t(sim$coefficients))
@@ -269,6 +276,7 @@ lmb <- function ( formula, pfamily, n=1000,data, subset, weights, na.action,meth
   if (is.null(offset)) {
     
     if(length(dispersion2)==1){
+
       #DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wtin/dispersion2,dispersion=dispersion2)
 ##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wtin,dispersion=dispersion2)
       DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
@@ -276,8 +284,11 @@ lmb <- function ( formula, pfamily, n=1000,data, subset, weights, na.action,meth
     
     if(length(dispersion2)>1){
 ##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wtin,dispersion=dispersion2)
-      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
-      
+#      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt=wt_scaled,dispersion=1)
+
+      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt = wtin, dispersion = dispersion2)
+##      DICinfo<-DIC_Info(sim$coefficients,y=y,x=x,alpha=0,f1=famfunc$f1,f4=famfunc$f4,wt = wt_scaled, dispersion = dispersion2)
+  ##    DIC_Info(..., wt = wt_scaled, dispersion = dispersion2)
           }
     
     

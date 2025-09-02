@@ -123,6 +123,8 @@ anova.glmb<-function(object,...){
                   use_opencl = TRUE,
                   verbose=FALSE)
     
+    
+    
     # Update anova_out table
     
     anova_out[(nterms_left),3]=nobs(object)-object2$pD

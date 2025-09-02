@@ -45,6 +45,9 @@ summary.glmb<-function(object,...){
   #n=nrow(object$coefficients)
   #df.r <- length(object$y)-object$pD
   
+
+##  
+  
   dispersion=get_dispersion(object)
 
   dir_tail <- directional_tail(object)
@@ -67,12 +70,20 @@ summary.glmb<-function(object,...){
   
   for(i in 1:l1){
     percentiles[i,]<-quantile(object$coefficients[,i],probs=c(0.01,0.025,0.05,0.5,0.95,0.975,0.99))
+    ##tail_center <- if (use_mode) object$coef.mode[i] else object$coef.means[i]
+    #test <- append(object$coefficients[,i], tail_center)
     test<-append(object$coefficients[,i],object$Prior$mean[i])
     test2<-rank(test)
     priorrank[i,1]<-test2[n+1]
     priorrank[i,1]<-test2[n+1]
-    pval1[i,1]<-priorrank[i,1]/(n+1)
-    pval2[i,1]<-min(pval1[i,1],1-pval1[i,1])
+    #pval1[i,1]<-priorrank[i,1]/(n+1)
+    #pval2[i,1]<-min(pval1[i,1],1-pval1[i,1])
+    
+    # Directional tail probability (left tail) 
+    pval1[i,1] <- mean(object$coefficients[,i] < object$Prior$mean[i])
+    pval2[i,1] <- min(pval1[i,1], 1 - pval1[i,1])
+    
+
     
   }
 
