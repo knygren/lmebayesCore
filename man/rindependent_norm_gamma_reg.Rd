@@ -243,7 +243,7 @@ offset=NULL,weights=1,max_disp_perc=0.99)
  
 }
 \seealso{
-Other simfuncs: 
+glmbayes Simulation Functions
 \code{\link{rGamma_reg}()},
 \code{\link{rNormal_Gamma_reg}()},
 \code{\link{rNormal_reg}()}

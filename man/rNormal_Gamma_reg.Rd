@@ -147,7 +147,7 @@ pfamily.
 \code{\link{rglmb}} and \code{\link{glmb}} for functions that depend on 
 simulation functions.
 
-Other simfuncs: 
+glmbayes Simulation Functions
 \code{\link{rGamma_reg}()},
 \code{\link{rNormal_reg}()},
 \code{\link{rindependent_norm_gamma_reg}()}
