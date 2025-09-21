@@ -640,20 +640,15 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   )
   
   
-##  Env2$PLSD       <- disp_env_out$Env_out$PLSD  # updated mixture weights
-##  UB_list         <- disp_env_out$UB_list
-  diagnostics     <- disp_env_out$diagnostics
   
-  # Optional: extract gamma parameters if needed
-##  shape3          <- disp_env_out$diagnostics$shape3
-##  rate3           <- disp_env_out$diagnostics$rate3
-  
+
   Env3           <- disp_env_out$Env_out
   gamma_list_new <- disp_env_out$gamma_list
   UB_list_new    <- disp_env_out$UB_list
   low            <- gamma_list_new$disp_lower
   upp            <- gamma_list_new$disp_upper  
-
+  diagnostics     <- disp_env_out$diagnostics
+  
   
 
   
@@ -664,241 +659,11 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
                                               UB_list=UB_list_new,
                                               family="gaussian",link="identity", progbar =progbar)
   
-  # 
-  # ## Extract outputs
-  # beta_out  <- sim_temp$beta_out
-  # disp_out  <- sim_temp$disp_out
-  # iters_out <- sim_temp$iters_out
-  # 
-  # 
-  # 
-  #     
-  # #### End of Standardization - Steps below might change  
-  # 
-  # ## Update Gamma parameters [Should this be just RSS_Post2?]
-  # 
-  # shape2= shape + n_obs/2
-  # rate2 =rate + (RSS_ML/2)
-  # #rate3 =rate + (RSS2_post/2)
-  # rate3 =rate + (RSS_Post2/2)
-  # 
-  # 
-  # 
-  # #################  this Block Does evaluations at lower and upper bounds   #################
-  # ## Model effectively implies a restricted prior
-  # ## Extract envelope information --> gs is grid size 
-  # 
-  # 
-  # cbars=Env2$cbars
-  # 
-  # 
-  #   
-  # gs=nrow(Env2$cbars)
-  # logP1=Env2$logP
-  # 
-  #   New_LL=c(1:gs)
-  # New_logP2=c(1:gs)
-  # 
-  ## Step 6: Set dispersion bounds
-  
-  ## Set upper and lower bounds for dispersion.
-  
-  # upp=1/qgamma(c(1-max_disp_perc),shape2,rate3)
-  # low=1/qgamma(c(max_disp_perc),shape2,rate3)
 
-    #wt_upp=wt/rep(upp,length(y))
-  #wt_low=wt/rep(low,length(y))
-  
-  #theta_upp=Inv_f3_gaussian(t(Env2$cbars), y, as.matrix(x2),as.matrix(mu2,ncol=1), as.matrix(P2), 
-  #                          as.vector(alpha), as.vector(wt_upp))
-  
-  #theta_low=Inv_f3_gaussian(t(Env2$cbars), y, as.matrix(x2),as.matrix(mu2,ncol=1), as.matrix(P2), 
-  #                          as.vector(alpha), as.vector(wt_low))
-  
-  
-  #New_LL_upp=c(1:gs)
-  #New_LL_low=c(1:gs)
-  #New_LL_Slope_test=c(1:gs)
-  #New_LL_Slope_test2=c(1:gs)
-  #New_LL_Slope_test3=c(1:gs)
-  #New_LL_Slope_diff=c(1:gs)
-  
-  # thetabars=Env2$thetabars
-  # thetabar_const_base=thetabar_const(P2,cbars,Env2$thetabars)
-
-    #thetabar_const_upp=thetabar_const(P2,cbars,theta_upp)
-  #thetabar_const_low=thetabar_const(P2,cbars,theta_low)
-  
-  ###########################################################################################
-  ### This part is currently used for QC - Move to inside function if needed at all
-  
-  #thetabar_const_matrix<-matrix(0,nrow=21,ncol=nrow(cbars))
-  
-  #for(i in 1:21){
-  
-  #  wt_temp=wt/rep(low+((i-1)/20)*(upp-low),length(y))
-  #  theta_temp=Inv_f3_gaussian(t(Env2$cbars), y, as.matrix(x2),as.matrix(mu2,ncol=1), as.matrix(P2), 
-  #                             as.vector(alpha), as.vector(wt_temp))
-  
-  #  thetabar_const_temp=thetabar_const(P2,cbars,theta_temp)
-  #  thetabar_const_matrix[i,1:nrow(cbars)]=thetabar_const_temp
-  
-  
-  #}
-  
-  ###########################################################################################
-  
-  ## This function EnvBuildLinBound() plays a critical role in your sampler: 
-  ## it computes how each envelope face in the coefficient space shifts with respect to 
-  ## the dispersion parameter \sigma^2. More precisely, it returns the derivative of each 
-  ## face constant K_j with respect to \sigma^2, evaluated at the anchor point dispstar.
-  
-  
-    
-  # New_LL_Slope=EnvBuildLinBound(thetabars,cbars,y,x2,P2,alpha,dispstar)
-  # 
-  # 
-  # ## Linear approximation of face constants
-  # 
-  # thetabar_const_upp_apprx=thetabar_const_base+(upp-dispstar)*New_LL_Slope
-  # thetabar_const_low_apprx=thetabar_const_base+(low-dispstar)*New_LL_Slope
-  # 
-  # 
-  # ## Summary statistics of slopes
-  # 
-  # m_New_LL_Slope=mean(New_LL_Slope)  
-  # min_New_LL_Slope=min(New_LL_Slope)  
-  # max_New_LL_Slope=max(New_LL_Slope)  
-  # 
-  # 
-  # prob_factor<-c(1:gs)
-  # min_log_accept<-c(1:gs)
-  # 
-  # ## Compute max face constants at endpoints
-  # 
-  # max_low=max(thetabar_const_low_apprx)
-  # max_upp=max(thetabar_const_upp_apprx)
-  # 
-  # 
-  # max_low=max_low+0*(max_upp-max_low)
-  # 
-  # 
-  # 
-  # ### Global upper lien over dispersion
-  # 
-  # max_low_mean=max_upp-m_New_LL_Slope*(upp-low)
-  # old_slope=(max_upp-max_low)/(upp-low)
-  # max_low=max_low_mean
-  
-  ## Per face mixture weight
-  
-  ## Adjust lopP2 for each face
-  # 
-  # 
-  # for(j in 1:gs){
-  #   cbars_temp=as.matrix(cbars[j,1:ncol(x)],ncol=1)
-  #   New_logP2[j]=logP1[j]+0.5*t(cbars_temp)%*%cbars_temp
-  #   
-  #   prob_factor[j]=max(thetabar_const_upp_apprx[j]-max_upp,thetabar_const_low_apprx[j]-max_low)
-  #   min_log_accept[j]=min(thetabar_const_upp_apprx[j]-max_upp,thetabar_const_low_apprx[j]-max_low)- prob_factor[j]  
-  # }
-  
-  
-  ## Normalize mixture weight
-  
-  # lg_prob_factor=prob_factor
-  # prob_factor=exp(New_logP2+prob_factor)
-  # 
-  # prob_factor=prob_factor/sum(prob_factor)
-  # 
-  # 
-  # ## Dispersion envelope geometry
-  # new_slope=(max_upp-max_low)/(upp-low)
-  # 
-  # 
-  # new_int=max_low-new_slope*low
-  # b1=(upp-low)
-  # c1=-log(upp/low)
-  
-  #dispstar= (-b1+ sqrt(b1^2-4*a1*c1))/(2*a1) # Point of tangency
-  ## Outputs from this block
-  
-  ## 1) upp, low
-  ## 2) log_P_diff
-  ## 3) lm_log1,lm_log2
-  ## 4) shape3
-  ## 5) max_New_LL_UB
-  ## 6) max_LL_log_disp
-  
-  ## Not currently from block: RSS_ML, rate2 
-  
-  #####################################  New Derivations ##################################
-  
-  # Verify that this calculation is correct
-  
-  
-  ## adjust Gamma shape for dispersion proposal
-  # 
-  # dispstar=b1/(-c1)
-  # 
-  # shape_shift=New_LL_Slope*dispstar
-  # 
-  # 
-  # lm_log2=new_slope*dispstar
-  # lm_log1=new_int+new_slope*dispstar-new_slope*log(dispstar)
-  # 
-  # shape3=shape2-lm_log2
-  # 
-  # shape3_vector=shape2-shape_shift
-  # max_LL_log_disp=lm_log1+lm_log2*log(upp) ## From above
-  # 
-  # 
-  # 
-  ## No longer used - can remove later 
-  #log_P_diff_new=0*log_P_diff
-  
-  ########################################
-  
-  
-  ## Store mixture weights in Envelope
-  # Env3=Env2
-  # Env3$PLSD=prob_factor
-  
-  #  print("Starting Candidate Sampling using sample function")
-  #  cand1=sample(x=gs,size=n*413,replace=TRUE,prob=prob_factor)
-  
-  #print(cand1)
-  #print(length(cand1))
-  
-  #  print("Finished Sampling using Sample function")
-  
-  ### Set constants used during sampling
-  
-  # gamma_list_new=list(shape3=shape3,rate2=rate2,disp_upper=upp,disp_lower=low)
-  # 
-  # UB_list_new=list(RSS_ML=RSS_ML,max_New_LL_UB=max_upp,
-  #                  max_LL_log_disp=max_LL_log_disp,lm_log1=lm_log1,lm_log2=lm_log2, 
-  #                  #log_P_diff=log_P_diff_new,
-  #                  lg_prob_factor=lg_prob_factor,lmc1=new_int,lmc2=new_slope)
-  # #                   ,cand=cand1)
-  # 
-  
-  
-  ## log_P_Diff should no longer be used in the same way!
-  
   print(paste("Interactive status:", interactive()))
   
-  ##  ptm <- proc.time()
 
-  ## Run simulation
-    
-  # sim_temp=.rindep_norm_gamma_reg_std_V4_cpp (n=n, y=y, x=x2, mu=mu2, P=P2, alpha=alpha, wt,
-  #                                             f2=f2, Envelope=Env3, 
-  #                                             gamma_list=gamma_list_new,
-  #                                             UB_list=UB_list_new,
-  #                                             family="gaussian",link="identity", progbar =progbar)
-  
-  
+
   #proc.time()-ptm
   
   
