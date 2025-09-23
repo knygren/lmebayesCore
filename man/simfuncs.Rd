@@ -166,32 +166,33 @@ distributions for specific model components. These model functions are used inte
  
 The \code{simfunction()} generic extracts metadata from simulation objects, including the function name, call, and arguments used. This is useful for introspection, reproducibility, and diagnostics.
 
-The lower-level simulation functions such as \code{rGamma_reg()} generate iid samples from posterior distributions for specific model components. 
+The lower-level simulation functions generate iid samples from posterior distributions for specific model components. 
 These functions are used internally by \code{pfamily} constructors and model fitting routines.
 
 ## Simulation Functions
 
+- **\code{rNormal_reg()}**: Produces iid draws for regression coefficients in models with
+  multivariate normal priors and log-concave likelihood functions. For Gaussian likelihoods,
+  these are conjugate priors and standard simulation procedures for multivariate normal
+  distributions are utilized \insertCite{LindleySmith1972,DiaconisYlvisaker1979}{glmbayes}.
+  For all other families/link functions, the likelihood subgradient approach of
+  \insertCite{Nygren2006}{glmbayes} is used to generate iid samples.
 
-- **\code{rNormal_reg()}**: Produces iid draws for regression coefficients in models with Multivariate normal priors and Log-concave likelihood functions. For gaussian likelihood functions,
- these are conjugate prior distributions and standard simulation procedures for multivariate normal distributoosn 
- are utilized. For all other families/link functions, the Likelihood subgrandient approach of \insertCite{Nygren2006}{glmbayes} is used to generate iid samples.  
+- **\code{rNormal_Gamma_reg()}**: Produces iid draws for regression coefficients and the
+  dispersion parameter in models with Normal–Gamma priors and Gaussian likelihoods, where
+  this is a conjugate prior distribution. Standard simulation procedures for gamma and
+  multivariate normal distributions are utilized
+  \insertCite{Raiffa1961,LindleySmith1972}{glmbayes}.
 
-- **\code{rNormal_Gamma_reg()}**: Produces iid draws for regression coefficients and the dispersion parameter in models 
-with Normal-Gamma priors and gaussian likelihood functions where this is a conjugate prior distribution. Standard simulation procedures
-for gamma distributions and Multivariate normal distributions are utilized.
+- **\code{rindependent_norm_gamma_reg()}**: Produces iid draws for regression coefficients
+  and the dispersion parameter in models with independent Normal and truncated Gamma priors.
+  This is a non-conjugate specification but can still be sampled using accept–reject procedures
+  based on an enveloping approach (see vignette
+  \insertCite{glmbayesIndNormGammaVignette}{glmbayes}).
 
-- **\code{rindependent_norm_gamma_reg()}**: Produces iid draws for regression coefficients and the dispersion parameter in models 
-with independent Normal and truncated Gamma priors for the two. This is a non-conjugate specification but can still be sampled using accept reject procedures
-based on an enveloping approach (see Vignette covering this topic for details). 
-
-- **\code{rGamma_reg()}**: Simulates dispersion parameters for Gaussian and Gamma families using either standard gamma sampling or accept-reject methods based on likelihood subgradients \insertCite{Nygren2006}{glmbayes}.
-
-
-Each simulation function returns a structured object containing:
-- Simulated values (e.g., coefficients, dispersion)
-- Prior specification
-- Model inputs (e.g., \code{y}, \code{x}, \code{weights})
-- Metadata for reproducibility
+- **\code{rGamma_reg()}**: Simulates dispersion parameters for Gaussian and Gamma families
+  using either standard gamma sampling or accept–reject methods based on likelihood
+  subgradients \insertCite{Chen1979,glmbayesGammaVignette}{glmbayes}.
 }
 \examples{
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
