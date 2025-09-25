@@ -66,92 +66,90 @@ rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 \item{\ldots}{Additional arguments passed to or from other methods.}
 }
 \value{
-- \code{simfunction()}: An object of class \code{"simfunction"} containing:
-  \itemize{
-    \item{\code{name}}{Character string with the name of the simulation function}
-    \item{\code{call}}{The matched call used to generate the simulation}
-    \item{\code{args}}{A named list of arguments passed to the simulation function}
+\describe{
+
+  \item{\code{simfunction()}}{An object of class \code{"simfunction"} containing:
+    \describe{
+      \item{\code{name}}{Character string with the name of the simulation function.}
+      \item{\code{call}}{The matched call used to generate the simulation.}
+      \item{\code{args}}{A named list of arguments passed to the simulation function.}
+    }
   }
 
-- \code{rNormal_reg()}: A list object with classes \code{"rglmb"}, \code{"glmb"}, \code{"glm"}, and \code{"lm"}.
-  Elements include:
-  \itemize{
-    \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, with column names from \code{x}.}
-    \item{\code{coef.mode}}{Posterior mode of the coefficients. Gaussian: from \code{lm.fit}; non-Gaussian: BFGS mode shifted by prior mean.}
-    \item{\code{dispersion}}{Scalar dispersion used. Poisson/Binomial: \code{1}; otherwise the supplied value. Quasi families: mean residual-based dispersion computed in the wrapper.}
-    \item{\code{Prior}}{List with \code{mean} (prior mean vector) and \code{Precision} (prior precision matrix \code{P}).}
-    \item{\code{prior.weights}}{Vector of prior weights used in the simulation (unscaled).}
-    \item{\code{offset}}{Offset vector passed to the C++ sampler.}
-    \item{\code{offset2}}{Offset used internally by the wrapper (copy of input or a zero vector).}
-    \item{\code{y}}{Response vector.}
-    \item{\code{x}}{Design matrix.}
-    \item{\code{fit}}{Fitted/diagnostic object. Gaussian: result of \code{lm.fit} (class \code{"lm"}). Non-Gaussian: result of \code{glmb.wfit(...)}.}
-    \item{\code{iters}}{Vector of iteration counts per sample. Gaussian: vector of ones; non-Gaussian: counts from the sampler.}
-    \item{\code{Envelope}}{Envelope list used for accept–reject sampling (non-Gaussian); \code{NULL} for Gaussian.}
-    \item{\code{family}}{Family object describing distribution and link.}
-    \item{\code{famfunc}}{Processed family functions used internally (e.g., \code{f2}, \code{f3}).}
-    \item{\code{call}}{Matched call to \code{rNormal_reg()}.}
-    \item{\code{formula}}{Formula reconstructed from \code{y} and \code{x}.}
-    \item{\code{model}}{Model frame corresponding to \code{formula}.}
-    \item{\code{data}}{Data frame combining \code{y} and \code{x}.}
+  \item{\code{rNormal_reg()}}{A list object with classes \code{"rglmb"}, \code{"glmb"}, \code{"glm"}, and \code{"lm"}.
+    Elements include:
+    \describe{
+      \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, with column names from \code{x}.}
+      \item{\code{coef.mode}}{Posterior mode of the coefficients. Gaussian: from \code{lm.fit}; non-Gaussian: BFGS mode shifted by prior mean.}
+      \item{\code{dispersion}}{Scalar dispersion used. Poisson/Binomial: \code{1}; otherwise the supplied value. Quasi families: mean residual-based dispersion computed in the wrapper.}
+      \item{\code{Prior}}{List with \code{mean} (prior mean vector) and \code{Precision} (prior precision matrix \code{P}).}
+      \item{\code{prior.weights}}{Vector of prior weights used in the simulation (unscaled).}
+      \item{\code{offset}}{Offset vector passed to the C++ sampler.}
+      \item{\code{offset2}}{Offset used internally by the wrapper (copy of input or a zero vector).}
+      \item{\code{y}}{Response vector.}
+      \item{\code{x}}{Design matrix.}
+      \item{\code{fit}}{Fitted/diagnostic object. Gaussian: result of \code{lm.fit} (class \code{"lm"}). Non-Gaussian: result of \code{glmb.wfit(...)}.}
+      \item{\code{iters}}{Vector of iteration counts per sample. Gaussian: vector of ones; non-Gaussian: counts from the sampler.}
+      \item{\code{Envelope}}{Envelope list used for accept–reject sampling (non-Gaussian); \code{NULL} for Gaussian.}
+      \item{\code{family}}{Family object describing distribution and link.}
+      \item{\code{famfunc}}{Processed family functions used internally (e.g., \code{f2}, \code{f3}).}
+      \item{\code{call}}{Matched call to \code{rNormal_reg()}.}
+      \item{\code{formula}}{Formula reconstructed from \code{y} and \code{x}.}
+      \item{\code{model}}{Model frame corresponding to \code{formula}.}
+      \item{\code{data}}{Data frame combining \code{y} and \code{x}.}
+    }
   }
 
-- \code{rNormal_Gamma_reg()}: A list with class \code{"rglmb"} containing:
-  \itemize{
-    \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients; row \code{i} equals
-      \code{Btilde + IR \%*\% rnorm(p) * sqrt(dispersion[i])}. Column names are set to \code{colnames(x)}.}
-    \item{\code{coef.mode}}{Posterior mean/mode vector \code{Btilde} from \code{rNormal_reg.wfit()}.}
-    \item{\code{dispersion}}{Numeric vector of length \code{n} with draws from the inverse-gamma posterior
-      \code{1/rgamma(shape = shape + nobs/2, rate = rate + 0.5*S)}.}
-    \item{\code{Prior}}{List with \code{mean} (as numeric vector \code{mu}) and \code{Precision} (matrix \code{P}).}
-    \item{\code{offset}}{Offset vector as supplied.}
-    \item{\code{prior.weights}}{Vector of prior weights \code{wt}.}
-    \item{\code{y}}{Response vector.}
-    \item{\code{x}}{Design matrix.}
-    \item{\code{fit}}{Result from \code{rNormal_reg.wfit()}, including fields such as \code{Btilde}, \code{IR}, \code{S}, and \code{k}.}
-    \item{\code{famfunc}}{Processed family functions for Gaussian models (from \code{glmbfamfunc(gaussian())}).}
-    \item{\code{iters}}{Numeric vector (length \code{n}) of ones indicating per-draw iteration counts.}
-    \item{\code{Envelope}}{\code{NULL}; no envelope is constructed in this conjugate setup.}
-    \item{\code{call}}{Matched call to \code{rNormal_Gamma_reg()}.}
+  \item{\code{rNormal_Gamma_reg()}}{A list with class \code{"rglmb"} containing:
+    \describe{
+      \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients; row \code{i} equals \code{Btilde + IR \%*\% rnorm(p) * sqrt(dispersion[i])}. Column names are set to \code{colnames(x)}.}
+      \item{\code{coef.mode}}{Posterior mean/mode vector \code{Btilde} from \code{rNormal_reg.wfit()}.}
+      \item{\code{dispersion}}{Numeric vector of length \code{n} with draws from the inverse-gamma posterior \code{1/rgamma(shape = shape + nobs/2, rate = rate + 0.5*S)}.}
+      \item{\code{Prior}}{List with \code{mean} (as numeric vector \code{mu}) and \code{Precision} (matrix \code{P}).}
+      \item{\code{offset}}{Offset vector as supplied.}
+      \item{\code{prior.weights}}{Vector of prior weights \code{wt}.}
+      \item{\code{y}}{Response vector.}
+      \item{\code{x}}{Design matrix.}
+      \item{\code{fit}}{Result from \code{rNormal_reg.wfit()}, including fields such as \code{Btilde}, \code{IR}, \code{S}, and \code{k}.}
+      \item{\code{famfunc}}{Processed family functions for Gaussian models (from \code{glmbfamfunc(gaussian())}).}
+      \item{\code{iters}}{Numeric vector (length \code{n}) of ones indicating per-draw iteration counts.}
+      \item{\code{Envelope}}{\code{NULL}; no envelope is constructed in this conjugate setup.}
+      \item{\code{call}}{Matched call to \code{rNormal_Gamma_reg()}.}
+    }
   }
 
-- \code{rindependent_norm_gamma_reg()}: A list with class \code{"rglmb"} containing:
-  \itemize{
-    \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, back-transformed to the original scale; column names set to \code{colnames(x)}.}
-    \item{\code{coef.mode}}{Vector with the conditional posterior mode used for envelope anchoring (from the Gaussian fit).}
-    \item{\code{dispersion}}{Numeric vector of length \code{n} with simulated dispersion draws.}
-    \item{\code{Prior}}{List with prior components:
-      \code{mean} (prior mean \code{mu}),
-      \code{Sigma} (prior covariance),
-      \code{shape} and \code{rate} (Gamma prior for dispersion),
-      \code{Precision} (\code{solve(Sigma)}).}
-    \item{\code{family}}{The \code{gaussian()} family object.}
-    \item{\code{prior.weights}}{Vector of prior weights used in the simulation.}
-    \item{\code{y}}{Response vector.}
-    \item{\code{x}}{Design matrix.}
-    \item{\code{call}}{Matched call to \code{rindependent_norm_gamma_reg()}.}
-    \item{\code{famfunc}}{Processed family functions for Gaussian models (from \code{glmbfamfunc}).}
-    \item{\code{iters}}{Vector with per-draw iteration counts returned by the joint sampler.}
-    \item{\code{Envelope}}{\code{NULL}; envelope diagnostics are not returned by this function.}
-    \item{\code{loglike}}{\code{NULL}; placeholder for log-likelihood values.}
-    \item{\code{weight_out}}{Numeric vector of per-draw weights returned by the C++ routine.}
-    \item{\code{sim_bounds}}{List with \code{low} and \code{upp}, the dispersion bounds used by the shared envelope.}
-    \item{\code{offset2}}{Offset vector used internally (copy of input or a zero vector).}
+  \item{\code{rindependent_norm_gamma_reg()}}{A list with class \code{"rglmb"} containing:
+    \describe{
+      \item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, back-transformed to the original scale; column names set to \code{colnames(x)}.}
+      \item{\code{coef.mode}}{Vector with the conditional posterior mode used for envelope anchoring (from the Gaussian fit).}
+      \item{\code{dispersion}}{Numeric vector of length \code{n} with simulated dispersion draws.}
+      \item{\code{Prior}}{List with prior components: \code{mean} (prior mean \code{mu}), \code{Sigma} (prior covariance), \code{shape} and \code{rate} (Gamma prior for dispersion), \code{Precision} (\code{solve(Sigma)}).}
+      \item{\code{family}}{The \code{gaussian()} family object.}
+      \item{\code{prior.weights}}{Vector of prior weights used in the simulation.}
+      \item{\code{y}}{Response vector.}
+      \item{\code{x}}{Design matrix.}
+      \item{\code{call}}{Matched call to \code{rindependent_norm_gamma_reg()}.}
+      \item{\code{famfunc}}{Processed family functions for Gaussian models (from \code{glmbfamfunc}).}
+      \item{\code{iters}}{Vector with per-draw iteration counts returned by the joint sampler.}
+      \item{\code{Envelope}}{\code{NULL}; envelope diagnostics are not returned by this function.}
+      \item{\code{loglike}}{\code{NULL}; placeholder for log-likelihood values.}
+      \item{\code{weight_out}}{Numeric vector of per-draw weights returned by the C++ routine.}
+      \item{\code{sim_bounds}}{List with \code{low} and \code{upp}, the dispersion bounds used by the shared envelope.}
+      \item{\code{offset2}}{Offset vector used internally (copy of input or a zero vector).}
+    }
   }
 
-- \code{rGamma_reg()}: An object of class \code{"rGamma_reg"} containing:
-  \itemize{
-    \item{\code{coefficients}}{A 1 × p matrix of assumed regression coefficients}
-    \item{\code{coef.mode}}{Currently \code{NULL}; reserved for future use}
-    \item{\code{dispersion}}{A vector of simulated dispersion values}
-    \item{\code{Prior}}{A list with prior parameters: \code{shape} and \code{rate}}
-    \item{\code{prior.weights}}{Vector of prior weights used in the simulation}
-    \item{\code{y}}{The response vector}
-    \item{\code{x}}{The design matrix}
-    \item{\code{famfunc}}{A processed family object used internally}
-    \item{\code{iters}}{A vector indicating the number of iterations per sample (typically \code{rep(1, n)})}
-    \item{\code{Envelope}}{Currently \code{NULL}; reserved for envelope diagnostics}
-  }
+  \item{\code{rGamma_reg()}}{An object of class \code{"rGamma_reg"} containing:
+    \describe{
+      \item{\code{coefficients}}{A 1 × p matrix of assumed regression coefficients.}
+      \item{\code{coef.mode}}{Currently \code{NULL}; reserved for future use.}
+      \item{\code{dispersion}}{A vector of simulated dispersion values.}
+      \item{\code{Prior}}{A list with prior parameters: \code{shape} and \code{rate}.}
+      \item{\code{prior.weights}}{Vector of prior weights used in the simulation.}
+      \item{\code{y}}{The response vector.}
+           }
+           }
+           }
 }
 \description{
 Simulation functions provide a unified interface for generating posterior samples from Bayesian GLMs.
