@@ -1,3 +1,5 @@
+#' @name EnvelopeBuild 
+#' @title 
 #' GPU-Accelerated Envelope Construction for Posterior Simulation
 #'
 #' @details
@@ -951,34 +953,79 @@
 #' 
 #' Any constants needed by the sampling are added to a list and returned.
 #'
-#' @param bStar     Point at which envelope should be centered (typically posterior mode)
-#' @param A         Diagonal precision matrix for the log-likelihood in standard form
-#' @param y         A vector of observations of length \code{m}
-#' @param x         A design matrix of dimension \code{m * p}
-#' @param mu        A vector giving the prior means of the variables
-#' @param P         Prior precision matrix of the variables (positive-definite)
-#' @param alpha     Offset vector
-#' @param wt        A vector of weights
-#' @param family    Family for the envelope: binomial, quasibinomial, poisson, quasipoisson, or Gamma
-#' @param link      Link function ("logit", "probit", "cloglog" for binomial; "log" for Poisson/Gamma)
-#' @param Gridtype  Method to determine the number of subgradient densities in the grid
-#' @param n         Number of draws from the posterior (used for grid sizing)
-#' @param sortgrid  Logical; if TRUE, sort the envelope descending by component probability
-#' @param use_opencl Logical; if TRUE, use OpenCL for gradient evaluations
-#' @param verbose   Logical; if TRUE, print progress messages
-#' @return A list with elements:
-#'   \item{GridIndex}{Matrix indicating tail/center/line sampling per dimension}
-#'   \item{thetabars}{Matrix of tangency points for each grid component}
-#'   \item{cbars}{Matrix of negative log-likelihood gradients at each tangency}
-#'   \item{logU}{Matrix of log CDF differences per dimension}
-#'   \item{logrt}{Matrix of log right-tail probabilities}
-#'   \item{loglt}{Matrix of log left-tail probabilities}
-#'   \item{LLconst}{Vector of constants for each component used in the accept–reject step}
-#'   \item{logP}{Matrix of log-probabilities for each grid component}
-#'   \item{PLSD}{Vector of sampling probabilities for the grid components}
-#' @references
+#' @param bStar     Point at which envelope should be centered (typically posterior mode).
+#' @param A         Diagonal precision matrix for the log-likelihood in standard form.
+#' @param y         A vector of observations of length \code{m}.
+#' @param x         A design matrix of dimension \code{m × p}.
+#' @param mu        A vector giving the prior means of the variables.
+#' @param P         Prior precision matrix of the variables (positive-definite).
+#' @param alpha     Offset vector.
+#' @param wt        A vector of weights.
+#' @param family    Family for the envelope: \code{binomial}, \code{quasibinomial}, \code{poisson}, \code{quasipoisson}, or \code{Gamma}.
+#' @param link      Link function ("logit", "probit", "cloglog" for binomial; "log" for Poisson/Gamma).
+#' @param Gridtype  Method to determine the number of subgradient densities in the grid.
+#' @param n         Number of draws from the posterior (used for grid sizing).
+#' @param sortgrid  Logical; if \code{TRUE}, sort the envelope descending by component probability.
+#' @param use_opencl Logical; if \code{TRUE}, use OpenCL for gradient evaluations.
+#' @param verbose   Logical; if \code{TRUE}, print progress messages.
+#'
+#' @param GridIndex A matrix indicating, for each grid component, whether the component
+#'   lies in the left tail, center, or right tail of the density. Rows correspond to
+#'   grid components; columns correspond to standardized variables.
+#' @param cbars     A matrix containing the subgradient of the (adjusted) negative log-likelihood
+#'   at each grid component.
+#' @param Lint      A matrix storing the lower and upper bounds for each grid component,
+#'   depending on whether sampling is from the left, center, or right.
+#'
+#' @param logP      A matrix (typically two columns) with information for each grid component.
+#'   The first column usually holds the output from \code{Set_Grid()}, corresponding to
+#'   the restricted normal density.
+#' @param NegLL     A vector of negative log-likelihood evaluations at each grid component.
+#' @param G3        A matrix of tangency points used in the grid.
+#' 
+#' @return
+#' \describe{
+#'
+#'   \item{\code{EnvelopeBuild()}}{A list of envelope components used for accept–reject sampling:
+#'     \describe{
+#'       \item{\code{GridIndex}}{Integer matrix encoding sampling type (tail, center, line) per dimension and region.}
+#'       \item{\code{thetabars}}{Matrix of tangency points \eqn{\bar{\theta}_j} for each grid region.}
+#'       \item{\code{cbars}}{Matrix of subgradients \eqn{c(\bar{\theta}_j)} of the negative log-likelihood at tangency.}
+#'       \item{\code{loglt}}{Matrix of log left-tail probabilities per dimension and region.}
+#'       \item{\code{logrt}}{Matrix of log right-tail probabilities per dimension and region.}
+#'       \item{\code{logU}}{Matrix of selected per-dimension log-density contributions (tail/center) for each region.}
+#'       \item{\code{logP}}{Matrix of total log-probabilities per region (first column); used to derive mixture weights.}
+#'       \item{\code{PLSD}}{Vector of normalized mixture weights over grid regions used to draw region indices.}
+#'       \item{\code{LLconst}}{Vector of acceptance-test constants per region used in the inequality for rejection sampling.}
+#'     }
+#'   }
+#'
+#'   \item{\code{Set_Grid()}}{A list of matrices computed for grid-based log-density evaluation:
+#'     \describe{
+#'       \item{\code{Down}}{Lower bounds for truncated-normal evaluation per dimension and region.}
+#'       \item{\code{Up}}{Upper bounds for truncated-normal evaluation per dimension and region.}
+#'       \item{\code{lglt}}{Log left-tail probabilities (from \eqn{(-\infty, \mathrm{Up}]}) per dimension and region.}
+#'       \item{\code{lgrt}}{Log right-tail probabilities (from \eqn{[\mathrm{Down}, \infty)}) per dimension and region.}
+#'       \item{\code{lgct}}{Log central-interval probabilities (from \eqn{[\mathrm{Down}, \mathrm{Up}]}) per dimension and region.}
+#'       \item{\code{logU}}{Selected log-probability per grid cell based on \code{GridIndex} (tail or center).}
+#'       \item{\code{logP}}{Matrix with row-wise sums of \code{logU} (first column) used to form mixture weights.}
+#'     }
+#'   }
+#'
+#'   \item{\code{setlogP()}}{A list with updated mixture-weight and acceptance constants:
+#'     \describe{
+#'       \item{\code{logP}}{Input \code{logP} with its second column populated by the log of unnormalized visit probabilities per region (mixture denominators).}
+#'       \item{\code{LLconst}}{Vector of acceptance constants \eqn{-\log f(y \mid \bar{\theta}_j) - c(\bar{\theta}_j)^{T}\bar{\theta}_j} used in the accept–reject test.}
+#'     }
+#'   }
+#' }
+#' 
+#'  @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt
+
+#' @usage EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", Gridtype = 2L,n = 1L,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
+#' @rdname EnvelopeBuild
 #' @export
 EnvelopeBuild <- function(
     bStar, A, y, x, mu, P, alpha, wt,
@@ -999,4 +1046,23 @@ EnvelopeBuild <- function(
     Gridtype = Gridtype, n = n, sortgrid,
     use_opencl = use_opencl, verbose = verbose
   )
+}
+
+
+
+#' @usage Set_Grid(GridIndex, cbars, Lint)
+#' @rdname EnvelopeBuild
+#' @export
+Set_Grid <- function(GridIndex, cbars, Lint) {
+  .Set_Grid_cpp(GridIndex, cbars, Lint)
+}
+
+
+
+#' @usage setlogP(logP, NegLL, cbars, G3)
+#' @rdname EnvelopeBuild
+#' @export
+#' @keywords internal
+setlogP <- function(logP, NegLL, cbars, G3) {
+  .setlogP_cpp(logP, NegLL, cbars, G3)
 }

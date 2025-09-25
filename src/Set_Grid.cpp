@@ -255,6 +255,8 @@ void Set_Grid_C2(Rcpp::NumericMatrix GIndex,
   
 }
 
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 //    Set Grid Does not update existing objects - It creates new ones    ////////////////////////
 //   This could be bad when function is called many times                 //////////////  
