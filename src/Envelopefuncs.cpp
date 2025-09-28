@@ -15,13 +15,101 @@
 
 using namespace Rcpp;
 
+
+
+/*
+ EnvelopeBuild_c — envelope grid construction for models with Gaussian priors
+ and log-concave likelihoods
+ 
+ Purpose
+ Construct an axis-aligned envelope grid and the auxiliary objects required
+ by Set_Grid and the envelope sampler. This routine assumes a multivariate
+ normal prior (precision-like matrix A) and a log-concave likelihood so that
+ the (transformed) posterior is unimodal and well-behaved near the mode.
+ The routine is family-agnostic otherwise: envelope placement uses only the
+ posterior center (bStar) and curvature-like information (diag(A)).
+ 
+ Lint construction (per-dimension cutpoints)
+ - Lint is a 2 × l1 matrix; column i defines the central interval cutpoints
+ for dimension i:
+ Lint[0,i] := ℓ_{i,1} = θ*_i − 0.5 · ω_i
+ Lint[1,i] := ℓ_{i,2} = θ*_i + 0.5 · ω_i
+ where θ* = bStar (the posterior mode on the parameter scale used for the
+ envelope) and ω is a spread parameter derived from the i-th diagonal of A.
+ - Implementation details:
+ a_2   = diag(A)            // curvature/precision per dimension
+ omega = (sqrt(2) - exp(-1.20491 - 0.7321 * sqrt(0.5 + a_2))) / sqrt(1 + a_2)
+ yy_1  = [1, 1]; yy_2 = [-0.5, 0.5]
+ Lint  = yy_1 %*% transpose(bStar) + yy_2 %*% transpose(omega)
+ The constants in the omega formula are empirical calibrations chosen to
+ produce robust interval widths across typical precision regimes.
+ 
+ Why Gaussian-prior + log-concave-likelihood matters
+ - Log-concavity of the likelihood combined with a Gaussian prior implies the
+ (unnormalized) log-posterior is concave around the mode; a single-mode
+ assumption justifies axis-aligned intervals centered at the posterior mode.
+ - Using diag(A) to set ω leverages local curvature information: larger
+ precision (larger a_i) yields narrower ω_i, smaller a_i yields wider ω_i.
+ - These choices ensure the central interval ℓ_{i,1}..ℓ_{i,2} captures the
+ high-density mass along each axis while keeping tails handled by the
+ left/right intervals.
+ 
+ Gridpoint generation and Gridtype
+ - G1 contains candidate per-dimension points {θ* - ω, θ*, θ* + ω}.
+ - Gridtype controls whether a dimension uses the three-point set or only the
+ mode:
+ Gridtype 1: static threshold test using (1 + a_i) ≤ 2/√π → single-point
+ Gridtype 2: dynamic selection via EnvelopeOpt(a_2, n) (cost-based)
+ Gridtype 3: always three-point
+ Gridtype 4: always single-point
+ - Rationale: trade-off between build cost and sampling cost; with larger n
+ or available parallelism, richer grids can be worthwhile.
+ 
+ Full-grid expansion and cbars
+ - Per-dimension G2 lists are combined with expand.grid to form the full set
+ of grid locations (G3) and corresponding region codes (GIndex).
+ - G4 = transpose(G3); cbars[j,i] = G4[j,i] − bStar[i] is the j-th component's
+ offset from the mode for dimension i.
+ - In Set_Grid these cbars shift Lint per-row to produce Down[j,i] and Up[j,i],
+ the final bounds for truncated-normal evaluations.
+ 
+ Numerical and modelling notes
+ - The envelope construction uses only bStar and diag(A); any family-specific
+ transforms (e.g., link functions, canonical transforms) should be applied
+ upstream so bStar and A are expressed on the scale used by the envelope.
+ - Log-concavity guarantees the mode is meaningful for centering intervals;
+ if the likelihood is not log-concave the assumptions behind axis-aligned
+ modal envelopes break down and the envelope builder may need alternative
+ strategies.
+ - Keep the Lint construction here as the single source of truth; if ω
+ calibration constants are refined, update them only in this function.
+ 
+ OpenCL hinting and verbosity
+ - If compiled with OpenCL and use_opencl == true, the function may scale n
+ by the detected core count to exploit parallel envelope optimization.
+ - If OpenCL is unavailable at compile-time, the function logs a diagnostic
+ (when verbose) and disables use_opencl, falling back to CPU.
+ 
+ Outputs used downstream
+ - G2: per-dimension gridpoint lists
+ - G3/G4: full grid and transpose
+ - GIndex: integer region codes per grid component and dimension
+ - Lint: two unshifted cutpoints per dimension (lower, upper)
+ - cbars: per-component offsets from bStar used to shift Lint in Set_Grid
+ - These objects enable Set_Grid to compute per-dimension truncated-normal
+ probabilities U_{j,i} and their log-sums logP[j], suitable for envelope
+ weighting and acceptance tests under the Gaussian-prior + log-concave
+ likelihood assumption.
+ */
+
 // [[Rcpp::export(".EnvelopeBuild_cpp")]]
 
-List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
+List EnvelopeBuild_c(NumericVector bStar,
+                     NumericMatrix A, /// Diagonal Precision Matrix for Adjusted Likelihood Function
                     NumericVector y, 
                     NumericMatrix x,
                     NumericMatrix mu,
-                    NumericMatrix P,
+                    NumericMatrix P, /// Part of the prior precision matrix that is shifted to the likelihood
                     NumericVector alpha,
                     NumericVector wt,
                     std::string family,
@@ -95,7 +183,23 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
   G1b=xx_1b*arma::trans(bStar_2)+xx_2b*arma::trans(omega);
   Lint=yy_1b*arma::trans(bStar_2)+yy_2b*arma::trans(omega);
   
+
+  // 3.4.1 - EnvelopOpt
   
+  /// If GridType=2, then the Size of the Grid is optimized for performance
+  /// while factoring in the tradeoff between a large grid 
+  /// (more time consuming /expensive) to build and the acceptance rate 
+  /// (which gets better with a larger grid). The number of desired draws
+  /// are also factored in as the importance of a high acceptance rate
+  /// is more important when the number of draws is greater.
+  /// In addition, the call also fators in the number of cores 
+  /// since EnvelopeConstruction can occur in parallel. This is treated
+  /// as the equivalent of a greater number of draws
+  /// so a larger grid is generally constructed when OpenCL is enabled
+  /// 
+  /// If GridType is not equal to 2 then the size of the Grid is determined 
+  /// uniquely by that setting
+    
   int core_CNT=get_opencl_core_count();
   
   if (verbose) {
@@ -103,6 +207,8 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
   }
   
   // Second row in G1b here is the posterior mode
+  
+  
   
   NumericVector gridindex(l1);
   
@@ -140,7 +246,7 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
    Let ω_i = width parameter computed below.
    
    1) Gridtype 1: static threshold test
-   • If (1 + a_i) ≤ 2/√π  ≈ 1.128379 ⇒
+   • If sqrt(1 + a_i) ≤ 2/√π  ≈ 1.128379 ⇒
    the theoretical upper bound on expected candidates per draw
    for a full normal envelope is ≤ 1, so building more points
    doesn’t reduce rejections.
@@ -176,12 +282,12 @@ List EnvelopeBuild_c(NumericVector bStar,NumericMatrix A,
       // For Gridtype==1, small 1+a[i]<=(2/sqrt(M_PI) yields grid over full line
       // Can check speed for simulation when Gridtype=1 vs. Gridtyp=2 or 3     
       
-      if((1+a_2[i])<=(2/sqrt(M_PI))){ 
+      if(sqrt(1+a_2[i])<=(2/sqrt(M_PI))){ 
         Temp2=G1(1,i);
         G2[i]=NumericVector::create(Temp2);
         GIndex1[i]=NumericVector::create(4.0);
       }
-      if((1+a_2[i])>(2/sqrt(M_PI))){
+      if(sqrt(1+a_2[i])>(2/sqrt(M_PI))){
         Temp1=G1(_,i);
         G2[i]=NumericVector::create(Temp1(0),Temp1(1),Temp1(2));
         GIndex1[i]=NumericVector::create(1.0,2.0,3.0);

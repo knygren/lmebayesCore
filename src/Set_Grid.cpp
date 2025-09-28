@@ -151,6 +151,8 @@ void Set_Grid_C2(Rcpp::NumericMatrix GIndex,
   
   // Main Function Code
   
+  // cbars(J,.) - Gradient for negative of loglikelihood for jth component of the grid
+  
   for(int j=0;j<l2;j++)
   {
     logP(j,0)=0;
@@ -263,188 +265,34 @@ void Set_Grid_C2(Rcpp::NumericMatrix GIndex,
 
 
 // [[Rcpp::export(".Set_Grid_cpp")]]
-
-
-Rcpp::List Set_Grid(Rcpp::NumericMatrix GIndex,  Rcpp::NumericMatrix cbars, Rcpp::NumericMatrix Lint) {
+Rcpp::List Set_Grid(Rcpp::NumericMatrix GIndex,
+                    Rcpp::NumericMatrix cbars,
+                    Rcpp::NumericMatrix Lint) {
   
-  // Get dimensions
+  int l1 = GIndex.ncol();
+  int l2 = GIndex.nrow();
   
-  int l1=GIndex.ncol();
-  int l2=GIndex.nrow();
+  Rcpp::NumericMatrix Down(l2, l1);
+  Rcpp::NumericMatrix Up(l2, l1);
+  Rcpp::NumericMatrix lglt(l2, l1);
+  Rcpp::NumericMatrix lgrt(l2, l1);
+  Rcpp::NumericMatrix lgct(l2, l1);
+  Rcpp::NumericMatrix logU(l2, l1);
+  Rcpp::NumericMatrix logP(l2, 2);
   
-  // Initialize Matrices 
+  // Populate in-place using the numerically-stable implementation
+  Set_Grid_C2(GIndex, cbars, Lint, Down, Up, lglt, lgrt, lgct, logU, logP);
   
-  Rcpp::NumericMatrix Down(l2,l1);
-  Rcpp::NumericMatrix Up(l2,l1);
-  Rcpp::NumericMatrix lglt(l2,l1);
-  Rcpp::NumericMatrix lgrt(l2,l1);
-  Rcpp::NumericMatrix lgct(l2,l1);
-  Rcpp::NumericMatrix logU(l2,l1);
-  Rcpp::NumericMatrix logP(l2,2);
-  
-  // Main Function Code
-  
-  for(int j=0;j<l2;j++)
-  {
-    logP(j,0)=0;
-    
-    for(int i=0;i<l1;i++)
-    {
-      if(GIndex(j,i)==1){
-        Down(j,i)=-INFINITY;
-        Up(j,i)=Lint(0,i)+cbars(j,i);
-      }
-      if(GIndex(j,i)==2){
-        Down(j,i)=Lint(0,i)+cbars(j,i);
-        Up(j,i)=Lint(1,i)+cbars(j,i); 
-        
-      }
-      if(GIndex(j,i)==3){
-        Down(j,i)=Lint(1,i)+cbars(j,i); 
-        Up(j,i)=INFINITY;
-      }
-      if(GIndex(j,i)==4){
-        Down(j,i)=-INFINITY;
-        Up(j,i)=INFINITY;
-      }
-    }
-  }
-  
-  
-  for(int i=0;i<l1;i++){
-    lglt(_,i) = pnorm(Up(_,i),0.0,1.0,true,true);
-    lgrt(_,i) = pnorm(Down(_,i),0.0,1.0,false,true);
-    lgct(_,i) = pnorm(Up(_,i),0.0,1.0)-pnorm(Down(_,i),0.0,1.0); 
-  }
-  
-  
-  for(int j=0;j<l2;j++)
-  {
-    for(int i=0;i<l1;i++)
-    {
-      if(GIndex(j,i)==1){
-        logU(j,i)=lglt(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==2){
-        lgct(j,i)=log(lgct(j,i));
-        logU(j,i)=lgct(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==3){
-        logU(j,i)=lgrt(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==4){
-        logU(j,i)=0;
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-    }}
-  
-  // Return List
-  
-  return Rcpp::List::create(Rcpp::Named("Down")=Down
-                              ,Rcpp::Named("Up")=Up
-                              ,Rcpp::Named("lglt")=lglt
-                              ,Rcpp::Named("lgrt")=lgrt
-                              ,Rcpp::Named("lgct")=lgct
-                              ,Rcpp::Named("logU")=logU
-                              ,Rcpp::Named("logP")=logP);
-  
+  return Rcpp::List::create(
+    Rcpp::Named("Down") = Down,
+    Rcpp::Named("Up")   = Up,
+    Rcpp::Named("lglt") = lglt,
+    Rcpp::Named("lgrt") = lgrt,
+    Rcpp::Named("lgct") = lgct,
+    Rcpp::Named("logU") = logU,
+    Rcpp::Named("logP") = logP
+  );
 }
 
 /////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-
-/// This function does not return all components used to build the grid   /////  
-
-Rcpp::List Set_Grid_C(Rcpp::NumericMatrix GIndex,  Rcpp::NumericMatrix cbars, 
-                      Rcpp::NumericMatrix Lint,
-                      Rcpp::NumericMatrix Down,
-                      Rcpp::NumericMatrix Up,
-                      Rcpp::NumericMatrix lglt,
-                      Rcpp::NumericMatrix lgrt,
-                      Rcpp::NumericMatrix lgct,
-                      Rcpp::NumericMatrix logU,
-                      Rcpp::NumericMatrix logP) {
-  
-  
-  
-  // Get dimensions
-  
-  int l1=GIndex.ncol();
-  int l2=GIndex.nrow();
-  
-  
-  // Main Function Code
-  
-  for(int j=0;j<l2;j++)
-  {
-    logP(j,0)=0;
-    
-    for(int i=0;i<l1;i++)
-    {
-      if(GIndex(j,i)==1){
-        Down(j,i)=-INFINITY;
-        Up(j,i)=Lint(0,i)+cbars(j,i);
-      }
-      if(GIndex(j,i)==2){
-        Down(j,i)=Lint(0,i)+cbars(j,i);
-        Up(j,i)=Lint(1,i)+cbars(j,i); 
-        
-      }
-      if(GIndex(j,i)==3){
-        Down(j,i)=Lint(1,i)+cbars(j,i); 
-        Up(j,i)=INFINITY;
-      }
-      if(GIndex(j,i)==4){
-        Down(j,i)=-INFINITY;
-        Up(j,i)=INFINITY;
-      }
-    }
-  }
-  
-  
-  for(int i=0;i<l1;i++){
-    lglt(_,i) = pnorm(Up(_,i),0.0,1.0,true,true);
-    lgrt(_,i) = pnorm(Down(_,i),0.0,1.0,false,true);
-    lgct(_,i) = pnorm(Up(_,i),0.0,1.0)-pnorm(Down(_,i),0.0,1.0); 
-  }
-  for(int j=0;j<l2;j++)
-  {
-    for(int i=0;i<l1;i++)
-    {
-      if(GIndex(j,i)==1){
-        logU(j,i)=lglt(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==2){
-        lgct(j,i)=log(lgct(j,i));
-        logU(j,i)=lgct(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==3){
-        logU(j,i)=lgrt(j,i);
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-      if(GIndex(j,i)==4){
-        logU(j,i)=0;
-        logP(j,0)=logP(j,0)+logU(j,i);
-      }
-    }}
-  
-  // Return List
-  
-  return Rcpp::List::create(Rcpp::Named("Down")=Down
-                              ,Rcpp::Named("Up")=Up
-                              ,Rcpp::Named("lglt")=lglt
-                              ,Rcpp::Named("lgrt")=lgrt
-                              ,Rcpp::Named("lgct")=lgct
-                              ,Rcpp::Named("logU")=logU
-                              ,Rcpp::Named("logP")=logP);
-  
-}
-
 

@@ -1,7 +1,7 @@
 Yaml
 
 ---
-title: "Chapter A5: t-statistics for Bayesian Linear models with normal-gamma priors"
+title: "Chapter A4: t-statistics for Bayesian Linear models with normal-gamma priors"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette

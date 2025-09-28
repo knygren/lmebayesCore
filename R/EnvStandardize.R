@@ -24,7 +24,7 @@
 #' 
 #' 
 #' 2) A diagonal matrix epsilon is pulled out from the standardized prior precision matrix so that the remaining
-#' part of the prior precision matrix still is positive definite. That part is then treated as part of the posterior
+#' part of the prior precision matrix still is positive definite. That part is then treated as part of the likelihood
 #' for the rest of the standardization and simulation and only the part connected to epsilon is treated as part of the prior. 
 #' Note that the exact epsilon chosen seems not to matter. Hence there are many possible ways of doing this 
 #' standardization and future versions of this package may tweak the current approach 
@@ -35,6 +35,12 @@
 #' matrix. The standardized model then simutaneously has the feature that the prior precision matrix is the 
 #' identity matrix and that the data precision A (at the posterior mode) is a diagonal matrix. Hence the variables
 #' in the standardized model are approximately independent at the posterior mode.
+#' 
+#' The steps here are based on the procedure descrived in \insertCite{Nygren2006}{glmbayes}.
+#' 
+#'  @references
+#' \insertAllCited{}
+#' @importFrom Rdpack reprompt
 #' @example inst/examples/Ex_glmb_Standardize_Model.R
 #' @export
 #' @keywords internal

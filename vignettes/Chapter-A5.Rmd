@@ -1,12 +1,12 @@
 Yaml
 
 ---
-title: "Chapter A4: Methods available in glmbayes"
+title: "Chapter A5: Technical Report for Likelihood Subgradient Based Samplers"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A4: Methods available in glmbayes}
+  %\VignetteIndexEntry{Chapter A5: Technical Report for Likelihood Subgradient Based Samplers}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -21,273 +21,186 @@ knitr::opts_chunk$set(
 ```{r setup,echo = FALSE}
 library(glmbayes)
 ```
+## 1. Introduction
 
-The **glmb** function and related *method functions* that handle the output are designed to be Bayesian versions of the **glm** function and many of its *method functions*. This vignette shows how the basic setup/calling of the functions compare and then walks through how the method functions for glmb can be called to generate similar outputs to those from the glm functions.
+## 2. Theoretical background
 
-**Dobson Randomized Control Data**
 
-To understand how the outputs of the glmb function mirrors those for the glm function, it is useful to take a look at the first portion of the example that is provided with the glm function. The data is based on Randomized Controlled Trial data from Dobson (1990). Here is a view of the data:
+## 3 Implementation
 
-```{r dobson}
-## Dobson (1990) Page 93: Randomized Controlled Trial :
-counts <- c(18,17,15,20,10,20,25,13,12)
-outcome <- gl(3,1,9)
-treatment <- gl(3,3)
-print(d.AD <- data.frame(treatment, outcome, counts))
-```
 
-**Calling the two functions**
+### 3.1 Mean/offset shift and reparametrization
 
-The example code for the glm function specifies a Poisson regression model for this data. The below code chunks shows how the glmb function can be used in much the same fashion but with some extra requirements. In particular, we need to provide a prior distribution (in this case a Multivariate Normal prior) and related constants (in this case, a prior Mean and and a prior Variance-Covariance matrix) for the coefficients of interest. Optionally, we can also tell the function how many draws to make from the posterior distribution (the default used here generates 1000 iid draws). 
+### 3.2- posterior optimization
 
-Here is the call to the classical *glm* function:
+### 3.3 — model standardization - glmb_Standardize_Model(y, x, P, bstar, A1)
 
-```{r glm_call,results = "hide"}
-## Call to glm
-glm.D93 <- glm(counts ~ outcome + treatment, 
-              family = poisson())
-```
+This functions starts with basic information about the model in the argument list and then uses the following steps to further standardize the model (the model is already assumed to have a 0 prior mean vector when this step is applied).
 
-To use the *glmb* function, we first use a call to a function *Prior_Setup" to initialize the prior and to get the variable names needed. We use the default prior from the Prior_Setup function (discussed further in a separate vignette).
+1) An eigenvalue composition is applied to the posterior precision matrix, and the model is (as an interim step) standardized to have a posterior precision matrix equal to the identity matrix. Please note that this means that the prior precision matrix after this step is "smaller" than the identity matrix.
 
-```{r Prior_Setup,results = "hide"}
-## Using glmb
-## Step 1: Set up Default Prior 
-ps=Prior_Setup(counts ~ outcome + treatment,family=poisson())
-mu=ps$mu
-V=ps$Sigma
-```
+2) A diagonal matrix epsilon is pulled out from the standardized prior precision matrix so that the remaining part of the prior precision matrix still is positive definite. That part is then treated as part of the posterior for the rest of the standardization and simulation and only the part connected to epsilon is treated as part of the prior. Note that the exact epsilon chosen seems not to matter. Hence there are many possible ways of doing this standardization and future versions of this package may tweak the current approach if it helps improve numerical accuracy or acceptance rates.
 
-We now call the *glmb* function and include the default prior
-distribution in addition to the two required arguments for the *glm* function.
+3) The model is next standardized (using a second eigenvalue decomposition) so that the prior (i.e., the portion connected to epsilon) is the identity matrix. The standardized model then simutaneously has the feature that the prior precision matrix is the identity matrix and that the data precision A (at the posterior mode) is a diagonal matrix. Hence the variables in the standardized model are approximately independent at the posterior mode.
 
-```{r Call_glmb,results = "hide"}
-# Step 3: Call the glmb function
-glmb.D93<-glmb(counts ~ outcome + treatment, family=poisson(), pfamily=dNormal(mu=mu,Sigma=V))
-```
 
+### 3.4 — Envelope construction - EnvelopeBuild
 
-In the above, it is worth noting the additional step that we went through when specifying the prior. We used a call to the function *Prior_Setup* to get the correct dimensions for the mean and variance-covariance matrices and to initialize the constants. The *Prior_Setup* function also provided information on the Variable names in the design matrix (which also corresponds to the names of the coefficients eventually estimated) so we can make informed changes to the prior if so desired.
 
-The next couple of vignette's will discuss the prior specification in more details. Here we instead focus on reviewing the output from the function and how it can be used.
+The implementation of `EnvelopeBuild` follows the envelope construction in Nygren & Nygren (2006) for models in standard form (see Section 3–3.3). Each computational step corresponds to a theoretical guarantee:
 
-**Printing the output**
 
-Taking a look at the basic printed output, we can see that the two closely mirror each other with the glmb posterior means replacing the glm maximum likelihood estimates.
+#### 3.4.1 Envelope Sizing and Optimization
 
+When `GridType = 2` the grid size is chosen to balance envelope build cost against sampling efficiency (acceptance rate). A larger grid typically increases acceptance but costs more time and memory to construct; a smaller grid builds quickly but yields more rejected proposals. The optimizer uses information about per-dimension curvature and the requested number of draws to find a pragmatic trade-off.
 
-```{r Printed_Views}
-## Printed view of the output from the glm function 
-print(glm.D93)
-## Printed view of the output from the glmb function 
-print(glmb.D93)
-```
+##### How automatic sizing is invoked
 
-In addition to the posterior means, the *glmb* printed output also returned three pieces of information that are similar to (but not quite the same) as the classical output. The "Effective Number of Parameters" should in general be close to (but not exactly the same) as the number of parameters estimated while the Expected Residual Deviance in general will be higher than the corresponding maximum likelihood estimate for the Residual Deviance (since the latter is designed to minimize it). Finally, the DIC is essentially a Bayesian version of the AIC. These measures will be discussed in greater detail in one of our later vignettes.
+The wrapper scales the requested draw count `n` by the number of detected OpenCL cores (when available) before calling the optimizer. This encourages richer envelopes when envelope construction can be parallelized, since build cost can be amortized across cores
 
-**Methods Available**
 
-In addition to the basic print function output, the glmb function returns an object with an assigned class "glmb" for which a number of generic functions (or methods) are available. The class "glmb" inherits from "glm" and "lm" and as such many functions for those classes work directly for "glmb". For some of the instances where the inherited methods fail and/or could produce incorrect results, we have implemented methods specifically for the *glmb* class. The methods for classes *lm*, *glm*, and *glmb* are listed below. We will use many of these later in this vignette.
+##### How the optimization is performed
 
-```{r lm_Methods}
-## Methods for class "lm"
-methods(class="lm")
-```
+This section explains, step by step and with the exact formulas used in the code, how EnvelopeOpt converts the inputs — the diagonal precisions `a1` (you called this `a_2` in the wrapper) and the desired draw count `n` — into a per-dimension grid specification (a vector of 1s and 3s). The explanation follows the code literally so you can copy it into the vignette and understand every intermediate quantity.
 
-```{r glm_Methods}
-## Methods for class "glm"
-methods(class="glm")
-```
+###### Inputs
+- `a1` — numeric vector of length `p` containing the diagonal elements of the posterior precision matrix in standardized coordinates. Larger `a1[i]` means stronger curvature (narrower posterior) in coordinate `i`.
+- `n` — integer: target number of posterior draws (possibly scaled by core count before the call).
 
-```{r glmb_Methods}
-## Methods for class "glmb"
-methods(class="glmb")
-```
+###### Top-level idea
 
-**The summary functions**
+EnvelopeOpt evaluates a small set of candidate grids. Candidate r (r = 0..p) splits the r "most variable" coordinates from 1 component → 3 components; all other coordinates remain 1 component. For each candidate the function computes a two-term cost:
+- a build-cost proxy (`intest`), roughly the number of grid cells; and
+- a sampling-cost proxy (`n * slopeest`), proportional to n and an aggregate scale factor `slopeest`.
 
-Let's take a closer look at the outputs of the summary functions.
+EnvelopeOpt returns the candidate whose sum (build-cost + sampling-cost) is minimal:
+evalest[r] = intest[r] + n * slopeest[r].
 
-*glm summary output*
 
-In turn, we see the Call, a list of Deviance residuals, and the estimated coefficients. The coefficients are then followed by some additional model related information. 
+##### EnvelopeOpt: purpose, inputs, and outputs
 
-```{r glm_summary}
-## summary output for the "glm" class
-summary(glm.D93)
-```
+- **Purpose:** choose how many components to allocate per parameter dimension (currently `1` or `3`) to minimize an estimated total computational cost.  
+- **Inputs:**
+  - `a1` (called `a_2` where invoked): diagonal elements of the posterior precision matrix in standardized coordinates (per-dimension curvature).  
+  - `n` (possibly scaled): target number of posterior draws.  
+- **Output:** integer vector of length `p` giving per-dimension component counts (`1` or `3`), consumed by `EnvelopeBuild` to construct the grid.
 
-*glmb summary output*
+##### EnvelopeOpt algorithm (high-level)
 
-The summary for the glmb function follow a similar structure but adds a table containing information related to the prior and the maximum likelihood above the table with the means for the estimated Bayesian coefficients. The output below the main table with coefficients is also modified to contain similar (but slightly different) pieces of information (the details of which are discussed elsewhere).
+- Rank dimensions by variability using `rank(1/(1 + a1))`, so dimensions with larger curvature are prioritized for splitting.  
+- Construct `p + 1` candidate grids:
+  - Candidate 0: no splits (all components = 1).  
+  - Candidate i (i = 1..p): split the i-th ranked dimension(s) from `1 → 3` components.  
+- For each candidate compute:
+  - `intest`: approximate number of grid cells (`1, 3, 3^2, ...`).  
+  - `slopeest`: product of per-dimension scale factors (initially `1 + a1`; replaced by `2/sqrt(pi)` for split dims).  
+  - `evalest := intest + n * slopeest` (heuristic total cost = build cost + expected sampling cost).  
+- Select the candidate with minimal `evalest` and return its `dimcount` row.
 
-```{r glmb_summary}
-## summary output for the "glm" class
-summary(glmb.D93)
-```
+##### Interpretation of the cost heuristic
 
-**Model Fit, Predictions, Deviance Residuals, Covariance Matrices, and Confidence/Credible Intervals**
+- `intest` approximates envelope build complexity (grows rapidly with the number of split dimensions).  
+- `n * slopeest` approximates cumulative sampling cost (larger `slopeest` means more candidate proposals are needed per accepted draw).  
+- The algorithm selects the split pattern that minimizes the sum of build cost and expected sampling cost under this heuristic.
 
-Let's next take a look at the outputs from these additional methods to see how they compare. Note that the Bayesian version of these contain random draws tied to the underlying distributions so the column means are mostly used in these comparisons.
+##### Behavior when GridType != 2
 
-*Fitted values*
+If `GridType` is not `2`, the optimizer is bypassed and a deterministic grid policy is applied. The chosen `GridType` uniquely determines grid size and componentization; automatic scaling and core-count adjustments are not used.
 
-```{r glm fitted outputs}
-## fitted outputs for the glm function
-fitted(glm.D93)
-```
+##### Practical recommendations
 
+- **Default:** keep `GridType = 2` so the package tunes the grid automatically.  
+- For debugging or single-draw runs, set `GridType != 2` or disable parallel/OpenCL (`use_parallel = FALSE`, `use_opencl = FALSE`) to force a small, deterministic grid.  
+- Record detected core count and `GridType` when running large simulations for reproducibility; for strict reproducibility across machines, use a fixed `GridType` or disable OpenCL/parallelism.
 
-```{r glmb fitted outputs}
-## mean of fitted outputs for the glm function
-## works without a "glmb" class specific generic function
-colMeans(fitted(glmb.D93))
-```
+##### Illustrative example
 
-*Predictions(linear predictors)*
+- With moderate `p` and large `n` plus GPU enabled, the wrapper scales `n` and `EnvelopeOpt` commonly returns more `3`-component splits, yielding a richer grid and higher acceptance at the cost of longer build time.  
+- For `n = 1` and no parallelism, `EnvelopeOpt` will usually prefer smaller grids the minimal grid (all ones), leading to fast envelope construction and one-off sampling.
 
-```{r glm predictions}
-## predictions for the glm function
-predict(glm.D93)
-```
+#### 3.4.2 Compute width parameters** \(\omega_i\) **from the diagonal precision matrix.**  
+   Let \(\theta^{\ast}\) denote the posterior mode. For each dimension \(i\), define
+   \[
+     \omega_{i} :=
+     \frac{\sqrt{2} - \exp\!\big(-1.20491 - 0.7321\,\sqrt{0.5 - \frac{\partial^{2}\log f(\theta^{\ast}\mid y)}{\partial\theta_{i}^{2}}}\big)}
+          {\sqrt{1 - \frac{\partial^{2}\log f(\theta^{\ast}\mid y)}{\partial\theta_{i}^{2}}}}.
+   \]
+   The widths \(\omega_i\) are derived from the local curvature of the log-likelihood at the posterior mode. This choice ensures the three-interval construction per dimension yields an envelope whose efficiency does not deteriorate with sample size.
+
+#### 3.4.3 Construct per-dimension intervals around the posterior mode.**  
+   Set
+   \[
+     \ell_{i,1} = \theta^{\ast}_{i} - 0.5\,\omega_{i}, \qquad
+     \ell_{i,2} = \theta^{\ast}_{i} + 0.5\,\omega_{i},
+   \]
+   and define three intervals per dimension:
+   \[
+     A_{i,1} = (-\infty,\ell_{i,1}), \quad
+     A_{i,2} = [\ell_{i,1},\ell_{i,2}], \quad
+     A_{i,3} = (\ell_{i,2},\infty).
+   \]
+   For each dimension \(i\) let \(J_{i}=\{1,2,3\}\) and \(J=\prod_{i=1}^p J_i\), so \(|J|=3^p\). Each \(j\in J\) is \((j_1,\dots,j_p)\) and define
+   \[
+     A^{\ast}_{j} = \prod_{i=1}^{p} A_{i,j_{i}}.
+   \]
+   The collection \(\{A^{\ast}_{j}:j\in J\}\) forms a partition of \(\Theta\).
+
+#### 3.4.4 Select tangency points \(\bar{\theta}_{j}\) for each partition element.**  
+   For each \(j\in J\) define index subsets
+   \[
+     C_{j1} = \{i : j_{i} = 1\}, \quad
+     C_{j2} = \{i : j_{i} = 2\}, \quad
+     C_{j3} = \{i : j_{i} = 3\}.
+   \]
+   Define the tangency point componentwise by
+   \[
+     \bar{\theta}_{j,i} =
+     \begin{cases}
+       \theta^{\ast}_{i} - \omega_{i}, & i \in C_{j1}, \\
+       \theta^{\ast}_{i},              & i \in C_{j2}, \\
+       \theta^{\ast}_{i} + \omega_{i}, & i \in C_{j3}.
+     \end{cases}
+   \]
+   These tangency points ensure the envelope touches the log-likelihood at representative points in each interval, guaranteeing dominance and tightness.
+
+#### 3.4.5 Build the Cartesian grid of tangency points (full grid).**  
+   The Cartesian product of per-dimension tangency choices yields the complete set of \(3^p\) tangency points. These represent the restricted densities discussed in the paper and guarantee coverage of the parameter space.
+
+#### 3.4.6 Evaluate negative log-likelihood and gradients at each grid point.**  
+   Compute \(h_{\bar{\theta}}(\cdot)\) and the subgradients \(c(\bar{\theta})\) at each tangency point. These quantities define the Likelihood Subgradient Densities and are used in the accept–reject procedure. Implementations:
+   - CPU routines: `f2_*` (neg-log-likelihood) and `f3_*` (gradient).  
+   - GPU/OpenCL: `f2_f3_opencl` computes both together for efficiency.
+
+#### 3.4.7 Evaluate restricted multivariate normal log-densities via `Set_Grid_C2_pointwise`.**  
+   Each restricted density corresponds to a subset of the partition and is normalized as in Remark 5 of the paper. This step yields log-density values needed to form the mixture envelope (Claim 2).
+
+#### 3.4.8 Compute component log-probabilities and normalization constants via `setlogP_C2`.**  
+   Compute mixture constants \(\tilde{a}\) and mixture weights \(\tilde{p}_i\) as in Remark 6 so the mixture envelope is properly normalized and usable as a dominating density for accept–reject sampling.
+
+#### 3.4.9 Normalize component probabilities (PLSD) and optionally sort grid components.**  
+   Normalize so the mixture of restricted densities is a valid probability distribution (Claim 2). Sorting components is an implementation optimization to improve sampling efficiency and early-rejection performance.
+
+
+
+### 3.5 — simulation (serial vs parallel)
+
+### 3.6 — undo-standardization and postprocessing
+
+
+
+
+## 4 Diagnostics, testing, and developer notes
+Diagnostic checks and outputs
+Numerical stability caveats and remedies
+Suggested unit tests
+Roxygen and API documentation tips
+Extension points and future improvements
+
+## 5. Appendix
+API reference (arguments and returned list)
+Troubleshooting checklist
+Suggested figures and tables
+References
 
-```{r glmb predictions}
-## predictions for the glmb function
-colMeans(glmb.D93$linear.predictors) # no current predict function
-colMeans(predict(glmb.D93)) 
-```
 
-*Residuals*
 
-```{r glm residuals}
-## residuals for the glm function
-residuals(glm.D93)
-```
-
-```{r glmb residuals}
-## residuals for the glmb function
-colMeans(residuals(glmb.D93))
-```
-
-*vcov*
-
-```{r glm vcov}
-## vcov for the glm function
-vcov(glm.D93)
-```
-
-```{r glmb vcov}
-## vcov for the glmb function
-vcov(glmb.D93)
-```
-
-*confint*
-
-Confidence intervals
-```{r glm confint}
-## confint for the glm function
-confint(glm.D93)
-```
-
-```{r glmb confint}
-## confint for the glmb function
-confint(glmb.D93)
-```
-
-
-**AIC/DIC, Deviance, and the Log-Likelihood**
-
-These model statistics are useful when comparing different model specifications. The Bayesian versions of these will be discussed in greater detail in a separate Vignette.
-
-*AIC/DIC*
-
-```{r glm AIC}
-## AIC for the glm function (equivalent degrees of freedom and the AIC)
-extractAIC(glm.D93)
-```
-
-```{r glmb DIC}
-## DIC for the glmb function (estimated effective number of parameters and the DIC)
-extractAIC(glmb.D93)
-```
-
-*Deviance*
-
-```{r glm Deviance}
-## Deviance for the glm function
-deviance(glm.D93)
-```
-
-```{r glmb Deviance}
-## Deviance for the glmb function
-## works without a "glmb" class specific generic function
-mean(deviance(glmb.D93))
-```
-
-*Log-Likelihoods*
-
-```{r glm logLik}
-## Deviance for the glm function
-logLik(glm.D93)
-```
-
-```{r glmb logLik}
-## Deviance for the glmb function
-mean(logLik(glmb.D93))
-```
-
-**Model Frame, formula, family, nobs, and show**
-
-These are mostly useful for understanding various aspects of the model.
-
-*Model Frames*
-
-```{r glm Model Frame}
-## Model Frame for the glm function
-model.frame(glm.D93)
-```
-
-```{r glmb Model Frame}
-## Model Frame for the glmb function
-model.frame(glmb.D93$glm)
-```
-
-*formula*
-
-```{r glm formula}
-## formula for the glm function
-formula(glm.D93)
-```
-
-```{r glmb formula}
-## formula for the glmb function
-formula(glmb.D93)
-```
-*family*
-
-```{r glm family}
-## family for the glm function
-family(glm.D93)
-```
-
-
-```{r glmb family}
-## family for the glmb function
-family(glmb.D93$glm)
-```
-*nobs*
-
-```{r glm nobs}
-## nobs for the glm function
-nobs(glm.D93)
-```
-
-```{r glmb nobs}
-## nobs for the glmb function
-nobs(glmb.D93)
-```
-
-
-*show*
-
-The show method returns the same output as the print function

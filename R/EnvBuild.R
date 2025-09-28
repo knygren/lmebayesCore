@@ -9,9 +9,9 @@
 #' \insertCite{Nygren2006}{glmbayes}, with extensions for GPU acceleration
 #' (via OpenCL), dynamic grid optimization, and parallelized evaluation.
 #'
-#' The envelope is built around the posterior mode \eqn{\theta^\star} for a model in standard 
+#' The envelope is typically built around the posterior mode \eqn{\theta^\star} for a model in standard 
 #' form (which in this context means a model with a diagonal posterior precision matrix
-#' and prior identity precision matrix). It uses dimension-specific width parameters 
+#' and prior identity precision matrix - \code{glmb_Standardize_Model}). It uses dimension-specific width parameters 
 #' \eqn{\omega_i} derived from the precision
 #' matrix. Tangency points are selected per dimension, and the full grid is
 #' formed via Cartesian expansion. Negative log-likelihood and gradient values
@@ -187,7 +187,6 @@
 #'   }
 #' 
 #' 
-
 #'
 #' In Remark 6 of Nygren & Nygren (2006), the mixture weights
 #' \eqn{\tilde{p}_i} for each restricted likelihood-subgradient density
@@ -212,7 +211,6 @@
 #' over all such constants across the partition. The resulting mixture
 #' \eqn{\tilde{q}^{\bar{\theta}}(\theta)} is a valid approximation to the
 #' posterior density \eqn{\pi(\theta \mid y)}.
-
 #'
 #' Remark 6 emphasizes that these mixture weights are tractable to compute
 #' in standardized models. When the prior is \eqn{\mathcal{N}(0, I)} and the
@@ -243,7 +241,6 @@
 #' \eqn{\tilde{q}_{\bar{\theta}}(\theta)} and to evaluate the envelope
 #' approximation to the posterior. Because all components are normalized and
 #' tractable, the mixture is both valid and computationally efficient.
-
 #' @section Log-scale properties of the envelope function:
 #'
 #' The envelope function \eqn{h_{\bar{\theta}}(\theta)} is defined in
@@ -279,8 +276,6 @@
 #'   h_{\bar{\theta}}(\bar{\theta}) = 1,
 #' }
 #' confirming that the envelope touches the posterior density exactly.
-
-
 #' The key inequality that ensures envelope dominance follows from the
 #' subgradient inequality for concave functions. If \eqn{\log f(y \mid \theta)}
 #' is concave and \eqn{c(\bar{\theta})} is a subgradient at \eqn{\bar{\theta}},
@@ -302,7 +297,6 @@
 #' \deqn{
 #'   h_{\bar{\theta}}(\bar{\theta}) = 1.
 #' }
-
 #' @section Use of the envelope during sampling:
 #'
 #' The functions \code{rnnorm_reg_std_cpp()} and \code{rnnorm_reg_std_cpp_parallel()}
@@ -384,7 +378,6 @@
 #'   \item \code{GridIndex} encodes the sampling type (tail, center, line) used for each
 #'         dimension and region, guiding how each coordinate is simulated.
 #' }
-
 #' @section Algorithmic steps (linked to theory):
 #'
 #' The implementation of \code{EnvelopeBuild} follows the envelope construction
@@ -701,7 +694,6 @@
 #' shifted mean \eqn{-c(\bar{\theta})}, and that restriction to a box
 #' set \eqn{A} yields closed-form expressions for both the normalizing
 #' constant and the expectation.
-
 #' @section Remarks on sampling from restricted normals:
 #' \strong{Remark 7.} Sampling from the restricted normal densities in
 #' Example 2 can be implemented using the inverse-transform method
@@ -773,8 +765,6 @@
 #'   = \frac{2}{\sqrt{\pi}},
 #' }
 #' where the second-to-last equality follows from Claims A.1 and A.4 in the Appendix.
-
-
 #' @section Log-concave models with multivariate normal priors:
 #' To ensure that the quality of the enveloping function remains good in the
 #' multivariate case, models are first reparameterized into a standard form.
@@ -866,7 +856,6 @@
 #' normal densities, for which a straightforward sampling procedure exists.
 #' 
 #' 
-
 #' @section Subgradient density formulation:
 #' Each grid component corresponds to a tilted multivariate normal density,
 #' normalized using the moment-generating function (MGF). In the single-point
@@ -894,7 +883,6 @@
 #' \deqn{
 #' \log p_j = \log \Phi(U_j) - \log \Phi(L_j) - \text{NegLL}_j + \text{LLconst}_j
 #' }
-
 #' @section Algorithmic steps:
 #' 1. Compute width parameters \eqn{\omega_i} from the diagonal of the precision matrix.
 #' 2. Construct intervals around the posterior mode \eqn{\theta^\star}.
@@ -908,7 +896,6 @@
 #' 7. Call \code{setlogP_C2} to compute component log-probabilities and constants.
 #' 8. Normalize probabilities (\code{PLSD}) and optionally sort grid components
 #'    by probability if \code{sortgrid = TRUE}.
-
 #' @section Gridtype logic:
 #' The \code{Gridtype} argument controls how many tangency points are used per dimension:
 #' - 1: Threshold rule. If \eqn{1 + a_i \le 2/\sqrt{\pi}}, use a single-point envelope at the mode;
@@ -918,7 +905,6 @@
 #'      OpenCL cores when GPU is enabled.
 #' - 3: Always use three points per dimension.
 #' - 4: Always use a single point (mode only).
-
 #' @section Supported families and links:
 #' The following families and link functions are supported:
 #' - Binomial: logit, probit, cloglog
@@ -930,7 +916,6 @@
 #'
 #' GPU acceleration (\code{use_opencl = TRUE}) is available for all of the above
 #' except Gaussian, which is always evaluated on CPU.
-
 #' @section GPU acceleration:
 #' When \code{use_opencl = TRUE}, likelihood and gradient evaluations are
 #' offloaded to the GPU using OpenCL. This can substantially reduce runtime for
@@ -942,7 +927,6 @@
 #' If OpenCL support was not detected at compile time, the flag is ignored and
 #' the CPU implementation is used. Diagnostic messages are printed when
 #' \code{verbose = TRUE}.
-
 #' @section Verbose output:
 #' When \code{verbose = TRUE}, the function prints:
 #' - Grid type, number of draws, OpenCL usage, and detected core count.
@@ -1023,6 +1007,7 @@
 #'  @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt
+
 
 #' @usage EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", Gridtype = 2L,n = 1L,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
 #' @rdname EnvelopeBuild

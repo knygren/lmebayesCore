@@ -30,7 +30,7 @@ intest<-c(1:(l1+1))
 slopeest<-c(1:(l1+1))
 
 dimcount[1,]<-diag(diag(l1))
-scaleest[1,]<-1+a1
+scaleest[1,]<-sqrt(1+a1)
 slopeest[1]<-prod(scaleest[1,])
 
 for(i in 2:(l1+1)){
