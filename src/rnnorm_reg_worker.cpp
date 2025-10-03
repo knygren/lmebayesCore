@@ -268,13 +268,14 @@
             draws[i] = draws[i] + 1.0;
             
             // effective cap: use max_draws when provided, otherwise use legacy 1000 for diagnostic
-            int cap = (max_draws >= 0) ? max_draws : 1000;
+//            int cap = (max_draws >= 0) ? max_draws : 1000;
             
             // print exactly once when we hit the cap (use your existing mutex for thread-safety)
-            if (static_cast<int>(draws[i]) == cap) {
+//            if (static_cast<int>(draws[i]) == cap) {
+              if (max_draws>0 && static_cast<int>(draws[i]) >= max_draws) {
               tbb::mutex::scoped_lock lock(f2_mutex);
               Rcpp::Rcout << "[WARN] index=" << i << " reached draws=" << draws[i]
-                          << " (cap=" << cap << ") — forcing a1=1.0 to avoid infinite loop\n";
+                          << " (cap=" << max_draws << ") — forcing a1=1.0 to avoid infinite loop\n";
               
               Rcpp::Rcout << "[DEBUG] Acceptance test breakdown:\n";
               Rcpp::Rcout << "  LLconst[" << J << "] = " << LLconst[J] << "\n";
@@ -289,8 +290,9 @@
             
             
             // when cap reached or exceeded, set the atomic flag (if provided) and force exit
-            if (static_cast<int>(draws[i]) >= cap) {
-              if (any_maxdraw_flag) {
+//            if (static_cast<int>(draws[i]) >= cap) {
+              if (max_draws>0 && static_cast<int>(draws[i]) >= max_draws) {
+                if (any_maxdraw_flag) {
                 any_maxdraw_flag->store(1, std::memory_order_relaxed);
               }
               a1 = 1.0;   // force acceptance / break out of while loop

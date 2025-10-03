@@ -52,6 +52,8 @@ __kernel void f2_f3_binomial_logit(
         g_loc[k] = tmp[k];
     }
 
+    double p,q, e;
+
     // 4) logistic prep + dbinom call + data‐term for gradient
     int base = j * l1;
     for (int i = 0; i < l1; ++i) {
@@ -60,19 +62,45 @@ __kernel void f2_f3_binomial_logit(
         for (int k = 0; k < l2; ++k) {
             dot -= X[k*l1 + i] * B[j*l2 + k];
         }
-        double p = 1.0 / (1.0 + exp(dot));
+
+        if(dot<=0){
+        e=exp(dot);
+        p = 1.0 / (1.0 + e);
+        q = e / (1.0 + e);
+        }
+        else{
+        e=exp(-dot);
+        p = e / (1.0 + e);
+        q = 1.0 / (1.0 + e);
+        }
+
+
+//        double p = 1.0 / (1.0 + exp(dot));
+
 //        xb[base + i] = p;
 
         // call dbinom on log‐scale and negate to match yy = -dbinom_glmb(...)
         // give_log=1 returns log-density
-        double ll = dbinom(y[i], wt[i], p, 1);
+        // double ll = dbinom(y[i], wt[i], p, 1);
+        double ll = dbinom_raw(y[i], wt[i], p,q, 1);
 //        double yy = -ll;
         res_acc += -ll;
 
         // for now we ignore yy; later hook it to an output buffer
 
         // accumulate gradient: X[i,·]^T * ((p - y[i]) * wt[i])
-        double resid = (p - y[i]) * wt[i];
+        
+        double resid;
+        if(p<0.5){
+        
+        resid = p * wt[i] - y[i]* wt[i] ;
+        }
+        else{
+        
+        resid = (1- y[i])* wt[i] -q * wt[i] ;
+        
+        }
+        
         for (int k = 0; k < l2; ++k) {
             g_loc[k] += X[k*l1 + i] * resid;
         }
@@ -86,4 +114,3 @@ __kernel void f2_f3_binomial_logit(
         grad[k * m1 + j] = g_loc[k];  // column-major layout
     }
 }
-

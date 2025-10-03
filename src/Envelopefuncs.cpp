@@ -184,6 +184,8 @@ List EnvelopeBuild_c(NumericVector bStar,
   Lint=yy_1b*arma::trans(bStar_2)+yy_2b*arma::trans(omega);
   
   
+  
+  
   // 3.4.1 - EnvelopOpt
   
   /// If GridType=2, then the Size of the Grid is optimized for performance
@@ -222,9 +224,13 @@ List EnvelopeBuild_c(NumericVector bStar,
 //    }
     
 //    gridindex = EnvelopeOpt(a_2, scaled_n,core_CNT);
+
+  if(use_opencl==0 ){
+     gridindex=EnvelopeOpt(a_2,n,1);}
+    else{
     gridindex = EnvelopeOpt(a_2, n,core_CNT);
+    }
     
-    //gridindex=EnvelopeOpt(a_2,n);
   }
   
   NumericVector Temp1=G1( _, 0);

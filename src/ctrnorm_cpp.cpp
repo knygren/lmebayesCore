@@ -34,44 +34,36 @@ double safe_qnorm_logp(double logp, double mu, double sigma, bool lower_tail) {
 
 
 
-double ctrnorm_cpp(double lgrt,double lglt,double mu,double sigma){
-
-  //RNGScope scope;
+double ctrnorm_cpp(double lgrt, double lglt, double mu, double sigma) {
+  double U = 0;
+  double out = 0;
   
-  double U=0;
-  double out=0;
-  double lgU2=0;
-  
-  if(lgrt>=lglt){
-    //U=R::runif(0.0, 1.0);
+  if (lgrt >= lglt) {
     U = safe_runif();
     
+    // u1 = 1 - exp(lgrt)  →  -expm1(lgrt)
+    double u1   = -std::expm1(lgrt);
+    double lgu1 = std::log(u1);
     
-    double  u1=1-exp(lgrt);
-    double lgu1=log(u1);
-    lgU2=log(U)+lglt+log(1-exp(lgu1-lglt));
-    double lgU3=lgU2+log(1+exp(lgu1-lgU2));
-//    out=R::qnorm(lgU3,mu,sigma,TRUE,TRUE);
+    // log(1 - exp(lgu1 - lglt)) → log(-expm1(lgu1 - lglt))
+    double lgU2 = std::log(U) + lglt + std::log(-std::expm1(lgu1 - lglt));
+    double lgU3 = lgU2 + std::log1p(std::exp(lgu1 - lgU2));
     
-//    out = qnorm_logp(lgU3, mu, sigma, true);
-    out = safe_qnorm_logp(lgU3, mu, sigma, true);   // lower_tail = true 
+    out = safe_qnorm_logp(lgU3, mu, sigma, true);
     
-  }  
-  
-  if(lgrt<lglt){
-    //U=R::runif(0.0, 1.0);
+  } else {
     U = safe_runif();
     
-    double e1mu2=1-exp(lglt);
-    double lg1mu2=log(e1mu2);
-    double lgU2=log(U)+lgrt+log(1-exp(lg1mu2-lgrt));
-    double lgU3=lgU2+log(1+exp(lg1mu2-lgU2));
-//    out=R::qnorm(lgU3,mu,sigma,FALSE,TRUE);
-//    out = qnorm_logp(lgU3, mu, sigma, true);
-    out = safe_qnorm_logp(lgU3, mu, sigma, false);   // lower_tail = true
+    // e1mu2 = 1 - exp(lglt) → -expm1(lglt)
+    double e1mu2  = -std::expm1(lglt);
+    double lg1mu2 = std::log(e1mu2);
+    
+    // log(1 - exp(lg1mu2 - lgrt)) → log(-expm1(lg1mu2 - lgrt))
+    double lgU2 = std::log(U) + lgrt + std::log(-std::expm1(lg1mu2 - lgrt));
+    double lgU3 = lgU2 + std::log1p(std::exp(lg1mu2 - lgU2));
+    
+    out = safe_qnorm_logp(lgU3, mu, sigma, false);
   }
   
-  
   return out;
-  
 }

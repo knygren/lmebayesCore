@@ -535,11 +535,11 @@ List rnnorm_reg_std_cpp_parallel(
   
   if (any_hit_after_test != 0) {
     Rcpp::Rcout << "[WARN] One or more indices hit the max_draws cap during the test.\n";
-    
+
     // Use R's readline via Rcpp to prompt the user from C++
     Rcpp::Function readline("readline");
     std::string prompt = "Enter 1 to continue full run, 2 to stop and return partial results: ";
-    
+
     while (true) {
       // call R's readline which is safe in R environments
       SEXP ans_sexp = readline(Rcpp::wrap(prompt));
@@ -568,8 +568,9 @@ List rnnorm_reg_std_cpp_parallel(
       }
     } // end prompt loop
   }
-  
-  
+
+
+
   
   ////////////////////////////////////////////////////////////////
   

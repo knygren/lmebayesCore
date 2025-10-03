@@ -63,7 +63,8 @@ __kernel void f2_f3_binomial_cloglog(
             dot += X[k*l1 + i] * B[j*l2 + k];
         }
 
-        double p1 = 1.0 - exp(-exp(dot));
+//        double p1 = 1.0 - exp(-exp(dot));
+        double p1 = -expm1(-exp(dot));            // 1 - exp(-exp(dot)), cancellation-safe
         double p2 = exp(-exp(dot));
         double atemp = exp(dot - exp(dot));
 //        xb[base + i] = p1;
@@ -79,7 +80,9 @@ __kernel void f2_f3_binomial_cloglog(
 
 
         // use dbinom for log-likelihood
-        double ll = dbinom(y[i], wt[i], p1, /*give_log=*/1);
+  //      double ll = dbinom(y[i], wt[i], p1, /*give_log=*/1);
+        double ll = dbinom_raw(y[i], wt[i], p1, p2,/*give_log=*/1);
+
         res_acc -= ll;
 
 

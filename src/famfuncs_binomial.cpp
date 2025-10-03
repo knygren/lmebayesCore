@@ -50,27 +50,39 @@ inline double dbinom_raw_local(double x, double n, double p, double q, int give_
 
 ///////////////////////////////////////////////////////////
 
-void neg_dbinom_glmb_rmat(const RVector<double>& x,         // success proportion
-                          const RVector<double>& N,         // trial count
-                          const std::vector<double>& p_vec, // success probabilities
-                          std::vector<double>& res,         // output buffer
-                          const int lg)                     // log=TRUE?
+// Neg log binomial likelihood, vectorized
+void neg_dbinom_glmb_rmat(const RVector<double>& x,          // success proportion
+                          const RVector<double>& N,          // trial count
+                          const std::vector<double>& p_vec,  // success probabilities
+                          const std::vector<double>& q_vec,  // failure probabilities
+                          std::vector<double>& res,          // output buffer
+                          const int lg)                      // log=TRUE?
 {
   std::size_t n = x.size();
   if (res.size() != n)
-    res.resize(n);  // ensure buffer size
+    res.resize(n);
   
   for (std::size_t i = 0; i < n; ++i) {
     double trials  = std::round(N[i]);
     double success = std::round(x[i] * N[i]);
     double p       = p_vec[i];
-    double q       = 1.0 - p;
+    double q       = q_vec[i];
     
     // Thread-safe backend log-density
     res[i] = -dbinom_raw_local(success, trials, p, q, lg);
+    
+    // Optional diagnostics
+    // if (!std::isfinite(res[i])) {
+    //     Rcpp::Rcout << "[WARN] neg_dbinom_glmb_rmat: non-finite res[" << i << "]\n"
+    //                 << "  trials  = " << trials  << "\n"
+    //                 << "  success = " << success << "\n"
+    //                 << "  p       = " << p       << "\n"
+    //                 << "  q       = " << q       << "\n"
+    //                 << "  raw x   = " << x[i]    << "\n"
+    //                 << "  raw N   = " << N[i]    << "\n";
+    // }
   }
 }
-
 
 
 // void neg_dbinom_glmb_rmat_old(const RVector<double>& x,         // success proportion
@@ -427,31 +439,20 @@ NumericVector  f2_binomial_logit(NumericMatrix b,NumericVector y, NumericMatrix 
 
 
 arma::vec f2_binomial_logit_rmat(
-    // NumericMatrix b, NumericVector y,
-    //                              NumericMatrix x, NumericMatrix mu,
-    //                              NumericMatrix P, NumericVector alpha,
-    //                              NumericVector wt, int progbar = 0
-                                   const RMatrix<double>& b,
-                                   const RVector<double>& y,
-                                   const RMatrix<double>& x,
-                                   const RMatrix<double>& mu,
-                                   const RMatrix<double>& P,
-                                   const RVector<double>& alpha,
-                                   const RVector<double>& wt,
-                                   const int progbar=0   
-                                   ) {
-//  int l1 = x.nrow(), l2 = x.ncol();
-//  int m1 = b.ncol();
-  
-  /////////////////////////////////////////////////////////////////////////////
-  
-  
-  
+    const RMatrix<double>& b,
+    const RVector<double>& y,
+    const RMatrix<double>& x,
+    const RMatrix<double>& mu,
+    const RMatrix<double>& P,
+    const RVector<double>& alpha,
+    const RVector<double>& wt,
+    const int progbar /*=0*/
+) {
   std::size_t l1 = x.nrow();
   std::size_t l2 = x.ncol();
   std::size_t m1 = b.ncol();
   
-  // Armadillo views over RMatrix memory (using pointer cast for compatibility)
+  // Armadillo views over RMatrix memory
   arma::mat b2full(const_cast<double*>(&*b.begin()), l2, m1, false);
   arma::mat x2(const_cast<double*>(&*x.begin()), l1, l2, false);
   arma::mat mu2(const_cast<double*>(&*mu.begin()), l2, 1, false);
@@ -461,37 +462,38 @@ arma::vec f2_binomial_logit_rmat(
   arma::vec res(m1, arma::fill::none);
   arma::mat bmu(l2, 1, arma::fill::none);
   
-  
-  std::vector<double> xb_temp(l1), yy_temp(l1);
-  arma::colvec xb_temp2(xb_temp.data(), l1, false);  // shallow Armadillo view
-  
-  ////////////////////////////////////////////////////////////
-
+  // Buffers (declare once, reuse per i)
+  std::vector<double> p_vec(l1), q_vec(l1), yy_temp(l1);
   
   for (std::size_t i = 0; i < m1; ++i) {
-
     arma::mat b_i(b2full.colptr(i), l2, 1, false);
     
+    // Mahalanobis penalty
     bmu = b_i - mu2;
-    
     double mahal = 0.5 * arma::as_scalar(bmu.t() * P2 * bmu);
     
-  
-    xb_temp2 = arma::exp(-alpha2 - x2 * b_i);
-    
-    for (std::size_t  j = 0; j < l1; j++) {
-
-      xb_temp[j] = 1.0 / (1.0 + xb_temp[j]);  // logistic link
-      
+    // Compute p and q stably for each observation
+    for (std::size_t j = 0; j < l1; ++j) {
+      double eta = alpha2(j,0) + arma::dot(x2.row(j), b_i);
+      double p, q;
+      if (eta >= 0) {
+        double e = std::exp(-eta);
+        p = 1.0 / (1.0 + e);
+        q = e / (1.0 + e);
+      } else {
+        double e = std::exp(eta);
+        p = e / (1.0 + e);
+        q = 1.0 / (1.0 + e);
+      }
+      p_vec[j] = p;
+      q_vec[j] = q;
     }
     
-
-    // In-place evaluation using your log-scale accurate backend
-  neg_dbinom_glmb_rmat(y, wt, xb_temp, yy_temp,1.0);
-
-
-    res(i) =std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
-
+    // Call refactored backend with both p and q
+    neg_dbinom_glmb_rmat(y, wt, p_vec, q_vec, yy_temp, /*lg=*/1);
+    
+    // Accumulate with penalty
+    res(i) = std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
   }
   
   return res;
@@ -839,10 +841,6 @@ NumericVector  f2_binomial_probit(NumericMatrix b,NumericVector y, NumericMatrix
 
 
 arma::vec f2_binomial_probit_rmat(
-    // NumericMatrix b, NumericVector y,
-    //                              NumericMatrix x, NumericMatrix mu,
-    //                              NumericMatrix P, NumericVector alpha,
-    //                              NumericVector wt, int progbar = 0
     const RMatrix<double>& b,
     const RVector<double>& y,
     const RMatrix<double>& x,
@@ -850,20 +848,13 @@ arma::vec f2_binomial_probit_rmat(
     const RMatrix<double>& P,
     const RVector<double>& alpha,
     const RVector<double>& wt,
-    const int progbar=0   
+    const int progbar
 ) {
-  //  int l1 = x.nrow(), l2 = x.ncol();
-  //  int m1 = b.ncol();
-  
-  /////////////////////////////////////////////////////////////////////////////
-  
-  
-  
   std::size_t l1 = x.nrow();
   std::size_t l2 = x.ncol();
   std::size_t m1 = b.ncol();
   
-  // Armadillo views over RMatrix memory (using pointer cast for compatibility)
+  // Armadillo views over RMatrix memory
   arma::mat b2full(const_cast<double*>(&*b.begin()), l2, m1, false);
   arma::mat x2(const_cast<double*>(&*x.begin()), l1, l2, false);
   arma::mat mu2(const_cast<double*>(&*mu.begin()), l2, 1, false);
@@ -873,40 +864,35 @@ arma::vec f2_binomial_probit_rmat(
   arma::vec res(m1, arma::fill::none);
   arma::mat bmu(l2, 1, arma::fill::none);
   
-  
-  std::vector<double> xb_temp(l1), yy_temp(l1);
-  arma::colvec xb_temp2(xb_temp.data(), l1, false);  // shallow Armadillo view
-  
-  ////////////////////////////////////////////////////////////
-  
+  // Buffers
+  std::vector<double> p_vec(l1), q_vec(l1), yy_temp(l1);
   
   for (std::size_t i = 0; i < m1; ++i) {
-    
     arma::mat b_i(b2full.colptr(i), l2, 1, false);
     
     bmu = b_i - mu2;
-    
     double mahal = 0.5 * arma::as_scalar(bmu.t() * P2 * bmu);
     
+    // Compute linear predictor
+    arma::colvec eta = alpha2 + x2 * b_i;
     
-    xb_temp2 = alpha2+  x2 * b_i;
-    
+    // Compute p and q stably via probit link
     for (std::size_t j = 0; j < l1; j++) {
-      xb_temp[j] = pnorm5_local(xb_temp[j], 0.0, 1.0, 1, 0);
+      double z = eta(j);
+      double p = pnorm5_local(z, 0.0, 1.0, /*lower_tail=*/1, /*log_p=*/0);
+      double q = pnorm5_local(z, 0.0, 1.0, /*lower_tail=*/0, /*log_p=*/0);
+      p_vec[j] = p;
+      q_vec[j] = q;
     }
     
-
-    // In-place evaluation using your log-scale accurate backend
-    neg_dbinom_glmb_rmat(y, wt, xb_temp, yy_temp,1.0);
+    // Call refactored backend
+    neg_dbinom_glmb_rmat(y, wt, p_vec, q_vec, yy_temp, 1);
     
-    
-    res(i) =std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
-    
+    res(i) = std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
   }
   
   return res;
 }
-
 
 
 
@@ -1225,10 +1211,6 @@ NumericVector  f2_binomial_cloglog(NumericMatrix b,NumericVector y, NumericMatri
 
 
 arma::vec f2_binomial_cloglog_rmat(
-    // NumericMatrix b, NumericVector y,
-    //                              NumericMatrix x, NumericMatrix mu,
-    //                              NumericMatrix P, NumericVector alpha,
-    //                              NumericVector wt, int progbar = 0
     const RMatrix<double>& b,
     const RVector<double>& y,
     const RMatrix<double>& x,
@@ -1236,20 +1218,13 @@ arma::vec f2_binomial_cloglog_rmat(
     const RMatrix<double>& P,
     const RVector<double>& alpha,
     const RVector<double>& wt,
-    const int progbar=0   
+    const int progbar /*=0*/
 ) {
-  //  int l1 = x.nrow(), l2 = x.ncol();
-  //  int m1 = b.ncol();
-  
-  /////////////////////////////////////////////////////////////////////////////
-  
-  
-  
   std::size_t l1 = x.nrow();
   std::size_t l2 = x.ncol();
   std::size_t m1 = b.ncol();
   
-  // Armadillo views over RMatrix memory (using pointer cast for compatibility)
+  // Armadillo views over RMatrix memory
   arma::mat b2full(const_cast<double*>(&*b.begin()), l2, m1, false);
   arma::mat x2(const_cast<double*>(&*x.begin()), l1, l2, false);
   arma::mat mu2(const_cast<double*>(&*mu.begin()), l2, 1, false);
@@ -1259,45 +1234,43 @@ arma::vec f2_binomial_cloglog_rmat(
   arma::vec res(m1, arma::fill::none);
   arma::mat bmu(l2, 1, arma::fill::none);
   
-  
-  std::vector<double> xb_temp(l1), yy_temp(l1);
-  arma::colvec xb_temp2(xb_temp.data(), l1, false);  // shallow Armadillo view
-  
-  ////////////////////////////////////////////////////////////
-  
+  // Buffers reused per coefficient index i
+  std::vector<double> p_vec(l1), q_vec(l1), yy_temp(l1);
   
   for (std::size_t i = 0; i < m1; ++i) {
-    
     arma::mat b_i(b2full.colptr(i), l2, 1, false);
     
+    // Mahalanobis penalty
     bmu = b_i - mu2;
-    
     double mahal = 0.5 * arma::as_scalar(bmu.t() * P2 * bmu);
     
+    // Linear predictor: cloglog uses η = α + x b
+    arma::colvec eta = alpha2 + x2 * b_i;
     
-    xb_temp2 = alpha2+  x2 * b_i;
-    
-    for (std::size_t j = 0; j < l1; j++) {
-      xb_temp[j] =1-  exp(-exp(xb_temp[j]));
+    // p = 1 - exp(-exp(η)), q = exp(-exp(η))
+    for (std::size_t j = 0; j < l1; ++j) {
+      double t = std::exp(eta(j));              // t = exp(η), may be Inf for large η
+      double q = std::exp(-t);                  // q = exp(-t), safe even if t = Inf -> q = 0
+      double p;
+      // For tiny t, use expm1 to avoid cancellation: 1 - exp(-t) ≈ t
+      if (t < 1e-6) {
+        p = -std::expm1(-t);                  // p ≈ t for small t
+      } else {
+        p = 1.0 - q;
+      }
+      p_vec[j] = p;
+      q_vec[j] = q;
     }
     
-
-//    for(int j=0;j<l1;j++){
-//      xb(j)=1-exp(-exp(xb(j)));
-//    }
+    // Tail-stable backend with both p and q
+    neg_dbinom_glmb_rmat(y, wt, p_vec, q_vec, yy_temp, /*lg=*/1);
     
-        
-    // In-place evaluation using your log-scale accurate backend
-    neg_dbinom_glmb_rmat(y, wt, xb_temp, yy_temp,1.0);
-    
-    
-    res(i) =std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
-    
+    // Accumulate with penalty
+    res(i) = std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
   }
   
   return res;
 }
-
 
 
 

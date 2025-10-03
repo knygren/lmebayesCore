@@ -62,13 +62,15 @@ void Set_Grid_C2_pointwise(
       Down(j, i) = down;
       Up(j,   i) = up;
       
+      
+      
       // 2. Compute CDFs and log‐CDFs
       // P(Z <= up), log P(Z <= up)
-      double p_up_nl    = R::pnorm(up,   0.0, 1.0, /*lower_tail=*/ true,  /*log_p=*/ false);
+//      double p_up_nl    = R::pnorm(up,   0.0, 1.0, /*lower_tail=*/ true,  /*log_p=*/ false);
       double logp_up    = R::pnorm(up,   0.0, 1.0, /*lower_tail=*/ true,  /*log_p=*/ true);
       
       // P(Z > down), log P(Z > down)
-      double p_down_gt  = R::pnorm(down, 0.0, 1.0, /*lower_tail=*/ false, /*log_p=*/ false);
+//      double p_down_gt  = R::pnorm(down, 0.0, 1.0, /*lower_tail=*/ false, /*log_p=*/ false);
       double logp_down_gt = R::pnorm(down, 0.0, 1.0, /*lower_tail=*/ false, /*log_p=*/ true);
       
       // log‐tails for pure lower/upper
@@ -77,23 +79,37 @@ void Set_Grid_C2_pointwise(
       
       // 3. Stable mid‐interval probability
       // p_mid = P(down < Z <= up)
-      double p_mid;
+//      double p_mid;
       double g1 = -down;
       double g2 =  up;
       
+      double logp_mid_branch;  // branch-specific log expression
+      
       if (g1 >= g2) {
-        // use P(Z <= up) * (1 - exp(log P(Z<=down) - log P(Z<=up)))
-        double logp_down_le = R::pnorm(down, 0.0,1.0, /*lower_tail=*/ true, /*log_p=*/ true);
-        p_mid = p_up_nl * (1.0 - exp(logp_down_le - logp_up));
+        // Upper‑anchored branch
+        double logp_down_le = R::pnorm(down, 0.0, 1.0,
+                                       /*lower_tail=*/ true,
+                                       /*log_p=*/ true);
+                                       double delta = logp_down_le - logp_up;
+                                       
+                                       // log p_mid = log P(Z<=up) + log(-expm1(delta))
+                                       logp_mid_branch = logp_up + std::log(-std::expm1(delta));
+                                       
       } else {
-        // use P(Z > down) * (1 - exp(log P(Z>up)  - log P(Z>down)))
-        double logp_up_gt = R::pnorm(up, 0.0,1.0, /*lower_tail=*/ false, /*log_p=*/ true);
-        p_mid = p_down_gt * (1.0 - exp(logp_up_gt - logp_down_gt));
+        // Lower‑anchored branch
+        double logp_up_gt = R::pnorm(up, 0.0, 1.0,
+                                     /*lower_tail=*/ false,
+                                     /*log_p=*/ true);
+                                     double delta = logp_up_gt - logp_down_gt;
+                                     
+                                     // log p_mid = log P(Z>down) + log(-expm1(delta))
+                                     logp_mid_branch = logp_down_gt + std::log(-std::expm1(delta));
       }
       
-      // log of the mid‐interval
-      double logp_mid = (p_mid > 0.0) ? std::log(p_mid) : R_NaReal;
+      // --- Final step, after the if/else ---
+      double logp_mid = (R_finite(logp_mid_branch) ? logp_mid_branch : R_NaReal);
       lgct(j, i) = logp_mid;
+      
       
       // 4. Choose the correct log‐density for this cell
       double uji = 0.0;
@@ -107,8 +123,12 @@ void Set_Grid_C2_pointwise(
     }
     
     logP(j, 0) = logPj;
-  }
+  
+    
+      }
 }
+
+
 
 
 // Set_Grid creates new objects and returns them is a list

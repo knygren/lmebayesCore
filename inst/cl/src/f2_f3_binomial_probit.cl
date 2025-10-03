@@ -72,7 +72,9 @@ __kernel void f2_f3_binomial_probit(
 //        xb[base + i] = p1;
 
        // <— replace manual log‐lik term with dbinom’s log‐binomial
-        double ll = dbinom(y[i], wt[i], p1, /*give_log=*/1);
+//        double ll = dbinom(y[i], wt[i], p1, /*give_log=*/1);
+        double ll = dbinom_raw(y[i], wt[i], p1, p2, /*give_log=*/1);
+
         res_acc -= ll;
 
 
