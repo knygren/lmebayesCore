@@ -20,6 +20,9 @@
 #' if more than one is specified their sum is used.  See documentation for \code{model.offset} at 
 #' \code{\link[stats]{model.extract}}.
 #' @param Gridtype an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.
+#' @param n_envopt Effective sample size passed to EnvelopeOpt for grid
+#'   construction. Defaults to match `n`. Larger values encourage tighter
+#'   envelopes.
 #' @param digits the number of significant digits to use when printing.
 #' @inheritParams   stats::glm 
 #' @param use_parallel Logical. Whether to use parallel processing during simulation.
@@ -159,7 +162,9 @@
 glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1),n=1000,data, weights,
                 use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
                 subset,
-                offset,na.action, Gridtype=2,start = NULL, etastart, 
+                offset,na.action, Gridtype=2,
+                n_envopt = NULL,       # NEW: envelope sizing proxy (defaults to n)
+                start = NULL, etastart, 
                 mustart,  control = list(...), model = TRUE, 
                 method = "glm.fit", x = FALSE, y = TRUE, contrasts = NULL, 
                 ...) 
@@ -261,13 +266,23 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   P<-solve(prior_list$Sigma) 
   wtin<-fit$prior.weights	
   
+  # NEW: normalize n_envopt (default to n, ensure integer >= 1)
+  if (is.null(n_envopt)) n_envopt <- n
+  if (length(n_envopt) != 1L || is.na(n_envopt) || n_envopt < 1) {
+    stop("`n_envopt` must be a positive integer scalar.")
+  }
+  n_envopt <- as.integer(n_envopt)
+  
   
   #sim<-rglmb(n=n,y=y,x=x,mu=mu,P=P,wt=wtin,dispersion=dispersion,shape=shape,rate=rate,offset2=offset,family=family,
   #           start=b,Gridtype=Gridtype)
   
   
   
-  sim<-rglmb(n=n,y=y,x=x,family=family,pfamily=pfamily,offset=offset,weights=wtin, Gridtype=Gridtype,use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
+  sim<-rglmb(n=n,y=y,x=x,family=family,pfamily=pfamily,offset=offset,
+             weights=wtin,
+             Gridtype=Gridtype,      n_envopt = n_envopt,     # NEW: pass through
+             use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
   
   
   #dispersion2<-dispersion

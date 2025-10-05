@@ -534,8 +534,23 @@ List rnnorm_reg_std_cpp_parallel(
   /////////////////////////////////////////////////
   
   if (any_hit_after_test != 0) {
-    Rcpp::Rcout << "[WARN] One or more indices hit the max_draws cap during the test.\n";
-
+    Rcpp::Rcout 
+    << "[WARN] One or more indices reached the max_draws cap during the test phase "
+    << "with zero accepted draws.\n"
+    << "This indicates that the envelope was insufficiently tight overall.\n"
+    << "Complete non-acceptance is a strong indicator of posterior non-normality.\n"
+    << "\n"
+    << "Important note: Once you continue, the full run has no max_draws cap.\n"
+    << "Because this code uses RcppParallel, the run cannot be interrupted.\n"
+    << "If acceptance remains zero, the simulation may appear to 'hang' indefinitely.\n"
+    << "\n"
+    << "Recommended actions:\n"
+    << "  - Set use_opencl = TRUE or increase the requested sample size (number of draws);\n"
+    << "    both of these lead EnvelopeOpt to favor tighter envelopes, though they do not guarantee it.\n"
+    << "  - Try a different Gridtype setting to force a tighter envelope.\n"
+    << "  - Strengthen the prior to stabilize behavior in the tails.\n"
+    << std::endl;    
+    
     // Use R's readline via Rcpp to prompt the user from C++
     Rcpp::Function readline("readline");
     std::string prompt = "Enter 1 to continue full run, 2 to stop and return partial results: ";
@@ -611,12 +626,17 @@ Rcpp::List rnnorm_reg_cpp(int n,NumericVector y,NumericMatrix x,
                             std::string family="binomial",
                             std::string link="logit",
                             int Gridtype=2,
+                            int n_envopt       = -1 ,  // NEW: envelope sizing proxy,
                             bool use_parallel = true,       // Enables parallel simulation
                             bool use_opencl = false,        // Enables OpenCL acceleration during envelope construction
-                            bool verbose = false            // Enables diagnostic output
-                            
-) {
+                            bool verbose = false
 
+                            ) {
+
+  if (n_envopt < 0) {
+    n_envopt = n; // default fallback
+  }
+  
   //                          Rcpp::List  famfunc,
   //                            Function f1,
   
@@ -753,7 +773,7 @@ Rcpp::List rnnorm_reg_cpp(int n,NumericVector y,NumericMatrix x,
   
   if(n==1){
     Envelope=EnvelopeBuild_c(bstar2_temp, A_temp,y, x2_temp,mu2_temp,
-                             P2_temp,alpha,wt2,family,link,Gridtype, n,false,use_opencl,verbose);
+                             P2_temp,alpha,wt2,family,link,Gridtype, n,n_envopt,false,use_opencl,verbose);
 
 
     
@@ -761,7 +781,7 @@ Rcpp::List rnnorm_reg_cpp(int n,NumericVector y,NumericMatrix x,
   
   if(n>1){
     Envelope=EnvelopeBuild_c(bstar2_temp, A_temp,y, x2_temp,mu2_temp,
-                             P2_temp,alpha,wt2,family,link,Gridtype, n,true,use_opencl,verbose);
+                             P2_temp,alpha,wt2,family,link,Gridtype, n,n_envopt,true,use_opencl,verbose);
   }
   
   //  Rcpp::Rcout << "Finished Envelope Creation:" << std::endl;

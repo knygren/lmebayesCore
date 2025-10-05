@@ -18,6 +18,9 @@
 #' @param weights Optional numeric vector of prior weights.
 #' @param family A description of the error distribution and link function (see \code{\link{family}}).
 #' @param Gridtype Optional integer specifying the method used to construct the envelope function.
+#' @param n_envopt Effective sample size passed to EnvelopeOpt for grid
+#'   construction. Defaults to match `n`. Larger values encourage tighter
+#'   envelopes.
 #' @param use_parallel Logical. Whether to use parallel processing.
 #' @param use_opencl Logical. Whether to use OpenCL acceleration.
 #' @param verbose Logical. Whether to print progress messages.
@@ -269,7 +272,8 @@ print.simfunction <- function(x, ...) {
 #' @references A reference
 #' @example inst/examples/Ex_rglmb_dispersion.R
 #' @usage rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-#'            Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+#'            Gridtype = 2,n_envopt = NULL,
+#'             use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 #' @export 
 #' @rdname simfuncs
 #' @order 5
@@ -278,7 +282,7 @@ print.simfunction <- function(x, ...) {
 
 
 rGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
-                     Gridtype=2,
+                     Gridtype=2,n_envopt = NULL,
                      use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE
 ){
   
@@ -507,8 +511,8 @@ summary.rGamma_reg<-function(object,...){
 #' @family simfuncs 
 #' @example inst/examples/Ex_rindep_norm_gamma_reg.R
 #' @usage rindependent_norm_gamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
-#'                              family = gaussian(), Gridtype = 2, use_parallel = TRUE,
-#'                              use_opencl = FALSE, verbose = FALSE, 
+#'                              family = gaussian(), Gridtype = 2,n_envopt = NULL,
+#'                               use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
 #'                              progbar = TRUE)
 #' @export 
 #' @rdname simfuncs
@@ -517,7 +521,7 @@ summary.rGamma_reg<-function(object,...){
 
 
 rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
-                                      Gridtype=2,
+                                      Gridtype=2,n_envopt = NULL,
                                       use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
                                       progbar=TRUE){
   
@@ -887,14 +891,15 @@ Neg_logLik2<-function(b, y, x, alpha, wt,family){
 #' @family simfuncs 
 #' @example inst/examples/Ex_rnorm_gamma_reg.R
 #' @usage rNormal_Gamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-#'                   Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+#'                   Gridtype = 2,n_envopt = NULL, 
+#'                   use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 #' @export 
 #' @rdname simfuncs
 #' @order 3
 
 
 rNormal_Gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
-                            Gridtype=2,
+                            Gridtype=2,n_envopt = NULL,
                             use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE
 ){
   
@@ -1026,8 +1031,9 @@ rNormal_Gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussi
 
 #' @family simfuncs 
 #' @example inst/examples/Ex_rnorm_gamma_reg.R
-#' @usage rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-#'             Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+#' @usage rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1,
+#'             family = gaussian(), Gridtype = 2, n_envopt = NULL,
+#'             use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 #' @export 
 #' @rdname simfuncs
 #' @order 2
@@ -1035,7 +1041,7 @@ rNormal_Gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussi
 
 
 rNormal_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
-                      Gridtype=2,
+                      Gridtype=2,n_envopt = NULL,
                       use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE){
   
   ## Added for consistency with earlier verion of function
@@ -1071,6 +1077,11 @@ rNormal_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
   
   if(is.numeric(n)==FALSE||is.numeric(y)==FALSE||is.numeric(x)==FALSE||
      is.numeric(mu)==FALSE||is.numeric(P)==FALSE) stop("non-numeric argument to numeric function")
+  
+  # normalize n_envopt
+  if (is.null(n_envopt)) n_envopt <- n
+  n_envopt <- as.integer(n_envopt)
+  
   
   x <- as.matrix(x)
   mu<-as.matrix(as.vector(mu))
@@ -1162,6 +1173,7 @@ rNormal_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
                              ##famfunc=famfunc,f1=f1,
                              f2=f2,f3=f3,
                              start=start,family=family$family,link=family$link,Gridtype=Gridtype,
+                             n_envopt = n_envopt,       # pass through
                              use_parallel = use_parallel,
                              use_opencl = use_opencl,
                              verbose = verbose)
@@ -1205,6 +1217,7 @@ rNormal_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
                                ##famfunc=famfunc,f1=f1,
                                f2=f2,f3=f3,
                                start=start,family=family$family,link=family$link,Gridtype=Gridtype,
+                               n_envopt = n_envopt,       # pass through
                                use_parallel = use_parallel,
                                use_opencl = use_opencl,
                                verbose = verbose)

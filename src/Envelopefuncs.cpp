@@ -116,11 +116,16 @@ List EnvelopeBuild_c(NumericVector bStar,
                      std::string link,
                      int Gridtype, 
                      int n,
+                     int n_envopt,
                      bool sortgrid,
                      bool use_opencl ,        // Enables OpenCL acceleration during envelope construction
                      bool verbose             // Enables diagnostic output
                      
 ){
+  
+  if (n_envopt < 0) {
+    n_envopt = n;
+  }  
   
 #ifdef USE_OPENCL
   // OpenCL support detected at compile time — proceed as requested
@@ -226,9 +231,9 @@ List EnvelopeBuild_c(NumericVector bStar,
 //    gridindex = EnvelopeOpt(a_2, scaled_n,core_CNT);
 
   if(use_opencl==0 ){
-     gridindex=EnvelopeOpt(a_2,n,1);}
+     gridindex=EnvelopeOpt(a_2,n_envopt,1);}
     else{
-    gridindex = EnvelopeOpt(a_2, n,core_CNT);
+    gridindex = EnvelopeOpt(a_2, n_envopt,core_CNT);
     }
     
   }

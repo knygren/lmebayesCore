@@ -14,6 +14,7 @@ rglmb(
   offset = NULL,
   weights = 1,
   Gridtype = 2,
+  n_envopt = NULL,
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE
@@ -48,6 +49,10 @@ if more than one is specified their sum is used.  See documentation for \code{mo
     in the fitting process.  Should be \code{NULL} or a numeric vector.}
 
 \item{Gridtype}{an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.}
+
+\item{n_envopt}{Effective sample size passed to EnvelopeOpt for grid
+construction. Defaults to match `n`. Larger values encourage tighter
+envelopes.}
 
 \item{use_parallel}{Logical. Whether to use parallel processing during simulation.}
 

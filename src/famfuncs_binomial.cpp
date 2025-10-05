@@ -156,6 +156,28 @@ NumericVector dbinom_glmb(NumericVector x, NumericVector N, NumericVector means,
 }
 
 
+NumericVector dbinom_glmb_raw(NumericVector x, NumericVector N, NumericVector means, int lg) {
+  int n = x.size();
+  NumericVector res(n);
+  
+  for (int i = 0; i < n; i++) {
+    // Round to nearest integer for trial count and success count
+    int trials  = static_cast<int>(std::round(N[i]));
+    int success = static_cast<int>(std::round(x[i] * N[i]));
+    
+    // Clamp probabilities to avoid extreme values
+    double p = std::min(1.0, std::max(0.0, means[i]));
+    
+    // Evaluate binomial log-likelihood
+    res[i] = dbinom_raw(success, trials, p, (1-p),lg);
+    
+    
+  }
+  
+  return res;
+}
+
+
 
 NumericVector dbinom_glmb2( NumericVector x, NumericVector N, NumericVector means, int lg){
   
@@ -323,6 +345,7 @@ NumericVector  f2_binomial_logit(NumericMatrix b,NumericVector y, NumericMatrix 
     arma::mat mu2(mu.begin(), l2, 1, false); 
     arma::mat bmu2(bmu.begin(), l2, 1, false); 
 
+
     double res1=0;
 
 
@@ -350,8 +373,11 @@ NumericVector  f2_binomial_logit(NumericMatrix b,NumericVector y, NumericMatrix 
     }
 
 
+    
+    
     yy=-dbinom_glmb(y,wt,xb,true);
-
+    //yy=-dbinom_glmb_raw(y,wt,xb,true);
+    
 
     res(i) =std::accumulate(yy.begin(), yy.end(), res1);
 

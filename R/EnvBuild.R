@@ -949,6 +949,8 @@
 #' @param link      Link function ("logit", "probit", "cloglog" for binomial; "log" for Poisson/Gamma).
 #' @param Gridtype  Method to determine the number of subgradient densities in the grid.
 #' @param n         Number of draws from the posterior (used for grid sizing).
+#' @param n_envopt Effective sample size passed to EnvelopeOpt for grid construction.
+#'   Defaults to match `n`. Larger values encourage tighter envelopes.
 #' @param sortgrid  Logical; if \code{TRUE}, sort the envelope descending by component probability.
 #' @param use_opencl Logical; if \code{TRUE}, use OpenCL for gradient evaluations.
 #' @param verbose   Logical; if \code{TRUE}, print progress messages.
@@ -1009,31 +1011,53 @@
 #' @importFrom Rdpack reprompt
 
 
-#' @usage EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", Gridtype = 2L,n = 1L,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
+#' @usage EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", 
+#' Gridtype = 2L,n = 1L,n_envopt=NULL,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
 #' @rdname EnvelopeBuild
 #' @export
 EnvelopeBuild <- function(
     bStar, A, y, x, mu, P, alpha, wt,
-    family = "binomial", link = "logit",
-    Gridtype = 2L, n = 1L, sortgrid = FALSE,
-    use_opencl = FALSE, verbose = FALSE
+    family     = "binomial",
+    link       = "logit",
+    Gridtype   = 2L,
+    n          = 1L,
+    n_envopt   = NULL,       # effective sample size for EnvelopeOpt
+    sortgrid   = FALSE,
+    use_opencl = FALSE,
+    verbose    = FALSE
 ) {
+  # normalize n_envopt: if not supplied, fall back to n
+  if (is.null(n_envopt)) {
+    n_envopt <- n
+  }
+  
+  # validate: must be a single non‑NA integer >= 1
+  if (length(n_envopt) != 1L || is.na(n_envopt) || n_envopt < 1) {
+    stop("`n_envopt` must be a positive integer scalar.")
+  }
+  # coerce safely to integer
+  n_envopt <- as.integer(n_envopt)
+  
   if (family == "gaussian") {
     return(.EnvelopeBuild_Ind_Normal_Gamma(
       bStar, A, y, x, mu, P, alpha, wt,
       family = family, link = link,
-      Gridtype = Gridtype, n = n, sortgrid
+      Gridtype = Gridtype, n = n, sortgrid = sortgrid
     ))
   }
+  
   .EnvelopeBuild_cpp(
     bStar, A, y, x, mu, P, alpha, wt,
-    family = family, link = link,
-    Gridtype = Gridtype, n = n, sortgrid,
-    use_opencl = use_opencl, verbose = verbose
+    family    = family,
+    link      = link,
+    Gridtype  = Gridtype,
+    n         = n,
+    n_envopt  = n_envopt,
+    sortgrid  = sortgrid,
+    use_opencl = use_opencl,
+    verbose    = verbose
   )
 }
-
-
 
 #' @usage Set_Grid(GridIndex, cbars, Lint)
 #' @rdname EnvelopeBuild

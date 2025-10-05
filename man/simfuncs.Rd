@@ -14,19 +14,22 @@
 \usage{
 simfunction(object, ...)
 
-rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-            Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1,
+            family = gaussian(), Gridtype = 2, n_envopt = NULL,
+            use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 
 rNormal_Gamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-                  Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+                  Gridtype = 2,n_envopt = NULL, 
+                  use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 
 rindependent_norm_gamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
-                             family = gaussian(), Gridtype = 2, use_parallel = TRUE,
-                             use_opencl = FALSE, verbose = FALSE, 
+                             family = gaussian(), Gridtype = 2,n_envopt = NULL,
+                              use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
                              progbar = TRUE)
 
 rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
-           Gridtype = 2, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
+           Gridtype = 2,n_envopt = NULL,
+            use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE)
 
 \method{print}{rGamma_reg}(x, digits = max(3, getOption("digits") - 3), ...)
 
@@ -52,6 +55,10 @@ rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 \item{family}{A description of the error distribution and link function (see \code{\link{family}}).}
 
 \item{Gridtype}{Optional integer specifying the method used to construct the envelope function.}
+
+\item{n_envopt}{Effective sample size passed to EnvelopeOpt for grid
+construction. Defaults to match `n`. Larger values encourage tighter
+envelopes.}
 
 \item{use_parallel}{Logical. Whether to use parallel processing.}
 

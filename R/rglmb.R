@@ -7,6 +7,9 @@
 #' @param y a vector of observations of length \code{m}.
 #' @param x for \code{rglmb} a design matrix of dimension \code{m * p} and for \code{print.rglmb} the object to be printed. 
 #' @inheritParams glmb
+#' @param n_envopt Effective sample size passed to EnvelopeOpt for grid
+#'   construction. Defaults to match `n`. Larger values encourage tighter
+#'   envelopes.
 #' @param use_parallel Logical. Whether to use parallel processing during simulation.
 #' @param use_opencl Logical. Whether to use OpenCL acceleration during Envelope construction.
 #' @param verbose Logical. Whether to print progress messages.
@@ -100,8 +103,18 @@
 
 
 
-rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,Gridtype=2,
-                use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE){
+rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,
+                weights=1,
+                Gridtype=2,
+                n_envopt = NULL,          # NEW
+                use_parallel = TRUE, 
+                use_opencl = FALSE, 
+                verbose = FALSE){
+  
+  ## normalize n_envopt
+  if (is.null(n_envopt)) n_envopt <- n
+  n_envopt <- as.integer(n_envopt)
+  
   
   ## Pull in information from the pfamily  
   pf=pfamily$pfamily
@@ -147,6 +160,7 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,Gridtype
     weights = weights,
     family = family,
     Gridtype = Gridtype,
+    n_envopt = n_envopt,        # NEW
     use_parallel = use_parallel,
     use_opencl = use_opencl,
     verbose = verbose
@@ -158,7 +172,8 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,weights=1,Gridtype
 
   ##outlist = simfun(n = n, y = y, x = x, prior_list = prior_list,offset = offset, weights = weights, family = family, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
   outlist = simfun(n = n, y = y, x = x, prior_list = prior_list,offset = offset, weights = weights, family = family, 
-                   Gridtype=Gridtype, use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
+                   Gridtype=Gridtype,n_envopt = n_envopt,   # pass through
+                   use_parallel = use_parallel, use_opencl = use_opencl, verbose = verbose)
 
   outlist$simfun_call <- outlist$call 
 

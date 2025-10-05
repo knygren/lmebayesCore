@@ -19,6 +19,7 @@ glmb(
   offset,
   na.action,
   Gridtype = 2,
+  n_envopt = NULL,
   start = NULL,
   etastart,
   mustart,
@@ -81,6 +82,10 @@ Another possible value is \code{NULL}, no action.  Value \code{stats{na.exclude}
 can be useful.}
 
 \item{Gridtype}{an optional argument specifying the method used to determine the number of tangent points used to construct the enveloping function.}
+
+\item{n_envopt}{Effective sample size passed to EnvelopeOpt for grid
+construction. Defaults to match `n`. Larger values encourage tighter
+envelopes.}
 
 \item{start}{starting values for the parameters in the linear predictor.}
 

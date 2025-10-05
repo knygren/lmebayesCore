@@ -6,7 +6,8 @@
 \alias{setlogP}
 \title{GPU-Accelerated Envelope Construction for Posterior Simulation}
 \usage{
-EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", Gridtype = 2L,n = 1L,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
+EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", 
+Gridtype = 2L,n = 1L,n_envopt=NULL,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
 
 Set_Grid(GridIndex, cbars, Lint)
 
@@ -36,6 +37,9 @@ setlogP(logP, NegLL, cbars, G3)
 \item{Gridtype}{Method to determine the number of subgradient densities in the grid.}
 
 \item{n}{Number of draws from the posterior (used for grid sizing).}
+
+\item{n_envopt}{Effective sample size passed to EnvelopeOpt for grid construction.
+Defaults to match `n`. Larger values encourage tighter envelopes.}
 
 \item{sortgrid}{Logical; if \code{TRUE}, sort the envelope descending by component probability.}
 
