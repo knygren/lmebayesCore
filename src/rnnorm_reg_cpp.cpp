@@ -407,7 +407,233 @@ return Rcpp::List::create(Rcpp::Named("out")=out,Rcpp::Named("draws")=draws);
 }
 
 
-
+// Keep this helper internal (no // [[Rcpp::export]])
+// It uses your existing rnnorm_reg_worker objects and the original Rcpp
+// out/draws containers directly, avoiding any copying or conversions.
+Rcpp::List run_rcppparallel_pilot(
+    int n,
+    rnnorm_reg_worker& test_worker,                  // single-threaded pilot worker
+    rnnorm_reg_worker& worker,                       // parallel worker
+    Rcpp::NumericVector& draws,                      // original Rcpp draws (shared with views)
+    Rcpp::NumericMatrix& out,                        // original Rcpp out (shared with views)
+    std::shared_ptr<std::atomic<int>> any_flag,      // shared atomic flag set by workers
+    double E_draws,                                  // expected candidates per acceptance (scalar)
+    bool verbose = true
+) {
+  // --- single-threaded test run with timing and diagnostic print
+  int m_test = 1; // deterministic single-threaded test
+  auto t0 = std::chrono::steady_clock::now();
+  test_worker(0, m_test);            // invoke worker in serial mode
+  auto t1 = std::chrono::steady_clock::now();
+  auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+  
+  // inspect the flag after the test
+  int any_hit_after_test = any_flag->load(std::memory_order_relaxed);
+  
+  if (any_hit_after_test != 0) {
+    Rcpp::Rcout
+    << "[WARN] One or more indices reached the max_draws cap during the test phase "
+    << "with zero accepted draws.\n"
+    << "This indicates that the envelope was insufficiently tight overall.\n"
+    << "Complete non-acceptance is a strong indicator of posterior non-normality.\n"
+    << "\n"
+    << "Important note: Once you continue, the full run has no max_draws cap.\n"
+    << "Because this code uses RcppParallel, the run cannot be interrupted.\n"
+    << "If acceptance remains zero, the simulation may appear to 'hang' indefinitely.\n"
+    << "\n"
+    << "Recommended actions:\n"
+    << "  - Set use_opencl = TRUE or increase the requested sample size (number of draws);\n"
+    << "    both of these lead EnvelopeOpt to favor tighter envelopes, though they do not guarantee it.\n"
+    << "  - Try a different Gridtype setting to force a tighter envelope.\n"
+    << "  - Strengthen the prior to stabilize behavior in the tails.\n"
+    << std::endl;
+    
+    // interactive prompt
+    Rcpp::Function r_interactive("interactive");
+    bool is_interactive = Rcpp::as<bool>(r_interactive());
+    
+    if (is_interactive) {
+      Rcpp::Function readline("readline");
+      std::string prompt = "Enter 1 to continue full run, 2 to stop and return partial results: ";
+      
+      while (true) {
+        std::string ans = Rcpp::as<std::string>(readline(Rcpp::wrap(prompt)));
+        // trim whitespace
+        auto ltrim = [](std::string &s) {
+          s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+                          [](unsigned char ch){ return !std::isspace(ch); }));
+        };
+        auto rtrim = [](std::string &s) {
+          s.erase(std::find_if(s.rbegin(), s.rend(),
+                               [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
+        };
+        ltrim(ans); rtrim(ans);
+        
+        if (ans == "1" || ans == "continue" || ans == "y" || ans == "yes") {
+          Rcpp::Rcout << "[INFO] User chose to continue full run.\n";
+          break; // fall through to construct/run full worker
+        } else if (ans == "2" || ans == "stop" || ans == "n" || ans == "no") {
+          Rcpp::Rcout << "[INFO] User chose to stop. Returning partial test results.\n";
+          return Rcpp::List::create(
+            Rcpp::Named("out")         = out,          // zero-copy: return original containers
+            Rcpp::Named("draws")       = draws,
+            Rcpp::Named("any_maxdraw") = any_hit_after_test,
+            Rcpp::Named("message")     = std::string("Stopped by user after test"),
+            Rcpp::Named("est_total_sec") = Rcpp::NumericVector::get_na(), // no estimate
+            Rcpp::Named("cal_elapsed_sec") = Rcpp::NumericVector::get_na()
+          );
+        } else {
+          Rcpp::Rcout << "Invalid input. Please enter 1 (continue) or 2 (stop).\n";
+        }
+      } // end prompt loop
+    } else {
+      // Non-interactive: proceed automatically
+      Rcpp::Rcout << "[NOTE] Non-interactive session: proceeding automatically.\n";
+    }
+  }
+  
+  // --- runtime estimate based on single-sample pilot ---
+  int candidates_used = static_cast<int>(draws[0]);     // from pilot sample
+  double est_total_sec = std::numeric_limits<double>::quiet_NaN();
+  
+  if (candidates_used > 0 && !Rcpp::NumericVector::is_na(E_draws)) {
+    double per_candidate_ms = static_cast<double>(elapsed_ms) / candidates_used;
+    double est_total_ms = per_candidate_ms * E_draws * static_cast<double>(n);
+    
+    auto fmt_hms = [](double seconds) {
+      int s = static_cast<int>(std::round(seconds));
+      int h = s / 3600; s %= 3600;
+      int m = s / 60;   s %= 60;
+      std::ostringstream oss;
+      oss << h << "h " << m << "m " << s << "s";
+      return oss.str();
+    };
+    
+    est_total_sec = est_total_ms / 1000.0;
+    Rcpp::Rcout << "Estimated simulation time (" << n << " draws): "
+                << est_total_sec << " seconds (" << fmt_hms(est_total_sec) << ").\n"
+                << "Note: this phase uses RcppParallel and cannot be safely interrupted.\n";
+  }
+  
+  // --- conservative calibration sizing based on serial bound ---
+  double per_candidate_ms_serial = static_cast<double>(elapsed_ms) / std::max(1, candidates_used);
+  double est_per_draw_ms_serial  = per_candidate_ms_serial * E_draws; // conservative bound per draw
+  double est_total_ms_serial     = est_per_draw_ms_serial * static_cast<double>(n); // optional
+  
+  int m1 = std::max(1, (int)std::ceil(0.01 * (double)n));
+  int m2 = std::max(1, (int)std::floor(300000.0 / std::max(1.0, est_per_draw_ms_serial))); // 300k ms = ~5 minutes
+  int m_stage = std::min(m1, m2);
+  
+  Rcpp::Rcout << "Calibrating simulation time estimate using " << m_stage
+              << " draws at "
+              << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")()))
+              << "\n";
+  
+  // --- calibration run for m_stage draws ---
+  auto t_cal0 = std::chrono::steady_clock::now();
+  RcppParallel::parallelFor(0, m_stage, worker);
+  auto t_cal1 = std::chrono::steady_clock::now();
+  double cal_elapsed_sec = std::chrono::duration<double>(t_cal1 - t_cal0).count();
+  
+  // Sum over all pilot draws (read from original draws container)
+  long long total_candidates = 0;
+  for (int i = 0; i < m_stage; ++i) {
+    total_candidates += static_cast<int>(draws[i]);
+  }
+  
+  // Average candidates per accepted draw (empirical)
+  double avg_candidates_per_draw = static_cast<double>(total_candidates) / m_stage;
+  
+  // Per‑candidate cost from calibration
+  double per_candidate_sec = cal_elapsed_sec / std::max(1.0, static_cast<double>(total_candidates));
+  
+  // Per‑draw cost: scale by expected candidates per acceptance
+  double est_per_draw_sec = per_candidate_sec * E_draws;
+  
+  // Total estimate for n draws
+  est_total_sec = est_per_draw_sec * static_cast<double>(n);
+  
+  // --- print diagnostics ---
+  Rcpp::Rcout << "[CALIB] Calibration elapsed = " << cal_elapsed_sec
+              << " s for " << m_stage << " accepted draws using "
+              << total_candidates << " candidates.\n";
+  
+  Rcpp::Rcout << "[CALIB] avg_candidates_per_draw (empirical) = "
+              << avg_candidates_per_draw
+              << " vs E_draws = " << E_draws << "\n";
+  
+  Rcpp::Rcout << "[CALIB] per_candidate_sec = " << per_candidate_sec
+              << " s, est_per_draw_sec = " << est_per_draw_sec << " s\n";
+  
+  auto fmt_hms2 = [](double seconds) {
+    long long s = static_cast<long long>(std::round(seconds));
+    long long h = s / 3600; s %= 3600;
+    long long m = s / 60;   s %= 60;
+    std::ostringstream oss;
+    if (h > 0) oss << h << "h ";
+    if (m > 0 || h > 0) oss << m << "m ";
+    oss << s << "s";
+    return oss.str();
+  };
+  
+  Rcpp::Rcout << "Refined simulation time estimate (" << n << " draws): "
+              << est_total_sec << " seconds ("
+              << fmt_hms2(est_total_sec) << ").\n";
+  
+  // --- yes/no option if estimate exceeds 5 minutes ---
+  if (est_total_sec > 300.0) {
+    std::string prompt = "Estimated simulation exceeds 5 minutes. Continue? [y/N]: ";
+    
+    Rcpp::Function r_interactive("interactive");
+    bool is_interactive = Rcpp::as<bool>(r_interactive());
+    
+    if (is_interactive) {
+      Rcpp::Function readline("readline");
+      while (true) {
+        std::string ans = Rcpp::as<std::string>(readline(Rcpp::wrap(prompt)));
+        // trim whitespace
+        auto ltrim = [](std::string &s) {
+          s.erase(s.begin(), std::find_if(s.begin(), s.end(),
+                          [](unsigned char ch){ return !std::isspace(ch); }));
+        };
+        auto rtrim = [](std::string &s) {
+          s.erase(std::find_if(s.rbegin(), s.rend(),
+                               [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
+        };
+        ltrim(ans); rtrim(ans);
+        
+        if (ans == "y" || ans == "yes" || ans == "1" || ans == "continue") {
+          Rcpp::Rcout << "[INFO] User chose to continue full run.\n";
+          Rcpp::Rcout << ">>> Running Full parallel sampler: "
+                      << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")()))
+                      << "\n";
+          break; // proceed to parallel simulation
+        } else if (ans == "n" || ans == "no" || ans == "2" || ans.empty()) {
+          Rcpp::Rcout << "[INFO] User declined. Stopping simulation.\n";
+          Rcpp::stop("Simulation stopped by user after time estimate.");
+        } else {
+          Rcpp::Rcout << "Invalid input. Please enter y (continue) or N (stop).\n";
+        }
+      }
+    } else {
+      // Non-interactive session (e.g. CI/CRAN): auto-approve
+      Rcpp::Rcout << "[NOTE] Non-interactive session: proceeding automatically.\n";
+      Rcpp::Rcout << "[INFO] Proceeding with full run.\n";
+      Rcpp::Rcout << ">>> Running Full parallel sampler: "
+                  << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")()))
+                  << "\n";
+    }
+  }
+  
+  // Return summary with zero-copy references to original out/draws
+  return Rcpp::List::create(
+    Rcpp::Named("out")            = out,
+    Rcpp::Named("draws")          = draws,
+    Rcpp::Named("any_maxdraw")    = any_hit_after_test,
+    Rcpp::Named("est_total_sec")  = est_total_sec,
+    Rcpp::Named("cal_elapsed_sec")= cal_elapsed_sec
+  );
+}
 
 
 //-----------------------------------------------------------------------------
@@ -523,247 +749,17 @@ List rnnorm_reg_std_cpp_parallel(
   
   if (p >= 14) {
    
-  // Choose a small serial test size (set before use)
-  int m_test = 1;                         // or set to std::min(n, default_threads)
-  
-  // --- single-threaded test run with timing and diagnostic print
-  auto t0 = std::chrono::steady_clock::now();
-  test_worker(0, m_test);                      // deterministic single-threaded test
-  auto t1 = std::chrono::steady_clock::now();
-  auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-  
-  // inspect the flag after the test
-  int any_hit_after_test = any_flag->load(std::memory_order_relaxed);
-//  Rcpp::Rcout << "[TEST] any_maxdraw_flag = " << any_hit_after_test << "\n";
-  
-  
-  
-  
-
-  
-  
-  
-  
-  /////////////////////////////////////////////////
-  
-  if (any_hit_after_test != 0) {
-    Rcpp::Rcout 
-    << "[WARN] One or more indices reached the max_draws cap during the test phase "
-    << "with zero accepted draws.\n"
-    << "This indicates that the envelope was insufficiently tight overall.\n"
-    << "Complete non-acceptance is a strong indicator of posterior non-normality.\n"
-    << "\n"
-    << "Important note: Once you continue, the full run has no max_draws cap.\n"
-    << "Because this code uses RcppParallel, the run cannot be interrupted.\n"
-    << "If acceptance remains zero, the simulation may appear to 'hang' indefinitely.\n"
-    << "\n"
-    << "Recommended actions:\n"
-    << "  - Set use_opencl = TRUE or increase the requested sample size (number of draws);\n"
-    << "    both of these lead EnvelopeOpt to favor tighter envelopes, though they do not guarantee it.\n"
-    << "  - Try a different Gridtype setting to force a tighter envelope.\n"
-    << "  - Strengthen the prior to stabilize behavior in the tails.\n"
-    << std::endl;    
+   auto pilot_res = run_rcppparallel_pilot(
+     n,
+     test_worker,   // your serial test worker
+     worker,        // your parallel worker
+     draws,         // original NumericVector
+     out,           // original NumericMatrix
+     any_flag,      // shared atomic flag
+     E_draws,       // scalar double
+     /*verbose=*/true
+   );
     
-    // Use R's readline via Rcpp to prompt the user from C++
-    Rcpp::Function readline("readline");
-    std::string prompt = "Enter 1 to continue full run, 2 to stop and return partial results: ";
-
-    while (true) {
-      // call R's readline which is safe in R environments
-      SEXP ans_sexp = readline(Rcpp::wrap(prompt));
-      std::string ans = Rcpp::as<std::string>(ans_sexp);
-      // trim whitespace
-      auto ltrim = [](std::string &s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch){ return !std::isspace(ch); }));
-      };
-      auto rtrim = [](std::string &s) {
-        s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
-      };
-      ltrim(ans); rtrim(ans);
-      if (ans == "1" || ans == "continue" || ans == "y" || ans == "yes") {
-        Rcpp::Rcout << "[INFO] User chose to continue full run.\n";
-        break; // fall through to construct/run full worker
-      } else if (ans == "2" || ans == "stop" || ans == "n" || ans == "no") {
-        Rcpp::Rcout << "[INFO] User chose to stop. Returning partial test results.\n";
-        return List::create(
-          Named("out")         = out,
-          Named("draws")       = draws,
-          Named("any_maxdraw") = any_hit_after_test,
-          Named("message")     = std::string("Stopped by user after test")
-        );
-      } else {
-        Rcpp::Rcout << "Invalid input. Please enter 1 (continue) or 2 (stop).\n";
-      }
-    } // end prompt loop
-  }
-
-
-  double est_total_sec;
-
-  // --- runtime estimate based on single-sample pilot ---
-  int candidates_used = static_cast<int>(draws[0]);  // from pilot sample
-  
-  
-  
-  if (candidates_used > 0 && !Rcpp::NumericVector::is_na(E_draws)) {
-    double per_candidate_ms = static_cast<double>(elapsed_ms) / candidates_used;
-    double est_total_ms = per_candidate_ms * E_draws * static_cast<double>(n);
-    
-    auto fmt_hms = [](double seconds) {
-      int s = static_cast<int>(std::round(seconds));
-      int h = s / 3600; s %= 3600;
-      int m = s / 60;   s %= 60;
-      std::ostringstream oss;
-      oss << h << "h " << m << "m " << s << "s";
-      return oss.str();
-    };
-    
-     est_total_sec = est_total_ms / 1000.0;
-    Rcpp::Rcout << "Estimated simulation time (" << n << " draws): "
-                << est_total_sec << " seconds (" << fmt_hms(est_total_sec) << ").\n"
-                << "Note: this phase uses RcppParallel and cannot be safely interrupted.\n";
-  }  
-  
-  double per_candidate_ms_serial = static_cast<double>(elapsed_ms) / std::max(1, candidates_used);
-  double est_per_draw_ms_serial  = per_candidate_ms_serial * E_draws; // conservative bound per draw
-  double est_total_ms_serial     = est_per_draw_ms_serial * static_cast<double>(n);
-
-  int m1 = std::max(1, (int)std::ceil(0.01 * (double)n));
-  int m2 = std::max(1, (int)std::floor(300000.0 / std::max(1.0, est_per_draw_ms_serial))); // 300k ms = 5 min
-
-  int m_stage = std::min(m1, m2);  
-  
-  
-  // For now, just print 
-//  Rcpp::Rcout << "[CALIB] m1 (1% of n) = " << m1 << "\n";
-//  Rcpp::Rcout << "[CALIB] m2 (5-minute budget) = " << m2 << "\n";
-//  Rcpp::Rcout << "[CALIB] Selected m_stage = " << m_stage << "\n";
-  
-
-  Rcpp::Rcout << "Calibrating simulation time estimate using " << m_stage
-              << " draws at "
-              << Rcpp::as<std::string>(
-  Rcpp::Function("format")(Rcpp::Function("Sys.time")())
-              )
-    << "\n";
-              
-              
-  // --- calibration run for m_stage draws ---
-  auto t_cal0 = std::chrono::steady_clock::now();
-  RcppParallel::parallelFor(0, m_stage, worker);
-  auto t_cal1 = std::chrono::steady_clock::now();
-  
-  double cal_elapsed_sec =
-    std::chrono::duration<double>(t_cal1 - t_cal0).count();
-  
-  
-  // Sum over all pilot draws
-  long long total_candidates = 0;
-  for (int i = 0; i < m_stage; ++i) {
-    total_candidates += static_cast<int>(draws[i]);
-  }
-  
-  // Average candidates per accepted draw (empirical)
-  double avg_candidates_per_draw =
-    static_cast<double>(total_candidates) / m_stage;
-  
-  // Per‑candidate cost from calibration
-  double per_candidate_sec = cal_elapsed_sec / std::max(1.0, static_cast<double>(total_candidates));
-  
-  // Per‑draw cost: scale by expected candidates per acceptance
-  double est_per_draw_sec = per_candidate_sec * E_draws;
-  
-  // Total estimate for n draws
-  est_total_sec = est_per_draw_sec * static_cast<double>(n);
-  
-  
-  // --- print diagnostics ---
-  Rcpp::Rcout << "[CALIB] Calibration elapsed = " << cal_elapsed_sec
-              << " s for " << m_stage << " accepted draws using "
-              << total_candidates << " candidates.\n";
-  
-  Rcpp::Rcout << "[CALIB] avg_candidates_per_draw (empirical) = "
-              << avg_candidates_per_draw
-              << " vs E_draws = " << E_draws << "\n";
-  
-  Rcpp::Rcout << "[CALIB] per_candidate_sec = " << per_candidate_sec
-              << " s, est_per_draw_sec = " << est_per_draw_sec << " s\n";
-  
-//  Rcpp::Rcout << "Refined simulation time estimate (" << n << " draws): "
-//              << est_total_sec << " seconds\n";
-    
-    auto fmt_hms = [](double seconds) {
-      long long s = static_cast<long long>(std::round(seconds));
-      long long h = s / 3600; s %= 3600;
-      long long m = s / 60;   s %= 60;
-      std::ostringstream oss;
-      if (h > 0) oss << h << "h ";
-      if (m > 0 || h > 0) oss << m << "m ";
-      oss << s << "s";
-      return oss.str();
-    };
-    
-    // ...
-    
-    Rcpp::Rcout << "Refined simulation time estimate (" << n << " draws): "
-                << est_total_sec << " seconds ("
-                << fmt_hms(est_total_sec) << ").\n";
-    
-    
-    
-    // --- yes/no option if estimate exceeds 5 minutes ---
-    if (est_total_sec > 300.0) {
-      std::string prompt = "Estimated simulation exceeds 5 minutes. Continue? [y/N]: ";
-      
-      Rcpp::Function r_interactive("interactive");
-      bool is_interactive = Rcpp::as<bool>(r_interactive());
-      
-      
-      if (is_interactive) {
-        Rcpp::Function readline("readline");
-        while (true) {
-          SEXP ans_sexp = readline(Rcpp::wrap(prompt));
-          std::string ans = Rcpp::as<std::string>(ans_sexp);
-          
-          // trim whitespace
-          auto ltrim = [](std::string &s) {
-            s.erase(s.begin(), std::find_if(s.begin(), s.end(),
-                            [](unsigned char ch){ return !std::isspace(ch); }));
-          };
-          auto rtrim = [](std::string &s) {
-            s.erase(std::find_if(s.rbegin(), s.rend(),
-                                 [](unsigned char ch){ return !std::isspace(ch); }).base(), s.end());
-          };
-          ltrim(ans); rtrim(ans);
-          
-          if (ans == "y" || ans == "yes" || ans == "1" || ans == "continue") {
-            Rcpp::Rcout << "[INFO] User chose to continue full run.\n";
-            Rcpp::Rcout << ">>> Running Full parallel sampler: "
-                        << Rcpp::as<std::string>(
-            Rcpp::Function("format")(Rcpp::Function("Sys.time")())
-                        )
-              << "\n";
-                        break; // proceed to parallel simulation
-          } else if (ans == "n" || ans == "no" || ans == "2" || ans.empty()) {
-            Rcpp::Rcout << "[INFO] User declined. Stopping simulation.\n";
-            Rcpp::stop("Simulation stopped by user after time estimate.");
-          } else {
-            Rcpp::Rcout << "Invalid input. Please enter y (continue) or N (stop).\n";
-          }
-        }
-      } else {
-        // Non-interactive session (e.g. CI/CRAN): auto-approve
-        Rcpp::Rcout << "[NOTE] Non-interactive session: proceeding automatically.\n";
-        Rcpp::Rcout << "[INFO] Proceeding with full run.\n";
-        Rcpp::Rcout << ">>> Running Full parallel sampler: "
-                    << Rcpp::as<std::string>(
-        Rcpp::Function("format")(Rcpp::Function("Sys.time")())
-                    )
-          << "\n";
-      }
-    }
-
-  
   }
   
   
