@@ -1061,20 +1061,6 @@ EnvelopeBuild <- function(
   )
 }
 
-#' @usage EnvelopeSize(a, G1, Gridtype = 2L, n = 1000L, n_envopt = -1,
-#'                     use_opencl = FALSE, verbose = FALSE)
-#' @rdname EnvelopeBuild
-#' @export
-EnvelopeSize <- function(a,
-                         G1,
-                         Gridtype   = 2L,
-                         n          = 1000L,   # <-- updated default
-                         n_envopt   = -1,
-                         use_opencl = FALSE,
-                         verbose    = FALSE) {
-  if (is.null(n_envopt)) n_envopt <- n
-  .EnvelopeSize(a, G1, Gridtype, n, n_envopt, use_opencl, verbose)
-}
 
 
 #' @usage Set_Grid(GridIndex, cbars, Lint)

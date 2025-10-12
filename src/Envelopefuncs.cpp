@@ -733,7 +733,6 @@ List EnvelopeBuild_c(NumericVector bStar,
                             Rcpp::Named("E_draws")=E_draws
                               );
   
-  
 }
 
 

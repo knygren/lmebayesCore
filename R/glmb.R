@@ -159,6 +159,7 @@
 #' @export glmb
 # #' @exportClass glmb # temporarily disabled - no current exportclass
 
+
 glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1),n=1000,data, weights,
                 use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
                 subset,
