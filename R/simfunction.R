@@ -688,13 +688,14 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   
   ## Pull the initial Envelope based on optimized values above
   
-  
   Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
                      as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),
                      as.vector(wt2),
                      family="gaussian",link="identity",
                      Gridtype=Gridtype, n=as.integer(n),
-                     sortgrid=TRUE)
+                     n_envopt=n_envopt,
+                     sortgrid=TRUE,use_opencl = use_opencl,verbose = verbose)
+  
   
   
   ###  Call new function to build shared envelope
