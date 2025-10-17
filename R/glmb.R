@@ -298,9 +298,13 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   is_quasi <- fit$family$family %in% c("quasipoisson", "quasibinomial")
   
   # Scale weights and fix dispersion if needed
-  if (is_gaussian) {
+  if (is_gaussian &&  length(dispersion2)==1 ) {
+    
+    
     wt_scaled <- wtin / dispersion2
     dispersion_fixed <- 1
+    
+    
   } else {
     wt_scaled <- wtin
     dispersion_fixed <- dispersion2
