@@ -836,7 +836,9 @@ arma::mat Inv_f3_with_disp(Rcpp::List cache,
 // [[Rcpp::export(".rindep_norm_gamma_reg_std_V4_cpp")]]
 
 Rcpp::List  rindep_norm_gamma_reg_std_v4_cpp(int n,NumericVector y,NumericMatrix x,
-                                             NumericMatrix mu,NumericMatrix P,NumericVector alpha,NumericVector wt,
+                                             NumericMatrix mu, /// This is typically standardized to be a zero vector
+                                             NumericMatrix P, /// Part of prior precision shifted to the likelihood
+                                             NumericVector alpha,NumericVector wt,
                                              Function f2,Rcpp::List  Envelope,
                                              Rcpp::List  gamma_list,
                                              Rcpp::List  UB_list,
@@ -909,6 +911,7 @@ Rcpp::List  rindep_norm_gamma_reg_std_v4_cpp(int n,NumericVector y,NumericMatrix
   double New_LL_log_disp;
   
   int a1=0;
+  double test1=0;
   double test=0;
   NumericVector J(n);
   NumericVector draws(n);
@@ -1089,7 +1092,12 @@ Rcpp::List  rindep_norm_gamma_reg_std_v4_cpp(int n,NumericVector y,NumericMatrix
       
       // Rcpp::Rcout << "test3 " << std::flush << test << std::endl;
       
-      test= LL_Test[0]-(UB1+UB2+UB3A+UB3B);  // Should be all negative 
+      
+      test1=LL_Test[0]-UB1;
+        
+      test= test1-(UB2+UB3A+UB3B);  // Should be all negative 
+      
+      //test=(LL_Test[0]-UB1)-()UB2+UB3A+UB3B);
       
       //  Rcpp::Rcout << "test4 " << std::flush << test << std::endl;
       

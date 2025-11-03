@@ -59,18 +59,87 @@ It also computes mixture weights for envelope faces and adjusts the Gamma propos
 }
 \details{
 The envelope is constructed using the slopes of the face constants with respect to dispersion,
-evaluated at an anchor point. The resulting structure supports exact i.i.d. sampling via
-accept–reject correction.
+evaluated at an anchor point. The resulting structure supports exact i.i.d. sampling via accept-reject correction.
 
 The procedure follows these steps:
 \enumerate{
-  \item Compute posterior Gamma parameters for precision using the prior and posterior-predictive RSS.
-  \item Determine a central credible interval for dispersion using \code{max_disp_perc}.
-  \item Evaluate the slope of each envelope face constant with respect to dispersion.
-  \item Linearly extrapolate each face constant to the upper and lower bounds of the dispersion interval.
-  \item Construct a global upper bound for the log-posterior remainder across dispersion.
-  \item Compute mixture weights for each face based on tightness at the interval endpoints.
-  \item Adjust the Gamma shape parameter to match the envelope slope at the anchor point.
+
+  \item \strong{Posterior precision (Gamma) parameters.}
+        Using the prior and posterior-predictive RSS, set
+
+        \deqn{ \text{shape2} = \text{Shape} + n_{\mathrm{obs}}/2, \quad
+               \text{rate3}  = \text{Rate} + \text{RSS}_{\mathrm{post}}/2. }
+
+        These parameterize the posterior precision \eqn{v = 1/\sigma^2 \sim \mathrm{Gamma}(\text{shape2}, \text{rate3})}
+        and drive how dispersion (its inverse) is bounded.
+
+  \item \strong{Central credible interval for dispersion (low, upp).}
+        Choose a central mass level \code{max_disp_perc} (e.g., 0.99) for precision, then invert the corresponding
+        Gamma quantiles to dispersion:
+
+        \deqn{ \text{low} = 1 / Q_{\Gamma}(\text{max\_disp\_perc}; \text{shape2}, \text{rate3}), \quad
+               \text{upp} = 1 / Q_{\Gamma}(1 - \text{max\_disp\_perc}; \text{shape2}, \text{rate3}). }
+
+        Because dispersion is the inverse of precision, the upper precision quantile maps to the lower dispersion bound
+        and vice versa. The interval \eqn{[\text{low}, \text{upp}]} is the domain over which all envelopes must dominate.
+
+  \item \strong{Face slopes at an anchor (dispstar).}
+        Evaluate the slope of each face constant with respect to dispersion at an initial anchor:
+
+        \deqn{ \text{dispstar} = \text{rate3} / (\text{shape2} - 1) \quad \text{(posterior mean of } \sigma^2\text{)}. }
+
+        Compute \eqn{\text{New\_LL\_Slope}_j} for each face \eqn{j} via \code{EnvBuildLinBound(...)}, capturing the
+        sensitivity of the face constant to changes in dispersion at \eqn{\text{dispstar}}.
+
+  \item \strong{Linear extrapolation of face constants to low and upp.}
+        For each face \eqn{j} with base constant \eqn{\theta^{\mathrm{base}}_{\bar{j}} = \text{thetabar\_const}(P, \bar{c}_j, \bar{\theta}_j)},
+        form linear extrapolations:
+
+        \deqn{ \theta^{\mathrm{low}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\text{low} - \text{dispstar}) \cdot \text{New\_LL\_Slope}_j, }
+        \deqn{ \theta^{\mathrm{upp}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\text{upp} - \text{dispstar}) \cdot \text{New\_LL\_Slope}_j. }
+
+        These are the per-face predicted constants at the dispersion endpoints.
+
+  \item \strong{Global upper line over dispersion (lmc1, lmc2) and endpoint maxima (max_low, max_upp).}
+        Take maxima across faces at each endpoint:
+
+        \deqn{ \text{max\_low} = \max_j \theta^{\mathrm{low}}_{\bar{j}}, \quad
+               \text{max\_upp} = \max_j \theta^{\mathrm{upp}}_{\bar{j}}. }
+
+        Define the global upper line as the straight line through \eqn{(\text{low}, \text{max\_low})} and
+        \eqn{(\text{upp}, \text{max\_upp})}:
+
+        \deqn{ \text{new\_slope} = (\text{max\_upp} - \text{max\_low}) / (\text{upp} - \text{low}), \quad
+               \text{new\_int}   = \text{max\_low} - \text{new\_slope} \cdot \text{low}. }
+
+        Store \eqn{lmc2 = \text{new\_slope}} and \eqn{lmc1 = \text{new\_int}}. This line dominates all faces at both
+        endpoints and is the backbone for UB3A/UB3B.
+
+  \item \strong{Face slack and mixture weights (lg\_prob\_factor, PLSD).}
+        Per-face endpoint slack is
+
+        \deqn{ \lg\_prob\_factor_j =
+               \max\big(\theta^{\mathrm{upp}}_{\bar{j}} - \text{max\_upp},\;
+                         \theta^{\mathrm{low}}_{\bar{j}} - \text{max\_low}\big). }
+
+        Combine with \eqn{\text{New\_logP2}_j = \text{Env$logP}_j + \tfrac{1}{2}\|\bar{c}_j\|^2} to form mixture weights
+        \eqn{\text{PLSD}_j \propto \exp(\text{New\_logP2}_j + \lg\_prob\_factor_j)} and normalize across faces.
+        The slack guarantees each face’s adjusted envelope touches endpoint maxima; PLSD governs face selection.
+
+  \item \strong{Gamma tilt and dispersion-axis envelope (lm\_log1, lm\_log2).}
+        Set the dispersion anchor used for pairing as
+
+        \deqn{ \text{dispstar} = (\text{upp} - \text{low}) / \log(\text{upp}/\text{low}). }
+
+        Pair the global line with a log-dispersion envelope:
+
+        \deqn{ \text{lm\_log2} = \text{new\_slope} \cdot \text{dispstar}, \quad
+               \text{lm\_log1} = \text{new\_int} + \text{new\_slope} \cdot \text{dispstar}
+                                  - \text{new\_slope} \cdot \log(\text{dispstar}). }
+
+        Tilt the Gamma proposal via \eqn{\text{shape3} = \text{shape2} - \text{lm\_log2}}.
+        These terms enter UB3B and are calibrated to be tangent at \eqn{\text{dispstar}}.
+
 }
 
 
@@ -81,6 +150,43 @@ by constructing a joint envelope that respects posterior curvature in both dimen
 The dispersion anchor point is chosen as the log-scale center of the credible interval,
 and the Gamma proposal is tilted to match the envelope slope at this point.
 }
+\section{Use in accept/reject procedure}{
+
+
+The accept/reject sampler relies on a decomposition of the log-posterior into
+a test statistic and several bounding terms. Each component is constructed so
+that its sign is controlled, ensuring the validity of the accept/reject step.
+
+\describe{
+
+  \item{test1 (log-likelihood bound)}{
+    Placeholder: explain how test1 is formed and why it is non-positive.
+  }
+
+  \item{UB1 (if applicable)}{
+    Placeholder: describe UB1’s role and why it is non-negative.
+  }
+
+  \item{UB2 (residual sum of squares bound)}{
+    Placeholder: explain how UB2 is constructed from RSS differences and why it is non-negative.
+  }
+
+  \item{UB3A (face-wise quadratic/linear envelope surplus)}{
+    Placeholder: explain how lg_prob_factor, lmc1, and lmc2 are derived and why UB3A ≥ 0.
+  }
+
+  \item{UB3B (dispersion-axis envelope surplus)}{
+    Placeholder: explain how lm_log1, lm_log2, and max_New_LL_UB are used and why UB3B ≥ 0.
+  }
+
+}
+
+Together, these components define
+\deqn{ test = test1 - UB2 - UB3A - UB3B, }
+with \eqn{test1 \le 0} and each UB term \eqn{\ge 0}, ensuring the accept/reject
+procedure is valid and unbiased.
+}
+
 \seealso{
 \code{\link{EnvelopeBuild}}, \code{\link{glmb}}, \code{\link{glmbfamfunc}}
 }

@@ -1,0 +1,3665 @@
+Yaml
+
+---
+title: "Chapter A7: Accept–Reject Sampling for gaussian Regression models with independent normal-gamma priors"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Chapter A7: Accept–Reject Sampling for gaussian Regression models with independent normal-gamma priors}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Envelope construction with independent Normal–Gamma prior (Gaussian regression)
+
+This vignette documents the envelope construction when the prior for $\beta$ is independent of the data dispersion. The regression coefficients have a fixed Normal prior with covariance $\Sigma_\beta$, and the data precision $\sigma_{\text{data}}$ has its own Gamma prior.
+
+
+## 1. Model setup
+
+Gaussian regression model:
+$$
+y \mid \beta, d \;\sim\; \mathcal{N}\!\big(X\beta,\; d\,W^{-1}\big),
+$$
+
+with independent priors:
+$$
+\beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
+\qquad 
+\frac{1}{d} \;\sim\; \mathrm{Gamma}(\text{Shape},\, \text{Rate}),
+$$
+
+where $W = \mathrm{diag}(w_1,\dots,w_n)$ and $\Sigma_\beta$ is fixed.
+
+
+
+
+## 2. Full joint log-posterior (with diagonal weights)
+
+Let \(d\) denote the data dispersion, so that the precision is \(\tau = 1/d\).  
+The model is
+
+$$
+y_i \mid \beta, d \;\sim\; \mathcal{N}(x_i^\top \beta,\; d\, w_i^{-1}), \quad i=1,\dots,n,
+$$
+
+
+with independent priors (adjusted to the simulation bounds \(d \in [\,\mathrm{disp}_{\mathrm{lower}},\,\mathrm{disp}_{\mathrm{upper}}\,]\), equivalently \(x=\tfrac{1}{d} \in [\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,]\)):
+$$
+\beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
+\qquad 
+\frac{1}{d} \;\sim\; \mathrm{Gamma}(\text{Shape},\, \text{Rate}) \;\text{truncated to}\; \Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big],
+$$
+
+
+i.e., the prior density for \(x=\tfrac{1}{d}\) is
+\[
+f(x)
+= \frac{\text{Rate}^{\text{Shape}}}{\Gamma(\text{Shape})}\,x^{\text{Shape}-1} e^{-\text{Rate}\,x}
+\;\Big/\;
+\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
+\Bigg),
+\quad
+x \in \Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big],
+\]
+
+
+Because $W = \mathrm{diag}(w_1,\dots,w_n)$, the likelihood factorizes into weighted univariate normals.  
+The full joint log-posterior (up to an additive constant) is
+
+$$
+\ell(\beta,d) =
+\frac{n}{2}\log \tfrac{1}{d} + \frac{1}{2}\sum_{i=1}^n \log w_i - \frac{n}{2}\log(2\pi)
+\;-\;\frac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+$$
+
+$$
+\quad -\;\frac{1}{2}\log|\Sigma_\beta| - \frac{p}{2}\log(2\pi)
+\;-\;\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta
+$$
+
+$$
+\quad +\;(\text{Shape}-1)\log \tfrac{1}{d} \;-\; \text{Rate}\,\tfrac{1}{d}.
+$$
+
+## 3. General Sampling Process
+
+1. **Fit a classical model and extract an estimate for the dispersion**  
+   - Use a standard regression fit (e.g., `lm()`) to obtain initial coefficient estimates and the residual sum of squares (RSS).  
+   - This provides a first estimate of the dispersion parameter.
+
+2. **Fit Bayesian models with fixed but gradually refined dispersion parameters**  
+   - Start from the classical dispersion estimate and iteratively refine it.  
+   - At each iteration, fit a Bayesian model with dispersion held fixed, compute posterior residual sums of squares (`RSS_Post2`), and update the Gamma parameters for the precision:  
+     \[
+     \text{shape}_2 = \text{shape} + \tfrac{n_{\text{obs}}}{2}, \qquad
+     \text{rate}_2 = \text{rate} + \tfrac{\text{RSS}_{\text{Post}}}{2}.
+     \]
+   - The posterior for the **precision** \(\tau = 1/\sigma^2\) is then \(\text{Gamma}(\text{shape}_2, \text{rate}_2)\), whose mode is  
+     \[
+     \tau_{\text{mode}} = \frac{\text{shape}_2 - 1}{\text{rate}_2}.
+     \]
+   - The calibrated dispersion anchor is set as the reciprocal of this mode, i.e. the **mode of the dispersion distribution**:  
+     \[
+     \text{dispstar1} = \frac{\text{rate}_2}{\text{shape}_2 - 1}.
+     \]
+   - This value serves as the working dispersion for the posterior mode search and subsequent standardization.
+
+3. **Find the posterior mode for the model with calibrated dispersion (`dispstar1`)**  
+   - With the refined dispersion, locate the posterior mode of the regression coefficients.  
+   - This mode serves as the anchor point for subsequent standardization.
+
+4. **Standardize the model**  
+   - Re‑express the model using the calibrated dispersion and posterior mode.  
+   - Apply a linear transformation and, as needed, shift parts of the prior into the likelihood so that the standardized model has:  
+     - a diagonal posterior precision matrix, and  
+     - a standard multivariate normal prior (which by definition has zero mean and identity covariance).  
+   - This ensures numerical stability and simplifies envelope construction.
+
+5. **Build an envelope based on this standardized model (treating dispersion as fixed)**  
+   - Call `EnvelopeBuild()` to construct an envelope over the regression coefficients.  
+   - At this stage, dispersion is treated as fixed at `dispstar1`.
+
+  
+6. **Build an envelope that accounts for the prior on dispersion as well**  
+   - Keep the number of grid components and their gradient vectors fixed across dispersion values.  
+     This ensures the **conditional proposal density for the regression coefficients** is always a truncated normal with  
+     - mean vector given by the negative gradient \(-\bar{c}_j\), and  
+     - bounds determined by \(\exp(\text{loglt}_{j,r})\) and \(\exp(\text{logrt}_{j,r})\).  
+   - Construct a **Gamma proposal for the dispersion (precision \(\tau\))** with updated parameters:  
+     - shape parameter  
+       \[
+       \text{shape}_3 = \text{shape} + \tfrac{n}{2} - \text{lmc2} \cdot \text{dispstar2}
+       \]
+       where:
+       - \(\tfrac{n}{2}\) comes from the likelihood contribution to the posterior shape,  
+       - \(\text{lmc2} \cdot \text{dispstar2}\) adjusts the shape to ensure the proposal dominates the posterior.  
+     - rate parameter and is defined further down
+       \[
+       \text{rate}_2 = \text{rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}
+       \]
+       where:
+       - \(\tfrac{\text{RSS}_{\text{ML}}}{2}\) is the classical residual sum of squares,  
+       - used as a conservative bound on the residual term that varies across tangency points.  
+   - Construct the **Per-Face Subgradient Selection Probabilities (PLSD)** for each grid component \(j\) as follows:  
+     \[
+     \text{PLSD}_j = \frac{
+     \left[
+     \prod_{r=1}^p \left(\exp(\text{logrt}_{j,r}) - \exp(\text{loglt}_{j,r})\right)
+     \right]
+     \cdot
+     \exp\left(
+     \lg\_prob\_factor_{j}
+     \;+\;\tfrac{1}{2}\bar{c}_j^{\top}\bar{c}_j
+     \right)
+     }{
+     \sum_{k=1}^{K}
+     \left[
+     \prod_{r=1}^p \left(\exp(\text{logrt}_{k,r}) - \exp(\text{loglt}_{k,r})\right)
+     \right]
+     \cdot
+     \exp\left(
+     \lg\_prob\_factor_{k}
+     \;+\;\tfrac{1}{2}\bar{c}_k^{\top}\bar{c}_k
+     \right)
+     }
+     \]
+     This expression mirrors the mixture weights \(\tilde{p}_j\) in Claim 1 of Nygren and Nygren
+     
+   - Compute and store a set of constants (e.g., `lg_prob_factor`, `lmc1`, `lmc2`) that are used in the accept/reject test and in adjusting the probabilities with which grid components are selected. Specifically, these constansts are built so that
+     - lg_prob_factor_j +lmc1+lmc2 d - []>=0  \)
+     - \(  \)
+     -`lmc2` is used as part of the bounding approach in the UB3A formula below,  
+     - `lmc2 \cdot \text{dispstar2}` is used as part of the bounding approach in the UB3B formula.  
+     - Both are expanded on more below.
+
+
+## 4. Main Proposition and Supporting claims
+
+
+The central goal of this section is to prepare for an **accept–reject sampling algorithm** for the joint posterior \(\pi(\beta,d)\).  
+In such algorithms, we need two ingredients:
+
+1. **Proposal distributions** — simple, tractable distributions from which we can easily generate candidate values for \((\beta,d)\).  
+2. **Correction terms** — adjustments that ensure the proposals form valid upper bounds on the true posterior, so that the accept–reject step is mathematically justified.
+
+To make this work, we will express the log‑posterior in a form that separates these two roles:  
+- the **proposal part**, which generates candidates, and  
+- the **correction part**, which determines the acceptance probability.  
+
+Before we can state the main proposition that formalizes this decomposition, we need to introduce the **constants and auxiliary quantities** that appear in both the proposals and the corrections. These constants:
+
+- Define the dispersion bounds, tangency maps, and slopes that structure the proposals.  
+- Encode bounding line parameters and extrapolated constants that guarantee the correction terms are non‑negative.  
+- Provide a bridge between the mathematical formulation and the implementation, since many of these constants correspond directly to terms in the code.
+
+By laying out these constants first, we ensure that every symbol used in the proposition and its supporting claims is defined explicitly and consistently. The table below serves as a reference point for all subsequent derivations.
+
+### 4.1 Definitions of Constants
+
+| Constant | Definition | Description |
+|----------|------------|-------------|
+| Posterior Gamma parameters | $\text{shape2} = \text{Shape} + n/2$ <br> $\text{rate2} = \text{Rate} + RSS_{\text{post}}/2$ | Posterior shape and rate parameters. |
+| Gamma proposal parameters | $\text{shape3} = \text{shape2} - \text{lm_log2}$ <br> $\text{rate2} = \text{Rate} + RSS_{ML}/2$ | Adjusted Gamma proposal parameters. |
+| Envelope Dispersion anchor | $d^{*}_{1} = \dfrac{\text{rate2}}{\text{shape2} - 1}$ | Dispersion used for Baseline Envelope. |
+| Dispersion bounds | $\text{low} = \tfrac{1}{qgamma(\text{max_disp_perc},\, \text{shape2},\, \text{rate2})}$ <br> $\text{upp} = \tfrac{1}{qgamma(1-\text{max_disp_perc},\, \text{shape2},\, \text{rate2})}$ | Lower and upper bounds for dispersion. |
+| Tangency offset vector | $B(d) = P\mu + \tfrac{1}{d}\,X^\top W(\alpha - y)$ | Offset vector used in the inverse map $c^{-1}(\bar{c}, d)$. Combines prior mean $\mu$ and weighted residuals. |
+| Tangency slope components | $\begin{aligned} Q &= X^\top X \\[6pt] A(d) &= Q + dP \\[6pt] r &= X^\top (y - \alpha) \\[6pt] V(d) &= \bar c_j - P\,A(d)^{-1}(r + d\,\bar c_j) \end{aligned}$ | Components for quad‑linear slope term. |
+| Tangency inverse map | $c^{-1}(\bar{c}, d) = A(d)^{-1}(\bar{c} - B(d))$ | Inverse map from gradient vector $\bar{c}$ and dispersion $d$ to tangency point $\theta$. |
+| Tangency map | $\theta(d) = c^{-1}(\bar c_j,d)$ | Tangency point in coefficient space at dispersion $d$. |
+| Baseline face constant | $\begin{aligned} \text{thetabarconst}[j] \;=\;& -\tfrac{1}{2}\,\big(c^{-1}(\bar c_j,d^{*}_{1})\big)^\top P \,\big(c^{-1}(\bar c_j,d^{*}_{1})\big) \\ &+ \bar c_j^\top \,c^{-1}(\bar c_j,d^{*}_{1}) \end{aligned}$ | Per‑face baseline constant at the tangency point. |
+| Quad‑linear dispersion slope | $\begin{aligned} \text{New_LL_Slope}[j] &= V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} \bar c_j \\ &\quad - V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} P\,A(d^{*}_{1})^{-1}(r + d^{*}_{1}\,\bar c_j) \end{aligned}$ | Gradient of the tangency quadratic–linear form with respect to dispersion $d$. |
+| Mean quad‑linear dispersion slope | $\text{m_New_LL_Slope} = \text{mean}\big(\text{New_LL_Slope}[i]\big)$ | Global average of per‑face quad‑linear slopes. |
+| Extrapolated face constants | $\begin{aligned} \text{thetabarconst_upp_apprx}[j] &= \text{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\text{New_LL_Slope}[j] \\[6pt] \text{thetabarconst_low_apprx}[j] &= \text{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\text{New_LL_Slope}[j] \end{aligned}$ | Linear extrapolations of the face constant to upper and lower dispersion bounds. |
+| Endpoint maxima | $\begin{aligned} \text{max_upp} &= \max_j \Big( \text{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\text{New_LL_Slope}[j] \Big) \\[6pt] \text{max_low} &= \max_j \Big( \text{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\text{New_LL_Slope}[j] \Big) \end{aligned}$ | Maxima at upper and lower dispersion bounds. |
+| Mean lower‑bound maximum | $\text{max_low_mean} = \text{max_upp} - \text{m_New_LL_Slope} \cdot (\text{upp} - \text{low})$ | Approximate lower‑bound maximum via linear adjustment. |
+| Global line parameters | $\text{lmc2} = \dfrac{\text{max_upp} - \text{max_low_mean}}{\text{upp} - \text{low}}$ <br> $\text{lmc1} = \text{max_low_mean} - \text{lmc2} \cdot \text{low}$ | Slope and intercept of global bounding line. |
+| Log–linear anchor | $d^{*}_{2} = \dfrac{\text{upp} - \text{low}}{\log(\text{upp}/\text{low})}$ | Anchor point for log–linear tilt. |
+| Log–tilt coefficients | $\text{lm_log2} = \text{lmc2} \cdot d^{*}_{2}$ <br> $\text{lm_log1} = \text{lmc1} + \text{lmc2} \cdot d^{*}_{2} - \text{lmc2} \cdot \log(d^{*}_{2})$ <br> $\text{max_LL_log_disp} = \text{lm_log1} + \text{lm_log2} \cdot \log(\text{upp})$ | Coefficients for log–tilt slope and intercept. |
+| Per‑face shift | $\begin{aligned} \text{lg_prob_factor_j} &= \max \Big\{ \text{thetabarconst_upp_apprx}[j] - \text{max_upp}, \\[6pt] & \text{thetabarconst_low_apprx}[j] - \text{max_low} \Big\} \end{aligned}$ | Adjustment factor per face, based on extrapolated shifts. |
+
+
+
+### 4.2 Proposal distributions
+
+In the accept–reject scheme, proposals are the distributions we can sample from directly to generate candidate values. We use two proposals:
+
+1. A **Gamma-based proposal for dispersion \(d\)** (implemented as a truncated inverse‑Gamma in \(d\), equivalently a truncated Gamma in \(1/d\)).  
+2. A **mixture of truncated normal proposals for \(\beta\)**, sampled in two steps:  
+   - First, sample a face index \(j\) using the per‑face mixture weights \(\text{PLSD}_j\).  
+   - Then, conditional on \(j\), sample \(\beta\) from the face‑specific truncated normal.
+
+These proposals are constructed to be tractable for sampling and to support tight bounds via the correction terms.
+
+---
+
+#### Gamma proposal in dispersion \(d\) (with truncation)
+
+For dispersion \(d \in [\,\text{low},\,\text{upp}\,]\), define the truncated inverse‑Gamma proposal density (equivalently, a truncated Gamma in \(1/d\)):
+
+\[
+\begin{aligned}
+\log q_\Gamma^{\text{trunc}}(d)
+&= \Big(\text{Shape} + \tfrac{n}{2} - \text{lm_log2}\Big)\,\log\!\Big(\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+   - \log \Gamma\!\Big(\text{Shape} + \tfrac{n}{2} - \text{lm_log2}\Big) \\[6pt]
+&\quad - \Big(\text{Shape} + \tfrac{n}{2} - \text{lm_log2} + 1\Big)\,\log d
+   - \frac{\text{Rate} + \tfrac{RSS_{ML}}{2}}{d} \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\text{low}};\,\text{Shape} + \tfrac{n}{2} - \text{lm_log2},\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n}{2} - \text{lm_log2},\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+\end{aligned}
+\]
+
+where \(F_\Gamma(\cdot;\,\text{shape},\,\text{rate})\) is the Gamma CDF for \(1/d\).  
+Sampling proceeds by drawing \(u \sim \text{Uniform}(0,1)\) on the truncated CDF interval and inverting to obtain \(1/d\), then mapping to \(d\).
+
+---
+
+#### Mixture of truncated normals for \(\beta\) (two-step sampling)
+
+We construct a mixture over faces, each with a truncated normal component. Sampling is performed in two steps:
+
+1. **Sample the face index \(j\) (mixture weights):**
+   \[
+   \log \text{PLSD}_j
+   = \text{lg_prob_factor_j}
+   + \tfrac{1}{2}\,\bar c_j^\top \bar c_j
+   + \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+   - \log\!\left(
+     \sum_{k=1}^K
+     \exp\!\Big(\text{lg_prob_factor_k} + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+     \prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+   \right).
+   \]
+   - Exponentiating and normalizing across \(j=1,\dots,K\) yields a valid categorical distribution for the face index.
+
+2. **Sample \(\beta\) conditional on \(j\) (truncated normal):**
+   \[
+   \log q_{\text{TN}}(\beta\mid j)
+   = -\tfrac{1}{2}\,\beta^\top \beta
+   - \bar c_j^\top \beta
+   - \tfrac{1}{2}\,\bar c_j^\top \bar c_j
+   + \tfrac{p}{2}\log(2\pi)
+   - \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big).
+   \]
+   - This corresponds to a normal with mean \(-\bar c_j\) and identity covariance, truncated coordinate‑wise to intervals \((e^{\text{loglt}_{j,r}},\,e^{\text{logrt}_{j,r}})\).  
+   - Sampling can be performed via independent truncated univariate normals in each coordinate, with acceptance on the rectangle.
+
+---
+
+These proposals provide efficient candidate generation: \(d\) from the truncated inverse‑Gamma, and \(\beta\) from a face‑indexed mixture of truncated normals. In the accept–reject algorithm, the corresponding **correction terms** will ensure that the proposals upper‑bound the target, yielding valid acceptance probabilities.
+
+
+### 4.3 Correction terms
+
+In the accept–reject framework, the **proposal distributions** generate candidate values, while the **correction terms** ensure that the proposals form valid upper bounds on the true posterior.  
+These corrections are carefully constructed so that:
+
+- They are always non‑negative (or non‑positive in the case of `test1`),  
+- They vanish or simplify at key anchor points, and  
+- They guarantee that the acceptance probability is well‑defined.
+
+Together, they measure the “gap” between the proposal approximation and the exact log‑posterior.
+
+---
+
+| Term | Definition | Description |
+|------|------------|-------------|
+| $\text{test1}(\beta,d)$ | $\begin{aligned}  & LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt] &= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt] &\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg] \end{aligned}$ | Difference between the log‑likelihood and its linearization at the tangency point. By concavity, this term is always $\leq 0$. |
+| $\text{UB2}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \text{RSS}_{ML}\Big)$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
+| $\text{UB3A}_j(d)$ | $\begin{aligned} &\text{lg_prob_factor_j} + \text{lmc1} + \text{lmc2}\, d \\ &\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big) \end{aligned}$ | Bound from the quadratic–linear face energy. Constructed so that the global line $(\text{lmc1} + \text{lmc2}\,d)$ dominates the exact quadratic–linear term. |
+| $\text{UB3B}(d)$ | $\begin{aligned} &(\text{max_upp} - \text{max_LL_log_disp}) \\ &\quad + (\text{lm_log1} + \text{lm_log2} \cdot \log d) - (\text{lmc1} + \text{lmc2} \cdot d) \end{aligned}$ | Bound from the dispersion log–tilt construction. Ensures that the global log–linear approximation dominates the true log‑dispersion curve. |
+
+---
+
+Here, the standardized log‑likelihood is
+
+\[
+LL(\beta,d) \;=\; -\tfrac{n}{2}\log d
+\;-\; \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+\;-\; \tfrac{1}{2}\,\beta^\top P\,\beta.
+\]
+
+---
+
+**Interpretation.**  
+- `test1` measures how far the log‑likelihood lies below its tangent plane.  
+- `UB2` enforces that the residual sum of squares at the tangency point cannot beat the ML fit.  
+- `UB3A` ensures that the quadratic–linear face energy is bounded above by a global line.  
+- `UB3B` ensures that the log‑dispersion contribution is bounded above by a log–linear tilt.  
+
+Together, these correction terms guarantee that the proposals dominate the target posterior, making the accept–reject step valid.
+
+
+### 4.4 Proposition: Log‑posterior decomposition in dispersion form
+
+For face index \(j\), dispersion \(d\), and tangency point \(\theta(d) = c^{-1}(\bar c_j,d)\),
+the joint log‑posterior can be written as
+\[
+\log \pi(\beta,d)
+= \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)}_{\text{Correction block}}
++ \text{const}.
+\]
+
+Moreover, the correction terms satisfy the following sign properties:
+- \(\text{test1}(\beta,d) \le 0\) (concavity of the standardized log‑likelihood and its supporting hyperplane at \(c^{-1}(\bar c_j,d)\)).
+- \(\text{UB2}(d) \ge 0\) (residual sum‑of‑squares bound relative to the ML fit).
+- \(\text{UB3A}_j(d) \ge 0\) (quadratic–linear face energy bound dominates the exact term).
+- \(\text{UB3B}(d) \ge 0\) (dispersion log–tilt bound dominates the exact log‑dispersion).
+
+### Explanation
+
+- **What this does:** It separates the log‑posterior into three parts: proposals you can sample from directly (Gamma in \(d\), truncated normal in \(\beta\) with per‑face weights), a correction block that ensures those proposals form valid upper bounds, and a parameter‑free constant.
+- **Why the signs matter:** The correction block is
+  \[
+  \text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d),
+  \]
+  where \(\text{test1}\le 0\) and each \(\text{UB}\ge 0\). This guarantees that, when combined with the proposal terms, we obtain a valid envelope for accept–reject sampling: proposals generate candidates; the correction block calibrates acceptance.
+- **How it’s used:** In the sampler, you draw candidates from the proposals and compute the acceptance probability using the correction block. The constant term does not affect acceptance and simply keeps the identity exact.
+
+### Proof of Proposition
+
+We verify the decomposition and the sign properties by appealing to Claims 1–5.
+
+1. **Algebraic decomposition (Claim 1):**  
+   Claim 1 establishes, via the sequence of substitutions (1a)–(5d), that for each face \(j\) the chain of equalities transforms
+   \[
+   \log q_\Gamma(d) + \log q_{\text{TN}}(\beta\mid j) + \log \text{PLSD}_j
+   + \big[\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)\big] + \text{const}
+   \]
+   into the standardized form with prior Gamma, prior multivariate normal, and the standardized log‑likelihood, absorbing all parameter‑free remnants into a global constant. This validates the structural decomposition asserted in the proposition.
+
+2. **Concavity gap sign (Claim 2):**  
+   Claim 2 shows \(\text{test1}(\beta,d) \le 0\) because the standardized log‑likelihood lies below its supporting hyperplane at the tangency point \(c^{-1}(\bar c_j,d)\). This sets the non‑positive sign for the first term in the correction block.
+
+3. **Residual sum‑of‑squares bound (Claim 3):**  
+   Claim 3 proves \(\text{UB2}(d) \ge 0\) by ML optimality of the residual sum of squares, ensuring the second correction term is non‑negative.
+
+4. **Quadratic–linear face bound (Claim 4):**  
+   Claim 4 shows that \(\text{UB3A}_j(d) \ge 0\). The key step is to compare three functions:  
+   - \(g1_j(d)\), the exact quadratic–linear face energy,  
+   - \(g2_j(d)\), its supporting line at the tangency point \(d^{*}_{1}\), and  
+   - \(g3_j(d)\), the global affine bound constructed from \(\text{lmc1}, \text{lmc2}\), and the per‑face adjustment \(\text{lg_prob_factor_j}\).  
+
+   Concavity ensures \(g1_j(d) \le g2_j(d)\). Endpoint calibration ensures \(g3_j(d) \ge g2_j(d)\) on the entire interval. Thus \(g3_j(d) \ge g1_j(d)\), and by definition \(\text{UB3A}_j(d) = g3_j(d) - g1_j(d) \ge 0\).
+
+5. **Dispersion tilt bound (Claim 5):**  
+   Claim 5 shows that \(\text{UB3B}(d) \ge 0\). The comparison is between  
+   - the **linear function in \(d\)**, \(\text{lmc1} + \text{lmc2}\,d\), and  
+   - the **constructed log‑function**, \(\text{lm_log1} + \text{lm_log2}\,\log d\).  
+
+   The log‑function is calibrated at the endpoints of the dispersion interval so that it lies above the linear function at both \(\text{low}\) and \(\text{upp}\). Because the log‑function is concave in \(d\), anchoring it at the endpoints ensures it dominates the linear function throughout the interval.  
+
+   Importantly, the linear function \(\text{lmc1} + \text{lmc2}\,d\) being bounded here is part of the global affine bound constructed in **Claim 4**. Thus Claim 5 can be viewed as a second‑stage bounding step: the log‑tilt dominates the linear bound, which in turn (together with \( \text{lg_prob_factor_j}\) ) dominates the per‑face quadratic–linear energies.  
+
+   By definition, \(\text{UB3B}(d)\) is the difference between this bounding log‑function (plus the endpoint offset \(\text{max_upp} - \text{max_LL_log_disp}\)) and the linear term. Hence \(\text{UB3B}(d) \ge 0\).
+   
+   
+   
+   
+Combining these results: Claim 1 validates the exact algebraic split, while Claims 2–5 confirm the sign properties
+\[
+\text{test1}(\beta,d) \le 0,\quad \text{UB2}(d) \ge 0,\quad \text{UB3A}_j(d) \ge 0,\quad \text{UB3B}(d) \ge 0,
+\]
+so the correction block
+\(\text{test1} - \text{UB2} - \text{UB3A}_j - \text{UB3B}\) has the intended signs. Therefore, the proposition holds and provides a valid foundation for the accept–reject sampler.
+
+
+
+
+## 5. Supporting Claims
+
+In this section we provide detailed statements and proofs of the five claims that underpin the main proposition.  The first claims shows that the decomposition is algebraically valid while the rest (Claims 2–5) validates the sign propertiesthat guarantee correctness of the accept–reject scheme.
+
+---
+
+### 5.1 Claim 1
+
+**Claim 1.**  
+The joint log‑posterior admits the decomposition
+\[
+\log \pi(\beta,d)
+= \log q_\Gamma(d)
++ \log q_{\text{TN}}(\beta\mid j)
++ \log \text{PLSD}_j
++ \big[\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)\big]
++ \text{const}.
+\]
+
+*Proof of Claim 1.*  
+Define the following:
+
+**(1a)**
+
+\begin{aligned}
+\log q_{\Gamma,2}(d) 
+  &= \log q_\Gamma(d) + lm\_log2 \,\log \tfrac{1}{d} \\[6pt]
+  &= \log q_\Gamma(d) - lm\_log2 \,\log d \\[6pt]
+  &= (\text{Shape} + n/2  )\,\log \tfrac{1}{d}
+   - (\text{Rate} + RSS_{ML}/2)\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+\end{aligned}
+
+**(1b)**
+
+\[
+\begin{aligned}
+\text{UB3A}_{j,2}(d) &= \text{UB3A}_j(d)- \Big(lmc1 + lmc2 \cdot d\Big). \\[6pt]
+& = \lg\_prob\_factor_j 
+- \Big(
+   -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d)
+   + \bar c_j^\top \bar c^{-1}(\bar c_j,d)
+  \Big).
+\end{aligned}
+\]
+
+**(1c)**
+
+\[
+\begin{aligned}
+\text{UB3B}_{2}(d) & = \text{UB3B}(d)- \text{lm_log2} \cdot \log d + \Big(\text{lmc1} + \text{lmc2} \cdot d\Big). \\[6pt]
+& = \Big(\text{max_upp} - \text{max_LL_log_disp}\Big) + \text{lm_log1}
+\end{aligned}
+\]
+
+**(2a)**
+
+\begin{aligned}
+\text{test1}_{2}(\beta,d) & = \text{test1}(\beta,d)  + \Big(
+   -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d)
+   + \bar c_j^\top \bar c^{-1}(\bar c_j,d)
+  \Big) \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta
+   \Bigg] \\[6pt]
+&\quad - \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \bar c_j^{\top}\beta  \Bigg].
+\end{aligned}
+
+**(2b)**
+
+\begin{aligned}
+\log \text{PLSD}_{j,2} & =\log \text{PLSD}_j -\lg\_prob\_factor_j  \\[6pt]
+& =  \tfrac{1}{2}\bar c_j^\top \bar c_j
++ \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+- \log\!\left(
+\sum_{k=1}^K
+\exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+\prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+\right).
+\end{aligned}
+
+**(3a)**
+
+\begin{aligned}
+\log q_{\Gamma,3}(d) 
+  &= \log q_{\Gamma,2}(d)  + (RSS_{ML}/2)\,\tfrac{1}{d}  \\[6pt]
+  &= (\text{Shape} + n/2  )\,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+\end{aligned}
+
+**(3b)**
+
+\begin{aligned}
+\text{test1}_{3}(\beta,d) & = \text{test1}_{2}(\beta,d)  + \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta
+   \Bigg] + \bar c_j^{\top}\beta\\[6pt]
+\end{aligned}
+
+**(4a)**
+
+\begin{aligned}
+\log q_{\Gamma,4}(d) 
+  &= \log q_{\Gamma,3}(d)  - (n/2)\,\log \tfrac{1}{d}  \\[6pt]
+  &= \text{Shape}   \,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+\end{aligned}
+
+**(4b)**
+
+\begin{aligned}
+\log q_{\text{TN},2}(\beta\mid j) 
+&= \log q_{\text{TN}}(\beta\mid j) + \bar c_j^\top \beta + \tfrac{1}{2}\bar c_j^\top \bar c_j \\[6pt]
+&= -\tfrac{1}{2}\beta^\top \beta
++ \tfrac{p}{2}\log(2\pi)
+- \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big).
+\end{aligned}
+
+**(4c)**
+
+\begin{aligned}
+\log \text{PLSD}_{j,3} & = \text{PLSD}_{j,2} -\tfrac{1}{2}\bar c_j^\top \bar c_j  \\[6pt]
+& =  \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+- \log\!\left(
+\sum_{k=1}^K
+\exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+\prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+\right).
+\end{aligned}
+
+**(4d)**
+
+\begin{aligned}
+\text{test1}_{4}(\beta,d) & = \text{test1}_{3}(\beta,d)  - \bar c_j^{\top}\beta + (n/2)\,\log \tfrac{1}{d} \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta + (n/2)\,\log \tfrac{1}{d}
+   \Bigg] 
+   \\[6pt]
+& = LL(\beta,d)
+\end{aligned}
+
+**(5a)**
+
+\begin{aligned}
+\log q_{\Gamma,5}(d) 
+  &= \log q_{\Gamma,4}(d) 
+   + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
+  &\quad - \Big[(\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2) 
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2)\Big] \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
+\text{Rate} \Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
+\text{Rate} \Big)
+\Bigg),  \\[6pt]
+   
+   
+   &\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \Bigg), \\[6pt]
+
+  &= \text{Shape}   \,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
+\text{Rate} \Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
+\text{Rate} \Big)
+\Bigg),  \\[6pt]
+   
+\end{aligned}
+
+**(5b)**
+
+\begin{aligned}
+\log q_{\text{TN},3}(\beta\mid j)
+&= \log q_{\text{TN},2}(\beta\mid j)
+   \;+\; \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big) \\[6pt]
+&= -\tfrac{1}{2}\beta^\top \beta
+   + \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+
+**(5c)**
+
+\begin{aligned}
+\log \text{PLSD}_{j,4}
+  &= \log \text{PLSD}_{j,3}
+   \;-\; \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big) \\[6pt]
+   
+  &  \;+\; \underbrace{
+     \log\!\left(
+       \sum_{k=1}^K
+       \exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+       \prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+     \right)
+   }_{\displaystyle C_{\text{PLSD}}} \\[6pt]
+&= 0
+\end{aligned}
+
+**(5d)**
+
+\[
+\begin{aligned}
+C_{\text{final}}
+&= \underbrace{-\,\text{UB3B}_{2}(d)}_{\text{Interim correction terms}} + \text{const} \\[6pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[2pt]
+&\quad - \Big[(\text{Shape} + \tfrac{n}{2} - lm\_log2)\,\log(\text{Rate} + \tfrac{RSS_{ML}}{2})
+   - \log \Gamma(\text{Shape} + \tfrac{n}{2} - lm\_log2)\Big] \\[4pt]
+&\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
+\Bigg) \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg). \\[8pt]
+&= \text{const}
+\;-\;\Big(\max_{New\_LL\_UB} - \max_{LL\_log\_disp}\Big)
+\;-\; lm\_log1 \\[4pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[2pt]
+&\quad - \Big[(\text{Shape} + \tfrac{n}{2} - lm\_log2)\,\log(\text{Rate} + \tfrac{RSS_{ML}}{2})
+   - \log \Gamma(\text{Shape} + \tfrac{n}{2} - lm\_log2)\Big] \\[4pt]
+&\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
+\Bigg) \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg).
+\end{aligned}
+\]
+
+Then for each face j:
+
+\begin{aligned}
+& \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)}_{\text{corrections}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_{j,2}(d) - \text{UB3B}_{2}(d)}_{\text{Interim correction terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{2}(\beta,d) - \text{UB2}(d)  - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,3}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{3}(\beta,d)   - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,4}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN},2}(\beta\mid j)}_{\text{Interim Normal term}}
++ \underbrace{\log \text{PLSD}_{j,3}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{4}(\beta,d)   - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,5}(d)}_{\text{Prior Gamma Distribution Term}}
++ \underbrace{\log q_{\text{TN},3}(\beta\mid j)}_{\text{Prior Multivariate Normal Term}}
++ \underbrace{LL(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
++ C_{\text{final}}
+\end{aligned}
+
+**Narrative explanation.**  
+In the above chain of equalities, each step systematically replaces interim definitions with their standardized counterparts, while absorbing constants into a global term:
+
+- The **first equality** follows from substituting the adjusted definitions in (1a), (1b), and (1c), which restructure the Gamma proposal and UB3A/UB3B corrections.  
+- The **second equality** uses (2a) and (2b) to absorb the quadratic–linear adjustment into \(\text{test1}_{2}\) and to shift the per‑face mixture weight into \(\text{PLSD}_{j,2}\).  
+- The **third equality** applies (3a) and (3b), re‑expressing the Gamma proposal and \(\text{test1}\) by incorporating the residual sum‑of‑squares adjustment.  
+- The **fourth equality** follows from (4a)–(4d), where the dispersion‑dependent log term is absorbed into \(\text{test1}_{4}\), the truncated normal proposal is simplified to \(\log q_{\text{TN},2}\), and the mixture weight is reduced to \(\text{PLSD}_{j,3}\).  
+- Finally, the **fifth equality** applies the adjustments in (5a)–(5d):  
+  - (5a) replaces the interim Gamma normalization with the true **prior Gamma distribution** in dispersion form.  
+  - (5b) removes the truncation‑width adjustment, leaving the standard **prior multivariate normal distribution** term.  
+  - (5c) shows that the per‑face mixture weight cancels to zero once the truncation widths and denominator are absorbed.  
+  - (5d) consolidates all remaining parameter‑free terms, including the UB3B correction, into a single adjusted constant \(C_{\text{final}}\).
+
+
+Thus, the final decomposition is:
+
+\[
+\log \pi(\beta,d)
+= \underbrace{\log q_{\Gamma,5}(d)}_{\text{Prior Gamma Distribution Term}}
++ \underbrace{\log q_{\text{TN},3}(\beta\mid j)}_{\text{Prior Multivariate Normal Term}}
++ \underbrace{\text{test1}_{4}(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
++ C_{\text{final adjusted constant}}.
+\]
+
+This shows that after all substitutions, the surviving terms are exactly the **prior Gamma distribution in \(d\)**, the **prior multivariate normal distribution in \(\beta\)**, and the **standardized log‑likelihood contribution**. Everything else has been absorbed into a global constant. In other words, the decomposition now cleanly separates into the canonical **prior** and **likelihood** components, with no extraneous dependence on interim proposals or mixture weights.
+
+
+Starting from the standardized log‑posterior, we separate the dispersion‑dependent Gamma component, the truncated normal component in \(\beta\), and the per‑face mixture weight. The residual terms are collected into the correction block \(\text{test1} - \text{UB2} - \text{UB3A} - \text{UB3B}\). This is an algebraic rearrangement, so the decomposition holds exactly.
+
+
+---
+
+### 5.2 Claim 2
+
+**Claim 2.**  
+\(\text{test1}(\beta,d) \le 0\).
+
+*Proof of Claim 2.*  
+By the definition of the inverse map \(c^{-1}(\cdot)\), the vector \(\bar c_j\) is a subgradient of the negative standardized log‑likelihood at the tangency point \(c^{-1}(\bar c_j,d)\). From the supporting‑hyperplane property of concave functions, it follows that for every \((\beta,d)\),
+
+\[
+LL(\beta,d) \;\le\; LL\!\big(c^{-1}(\bar c_j,d),d\big) \;-\; \bar c_j^{\top}\big(\beta - c^{-1}(\bar c_j,d)\big).
+\]
+
+By definition, \(\text{test1}(\beta,d)\) is exactly the difference between the standardized log‑likelihood \(LL(\beta,d)\) and this linearization at the tangency point. Hence,
+
+\[ \text{test1}(\beta,d) \le 0. \]
+
+This completes the proof of Claim 2.
+
+---
+
+### 5.3 Claim 3
+
+**Claim 3.**  
+\(\text{UB2}(d) \ge 0\).
+
+*Proof of Claim 3.*  
+By definition, \( RSS_{ML}= \min_{\beta \in \mathbf{R}^{p}}
+\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 \Big).
+ \)
+
+It then follows that 
+
+\(UB2(d)=\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \text{RSS}_{ML}\Big) \ge  \tfrac{1}{2d}\Big(\text{RSS}_{ML} - \text{RSS}_{ML}\Big)=0.\)
+
+This completes the proof of Claim.
+
+
+
+
+
+
+---
+
+### 5.4 Claims 4 and 5
+
+Before proceeding with the proofs, we first introduce a couple of additional functions and state a couple of remarks.
+
+For each \(j\) Define functions \(g1_{j}(.)\),  \(g2_{j}(.)\) and  \(g3_{j}(.)\)
+
+by \[ g1_{j}(d)= -\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d) \]
+
+
+
+\[
+g2_{j}(d) = g1_{j}(d^{*}_{1}) + \text{New_LL_Slope}[j] \cdot (d - d^{*}_{1})
+\]
+
+
+and 
+
+\[ g3_{j}(d)= \text{lg_prob_factor_j} + \text{lmc1} + \text{lmc2}\, d \]
+
+
+### Remark 1
+
+**Remark 1.**  
+For each face \(j\), the derivative of \(g1_{j}(\cdot)\) with respect to \(d\) admits the equivalent forms
+\[
+\frac{d}{dd}\,g1_{j}(d)
+= V(d)^\top A(d)^{-1} V(d)
+= V(d)^\top A(d)^{-1}\bar c_j
+- V(d)^\top A(d)^{-1} P\,A(d)^{-1}\big(r + d\,\bar c_j\big),
+\]
+and, in particular, at \(d^{*}_{1}\),
+\[
+g1_{j}'(d^{*}_{1})
+= \text{New_LL_Slope}[j].
+\]
+
+*Proof of Remark 1.*  
+Recall
+\[
+g1_{j}(d) \;=\; -\tfrac{1}{2}\,\theta(d)^\top P\,\theta(d) \;+\; \bar c_j^\top \theta(d),
+\quad
+\theta(d) \;=\; A(d)^{-1}\big(r + d\,\bar c_j\big),
+\quad
+A(d) = Q + dP,
+\]
+and define \(V(d) := \bar c_j - P\,\theta(d)\).
+
+Differentiate using the chain rule:
+\[
+\frac{d}{dd}\,g1_{j}(d)
+= \big(\bar c_j^\top - \theta(d)^\top P\big)\,\frac{d\theta}{dd}
+= V(d)^\top \frac{d\theta}{dd}.
+\]
+With \(A'(d)=P\) and \(\theta(d) = A(d)^{-1}(r + d\,\bar c_j)\),
+\[
+\frac{d\theta}{dd}
+= -A(d)^{-1} P\,\theta(d) + A(d)^{-1}\bar c_j
+= A(d)^{-1} V(d).
+\]
+Substituting back yields the quadratic form
+\[
+\frac{d}{dd}\,g1_{j}(d) = V(d)^\top A(d)^{-1} V(d).
+\]
+Expanding \(V(d) = \bar c_j - P\,\theta(d)\) and \(\theta(d) = A(d)^{-1}(r + d\,\bar c_j)\) gives the implementation‑aligned form
+\[
+\frac{d}{dd}\,g1_{j}(d)
+= V(d)^\top A(d)^{-1}\bar c_j
+- V(d)^\top A(d)^{-1} P\,A(d)^{-1}\big(r + d\,\bar c_j\big).
+\]
+Evaluating at \(d=d^{*}_{1}\) matches the table entry:
+\[
+g1_{j}'(d^{*}_{1})
+= V(d^{*}_{1})^\top A(d^{*}_{1})^{-1}\bar c_j
+- V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} P\,A(d^{*}_{1})^{-1}\big(r + d^{*}_{1}\,\bar c_j\big)
+= \text{New_LL_Slope}[j].
+\]
+
+This completes the proof of Remark 1.
+
+### Remark 2
+
+**Remark 2.**  
+The derivative of the function \(g1_{j}(\cdot)\) with respect to \(d\) is non‑negative.
+
+*Proof of Remark 2.*  
+From Remark 1, the derivative admits the quadratic form
+\[
+\frac{d}{dd}\,g1_{j}(d) \;=\; V(d)^\top A(d)^{-1} V(d),
+\quad
+A(d) = Q + dP,
+\quad
+V(d) = \bar c_j - P\,\theta(d).
+\]
+
+Since \(Q \succ 0\) and \(P \succ 0\), we have \(A(d) = Q + dP \succ 0\) for all \(d \in [\text{low}, \text{upp}]\), hence \(A(d)^{-1} \succ 0\). Therefore, for any \(d\) in this interval,
+\[
+V(d)^\top A(d)^{-1} V(d) \;\ge\; 0.
+\]
+
+Evaluating at \(d^{*}_{1}\) gives
+\[
+g1_{j}'(d^{*}_{1}) \;=\; \text{New_LL_Slope}[j] \;\ge\; 0.
+\]
+
+This completes the proof of Remark 2.
+
+### Remark 3
+
+**Remark 3.**  
+The function \( g1_{j}(\cdot) \) is concave, and therefore
+\[
+g1_{j}(d) \;\le\; g1_{j}(d^{*}_{1}) + \text{New_LL_Slope}[j] \cdot (d - d^{*}_{1}).
+\]
+
+*Proof of Remark 3.*  
+Recall
+\[
+g1_{j}(d) \;=\; -\tfrac{1}{2}\,\theta(d)^\top P\,\theta(d) \;+\; \bar c_j^\top \theta(d),
+\quad
+\theta(d) \;=\; A(d)^{-1}\big(r + d\,\bar c_j\big),
+\quad
+A(d) = Q + dP,
+\]
+and define \(V(d) := \bar c_j - P\,\theta(d)\).
+
+From Remark 1,
+\[
+\frac{d}{dd}\,g1_{j}(d) \;=\; V(d)^\top A(d)^{-1} V(d).
+\]
+Differentiating once more using \(V'(d) = -P\,A(d)^{-1}V(d)\) and \((A^{-1})'(d) = -A(d)^{-1} P\, A(d)^{-1}\), we obtain
+\[
+\frac{d^2}{dd^2}\,g1_{j}(d)
+= -\,3\,V(d)^\top A(d)^{-1} P\,A(d)^{-1} V(d) \;\le\; 0,
+\]
+since \(A(d)^{-1} \succ 0\) and \(P \succ 0\). Hence \(g1_{j}\) is concave on \([\text{low}, \text{upp}]\).
+
+By the supporting line inequality for concave functions, for any \(d\),
+\[
+g1_{j}(d) \;\le\; g1_{j}(d^{*}_{1}) + g1_{j}'(d^{*}_{1})\,(d - d^{*}_{1})
+= g1_{j}(d^{*}_{1}) + \text{New_LL_Slope}[j]\,(d - d^{*}_{1}),
+\]
+which is the stated result.
+
+This completes the proof of Remark 3.
+
+
+### Remark 4
+
+**Remark 4.**  
+\(\text{lmc2}\) and \(\text{lm_log2}\) are both non‑negative.
+
+*Proof of Remark 4.*  
+From the constants table,
+\[
+\text{max_low_mean} \;=\; \text{max_upp} - \text{m_New_LL_Slope}\,(\text{upp} - \text{low}),
+\]
+and
+\[
+\text{lmc2} \;=\; \frac{\text{max_upp} - \text{max_low_mean}}{\text{upp} - \text{low}}
+\;=\; \text{m_New_LL_Slope}.
+\]
+
+Since each per‑face slope satisfies \(\text{New_LL_Slope}[j] \ge 0\) (Remark 2), their mean \(\text{m_New_LL_Slope} \ge 0\). Hence \(\text{lmc2} \ge 0\).
+
+Moreover,
+\[
+\text{lm_log2} \;=\; \text{lmc2} \cdot d^{*}_{2},
+\qquad
+d^{*}_{2} \;=\; \frac{\text{upp} - \text{low}}{\log(\text{upp}/\text{low})}.
+\]
+
+With \(\text{upp} > \text{low} > 0\), we have \(\log(\text{upp}/\text{low}) > 0\), so \(d^{*}_{2} > 0\). Since \(\text{lmc2} \ge 0\) and \(d^{*}_{2} > 0\), it follows that \(\text{lm_log2} \ge 0\).
+
+This completes the proof of Remark 4.
+
+
+**Claim 4.**  
+\(\text{UB3A}_j(d) \ge 0\).
+
+*Proof of Claim 4.*  
+UB3A is constructed as the gap between a global quadratic–linear bounding function and the exact quadratic–linear energy at the tangency point.  
+The line parameters \((\text{lmc1},\text{lmc2})\) are chosen so that the bound dominates the exact function across the calibrated interval. Hence the difference is non‑negative.
+
+### Claim 4
+
+**Claim 4.**  
+\(\text{UB3A}_j(d) \ge 0\).
+
+*Proof of Claim 4.*  
+Recall the definitions
+\[
+g1_{j}(d) = -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d),
+\]
+\[
+g2_{j}(d) = g1_{j}(d^{*}_{1}) + \text{New_LL_Slope}[j]\,(d - d^{*}_{1}),
+\]
+\[
+g3_{j}(d) = \text{lg_prob_factor_j} + \text{lmc1} + \text{lmc2}\,d.
+\]
+
+---
+
+**Step 1.** By Remark 3, \(g1_{j}\) is concave in \(d\). Therefore, its supporting line at \(d^{*}_{1}\) dominates:
+\[
+g1_{j}(d) \;\le\; g2_{j}(d), \qquad d \in [\text{low}, \text{upp}].
+\]
+
+---
+
+**Step 2.** Endpoint dominance of \(g3_{j}\) over \(g2_{j}\).  
+At the endpoints,
+\[
+g2_{j}(\text{low}) = \text{thetabarconst_low_apprx}[j],
+\qquad
+g2_{j}(\text{upp}) = \text{thetabarconst_upp_apprx}[j].
+\]
+By construction of \(\text{lg_prob_factor_j}\),
+\[
+\text{lg_prob_factor_j} \;\ge\; \text{thetabarconst_low_apprx}[j] - \big(\text{lmc1} + \text{lmc2}\,\text{low}\big),
+\]
+\[
+\text{lg_prob_factor_j} \;\ge\; \text{thetabarconst_upp_apprx}[j] - \big(\text{lmc1} + \text{lmc2}\,\text{upp}\big).
+\]
+Hence,
+\[
+g3_{j}(\text{low}) = \text{lg_prob_factor_j} + \text{lmc1} + \text{lmc2}\,\text{low} \;\ge\; g2_{j}(\text{low}),
+\]
+\[
+g3_{j}(\text{upp}) = \text{lg_prob_factor_j} + \text{lmc1} + \text{lmc2}\,\text{upp} \;\ge\; g2_{j}(\text{upp}).
+\]
+
+---
+
+**Step 3.** Since \(g2_{j}\) is affine in \(d\), endpoint dominance implies
+\[
+g3_{j}(d) \;\ge\; g2_{j}(d), \qquad d \in [\text{low}, \text{upp}].
+\]
+
+---
+
+**Step 4.** Combining Steps 1 and 3,
+\[
+g3_{j}(d) \;\ge\; g2_{j}(d) \;\ge\; g1_{j}(d), \qquad d \in [\text{low}, \text{upp}].
+\]
+
+Therefore,
+\[
+\text{UB3A}_j(d) = g3_{j}(d) - g1_{j}(d) \;\ge\; 0.
+\]
+
+This completes the proof of Claim 4.
+
+
+
+**Claim 5.**  
+\(\text{UB3B}(d) \ge 0 \quad \text{for all } d \in [\text{low},\,\text{upp}]\).
+
+*Proof of Claim 5.*  
+
+Define function \(f1(.) \) and \(f2(.) \)
+
+by 
+\[ \begin{align}
+f1(d) & =   \big(\text{max_upp} - \text{max_LL_log_disp}\big) \\
+& + \big(\text{lm_log1} + \text{lm_log2} \cdot \log d \big) \\
+& = \big(\text{max_upp} - (\text{lm_log1} + \text{lm_log2} \cdot \log \text{upp} ) \big)\\
+& + \big(\text{lm_log1} + \text{lm_log2} \cdot \log d \big) \\
+&  = \big(\text{max_upp}  \\
+& - (\text{lmc1} + \text{lmc2} \cdot d^{*}_{2} - \text{lmc2} \cdot \log(upp))  \big)\\
+& + \big(\text{lmc1} + \text{lmc2} \cdot d^{*}_{2} - \text{lmc2} \cdot \log(d^{*}_{2})\\
+& + \text{lmc2} \cdot d^{*}_{2} \cdot \log d  \big)
+\end{align}
+\]
+
+and \[\begin{align}
+f2(d) & =\text{lmc1} + \text{lmc2} \cdot d  \\
+& = \text{max_low_mean} -\text{lmc2} \cdot \text{low} + \text{lmc2} \cdot d
+\end{align}
+\]
+
+so \(\text{UB3B}(d)  =f1(d)-f2(d) \).
+
+When  \(d=\text{upp} \), we have
+
+\begin{align}
+\text{UB3B}(upp) & =  f1(upp)-f2(upp) \\
+& = (\text{max_upp} - \big(\text{max_low_mean} + \text{lmc2} \cdot (\text{upp}-\text{low} )\big)\\
+& = (\text{max_upp} - \big(\text{max_low_mean} + \frac{(\text{max_upp}-\text{max_low_mean})}{(\text{upp}-\text{low})}\cdot (\text{upp}-\text{low}) \big)\\
+& = (\text{max_upp} - \text{max_upp}) \\
+& = 0
+\end{align}
+
+
+so \( f1(upp)=f2(upp)\).
+
+Likewise, when \(d=\text{low} \), we have
+
+
+\begin{align}
+\text{UB3B}(low) & =  f1(low)-f2(low) \\
+& = (\text{max_upp} - \big(\text{lm_log2} \cdot (\log (\text{upp})- \log (\text{low}) )\big))\\
+&  - (\text{max_low_mean}+ \text{lmc2} \cdot (\text{low}-\text{low})) \\
+& = (\text{max_upp} - \big(\text{lmc2} \cdot d^{*}_{2} \cdot (\log (\text{upp})- \log (\text{low}) )\big))\\
+&  - \text{max_low_mean} \\
+& = (\text{max_upp} - \big(\frac{(\text{max_upp}-\text{max_low_mean})}{(\text{upp}-\text{low})} \cdot \frac{(\text{upp}-\text{low})}{\log (\text{upp/low})} \cdot \log (\text{upp/low})\big) )\\
+&  - \text{max_low_mean} \\
+& = (\text{max_upp} - \big(\text{max_upp}-\text{max_low_mean}\big)) \\
+&  - \text{max_low_mean} \\
+& =0
+\end{align}
+
+so \( f1(low)=f2(low)\).
+
+From properties of the log and the result from Remark 4, that \( \text{lm_log2} \ge 0 \), it follows that \(f1(.)\) is a concave function. 
+
+Now, pick any \( t \in [0,1] \).  It then follows that
+
+\begin{align} f1(\text{t} \cdot \text{low} +\text{(1-t)} \cdot \text{upp} ) & \geq \text{t} \cdot f1(\text{low}) +\text{(1-t)} \cdot f1(\text{upp}) \\
+& = \text{t} \cdot f2(\text{low}) +\text{(1-t)} \cdot f2(\text{upp}) \\
+& =  f2(\text{t} \cdot \text{low} +\text{(1-t)}\cdot \text{upp}).
+\end{align}
+
+Thus, for all \(d \in [\text{low}, \text{upp}]\),
+\[
+\text{UB3B}(d) = f1(d) - f2(d) \;\ge\; 0,
+\]
+which completes the proof.
+
+## 6. Section 6: Redundant
+
+
+
+| $\text{UB3B}(d)$ | $\begin{aligned} &(\max_{\text{New_LL_UB}} - \max_{\text{LL_log_disp}}) \\ &\quad + (\text{lm_log1} + \text{lm_log2} \cdot \log d) - (\text{lmc1} + \text{lmc2} \cdot d) \end{aligned}$ | Bound from the dispersion log–tilt construction. Ensures that the global log–linear approximation dominates the true log‑dispersion curve. |
+
+| Log–tilt coefficients | $\text{lm_log2} = \text{lmc2} \cdot d^{*}_{2}$ <br> $\text{lm_log1} = \text{lmc1} + \text{lmc2} \cdot d^{*}_{2} - \text{lmc2} \cdot \log(d^{*}_{2})$ | Coefficients for log–tilt slope and intercept. |
+
+
+
+
+- Substitute endpoint definitions:  
+  \(\text{max_New_LL_UB} = \text{max_upp}, \quad
+  \text{max_LL_log_disp} = \text{lm_log1} + \text{lm_log2} \cdot \log(\text{upp})\).
+
+\[
+\Delta(d) = \text{max_upp} - \text{lm_log2} \cdot \log(\text{upp})
++ \text{lm_log2} \cdot \log d - (\text{lmc1} + \text{lmc2} \cdot d).
+\]
+
+- Replace \(\text{lm_log2} = \text{lmc2} \cdot d^{*}_{2}\):
+
+\[
+\Delta(d) = \text{max_upp} - \text{lmc2} \cdot d^{*}_{2} \cdot \log(\text{upp})
++ \text{lmc2} \cdot d^{*}_{2} \cdot \log d - (\text{lmc1} + \text{lmc2} \cdot d).
+\]
+
+- Group terms:
+
+\[
+\Delta(d) = \text{max_upp} - \text{lmc2} \cdot d^{*}_{2} \cdot (\log(\text{upp}) - \log d)
+- (\text{lmc1} + \text{lmc2} \cdot d).
+\]
+
+---
+
+#### Endpoint checks
+
+- At \(d=\text{upp}\): since \(G(\text{upp}) = \text{lmc1} + \text{lmc2} \cdot \text{upp} = \text{max_upp}\),
+
+\[
+\Delta(\text{upp}) = \text{max_upp} - 0 - \text{max_upp} = 0.
+\]
+
+- At \(d=\text{low}\): using \(d^{*}_{2} = \tfrac{\text{upp}-\text{low}}{\log(\text{upp}/\text{low})}\),
+
+\[
+\text{lmc2} \cdot d^{*}_{2} \cdot (\log(\text{upp})-\log(\text{low})) = \text{lmc2} \cdot (\text{upp}-\text{low}).
+\]
+
+Also \(G(\text{low}) = \text{lmc1} + \text{lmc2} \cdot \text{low} = \text{max_low_mean}\) and  
+\(\text{lmc2}(\text{upp}-\text{low}) = \text{max_upp} - \text{max_low_mean}\). Thus
+
+\[
+\Delta(\text{low}) = \text{max_upp} - (\text{max_upp} - \text{max_low_mean}) - \text{max_low_mean} = 0.
+\]
+
+---
+
+#### Concavity
+
+\[
+\Delta'(d) = \text{lmc2} \cdot d^{*}_{2} \cdot \frac{1}{d} - \text{lmc2}
+= \text{lmc2} \left(\frac{d^{*}_{2}}{d} - 1\right),
+\]
+
+\[
+\Delta''(d) = -\,\text{lmc2} \cdot \frac{d^{*}_{2}}{d^2} < 0
+\quad (\text{since } \text{lmc2} > 0,\, d^{*}_{2} > 0).
+\]
+
+So \(\Delta(d)\) is strictly concave on \([\text{low},\,\text{upp}]\).  
+A concave function that equals zero at both endpoints must be non‑negative throughout the interval.
+
+---
+
+#### Conclusion
+
+\[
+\boxed{\text{UB3B}(d) = \Delta(d) \ge 0 \quad \text{for all } d \in [\text{low},\,\text{upp}].}
+\]
+
+This completes the proof of Claim 5.
+
+
+
+
+
+
+### Proposition: Log‑posterior decomposition in dispersion form
+
+For face index \(j\), dispersion \(d\), and tangency point
+\(\theta(d) = c^{-1}(\bar c_j,d)\), the joint log‑posterior can be written as
+
+\[
+\log \pi(\beta,d)
+= \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)}_{\text{corrections}}
++ \text{const}.
+\]
+
+> **Where test1, UB2,U UB3A, and UB3B satisfies the following:**
+
+> - \(\text{test1}(\beta,d) \le 0\)  
+>   by concavity of the standardized log‑likelihood and its supporting hyperplane at \(\bar c^{-1}(\bar c_j,d)\).
+>
+> - \(\text{UB2}(d) \ge 0\)  
+>   by construction of the residual sum‑of‑squares bound relative to the ML fit.
+>
+> - \(\text{UB3A}_j(d) \ge 0\)  
+>   by construction of the quadratic–linear face energy bound.
+>
+> - \(\text{UB3B}(d) \ge 0\)  
+>   by construction of the dispersion log–tilt bound.
+
+### Proposal terms
+
+**Gamma proposal in dispersion \(d\) (with truncation):**
+
+For dispersion \(d \in [\,\mathrm{disp}_{\mathrm{lower}},\,\mathrm{disp}_{\mathrm{upper}}\,]\), the truncated inverse‑Gamma proposal (equivalently, a truncated Gamma in \(1/d\)) is:
+
+
+
+\[
+\begin{aligned}
+\log q_\Gamma^{\text{trunc}}(d)
+&= \Big(\text{Shape} + \tfrac{n}{2} - lm\_log2\Big)\,\log\!\Big(\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+   - \log \Gamma\!\Big(\text{Shape} + \tfrac{n}{2} - lm\_log2\Big) \\[6pt]
+&\quad - \Big(\text{Shape} + \tfrac{n}{2} - lm\_log2 + 1\Big)\,\log d
+   - \frac{\text{Rate} + \tfrac{RSS_{ML}}{2}}{d} \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+\end{aligned}
+\]
+
+where \(F_\Gamma(\cdot;\,\text{shape parameter},\,\text{rate parameter})\) is the Gamma CDF for \(1/d\).
+
+**Truncated normal proposal for \(\beta\):**
+
+\[
+\log q_{\text{TN}}(\beta\mid j)
+= -\tfrac{1}{2}\beta^\top \beta
+- \bar c_j^\top \beta
+- \tfrac{1}{2}\bar c_j^\top \bar c_j
++ \tfrac{p}{2}\log(2\pi)
+- \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big).
+\]
+
+**Per‑face mixture weight (PLSD):**
+
+\[
+\log \text{PLSD}_j
+= \lg\_prob\_factor_j
++ \tfrac{1}{2}\bar c_j^\top \bar c_j
++ \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+- \log\!\left(
+\sum_{k=1}^K
+\exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+\prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+\right).
+\]
+
+
+
+### Correction terms
+
+| Term | Definition | Description |
+|------|------------|-------------|
+| $\text{test1}(\beta,d)$ | $\begin{aligned} 
+& LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt]
+&= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt]
+&\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 \\[6pt]
+& \quad - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) 
+ - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg]
+\end{aligned}$ | Difference between log‑likelihood and its linearization at the tangency point. |
+| $\text{UB2}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \text{RSS}_{ML}\Big)$ | Bound relative to ML residual sum of squares. |
+| $\text{UB3A}_j(d)$ | $\begin{aligned} &\lg\_prob\_factor_j + lmc1 + lmc2\, d \\ &\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big)\end{aligned}$ | Bound from quadratic–linear face energy. |
+| $\text{UB3B}(d)$ | $\begin{aligned} &(\max_{New\_LL\_UB} - \max_{LL\_log\_disp}) \\ &\quad + (lm\_log1 - lm\_log2 \cdot \log d) - (lmc1 + lmc2 \cdot d)\end{aligned}$ | Bound from dispersion log–tilt construction. |
+
+where
+
+\[
+LL(\beta,d) \;=\; -\tfrac{n}{2}\log d
+\;-\; \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+\;-\; \tfrac{1}{2}\,\beta^\top P\,\beta.
+\]
+
+
+
+## Definitions of constants
+
+
+
+
+| Constant | Definition | Description |
+|----------|------------|-------------|
+| Posterior Gamma parameters | $\text{shape2} = \text{Shape} + n/2$ <br> $\text{rate2} = \text{Rate} + RSS_{\text{post}}/2$ | Posterior shape and rate parameters. |
+| Gamma proposal parameters | $\text{shape3} = shape2 - lm\_log2$ <br> $\text{rate2} = \text{Rate} + RSS_{ML}/2$ | Adjusted Gamma proposal parameters.|
+| Envelope Dispersion anchor | $d^{*}_{1} = \frac{\text{rate}_2}{\text{shape}_2 - 1}.$| Dispersion used for Baseline Envelope |
+| Dispersion bounds | $low = \tfrac{1}{qgamma(\text{max_disp_perc},\, shape2,\, rate2)}$ <br> $upp = \tfrac{1}{qgamma(1-\text{max_disp_perc},\, shape2,\, rate2)}$ | Lower and upper bounds for dispersion. |
+| Tangency offset vector | $B(d) = P\mu + \tfrac{1}{d}\,X^\top W(\alpha - y)$ | Offset vector used in the inverse map $c^{-1}(\bar{c}, d)$. Combines prior mean $\mu$ and weighted residuals. Matches implementation in `Inv_f3_with_disp`. |
+| Tangency slope components | $\begin{aligned}
+Q &= X^\top X \\[6pt]
+A(d) &= Q + dP \\[6pt]
+r &= X^\top (y - \alpha) \\[6pt]
+V(d) &= \bar c_j - P\,A(d)^{-1}(r + d\,\bar c_j)
+\end{aligned}$ | Supporting components for quad‑linear slope term. $Q$ is the design cross-product, $A(d)$ is the dispersion‑dependent system matrix, $r$ is the residual vector, and $V(d)$ defines the slope contribution at dispersion $d$. |
+| Tangency inverse map | $c^{-1}(\bar{c}, d) = A(d)^{-1}(\bar{c} - B(d))$ | Inverse map from gradient vector $\bar{c}$ and dispersion $d$ to tangency point $\theta$. Uses $A(d)$ from the tangency slope components row and $B(d)$ from its own entry. Matches the implementation in `Inv_f3_with_disp`, where $P$ is the prior precision and $\mu$ is typically zero. |
+| Tangency map | $\theta(d) = c^{-1}(\bar c_j,d)$ | Tangency point in coefficient space at dispersion $d$. |
+| Baseline face constant | $\begin{aligned}
+\text{thetabarconst}[j] \;=\;& -\tfrac{1}{2}\,\big(c^{-1}(\bar c_j,d^{*}_{1})\big)^\top P \,\big(c^{-1}(\bar c_j,d^{*}_{1})\big) \\
+&+ \bar c_j^\top \,c^{-1}(\bar c_j,d^{*}_{1})
+\end{aligned}$ | Per‑face baseline constant, combining quadratic penalty and linear face term at the tangency point $c^{-1}(\bar c_j,d^{*}_{1})$. |
+| Quad‑linear dispersion slope | $\begin{aligned}
+\text{New_LL_Slope}[j] &= V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} \bar c_j \\
+&\quad - V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} P\,A(d^{*}_{1})^{-1}(r + d^{*}_{1}\,\bar c_j)
+\end{aligned}$ | Gradient of the tangency quadratic–linear form with respect to dispersion $d$, evaluated for face $j$. |
+| Mean quad‑linear dispersion slope | $\text{m_New_LL_Slope} = \text{mean}\big(\text{New_LL_Slope}[i]\big)$ | Average of the per‑face quad‑linear slopes across all $i$. Provides a global summary slope measure. |
+| Extrapolated face constants | $\begin{aligned}
+\text{thetabarconst_upp_apprx}[j] &= \text{thetabarconst}[j]  \\[6pt]
+& + (upp - d^{*}_{1})\,\text{New_LL_Slope}[j] \\[6pt]
+\text{thetabarconst_low_apprx}[j] &= \text{thetabarconst}[j]  \\[6pt]
+& + (low - d^{*}_{1})\,\text{New_LL_Slope}[j]
+\end{aligned}$ | Linear extrapolations of the face constant to the upper and lower dispersion bounds. These use the quad‑linear slope to approximate the tangency constant beyond $d^{*}_{1}$.|
+| Endpoint maxima | $\begin{aligned}
+\text{max_upp} &= \max_j \Big( \text{thetabarconst}[j] \\
+&\quad + (upp - d^{*}_{1})\,\text{New_LL_Slope}[j] \Big) \\[6pt]
+\text{max_low} &= \max_j \Big( \text{thetabarconst}[j] \\
+&\quad + (low - d^{*}_{1})\,\text{New_LL_Slope}[j] \Big)
+\end{aligned}$ | Maxima at upper and lower dispersion bounds. |
+| Mean lower‑bound maximum | $\text{max_low_mean} = \text{max_upp} - \text{m_New_LL_Slope} \cdot (upp - low)$ | Approximate maximum at the lower dispersion bound, obtained by linearly adjusting the upper‑bound maximum using the mean quad‑linear slope across faces. |
+| Global line parameters | $\text{lmc2} = \dfrac{\text{max_upp} - \text{max_low_mean}}{upp - low}$ <br> $\text{lmc1} = \text{max_low_mean} - \text{lmc2} \cdot low$ | Slope and intercept of global bounding line. |
+| Log–linear anchor | $d^{*}_{2} = \dfrac{upp - low}{\log(upp/low)}$ | Anchor point for log–linear tilt. |
+| Log–tilt coefficients | $lm\_log2 = lmc2 \cdot d^{*}_{2}$ <br> $lm\_log1 = lmc1 + lmc2 \cdot d^{*}_{2} - lmc2 \cdot \log(d^{*}_{2})$ | Coefficients for log–tilt slope and intercept. |
+| Per‑face shift | $\begin{aligned}
+\text{lg_prob_factor_j} &= \max \Big\{ \; \text{thetabarconst_upp_apprx}[j] - \text{max_upp}, \\[6pt]
+& \text{thetabarconst_low_apprx}[j] - \text{max_low} \;\Big\}
+\end{aligned}$ | Adjustment factor per face, defined as the maximum of the upper‑ and lower‑based shifts. |
+
+## Claims and Proofs
+
+**Claim 1.**  
+The decomposition of \(\log \pi(\beta,d)\) into proposal terms and correction terms is valid.
+
+*Proof of Claim 1.*  
+
+Define the following:
+
+** (1a) **
+
+\begin{aligned}
+\log q_{\Gamma,2}(d) 
+  &= \log q_\Gamma(d) + lm\_log2 \,\log \tfrac{1}{d} \\[6pt]
+  &= \log q_\Gamma(d) - lm\_log2 \,\log d \\[6pt]
+  &= (\text{Shape} + n/2  )\,\log \tfrac{1}{d}
+   - (\text{Rate} + RSS_{ML}/2)\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+
+
+
+\end{aligned}
+
+
+** (1b) **
+
+\[
+\begin{aligned}
+\text{UB3A}_{j,2}(d) &= \text{UB3A}_j(d)- \Big(lmc1 + lmc2 \cdot d\Big). \\[6pt]
+& = \lg\_prob\_factor_j 
+- \Big(
+   -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d)
+   + \bar c_j^\top \bar c^{-1}(\bar c_j,d)
+  \Big).
+\end{aligned}
+\]
+
+** (1c) **
+
+\[
+\begin{aligned}
+\text{UB3B}_{2}(d) & = \text{UB3B}(d)+ lm\_log2 \,\log d. + \Big(lmc1 + lmc2 \cdot d\Big). \\[6pt]
+& = \Big(\max\_{New\_LL\_UB} - \max\_{LL\_log\_disp}\Big) + lm\_log1
+\end{aligned}
+\]
+
+** (2a) **
+
+
+\begin{aligned}
+\text{test1}_{2}(\beta,d) & = \text{test1}(\beta,d)  + \Big(
+   -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d)
+   + \bar c_j^\top \bar c^{-1}(\bar c_j,d)
+  \Big) \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta
+   \Bigg] \\[6pt]
+&\quad - \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \bar c_j^{\top}\beta  \Bigg].
+
+   \end{aligned}
+
+** (2b) **
+
+\begin{aligned}
+\log \text{PLSD}_{j,2} & =\log \text{PLSD}_j -\lg\_prob\_factor_j  \\[6pt]
+& =  \tfrac{1}{2}\bar c_j^\top \bar c_j
++ \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+- \log\!\left(
+\sum_{k=1}^K
+\exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+\prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+\right).
+
+\end{aligned}
+
+
+** (3a) **
+
+\begin{aligned}
+\log q_{\Gamma,3}(d) 
+  &= \log q_{\Gamma,2}(d)  + (RSS_{ML}/2)\,\tfrac{1}{d}  \\[6pt]
+  &= (\text{Shape} + n/2  )\,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+
+
+\end{aligned}
+
+** (3b) **
+
+
+\begin{aligned}
+\text{test1}_{3}(\beta,d) & = \text{test1}_{2}(\beta,d)  + \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta
+   \Bigg] + \bar c_j^{\top}\beta\\[6pt]
+
+   \end{aligned}
+
+
+** (4a) **
+
+\begin{aligned}
+\log q_{\Gamma,4}(d) 
+  &= \log q_{\Gamma,3}(d)  - (n/2)\,\log \tfrac{1}{d}  \\[6pt]
+  &= \text{Shape}   \,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg),
+
+
+\end{aligned}
+
+
+** (4b) **
+
+\begin{aligned}
+
+\log q_{\text{TN},2}(\beta\mid j) 
+&= \log q_{\text{TN}}(\beta\mid j) + \bar c_j^\top \beta + \tfrac{1}{2}\bar c_j^\top \bar c_j \\[6pt]
+&= -\tfrac{1}{2}\beta^\top \beta
++ \tfrac{p}{2}\log(2\pi)
+- \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big).
+\end{aligned}
+
+
+** (4c) **
+
+\begin{aligned}
+\log \text{PLSD}_{j,3} & = \text{PLSD}_{j,2} -\tfrac{1}{2}\bar c_j^\top \bar c_j  \\[6pt]
+& =  \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
+- \log\!\left(
+\sum_{k=1}^K
+\exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+\prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+\right).
+
+\end{aligned}
+
+
+** (4d) **
+
+
+\begin{aligned}
+\text{test1}_{4}(\beta,d) & = \text{test1}_{3}(\beta,d)  - \bar c_j^{\top}\beta + (n/2)\,\log \tfrac{1}{d} \\[6pt]
+&= \Bigg[
+   - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+   - \tfrac{1}{2}\beta^\top P \beta + (n/2)\,\log \tfrac{1}{d}
+   \Bigg] 
+   \\[6pt]
+& = LL(\beta,d)
+   \end{aligned}
+
+
+** (5a) **
+
+\begin{aligned}
+\log q_{\Gamma,5}(d) 
+  &= \log q_{\Gamma,4}(d) 
+   + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
+  &\quad - \Big[(\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2) 
+   - \log \Gamma(\text{Shape} + n/2 - lm\_log2)\Big] \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
+\text{Rate} \Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
+\text{Rate} \Big)
+\Bigg),  \\[6pt]
+   
+   
+   &\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \Bigg), \\[6pt]
+
+
+
+  &= \text{Shape}   \,\log \tfrac{1}{d}
+   - \text{Rate}\,\tfrac{1}{d} \\[6pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
+   &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
+\text{Rate} \Big) \\[4pt]
+&\qquad\qquad\;\; -\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
+\text{Rate} \Big)
+\Bigg),  \\[6pt]
+   
+\end{aligned}
+
+
+** (5b) **
+
+\begin{aligned}
+\log q_{\text{TN},3}(\beta\mid j)
+&= \log q_{\text{TN},2}(\beta\mid j)
+   \;+\; \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big) \\[6pt]
+&= -\tfrac{1}{2}\beta^\top \beta
+   + \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+
+
+** (5c) **
+
+\begin{aligned}
+\log \text{PLSD}_{j,4}
+  &= \log \text{PLSD}_{j,3}
+   \;-\; \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big) \\[6pt]
+   
+  &  \;+\; \underbrace{
+     \log\!\left(
+       \sum_{k=1}^K
+       \exp\!\Big(\lg\_prob\_factor_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
+       \prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
+     \right)
+   }_{\displaystyle C_{\text{PLSD}}} \\[6pt]
+&= 0
+\end{aligned}
+
+
+** (5d) **
+
+\[
+\begin{aligned}
+C_{\text{final}}
+&= \underbrace{-\,\text{UB3B}_{2}(d)}_{\text{Interim correction terms}} + \text{const} \\[6pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[2pt]
+&\quad - \Big[(\text{Shape} + \tfrac{n}{2} - lm\_log2)\,\log(\text{Rate} + \tfrac{RSS_{ML}}{2})
+   - \log \Gamma(\text{Shape} + \tfrac{n}{2} - lm\_log2)\Big] \\[4pt]
+&\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
+\Bigg) \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg). \\[8pt]
+&= \text{const}
+\;-\;\Big(\max_{New\_LL\_UB} - \max_{LL\_log\_disp}\Big)
+\;-\; lm\_log1 \\[4pt]
+&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[2pt]
+&\quad - \Big[(\text{Shape} + \tfrac{n}{2} - lm\_log2)\,\log(\text{Rate} + \tfrac{RSS_{ML}}{2})
+   - \log \Gamma(\text{Shape} + \tfrac{n}{2} - lm\_log2)\Big] \\[4pt]
+&\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
+\Bigg) \\[6pt]
+&\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+-\;
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg).
+\end{aligned}
+\]
+
+
+
+Then for each face j:
+
+
+\begin{aligned}
+& \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_j(d) - \text{UB3B}(d)}_{\text{corrections}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_j}_{\text{Per‑face mixture weight}}
++ \underbrace{\text{test1}(\beta,d) - \text{UB2}(d) - \text{UB3A}_{j,2}(d) - \text{UB3B}_{2}(d)}_{\text{Interim correction terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{2}(\beta,d) - \text{UB2}(d)  - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,3}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
++ \underbrace{\log \text{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{3}(\beta,d)   - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,4}(d)}_{\text{Interim Gamma Term}}
++ \underbrace{\log q_{\text{TN},2}(\beta\mid j)}_{\text{Interim Normal term}}
++ \underbrace{\log \text{PLSD}_{j,3}}_{\text{Interim Per‑face mixture weight}}
++ \underbrace{\text{test1}_{4}(\beta,d)   - \text{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
++ \text{const} \\[6pt]
+&= \underbrace{\log q_{\Gamma,5}(d)}_{\text{Prior Gamma Distribution Term}}
++ \underbrace{\log q_{\text{TN},3}(\beta\mid j)}_{\text{Prior Multivariate Normal Term}}
++ \underbrace{LL(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
++ C_{\text{final}}
+
+\end{aligned}
+
+**Narrative explanation.**  
+In the above chain of equalities, each step systematically replaces interim definitions with their standardized counterparts, while absorbing constants into a global term:
+
+- The **first equality** follows from substituting the adjusted definitions in (1a), (1b), and (1c), which restructure the Gamma proposal and UB3A/UB3B corrections.  
+- The **second equality** uses (2a) and (2b) to absorb the quadratic–linear adjustment into \(\text{test1}_{2}\) and to shift the per‑face mixture weight into \(\text{PLSD}_{j,2}\).  
+- The **third equality** applies (3a) and (3b), re‑expressing the Gamma proposal and \(\text{test1}\) by incorporating the residual sum‑of‑squares adjustment.  
+- The **fourth equality** follows from (4a)–(4d), where the dispersion‑dependent log term is absorbed into \(\text{test1}_{4}\), the truncated normal proposal is simplified to \(\log q_{\text{TN},2}\), and the mixture weight is reduced to \(\text{PLSD}_{j,3}\).  
+- Finally, the **fifth equality** applies the adjustments in (5a)–(5d):  
+  - (5a) replaces the interim Gamma normalization with the true **prior Gamma distribution** in dispersion form.  
+  - (5b) removes the truncation‑width adjustment, leaving the standard **prior multivariate normal distribution** term.  
+  - (5c) shows that the per‑face mixture weight cancels to zero once the truncation widths and denominator are absorbed.  
+  - (5d) consolidates all remaining parameter‑free terms, including the UB3B correction, into a single adjusted constant \(C_{\text{final}}\).
+
+Thus, the final decomposition is:
+
+\[
+\log \pi(\beta,d)
+= \underbrace{\log q_{\Gamma,5}(d)}_{\text{Prior Gamma Distribution Term}}
++ \underbrace{\log q_{\text{TN},3}(\beta\mid j)}_{\text{Prior Multivariate Normal Term}}
++ \underbrace{\text{test1}_{4}(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
++ C_{\text{final adjusted constant}}.
+\]
+
+This shows that after all substitutions, the surviving terms are exactly the **prior Gamma distribution in \(d\)**, the **prior multivariate normal distribution in \(\beta\)**, and the **standardized log‑likelihood contribution**. Everything else has been absorbed into a global constant. In other words, the decomposition now cleanly separates into the canonical **prior** and **likelihood** components, with no extraneous dependence on interim proposals or mixture weights.
+
+
+Starting from the standardized log‑posterior, we separate the dispersion‑dependent Gamma component, the truncated normal component in \(\beta\), and the per‑face mixture weight. The residual terms are collected into the correction block \(\text{test1} - \text{UB2} - \text{UB3A} - \text{UB3B}\). This is an algebraic rearrangement, so the decomposition holds exactly.
+
+---
+
+**Claim 2.**  
+\(\text{test1}(\beta,d) \le 0\).
+
+*Proof of Claim 2.*  
+By definition, \(\text{test1}\) is the difference between the standardized log‑likelihood and its linearization at the tangency point \(\bar c^{-1}(\bar c_j,d)\). Since the log‑likelihood is concave in \(\beta\), it always lies below its supporting hyperplane. Therefore, the difference is non‑positive.
+
+---
+
+**Claim 3.**  
+\(\text{UB2}(d) \ge 0\).
+
+*Proof of Claim 3.*  
+UB2 is defined as the excess weighted residual sum of squares at the tangency point relative to the maximum‑likelihood residual sum of squares. Because the ML estimator minimizes the residual sum of squares, this difference is non‑negative.
+
+---
+
+**Claim 4.**  
+\(\text{UB3A}_j(d) \ge 0\).
+
+*Proof of Claim 4.*  
+UB3A is constructed as the gap between a global quadratic–linear bounding function and the exact quadratic–linear energy at the tangency point. The line parameters \((lmc1,lmc2)\) are chosen so that the bound dominates the exact function across the calibrated interval. Hence the difference is non‑negative.
+
+---
+
+**Claim 5.**  
+\(\text{UB3B}(d) \ge 0\).
+
+*Proof of Claim 5.*  
+UB3B represents the dispersion log–tilt correction, defined as the difference between a global log–linear upper bound and the exact log‑dispersion contribution. Because the global line is anchored to dominate the log‑dispersion curve at the calibration endpoints, the correction is non‑negative throughout the interval.
+
+
+
+
+
+
+### UB3A Bounding Strategy
+
+The UB3A bound is constructed as follows:
+
+1. **Identify the target function**  
+   The term to be bounded — typically a component of the log-posterior — is a *convex function of the dispersion*. This convexity ensures that any tangent line lies below the function locally and can be shifted upward to dominate it globally.
+
+2. **Fit a tangent line at the anchor point**  
+   A tangent line is computed at the dispersion anchor point, `dispstar`. This line captures the local slope and curvature of the convex function at that point.
+
+3. **Shift the tangent line upward**  
+   To ensure the bound holds over the entire interval \((\text{disp\_low}, \text{disp\_high})\), the tangent line is shifted vertically by a constant offset. This offset is chosen so that the *entire line lies above the convex function* across the full dispersion range.
+
+This approach guarantees a valid upper bound because:
+
+- Convex functions lie below their tangents globally only if the tangent is shifted up.
+- The shifted tangent becomes a *global envelope* over the dispersion interval.
+- The slope and intercept of the tangent line become the constants `lmc2` and `lmc2 * dispstar`, which appear in the UB3A and UB3B formulas respectively.
+
+
+7. **Run simulation using this envelope**  
+   - Generate a proposed sample for the dispersion from the Gamma envelope.  
+   - Pick a grid component and sample regression coefficients from the corresponding restricted grid component (independent of the proposed dispersion).  
+   - Identify the dispersion‑adjusted tangency point for the chosen grid component.  
+   - Draw a uniform random number for the accept/reject step.  
+   - Compute the four UB test components (UB1–UB3B) and compare to the uniform draw.  
+   - Accept or reject the proposal (if rejected, return to step 7a).
+
+## Full joint log-posterior (with diagonal weights)
+
+Let $\tau = \sigma_{\text{data}}$ denote the data precision (inverse dispersion).  
+The model is
+
+$$
+y_i \mid \beta, \tau \;\sim\; \mathcal{N}(x_i^\top \beta,\; \tau^{-1} w_i^{-1}), \quad i=1,\dots,n,
+$$
+
+with independent priors
+$$
+\beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
+\qquad 
+\tau \;\sim\; \mathrm{Gamma}(\text{Shape},\, \text{Rate}).
+$$
+
+Because $W = \mathrm{diag}(w_1,\dots,w_n)$, the likelihood factorizes into weighted univariate normals.  
+The full joint log-posterior (up to an additive constant) is
+
+$$
+\ell(\beta,\tau) =
+\frac{n}{2}\log \tau + \frac{1}{2}\sum_{i=1}^n \log w_i - \frac{n}{2}\log(2\pi)
+\;-\;\frac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
+$$
+
+$$
+\quad -\;\frac{1}{2}\log|\Sigma_\beta| - \frac{p}{2}\log(2\pi)
+\;-\;\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta
+$$
+
+$$
+\quad +\;(\text{Shape}-1)\log \tau \;-\; \text{Rate}\,\tau.
+$$
+
+### Notes
+- The term $\tfrac{n}{2}\log \tau$ comes from the $\tau^{n/2}$ factor in the Gaussian likelihood.  
+- The $\tfrac{1}{2}\sum_i \log w_i$ term comes from $|W|^{1/2}$ since $W$ is diagonal.  
+- The quadratic penalty $\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta$ is independent of $\tau$.  
+- If $W=I$, the weight terms vanish and the likelihood simplifies to the usual homoskedastic Gaussian case.
+
+## 3. Posterior Gamma parameters for dispersion
+
+The dispersion envelope requires updated Gamma parameters for the data precision
+$\tau = \sigma_{\text{data}}$. These updates combine the Gaussian likelihood
+contribution in $\tau$ with the Gamma prior.
+
+### 3.1 Likelihood contribution in $\tau$
+
+From the weighted Gaussian likelihood,
+\[
+\log p(y \mid \beta, \tau) \;\supset\; \frac{n_{\text{obs}}}{2}\log \tau
+- \frac{\tau}{2}\,\text{RSS}(\beta),
+\]
+where
+\[
+\text{RSS}(\beta) = \sum_{i=1}^{n_{\text{obs}}} w_i\,(y_i - x_i^\top \beta)^2.
+\]
+
+### 3.2 Prior contribution in $\tau$
+
+From the Gamma prior $\tau \sim \mathrm{Gamma}(\text{Shape}, \text{Rate})$,
+\[
+\log p(\tau) \;\supset\; (\text{Shape}-1)\log \tau - \text{Rate}\,\tau.
+\]
+
+### 3.3 Combined posterior form
+
+Collecting terms, the conditional posterior in $\tau$ is again Gamma:
+\[
+\tau \mid \beta, y \;\sim\; \mathrm{Gamma}(\text{shape2},\ \text{rate}),
+\]
+with
+\[
+\text{shape2} = \text{Shape} + \tfrac{n_{\text{obs}}}{2}.
+\]
+
+The rate parameter depends on which residual sum of squares is used:
+
+- **Posterior‑anchored rate (rate3):**
+  \[
+  \text{rate3} = \text{Rate} + \tfrac{\text{RSS}_{\text{post}}}{2}.
+  \]
+  Here $\text{RSS}_{\text{post}}$ is the residual sum of squares averaged over
+  posterior draws of $\beta$ (or equivalently, evaluated at the posterior mode
+  in the Gaussian case). This anchors the dispersion envelope at a posterior‑
+  consistent value.
+
+- **Maximum likelihood rate (rate2):**
+  \[
+  \text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}.
+  \]
+  Here $\text{RSS}_{\text{ML}}$ is the residual sum of squares from the
+  classical weighted least squares fit (the maximum likelihood estimate of
+  $\beta$ ignoring the prior). This is used in the tilted Gamma proposal
+  distribution inside the sampler.
+
+### 3.4 Summary of arguments
+
+- `n_obs`: number of observations $n_{\text{obs}}$.  
+- `RSS_post`: posterior‑based residual sum of squares, used in `rate3`.  
+- `RSS_ML`: maximum likelihood residual sum of squares, used in `rate2`.  
+- `shape2`: always $\text{Shape} + n_{\text{obs}}/2$.  
+- `rate3`: $\text{Rate} + \text{RSS}_{\text{post}}/2$ (posterior anchor).  
+- `rate2`: $\text{Rate} + \text{RSS}_{\text{ML}}/2$ (ML anchor).  
+
+Both `rate2` and `rate3` share the same algebraic form, differing only in which
+residual sum of squares is plugged in. This distinction allows the envelope to
+be centered at a posterior‑consistent value while still using an ML‑based tilt
+for efficient sampling.
+
+
+
+## 4. Restricted gamma sampling for dispersion in the sampler
+
+This section documents how the sampler draws a dispersion candidate from a truncated Gamma using the parameters computed in the dispersion envelope: `shape3` and `rate2`, restricted to the bounds `[disp_lower, disp_upper]`.
+
+### 4.1 Distribution used for dispersion proposals
+
+- **Target variable:** Dispersion $\sigma^2$ (variance). The sampler works with $\sigma^2$ directly, not with precision $\tau$.
+- **Proposal law:** A truncated inverse‑Gamma draw implemented as a restricted Gamma over $\sigma^2$.
+  - In code:
+    - **Function:** `r_invgamma(shape3, rate2, disp_upper, disp_lower)`
+    - **Meaning:** Draw $\sigma^2 \sim \text{InvGamma}(\text{shape3}, \text{rate2})$ and truncate to $[\text{disp\_lower}, \text{disp\_upper}]$.
+
+### 4.2 Where shape3 and rate2 come from
+
+- **shape3:** A corrected shape derived from the posterior shape `shape2` and the global log‑dispersion line slope:
+  \[
+  \text{shape3} = \text{shape2} - \text{lm\_log2}
+  \]
+  This accounts for the global upper bound in $\log(\sigma^2)$ so the truncated proposal respects the envelope’s domination across dispersion.
+
+- **rate2:** ML‑anchored rate for the gamma tilt:
+  \[
+  \text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}
+  \]
+  This uses the maximum likelihood residual sum of squares to stabilize proposals, matching the original implementation’s tilt path.
+
+### 4.3 Bounds for the restricted draw
+
+- **Lower bound:** 
+  \[
+  \text{disp\_lower} = \frac{1}{q_\gamma(\text{max\_disp\_perc};\ \text{shape2}, \text{rate3})}
+  \]
+- **Upper bound:** 
+  \[
+  \text{disp\_upper} = \frac{1}{q_\gamma(1-\text{max\_disp\_perc};\ \text{shape2}, \text{rate3})}
+  \]
+
+These are quantile‑based bounds on $\sigma^2$ obtained from the posterior Gamma in $\tau$ with parameters $(\text{shape2}, \text{rate3})$. They confine proposals to a high‑mass interval.
+
+### 4.4 Integration into the accept–reject loop
+
+1. **Face selection:** Draw face index $J$ from `PLSD`.  
+2. **Beta proposal:** Sample $\beta$ coordinate‑wise from truncated normals defined by `loglt[J, ]`, `logrt[J, ]`, and `cbars[J, ]`.  
+3. **Dispersion proposal:** Draw $\sigma^2$ from the restricted inverse‑Gamma with `(shape3, rate2, disp_lower, disp_upper)`.  
+4. **Weight rescaling:** Set per‑observation weights `wt2 = wt / dispersion` to evaluate likelihood terms at the proposed $\sigma^2$.  
+5. **Acceptance bounds:**
+   - **UB1:** Affine adjustment using the dispersion‑dependent tangency point $\theta_J(\sigma^2)$.  
+   - **UB2:** RSS shift bounded at the ML anchor via `RSS_ML`.  
+   - **UB3A:** Per‑face correction using `lg_prob_factor[J]` and the dispersion line in $\sigma^2$ (`lmc1 + lmc2 \cdot \sigma^2`).  
+   - **UB3B:** Global log‑dispersion line correction `lm_log1 + lm_log2 \cdot \log(\sigma^2)` minus the linear line.  
+6. **Test:** Accept when
+   \[
+   \log U_2 \le \text{LL\_Test} - (\text{UB1} + \text{UB2} + \text{UB3A} + \text{UB3B}).
+   \]
+
+### 4.5 Practical notes
+
+- **Alignment:** Ensure `lg_prob_factor` is permuted identically to `PLSD` and all face‑wise fields after sorting, so UB3A references the correct face.  
+- **Numerical stability:** The quantile bounds should be computed from $(\text{shape2}, \text{rate3})$ and not from $(\text{shape3}, \text{rate2})$; the latter are for proposal, not for bounding.  
+- **Diagnostics:** Log a few iterations’ values of `dispersion`, `UB2`, and `UB3B` to confirm the restricted Gamma proposals spend mass within `[disp_lower, disp_upper]` and that acceptance is primarily governed by UB1/UB2 rather than misaligned face corrections.
+
+
+
+
+## 5. Derivation of `lm_log2`
+
+In the dispersion envelope, we need a **global upper line** in $\log(\sigma^2)$ that dominates all face‑wise linearizations across the interval 
+$[\text{low}, \text{upp}]$.
+
+### 5.1 Linear extrapolation of face constants
+
+For each face $j$, the base constant is linearly extrapolated to the dispersion bounds:
+\[
+\Theta^{\text{low}}_j = \Theta^{\text{base}}_j + (\text{low} - \text{disp}^\star)\,s_j, \qquad
+\Theta^{\text{upp}}_j = \Theta^{\text{base}}_j + (\text{upp} - \text{disp}^\star)\,s_j,
+\]
+where $s_j$ is the slope from `EnvBuildLinBound` at anchor $\text{disp}^\star$.
+
+Taking maxima across faces gives
+\[
+\max_{\!j}\Theta^{\text{low}}_j = \text{max\_low}, \qquad
+\max_{\!j}\Theta^{\text{upp}}_j = \text{max\_upp}.
+\]
+
+### 5.2 Global line in $\sigma^2$
+
+We fit a single line in $\sigma^2$ that connects these maxima:
+\[
+\text{new\_slope} = \frac{\text{max\_upp} - \text{max\_low}}{\text{upp} - \text{low}}, \qquad
+\text{new\_int} = \text{max\_low} - \text{new\_slope}\cdot \text{low}.
+\]
+
+So the global line in $\sigma^2$ is
+\[
+L(\sigma^2) = \text{new\_int} + \text{new\_slope}\cdot \sigma^2.
+\]
+
+### 5.3 Re‑anchoring in $\log(\sigma^2)$
+
+To express this bound as a function of $\log(\sigma^2)$, we re‑anchor at a geometric mean–type point:
+\[
+\text{disp}^\star = \frac{\text{upp} - \text{low}}{\log(\text{upp}) - \log(\text{low})}.
+\]
+
+This is the “equal‑area” anchor: the point where a line in $\log(\sigma^2)$ can be matched to the line in $\sigma^2$.
+
+### 5.4 Definition of `lm_log2`
+
+At this anchor, the slope in $\log(\sigma^2)$ is defined as
+\[
+\text{lm\_log2} = \text{new\_slope} \cdot \text{disp}^\star.
+\]
+
+This scaling converts the slope in $\sigma^2$ units into a slope in $\log(\sigma^2)$ units, since
+\[
+\frac{d}{d\log(\sigma^2)} L(\sigma^2) = \frac{dL}{d\sigma^2}\cdot \frac{d\sigma^2}{d\log(\sigma^2)}
+= \text{new\_slope}\cdot \sigma^2.
+\]
+
+Evaluating at $\sigma^2 = \text{disp}^\star$ gives exactly
+\[
+\text{lm\_log2} = \text{new\_slope}\cdot \text{disp}^\star.
+\]
+
+### 5.5 Intercept term
+
+The corresponding intercept is then
+\[
+\text{lm\_log1} = \text{new\_int} + \text{new\_slope}\cdot \text{disp}^\star - \text{lm\_log2}\cdot \log(\text{disp}^\star).
+\]
+
+Thus the global upper line in $\log(\sigma^2)$ is
+\[
+U(\log\sigma^2) = \text{lm\_log1} + \text{lm\_log2}\,\log(\sigma^2).
+\]
+
+---
+
+**Summary:**  
+- `new_slope` is the slope of the global line in $\sigma^2$.  
+- Multiplying by the anchor $\text{disp}^\star$ converts this into a slope in $\log(\sigma^2)$, giving `lm_log2`.  
+- This ensures the global line in $\log(\sigma^2)$ is tangent to the line in $\sigma^2$ at the anchor, and dominates across the interval $[\text{low}, \text{upp}]`.
+
+
+
+
+
+## 6. Special Case: Single Tangency Point
+
+We place the full original log‑posterior on the left, and on the right we regroup terms so that all components of the Gamma proposal (including its normalizing constants with a log‑Gamma function) are together. The proposal block includes the shifted log‑$\tau$ coefficient and the ML‑anchored rate, plus the proposal’s normalizing constants; an equal‑and‑opposite offset then restores the original normalization so the equality holds exactly.
+
+
+### 6.1 Step 1: Group Together data precision terms
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\quad  \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic (RSS)}} \\
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top P \beta }_{\text{Prior Component shifted to Likelihood}} \\
+
+&+ \underbrace{\tfrac{n}{2}\log \tau }_{\text{data precision}} \\
+
+&+ \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+
+
+&=
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+&+\underbrace{LL(\beta,\tau)  }_{\text{Full log-likelihood function excluding} \log \tau \text{ term}}\\
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+
+
+\end{aligned}
+\]
+
+Note: The modified gamma distribution above will be utilized to generate proposals for the inverse dispersion ($\tau$). We will clarify exactly how $disp_{bound}$ and $RSS_{ML}$ are derived further down in this note.
+
+
+
+### 6.2 Step 2: Bound the Log-Likelihood function
+
+
+
+
+\[
+\begin{aligned}
+
+&\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta} \\
+&+\underbrace{LL(\beta,\tau)  }_{\text{Full log-likelihood function excluding} \log \tau \text{ term}}\\
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+& =
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+&+\underbrace{\Big( LL(\beta,\tau) -[LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Bound for log-likelihood function}}\\
+
+&+\underbrace{\Big( [LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Opposite sign term for log-likelihood function bound}}\\
+
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+\end{aligned}
+\]
+
+
+### 6.3 Step 3: Separate out components of \( LL(\bar{c}^{-1}(\bar{c},\tau),\tau)\)
+
+
+
+\[
+\begin{aligned}
+
+
+&
+
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+
+
+&+\underbrace{\Big( LL(\beta,\tau) -[LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Bound for log-likelihood function}}\\
+
+&+\underbrace{\Big( [LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Opposite sign term for log-likelihood function bound}}\\
+
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+
+&=
+
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+&+\underbrace{\Big( LL(\beta,\tau) -[LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Bound for log-likelihood function}}\\
+
+
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar{c}^{-1}(\bar{c},\tau))^2}_{\text{likelihood quadratic (RSS)}} \\
+
+&\quad - \underbrace{\tfrac{1}{2}\bar{c}^{-1}(\bar{c},\tau)^\top P \bar{c}^{-1}(\bar{c},\tau) }_{\text{Prior Component shifted to Likelihood}} \\
+
+
+&+ \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+
+
+&-\underbrace{\Big( \bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau))\Big)}_{\text{Opposite sign term for linear log-likelihood function bound}}\\
+
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+\end{aligned}
+\]
+
+
+### 6.4 Step 4: Rearrange terms
+
+
+
+\[
+\begin{aligned}
+
+
+
+& \underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\tfrac{\tau}{2}\text{RSS}_{\text{ML}}}_{\text{Opposite sign for RSS_ML - Used in later bounding}} \\[6pt]
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta \;+\; \tfrac{p}{2}\log(2\pi)}_{\text{Standard normal prior on }\beta\ \text{with } \mu=0,\ \Sigma=I_p} \\
+
+&+\underbrace{\Big( LL(\beta,\tau) -[LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Bound for log-likelihood function}}\\
+
+
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar{c}^{-1}(\bar{c},\tau))^2}_{\text{likelihood quadratic (RSS)}} \\
+
+&\quad - \underbrace{\tfrac{1}{2}\bar{c}^{-1}(\bar{c},\tau)^\top P \bar{c}^{-1}(\bar{c},\tau) }_{\text{Prior Component shifted to Likelihood}} \\
+
+&+ \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+
+
+&-\underbrace{\Big( \bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau))\Big)}_{\text{Opposite sign term for linear log-likelihood function bound}}\\
+
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+
+&=
+
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel }} \\[4pt]
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \beta -\bar{c}^{T}\beta - \tfrac{1}{2}\bar{c}^{T}\bar{c}  
+ + \tfrac{p}{2}\log(2\pi)    }_{\text{Likelihood subgradient density on}\beta} \\
+
+
+&+\underbrace{\Big( LL(\beta,\tau) -[LL(\bar{c}^{-1}(\bar{c},\tau),\tau)-\bar{c}^{T}(\beta -\bar{c}^{-1}(\bar{c},\tau)) ]  \Big)}_{\text{Bound for log-likelihood function}}\\
+
+
+&\quad - \underbrace{\tfrac{\tau}{2}(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar{c}^{-1}(\bar{c},\tau))^2    -\text{RSS}_{\text{ML}})}_{\text{Bound for Residual sum of squares}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{1}{2}\bar{c}^{-1}(\bar{c},\tau)^\top P \bar{c}^{-1}(\bar{c},\tau) }_{\text{Prior Component shifted to Likelihood - Part of UB3A}} \\
+
+
+&+\underbrace{ \bar{c}^{T}\bar{c}^{-1}(\bar{c},\tau)    }_{\text{Opposite sign term for linear log-likelihood function bound - Part of UB3A}}\\
+
+
+& + \underbrace{disp_{bound} \,\log \tau}_{\text{Opposite sign for dispbound term - Used in later bounding}} \\[6pt]
+
+
+
+&\quad + \underbrace{ \tfrac{1}{2}\bar{c}^{T}\bar{c}}_{\text{Opposite sign terms from Likelihood subgradient - Used when multiple tangency points}} \\
+
+
+
+
+&+ \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+
+
+
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - disp_{bound}   )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big) - \log \Gamma((\text{Shape}+ \tfrac{n}{2} - disp_{bound}) )}_{\text{Opposite sign term }} \\[6pt]
+
+\end{aligned}
+\]
+
+
+Note that the gamma and normal distributions can be used to generate the proposals..They important part is now that all non-constant terms can be bounded from above and that they can be written to always be non-positive. Most of that is done but a bit of work remains (will work on the rest of the steps).
+
+## 6.5 Step 5: Expand the equations to multiple grid poins
+
+
+### Rearranged log-posterior decomposition (per tangency point j)
+
+\[
+\begin{aligned}
+&\underbrace{(\text{Shape}+ \tfrac{n}{2}- \text{disp}_{\text{bound}} -1)\,\log \tau
+- \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel}} \\[4pt]
+
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- \text{disp}_{\text{bound}} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma\!\big((\text{Shape}+ \tfrac{n}{2})- \text{disp}_{\text{bound}}\big)}_{\text{Gamma proposal normalizing}} \\[6pt]
+
+&\quad  \underbrace{-\tfrac{1}{2}\beta^\top \beta \;-\;\bar{c}_j^{\top}\beta \;-\;\tfrac{1}{2}\bar{c}_j^{\top}\bar{c}_j
++ \tfrac{p}{2}\log(2\pi)
+\;-\; \sum_{r=1}^p \log\!\big(\exp(\text{logrt}_{j,r}) - \exp(\text{loglt}_{j,r})\big)
+}_{\text{Restricted Likelihood subgradient density on }\beta} \\[6pt]
+
+
+&\quad + \underbrace{\Big( LL(\beta,\tau) - \big[LL(c^{-1}(\bar{c}_j,\tau),\tau) - \bar{c}_j^{\top}(\beta - c^{-1}(\bar{c}_j,\tau)) \big] \Big)}_{\text{Bound for log-likelihood function}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top c^{-1}(\bar{c}_j,\tau))^2 - \text{RSS}_{\text{ML}}\Big)}_{\text{Bound for Residual sum of squares}} \\[6pt]
+
+&\quad - \underbrace{\Big(\lg\_prob\_factor_{j}
++ lmc1 + lmc2 \cdot \tfrac{1}{\tau}
+- \big[-\tfrac{1}{2}\,c^{-1}(\bar{c}_j,\tau)^\top P\,c^{-1}(\bar{c}_j,\tau)
++ \bar{c}_j^{\top}c^{-1}(\bar{c}_j,\tau)\big]\Big)}_{\text{UB3A (enters with negative sign)}} \\[6pt]
+
+
+&\quad - \underbrace{\Big( \max_{New\_LL\_UB} - \max_{LL\_log\_disp}
++ \big(lm\_log1 - lm\_log2 \cdot \log \tau\big)
+- \big(lmc1 + lmc2 \cdot \tfrac{1}{\tau}\big) \Big)}_{\text{UB3B (enters with negative sign) – see opposite sign for lmc1/lmc2 vs UB3A}} \\[6pt]
+
+&\quad + \underbrace{\Big(\max_{New\_LL\_UB} - \max_{LL\_log\_disp} + lm\_log1 \Big)}_{\text{Opposite sign term for UB3B (constant part only)}} \\[6pt]
+
+&\quad + \underbrace{\Big(\text{disp}_{\text{bound}} \cdot \log \tau \;-\; lm\_log2 \cdot \log \tau\Big)}_{\text{Opposite sign for dispbound term – cancels since } \text{disp}_{\text{bound}} \equiv lm\_log2} \\[6pt]
+
+
+
+&\quad + \underbrace{\lg\_prob\_factor_{j}}_{\text{Opposite sign term for UB3A}} \\[6pt]
+
+
+&\quad + \underbrace{\tfrac{1}{2}\bar{c}_j^{\top}\bar{c}_j}_{\text{Opposite sign terms from Likelihood subgradient – Used when multiple tangency points}} \\[6pt]
+
+&\quad + \underbrace{\sum_{r=1}^p \log\!\big(\exp(\text{logrt}_{j,r}) - \exp(\text{loglt}_{j,r})\big)}_{\text{Opposite-sign offset for restricted normal tail mass}} \\[6pt]
+
+
+
+&\quad + \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{Likelihood normalizing}} \\[6pt]
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\[6pt]
+
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - \text{disp}_{\text{bound}})\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma\!\big((\text{Shape}+ \tfrac{n}{2} - \text{disp}_{\text{bound}})\big)}_{\text{Opposite sign term}} \\[6pt]
+\end{aligned}
+\]  
+
+
+## 6.6 Step 6: Simplify and Group terms used to form PLSD
+
+
+
+\[
+\begin{aligned}
+&\underbrace{(\text{Shape}+ \tfrac{n}{2}- \text{disp}_{\text{bound}} -1)\,\log \tau
+- \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel}} \\[4pt]
+
+&\quad + \underbrace{(\text{Shape} + \tfrac{n}{2}- \text{disp}_{\text{bound}} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma\!\big((\text{Shape}+ \tfrac{n}{2})- \text{disp}_{\text{bound}}\big)}_{\text{Gamma proposal normalizing}} \\[6pt]
+
+&\quad  \underbrace{-\tfrac{1}{2}\beta^\top \beta \;-\;\bar{c}_j^{\top}\beta \;-\;\tfrac{1}{2}\bar{c}_j^{\top}\bar{c}_j
++ \tfrac{p}{2}\log(2\pi)
+\;-\; \sum_{r=1}^p \log\!\big(\exp(\text{logrt}_{j,r}) - \exp(\text{loglt}_{j,r})\big)
+}_{\text{Restricted Likelihood subgradient density on }\beta} \\[6pt]
+
+
+&\quad + \underbrace{\Big( LL(\beta,\tau) - \big[LL(c^{-1}(\bar{c}_j,\tau),\tau) - \bar{c}_j^{\top}(\beta - c^{-1}(\bar{c}_j,\tau)) \big] \Big)}_{\text{test1 - Bound for log-likelihood function}} \\[6pt]
+
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top c^{-1}(\bar{c}_j,\tau))^2 - \text{RSS}_{\text{ML}}\Big)}_{\text{UB2 Bound for Residual sum of squares}} \\[6pt]
+
+&\quad - \underbrace{\Big(\lg\_prob\_factor_{j}
++ lmc1 + lmc2 \cdot \tfrac{1}{\tau}
+- \big[-\tfrac{1}{2}\,c^{-1}(\bar{c}_j,\tau)^\top P\,c^{-1}(\bar{c}_j,\tau)
++ \bar{c}_j^{\top}c^{-1}(\bar{c}_j,\tau)\big]\Big)}_{\text{UB3A (enters with negative sign)}} \\[6pt]
+
+
+&\quad - \underbrace{\Big( \max_{New\_LL\_UB} - \max_{LL\_log\_disp}
++ \big(lm\_log1 - lm\_log2 \cdot \log \tau\big)
+- \big(lmc1 + lmc2 \cdot \tfrac{1}{\tau}\big) \Big)}_{\text{UB3B (enters with negative sign) – see opposite sign for lmc1/lmc2 vs UB3A}} \\[6pt]
+
+&\quad + \underbrace{\Big(\max_{New\_LL\_UB} - \max_{LL\_log\_disp} + lm\_log1 \Big)}_{\text{Opposite sign term for UB3B (constant part only)}} \\[6pt]
+
+
+&\quad + \underbrace{\lg\_prob\_factor_{j}
+\;+\;\tfrac{1}{2}\bar{c}_j^{\top}\bar{c}_j
+\;+\;\sum_{r=1}^p \log\!\big(\exp(\text{logrt}_{j,r}) - \exp(\text{loglt}_{j,r})\big)}_{\text{Per-face PLSD log component (aggregated via log-sum-exp across faces)}} \\[6pt]
+
+
+&\quad + \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{Likelihood normalizing}} \\[6pt]
+
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\[6pt]
+
+&\quad - \underbrace{(\text{Shape} + \tfrac{n}{2} - \text{disp}_{\text{bound}})\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma\!\big((\text{Shape}+ \tfrac{n}{2} - \text{disp}_{\text{bound}})\big)}_{\text{Opposite sign term}} \\[6pt]
+\end{aligned}
+\]  
+
+Components 
+
+1) Gamma kernel and Gamma normalizing -  Used to generate propsal for tau (and hence the dispersion)
+2) PLSD Component (once exponetiated and standardized) - Used to pick component of grid to sample for main coefficients
+3) Restricted likelihood subgradient - Used to generate proposed regression coefficients 
+4) test1, UB2, UB3A, and UB3B are used to construct test=test1-UB2-UB3A-UB3B that is used during accept/reject process. Test1 is non-positive and each of of UB2, UB3A, and UB3B are non-negative
+5) The remaining terms are constants that can be ignored  
+
+  
+## 6.4.1 Gamma proposal (kernel + normalizing)
+
+\[
+\underbrace{(\text{Shape}+ \tfrac{n}{2}- disp_{bound} -1) \,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel}}
+\;+\;
+\underbrace{(\text{Shape} + \tfrac{n}{2}- disp_{bound} )\,\log \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma((\text{Shape}+ \tfrac{n}{2})- disp_{bound} )}_{\text{Gamma proposal normalizing}}
+\]
+
+*Role:* Together these define the gamma‑like proposal distribution for the precision parameter \(\tau\).  
+- The **kernel** controls the shape of the proposal.  
+- The **normalizing term** ensures it integrates to one.
+
+*Parameter definitions (from `gamma_list` in the code):*  
+\[
+\text{shape3} \;=\; \text{Shape} + \tfrac{n}{2} - disp_{bound}
+\]  
+\[
+\text{rate2} \;=\; \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}
+\]
+
+*Dispersion bounds:*  
+- `disp_upper` and `disp_lower` are the **upper and lower truncation bounds** on the dispersion parameter.  
+- They are passed in through `gamma_list` and ensure that simulated dispersion values remain within a numerically stable and meaningful range.  
+- In the code, these are used directly in the inverse‑gamma draw:  
+  ```cpp
+  dispersion = r_invgamma(shape3, rate2, disp_upper, disp_lower);
+
+Code reference: The proposal for dispersion is drawn via the bounded inverse‑gamma sampler above, using shape3, rate2, and the truncation bounds disp_upper and disp_lower.
+
+
+
+
+
+6.4.2 Multivariate normal proposal
+
+- Subgradient density on \beta
+-\tfrac{1}{2}\beta^\top \beta - \bar{c}^\top \beta - \tfrac{1}{2}\bar{c}^\top \bar{c}
++ \tfrac{p}{2}\log(2\pi)- Role: Defines the Gaussian proposal for \beta, centered at the tangency point.
+Code:
+out(0,j) = ctrnorm_cpp(logrt(J(0),j), loglt(J(0),j), -cbars(J(0),j), 1.0);
+- Likelihood normalizing
+\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)- Role: Normalizing constant from the Gaussian likelihood.
+Code: Implicit, not recomputed each iteration.
+
+- Comment on sampling mechanism
+- The proposal for each dimension j is generated separately.
+- When a single tangency is used, this reduces to sampling from a normal distribution with
+\text{mean} = -cbars(J(0), j), \quad \text{standard deviation} = 1.- When multiple tangencies are used:
+- The precomputed bounds logrt and loglt provide the truncation limits for each coordinate.
+- A piecewise linear selection distribution (PLSD) is used to select which tangency grid component is active. This ensures that the correct tangency region is chosen before drawing the truncated normal sample.
+- Once the grid component is selected, the truncated normal draw is made within the corresponding bounds, maintaining validity of the envelope across all tangency points.
+
+
+
+6.4.3 Bound for the log‑likelihood function
+The theoretical expression is
+LL(\beta,\tau) - \Big[LL(\bar{c}^{-1},\tau) - \bar{c}^\top(\beta - \bar{c}^{-1})\Big],
+which is the tangent‑based concave upper bound at the point \bar{c}^{-1}(\bar{c},\tau).
+Code path in rindep_norm_gamma_reg_std_v4_cpp
+- Compute the new tangency point (depends on dispersion):
+arma::mat theta2 = Inv_f3_with_disp(cache, dispersion, transpose(cbars_small));
+thetabarsb_new = theta2;
+- → This gives \bar{c}^{-1}(\bar{c},\tau).
+- Evaluate log‑likelihood at the new tangency point:
+NumericVector LL_New2 = -f2_gaussian(transpose(thetabars_new),
+                                     y, x, mu, P, alpha, wt2);
+- → This is LL(\bar{c}^{-1},\tau).
+- Form the linear correction term:
+arma::colvec betadiff = trans(b_out2) - thetabars_temp2;
+UB1 = LL_New2(0) - arma::as_scalar(trans(cbars_temp2) * betadiff);
+- → This implements [LL(\bar{c}^{-1},\tau) - \bar{c}^\top(\beta - \bar{c}^{-1})].
+- Evaluate the log‑likelihood at the candidate \beta:
+NumericVector LL_Test = -f2_gaussian(transpose(out),
+                                     y, x, mu, P, alpha, wt2);
+- → This is LL(\beta,\tau).
+- Combine into test1:
+test1 = LL_Test[0] - UB1;
+- → Exactly matches the theoretical difference above.
+
+Role of test1
+- test1 quantifies the gap between the actual log‑likelihood at the candidate (\beta,\tau) and the tangent‑based envelope anchored at \bar{c}^{-1}(\bar{c},\tau).
+- It penalizes candidates that deviate more strongly from the tangency point, since the envelope is tightest there.
+- This deviation is then combined with UB2, UB3A, and UB3B to form the full acceptance test.
+
+
+
+
+6.4.4 Bound for the residual sum of squares (RSS)
+- Quadratic RSS bound
+-\tfrac{\tau}{2}\Big(\sum w_i(y_i - x_i^\top \bar{c}^{-1})^2 - \text{RSS}_{\text{ML}}\Big)- Role: Ensures the quadratic form is bounded above.
+Code: UB2 block
+UB2 = 0.5*(1/dispersion)*(arma::as_scalar(trans(yxbeta)*yxbeta) - RSS_ML);
+- Opposite‑sign RSS term
++\tfrac{\tau}{2}\,\text{RSS}_{\text{ML}}- Role: Offset ensuring equality at ML fit.
+
+Role of UB2
+- UB2 adds an additional dispersion‑scaled penalty for how much the residual sum of squares at the tangency point differs from the ML residual.
+- Because it is multiplied by 1/\tau, small dispersion values amplify the penalty, reflecting the fact that deviations in fit matter more when variance is low.
+
+
+
+6.4.5 Terms involving \tau that require bounding
+- Log‑\tau terms
+From gamma prior and dispbound adjustments.
+Role: Ensure concavity in \log \tau and allow bounding of dispersion‑related terms.
+- Linear‑in‑\tau term
+-(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2})\tau
+Role: Matches the exponential tail of the posterior in \tau.
+Code: UB3B block
+New_LL_log_disp = lm_log1 + lm_log2*log(dispersion);
+UB3B = (max_New_LL_UB - max_LL_log_disp + New_LL_log_disp) - (lmc1 + lmc2*dispersion);
+
+
+
+6.4.6 Terms that only involve \bar{c}
+- Linear correction & quadratic offset
+\bar{c}^\top \bar{c}^{-1}(\bar{c},\tau), -\tfrac{1}{2}\bar{c}^\top \bar{c}
+Role: Adjustments for tangency‑based proposals.
+Code: UB3A block
+New_LL(j) = -0.5*thetabars_temp2ᵀ P2 thetabars_temp2
+            + cbars_temp2ᵀ thetabars_temp2;
+UB3A = lg_prob_factor(J_out(0)) + lmc1 + lmc2*dispersion - New_LL(J_out(0));
+
+
+
+6.4.7 Constants that can be ignored
+- Likelihood normalizers, gamma normalizers, Gaussian constants
+Role: Cancel in acceptance ratios.
+Code: Precomputed in UB_list and gamma_list.
+
+6.4.8 Prior component shifted to the likelihood
+- Shifted quadratic penalty
+-\tfrac{1}{2}\bar{c}^{-1}(\bar{c},\tau)^\top P \bar{c}^{-1}(\bar{c},\tau)
+- Role: Represents the part of the prior precision moved into the log‑likelihood during standardization.
+Code: Appears in New_LL(j) inside UB3A:
+
+
+6.4.9 Acceptance test
+All UB terms combine:
+test = LL_Test[0] - (UB1 + UB2 + UB3A + UB3B);
+test = test - log_U2;
+if(test >= 0) accept;
+
+
+Role: Ensures the true log‑likelihood is always below the bounding envelope, validating the accept/reject step.
+
+
+---
+
+✅ This is now the **entire structured explanation** in one continuous Markdown block — math, roles, and code connections all together. You can copy it directly into your vignette.
+
+- Normalizing
+(\text{Shape} + \tfrac{n}{2}- \text{disp}_{\text{bound}})\,\log\!\Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)
+- \log \Gamma\!\big((\text{Shape}+ \tfrac{n}{2})- \text{disp}_{\text{bound}}\big)- Role: Normalizes the gamma proposal distribution.
+Code: Values precomputed in gamma_list.
+- Gamma prior normalizing
+\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})- Role: Comes from the original gamma prior. Cancels with parts of the proposal normalizer.
+Code: Stored in gamma_list.
+
+
+
+
+### 6.7  Inverse functions
+
+Let $d$ denote the data dispersion. For each dispersion value $d$ and gradient vector $\bar{c}$, define
+
+\[
+A(d) \;=\; P \;+\; \frac{1}{d} \,X^\top W X,
+\qquad
+B(d) \;=\; P\mu \;+\; \frac{1}{d}\,X^\top W(\alpha - y).
+\]
+
+Then the inverse map implemented in `Inv_f3_with_disp` is
+
+\[
+\theta(\bar{c},d)
+\;=\;
+-\,A(d)^{-1}\,\big(B(d) - \bar{c}\big)
+\;=\;
+A(d)^{-1}\,\big(\bar{c} - B(d)\big).
+\]
+
+*Code mapping: the function argument is dispersion* $d$.
+
+*Since the code forms* 
+\(A = P + \tfrac{1}{d} X^\top W X\) 
+*and* 
+\(B = P\mu + \tfrac{1}{d} X^\top W(\alpha-y)\), 
+*this equals the formulas above.*
+
+Note that in the function call, P is the part of the prior shifted to the log-likelihood and mu is typically the zero vector
+
+
+## 6.8 Detailed decomposition of UB3A (with dispersion = d)
+
+We define UB3A for grid component \(j\) as
+
+\[
+UB3A_j(d) \;=\; \log \pi_j \;+\; \left(lmc1 + lmc2 * d \right) \;-\; \mathcal{Q}(c_j,d),
+\]
+
+where each term has a precise mathematical role.
+
+---
+
+### (i) Mixture weight term
+
+\[
+\log \pi_j \;\equiv\; lg\_prob\_factor(j).
+\]
+
+- \(\pi_j\) is the mixture probability weight for partition element \(A_j\).  
+- It arises from the mixture‑generalized likelihood‑subgradient density construction.  
+- In the log‑posterior decomposition, this enters as an additive constant.
+
+---
+
+### (ii) Tangency quadratic–linear form
+
+\[
+\mathcal{Q}(c_j,d)
+\;=\;
+-\tfrac{1}{2}\,\theta_j^\top P\,\theta_j
+\;+\;
+c_j^\top \theta_j,
+\qquad
+\theta_j = \bar{c}^{-1}(c_j,d).
+\]
+
+- This is the quadratic–linear subgradient form at the tangency point.  
+- It represents the local contribution of the \(j\)-th tangency to the envelope.
+
+---
+
+### (iii) Linear‑in‑dispersion anchor
+
+\[
+lmc1 + \frac{lmc2}{\tau}.
+\]
+
+- In the code this appears as `lmc1 + lmc2*dispersion`.  
+- Since `dispersion = 1/τ`, the theoretical form is \(lmc1 + lmc2/\tau\).  
+- These coefficients are chosen so that the dispersion‑dependent part of the envelope remains concave and bounded above.  
+- Importantly, this same term appears with opposite sign in UB3B, ensuring cancellation in the full decomposition.
+
+---
+
+### (iv) Full UB3A expression
+
+\[
+UB3A_j(\tau) \;=\;
+\underbrace{\log \pi_j}_{\text{mixture weight}}
+\;+\;
+\underbrace{\left(lmc1 + lmc2 *d\right)}_{\text{linear-in-dispersion anchor}}
+\;-\;
+\underbrace{\Big(-\tfrac{1}{2}\,\theta_j^\top P\,\theta_j + c_j^\top \theta_j\Big)}_{\text{tangency quadratic–linear form}}.
+\]
+
+### (iv) Full UB3A expression (with substitution)
+
+\[
+UB3A_j(d) \;=\;
+\underbrace{\log \pi_j}_{\text{mixture weight}}
+\;+\;
+\underbrace{\left(lmc1 + lmc2 \cdot d\right)}_{\text{linear-in-dispersion anchor}}
+\;-\;
+\underbrace{\Bigg(
+-\tfrac{1}{2}\,
+\big(A(d)^{-1}(c_j - B(d))\big)^\top
+P\,
+\big(A(d)^{-1}(c_j - B(d))\big)
+\;+\;
+c_j^\top \big(A(d)^{-1}(c_j - B(d))\big)
+\Bigg)}_{\text{tangency quadratic–linear form}}.
+\]
+
+---
+
+### Gradient of the tangency quadratic–linear form
+
+We start with
+
+\[
+f(d) \;=\;
+-\tfrac{1}{2}\,\theta(d)^\top P\,\theta(d)
+\;+\;
+c_j^\top \theta(d),
+\]
+
+where
+
+\[
+\theta(d) \;=\; A(d)^{-1}\big(c_j - B(d)\big),
+\quad
+A(d) = P + \tfrac{1}{d} X^\top W X,
+\quad
+B(d) = P\mu + \tfrac{1}{d} X^\top W(\alpha - y).
+\]
+
+---
+
+#### First derivative
+
+\[
+\frac{df}{dd}
+=
+\big(c_j^\top - \theta(d)^\top P\big)\,\frac{d\theta}{dd}.
+\]
+
+---
+
+#### Derivative of \(\theta(d)\)
+
+### Gradient of the tangency quadratic–linear form (implementation‑aligned)
+
+Define
+
+\[
+A(d) \;=\; Q + dP, 
+\qquad 
+Q = X^\top X, 
+\qquad 
+r = X^\top (y - \alpha),
+\]
+
+and
+
+\[
+\theta(d) \;=\; A(d)^{-1}\big(r + d\,c_j\big).
+\]
+
+Let
+
+\[
+V(d) \;=\; c_j - P\,\theta(d).
+\]
+
+Then the derivative of the quadratic–linear form with respect to dispersion \(d\) can be written in the same structure as the implementation:
+
+\[
+\frac{df}{dd}
+=
+V(d)^\top
+\left(
+A(d)^{-1} c_j
+\;-\;
+A(d)^{-1} P\, A(d)^{-1}\, \big(r + d\,c_j\big)
+\right).
+\]
+
+This matches the code structure:
+
+- `Minv = solve(A(d))`
+- `V = cbars - thetabars %*% P2`
+- `term1 = V %*% (Minv %*% c_j)`
+- `term2 = V %*% ( -Minv %*% P2 %*% Minv %*% (r + d c_j) )`
+- `New_LL_Slope = term1 + term2`
+
+
+### Second derivative of the tangency quadratic–linear form with respect to dispersion \(d\)
+
+We work in the implementation‑aligned parameterization:
+- **Matrix:** \(A(d) = Q + dP\)
+- **Vector:** \(\theta(d) = A(d)^{-1}\big(r + d\,c_j\big)\)
+- **Auxiliary:** \(V(d) = c_j - P\,\theta(d)\)
+
+The objective is
+\[
+f(d) \;=\; -\tfrac{1}{2}\,\theta(d)^\top P\,\theta(d) \;+\; c_j^\top \theta(d).
+\]
+
+---
+
+#### First derivative
+
+Using \(\dfrac{df}{dd} = \big(c_j^\top - \theta^\top P\big)\dfrac{d\theta}{dd} = V^\top \dfrac{d\theta}{dd}\) and \(A'(d)=P\):
+\[
+\frac{d\theta}{dd}
+=
+-\,A(d)^{-1} P\,\theta(d) \;+\; A(d)^{-1} c_j
+=
+A(d)^{-1} \big(c_j - P\,\theta(d)\big)
+=
+A(d)^{-1} V(d),
+\]
+so
+\[
+\frac{df}{dd}
+=
+V(d)^\top\,A(d)^{-1}\,V(d).
+\]
+
+---
+
+#### Second derivative
+
+Differentiate \(\dfrac{df}{dd} = V^\top A^{-1} V\) using \(V' = -P\,\theta' = -P\,A^{-1}V\) and \((A^{-1})' = -A^{-1} A' A^{-1} = -A^{-1} P A^{-1}\):
+\[
+\frac{d^2 f}{dd^2}
+=
+(V')^\top A^{-1} V \;+\; V^\top (A^{-1})' V \;+\; V^\top A^{-1} V'
+=
+-\,3\,V(d)^\top\,A(d)^{-1} P\,A(d)^{-1}\,V(d),
+\]
+assuming \(A\) and \(P\) are symmetric.
+
+---
+
+#### Curvature implication
+
+- **PSD prior:** If \(P\succeq 0\), then \(V^\top A^{-1} P A^{-1} V \ge 0\).
+- **Concavity in \(d\):** \(\dfrac{d^2 f}{dd^2} \le 0\), so \(f(d)\) is concave in the dispersion \(d\).
+
+---
+
+#### Summary formulas
+
+- **First derivative:**
+\[
+\frac{df}{dd} = V^\top A^{-1} V, \quad V = c_j - P\theta, \quad \theta = A^{-1}(r + d\,c_j), \quad A = Q + dP.
+\]
+- **Second derivative:**
+\[
+\frac{d^2 f}{dd^2} = -\,3\,V^\top A^{-1} P A^{-1} V.
+\]
+
+
+### Proof: Why the final global line bounds all per‑face lines
+
+We want to show that the final line for each face
+\[
+G_j(d) \;=\; \text{lg\_prob\_factor}_j \;+\; \text{lmc1} \;+\; \text{lmc2}\cdot d
+\]
+lies above the corresponding per‑face line \(L_j(d)\) for all \(d \in [low,\, upp]\).
+
+---
+
+#### Step 1. Per‑face linear bounds
+
+For each face \(j\), concavity gives a linear upper bound
+\[
+L_j(d) = a_j + b_j d,
+\]
+with values at the endpoints:
+\[
+L_j(low) = L_j^{\text{low}}, \quad
+L_j(upp) = L_j^{\text{upp}}.
+\]
+
+---
+
+#### Step 2. Base global line
+
+We construct a base line
+\[
+G_0(d) = \text{new\_int} + \text{new\_slope}\cdot d,
+\]
+where
+\[
+\text{new\_slope} = \frac{\text{max\_upp} - \text{max\_low\_mean}}{\,upp - low\,}, \quad
+\text{new\_int}   = \text{max\_low\_mean} - \text{new\_slope}\cdot low.
+\]
+
+Thus
+\[
+G_0(low) = \text{max\_low\_mean}, \quad G_0(upp) = \text{max\_upp}.
+\]
+
+Note: here \(\text{max\_low\_mean}\) is not necessarily the true maximum of the per‑face lines at \(low\); it is a mean‑slope adjusted value.
+
+---
+
+#### Step 3. Per‑face shifts
+
+For each face \(j\), define
+\[
+\text{lg\_prob\_factor}_j
+= \max\Big\{\,L_j^{\text{upp}} - G_0(upp),\;\; L_j^{\text{low}} - G_0(low)\,\Big\}.
+\]
+
+This ensures that when we shift \(G_0\) upward by \(\text{lg\_prob\_factor}_j\), the shifted line dominates \(L_j\) at both endpoints.
+
+---
+
+#### Step 4. Endpoint dominance implies interval dominance
+
+Define the shifted line
+\[
+G_j(d) = G_0(d) + \text{lg\_prob\_factor}_j.
+\]
+
+Consider the difference
+\[
+D_j(d) = G_j(d) - L_j(d).
+\]
+
+- At \(d=low\):
+  \[
+  D_j(low) = G_0(low) - L_j^{\text{low}} + \text{lg\_prob\_factor}_j \;\ge\; 0.
+  \]
+
+- At \(d=upp\):
+  \[
+  D_j(upp) = G_0(upp) - L_j^{\text{upp}} + \text{lg\_prob\_factor}_j \;\ge\; 0.
+  \]
+
+Since \(D_j(d)\) is linear in \(d\), nonnegativity at both endpoints implies
+\[
+D_j(d) \ge 0 \quad \text{for all } d \in [low,\, upp].
+\]
+
+---
+
+#### Step 5. Conclusion
+
+Therefore, for every face \(j\),
+\[
+\boxed{\,G_j(d) \;\ge\; L_j(d) \quad \forall d \in [low,\, upp]\,}.
+\]
+
+Even though `max_low` was replaced by `max_low_mean` (so the base line does not pass through the true endpoint maximum), the per‑face shift \(\text{lg\_prob\_factor}_j\) guarantees that the final line
+\[
+G_j(d) = \text{lg\_prob\_factor}_j + \text{lmc1} + \text{lmc2}\cdot d
+\]
+still bounds each per‑face line across the entire dispersion interval.
+
+
+
+# Claim: Non‑negativity of the combined upper bound expression over dispersion
+
+We prove that, with the constants defined exactly as in your function, the expression
+\[
+\max_{\text{New\_LL\_UB}} \;-\; \max_{\text{LL\_log\_disp}}
+\;+\; \text{lm\_log1} \;+\; \text{lm\_log2}\cdot \log d
+\;-\; \big(\text{lm\_c1} + \text{lmc2}\cdot d\big)
+\;\ge\; 0
+\quad \text{for all } d \in [low,\, upp].
+\]
+
+---
+
+## Definitions: Constants and identities used for substitution
+
+- **Dispersion bounds:**
+  \[
+  low \;=\; \frac{1}{qgamma(\text{max\_disp\_perc},\, shape2,\, rate3)}, 
+  \qquad
+  upp \;=\; \frac{1}{qgamma(1-\text{max\_disp\_perc},\, shape2,\, rate3)}.
+  \]
+
+- **Face endpoint maxima (approximated via linear extrapolation from dispstar):**
+  \[
+  \max\_low \;=\; \max(\text{thetabar\_const\_low\_apprx}), 
+  \qquad
+  \max\_upp \;=\; \max(\text{thetabar\_const\_upp\_apprx}).
+  \]
+
+- **Mean‑slope corrected lower endpoint and global line parameters:**
+  \[
+  m\_{\text{New\_LL\_Slope}} \;=\; \text{mean}(\text{New\_LL\_Slope}),
+  \qquad
+  \max\_low\_{\text{mean}} \;=\; \max\_upp - m\_{\text{New\_LL\_Slope}}\cdot(upp-low).
+  \]
+  \[
+  \text{new\_slope} \;=\; \frac{\max\_upp - \max\_low\_{\text{mean}}}{\,upp - low\,},
+  \qquad
+  \text{new\_int} \;=\; \max\_low\_{\text{mean}} - \text{new\_slope}\cdot low.
+  \]
+
+- **Global linear envelope over dispersion \(d\):**
+  \[
+  \text{lmc2} \;=\; \text{new\_slope}, 
+  \qquad
+  \text{lmc1} \equiv \text{lm\_c1} \;=\; \text{new\_int},
+  \qquad
+  G(d) \;=\; \text{lmc1} + \text{lmc2}\cdot d.
+  \]
+  Note the endpoint constraints:
+  \[
+  G(low) \;=\; \max\_low\_{\text{mean}},
+  \qquad
+  G(upp) \;=\; \max\_upp.
+  \]
+
+- **Dispersion anchor (explicit identity used later):**
+  \[
+  \text{dispstar} \;=\; \frac{upp - low}{\log(upp/low)}.
+  \]
+
+- **Gamma‑tilt parameters (as in your function):**
+  \[
+  \text{lm\_log2} \;=\; \text{lmc2}\cdot \text{dispstar},
+  \qquad
+  \text{lm\_log1} \;=\; \text{lmc1} + \text{lmc2}\cdot \text{dispstar} - \text{lmc2}\cdot \log(\text{dispstar}).
+  \]
+
+- **Endpoint log‑disp value:**
+  \[
+  \max\_{\text{New\_LL\_UB}} \;=\; \max\_upp,
+  \qquad
+  \max\_{\text{LL\_log\_disp}} \;=\; \text{lm\_log1} + \text{lm\_log2}\cdot \log(upp).
+  \]
+
+---
+
+## Statement of the result
+
+If the constants are defined as above, then for all \(d \in [low,\,upp]\),
+\[
+\boxed{
+\max\_{\text{New\_LL\_UB}} - \max\_{\text{LL\_log\_disp}}
++ \text{lm\_log1} + \text{lm\_log2}\cdot \log d
+- \big(\text{lm\_c1} + \text{lmc2}\cdot d\big)
+\;\ge\; 0.}
+\]
+
+---
+
+## Step‑by‑step proof via successive substitution
+
+We start with
+\[
+\Delta(d) \;=\; \max\_{\text{New\_LL\_UB}} - \max\_{\text{LL\_log\_disp}}
++ \text{lm\_log1} + \text{lm\_log2}\cdot \log d
+- \big(\text{lm\_c1} + \text{lmc2}\cdot d\big).
+\]
+
+#### Substitution 1: Replace endpoint terms
+Using \(\max\_{\text{New\_LL\_UB}}=\max\_upp\) and \(\max\_{\text{LL\_log\_disp}}=\text{lm\_log1}+\text{lm\_log2}\cdot\log(upp)\),
+\[
+\Delta(d) \;=\; \max\_upp \;-\; \big(\text{lm\_log1} + \text{lm\_log2}\cdot \log(upp)\big)
++ \text{lm\_log1} + \text{lm\_log2}\cdot \log d
+- \big(\text{lmc1} + \text{lmc2}\cdot d\big).
+\]
+
+#### Substitution 2: Cancel \(\text{lm\_log1}\)
+\[
+\Delta(d) \;=\; \max\_upp \;-\; \text{lm\_log2}\cdot \log(upp)
++ \text{lm\_log2}\cdot \log d
+- \big(\text{lmc1} + \text{lmc2}\cdot d\big).
+\]
+
+#### Substitution 3: Replace \(\text{lm\_log2}=\text{lmc2}\cdot \text{dispstar}\)
+\[
+\Delta(d) \;=\; \max\_upp \;-\; \text{lmc2}\cdot \text{dispstar}\cdot \log(upp)
++ \text{lmc2}\cdot \text{dispstar}\cdot \log d
+- \big(\text{lmc1} + \text{lmc2}\cdot d\big).
+\]
+
+#### Algebraic grouping
+\[
+\Delta(d) \;=\; \max\_upp \;-\; \text{lmc2}\cdot \text{dispstar}\cdot \big(\log(upp) - \log d\big)
+- \big(\text{lmc1} + \text{lmc2}\cdot d\big).
+\]
+
+This is the compact form we will analyze for sign.
+
+---
+
+## Endpoint evaluations
+
+We now show \(\Delta(low)=0\) and \(\Delta(upp)=0\), which anchor the sign analysis.
+
+### At \(d=upp\)
+Use \(G(upp)=\text{lmc1}+\text{lmc2}\cdot upp=\max\_upp\) by construction:
+\[
+\begin{aligned}
+\Delta(upp)
+&= \max\_upp \;-\; \text{lmc2}\cdot \text{dispstar}\cdot \big(\log(upp)-\log(upp)\big)
+- \big(\text{lmc1} + \text{lmc2}\cdot upp\big) \\
+&= \max\_upp \;-\; 0 \;-\; \max\_upp \;=\; 0.
+\end{aligned}
+\]
+
+### At \(d=low\)
+Use the anchor identity \(\text{dispstar}=\dfrac{upp-low}{\log(upp/low)}\) to convert the log gap to a linear gap:
+\[
+\text{lmc2}\cdot \text{dispstar}\cdot \big(\log(upp)-\log(low)\big)
+= \text{lmc2}\cdot (upp-low).
+\]
+Also \(G(low)=\text{lmc1}+\text{lmc2}\cdot low=\max\_low\_{\text{mean}}\) and \(\text{lmc2}=\dfrac{\max\_upp-\max\_low\_{\text{mean}}}{\,upp-low\,}\), hence \(\text{lmc2}\cdot(upp-low)=\max\_upp-\max\_low\_{\text{mean}}\). Therefore,
+\[
+\begin{aligned}
+\Delta(low)
+&= \max\_upp \;-\; \big(\max\_upp-\max\_low\_{\text{mean}}\big) \;-\; \max\_low\_{\text{mean}} \\
+&= \max\_upp - \max\_upp \;=\; 0.
+\end{aligned}
+\]
+
+---
+
+## Concavity and non‑negativity on \([low,\,upp]\)
+
+Compute derivatives of \(\Delta(d)\) for \(d>0\):
+\[
+\Delta'(d) \;=\; \text{lmc2}\cdot \text{dispstar}\cdot \frac{1}{d} \;-\; \text{lmc2}
+\;=\; \text{lmc2}\left(\frac{\text{dispstar}}{d} - 1\right),
+\]
+\[
+\Delta''(d) \;=\; -\,\text{lmc2}\cdot \frac{\text{dispstar}}{d^2} \;<\; 0
+\quad (\text{since } \text{lmc2}>0,\, \text{dispstar}>0).
+\]
+Thus \(\Delta\) is strictly concave on \((0,\infty)\), in particular on \([low,\,upp]\).
+
+A concave function that equals zero at both endpoints of an interval must be non‑negative throughout the interval (it lies above its chord, which here is identically zero). Hence, for all \(d \in [low,\,upp]\),
+\[
+\boxed{\;\Delta(d) \;\ge\; 0.\;}
+\]
+
+
+---
+
+## Conclusion
+
+With the constants and identities defined exactly as in your function (including the explicit anchor identity for dispstar), the combined expression
+\[
+\max\_{\text{New\_LL\_UB}} - \max\_{\text{LL\_log\_disp}}
++ \text{lm\_log1} + \text{lm\_log2}\cdot \log d
+- \big(\text{lm\_c1} + \text{lmc2}\cdot d\big)
+\]
+simplifies to a strictly concave function in \(d\) that is zero at \(d=low\) and \(d=upp\). Therefore it is non‑negative across the entire dispersion interval.
+
+
+
+
+
+
+
+### Role
+
+- UB3A ensures that the envelope dominates the contribution of the \(j\)-th tangency component.  
+- The linear‑in‑dispersion anchor \((lmc1 + lmc2/\tau)\) guarantees that the quadratic–linear form never exceeds the envelope.  
+- The log mixture weight \(\log \pi_j\) ensures the mixture structure is respected.  
+- The equal‑and‑opposite appearance of \((lmc1 + lmc2/\tau)\) in UB3B ensures that, when all UB terms are combined, the final decomposition is algebraically exact.
+
+### 
+
+### lg_prob_factor
+
+- **Definition:**  
+  For each face j, `lg_prob_factor[j]` is the maximum log‑excess of that face’s tangent constant over the global maximum line at the lower and upper dispersion bounds.
+
+- **Computation:**  
+  1. Compute baseline constants  
+     \[
+     \text{thetabar\_const}[j] = -\tfrac{1}{2}\theta_j^\top P \theta_j + c_j^\top \theta_j
+     \]
+  2. Extrapolate to bounds using slopes.  
+  3. Take the maximum deviation from the global max at both bounds.
+
+- **Interpretation:**  
+  - 0 if the face is maximal at an endpoint.  
+  - Negative if the face lies below the global line.  
+  - Used in UB3A to adjust for mismatch between endpoint‑based mixture weights and the dispersion‑contingent tangency.
+
+### UB3A connection
+
+\[
+\text{UB3A} = \lg\_prob\_factor[J] + (lmc1 + lmc2 \cdot \text{dispersion}) - \text{New\_LL}(J).
+\]
+
+This ensures the acceptance bound remains tight and valid when dispersion changes.
+
+
+### UB3A Expression
+
+We start by combining the two base parts:
+
+\[
+\text{UB3A}_{\text{base},j}(\tau)
+= -\tfrac{1}{2}\,\bar{\theta}_j(\tau)^{\top} P\,\bar{\theta}_j(\tau)
++ \bar{c}_j^{\top}\,\bar{\theta}_j(\tau).
+\]
+
+Adding the other UB1‑related parts (the endpoint excess and the global line):
+
+\[
+\text{UB3A}_j(\tau)
+= \lg\_prob\_factor_{j}
++ \bigl(lmc1 + lmc2 \cdot \tfrac{1}{\tau}\bigr)
+- \text{UB3A}_{\text{base},j}(\tau).
+\]
+
+Expanding:
+
+\[
+\text{UB3A}_j(\tau)
+= \lg\_prob\_factor_{j}
++ \bigl(lmc1 + lmc2 \cdot \tfrac{1}{\tau}\bigr)
++ \tfrac{1}{2}\,\bar{\theta}_j(\tau)^{\top} P\,\bar{\theta}_j(\tau)
+- \bar{c}_j^{\top}\,\bar{\theta}_j(\tau).
+\]
+
+Finally, include the explicit opposite‑sign offset terms to preserve equality:
+
+\[
+-\;\lg\_prob\_factor_{j}
+\quad\text{and}\quad
+-\;\bigl(lmc1 + lmc2 \cdot \tfrac{1}{\tau}\bigr).
+\]
+
+### 6.3 Group Together data precision
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\quad  \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta + \tfrac{1}{2}\log|\Sigma_\beta| + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta} \\
+
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic(RSS(\beta))}} \\
+
+&+ \underbrace{\tfrac{n}{2}\log \tau +}_{\text{data precision}} \\
+
+&+ \underbrace{\tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+
+
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2} -  \Big(\frac{\text{max\_upp} - \text{max\_low}}{\text{upp} - \text{low}}\Big)\cdot \text{dispstar} \Big)\,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel (UB3B absorbed)}} \\[4pt]
+&\quad + \underbrace{\text{Shape}_{\text{prop}}\,\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\Big)}_{\text{RSS and RSS_ML}} \\[6pt]
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta + \tfrac{1}{2}\log|\Sigma_\beta| + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})
+\;-\;\big(\text{Shape}_{\text{prop}}\,\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal-and-opposite normalization}} \\[4pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi) \\[2pt] 
+& +\Big(\frac{\text{max\_upp} - \text{max\_low}}{\text{upp} - \text{low}}\Big)\cdot \text{dispstar} \log \tau
+\end{aligned}
+\]
+
+
+
+### Reorganized with Gamma proposal and UB corrections (with exact offsets)
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\Big)\,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel (UB3B absorbed)}} \\[4pt]
+&\quad + \underbrace{\text{Shape}_{\text{prop}}\,\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\Big)}_{\text{UB2 (opposite-sign RSS correction)}} \\[6pt]
+&\quad + \underbrace{\Big(\text{lg\_prob\_factor}(J[0]) + \text{lmc1} + \text{lmc2}\cdot \text{dispersion} - LL\!\big(\bar{\theta}(\text{dispersion},\, J[0])\big)\Big)}_{\text{UB3A (global constant correction at tangency)}} \\
+&\quad - \underbrace{\Big(\text{lg\_prob\_factor}(J[0]) + \text{lmc1} + \text{lmc2}\cdot \text{dispersion} - LL\!\big(\bar{\theta}(\text{dispersion},\, J[0])\big)\Big)}_{\text{offset for UB3A}} \\[6pt]
+&\quad + \underbrace{C_{\text{ref}}}_{\text{proposal constant}} 
+\;+\; \underbrace{\big(\max_f C_f - C_{\text{ref}}\big)}_{\text{UB1 uplift}} 
+\;-\; \underbrace{\max_f C_f}_{\text{offset for UB1}} \\[6pt]
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})
+\;-\;\big(\text{Shape}_{\text{prop}}\,\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal-and-opposite normalization}} \\[4pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi) \\[2pt]
+&\quad - \tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+\]
+
+where
+- \(\text{Shape}_{\text{prop}} = \text{Shape} + \tfrac{n}{2} - \text{lm\_log2}\),
+- \(\text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\),
+- \(C_{\text{ref}}\) is the reference face constant grouped with proposal constants,
+- \(\max_f C_f\) is the face-wise maximum constant from the original target,
+- \(\bar{\theta}(\text{dispersion},\, J[0])\) is the tangency point for grid segment \(J[0]\), chosen so the global line’s slope matches the log-likelihood gradient across dispersion.
+
+### Equality notes
+- UB2 is present exactly once from the identity that replaces \(\text{RSS}(\beta)\) by \(\text{RSS}_{\text{ML}}\) inside the proposal.  
+- UB3B is absorbed within the proposal’s log-\(\tau\) coefficient; no separate UB3B term or offset appears.  
+- UB3A and UB1 are introduced with equal-and-opposite offsets so the right-hand side equals the original left-hand side exactly.
+
+
+---
+
+## Equality check
+
+Each modification is paired so that the net change relative to the original left-hand side is zero.
+
+- **Shift from \(\text{RSS}(\beta)\) to \(\text{RSS}_{\text{ML}}\):**  
+  The identity
+  \[
+  -\frac{\tau}{2}\,\text{RSS}(\beta) = -\frac{\tau}{2}\,\text{RSS}_{\text{ML}} \;-\; \frac{\tau}{2}\big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\big)
+  \]
+  shows UB2 is exactly the compensating term; no extra offset is needed beyond UB2 itself.
+
+- **UB3B absorption:**  
+  The proposal kernel uses \((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\) as the log‑\(\tau\) coefficient, which equals the original \((\text{Shape}-1) + \tfrac{n}{2}\) plus the introduced \(-\text{lm\_log2}\). Because this \(-\text{lm\_log2}\) is inside the proposal, there is no separate UB3B term outside; the equality is preserved via the proposal’s normalization block (next bullet).
+
+- **Gamma normalizing constants:**  
+  Adding the proposal’s normalizer and subtracting it in the “equal‑and‑opposite normalization” block yields zero net change:
+  \[
+  \big[\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big]
+  \;-\;
+  \big[\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big]
+  = 0,
+  \]
+  leaving the original \(\text{Shape}\log\text{Rate} - \log\Gamma(\text{Shape})\) intact.
+
+- **UB3A and offset:**  
+  The pair
+  \[
+  +\,\text{UB3A}
+  \;-\;
+  \Big(\text{lg\_prob\_factor}(J_{\text{out}}(0)) + \text{lmc1} + \text{lmc2}\cdot \text{dispersion} - \text{New\_LL}(J_{\text{out}}(0))\Big)
+  = 0,
+  \]
+  since UB3A is defined as exactly that expression.
+
+- **UB1 triple:**  
+  The constants block sums to zero:
+  \[
+  C_{\text{ref}} \;+\; \big(\max_f C_f - C_{\text{ref}}\big) \;-\; \max_f C_f \;=\; 0,
+  \]
+  so the original face‑wise constant level is unchanged.
+
+Because every introduced term is matched by its equal‑and‑opposite counterpart (or absorbed within the proposal with compensating normalization), the right‑hand side equals the left‑hand side exactly.
+
+--------------------------------------------------------------
+
+
+## 6. Full log-posterior with exact UB offsets (no ellipses)
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\tfrac{n}{2}\log \tau + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic}} \\
+&\quad + \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta + \tfrac{1}{2}\log|\Sigma_\beta| + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta}
+\end{aligned}
+\]
+
+=
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\Big)\,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel (shape + ML-anchored rate)}} \\[4pt]
+&\quad + \underbrace{\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\text{lm\_log2}\,\log \tau}_{\text{UB3B}} 
+\;+\; \underbrace{\text{lm\_log1}}_{\text{UB3A}} \\[4pt]
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\Big)}_{\text{UB2}} \\[6pt]
+&\quad + \underbrace{C_{\text{ref}}}_{\text{proposal constant}} 
+\;+\; \underbrace{\big(\max_f C_f - C_{\text{ref}}\big)}_{\text{UB1 uplift}} 
+\;-\; \underbrace{\max_f C_f}_{\text{equal-and-opposite offset}} \\[6pt]
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})
+\;-\;\big(\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal-and-opposite normalization}} \\[4pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi) \\[2pt]
+&\quad - \tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+\]
+
+where
+- \(\text{Shape}_{\text{prop}} = \text{Shape} + \tfrac{n}{2} - \text{lm\_log2}\),
+- \(\text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\),
+- \(C_{\text{ref}}\) is the reference face constant grouped with proposal constants,
+- \(\max_f C_f\) is the face-wise maximum constant from the original target.
+
+
+
+----------------------------------------------------------------
+
+
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\tfrac{n}{2}\log \tau + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic}} \\
+&\quad + \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta + \tfrac{1}{2}\log|\Sigma_\beta| + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta}
+\end{aligned}
+\]
+
+=
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2}\Big)\,\log \tau - \Big(\text{Rate} + \tfrac{\text{RSS}(\beta)}{2}\Big)\,\tau}_{\text{original }\tau\text{-kernel regrouped}} \\
+&\quad + \underbrace{\Big(-\,\text{lm\_log2}\,\log \tau\Big)}_{\text{introduced into proposal}} 
+\;+\; \underbrace{\Big(+\,\text{lm\_log2}\,\log \tau\Big)}_{\text{equal-and-opposite offset (UB3B)}} \\[4pt]
+&\quad + \underbrace{\Big(-\,\tfrac{\tau}{2}\,\text{RSS}_{\text{ML}}\Big)}_{\text{introduced into proposal}} 
+\;+\; \underbrace{\Big(+\,\tfrac{\tau}{2}\,\text{RSS}_{\text{ML}}\Big)}_{\text{equal-and-opposite offset}} \\[2pt]
+&\quad + \underbrace{\text{lm\_log1}}_{\text{introduced (UB3A)}}
+\;+\; \underbrace{(-\,\text{lm\_log1})}_{\text{equal-and-opposite offset}} \\[2pt]
+&\quad + \underbrace{C_{\text{ref}}}_{\text{introduced into proposal constants}}
+\;+\; \underbrace{\big(\max_f C_f - C_{\text{ref}}\big)}_{\text{UB1 uplift}}
+\;+\; \underbrace{\big(-\,\max_f C_f\big)}_{\text{equal-and-opposite offset}} \\[2pt]
+&\quad + \underbrace{\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})}_{\text{proposal normalizing introduced}} 
+\;+\; \underbrace{\big(-\,\text{Shape}_{\text{prop}}\log \text{rate2} + \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal-and-opposite offset}} \\[4pt]
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{original normalizing carried}}
+\end{aligned}
+\]
+
+=
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&= \cdots \\[4pt]
+&\quad + \underbrace{C_{\text{ref}}}_{\text{carried inside proposal constants}}
+\;+\; \underbrace{\big(\max_f C_f - C_{\text{ref}}\big)}_{\text{UB1 uplift outside}} 
+\;-\; \underbrace{\max_f C_f}_{\text{equal-and-opposite offset}} \\[4pt]
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})
+\;-\;\big(\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal-and-opposite normalization}} \\[2pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)
+\;-\; \tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+\]
+
+where
+- \(C_{\text{ref}}\) is the reference face constant grouped with proposal constants,
+- \(\max_f C_f\) is the face-wise maximum constant from the original target.
+
+
+where
+- \(\text{Shape}_{\text{prop}} = \text{Shape} + \tfrac{n}{2} - \text{lm\_log2}\),
+- \(\text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\),
+- \(C_{\text{ref}}\) is the reference face constant included with proposal constants,
+- \(\max_f C_f\) is the face-wise maximum constant from the original target.
+
+All introduced terms (UB1, UB2, UB3A, UB3B, proposal normalizing, face-constant grouping) are paired with equal-and-opposite offsets so each equality is exact.
+
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\tfrac{n}{2}\log \tau + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic}} \\
+&\quad + \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{Gamma prior normalizing}} \\
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta + \tfrac{1}{2}\log|\Sigma_\beta| + \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta}
+\end{aligned}
+\]
+
+=
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\Big)\,\log \tau
+\;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel (shape + rate)}} \\[4pt]
+&\quad + \underbrace{\text{Shape}_{\text{prop}}\,\log \text{rate2} \;-\; \log \Gamma(\text{Shape}_{\text{prop}})}_{\text{Gamma proposal normalizing}} \\[6pt]
+&\quad + \underbrace{\text{lm\_log2}\,\log \tau}_{\text{global correction, used in rejection (UB3B)}} \\[4pt]
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\Big)}_{\text{opposite‑sign correction (UB2)}} \\[6pt]
+&\quad + \underbrace{\text{Shape}\,\log \text{Rate} - \log \Gamma(\text{Shape})}_{\text{carry‑over of original Gamma normalizing}} \\[4pt]
+&\quad - \underbrace{\big(\text{Shape}_{\text{prop}}\,\log \text{rate2} \;-\; \log \Gamma(\text{Shape}_{\text{prop}})\big)}_{\text{equal‑and‑opposite offset to preserve equality}} \\[6pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi) \\[2pt]
+&\quad - \tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+\]
+
+where
+
+- \(\text{Shape}_{\text{prop}} = \text{Shape} + \tfrac{n}{2} - \text{lm\_log2}\) is the proposal’s effective shape argument,
+- \(\text{rate2} = \text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\) is the proposal’s ML‑anchored rate.
+
+---
+
+### Grouping summary
+
+- **Gamma proposal block (used to sample \(\tau\)/\(\sigma^2\)):**
+  \[
+  \Big((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\Big)\log \tau
+  \;-\; \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\tau
+  \;+\; \text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}}).
+  \]
+- **Corrections carried outside the proposal:**
+  - \(+\text{lm\_log2}\,\log \tau\) (UB3B),
+  - \(-\tfrac{\tau}{2}\big(\text{RSS}(\beta)-\text{RSS}_{\text{ML}}\big)\) (UB2),
+  - \(+\text{Shape}\log \text{Rate} - \log \Gamma(\text{Shape})\) (original normalization carried over),
+  - \(-\big(\text{Shape}_{\text{prop}}\log \text{rate2} - \log \Gamma(\text{Shape}_{\text{prop}})\big)\) (equal‑and‑opposite offset to preserve equality).
+- **Remaining terms:** likelihood normalizing constants and the Normal prior on \(\beta\) are unchanged.
+
+
+
+## 6. Full log-posterior decomposition with grouped Gamma proposal terms
+
+We start with the full joint log‑posterior on the left, and on the right we regroup so that all the terms that define the Gamma proposal distribution are collected together.
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\tfrac{n}{2}\log \tau + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi)}_{\text{likelihood normalizing}} \\
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic}} \\
+&\quad + \underbrace{(\text{Shape}-1)\log \tau - \text{Rate}\,\tau}_{\text{Gamma prior in }\tau} \\
+&\quad + \underbrace{-\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi)}_{\text{Normal prior on }\beta}
+\end{aligned}
+\]
+
+=
+
+\[
+\begin{aligned}
+\ell(\beta,\tau)
+&=
+\underbrace{\Big((\text{Shape}-1) + \tfrac{n}{2} - \text{lm\_log2}\Big)\,\log \tau
+- \Big(\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2}\Big)\,\tau}_{\text{Gamma proposal kernel (shape + rate)}} \\[6pt]
+&\quad + \underbrace{\text{lm\_log2}\,\log \tau}_{\text{global correction, used in rejection (UB3B)}} \\
+&\quad - \underbrace{\tfrac{\tau}{2}\Big(\text{RSS}(\beta) - \text{RSS}_{\text{ML}}\Big)}_{\text{opposite‑sign correction for UB2}} \\[6pt]
+&\quad + \tfrac{1}{2}\sum_{i=1}^n \log w_i - \tfrac{n}{2}\log(2\pi) \\
+&\quad - \tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta - \tfrac{1}{2}\log|\Sigma_\beta| - \tfrac{p}{2}\log(2\pi).
+\end{aligned}
+\]
+
+---
+
+### Grouping summary
+
+- **Gamma proposal kernel:**  
+  \((\text{Shape}-1 + n/2 - \text{lm\_log2})\log\tau - (\text{Rate} + \tfrac{\text{RSS}_{\text{ML}}}{2})\tau\).  
+  This is the part used to define the truncated Gamma proposal distribution.
+
+- **Corrections:**  
+  - \(+\text{lm\_log2}\,\log\tau\) (global log‑dispersion line, UB3B).  
+  - \(-\tfrac{\tau}{2}(\text{RSS}(\beta)-\text{RSS}_{\text{ML}})\) (face‑specific RSS correction, UB2).
+
+- **Remaining terms:**  
+  Likelihood normalizing constants, Normal prior on \(\beta\), and other constants are unchanged.
+
+
+
+
+
+## 3. Envelope faces in $\beta$
+
+Choose tangency points $\{\theta_j\}$. At each face:
+
+- Gradient (score) at $\theta_j$:
+$$
+c_j = \nabla_\beta \ell(\beta,\tau)\big|_{\beta=\theta_j}
+= \tau\,X^\top W (y - X\theta_j) - \Sigma_\beta^{-1}\theta_j.
+$$
+
+- Face constant:
+$$
+\log U_j(\tau) = \ell(\theta_j,\tau) - c_j^\top \theta_j.
+$$
+
+Affine upper bound:
+$$
+\ell(\beta,\tau) \;\le\; \log U_j(\tau) + c_j^\top \beta.
+$$
+
+
+
+## 5. Mixture weights (PLSD)
+
+Base weights:
+$$
+\text{logP2}_j = \text{logP}_{j,2}, \qquad
+w_j = \exp\!\big(\text{logP2}_j - \max_k \text{logP2}_k\big),
+\qquad
+\text{PLSD}_j = \frac{w_j}{\sum_k w_k}.
+$$
+
+With dispersion correction:
+$$
+\widetilde{w}_j = \exp\!\big(\text{logP2}_j + \lgprob_j\big), 
+\qquad
+\widetilde{\text{PLSD}}_j = \frac{\widetilde{w}_j}{\sum_k \widetilde{w}_k}.
+$$
+
+## 6. Acceptance test
+
+For a proposed $(\beta,\tau)$ from face $J$:
+
+- UB1: affine adjustment at new tangency,  
+- UB2: RSS shift,  
+- UB3A: per-face correction using $\lgprob_J$,  
+- UB3B: global log-dispersion line.  
+
+Accept if
+$$
+\log U_2 \;\le\; \ell(\beta,\tau) - \big( \mathrm{UB1} + \mathrm{UB2} + \mathrm{UB3A} + \mathrm{UB3B} \big).
+$$
+
+## 7. Summary
+
+- $\Sigma_\beta$ governs the fixed Normal prior for $\beta$, independent of dispersion.  
+- $\sigma_{\text{data}}$ (precision) has its own Gamma prior and drives the dispersion envelope.  
+- Envelope slopes in $\tau$ come only from likelihood terms.  
+- Acceptance corrections (UB3A/UB3B) ensure domination across the dispersion range.
+
+
+
+
+
+
+&\quad - \underbrace{\tfrac{\tau}{2}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2}_{\text{likelihood quadratic (RSS)}} \\
+
+&\quad - \underbrace{\tfrac{1}{2}\beta^\top P \beta }_{\text{Prior Component shifted to Likelihood}} \\
+
+
+### Completed square in the m-metric
+
+Let \(\mathrm{A}(d_1^*)\succ 0\) and define
+\[
+\mathrm{M}:=\mathrm{A}(d_1^*)^{-1},\quad \mathrm{R}:=\mathrm{M}^{1/2},\quad
+\mathrm{P_M}:=\mathrm{R}\, \mathrm{P}\, \mathrm{R},\quad
+\mathrm{y}:=r+d_1^*\, \bar {c}_j.
+\]
+
+The per‑face slope can be written as
+\[
+\mathrm{New\_ LL\_ Slope}[j]=\bar {c}_j^{\top }\mathrm{M}\bar {c}_j
+-2\, \bar {c}_j^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y}
++\mathrm{y}^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y}.
+\]
+
+Introduce \(\mathrm{x}:=\mathrm{R}\, \bar {c}_j\) and \(\mathrm{z}:=\mathrm{R}\, \mathrm{y}\). Using
+\(\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}=\mathrm{R}\, \mathrm{P_M}\, \mathrm{R}\) and
+\(\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}=\mathrm{R}\, \mathrm{P_M}^{2}\, \mathrm{R}\),
+we get
+\[
+\bar {c}_j^{\top }\mathrm{M}\bar {c}_j=\| \mathrm{x}\| _2^2,\quad
+\bar {c}_j^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y}=\mathrm{x}^{\top }\mathrm{P_M}\mathrm{z},\quad
+\mathrm{y}^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y}=\mathrm{z}^{\top }\mathrm{P_M}^{2}\mathrm{z}.
+\]
+
+Therefore,
+\[
+\boxed{\mathrm{New\_ LL\_ Slope}[j]
+= \|\mathrm{x}\|_2^2 - 2\,\mathrm{x}^{\top}\mathrm{P_M}\mathrm{z} + \mathrm{z}^{\top}\mathrm{P_M}^{2}\mathrm{z}
+= \big\|\mathrm{x} - \mathrm{P_M}\mathrm{z}\big\|_2^2.}
+\]
+
+Unpacking \(\mathrm{x}\) and \(\mathrm{z}\):
+\[
+\boxed{\mathrm{New\_ LL\_ Slope}[j]
+= \big\|\,\mathrm{R}\,\bar c_j - \mathrm{P_M}\,\mathrm{R}\,(r + d_1^*\, \bar {c}_j)\,\big\|_2^{2}.}
+\]
+
+Equivalently, returning to the original variables,
+\[
+\boxed{\mathrm{New\_ LL\_ Slope}[j]
+= \bar {c}_j^{\top }\mathrm{M}\bar {c}_j
+-2\, \bar {c}_j^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y}
++\mathrm{y}^{\top }\mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{P}\, \mathrm{A}^{-1}\mathrm{y},\quad
+\mathrm{y}= r + d_1^*\, \bar {c}_j,}
+\]
+showing it is exactly a completed square in the \(\mathrm{M}\)‑metric.
+
+- Nonnegativity: \(\mathrm{New\_ LL\_ Slope}[j]\geq 0\) for all \(j\).
+- Zero condition: Equality holds iff
+\[
+\mathrm{R}\, \bar {c}_j=\mathrm{P_M}\, \mathrm{R}\, (r+d_1^*\, \bar {c}_j),
+\]
+which is equivalent to
+\[
+\boxed{(I-d_1^*\, \mathrm{P}\, \mathrm{A}(d_1^*)^{-1})\, \bar {c}_j=\mathrm{P}\, \mathrm{A}(d_1^*)^{-1}\, r.}
+\]

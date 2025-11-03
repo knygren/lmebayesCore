@@ -611,6 +611,9 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   dispstar=rate2/(shape2-1)
   
   
+##  dispstar <- rate3 / (shape2 - 1)
+  
+  
   ## Get family functions for gaussian()  
   
   famfunc<-glmbfamfunc(gaussian())
@@ -671,8 +674,8 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   bstar2=Standard_Mod$bstar2  
   A=Standard_Mod$A
   x2=Standard_Mod$x2
-  mu2=Standard_Mod$mu2
-  P2=Standard_Mod$P2
+  mu2=Standard_Mod$mu2  ## Typically 0 vector 
+  P2=Standard_Mod$P2    ## Part of Prior that is moved to the log-likelihood
   L2Inv=Standard_Mod$L2Inv
   L3Inv=Standard_Mod$L3Inv
   
@@ -842,7 +845,10 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   
   
   
-  sim_temp=.rindep_norm_gamma_reg_std_V4_cpp (n=n, y=y, x=x2, mu=mu2, P=P2, alpha=alpha, wt,
+  sim_temp=.rindep_norm_gamma_reg_std_V4_cpp (n=n, y=y, x=x2, 
+                                              mu=mu2, ## Should be zero vector
+                                              P=P2,  ## Part of prior shifted to the Likelihood
+                                              alpha=alpha, wt,
                                               f2=f2, Envelope=Env3, 
                                               gamma_list=gamma_list_new,
                                               UB_list=UB_list_new,
