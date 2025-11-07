@@ -67,79 +67,53 @@ The procedure follows these steps:
   \item \strong{Posterior precision (Gamma) parameters.}
         Using the prior and posterior-predictive RSS, set
 
-        \deqn{ \text{shape2} = \text{Shape} + n_{\mathrm{obs}}/2, \quad
-               \text{rate3}  = \text{Rate} + \text{RSS}_{\mathrm{post}}/2. }
+        \deqn{ \mathrm{shape2} = \mathrm{Shape} + n_{\mathrm{obs}}/2, \quad
+               \mathrm{rate3}  = \mathrm{Rate} + \mathrm{RSS}_{\mathrm{post}}/2. }
 
-        These parameterize the posterior precision \eqn{v = 1/\sigma^2 \sim \mathrm{Gamma}(\text{shape2}, \text{rate3})}
-        and drive how dispersion (its inverse) is bounded.
+        These parameterize the posterior precision \eqn{v = 1/\sigma^2 \sim \mathrm{Gamma}(\mathrm{shape2}, \mathrm{rate3})}.
 
   \item \strong{Central credible interval for dispersion (low, upp).}
         Choose a central mass level \code{max_disp_perc} (e.g., 0.99) for precision, then invert the corresponding
         Gamma quantiles to dispersion:
 
-        \deqn{ \text{low} = 1 / Q_{\Gamma}(\text{max\_disp\_perc}; \text{shape2}, \text{rate3}), \quad
-               \text{upp} = 1 / Q_{\Gamma}(1 - \text{max\_disp\_perc}; \text{shape2}, \text{rate3}). }
+        \deqn{ \mathrm{low} = 1 / Q_{\Gamma}(\mathrm{max\_disp\_perc}; \mathrm{shape2}, \mathrm{rate3}), \quad
+               \mathrm{upp} = 1 / Q_{\Gamma}(1 - \mathrm{max\_disp\_perc}; \mathrm{shape2}, \mathrm{rate3}). }
 
-        Because dispersion is the inverse of precision, the upper precision quantile maps to the lower dispersion bound
-        and vice versa. The interval \eqn{[\text{low}, \text{upp}]} is the domain over which all envelopes must dominate.
+        The interval \eqn{[\mathrm{low}, \mathrm{upp}]} is the domain over which all envelopes must dominate.
 
   \item \strong{Face slopes at an anchor (dispstar).}
-        Evaluate the slope of each face constant with respect to dispersion at an initial anchor:
+        \deqn{ \mathrm{dispstar} = \mathrm{rate3} / (\mathrm{shape2} - 1) \quad \text{(posterior mean of } \sigma^2\text{)}. }
 
-        \deqn{ \text{dispstar} = \text{rate3} / (\text{shape2} - 1) \quad \text{(posterior mean of } \sigma^2\text{)}. }
+        Compute \eqn{\mathrm{New\_LL\_Slope}_j} for each face \eqn{j}.
 
-        Compute \eqn{\text{New\_LL\_Slope}_j} for each face \eqn{j} via \code{EnvBuildLinBound(...)}, capturing the
-        sensitivity of the face constant to changes in dispersion at \eqn{\text{dispstar}}.
+  \item \strong{Linear extrapolation of face constants.}
+        \deqn{ \theta^{\mathrm{low}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\mathrm{low} - \mathrm{dispstar}) \cdot \mathrm{New\_LL\_Slope}_j, }
+        \deqn{ \theta^{\mathrm{upp}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\mathrm{upp} - \mathrm{dispstar}) \cdot \mathrm{New\_LL\_Slope}_j. }
 
-  \item \strong{Linear extrapolation of face constants to low and upp.}
-        For each face \eqn{j} with base constant \eqn{\theta^{\mathrm{base}}_{\bar{j}} = \text{thetabar\_const}(P, \bar{c}_j, \bar{\theta}_j)},
-        form linear extrapolations:
+  \item \strong{Global upper line and endpoint maxima.}
+        \deqn{ \mathrm{max\_low} = \max_j \theta^{\mathrm{low}}_{\bar{j}}, \quad
+               \mathrm{max\_upp} = \max_j \theta^{\mathrm{upp}}_{\bar{j}}. }
 
-        \deqn{ \theta^{\mathrm{low}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\text{low} - \text{dispstar}) \cdot \text{New\_LL\_Slope}_j, }
-        \deqn{ \theta^{\mathrm{upp}}_{\bar{j}} = \theta^{\mathrm{base}}_{\bar{j}} + (\text{upp} - \text{dispstar}) \cdot \text{New\_LL\_Slope}_j. }
+        \deqn{ \mathrm{new\_slope} = (\mathrm{max\_upp} - \mathrm{max\_low}) / (\mathrm{upp} - \mathrm{low}), \quad
+               \mathrm{new\_int}   = \mathrm{max\_low} - \mathrm{new\_slope} \cdot \mathrm{low}. }
 
-        These are the per-face predicted constants at the dispersion endpoints.
+  \item \strong{Face slack and mixture weights.}
+        \deqn{ \mathrm{lg\_prob\_factor}_j =
+               \max\big(\theta^{\mathrm{upp}}_{\bar{j}} - \mathrm{max\_upp},\;
+                         \theta^{\mathrm{low}}_{\bar{j}} - \mathrm{max\_low}\big). }
 
-  \item \strong{Global upper line over dispersion (lmc1, lmc2) and endpoint maxima (max_low, max_upp).}
-        Take maxima across faces at each endpoint:
+        Combine with \eqn{\mathrm{New\_logP2}_j = \mathrm{logP}_j + \tfrac{1}{2}\|\bar{c}_j\|^2}
+        to form mixture weights
+        \eqn{\mathrm{PLSD}_j \propto \exp\!\bigl(\mathrm{New\_logP2}_j + \mathrm{lg\_prob\_factor}_j\bigr)}.
 
-        \deqn{ \text{max\_low} = \max_j \theta^{\mathrm{low}}_{\bar{j}}, \quad
-               \text{max\_upp} = \max_j \theta^{\mathrm{upp}}_{\bar{j}}. }
+  \item \strong{Gamma tilt and dispersion-axis envelope.}
+        \deqn{ \mathrm{dispstar} = (\mathrm{upp} - \mathrm{low}) / \log(\mathrm{upp}/\mathrm{low}). }
 
-        Define the global upper line as the straight line through \eqn{(\text{low}, \text{max\_low})} and
-        \eqn{(\text{upp}, \text{max\_upp})}:
+        \deqn{ \mathrm{lm\_log2} = \mathrm{new\_slope} \cdot \mathrm{dispstar}, \quad
+               \mathrm{lm\_log1} = \mathrm{new\_int} + \mathrm{new\_slope} \cdot \mathrm{dispstar}
+                                  - \mathrm{new\_slope} \cdot \log(\mathrm{dispstar}). }
 
-        \deqn{ \text{new\_slope} = (\text{max\_upp} - \text{max\_low}) / (\text{upp} - \text{low}), \quad
-               \text{new\_int}   = \text{max\_low} - \text{new\_slope} \cdot \text{low}. }
-
-        Store \eqn{lmc2 = \text{new\_slope}} and \eqn{lmc1 = \text{new\_int}}. This line dominates all faces at both
-        endpoints and is the backbone for UB3A/UB3B.
-
-  \item \strong{Face slack and mixture weights (lg\_prob\_factor, PLSD).}
-        Per-face endpoint slack is
-
-        \deqn{ \lg\_prob\_factor_j =
-               \max\big(\theta^{\mathrm{upp}}_{\bar{j}} - \text{max\_upp},\;
-                         \theta^{\mathrm{low}}_{\bar{j}} - \text{max\_low}\big). }
-
-        Combine with \eqn{\text{New\_logP2}_j = \text{Env$logP}_j + \tfrac{1}{2}\|\bar{c}_j\|^2} to form mixture weights
-        \eqn{\text{PLSD}_j \propto \exp(\text{New\_logP2}_j + \lg\_prob\_factor_j)} and normalize across faces.
-        The slack guarantees each face’s adjusted envelope touches endpoint maxima; PLSD governs face selection.
-
-  \item \strong{Gamma tilt and dispersion-axis envelope (lm\_log1, lm\_log2).}
-        Set the dispersion anchor used for pairing as
-
-        \deqn{ \text{dispstar} = (\text{upp} - \text{low}) / \log(\text{upp}/\text{low}). }
-
-        Pair the global line with a log-dispersion envelope:
-
-        \deqn{ \text{lm\_log2} = \text{new\_slope} \cdot \text{dispstar}, \quad
-               \text{lm\_log1} = \text{new\_int} + \text{new\_slope} \cdot \text{dispstar}
-                                  - \text{new\_slope} \cdot \log(\text{dispstar}). }
-
-        Tilt the Gamma proposal via \eqn{\text{shape3} = \text{shape2} - \text{lm\_log2}}.
-        These terms enter UB3B and are calibrated to be tangent at \eqn{\text{dispstar}}.
-
+        Tilt the Gamma proposal via \eqn{\mathrm{shape3} = \mathrm{shape2} - \mathrm{lm\_log2}}.
 }
 
 
