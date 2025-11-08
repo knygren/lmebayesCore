@@ -16,6 +16,8 @@ EnvelopeDispersionBuild(
   RSS_post,
   RSS_ML,
   max_disp_perc = 0.99,
+  disp_lower = NULL,
+  disp_upper = NULL,
   verbose = FALSE
 )
 }
@@ -41,6 +43,10 @@ EnvelopeDispersionBuild(
 \item{RSS_ML}{Residual sum of squares associated with MLE estimate}
 
 \item{max_disp_perc}{Truncation level for dispersion (default 0.99)}
+
+\item{disp_lower}{lower bound truncation for dispersion}
+
+\item{disp_upper}{upper bound truncation for dispersion}
 
 \item{verbose}{Option to have verbose output}
 }

@@ -74,6 +74,8 @@
 #' @param RSS_post   Posterior-predictive residual sum of squares
 #' @param RSS_ML   Residual sum of squares associated with MLE estimate
 #' @param max_disp_perc Truncation level for dispersion (default 0.99)
+#' @param disp_lower lower bound truncation for dispersion 
+#' @param disp_upper upper bound truncation for dispersion
 #' @param verbose Option to have verbose output
 #'
 #' @return A list with elements:
@@ -132,6 +134,7 @@ EnvelopeDispersionBuild <- function(
     Env, Shape, Rate, P, y, x, alpha,
     n_obs, RSS_post, RSS_ML,
     max_disp_perc = 0.99,
+    disp_lower = NULL, disp_upper = NULL,
     verbose = FALSE
 ) {
 
@@ -139,9 +142,29 @@ EnvelopeDispersionBuild <- function(
   shape2 <- Shape + n_obs / 2
   rate3  <- Rate  + RSS_post / 2
   
+
   # Step 2: Dispersion bounds (on sigma^2)
-  low <- 1 / qgamma(max_disp_perc,     shape2, rate3)
-  upp <- 1 / qgamma(1 - max_disp_perc, shape2, rate3)
+  if (is.null(disp_lower) || is.null(disp_upper)) {
+    low <- 1 / qgamma(max_disp_perc,     shape2, rate3)
+    upp <- 1 / qgamma(1 - max_disp_perc, shape2, rate3)
+  } else {
+    # Validation checks
+    if (!is.numeric(disp_lower) || !is.numeric(disp_upper)) {
+      stop("Arguments 'disp_lower' and 'disp_upper' must be numeric.")
+    }
+    if (disp_lower <= 0 || disp_upper <= 0) {
+      stop("Arguments 'disp_lower' and 'disp_upper' must be positive.")
+    }
+    if (disp_upper <= disp_lower) {
+      stop("Argument 'disp_upper' must be strictly greater than 'disp_lower'.")
+    }
+    low=disp_lower
+    upp=disp_upper
+  }
+  
+  
+  #low <- 1 / qgamma(max_disp_perc,     shape2, rate3)
+  #upp <- 1 / qgamma(1 - max_disp_perc, shape2, rate3)
   
   
   

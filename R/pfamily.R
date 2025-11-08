@@ -25,6 +25,8 @@
 #' corresponds to using the central 98 percent of the posterior dispersion mass (i.e., excluding 
 #' the outer 1 percent in each tail). Smaller values yield tighter bounds and may improve acceptance 
 #' rates, while larger values allow broader dispersion support but may increase envelope complexity.
+#' @param disp_lower lower bound truncation for dispersion 
+#' @param disp_upper upper bound truncation for dispersion
 #' @param x an object, a pfamily function that is to be printed
 #' @param \ldots additional argument(s) for methods.
 #' @details \code{pfamily} is a generic function with methods for classe \code{glmb} and 
@@ -318,7 +320,7 @@ dNormal_Gamma<-function(mu, Sigma,shape, rate){
 #' @rdname pfamily
 #' @order 5
 
-dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.99) {
+dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.99,disp_lower=NULL,disp_upper=NULL) {
 
   ##############################################################
   
@@ -366,7 +368,8 @@ dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.
   }
   
   
-  prior_list <- list(mu = mu, Sigma = Sigma, shape = shape, rate = rate, max_disp_perc = max_disp_perc)
+  prior_list <- list(mu = mu, Sigma = Sigma, shape = shape, rate = rate, max_disp_perc = max_disp_perc,
+                     disp_lower=disp_lower,disp_upper=disp_upper)
   attr(prior_list,"Prior Type")="dIndependent_Normal_Gamma"  
   outlist=list(pfamily="dIndependent_Normal_Gamma",prior_list=prior_list,
                okfamilies=okfamilies,plinks=plinks,simfun=rindependent_norm_gamma_reg)

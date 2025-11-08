@@ -17,7 +17,15 @@ dGamma(shape, rate, beta)
 
 dNormal_Gamma(mu, Sigma, shape, rate)
 
-dIndependent_Normal_Gamma(mu, Sigma, shape, rate, max_disp_perc = 0.99)
+dIndependent_Normal_Gamma(
+  mu,
+  Sigma,
+  shape,
+  rate,
+  max_disp_perc = 0.99,
+  disp_lower = NULL,
+  disp_upper = NULL
+)
 
 \method{print}{pfamily}(x, ...)
 }
@@ -50,6 +58,10 @@ the lower and upper bounds for the dispersion (σ²) used in the simulation. A v
 corresponds to using the central 98 percent of the posterior dispersion mass (i.e., excluding 
 the outer 1 percent in each tail). Smaller values yield tighter bounds and may improve acceptance 
 rates, while larger values allow broader dispersion support but may increase envelope complexity.}
+
+\item{disp_lower}{lower bound truncation for dispersion}
+
+\item{disp_upper}{upper bound truncation for dispersion}
 
 \item{x}{an object, a pfamily function that is to be printed}
 

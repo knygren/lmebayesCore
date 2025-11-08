@@ -560,6 +560,22 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
       max_disp_perc <- 0.99
     }
     
+    ## New: extract optional low/upp from prior_list
+    if (!is.null(prior_list$disp_lower))  disp_lower <- prior_list$disp_lower  else disp_lower <- NULL
+    if (!is.null(prior_list$disp_upper))  disp_upper <- prior_list$disp_upper  else disp_upper <- NULL
+    
+    ## Validation if both are provided
+    if (!is.null(disp_lower) && !is.null(disp_upper)) {
+      if (!is.numeric(disp_lower) || !is.numeric(disp_upper)) {
+        stop("prior_list$disp_lower and prior_list$disp_upper must be numeric.")
+      }
+      if (disp_lower <= 0 || disp_upper <= 0) {
+        stop("prior_list$disp_lower and prior_list$disp_upper must be positive.")
+      }
+      if (disp_upper <= disp_lower) {
+        stop("prior_list$disp_upper must be strictly greater than prior_list$disp_lower.")
+      }
+    }
     
   }
   
@@ -687,7 +703,7 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   
   ## Note, use Gridtype =4 here temporarily (Single Likelihood subgradient)
   
-  Gridtype=as.integer(3)
+  #Gridtype=as.integer(Gridtype)
   
   ## Pull the initial Envelope based on optimized values above
   
@@ -718,7 +734,9 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
     n_obs      = n_obs,
     RSS_post   = RSS_Post2,
     RSS_ML     =RSS_ML,
-    max_disp_perc = max_disp_perc
+    max_disp_perc = max_disp_perc,
+    disp_lower=disp_lower,
+    disp_upper=disp_upper
   )
   
   cat("[DEBUG] Exiting EnvelopeDispersionBuild \n")
