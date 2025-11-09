@@ -93,8 +93,8 @@ Inv_f3_with_disp <- function(cache, dispersion, cbars_small) {
     .Call(`_glmbayes_Inv_f3_with_disp`, cache, dispersion, cbars_small)
 }
 
-.rindep_norm_gamma_reg_std_V4_cpp <- function(n, y, x, mu, P, alpha, wt, f2, Envelope, gamma_list, UB_list, family, link, progbar = TRUE) {
-    .Call(`_glmbayes_rindep_norm_gamma_reg_std_v4_cpp`, n, y, x, mu, P, alpha, wt, f2, Envelope, gamma_list, UB_list, family, link, progbar)
+.rindep_norm_gamma_reg_std_cpp <- function(n, y, x, mu, P, alpha, wt, f2, Envelope, gamma_list, UB_list, family, link, progbar = TRUE) {
+    .Call(`_glmbayes_rindep_norm_gamma_reg_std_cpp`, n, y, x, mu, P, alpha, wt, f2, Envelope, gamma_list, UB_list, family, link, progbar)
 }
 
 rmath_test_wrapper <- function() {

@@ -146,9 +146,9 @@ arma::mat Inv_f3_with_disp(Rcpp::List cache,
 
 
 
-// [[Rcpp::export(".rindep_norm_gamma_reg_std_V4_cpp")]]
+// [[Rcpp::export(".rindep_norm_gamma_reg_std_cpp")]]
 
-Rcpp::List  rindep_norm_gamma_reg_std_v4_cpp(int n,NumericVector y,NumericMatrix x,
+Rcpp::List  rindep_norm_gamma_reg_std_cpp(int n,NumericVector y,NumericMatrix x,
                                              NumericMatrix mu, /// This is typically standardized to be a zero vector
                                              NumericMatrix P, /// Part of prior precision shifted to the likelihood
                                              NumericVector alpha,NumericVector wt,

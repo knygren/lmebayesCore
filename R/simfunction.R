@@ -863,7 +863,7 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   
   
   
-  sim_temp=.rindep_norm_gamma_reg_std_V4_cpp (n=n, y=y, x=x2, 
+  sim_temp=.rindep_norm_gamma_reg_std_cpp (n=n, y=y, x=x2, 
                                               mu=mu2, ## Should be zero vector
                                               P=P2,  ## Part of prior shifted to the Likelihood
                                               alpha=alpha, wt,
