@@ -715,12 +715,19 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
                      n_envopt=n_envopt,
                      sortgrid=TRUE,use_opencl = use_opencl,verbose = verbose)
   
-  cat("[DEBUG] EnvelopeBuild returned\n")
+  if (verbose) {
+    cat("EnvelopeBuild returned\n")
+    }
+  
+  
   
   
   ###  Call new function to build shared envelope
+
+  if (verbose) {
+    cat("Entering EnvelopeDispersionBuild \n")
+  }
   
-  cat("[DEBUG] Entering EnvelopeDispersionBuild \n")
   
   
   # disp_env_out_old <- EnvelopeDispersionBuild(
@@ -756,12 +763,15 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
     max_disp_perc = max_disp_perc,
     disp_lower = disp_lower,
     disp_upper = disp_upper,
-    verbose    = TRUE   # optional, matches the C++ signature
+    verbose    = verbose   # optional, matches the C++ signature
   )
   
-  cat("[DEBUG] Exiting EnvelopeDispersionBuild \n")
   
-
+  if (verbose) {
+    cat("Exiting EnvelopeDispersionBuild \n")
+  }
+  
+  
   Env3_raw       <- disp_env_out$Env_out
   gamma_list_new <- disp_env_out$gamma_list
   UB_list_new    <- disp_env_out$UB_list
@@ -829,11 +839,10 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   UB_list_new$lg_prob_factor=Env3$lg_prob_factor
   UB_list_new$UB2min=Env3$UB2min
   
-    cat("[DEBUG] disp_lower =", low,
-      " disp_upper =", upp, "\n")
-  
-  cat("[DEBUG] Calling .rindep_norm_gamma_reg_std_V4_cpp \n")
-  
+
+  if (verbose) {
+    cat("Calling .rindep_norm_gamma_reg_std_cpp \n")
+  }
   
   
   sim_temp=.rindep_norm_gamma_reg_std_cpp (n=n, y=y, x=x2, 
@@ -845,10 +854,11 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
                                               UB_list=UB_list_new,
                                               family="gaussian",link="identity", progbar =progbar)
 
-  cat("[DEBUG] Exiting .rindep_norm_gamma_reg_std_V4_cpp \n")
+  if (verbose) {
+    cat("Exiting .rindep_norm_gamma_reg_std_cpp \n")
+  }
   
-
-  print(paste("Interactive status:", interactive()))
+##  print(paste("Interactive status:", interactive()))
   
 
 

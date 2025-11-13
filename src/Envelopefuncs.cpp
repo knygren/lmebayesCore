@@ -1031,9 +1031,11 @@ Rcpp::List eval_info2 = EnvelopeEval(G4, y, x, mu,0*P, alpha, wt,
 NegLL_slope   = eval_info2["NegLL"];
 cbars_slope2  = Rcpp::as<arma::mat>(eval_info2["cbars"]);
 
-Rcpp::Rcout << "[DEBUG] Finished assigning NegLL_slope and cbars_slope2" << std::endl;
 
-    
+if (verbose) {
+  Rcpp::Rcout << "Finished assigning NegLL_slope and cbars_slope2" << std::endl;
+}
+
 //    NegLL_slope=f2_gaussian(G4,y, x, mu, 0*P, alpha, wt);  
 //    cbars_slope2=f3_gaussian(G4,y, x,mu,0*P,alpha,wt);
     RSS_Out=RSS(y, x,G4,alpha,wt); // Note currenly includes the dispersion in the weight
@@ -1049,19 +1051,27 @@ Rcpp::Rcout << "[DEBUG] Finished assigning NegLL_slope and cbars_slope2" << std:
   cbars3=cbars2;
   cbars_slope3=cbars_slope2;
 
+  if (verbose) {
+    Rcpp::Rcout << "Entering Set_Grid_C2" << std::endl;
+  }
+  
 
-
-  Rcpp::Rcout << "[DEBUG] Entering Set_Grid_C2" << std::endl;
   
   Set_Grid_C2(GIndex, cbars, Lint1,Down,Up,loglt,logrt,logct,logU,logP);
 
-  Rcpp::Rcout << "[DEBUG] Entering Set_logP_C2" << std::endl;
+  if (verbose) {
+    Rcpp::Rcout << "Entering Set_logP_C2" << std::endl;
+  }
+  
   
   setlogP_C2(logP,NegLL,cbars,G3,LLconst);
   
   
-  Rcpp::Rcout << "[DEBUG] Computing PLSD" << std::endl;
+  if (verbose) {
+    Rcpp::Rcout << "Computing PLSD" << std::endl;
+  }
   
+    
   NumericMatrix::Column logP2 = logP( _, 1);
 
     
@@ -1082,7 +1092,11 @@ Rcpp::Rcout << "[DEBUG] Finished assigning NegLL_slope and cbars_slope2" << std:
   //    return(outlist);
   //  }
   
-  Rcpp::Rcout << "[DEBUG] Finished Computing PLSD" << std::endl;
+  
+  if (verbose) {
+    Rcpp::Rcout << "Finished Computing PLSD" << std::endl;
+  }
+  
   
   return Rcpp::List::create(Rcpp::Named("GridIndex")=GIndex,
                             Rcpp::Named("thetabars")=G3,
@@ -1373,11 +1387,7 @@ List EnvelopeDispersionBuild_cpp(
   Rcpp::Function optim("optim");
   Rcpp::Function rss_fn("rss_face_at_disp_export");
   
-  // Print reference RSS_ML before looping
-  if (gs <= 81) {
-    Rcout << "[Reference] RSS_ML = " << RSS_ML << "\n";
-  }
-  
+
   NumericVector rss_min(gs), disp_min(gs);
   for (int j = 0; j < gs; ++j) {
     // Extract row j of cbars into a NumericVector
@@ -1403,10 +1413,6 @@ List EnvelopeDispersionBuild_cpp(
     disp_min[j] = res["par"];
     rss_min[j]  = res["value"];
     
-    if (gs <= 81) {
-      Rcout << "[Face " << j << "] disp_min = " << disp_min[j]
-            << ", rss_min = " << rss_min[j] << "\n";
-    }
   }
   
   
@@ -1422,21 +1428,13 @@ List EnvelopeDispersionBuild_cpp(
     }
   }  
   
-  if (gs <= 81) {
-    Rcout << "[Reference] RSS_min_global = " << rss_min_global << "\n";
-  }
-  
+
   //////////////////////////////////////
   
   // Assume UB2 has been exported as shown earlier
   Rcpp::Function ub2_fn("UB2");
   
-  // Print reference RSS_ML before looping
-  if (gs <= 81) {
-    Rcout << "[Reference] RSS_ML = " << RSS_ML << "\n";
-    Rcout << "[Reference] RSS_min_global = " << rss_min_global << "\n";
-  }
-  
+
   // --- UB2 minimization loop ---
   NumericVector ub2_min(gs), disp_min_ub2(gs);
   
@@ -1466,10 +1464,6 @@ List EnvelopeDispersionBuild_cpp(
     disp_min_ub2[j] = res["par"];
     ub2_min[j]      = res["value"];
     
-    if (gs <= 81) {
-      Rcout << "[Face " << j << "] disp_min (UB2) = " << disp_min_ub2[j]
-            << ", UB2_min = " << ub2_min[j] << "\n";
-    }
   }
   
   // Find global UB2 minimum
@@ -1484,10 +1478,7 @@ List EnvelopeDispersionBuild_cpp(
     }
   }
   
-  if (gs <= 81) {
-    Rcout << "[Reference] UB2_min_global = " << ub2_min_global << "\n";
-  }  
-  
+
   
   
   
@@ -1505,8 +1496,7 @@ List EnvelopeDispersionBuild_cpp(
   // Note: consistency with external rate2: here rate3=Rate+RSS_post/2 as in R function
   double dispstar = rate3 / (shape2 - 1.0);
   
-  if (verbose) Rcout << "[DEBUG] Entering EnvBuildLinBound\n";
-  
+
   // Step 6: Face slopes at dispstar via R helper
 //  Function EnvBuildLinBound_R("EnvBuildLinBound");
 //  NumericVector New_LL_Slope =
@@ -1516,8 +1506,7 @@ List EnvelopeDispersionBuild_cpp(
   NumericVector New_LL_Slope =
     EnvBuildLinBound_cpp(thetabars, cbars, y, x, P, alpha, dispstar);
   
-    if (verbose) Rcout << "[DEBUG] Exiting EnvBuildLinBound\n";
-  
+
   // Step 7: Linear extrapolation of face constants to bounds
   NumericVector thetabar_const_upp_apprx(gs), thetabar_const_low_apprx(gs);
   for (int j = 0; j < gs; ++j) {
@@ -1542,8 +1531,7 @@ List EnvelopeDispersionBuild_cpp(
   double c1 = -std::log(upp / low);
   dispstar  = b1 / (-c1);  // equivalently (upp - low)/log(upp/low)
   
-  if (verbose) Rcout << "[DEBUG] Entering mixture weight loop\n";
-  
+
   // Step 9: Mixture weights per face (match original)
   NumericVector New_logP2(gs);
   NumericVector prob_factor(gs);
@@ -1561,16 +1549,11 @@ List EnvelopeDispersionBuild_cpp(
     double pf_low = thetabar_const_low_apprx[j] - max_low;
     prob_factor[j] = (pf_upp > pf_low ? pf_upp : pf_low);
     prob_factor2[j] =prob_factor[j]-ub2_min[j];
-    // Temporary debug print
-    if (gs <= 81) {
-      Rcout << "[Face " << j << "] prob_factor = " << prob_factor[j] << "\n";
-    }
-    
+
     
   }
   
-  if (verbose) Rcout << "[DEBUG] Exited mixture weight loop\n";
-  
+
   // Log-space prob factors (kept separate for UB_list, as in R)
   NumericVector lg_prob_factor = clone(prob_factor);
   NumericVector lg_prob_factor2 = clone(prob_factor2);
@@ -1650,6 +1633,10 @@ List EnvelopeDispersionBuild_cpp(
     Rcout << "  shape3        = " << shape3 << "\n";
     Rcout << "  max_low       = " << max_low << "\n";
     Rcout << "  max_upp       = " << max_upp << "\n";
+    Rcout << "  RSS_ML       = " << RSS_ML << "\n";
+    Rcout << "  RSS_Min       = " << rss_min_global << "\n";
+    Rcout << "  disp_lower       = " << low << "\n";
+    Rcout << "  disp_upper       = " << upp << "\n";
   }
   
   return List::create(

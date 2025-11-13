@@ -179,10 +179,10 @@ Rcpp::List  rindep_norm_gamma_reg_std_cpp(int n,NumericVector y,NumericMatrix x,
 
     Rcpp::checkUserInterrupt();
     
-    if(progbar==1){
-      progress_bar3(i, n-1);
-      if(i==n-1) {Rcpp::Rcout << "" << std::endl;}
-    }
+//    if(progbar==1){
+//      progress_bar3(i, n-1);
+//      if(i==n-1) {Rcpp::Rcout << "" << std::endl;}
+//    }
     
     // 3. Test progbar *and* interactive()
 
