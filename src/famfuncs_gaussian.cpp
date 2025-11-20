@@ -309,96 +309,65 @@ arma::vec   f2_gaussian_arma(NumericMatrix b,NumericVector y, NumericMatrix x,Nu
 
 
 arma::vec f2_gaussian_rmat(
-    // NumericMatrix b, NumericVector y,
-    //                              NumericMatrix x, NumericMatrix mu,
-    //                              NumericMatrix P, NumericVector alpha,
-    //                              NumericVector wt, int progbar = 0
-    const RMatrix<double>& b,
-    const RVector<double>& y,
-    const RMatrix<double>& x,
-    const RMatrix<double>& mu,
-    const RMatrix<double>& P,
-    const RVector<double>& alpha,
-    const RVector<double>& wt,
-    const int progbar=0   
+    const RcppParallel::RMatrix<double>& b,
+    const RcppParallel::RVector<double>& y,
+    const RcppParallel::RMatrix<double>& x,
+    const RcppParallel::RMatrix<double>& mu,
+    const RcppParallel::RMatrix<double>& P,
+    const RcppParallel::RVector<double>& alpha,
+    const RcppParallel::RVector<double>& wt,
+    const int progbar = 0
 ) {
-  //  int l1 = x.nrow(), l2 = x.ncol();
-  //  int m1 = b.ncol();
+  // Match classical dims
+  std::size_t l1 = x.nrow(); // observations
+  std::size_t l2 = x.ncol(); // predictors
+  std::size_t m1 = b.ncol(); // number of beta columns
   
-  /////////////////////////////////////////////////////////////////////////////
-  
-  
-  
-  std::size_t l1 = x.nrow();
-  std::size_t l2 = x.ncol();
-  std::size_t m1 = b.ncol();
-  
-  // Armadillo views over RMatrix memory (using pointer cast for compatibility)
-  arma::mat b2full(const_cast<double*>(&*b.begin()), l2, m1, false);
-  arma::mat x2(const_cast<double*>(&*x.begin()), l1, l2, false);
-  arma::mat mu2(const_cast<double*>(&*mu.begin()), l2, 1, false);
-  arma::mat P2(const_cast<double*>(&*P.begin()), l2, l2, false);
+  // Armadillo views over RMatrix/RVector memory
+  arma::mat b2full(const_cast<double*>(&*b.begin()),  l2, m1, false);
+  arma::mat x2    (const_cast<double*>(&*x.begin()),  l1, l2, false);
+  arma::mat mu2   (const_cast<double*>(&*mu.begin()), l2, 1,  false);
+  arma::mat P2    (const_cast<double*>(&*P.begin()),  l2, l2, false);
   arma::mat alpha2(const_cast<double*>(&*alpha.begin()), l1, 1, false);
   
   arma::vec res(m1, arma::fill::none);
   
+  // invwt = 1/sqrt(wt) (length l1), identical to classical
   std::vector<double> invwt(l1);
+  for (std::size_t i = 0; i < l1; ++i) {
+    invwt[i] = 1.0 / std::sqrt(wt[i]);
+  }
   
-
-    for (std::size_t i = 0; i < l1; ++i) {
-      invwt[i] = 1.0 / std::sqrt(wt[i]);
-    }
-
-    
-      arma::mat bmu(l2, 1, arma::fill::none);
-  
-  
+  // Temporary buffers (length l1)
   std::vector<double> xb_temp(l1), yy_temp(l1);
-  arma::colvec xb_temp2(xb_temp.data(), l1, false);  // shallow Armadillo view
+  arma::colvec xb_temp2(xb_temp.data(), l1, false); // shallow Armadillo view
   
-  ////////////////////////////////////////////////////////////
-  
+  // Optional: one bmu buffer reused per column
+  arma::mat bmu(l2, 1, arma::fill::none);
   
   for (std::size_t i = 0; i < m1; ++i) {
-    
+    // Current beta column (size l2×1)
     arma::mat b_i(b2full.colptr(i), l2, 1, false);
     
+    // Prior quadratic term: 0.5*(b - mu)^T P (b - mu)
     bmu = b_i - mu2;
-    
     double mahal = 0.5 * arma::as_scalar(bmu.t() * P2 * bmu);
     
+    // FIX: Gaussian xb is alpha + x*b (no exp)
+    xb_temp2 = alpha2 + x2 * b_i;
     
-    //xb_temp2 = alpha2+  x2 * b_i;
+    // FIX: Do NOT divide xb by wt; use invwt as in classical
+    // xb_temp[j] = xb_temp[j] / wt[j];  // REMOVED
     
-    //    for (std::size_t j = 0; j < l1; j++) {
-    //      xb_temp[j] =1-  exp(-exp(xb_temp[j]));
-    //    }
+    // Evaluate negative log-likelihood per observation (same as classical backend)
+    neg_dnorm_glmb_rmat(y, xb_temp, invwt, yy_temp, 1.0);
     
-    xb_temp2=exp(alpha2+ x2 * b_i);
-    
-    for (std::size_t  j = 0; j < l1; j++) {      
-      xb_temp[j]=xb_temp[j]/wt[j];  
-    }
-    
-    
-    //    for(int j=0;j<l1;j++){
-    //      xb(j)=1-exp(-exp(xb(j)));
-    //    }
-    
-    
-    // In-place evaluation using your log-scale accurate backend
-      //  neg_dnorm_glmb_rmat_old(y_view,  xb_view,invwt_view, yy_view,1.0);
-    
-        neg_dnorm_glmb_rmat(y, xb_temp, invwt, yy_temp,1.0);
-    
-    
-    res(i) =std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
-    
+    // Sum yy and add prior quadratic
+    res(i) = std::accumulate(yy_temp.begin(), yy_temp.end(), mahal);
   }
   
   return res;
 }
-
 
 
 

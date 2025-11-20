@@ -822,13 +822,14 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   UB_list_new$UB2min=Env3$UB2min
   
 
-  if (verbose) {
-    cat("Calling .rindep_norm_gamma_reg_std_cpp \n")
-  }
   
 
   
   if (!use_parallel || n == 1) {
+    if (verbose) {
+      cat("Calling .rindep_norm_gamma_reg_std_cpp \n")
+    }
+    
     sim_temp <- .rindep_norm_gamma_reg_std_cpp(
       n = n, y = y, x = x2,
       mu = mu2,  # Should be zero vector
@@ -846,6 +847,11 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
     }
     
   } else {
+    
+    if (verbose) {
+      cat("Calling .rindep_norm_gamma_reg_std_parallel_cpp \n")
+    }
+    
     sim_temp <- .rindep_norm_gamma_reg_std_parallel_cpp(
       n = n, y = y, x = x2,
       mu = mu2,  # Should be zero vector

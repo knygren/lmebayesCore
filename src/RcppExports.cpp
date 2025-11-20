@@ -494,19 +494,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // rindep_norm_gamma_reg_std_parallel_cpp
-Rcpp::List rindep_norm_gamma_reg_std_parallel_cpp(int n, NumericVector y, NumericMatrix x, NumericMatrix mu, NumericMatrix P, NumericVector alpha, NumericVector wt, Function f2, Rcpp::List Envelope, Rcpp::List gamma_list, Rcpp::List UB_list, Rcpp::CharacterVector family, Rcpp::CharacterVector link, bool progbar);
+Rcpp::List rindep_norm_gamma_reg_std_parallel_cpp(int n, Rcpp::NumericVector y, Rcpp::NumericMatrix x, Rcpp::NumericMatrix mu, Rcpp::NumericMatrix P, Rcpp::NumericVector alpha, Rcpp::NumericVector wt, Rcpp::Function f2, Rcpp::List Envelope, Rcpp::List gamma_list, Rcpp::List UB_list, Rcpp::CharacterVector family, Rcpp::CharacterVector link, bool progbar);
 RcppExport SEXP _glmbayes_rindep_norm_gamma_reg_std_parallel_cpp(SEXP nSEXP, SEXP ySEXP, SEXP xSEXP, SEXP muSEXP, SEXP PSEXP, SEXP alphaSEXP, SEXP wtSEXP, SEXP f2SEXP, SEXP EnvelopeSEXP, SEXP gamma_listSEXP, SEXP UB_listSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP progbarSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type P(PSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type wt(wtSEXP);
-    Rcpp::traits::input_parameter< Function >::type f2(f2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type P(PSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Function >::type f2(f2SEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type Envelope(EnvelopeSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type gamma_list(gamma_listSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type UB_list(UB_listSEXP);
