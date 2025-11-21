@@ -1435,12 +1435,57 @@ List EnvelopeDispersionBuild_cpp(
   Rcpp::Function optim("optim");
   Rcpp::Function rss_fn("rss_face_at_disp");
   
+  // Right before entering the loop
+  double start_time = Rcpp::as<double>(
+    Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+  );
+  
+
+  if (verbose) {
+    Rcpp::Function fmt("format");
+    Rcpp::Function systime("Sys.time");
+    Rcpp::CharacterVector now = fmt(systime(), Rcpp::Named("format") = "%H:%M:%S");
+    Rcpp::Rcout << "[EnvelopeDispersionBuild] >>> Starting RSS minimization loop at "
+                << Rcpp::as<std::string>(now[0]) << " <<<\n";
+  }
+  
 
   NumericVector rss_min(gs), disp_min(gs);
-  
-  
+
   
   for (int j = 0; j < gs; ++j) {
+    
+    Rcpp::checkUserInterrupt();  // allow user to break out
+    
+    if (verbose && (j+1) == 100 ) {
+      double now_time = Rcpp::as<double>(
+        Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+      );
+      double elapsed  = now_time - start_time; // seconds
+      
+      if (elapsed > 0 && (j+1) > 0) {
+        double avg_per_face = elapsed / (j+1);
+        double remaining    = avg_per_face * (gs - (j+1));
+        
+        // Break elapsed into h/m/s
+        int h_elapsed = static_cast<int>(elapsed / 3600);
+        int m_elapsed = static_cast<int>((elapsed - h_elapsed*3600) / 60);
+        int s_elapsed = static_cast<int>(elapsed - h_elapsed*3600 - m_elapsed*60);
+        
+        // Break remaining into h/m/s
+        int h_rem = static_cast<int>(remaining / 3600);
+        int m_rem = static_cast<int>((remaining - h_rem*3600) / 60);
+        int s_rem = static_cast<int>(remaining - h_rem*3600 - m_rem*60);
+        
+        Rcpp::Rcout << "  " << (j+1) << " faces completed in "
+                    << h_elapsed << "h " << m_elapsed << "m " << s_elapsed << "s. "
+                    << "Remaining time estimated at "
+                    << h_rem << "h " << m_rem << "m " << s_rem << "s.\n";
+      }
+    }
+  
+    
+    
     // Extract row j of cbars into a NumericVector
     NumericVector cbars_j(l1);
     for (int k = 0; k < l1; ++k) cbars_j[k] = cbars(j, k);
@@ -1484,12 +1529,59 @@ List EnvelopeDispersionBuild_cpp(
   
   // Assume UB2 has been exported as shown earlier
   Rcpp::Function ub2_fn("UB2");
-  
 
+  
+  // Right before entering the loop
+  double start_time2 = Rcpp::as<double>(
+    Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+  );
+  
+    
+
+  if (verbose) {
+    Rcpp::Function fmt("format");
+    Rcpp::Function systime("Sys.time");
+    Rcpp::CharacterVector now = fmt(systime(), Rcpp::Named("format") = "%H:%M:%S");
+    Rcpp::Rcout << "[EnvelopeDispersionBuild] >>> Starting UB2 minimization loop at "
+                << Rcpp::as<std::string>(now[0]) << " <<<\n";
+  }
+  
+  
   // --- UB2 minimization loop ---
   NumericVector ub2_min(gs), disp_min_ub2(gs);
   
   for (int j = 0; j < gs; ++j) {
+    
+    Rcpp::checkUserInterrupt();  // allow user to break out
+    
+    
+    if (verbose && (j+1) == 100 ) {
+      double now_time = Rcpp::as<double>(
+        Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+      );
+      double elapsed  = now_time - start_time2; // seconds
+      
+      if (elapsed > 0 && (j+1) > 0) {
+        double avg_per_face = elapsed / (j+1);
+        double remaining    = avg_per_face * (gs - (j+1));
+        
+        // Break elapsed into h/m/s
+        int h_elapsed = static_cast<int>(elapsed / 3600);
+        int m_elapsed = static_cast<int>((elapsed - h_elapsed*3600) / 60);
+        int s_elapsed = static_cast<int>(elapsed - h_elapsed*3600 - m_elapsed*60);
+        
+        // Break remaining into h/m/s
+        int h_rem = static_cast<int>(remaining / 3600);
+        int m_rem = static_cast<int>((remaining - h_rem*3600) / 60);
+        int s_rem = static_cast<int>(remaining - h_rem*3600 - m_rem*60);
+        
+        Rcpp::Rcout << "  " << (j+1) << " faces completed in "
+                    << h_elapsed << "h " << m_elapsed << "m " << s_elapsed << "s. "
+                    << "Remaining time estimated at "
+                    << h_rem << "h " << m_rem << "m " << s_rem << "s.\n";
+      }
+    }
+    
     // Extract row j of cbars into a NumericVector
     NumericVector cbars_j(l1);
     for (int k = 0; k < l1; ++k) cbars_j[k] = cbars(j, k);
@@ -1516,6 +1608,18 @@ List EnvelopeDispersionBuild_cpp(
     ub2_min[j]      = res["value"];
     
   }
+  
+  
+  if (verbose) {
+    Rcpp::Function fmt("format");
+    Rcpp::Function systime("Sys.time");
+    Rcpp::CharacterVector now = fmt(systime(), Rcpp::Named("format") = "%H:%M:%S");
+    Rcpp::Rcout << "[EnvelopeDispersionBuild] >>> Exiting UB2 minimization loop at "
+                << Rcpp::as<std::string>(now[0]) << " <<<\n";
+  }
+  
+  
+  
   
   // Find global UB2 minimum
   double ub2_min_global = R_PosInf;
@@ -1588,6 +1692,9 @@ List EnvelopeDispersionBuild_cpp(
   NumericVector prob_factor(gs);
   NumericVector prob_factor2(gs);
   for (int j = 0; j < gs; ++j) {
+    
+    Rcpp::checkUserInterrupt();  // allow user to break out
+    
     // cbars_temp is row j (length l1)
     double norm2 = 0.0;
     for (int k = 0; k < l1; ++k) {
@@ -1617,6 +1724,11 @@ List EnvelopeDispersionBuild_cpp(
   NumericVector prob_factor_exp(gs);
   NumericVector prob_factor_exp2(gs);
   for (int j = 0; j < gs; ++j){
+    
+    Rcpp::checkUserInterrupt();  // allow user to break out
+    
+    
+    
     prob_factor_exp[j] = std::exp(New_logP2[j] + prob_factor[j]);
     prob_factor_exp2[j] = std::exp(New_logP2[j] + prob_factor2[j]);
     
