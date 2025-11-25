@@ -105,7 +105,6 @@
 #' @param upp  Dispersion parameter
 #' @param cores  Dispersion parameter
 #'
-#'
 #' @return
 #' \describe{
 #' \item{\code{EnvelopeDispersionBuild()}}{A list containing:
@@ -313,14 +312,12 @@ drss_ddisp <- function(dispersion, cache, cbars_j, y, x, alpha, wt) {
   .Call(`_glmbayes_drss_ddisp`, dispersion, cache, cbars_j, y, x, alpha, wt)
 }
 
-#' @usage EnvelopeDispersionBuild_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, cores)
-#' @export
 #' @rdname dispenvelopes
-#' @order 8
+#' @order 11
 
-EnvelopeDispersionBuild_parallel <- function(par0, low, upp,
-                                             cache, cbars, y, x, alpha, wt,
-                                             cores = parallel::detectCores(logical = FALSE)) {
+EnvelopeDispersionBuild_parallel_internal <- function(par0, low, upp,
+                                                      cache, cbars, y, x, alpha, wt,
+                                                      cores = parallel::detectCores(logical = FALSE)) {
   gs <- nrow(cbars)
   avail_cores <- parallel::detectCores(logical = FALSE)
   
@@ -331,7 +328,7 @@ EnvelopeDispersionBuild_parallel <- function(par0, low, upp,
     cores <- min(cores, avail_cores, gs)
   }
   
-  message("[EnvelopeDispersionBuild_parallel] Available cores: ", avail_cores,
+  message("[EnvelopeDispersionBuild_parallel_internal] Available cores: ", avail_cores,
           " | Using cores: ", cores)
   
   worker_fun <- function(j) {
@@ -363,16 +360,35 @@ EnvelopeDispersionBuild_parallel <- function(par0, low, upp,
   list(disp_min = disp_min, rss_min = rss_min)
 }
 
-
-#' @usage EnvelopeUB2_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, rss_min_global, cores)
+#' Safe parallel dispersion builder
+#'
+#' @usage EnvelopeDispersionBuild_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, cores)
 #' @export
 #' @rdname dispenvelopes
-#' @order 9
-#' 
-EnvelopeUB2_parallel <- function(par0, low, upp,
-                                 cache, cbars, y, x, alpha, wt,
-                                 rss_min_global,
-                                 cores = parallel::detectCores(logical = FALSE)) {
+#' @order 8
+
+EnvelopeDispersionBuild_parallel <- function(par0, low, upp,
+                                             cache, cbars, y, x, alpha, wt,
+                                             cores = parallel::detectCores(logical = FALSE)) {
+  tryCatch(
+    EnvelopeDispersionBuild_parallel_internal(par0, low, upp, cache, cbars, y, x, alpha, wt, cores),
+    error = function(e) {
+      message("[EnvelopeDispersionBuild_parallel] Failed gracefully: ", e$message)
+      list(disp_min = NULL, rss_min = NULL, error = TRUE)
+    }
+  )
+}
+
+
+
+#' @rdname dispenvelopes
+#' @order 12
+
+
+EnvelopeUB2_parallel_internal <- function(par0, low, upp,
+                                          cache, cbars, y, x, alpha, wt,
+                                          rss_min_global,
+                                          cores = parallel::detectCores(logical = FALSE)) {
   gs <- nrow(cbars)
   avail_cores <- parallel::detectCores(logical = FALSE)
   
@@ -383,7 +399,7 @@ EnvelopeUB2_parallel <- function(par0, low, upp,
     cores <- min(cores, avail_cores, gs)
   }
   
-  message("[EnvelopeUB2_parallel] Available cores: ", avail_cores,
+  message("[EnvelopeUB2_parallel_internal] Available cores: ", avail_cores,
           " | Using cores: ", cores)
   
   worker_fun <- function(j) {
@@ -414,4 +430,25 @@ EnvelopeUB2_parallel <- function(par0, low, upp,
   ub2_min      <- vapply(results, function(res) res$value, numeric(1))
   
   list(disp_min = disp_min_ub2, ub2_min = ub2_min)
+}
+
+#' Safe UB2 parallel dispersion builder
+#'
+#' @usage EnvelopeUB2_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, rss_min_global, cores)
+#' @export
+#' @rdname dispenvelopes
+#' @order 9
+
+EnvelopeUB2_parallel <- function(par0, low, upp,
+                                 cache, cbars, y, x, alpha, wt,
+                                 rss_min_global,
+                                 cores = parallel::detectCores(logical = FALSE)) {
+  tryCatch(
+    EnvelopeUB2_parallel_internal(par0, low, upp, cache, cbars, y, x, alpha, wt,
+                                  rss_min_global, cores),
+    error = function(e) {
+      message("[EnvelopeUB2_parallel] Graceful failure: ", e$message)
+      list(disp_min = NULL, ub2_min = NULL, error = TRUE)
+    }
+  )
 }

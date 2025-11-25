@@ -11,6 +11,8 @@
 \alias{drss_ddisp}
 \alias{EnvelopeDispersionBuild_parallel}
 \alias{EnvelopeUB2_parallel}
+\alias{EnvelopeDispersionBuild_parallel_internal}
+\alias{EnvelopeUB2_parallel_internal}
 \title{Builds Dispersion-Aware Envelope for Simulation}
 \usage{
 EnvelopeDispersionBuild(Env, Shape, Rate, P, y, x, alpha, n_obs, RSS_post, RSS_ML, 
@@ -31,6 +33,33 @@ drss_ddisp(dispersion, cache, cbars_j, y, x, alpha, wt)
 EnvelopeDispersionBuild_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, cores)
 
 EnvelopeUB2_parallel(par0, low, upp, cache, cbars, y, x, alpha, wt, rss_min_global, cores)
+
+EnvelopeDispersionBuild_parallel_internal(
+  par0,
+  low,
+  upp,
+  cache,
+  cbars,
+  y,
+  x,
+  alpha,
+  wt,
+  cores = parallel::detectCores(logical = FALSE)
+)
+
+EnvelopeUB2_parallel_internal(
+  par0,
+  low,
+  upp,
+  cache,
+  cbars,
+  y,
+  x,
+  alpha,
+  wt,
+  rss_min_global,
+  cores = parallel::detectCores(logical = FALSE)
+)
 }
 \arguments{
 \item{Env}{Envelope object from \code{\link{EnvelopeBuild}}, containing tangency points and gradients}
