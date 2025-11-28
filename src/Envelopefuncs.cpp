@@ -1380,6 +1380,131 @@ NumericVector thetabar_const_cpp(NumericMatrix P,
 
 
 
+// --- Internal helper: RSS pilot timing block ---
+// Not exported to R
+Rcpp::List run_rss_pilot_block(const Rcpp::Function& parallel_fn,
+                               int gs, int l1,
+                               double low, double upp,
+                               const Rcpp::List& cache,
+                               const Rcpp::NumericMatrix& cbars,
+                               const Rcpp::NumericVector& y,
+                               const Rcpp::NumericMatrix& x,
+                               const Rcpp::NumericVector& alpha,
+                               const Rcpp::NumericVector& wt,
+                               bool use_parallel,
+                               bool verbose) {
+  double est_total = 0.0;
+  const int pilot_threshold = static_cast<int>(std::pow(3, 10)); // 59,049 faces
+  
+    // --- Warm-up pilot size ---
+    int k1 = std::min(gs, 500);
+    
+    // Fractional pilots: ~0.5% and ~1.0% of total faces
+    auto frac_round = [](double v) { return static_cast<int>(std::round(v)); };
+    int k2_target = frac_round(0.005 * static_cast<double>(gs));
+    int k3_target = frac_round(0.010 * static_cast<double>(gs));
+    
+    // Floors/caps
+    int floor_k2 = 3000, floor_k3 = 6000;
+    int cap_k2   = 50000, cap_k3 = 100000;
+    
+    int k2 = std::min(gs, std::max(floor_k2, std::min(k2_target, cap_k2)));
+    int k3 = std::min(gs, std::max(floor_k3, std::min(k3_target, cap_k3)));
+    
+    if (k2 <= k1) k2 = std::min(gs, std::max(k1 + 1, floor_k2));
+    if (k3 <= k2) k3 = std::min(gs, std::max(k2 + 1, floor_k3));
+    
+    auto make_slice = [&](int k) {
+      Rcpp::NumericMatrix cbars_slice(k, l1);
+      for (int i = 0; i < k; ++i)
+        for (int j = 0; j < l1; ++j)
+          cbars_slice(i, j) = cbars(i, j);
+      return cbars_slice;
+    };
+    
+    auto now_num = []() {
+      return Rcpp::as<double>(
+        Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+      );
+    };
+    
+    // Pilot timings
+    double t0 = now_num();
+    parallel_fn(Rcpp::Named("par0") = 0.5 * (low + upp),
+                Rcpp::Named("low") = low,
+                Rcpp::Named("upp") = upp,
+                Rcpp::Named("cache") = cache,
+                Rcpp::Named("cbars") = make_slice(k1),
+                Rcpp::Named("y") = y,
+                Rcpp::Named("x") = x,
+                Rcpp::Named("alpha") = alpha,
+                Rcpp::Named("wt") = wt,
+                Rcpp::Named("use_parallel") = use_parallel);
+    double t1 = now_num();
+    double elapsed1 = t1 - t0;
+    
+    double t2 = now_num();
+    parallel_fn(Rcpp::Named("par0") = 0.5 * (low + upp),
+                Rcpp::Named("low") = low,
+                Rcpp::Named("upp") = upp,
+                Rcpp::Named("cache") = cache,
+                Rcpp::Named("cbars") = make_slice(k2),
+                Rcpp::Named("y") = y,
+                Rcpp::Named("x") = x,
+                Rcpp::Named("alpha") = alpha,
+                Rcpp::Named("wt") = wt,
+                Rcpp::Named("use_parallel") = use_parallel);
+    double t3 = now_num();
+    double elapsed2 = t3 - t2;
+    
+    double t4 = now_num();
+    parallel_fn(Rcpp::Named("par0") = 0.5 * (low + upp),
+                Rcpp::Named("low") = low,
+                Rcpp::Named("upp") = upp,
+                Rcpp::Named("cache") = cache,
+                Rcpp::Named("cbars") = make_slice(k3),
+                Rcpp::Named("y") = y,
+                Rcpp::Named("x") = x,
+                Rcpp::Named("alpha") = alpha,
+                Rcpp::Named("wt") = wt,
+                Rcpp::Named("use_parallel") = use_parallel);
+    double t5 = now_num();
+    double elapsed3 = t5 - t4;
+    
+    double denom   = static_cast<double>(k3 - k2);
+    double t_face  = (elapsed3 - elapsed2) / std::max(1.0, denom);
+    double t_fixed = elapsed1;
+    est_total      = t_fixed + static_cast<double>(gs) * t_face;
+    
+    auto fmt_hms = [](double seconds) {
+      int s = static_cast<int>(std::round(seconds));
+      int h = s / 3600; s %= 3600;
+      int m = s / 60;   s %= 60;
+      std::ostringstream oss;
+      if (h) oss << h << "h ";
+      if (h || m) oss << m << "m ";
+      oss << s << "s";
+      return oss.str();
+    };
+    
+    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] k1=" << k1
+                << " (" << (100.0 * k1 / gs) << "%) elapsed=" << elapsed1 << "s; "
+                << "k2=" << k2 << " (" << (100.0 * k2 / gs) << "%) elapsed=" << elapsed2 << "s; "
+                << "k3=" << k3 << " (" << (100.0 * k3 / gs) << "%) elapsed=" << elapsed3 << "s.\n";
+    
+    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] t_fixed=" << t_fixed
+                << "s, t_face=" << t_face << "s/face.\n";
+    
+    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] Estimated full run = "
+                << fmt_hms(est_total) << " (" << est_total << "s).\n";
+ 
+  
+  return Rcpp::List::create(Rcpp::Named("est_total") = est_total);
+}
+
+
+
+
 // [[Rcpp::export]]
 List EnvelopeDispersionBuild_cpp(
     List Env,
@@ -1471,131 +1596,167 @@ List EnvelopeDispersionBuild_cpp(
   
   // --- NEW: Call parallel helper and time it ---
   Rcpp::Function parallel_fn("EnvelopeDispersionBuild_parallel");
-  
+
   double est_total = 0.0;  // declare before pilot block
+  
+    
+
+  // --- Threshold for pilot runs ---
+  const int pilot_threshold = static_cast<int>(std::pow(3, 14)); // 59,049 faces
+
+
+  // --- Conditional run of pilot block ---
+  if (gs >= pilot_threshold) {
+    Rcpp::Rcout << "[EnvelopeDispersionBuild] Running RSS pilot block (faces="
+                << gs << " >= threshold=" << pilot_threshold << ").\n";
+
+    Rcpp::List pilot_res = run_rss_pilot_block(parallel_fn, gs, l1,
+                                               low, upp, cache, cbars,
+                                               y, x, alpha, wt,
+                                               use_parallel, verbose);
+    est_total = pilot_res["est_total"];
+
+    if (verbose) {
+      Rcpp::Rcout << "[EnvelopeDispersionBuild] run_rss_pilot_block completed; "
+                  << "est_total=" << est_total << " seconds.\n";
+    }
+  }
+   else {
+    if (verbose) {
+      Rcpp::Rcout << "[EnvelopeDispersionBuild] Skipping RSS pilot block "
+                  << "(faces=" << gs << " < threshold=" << pilot_threshold << ").\n";
+    }
+         
+
+   }  
+  
 
   
-  // --- Three-stage pilot using fractional sizes of total faces ---
-  if (verbose && gs > 0) {
-    // Warm-up remains fixed
-    int k1 = std::min(gs, 500);
-    
-    // Fractional pilots: k2 ≈ 0.5%, k3 ≈ 1.0% of total faces
-    // Floors/ceilings ensure usefulness without being excessive
-    auto frac_round = [](double v) { return static_cast<int>(std::round(v)); };
-    int k2_target = frac_round(0.005 * static_cast<double>(gs));   // ~0.5%
-    int k3_target = frac_round(0.010 * static_cast<double>(gs));   // ~1.0%
-    
-    // Apply floors (so they’re not too small) and caps (so they stay quick)
-    int floor_k2 = 3000;   // minimum for mid pilot
-    int floor_k3 = 6000;   // minimum for large pilot
-    int cap_k2   = 50000;  // keep pilot quick
-    int cap_k3   = 100000; // keep pilot quick
-    
-    int k2 = std::min(gs, std::max(floor_k2, std::min(k2_target, cap_k2)));
-    int k3 = std::min(gs, std::max(floor_k3, std::min(k3_target, cap_k3)));
-    
-    // Ensure strict ordering: k1 < k2 < k3
-    if (k2 <= k1) k2 = std::min(gs, std::max(k1 + 1, floor_k2));
-    if (k3 <= k2) k3 = std::min(gs, std::max(k2 + 1, floor_k3));
-    
-    auto make_slice = [&](int k) {
-      Rcpp::NumericMatrix cbars_slice(k, l1);
-      for (int i = 0; i < k; ++i)
-        for (int j = 0; j < l1; ++j)
-          cbars_slice(i, j) = cbars(i, j);
-      return cbars_slice;
-    };
-    
-    auto now_num = []() {
-      return Rcpp::as<double>(
-        Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
-      );
-    };
-    
-    // First pilot (warm-up k1)
-    double t0 = now_num();
-    Rcpp::List p1 = parallel_fn(
-      Rcpp::Named("par0")   = 0.5 * (low + upp),
-      Rcpp::Named("low")    = low,
-      Rcpp::Named("upp")    = upp,
-      Rcpp::Named("cache")  = cache,
-      Rcpp::Named("cbars")  = make_slice(k1),
-      Rcpp::Named("y")      = y,
-      Rcpp::Named("x")      = x,
-      Rcpp::Named("alpha")  = alpha,
-      Rcpp::Named("wt")     = wt
-    );
-    double t1 = now_num();
-    double elapsed1 = t1 - t0;
-    
-    // Second pilot (~0.5%)
-    double t2 = now_num();
-    Rcpp::List p2 = parallel_fn(
-      Rcpp::Named("par0")   = 0.5 * (low + upp),
-      Rcpp::Named("low")    = low,
-      Rcpp::Named("upp")    = upp,
-      Rcpp::Named("cache")  = cache,
-      Rcpp::Named("cbars")  = make_slice(k2),
-      Rcpp::Named("y")      = y,
-      Rcpp::Named("x")      = x,
-      Rcpp::Named("alpha")  = alpha,
-      Rcpp::Named("wt")     = wt
-    );
-    double t3 = now_num();
-    double elapsed2 = t3 - t2;
-    
-    // Third pilot (~1.0%)
-    double t4 = now_num();
-    Rcpp::List p3 = parallel_fn(
-      Rcpp::Named("par0")   = 0.5 * (low + upp),
-      Rcpp::Named("low")    = low,
-      Rcpp::Named("upp")    = upp,
-      Rcpp::Named("cache")  = cache,
-      Rcpp::Named("cbars")  = make_slice(k3),
-      Rcpp::Named("y")      = y,
-      Rcpp::Named("x")      = x,
-      Rcpp::Named("alpha")  = alpha,
-      Rcpp::Named("wt")     = wt
-    );
-    double t5 = now_num();
-    double elapsed3 = t5 - t4;
-    
-    // Per-face slope from k2→k3 (both large enough to amortize fixed costs)
-    double denom = static_cast<double>(k3 - k2);
-    double t_face = (elapsed3 - elapsed2) / std::max(1.0, denom);
-    
-    // Fixed component from warm-up
-    double t_fixed = elapsed1;
-    
-    // Estimate full grid time
-    est_total = t_fixed + static_cast<double>(gs) * t_face;
-    
-    auto fmt_hms = [](double seconds) {
-      int s = static_cast<int>(std::round(seconds));
-      int h = s / 3600; s %= 3600;
-      int m = s / 60;   s %= 60;
-      std::ostringstream oss;
-      if (h) oss << h << "h ";
-      if (h || m) oss << m << "m ";
-      oss << s << "s";
-      return oss.str();
-    };
-    
-    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] k1=" << k1
-                << " (" << (100.0 * k1 / gs) << "%) elapsed=" << elapsed1 << "s; "
-                << "k2=" << k2 << " (" << (100.0 * k2 / gs) << "%) elapsed=" << elapsed2 << "s; "
-                << "k3=" << k3 << " (" << (100.0 * k3 / gs) << "%) elapsed=" << elapsed3 << "s.\n";
-    
-    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] t_fixed=" << t_fixed
-                << "s, t_face=" << t_face << "s/face.\n";
-    
-    Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] Estimated full run = "
-                << fmt_hms(est_total) << " (" << est_total << "s).\n";
-  }  
-    
+  // // --- Three-stage pilot using fractional sizes of total faces ---
+  // if (verbose && gs > 0) {
+  //   // Warm-up remains fixed
+  //   int k1 = std::min(gs, 500);
+  //   
+  //   // Fractional pilots: k2 ≈ 0.5%, k3 ≈ 1.0% of total faces
+  //   // Floors/ceilings ensure usefulness without being excessive
+  //   auto frac_round = [](double v) { return static_cast<int>(std::round(v)); };
+  //   int k2_target = frac_round(0.005 * static_cast<double>(gs));   // ~0.5%
+  //   int k3_target = frac_round(0.010 * static_cast<double>(gs));   // ~1.0%
+  //   
+  //   // Apply floors (so they’re not too small) and caps (so they stay quick)
+  //   int floor_k2 = 3000;   // minimum for mid pilot
+  //   int floor_k3 = 6000;   // minimum for large pilot
+  //   int cap_k2   = 50000;  // keep pilot quick
+  //   int cap_k3   = 100000; // keep pilot quick
+  //   
+  //   int k2 = std::min(gs, std::max(floor_k2, std::min(k2_target, cap_k2)));
+  //   int k3 = std::min(gs, std::max(floor_k3, std::min(k3_target, cap_k3)));
+  //   
+  //   // Ensure strict ordering: k1 < k2 < k3
+  //   if (k2 <= k1) k2 = std::min(gs, std::max(k1 + 1, floor_k2));
+  //   if (k3 <= k2) k3 = std::min(gs, std::max(k2 + 1, floor_k3));
+  //   
+  //   auto make_slice = [&](int k) {
+  //     Rcpp::NumericMatrix cbars_slice(k, l1);
+  //     for (int i = 0; i < k; ++i)
+  //       for (int j = 0; j < l1; ++j)
+  //         cbars_slice(i, j) = cbars(i, j);
+  //     return cbars_slice;
+  //   };
+  //   
+  //   auto now_num = []() {
+  //     return Rcpp::as<double>(
+  //       Rcpp::Function("as.numeric")(Rcpp::Function("Sys.time")())
+  //     );
+  //   };
+  //   
+  //   // First pilot (warm-up k1)
+  //   double t0 = now_num();
+  //   Rcpp::List p1 = parallel_fn(
+  //     Rcpp::Named("par0")   = 0.5 * (low + upp),
+  //     Rcpp::Named("low")    = low,
+  //     Rcpp::Named("upp")    = upp,
+  //     Rcpp::Named("cache")  = cache,
+  //     Rcpp::Named("cbars")  = make_slice(k1),
+  //     Rcpp::Named("y")      = y,
+  //     Rcpp::Named("x")      = x,
+  //     Rcpp::Named("alpha")  = alpha,
+  //     Rcpp::Named("wt")     = wt,
+  //     Rcpp::Named("use_parallel")     = use_parallel
+  //   );
+  //   double t1 = now_num();
+  //   double elapsed1 = t1 - t0;
+  //   
+  //   // Second pilot (~0.5%)
+  //   double t2 = now_num();
+  //   Rcpp::List p2 = parallel_fn(
+  //     Rcpp::Named("par0")   = 0.5 * (low + upp),
+  //     Rcpp::Named("low")    = low,
+  //     Rcpp::Named("upp")    = upp,
+  //     Rcpp::Named("cache")  = cache,
+  //     Rcpp::Named("cbars")  = make_slice(k2),
+  //     Rcpp::Named("y")      = y,
+  //     Rcpp::Named("x")      = x,
+  //     Rcpp::Named("alpha")  = alpha,
+  //     Rcpp::Named("wt")     = wt
+  //   );
+  //   double t3 = now_num();
+  //   double elapsed2 = t3 - t2;
+  //   
+  //   // Third pilot (~1.0%)
+  //   double t4 = now_num();
+  //   Rcpp::List p3 = parallel_fn(
+  //     Rcpp::Named("par0")   = 0.5 * (low + upp),
+  //     Rcpp::Named("low")    = low,
+  //     Rcpp::Named("upp")    = upp,
+  //     Rcpp::Named("cache")  = cache,
+  //     Rcpp::Named("cbars")  = make_slice(k3),
+  //     Rcpp::Named("y")      = y,
+  //     Rcpp::Named("x")      = x,
+  //     Rcpp::Named("alpha")  = alpha,
+  //     Rcpp::Named("wt")     = wt
+  //   );
+  //   double t5 = now_num();
+  //   double elapsed3 = t5 - t4;
+  //   
+  //   // Per-face slope from k2→k3 (both large enough to amortize fixed costs)
+  //   double denom = static_cast<double>(k3 - k2);
+  //   double t_face = (elapsed3 - elapsed2) / std::max(1.0, denom);
+  //   
+  //   // Fixed component from warm-up
+  //   double t_fixed = elapsed1;
+  //   
+  //   // Estimate full grid time
+  //   est_total = t_fixed + static_cast<double>(gs) * t_face;
+  //   
+  //   auto fmt_hms = [](double seconds) {
+  //     int s = static_cast<int>(std::round(seconds));
+  //     int h = s / 3600; s %= 3600;
+  //     int m = s / 60;   s %= 60;
+  //     std::ostringstream oss;
+  //     if (h) oss << h << "h ";
+  //     if (h || m) oss << m << "m ";
+  //     oss << s << "s";
+  //     return oss.str();
+  //   };
+  //   
+  //   Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] k1=" << k1
+  //               << " (" << (100.0 * k1 / gs) << "%) elapsed=" << elapsed1 << "s; "
+  //               << "k2=" << k2 << " (" << (100.0 * k2 / gs) << "%) elapsed=" << elapsed2 << "s; "
+  //               << "k3=" << k3 << " (" << (100.0 * k3 / gs) << "%) elapsed=" << elapsed3 << "s.\n";
+  //   
+  //   Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] t_fixed=" << t_fixed
+  //               << "s, t_face=" << t_face << "s/face.\n";
+  //   
+  //   Rcpp::Rcout << "[EnvelopeDispersionBuild:RSS:Pilot] Estimated full run = "
+  //               << fmt_hms(est_total) << " (" << est_total << "s).\n";
+  // }  
+  
+  
+  
+  
     // --- After computing est_total ---
-    double est_total_sec = est_total;  // from pilot estimate
+     double est_total_sec = est_total;  // from pilot estimate
   
   // --- yes/no option if estimate exceeds 5 minutes ---
   if (est_total_sec > 300.0) {
