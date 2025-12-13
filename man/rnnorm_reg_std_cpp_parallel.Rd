@@ -57,7 +57,7 @@ rnnorm_reg_std_cpp_parallel(
 \value{
 A list with components:
 \itemize{
-\item out: numeric matrix (n × p) of sampled latent values.
+\item out: numeric matrix (n * p) of sampled latent values.
 \item draws: numeric vector of length n of final draws.
 }
 }

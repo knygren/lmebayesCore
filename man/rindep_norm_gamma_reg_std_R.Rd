@@ -26,7 +26,7 @@ rindep_norm_gamma_reg_std_R(
 
 \item{y}{A vector of observations of length \code{m}.}
 
-\item{x}{A design matrix of dimension \code{m × p}.}
+\item{x}{A design matrix of dimension \code{m * p}.}
 
 \item{mu}{Prior mean}
 

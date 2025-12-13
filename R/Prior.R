@@ -185,7 +185,7 @@ Prior_Setup <- function(
   
   if (family$family == "binomial"
       && is.numeric(Y) && is.vector(Y)
-      && all(Y >= 0 & Y <= 1)    # use <= instead of ≤
+      && all(Y >= 0 & Y <= 1)    # use <= instead of <=
       && is.null(weights)) {
     warning(
       "You supplied a proportion response (0 <= y <= 1) to a binomial family\n",
@@ -346,7 +346,7 @@ if (!is.null(sd)) {
   
   ## conditional dispersion
   if (family$family == "gaussian") {
-    ## summary(glm) gives you the MLE σ̂² via $dispersion
+    ## summary(glm) gives you the MLE \eqn{\sigma^2} via $dispersion
     dispersion <- summary(glm_full)$dispersion
   } else {
     dispersion <- NULL

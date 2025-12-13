@@ -21,7 +21,7 @@ run_opencl_pilot(G4, y, x, mu, P, alpha, wt,
                         threshold_sec = 300)
 }
 \arguments{
-\item{G4}{Numeric matrix of parameter values (parameters × grid points).}
+\item{G4}{Numeric matrix of parameter values (parameters * grid points).}
 
 \item{y}{Numeric response vector.}
 
@@ -44,7 +44,7 @@ shifted into the likelihood.}
 
 \item{verbose}{Logical; if \code{TRUE}, print diagnostic output.}
 
-\item{b}{Numeric matrix of parameter values (parameters × grid points).}
+\item{b}{Numeric matrix of parameter values (parameters * grid points).}
 
 \item{progbar}{Integer flag for progress bar control (internal use).}
 
@@ -83,7 +83,7 @@ The evaluation workflow has several layers:
 \itemize{
 \item \code{EnvelopeEval()} is the user-facing entry point. It accepts a grid of
 parameter values (\code{G4}) and the data (\code{y}, \code{x}, \code{mu}, \code{P}, \code{alpha}, \code{wt}).
-\item If the grid is large (≥ 14 columns), it first calls
+\item If the grid is large (>= 14 columns), it first calls
 \code{\link[=run_opencl_pilot]{run_opencl_pilot()}} to benchmark OpenCL performance and optionally
 report estimated runtime.
 \item It then dispatches to either the CPU or GPU backend:
@@ -144,7 +144,7 @@ whether OpenCL acceleration is likely to be beneficial.
 \item All backends return a list with:
 \itemize{
 \item \code{NegLL}: numeric vector of negative log-likelihood values.
-\item \code{cbars}: numeric matrix of gradients (parameters × grid points).
+\item \code{cbars}: numeric matrix of gradients (parameters * grid points).
 \strong{6. Role of likelihood and gradients in sampling}
 }
 \item The outputs of \code{EnvelopeEval()} - the negative log-likelihood values

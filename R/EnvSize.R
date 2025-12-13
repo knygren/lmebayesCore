@@ -11,7 +11,7 @@
 #' 
 #' @param a Numeric vector of diagonal precisions for the log-likelihood
 #'   (posterior precision is \eqn{1 + a_i}).
-#' @param G1 Numeric matrix of candidate grid points (3 × l1).
+#' @param G1 Numeric matrix of candidate grid points (3 * l1).
 #' @param Gridtype Integer code controlling grid sizing logic:
 #'   \itemize{
 #'     \item 1 = static threshold test

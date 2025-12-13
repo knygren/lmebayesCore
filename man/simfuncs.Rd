@@ -44,7 +44,7 @@ rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 
 \item{y}{A vector of observations of length \code{m}.}
 
-\item{x}{A design matrix of dimension \code{m × p}.}
+\item{x}{A design matrix of dimension \code{m * p}.}
 
 \item{prior_list}{A list with prior parameters (e.g., shape, rate, beta) used in the simulation.}
 
@@ -86,7 +86,7 @@ envelopes.}
 \item{\code{rNormal_reg()}}{A list object with classes \code{"rglmb"}, \code{"glmb"}, \code{"glm"}, and \code{"lm"}.
 Elements include:
 \describe{
-\item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, with column names from \code{x}.}
+\item{\code{coefficients}}{Matrix (\code{n * p}) of simulated regression coefficients, with column names from \code{x}.}
 \item{\code{coef.mode}}{Posterior mode of the coefficients. Gaussian: from \code{lm.fit}; non-Gaussian: BFGS mode shifted by prior mean.}
 \item{\code{dispersion}}{Scalar dispersion used. Poisson/Binomial: \code{1}; otherwise the supplied value. Quasi families: mean residual-based dispersion computed in the wrapper.}
 \item{\code{Prior}}{List with \code{mean} (prior mean vector) and \code{Precision} (prior precision matrix \code{P}).}
@@ -109,7 +109,7 @@ Elements include:
 
 \item{\code{rNormal_Gamma_reg()}}{A list with class \code{"rglmb"} containing:
 \describe{
-\item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients; row \code{i} equals \code{Btilde + IR \%*\% rnorm(p) * sqrt(dispersion[i])}. Column names are set to \code{colnames(x)}.}
+\item{\code{coefficients}}{Matrix (\code{n * p}) of simulated regression coefficients; row \code{i} equals \code{Btilde + IR \%*\% rnorm(p) * sqrt(dispersion[i])}. Column names are set to \code{colnames(x)}.}
 \item{\code{coef.mode}}{Posterior mean/mode vector \code{Btilde} from \code{rNormal_reg.wfit()}.}
 \item{\code{dispersion}}{Numeric vector of length \code{n} with draws from the inverse-gamma posterior \code{1/rgamma(shape = shape + nobs/2, rate = rate + 0.5*S)}.}
 \item{\code{Prior}}{List with \code{mean} (as numeric vector \code{mu}) and \code{Precision} (matrix \code{P}).}
@@ -127,7 +127,7 @@ Elements include:
 
 \item{\code{rindependent_norm_gamma_reg()}}{A list with class \code{"rglmb"} containing:
 \describe{
-\item{\code{coefficients}}{Matrix (\code{n × p}) of simulated regression coefficients, back-transformed to the original scale; column names set to \code{colnames(x)}.}
+\item{\code{coefficients}}{Matrix (\code{n * p}) of simulated regression coefficients, back-transformed to the original scale; column names set to \code{colnames(x)}.}
 \item{\code{coef.mode}}{Vector with the conditional posterior mode used for envelope anchoring (from the Gaussian fit).}
 \item{\code{dispersion}}{Numeric vector of length \code{n} with simulated dispersion draws.}
 \item{\code{Prior}}{List with prior components: \code{mean} (prior mean \code{mu}), \code{Sigma} (prior covariance), \code{shape} and \code{rate} (Gamma prior for dispersion), \code{Precision} (\code{solve(Sigma)}).}
@@ -148,7 +148,7 @@ Elements include:
 
 \item{\code{rGamma_reg()}}{An object of class \code{"rGamma_reg"} containing:
 \describe{
-\item{\code{coefficients}}{A 1 × p matrix of assumed regression coefficients.}
+\item{\code{coefficients}}{A 1 * p matrix of assumed regression coefficients.}
 \item{\code{coef.mode}}{Currently \code{NULL}; reserved for future use.}
 \item{\code{dispersion}}{A vector of simulated dispersion values.}
 \item{\code{Prior}}{A list with prior parameters: \code{shape} and \code{rate}.}

@@ -48,11 +48,11 @@ residuals.rglmb <- function(object, ysim = NULL, ...) {
   n   <- nrow(object$coefficients)
   wts <- object$prior.weights
   
-  # 1) build a matrix (n × length(y)) of linear predictors and fitted values
+  # 1) build a matrix (n * length(y)) of linear predictors and fitted values
   lp_mat <- t(object$x %*% t(object$coefficients))
   fv_mat <- object$family$linkinv(lp_mat)
   
-  # 2) grab the family’s deviance‐resids function
+  # 2) grab the family's deviance-resids function
   devfun <- object$family$dev.resids
   
   # 3) allocate
@@ -66,7 +66,7 @@ residuals.rglmb <- function(object, ysim = NULL, ...) {
       mu_vec <- ysim[i, ]
     }
     
-    # call the C‐level deviance‐resids with exactly (y, mu, wts)
+    # call the C-level deviance-resids with exactly (y, mu, wts)
     DevRes[i, ] <- sign(y - mu_vec) * sqrt(devfun(y, mu_vec, wts))
   }
   

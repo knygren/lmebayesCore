@@ -286,11 +286,11 @@ Placeholder: explain how UB2 is constructed from RSS differences and why it is n
 }
 
 \item{UB3A (face-wise quadratic/linear envelope surplus)}{
-Placeholder: explain how lg_prob_factor, lmc1, and lmc2 are derived and why UB3A ≥ 0.
+Placeholder: explain how lg_prob_factor, lmc1, and lmc2 are derived and why UB3A >= 0.
 }
 
 \item{UB3B (dispersion-axis envelope surplus)}{
-Placeholder: explain how lm_log1, lm_log2, and max_New_LL_UB are used and why UB3B ≥ 0.
+Placeholder: explain how lm_log1, lm_log2, and max_New_LL_UB are used and why UB3B >= 0.
 }
 
 }

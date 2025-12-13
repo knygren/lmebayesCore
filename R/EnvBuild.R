@@ -940,7 +940,7 @@
 #' @param bStar     Point at which envelope should be centered (typically posterior mode).
 #' @param A         Diagonal precision matrix for the log-likelihood in standard form.
 #' @param y         A vector of observations of length \code{m}.
-#' @param x         A design matrix of dimension \code{m × p}.
+#' @param x A design matrix of dimension \code{m * p}.
 #' @param mu        A vector giving the prior means of the variables.
 #' @param P         Prior precision matrix of the variables (positive-definite).
 #' @param alpha     Offset vector.
@@ -1031,7 +1031,6 @@ EnvelopeBuild <- function(
     n_envopt <- n
   }
   
-  # validate: must be a single non‑NA integer >= 1
   if (length(n_envopt) != 1L || is.na(n_envopt) || n_envopt < 1) {
     stop("`n_envopt` must be a positive integer scalar.")
   }

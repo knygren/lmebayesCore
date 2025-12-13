@@ -22,7 +22,7 @@
 #' @param verbose Logical. Whether to print progress messages.
 #'
 #' @return A list with components:
-#'   - out: numeric matrix (n × p) of sampled latent values.  
+#'   - out: numeric matrix (n * p) of sampled latent values.  
 #'   - draws: numeric vector of length n of final draws.  
 #'
 #' @importFrom RcppParallel RcppParallelLibs

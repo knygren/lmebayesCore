@@ -14,7 +14,7 @@ EnvelopeOpt(a1,n,core_cnt=1L)
 \item{a}{Numeric vector of diagonal precisions for the log-likelihood
 (posterior precision is \eqn{1 + a_i}).}
 
-\item{G1}{Numeric matrix of candidate grid points (3 × l1).}
+\item{G1}{Numeric matrix of candidate grid points (3 * l1).}
 
 \item{Gridtype}{Integer code controlling grid sizing logic:
 \itemize{

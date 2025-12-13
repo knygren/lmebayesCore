@@ -182,11 +182,11 @@
 #'   }
 #'
 #'   \item{UB3A (face-wise quadratic/linear envelope surplus)}{
-#'     Placeholder: explain how lg_prob_factor, lmc1, and lmc2 are derived and why UB3A ≥ 0.
+#'     Placeholder: explain how lg_prob_factor, lmc1, and lmc2 are derived and why UB3A >= 0.
 #'   }
 #'
 #'   \item{UB3B (dispersion-axis envelope surplus)}{
-#'     Placeholder: explain how lm_log1, lm_log2, and max_New_LL_UB are used and why UB3B ≥ 0.
+#'     Placeholder: explain how lm_log1, lm_log2, and max_New_LL_UB are used and why UB3B >= 0.
 #'   }
 #'
 #' }
@@ -249,7 +249,7 @@ EnvBuildLinBound<-function(thetabars,cbars,y,x2,P2,alpha,dispstar){
   
   # replicate rhs across gs columns
   rhs_mat <- matrix(rhs, nrow = length(rhs), ncol = nrow(cbars))
-  H1_rhs  <- t(H1 %*% (rhs_mat + dispstar * t(cbars)))  # gs × p
+  H1_rhs  <- t(H1 %*% (rhs_mat + dispstar * t(cbars)))  # gs * p
   
   term2 <- rowSums(V * H1_rhs)
   

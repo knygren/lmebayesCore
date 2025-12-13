@@ -14,7 +14,7 @@
 #' in \insertCite{glmbayesSimmethods}{glmbayes}.
 
 #'
-#' @param G4 Numeric matrix of parameter values (parameters × grid points).
+#' @param G4 Numeric matrix of parameter values (parameters * grid points).
 #' @param y Numeric response vector.
 #' @param x Numeric design matrix.
 #' @param mu Numeric matrix of offsets or prior means.
@@ -27,7 +27,7 @@
 #' @param use_opencl Logical; if \code{TRUE}, attempt OpenCL acceleration.
 #' @param verbose Logical; if \code{TRUE}, print diagnostic output.
 #' @param progbar Integer flag for progress bar control (internal use).
-#' @param b Numeric matrix of parameter values (parameters × grid points).
+#' @param b Numeric matrix of parameter values (parameters * grid points).
 #' @param threshold_sec Threshold seconds for run_opencl_pilot. If second exceeds this, a prompt for users is 
 #' triggered allowing users to interrupt the run.
 #' @details
@@ -37,7 +37,7 @@
 #'
 #' * `EnvelopeEval()` is the user-facing entry point. It accepts a grid of
 #'   parameter values (`G4`) and the data (`y`, `x`, `mu`, `P`, `alpha`, `wt`).
-#' * If the grid is large (≥ 14 columns), it first calls
+#' * If the grid is large (>= 14 columns), it first calls
 #'   [`run_opencl_pilot()`] to benchmark OpenCL performance and optionally
 #'   report estimated runtime.
 #' * It then dispatches to either the CPU or GPU backend:
@@ -87,7 +87,7 @@
 #'
 #' * All backends return a list with:
 #'   - `NegLL`: numeric vector of negative log-likelihood values.
-#'   - `cbars`: numeric matrix of gradients (parameters × grid points).
+#'   - `cbars`: numeric matrix of gradients (parameters * grid points).
 #' **6. Role of likelihood and gradients in sampling**
 #'
 #' * The outputs of `EnvelopeEval()` - the negative log-likelihood values
