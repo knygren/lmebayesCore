@@ -169,13 +169,19 @@ detect_compute_runtimes <- function(info) {
     if (!inherits(raw_lib_dirs, "try-error")) {
       alt_lib_dirs <- gsub("/usr/local", "/usr", raw_lib_dirs)
       system_lib_dirs <- sort(unique(c(raw_lib_dirs, alt_lib_dirs)))
+      
+      ## Changes to try to detect the true path
       for (d in system_lib_dirs) {
-        if (file.exists(file.path(d, "libOpenCL.so"))) {
+        hits <- Sys.glob(file.path(d, "libOpenCL.so*"))
+        if (length(hits) > 0) {
           result$runtimes$nvidia$opencl$lib_dirs <- unique(
             c(result$runtimes$nvidia$opencl$lib_dirs, d)
           )
         }
       }
+      
+      
+      
     }
     
     # ---- Derive headers/runtime/installed flags (Linux/WSL) ----

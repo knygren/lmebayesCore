@@ -120,17 +120,33 @@ echo "$ALT_LIB_DIRS"
 SYSTEM_LIB_DIRS=$(echo "$RAW_LIB_DIRS $ALT_LIB_DIRS" | tr ' ' '\n' | sort -u)
 echo "$SYSTEM_LIB_DIRS"
 
+## OLD VERSION - EDITED OUT 12/27/25
+# for dir in $SYSTEM_LIB_DIRS; do
+#     echo "🔎 Checking: $dir"
+#     if [ -f "$dir/$OPENCL_LIB_HEADER" ]; then
+# ##        OPENCL_INCLUDE="-I$dir"
+#         OPENCL_LIB="-L$dir -lOpenCL"
+#         OPENCL_LIB_FOUND=yes
+#         echo "✅ Found OpenCLn Library  in  $dir"
+#         break
+#     fi
+# done
+
+
+## NEW VERSON - ADDED 12/27/25
 
 for dir in $SYSTEM_LIB_DIRS; do
     echo "🔎 Checking: $dir"
-    if [ -f "$dir/$OPENCL_LIB_HEADER" ]; then
-##        OPENCL_INCLUDE="-I$dir"
+    # Accept libOpenCL.so, libOpenCL.so.1, libOpenCL.so.1.2.0, etc.
+    if ls "$dir"/libOpenCL.so* >/dev/null 2>&1; then
         OPENCL_LIB="-L$dir -lOpenCL"
         OPENCL_LIB_FOUND=yes
-        echo "✅ Found OpenCLn Library  in  $dir"
+        echo "✅ Found OpenCL library in: $dir"
         break
     fi
 done
+
+
 
 
 
