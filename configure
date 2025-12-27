@@ -184,7 +184,7 @@ fi
 # ------------------------------------------------------------
 # Ensure WSL GPU libraries are visible
 # ------------------------------------------------------------
-export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
 
 
 # Runtime probe
@@ -200,7 +200,9 @@ int main() {
 }
 EOF
   ${CC} conftest_opencl.c -lOpenCL -o conftest_opencl >/dev/null 2>&1
-  if env LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH ./conftest_opencl >/dev/null 2>&1; then
+  # Replacing with safer probe
+#  if env LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH ./conftest_opencl >/dev/null 2>&1; then
+  if env LD_LIBRARY_PATH=$OPENCL_LIBDIR:$LD_LIBRARY_PATH ./conftest_opencl >/dev/null 2>&1; then
     echo "OpenCL runtime detected."
     OPENCL_RUNTIME_FOUND=yes
   else
@@ -243,8 +245,23 @@ fi
 
 echo "Checking for NVIDIA GPU via nvidia-smi..."
 
-GPU_NAME=$(env LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH /usr/bin/nvidia-smi --query-gpu=name --format=csv,noheader 2>&1)
 
+CUDA_LIBDIR=""
+for dir in $SYSTEM_LIB_DIRS; do
+    if ls "$dir"/libcuda.so* >/dev/null 2>&1; then
+        CUDA_LIBDIR="$dir"
+        echo "✔ Found CUDA driver library in: $dir"
+        break
+    fi
+done
+
+GPU_NAME=$(env LD_LIBRARY_PATH=$CUDA_LIBDIR:$LD_LIBRARY_PATH \
+           /usr/bin/nvidia-smi --query-gpu=name --format=csv,noheader 2>&1)
+# GPU_NAME=$(env LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH /usr/bin/nvidia-smi --query-gpu=name --format=csv,noheader 2>&1)
+
+if [ -z "$CUDA_LIBDIR" ]; then
+    echo "⚠️ CUDA driver library not found — GPU detection may fail."
+fi
 
 if [ -n "$GPU_NAME" ]; then
     echo "GPU detected: $GPU_NAME"

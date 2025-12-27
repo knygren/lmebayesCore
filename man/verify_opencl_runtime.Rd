@@ -4,7 +4,10 @@
 \alias{verify_opencl_runtime}
 \title{Verify OpenCL Runtime Availability}
 \usage{
-verify_opencl_runtime()
+verify_opencl_runtime(lib_dirs = NULL)
+}
+\arguments{
+\item{lib_dirs}{A list of OpenCL directories}
 }
 \value{
 Logical. \code{TRUE} if a usable OpenCL runtime is detected,

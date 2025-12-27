@@ -117,8 +117,7 @@ If the headers are missing, `glmbayes` cannot compile GPU support.
   install.packages(
   "glmbayes",
   repos = c("https://knygren.r-universe.dev", "https://cloud.r-project.org"),
-  type = "source"
-    )
+  type = "source")
 
 ## 4. **Load the package**
    library(glmbayes)

@@ -17,6 +17,7 @@
 #' If compilation or execution fails, the function returns \code{FALSE}.
 #' If compilation and execution succeed and at least one platform is detected,
 #' the function returns \code{TRUE}.
+#' @param lib_dirs A list of OpenCL directories
 #'
 #' @return Logical. \code{TRUE} if a usable OpenCL runtime is detected,
 #'         \code{FALSE} otherwise.
