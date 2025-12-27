@@ -1,5 +1,6 @@
-#' Detect CUDA and OpenCL runtimes and their installation directories
+#' @title Detect Compute Runtimes (CUDA and OpenCL)
 #'
+#' @description
 #' \code{detect_compute_runtimes()} inspects the host system to determine
 #' whether CUDA and/or OpenCL runtimes are installed for NVIDIA, AMD, and Intel,
 #' and reports the directories where relevant headers, libraries, and executables
@@ -102,55 +103,105 @@ detect_compute_runtimes <- function(info) {
     environment = env,
     runtimes = list(
       nvidia = list(
-        cuda   = list(installed = FALSE, bin_dirs = character(), include_dirs = character(), lib_dirs = character()),
-        opencl = list(installed = FALSE, bin_dirs = character(), include_dirs = character(), lib_dirs = character())
+        cuda   = list(
+          installed      = FALSE,
+          bin_dirs       = character(),
+          include_dirs   = character(),
+          lib_dirs       = character()
+        ),
+        opencl = list(
+          installed        = FALSE,
+          headers_present  = FALSE,
+          runtime_present  = FALSE,
+          bin_dirs         = character(),
+          include_dirs     = character(),
+          lib_dirs         = character()
+        )
       ),
-      amd   = list(opencl = list(installed = FALSE, include_dirs = character(), lib_dirs = character(), bin_dirs = character())),
-      intel = list(opencl = list(installed = FALSE, include_dirs = character(), lib_dirs = character(), bin_dirs = character()))
+      amd = list(
+        opencl = list(
+          installed        = FALSE,
+          headers_present  = FALSE,
+          runtime_present  = FALSE,
+          bin_dirs         = character(),
+          include_dirs     = character(),
+          lib_dirs         = character()
+        )
+      ),
+      intel = list(
+        opencl = list(
+          installed        = FALSE,
+          headers_present  = FALSE,
+          runtime_present  = FALSE,
+          bin_dirs         = character(),
+          include_dirs     = character(),
+          lib_dirs         = character()
+        )
+      )
     )
   )
   
   # -------------------------------
-  # Linux / WSL logic (UNCHANGED)
+  # Linux / WSL logic
   # -------------------------------
   if (env %in% c("linux", "wsl")) {
-    inc_dirs <- try(system("echo | gcc -E -x c++ - -v 2>&1 | grep '^ /' | sed 's/^ //'", intern = TRUE), silent = TRUE)
+    # ---- Header detection via GCC include paths ----
+    inc_dirs <- try(
+      system("echo | gcc -E -x c++ - -v 2>&1 | grep '^ /' | sed 's/^ //'", intern = TRUE),
+      silent = TRUE
+    )
     if (!inherits(inc_dirs, "try-error")) {
       for (d in inc_dirs) {
         if (file.exists(file.path(d, "CL", "cl.h"))) {
-          result$runtimes$nvidia$opencl$include_dirs <- unique(c(result$runtimes$nvidia$opencl$include_dirs, d))
+          result$runtimes$nvidia$opencl$include_dirs <- unique(
+            c(result$runtimes$nvidia$opencl$include_dirs, d)
+          )
         }
       }
     }
     
-    raw_lib_dirs <- try(system("gcc -Xlinker --verbose 2>&1 | grep SEARCH_DIR | sed 's/SEARCH_DIR(\"=*\\([^\\\"]*\\)\").*/\\1/'", intern = TRUE), silent = TRUE)
+    # ---- Library detection via GCC link search paths ----
+    raw_lib_dirs <- try(
+      system("gcc -Xlinker --verbose 2>&1 | grep SEARCH_DIR | sed 's/SEARCH_DIR(\"=*\\([^\\\"]*\\)\").*/\\1/'", 
+             intern = TRUE),
+      silent = TRUE
+    )
     if (!inherits(raw_lib_dirs, "try-error")) {
       alt_lib_dirs <- gsub("/usr/local", "/usr", raw_lib_dirs)
       system_lib_dirs <- sort(unique(c(raw_lib_dirs, alt_lib_dirs)))
       for (d in system_lib_dirs) {
         if (file.exists(file.path(d, "libOpenCL.so"))) {
-          result$runtimes$nvidia$opencl$lib_dirs <- unique(c(result$runtimes$nvidia$opencl$lib_dirs, d))
+          result$runtimes$nvidia$opencl$lib_dirs <- unique(
+            c(result$runtimes$nvidia$opencl$lib_dirs, d)
+          )
         }
       }
     }
     
-    if (length(result$runtimes$nvidia$opencl$include_dirs) > 0 &&
-        length(result$runtimes$nvidia$opencl$lib_dirs) > 0) {
-      result$runtimes$nvidia$opencl$installed <- TRUE
-    }
+    # ---- Derive headers/runtime/installed flags (Linux/WSL) ----
+    nvidia_oc <- result$runtimes$nvidia$opencl
+    headers_present <- length(nvidia_oc$include_dirs) > 0
+    runtime_present <- length(nvidia_oc$lib_dirs)     > 0
     
+    result$runtimes$nvidia$opencl$headers_present <- headers_present
+    result$runtimes$nvidia$opencl$runtime_present <- runtime_present
+    result$runtimes$nvidia$opencl$installed       <- headers_present && runtime_present
+    
+    # CUDA detection (unchanged logic, but explicit)
     nvcc_path <- Sys.which("nvcc")
     if (nzchar(nvcc_path)) {
-      nvcc_path <- normalizePath(nvcc_path, winslash = "/", mustWork = TRUE)
-      cuda_root <- normalizePath(file.path(dirname(nvcc_path), ".."), winslash = "/", mustWork = TRUE)
+      nvcc_path  <- normalizePath(nvcc_path, winslash = "/", mustWork = TRUE)
+      cuda_root  <- normalizePath(file.path(dirname(nvcc_path), ".."), winslash = "/", mustWork = TRUE)
       cuda_include <- file.path(cuda_root, "include")
-      cuda_lib <- file.path(cuda_root, "lib64")
+      cuda_lib     <- file.path(cuda_root, "lib64")
       
-      result$runtimes$nvidia$cuda$installed <- TRUE
-      result$runtimes$nvidia$cuda$bin_dirs <- dirname(nvcc_path)
+      result$runtimes$nvidia$cuda$installed  <- TRUE
+      result$runtimes$nvidia$cuda$bin_dirs   <- dirname(nvcc_path)
       if (dir.exists(cuda_include)) result$runtimes$nvidia$cuda$include_dirs <- cuda_include
-      if (dir.exists(cuda_lib)) result$runtimes$nvidia$cuda$lib_dirs <- cuda_lib
+      if (dir.exists(cuda_lib))     result$runtimes$nvidia$cuda$lib_dirs     <- cuda_lib
     }
+    
+    # NOTE: You could extend analogous logic for AMD/Intel on Linux if needed
   }
   
   # -------------------------------
@@ -168,7 +219,7 @@ detect_compute_runtimes <- function(info) {
     for (var in c("OPENCL_HOME", "OPENCL_SDK")) {
       val <- Sys.getenv(var, unset = "")
       if (nzchar(val)) {
-        for (sub in c("", "bin", "lib", "include", file.path("include","CL"))) {
+        for (sub in c("", "bin", "lib", "include", file.path("include", "CL"))) {
           path <- file.path(val, sub)
           if (dir.exists(path)) search_paths <- c(search_paths, path)
         }
@@ -193,50 +244,48 @@ detect_compute_runtimes <- function(info) {
     }
     
     # 4. Static fallbacks
-    static_paths <- c("C:/OpenCL-SDK","C:/opt","C:/Program Files (x86)")
+    static_paths <- c("C:/OpenCL-SDK", "C:/opt", "C:/Program Files (x86)")
     for (path in static_paths) {
       if (dir.exists(path)) search_paths <- c(search_paths, path)
     }
     
     # -------------------------------
-    # OpenCL header detection (UNCHANGED)
+    # OpenCL header detection (Windows)
     # -------------------------------
     cl_header <- NULL
     for (dir in search_paths) {
-      if (file.exists(file.path(dir,"CL","cl.h"))) {
-        cl_header <- file.path(dir,"CL","cl.h")
+      if (file.exists(file.path(dir, "CL", "cl.h"))) {
+        cl_header <- file.path(dir, "CL", "cl.h")
         break
       }
     }
     
     if (!is.null(cl_header)) {
-      cl_base <- dirname(cl_header)
-      opencl_home <- gsub("\\\\","/",sub("[/\\\\]include[/\\\\]CL$","",cl_base))
-      include_flag <- file.path(opencl_home,"include")
-      lib_flag     <- file.path(opencl_home,"lib","x64")
+      cl_base     <- dirname(cl_header)
+      opencl_home <- gsub("\\\\", "/", sub("[/\\\\]include[/\\\\]CL$", "", cl_base))
+      include_flag <- file.path(opencl_home, "include")
+      lib_flag     <- file.path(opencl_home, "lib", "x64")
       
       result$runtimes$nvidia$opencl$include_dirs <- 
-        c(result$runtimes$nvidia$opencl$include_dirs, include_flag)
+        unique(c(result$runtimes$nvidia$opencl$include_dirs, include_flag))
       
       if (dir.exists(lib_flag)) {
         result$runtimes$nvidia$opencl$lib_dirs <- 
-          c(result$runtimes$nvidia$opencl$lib_dirs, lib_flag)
+          unique(c(result$runtimes$nvidia$opencl$lib_dirs, lib_flag))
       }
     }
     
     # -------------------------------
-    # OpenCL ICD runtime detection (UPDATED)
+    # OpenCL ICD runtime detection (Windows)
     # -------------------------------
-    system32 <- file.path(Sys.getenv("SystemRoot"), "System32")
-    syswow64 <- file.path(Sys.getenv("SystemRoot"), "SysWOW64")
+    system32    <- file.path(Sys.getenv("SystemRoot"), "System32")
+    syswow64    <- file.path(Sys.getenv("SystemRoot"), "SysWOW64")
     driverstore <- file.path(system32, "DriverStore", "FileRepository")
     
-    loader_exists <- file.exists(file.path(system32, "OpenCL.dll"))
-    
-    icd_names <- c("nvopencl64.dll","amdocl64.dll","intelocl64.dll","igdrcl64.dll","pocl.dll")
+    icd_names <- c("nvopencl64.dll", "amdocl64.dll", "intelocl64.dll", "igdrcl64.dll", "pocl.dll")
     icd_found <- FALSE
     
-    # Search System32 + SysWOW64
+    # Search System32 + SysWOW64 for ICDs (any vendor)
     for (d in c(system32, syswow64)) {
       for (nm in icd_names) {
         if (file.exists(file.path(d, nm))) icd_found <- TRUE
@@ -245,19 +294,23 @@ detect_compute_runtimes <- function(info) {
     
     # Search DriverStore recursively
     if (dir.exists(driverstore)) {
-      hits <- list.files(driverstore, pattern = paste(icd_names, collapse="|"),
-                         recursive = TRUE, full.names = TRUE)
+      hits <- list.files(
+        driverstore,
+        pattern  = paste(icd_names, collapse = "|"),
+        recursive = TRUE,
+        full.names = TRUE
+      )
       if (length(hits) > 0) icd_found <- TRUE
     }
     
-    # Registry search (future-proof)
+    # Registry search (Khronos OpenCL Vendors)
     reg_paths <- character()
     for (key in c(
       "HKEY_LOCAL_MACHINE\\SOFTWARE\\Khronos\\OpenCL\\Vendors",
       "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Khronos\\OpenCL\\Vendors"
     )) {
       try({
-        entries <- suppressWarnings(utils::readRegistry(key, maxdepth = 1))
+        entries  <- suppressWarnings(utils::readRegistry(key, maxdepth = 1))
         reg_paths <- c(reg_paths, names(entries))
       }, silent = TRUE)
     }
@@ -267,8 +320,8 @@ detect_compute_runtimes <- function(info) {
       }
     }
     
-    # Determine actual loader path
-    loader_path <- file.path(Sys.getenv("SystemRoot"), "System32", "OpenCL.dll")
+    # Loader path
+    loader_path   <- file.path(Sys.getenv("SystemRoot"), "System32", "OpenCL.dll")
     loader_exists <- file.exists(loader_path)
     
     # Populate bin_dirs ONLY if loader + ICD exist
@@ -277,24 +330,32 @@ detect_compute_runtimes <- function(info) {
       result$runtimes$nvidia$opencl$bin_dirs <- loader_dir
     }
     
+    # -------------------------------
+    # Derive headers/runtime/installed flags (Windows)
+    # -------------------------------
+    headers_present <- !is.null(cl_header)
+    runtime_present <- loader_exists && icd_found
     
-    # Mark installed if headers OR ICDs found
-    if (!is.null(cl_header) || icd_found) {
-      result$runtimes$nvidia$opencl$installed <- TRUE
-    }
+    result$runtimes$nvidia$opencl$headers_present <- headers_present
+    result$runtimes$nvidia$opencl$runtime_present <- runtime_present
+    result$runtimes$nvidia$opencl$installed       <- headers_present && runtime_present
+    
+    # NOTE: If you want AMD/Intel to be tracked separately on Windows,
+    # you could inspect which ICD DLL was found and set their runtimes
+    # accordingly. For now, everything is funneled under nvidia$opencl.
     
     # -------------------------------
-    # CUDA detection (UNCHANGED)
+    # CUDA detection (Windows, unchanged logic)
     # -------------------------------
     nvcc_path <- Sys.which("nvcc.exe")
     if (nzchar(nvcc_path)) {
-      nvcc_path <- normalizePath(nvcc_path, winslash = "/", mustWork = TRUE)
-      cuda_root <- normalizePath(file.path(dirname(nvcc_path), ".."), winslash = "/", mustWork = TRUE)
-      cuda_include <- file.path(cuda_root,"include")
-      cuda_lib     <- file.path(cuda_root,"lib","x64")
+      nvcc_path   <- normalizePath(nvcc_path, winslash = "/", mustWork = TRUE)
+      cuda_root   <- normalizePath(file.path(dirname(nvcc_path), ".."), winslash = "/", mustWork = TRUE)
+      cuda_include <- file.path(cuda_root, "include")
+      cuda_lib     <- file.path(cuda_root, "lib", "x64")
       
-      result$runtimes$nvidia$cuda$installed <- TRUE
-      result$runtimes$nvidia$cuda$bin_dirs <- dirname(nvcc_path)
+      result$runtimes$nvidia$cuda$installed  <- TRUE
+      result$runtimes$nvidia$cuda$bin_dirs   <- dirname(nvcc_path)
       if (dir.exists(cuda_include)) result$runtimes$nvidia$cuda$include_dirs <- cuda_include
       if (dir.exists(cuda_lib))     result$runtimes$nvidia$cuda$lib_dirs     <- cuda_lib
     }

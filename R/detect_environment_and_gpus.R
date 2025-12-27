@@ -1,5 +1,6 @@
-#' Detect host environment and available GPUs
+#' @title Detect Environment and GPUs
 #'
+#' @description
 #' \code{detect_environment_and_gpus()} inspects the host system to determine
 #' whether R is running on Windows, Linux, WSL, or MSYS2, and then performs
 #' lightweight, vendor-agnostic checks for NVIDIA, AMD, and Intel GPUs.
@@ -18,7 +19,7 @@
 #' It is intended as a basic diagnostic to inform subsequent setup steps
 #' (e.g., OpenCL or CUDA configuration) rather than a full configuration
 #' manager.
-#'
+#' 
 #' @details
 #' Environment detection follows a simple heuristic:
 #' \itemize{

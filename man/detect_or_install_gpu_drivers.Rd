@@ -2,7 +2,7 @@
 % Please edit documentation in R/detect_or_install_gpu_drivers.R
 \name{detect_or_install_gpu_drivers}
 \alias{detect_or_install_gpu_drivers}
-\title{Detect GPU Drivers and Provide Installation Instructions}
+\title{Detect and Assess GPU Driver Installation}
 \usage{
 detect_or_install_gpu_drivers(info)
 }

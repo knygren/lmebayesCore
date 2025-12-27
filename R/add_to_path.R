@@ -1,5 +1,6 @@
-#' Add directories to PATH or LIBRARY_PATH permanently (Windows or Linux)
+#' @title Add Directories to PATH or LD_LIBRARY_PATH
 #'
+#' @description
 #' These helper functions allow you to add missing directories to the PATH
 #' or library search environment variables in a permanent way, minimizing
 #' manual editing.

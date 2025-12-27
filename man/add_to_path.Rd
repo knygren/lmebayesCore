@@ -5,7 +5,7 @@
 \alias{add_to_path_windows}
 \alias{add_to_path_linux}
 \alias{add_to_libpath_linux}
-\title{Add directories to PATH or LIBRARY_PATH permanently (Windows or Linux)}
+\title{Add Directories to PATH or LD_LIBRARY_PATH}
 \usage{
 add_to_path_windows(dirs)
 

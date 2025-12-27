@@ -1,5 +1,6 @@
-#' Verify OpenCL Runtime Availability
+#' @title Verify OpenCL Runtime Availability
 #'
+#' @description
 #' This function attempts to compile and run a minimal C program that calls
 #' \code{clGetPlatformIDs} to check whether a usable OpenCL runtime platform
 #' is available on the system. It is designed to complement

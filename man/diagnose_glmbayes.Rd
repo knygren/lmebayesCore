@@ -2,33 +2,42 @@
 % Please edit documentation in R/diagnose_glmbayes.R
 \name{diagnose_glmbayes}
 \alias{diagnose_glmbayes}
-\title{Diagnose GPU and OpenCL Environment for glmbayes}
+\title{Diagnose GPU and OpenCL Environment}
 \usage{
 diagnose_glmbayes()
 }
 \value{
-Invisibly returns a list containing diagnostic results.
+Invisibly returns a named list containing:
+\describe{
+\item{\code{environment_info}}{Output of \code{detect_environment_and_gpus()}}
+\item{\code{driver_status}}{Output of \code{detect_or_install_gpu_drivers()}}
+\item{\code{runtime_status}}{Output of \code{detect_compute_runtimes()}}
+\item{\code{env_diag}}{Output of \code{check_runtime_env()}}
+\item{\code{opencl_runtime_probe}}{TRUE/FALSE/NA depending on probe outcome}
+\item{\code{opencl_enabled}}{Whether \code{glmbayes} was compiled with OpenCL}
+}
 }
 \description{
-This function runs a full diagnostic pipeline to check the system environment,
-GPU availability, driver installation, compute runtimes (CUDA/OpenCL), environment
-variable configuration, and verifies whether a usable OpenCL runtime platform exists.
-}
-\details{
-It uses the helper functions:
+Runs a full diagnostic pipeline to assess GPU availability, driver
+installation, compute runtimes (CUDA/OpenCL), environment variable
+configuration, and whether a usable OpenCL runtime platform exists.
+A detailed human‑readable diagnostic report is printed to the console.
+
+The printed report includes:
 \itemize{
-\item \code{detect_environment_and_gpus()}
-\item \code{detect_or_install_gpu_drivers()}
-\item \code{detect_compute_runtimes()}
-\item \code{check_runtime_env()}
-\item \code{verify_opencl_runtime()}
+\item Operating system (Windows, Linux, WSL, macOS)
+\item GPU vendor selection (NVIDIA → AMD → Intel → CPU fallback)
+\item Driver installation status
+\item OpenCL header availability (\code{CL/cl.h})
+\item OpenCL runtime availability (ICD loader)
+\item Whether OpenCL is fully available (headers + runtime)
+\item PATH and library directory validation
+\item OpenCL runtime probe (Linux/WSL only)
+\item Whether \code{glmbayes} was compiled with OpenCL support
 }
 
-The diagnostic follows a preference order:
-\enumerate{
-\item NVIDIA GPUs (highest priority)
-\item AMD GPUs (if no NVIDIA present)
-\item Intel GPUs (if neither NVIDIA nor AMD present)
-\item CPU-only fallback (if no supported GPU detected)
-}
+The runtime probe attempts to create an OpenCL platform, device, context,
+command queue, and compile a minimal kernel. On WSL, this probe typically
+fails even when headers and the ICD loader are present; this is expected
+because WSL does not expose OpenCL GPU devices.
 }

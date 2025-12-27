@@ -1,11 +1,14 @@
-#' Check GPU Runtime Environment
+#' @title Check GPU Runtime Environment
 #'
+#' @description
 #' Compares the directories detected by \code{detect_compute_runtimes()} against
-#' the current PATH and LD_LIBRARY_PATH. Reports what is present and what is missing,
-#' and suggests what should be added to ensure GPU runtimes are found correctly.
+#' the current PATH and LD_LIBRARY_PATH. Reports what is present and what is
+#' missing, and suggests what should be added to ensure GPU runtimes are found
+#' correctly.
 #'
-#' This function is environment-agnostic: it works across Linux, WSL, and Windows/MSYS2
-#' because it consumes the structured output of \code{detect_compute_runtimes()}.
+#' This function is environment‑agnostic: it works across Linux, WSL, and
+#' Windows/MSYS2 because it consumes the structured output of
+#' \code{detect_compute_runtimes()}.
 #'
 #' @param runtime_info The structured list returned by \code{detect_compute_runtimes()}.
 #' @return A structured list with diagnostics for each runtime, including:

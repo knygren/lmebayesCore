@@ -1054,7 +1054,7 @@ NumericVector  f1_binomial_cloglog(NumericMatrix b,NumericVector y,NumericMatrix
     xb2=alpha2+ x2 * b2;   
     xb=exp(-exp(xb));
   
-    for(int j=0;j<l1;i++){
+    for(int j=0;j<l1;j++){
     xb(j)=1-xb(j);
     }
   

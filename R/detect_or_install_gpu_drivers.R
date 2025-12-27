@@ -1,6 +1,7 @@
-#' Detect GPU Drivers and Provide Installation Instructions
+#' @title Detect and Assess GPU Driver Installation
 #'
-#' This function analyzes the output of `detect_environment_and_gpus()` and
+#' @description
+#' This function analyzes the output of \code{detect_environment_and_gpus()} and
 #' determines whether the appropriate GPU drivers are installed for the detected
 #' hardware and environment. It does not install drivers automatically. Instead,
 #' it returns a structured list describing which drivers are present, which are

@@ -2,7 +2,7 @@
 % Please edit documentation in R/detect_compute_runtimes.R
 \name{detect_compute_runtimes}
 \alias{detect_compute_runtimes}
-\title{Detect CUDA and OpenCL runtimes and their installation directories}
+\title{Detect Compute Runtimes (CUDA and OpenCL)}
 \usage{
 detect_compute_runtimes(info)
 }
@@ -58,8 +58,7 @@ or \code{"linux"}.}
 whether CUDA and/or OpenCL runtimes are installed for NVIDIA, AMD, and Intel,
 and reports the directories where relevant headers, libraries, and executables
 are found.
-}
-\details{
+
 Detection is modeled after configure-time logic and is intentionally minimal:
 it does not attempt to install drivers or SDKs, and does not assume optional
 tools such as \code{clinfo} or \code{rocminfo}. Instead, it scans known
@@ -89,7 +88,8 @@ files.
 \item AMD and Intel runtimes are forced to \code{installed = FALSE}.
 }
 }
-
+}
+\details{
 This function is intended to run \emph{before} PATH is set. It includes PATH
 directories in its search, but does not report whether a runtime is "on PATH".
 Instead, it reports the actual directories where files were found, so users

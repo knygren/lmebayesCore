@@ -16,10 +16,6 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(glmbayes)
-```
-
 
 # 1. Introduction
 
@@ -31,33 +27,95 @@ Note limitations of CPU‑only runs (toy examples vs. real models).
 
 Follow these steps to install and verify `glmbayes` with OpenCL:
 
-1. **Download and install build tools**
-   - **Windows**: Install Rtools (https://cran.r-project.org/bin/windows/Rtools/) and ensure it is on your PATH.
-   - **macOS**: Install Xcode Command Line Tools:
-     xcode-select --install
-   - **Linux**: Install compiler toolchain and R development headers:
-     - Ubuntu/Debian: sudo apt-get install build-essential r-base-dev
-     - Fedora: sudo dnf groupinstall "Development Tools" && sudo dnf install R-devel
-     - Arch: sudo pacman -S base-devel r
+---
 
-2. **Install glmbayes from source via R-universe**
+## 1. Download and install build tools
+
+- **Windows**: Install Rtools  
+  https://cran.r-project.org/bin/windows/Rtools/
+
+- **macOS**: Install Xcode Command Line Tools  
+  `xcode-select --install`
+
+- **Linux**: Install compiler toolchain and R development headers  
+  - Ubuntu/Debian: `sudo apt-get install build-essential r-base-dev`  
+  - Fedora: `sudo dnf groupinstall "Development Tools" && sudo dnf install R-devel`  
+  - Arch: `sudo pacman -S base-devel r`
+
+---
+
+## 2. Install OpenCL developer headers (required only when installing from source)
+
+To compile `glmbayes` from source, your system must provide the OpenCL header files:
+
+- CL/cl.h  
+- CL/cl_platform.h  
+- CL/cl_version.h
+
+These headers are **not included** with GPU drivers on most systems (including NVIDIA Windows drivers).  
+Install one of the following:
+
+### Windows
+
+Choose one of:
+
+- **CUDA Toolkit (recommended)**  
+  Includes full OpenCL headers.  
+  https://developer.nvidia.com/cuda-downloads
+
+- **Intel OpenCL SDK (OpenCL CPU + headers)**  
+  https://www.intel.com/content/www/us/en/developer/tools/opencl-sdk/overview.html
+
+- **Khronos OpenCL Headers (header‑only download)**  
+  https://github.com/KhronosGroup/OpenCL-Headers
+
+**Note:** When installing the CUDA Toolkit, Intel OpenCL SDK, or Khronos OpenCL headers,  
+you can accept all default installation options. The default settings include the  
+OpenCL header files (such as `CL/cl.h`) required to compile `glmbayes` from source.
+
+### macOS
+
+OpenCL headers are included automatically with Xcode Command Line Tools.  
+No additional installation is required.
+
+### Linux
+
+Install the OpenCL headers package:
+
+- Ubuntu/Debian:  
+  `sudo apt-get install opencl-headers`
+
+- Fedora:  
+  `sudo dnf install opencl-headers`
+
+- Arch Linux:  
+  `sudo pacman -S opencl-headers`
+
+If the headers are missing, `glmbayes` cannot compile GPU support.
+
+---
+
+## 3. Install glmbayes from source via R‑universe
+
    install.packages(
      "glmbayes",
      repos = c("https://knygren.r-universe.dev", "https://cloud.r-project.org"),
      type = "source"
    )
 
-3. **Load the package**
+## 4. **Load the package**
    library(glmbayes)
 
-4. **Check for OpenCL availability**
+## 5. **Check for OpenCL availability**
    has_opencl()
    - Returns TRUE if OpenCL is available and detected.
    - Returns FALSE if OpenCL is not available.
 
-5. **Follow helper functions for next steps**
+## 6. **Follow helper functions for next steps**
    - If has_opencl() returns TRUE, proceed with GPU‑accelerated workflows.
    - If FALSE, use the provided helper functions to guide installation of OpenCL drivers or fall back to CPU execution.
+   
+   
    
 # 2. Installing OpenCL
 

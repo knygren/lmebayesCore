@@ -2,7 +2,7 @@
 % Please edit documentation in R/detect_environment_and_gpus.R
 \name{detect_environment_and_gpus}
 \alias{detect_environment_and_gpus}
-\title{Detect host environment and available GPUs}
+\title{Detect Environment and GPUs}
 \usage{
 detect_environment_and_gpus()
 }
@@ -45,8 +45,7 @@ via WMI (Windows/MSYS2) or \code{lspci} (Linux/WSL).}
 \code{detect_environment_and_gpus()} inspects the host system to determine
 whether R is running on Windows, Linux, WSL, or MSYS2, and then performs
 lightweight, vendor-agnostic checks for NVIDIA, AMD, and Intel GPUs.
-}
-\details{
+
 Detection is intentionally minimal and relies only on tools that are expected
 to be present when a GPU stack is installed:
 \itemize{
@@ -61,7 +60,8 @@ not assume any optional tools such as \code{clinfo} or \code{rocminfo}.
 It is intended as a basic diagnostic to inform subsequent setup steps
 (e.g., OpenCL or CUDA configuration) rather than a full configuration
 manager.
-
+}
+\details{
 Environment detection follows a simple heuristic:
 \itemize{
 \item If \code{uname -s} contains \code{"MINGW"}, the environment is

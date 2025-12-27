@@ -15,8 +15,7 @@ This function attempts to compile and run a minimal C program that calls
 \code{clGetPlatformIDs} to check whether a usable OpenCL runtime platform
 is available on the system. It is designed to complement
 \code{detect_compute_runtimes()}, which only checks for headers and libraries.
-}
-\details{
+
 The probe works by:
 \enumerate{
 \item Writing a small C source file that includes \code{CL/cl.h}.

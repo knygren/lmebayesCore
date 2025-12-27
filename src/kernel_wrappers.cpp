@@ -41,7 +41,8 @@ Rcpp::List f2_binomial_logit_prep_opencl(
     Rcpp::NumericVector wt,
     int progbar 
 ) {
-  int l1 = x.nrow(), l2 = x.ncol(), m1 = b.ncol();
+  int l1 = x.nrow();
+  int m1 = b.ncol();
   
   // prepare flat inputs
   auto X_flat     = flattenMatrix(x);
@@ -50,19 +51,19 @@ Rcpp::List f2_binomial_logit_prep_opencl(
   auto P_flat     = flattenMatrix(P);
   auto alpha_flat = copyVector(alpha);
   
-
-  
-  // prepare outputs
-  std::vector<double> qf_flat(m1);
-  std::vector<double> xb_flat((size_t)l1 * m1);
-  
-  Rcpp::NumericVector qf(m1);
-  Rcpp::NumericMatrix xb(l1, m1);
-  
-   
+ 
 #ifdef USE_OPENCL
 
-  
+ 
+   int l2 = x.ncol();
+ 
+   // prepare outputs
+   std::vector<double> qf_flat(m1);
+   std::vector<double> xb_flat((size_t)l1 * m1);
+   
+   Rcpp::NumericVector qf(m1);
+   Rcpp::NumericMatrix xb(l1, m1);
+   
   // load kernels
   //std::string core_src = load_kernel_library("f2_binomial_logit_prep"); 
   std::string ksrc     = load_kernel_source("src/f2_binomial_logit_prep.cl");
@@ -88,6 +89,13 @@ Rcpp::List f2_binomial_logit_prep_opencl(
     for (int i = 0; i < l1; ++i)
       xb(i, j) = xb_flat[(size_t)j * l1 + i];
 #else
+  // prepare outputs
+  std::vector<double> qf_flat(m1);
+  std::vector<double> xb_flat((size_t)l1 * m1);
+  
+  Rcpp::NumericVector qf(m1);
+  Rcpp::NumericMatrix xb(l1, m1);
+  
   Rcpp::Rcout << "[INFO] OpenCL not available — returning zero vector/matrices.\n";
   
 #endif 
@@ -397,10 +405,15 @@ Rcpp::List f2_f3_opencl(
     Rcpp::NumericVector  wt,
     int                  progbar
 ) {
-  int l1 = x.nrow(), l2 = x.ncol(), m1 = b.ncol();
-
   
-    
+  [[maybe_unused]] int l1 = x.nrow();
+  [[maybe_unused]] int l2 = x.ncol();
+  int m1 = b.ncol();
+  
+//  int l1 = x.nrow(), l2 = x.ncol(), m1 = b.ncol();
+  
+  
+  
   // flatten inputs
   
   auto X_flat     = flattenMatrix(x);
@@ -413,29 +426,29 @@ Rcpp::List f2_f3_opencl(
   auto wt_flat    = copyVector(wt);
   
   
-
+  
   // allocate outputs
   std::vector<double> qf_flat(m1);
   std::vector<double> grad_flat(static_cast<size_t>(m1) * l2);
-
+  
   
   Rcpp::NumericVector qf(m1);
   
-
+  
   // Dispatch kernel name and source
   std::string kernel_name;
   std::string kernel_file;
   std::string all_src;
   
-
+  
 #ifdef USE_OPENCL
   
   std::string OPENCL_source     = load_kernel_source("OPENCL.cl");
-     std::string rmath_source     = load_kernel_library("rmath","glmbayes", false);
-     std::string nmath_source     = load_kernel_library("nmath","glmbayes", false);
-     std::string dpq_source     = load_kernel_library("dpq","glmbayes", false);
+  std::string rmath_source     = load_kernel_library("rmath","glmbayes", false);
+  std::string nmath_source     = load_kernel_library("nmath","glmbayes", false);
+  std::string dpq_source     = load_kernel_library("dpq","glmbayes", false);
   
-
+  
   if (family == "binomial"||family == "quasibinomial") {
     if (link == "logit") {
       kernel_name = "f2_f3_binomial_logit";
@@ -445,13 +458,13 @@ Rcpp::List f2_f3_opencl(
       kernel_name = "f2_f3_binomial_probit";
       kernel_file = "src/f2_f3_binomial_probit.cl";
       
-          }
+    }
     else if (link == "cloglog") {
-
+      
       kernel_name = "f2_f3_binomial_cloglog";
       kernel_file = "src/f2_f3_binomial_cloglog.cl";
       
-                }
+    }
     else {
       Rcpp::stop("Unsupported link function for binomial family: " + link);
     }
@@ -461,10 +474,10 @@ Rcpp::List f2_f3_opencl(
     kernel_name = "f2_f3_poisson";
     kernel_file  = "src/f2_f3_poisson.cl";
     
-      }
+  }
   
   else if (family=="Gamma"){
-
+    
     kernel_name = "f2_f3_gamma";
     kernel_file  = "src/f2_f3_gamma.cl";
   }
@@ -488,8 +501,8 @@ Rcpp::List f2_f3_opencl(
   /// Updated to use same "Program" logic for all models
   
   all_src = OPENCL_source +
-           "\n" +   rmath_source + 
-           "\n" + dpq_source +
+    "\n" +   rmath_source + 
+    "\n" + dpq_source +
     "\n" +nmath_source   
   + "\n" +   ksrc;
   
@@ -507,10 +520,10 @@ Rcpp::List f2_f3_opencl(
     grad_flat,
     progbar
   );
-
+  
   Rcpp::Rcout << "Exiting f2_f3_kernel runner \n";
   
-    
+  
   // rebuild xb, qf exactly as before
   for (int j = 0; j < m1; ++j) {
     qf[j] = qf_flat[j];

@@ -22,12 +22,13 @@ A structured list with diagnostics for each runtime, including:
 }
 \description{
 Compares the directories detected by \code{detect_compute_runtimes()} against
-the current PATH and LD_LIBRARY_PATH. Reports what is present and what is missing,
-and suggests what should be added to ensure GPU runtimes are found correctly.
-}
-\details{
-This function is environment-agnostic: it works across Linux, WSL, and Windows/MSYS2
-because it consumes the structured output of \code{detect_compute_runtimes()}.
+the current PATH and LD_LIBRARY_PATH. Reports what is present and what is
+missing, and suggests what should be added to ensure GPU runtimes are found
+correctly.
+
+This function is environment‑agnostic: it works across Linux, WSL, and
+Windows/MSYS2 because it consumes the structured output of
+\code{detect_compute_runtimes()}.
 }
 \examples{
 info <- detect_compute_runtimes(list(environment="wsl"))
