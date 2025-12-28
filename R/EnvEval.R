@@ -3,10 +3,10 @@
 #' \code{EnvelopeEval()} evaluates the negative log-likelihood and gradients
 #' at a grid of parameter values, optionally using OpenCL acceleration.
 #'
-#' The lower-level helpers \code{f2_f3_non_opencl()} and \code{f2_f3_opencl()}
-#' expose the CPU and GPU kernels directly. The function \code{run_opencl_pilot()}
-#' benchmarks OpenCL performance on a pilot subset of the grid to estimate
-#' runtime before full evaluation.
+#' The lower-level helpers `f2_f3_non_opencl()` and `f2_f3_opencl()`
+#' are internal C++ kernels used by the OpenCL and CPU backends.
+#' The internal function `run_opencl_pilot()` benchmarks OpenCL performance
+#' on a pilot subset of the grid to estimate runtime before full evaluation.
 #'
 #' These functions implement the grid evaluation logic used in envelope
 #' construction for rejection sampling. They make use of the theory described
