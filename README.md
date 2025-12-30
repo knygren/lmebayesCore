@@ -100,6 +100,9 @@ Use example() to explore built-in examples for supported families and links:
     ## Bayesian Generalized Linear Models
     example("glmb")
 
+    ## Two-block Gibbs sampler compared to iid-sampling for linear model
+    example("rlmb")
+
     ## Larger Binomial Model with GPU Acceleration (requires OpenCL)
     example("Cleveland")
 
@@ -124,32 +127,93 @@ The glmbayes package includes a comprehensive set of vignettes organized into fi
 These vignettes guide users from introductory material through applied modeling, advanced topics,
 and the underlying simulation methods that support the package.
 
-### Part 1: An Introduction (Chapters 00-01)
+### Part 1: An Introduction
 Overview of the package, its design philosophy, and the basic workflow for
 fitting Bayesian linear and generalized linear models. It introduces the core functions, model
 objects, and the structure of the modeling interface.
 
-### Part 2: Estimating Bayesian Linear Models (Chapters 02-04)
+- **Chapter 00 — Introduction**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-00.html
+
+- **Chapter 01 — Getting Started with glmbayes**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-01.html
+
+### Part 2: Estimating Bayesian Linear Models
 These chapters focus on Bayesian linear regression using the Gaussian family. Topics include
 model fitting, prior construction, posterior summaries, predictions, and deviance residuals.
 This part establishes the foundation for understanding the Bayesian GLM framework used throughout
 the package.
 
-### Part 3: Generalized Linear Models (Chapters 05-09)
+- **Chapter 02 — Estimating Bayesian Linear Models**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-02.html
+
+- **Chapter 03 — Tailoring Priors - Leveraging the Prior_Setup Function**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-03.html
+
+- **Chapter 04 — Reviewing Model Predictions, Deviance Residuals and Model Statistics**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-04.html
+
+### Part 3: Generalized Linear Models
 This part presents Bayesian GLMs across the major likelihood families, including binomial,
 quasi-binomial, Poisson, quasi-Poisson, and Gamma models. It covers model specification,
 link functions, log-concavity, diagnostics, and interpretation of posterior results.
 
-### Part 4: Advanced Topics (Chapters 10-12)
-These chapters explore more complex modeling scenarios and computational strategies, such as
-informative priors, hierarchical Bayesian models using two-block Gibbs sampling, models with
-unknown dispersion parameters, and large-scale model fitting using GPU acceleration using OpenCL.
+- **Chapter 05 — Foundations of GLMs - Families, Links, and Log-Concave Likelihoods**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-05.html
 
-### Part 5: Simulation Methods and Technical Implementation (Appendix Chapters A1-A7)
+- **Chapter 06 — Estimating Bayesian Generalized Linear Models**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-06.html
+
+- **Chapter 07 — Models for the Binomial Family**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-07.html
+
+- **Chapter 08 — Models for the Poisson Family**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-08.html
+
+- **Chapter 09 — Models for the Gamma Family**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-09.html
+
+### Part 4: Advanced Topics
+These chapters explore more complex modeling scenarios and computational strategies, such as
+informative priors, two-block Gibbs sampling, models with
+unknown dispersion parameters, and large-scale model fitting using GPU acceleration 
+using OpenCL.
+
+- **Chapter 10 — Informative Priors: Centering and priors with differentiate weights**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-10.html
+
+- **Chapter 11 — Estimating Models with unknown dispersion parameters**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-11.html
+
+- **Chapter 12 — Large Models: GPU Acceleration using OpenCL**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html
+
+
+### Part 5: Simulation Methods and Technical Implementation
 This part documents the mathematical and algorithmic foundations of the package. Topics include
 estimation procedures, likelihood subgradient densities, envelope construction, accept-reject
 sampling, and technical reports on sampler design including implementation aspects for GPU acceleration using
 OpenCL.
+
+- **Chapter A1 — Overview of Estimation Procedures**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A1.html
+
+- **Chapter A2 — Simulation Methods - Likelihood Subgradient Densities**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A2.html
+
+- **Chapter A3 — Methods Available in glmbayes**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A3.html
+
+- **Chapter A5 — Technical Report for Likelihood Subgradient Based Samplers**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A5.html
+
+- **Chapter A6 — Accept-Reject Sampling for Dispersion in Gamma Regression**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A6.html
+
+- **Chapter A7 — Accept-Reject Sampling for gaussian Regression models with independent normal-gamma priors**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A7.html
+
+
 
 Together, these vignettes form a comprehensive reference that supports users at all levels, from first-time Bayesian GLM users to researchers interested in the mathematical and computational details behind the samplers.
 
