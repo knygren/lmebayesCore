@@ -25,7 +25,10 @@ install.packages("glmbayes",
                  repos = c("https://knygren.r-universe.dev",
                            "https://cloud.r-project.org"))
 
-To install a version suitable for large models with GPU acceleration, follow the instructions in Chapter 12: "Large Models: GPU Acceleration Using OpenCL."
+To install a version suitable for large models with GPU acceleration, follow the instructions from 
+
+**Chapter 12 — Large Models: GPU Acceleration using OpenCL**
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html
 
 ## Minimal Working Example
 
