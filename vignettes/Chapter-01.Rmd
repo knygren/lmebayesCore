@@ -174,32 +174,4 @@ The Deviance Information Criterion (DIC) combines expected residual deviance wit
 | 4.2.4 DIC                                  | 10.3 Bayesian Generalized Linear Models                              | Derives DIC \(\!= \bar D + p_D\); compares DIC to AIC/BIC and highlights limitations when priors are highly informative.                                      |
 
 
-# 6. References
-
-
-
-# 7. Redundant - To be deleted or moved elsewhere
-
-
-
-# 7B Summarizing the output
-Let's take a closer look at the outputs of the summary functions.
-
-
-## 7.1 Summary view of the glm output
-
-In turn, we see the Call, a list of Deviance residuals, and the estimated coefficients. The coefficients are then followed by some additional model related information. 
-
-```{r glm_summary}
-## summary output for the "glm" class
-summary(glm.D93)
-```
-
-## 7.2 Summary view of the glmb output
-
-The summary for the glmb function follow a similar structure but adds a table containing information related to the prior and the maximum likelihood above the table with the means for the estimated Bayesian coefficients. The output below the main table with coefficients is also modified to contain similar (but slightly different) pieces of information (the details of which are discussed elsewhere).
-
-```{r glmb_summary}
-## summary output for the "glm" class
-summary(glmb.D93)
-```
+# 5. References
