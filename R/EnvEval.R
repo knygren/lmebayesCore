@@ -3,9 +3,9 @@
 #' \code{EnvelopeEval()} evaluates the negative log-likelihood and gradients
 #' at a grid of parameter values, optionally using OpenCL acceleration.
 #'
-#' The lower-level helpers `f2_f3_non_opencl()` and `f2_f3_opencl()`
-#' are internal C++ kernels used by the OpenCL and CPU backends.
-#' The internal function `run_opencl_pilot()` benchmarks OpenCL performance
+#' The lower-level helpers `f2_f3_non_opencl` and `f2_f3_opencl`
+#' are internal C++ kernels used by the CPU and OpenCL backends.
+#' The internal routine `run_opencl_pilot` benchmarks OpenCL performance
 #' on a pilot subset of the grid to estimate runtime before full evaluation.
 #'
 #' These functions implement the grid evaluation logic used in envelope
@@ -38,13 +38,13 @@
 #' * `EnvelopeEval()` is the user-facing entry point. It accepts a grid of
 #'   parameter values (`G4`) and the data (`y`, `x`, `mu`, `P`, `alpha`, `wt`).
 #' * If the grid is large (>= 14 columns), it first calls
-#'   [`run_opencl_pilot()`] to benchmark OpenCL performance and optionally
-#'   report estimated runtime.
+#'   `run_opencl_pilot` to benchmark OpenCL performance and optionally
+#'      report estimated runtime.
 #' * It then dispatches to either the CPU or GPU backend:
 #'   - If `use_opencl = TRUE` and the family is not `"gaussian"`, it calls
-#'     [`f2_f3_opencl()`].
-#'   - Otherwise, it calls [`f2_f3_non_opencl()`].
-#'
+#'     `f2_f3_opencl` (an internal C++ kernel).
+#'   - Otherwise, it calls `f2_f3_non_opencl` (the CPU kernel).
+#'   
 #' **2. CPU backend (`f2_f3_non_opencl`)**
 #'
 #' * This function evaluates the negative log-likelihood and gradients using

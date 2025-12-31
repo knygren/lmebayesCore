@@ -68,9 +68,9 @@ for OpenCL evaluation on a pilot subset of the grid.}
 at a grid of parameter values, optionally using OpenCL acceleration.
 }
 \details{
-The lower-level helpers \code{f2_f3_non_opencl()} and \code{f2_f3_opencl()}
-are internal C++ kernels used by the OpenCL and CPU backends.
-The internal function \code{run_opencl_pilot()} benchmarks OpenCL performance
+The lower-level helpers \code{f2_f3_non_opencl} and \code{f2_f3_opencl}
+are internal C++ kernels used by the CPU and OpenCL backends.
+The internal routine \code{run_opencl_pilot} benchmarks OpenCL performance
 on a pilot subset of the grid to estimate runtime before full evaluation.
 
 These functions implement the grid evaluation logic used in envelope
@@ -84,13 +84,13 @@ The evaluation workflow has several layers:
 \item \code{EnvelopeEval()} is the user-facing entry point. It accepts a grid of
 parameter values (\code{G4}) and the data (\code{y}, \code{x}, \code{mu}, \code{P}, \code{alpha}, \code{wt}).
 \item If the grid is large (>= 14 columns), it first calls
-\code{\link[=run_opencl_pilot]{run_opencl_pilot()}} to benchmark OpenCL performance and optionally
+\code{run_opencl_pilot} to benchmark OpenCL performance and optionally
 report estimated runtime.
 \item It then dispatches to either the CPU or GPU backend:
 \itemize{
 \item If \code{use_opencl = TRUE} and the family is not \code{"gaussian"}, it calls
-\code{\link[=f2_f3_opencl]{f2_f3_opencl()}}.
-\item Otherwise, it calls \code{\link[=f2_f3_non_opencl]{f2_f3_non_opencl()}}.
+\code{f2_f3_opencl} (an internal C++ kernel).
+\item Otherwise, it calls \code{f2_f3_non_opencl} (the CPU kernel).
 }
 }
 

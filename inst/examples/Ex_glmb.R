@@ -6,7 +6,7 @@ treatment <- gl(3,3)
 print(d.AD <- data.frame(treatment, outcome, counts))
 
 ## Classical Model
-glm.D93 <- glm(counts ~ outcome + treatment, family = poisson())
+glm.D93 <- glm(counts ~ outcome + treatment, family = poisson(link=log))
 summary(glm.D93)
 
 ## Poisson Prior and Model
@@ -23,6 +23,11 @@ summary(glmb.D93)
 # Menarche Binomial Data Example 
 data(menarche2)
 Age2=menarche2$Age-13
+
+## Classicak Model
+
+glm.out<-glm(cbind(Menarche, Total-Menarche) ~ Age2, family=binomial(logit), data=menarche2)
+summary(glm.out)
 
 ## Logit Prior and Model
 ps1=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit), data=menarche2)
