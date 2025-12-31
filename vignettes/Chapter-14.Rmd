@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter 7B: Using Custom Prior Families"
+title: "Chapter 14: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 2"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter 7B: Using Custom Prior Families}
+  %\VignetteIndexEntry{Chapter 14: Using Two-Block Gibbs Sampling for Hierarchical Bayesian Models: Part 2}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
