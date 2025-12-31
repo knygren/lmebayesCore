@@ -25,7 +25,7 @@ library(glmbayes)
 
 ## 1. Introduction
 
-Many of the key models implemented in the `glmbayes` package make use of independent and identically distributed (iid) sampling procedures for models with log-concave likelihoods and multivariate normal priors. The implementation is based on theory developed in the \insertCITE{Nygren2006}{glmbayes} paper.
+Many of the key models implemented in the `glmbayes` package make use of independent and identically distributed (iid) sampling procedures for models with log-concave likelihoods and multivariate normal priors. The implementation is based on theory developed in the Nygren & Nygren (2006) paper.
 
 The objective of this vignette is to provide a detailed overview of the implementation of these simulation methods. To that end, this vignette contains the following:
 
@@ -39,7 +39,7 @@ The objective of this vignette is to provide a detailed overview of the implemen
 
 (v) A discussion of options for sizing the envelope functions and densities used during sampling, including computational implications and a deep dive into how the `EnvelopeOpt()` function determines envelope size.
 
-(vi) A deep dive into envelope construction with theoretical connections to the \insertCITE{Nygren2006}{glmbayes} paper, including the role of GPU acceleration for large models.
+(vi) A deep dive into envelope construction with theoretical connections to the Nygren & Nygren (2006) paper, including the role of GPU acceleration for large models.
 
 (vii) A discussion of how simulation is performed, including the use of parallel sampling to accelerate computation.
 
@@ -127,7 +127,7 @@ This step identifies the most probable parameter configuration under the posteri
 
 ## 5. Model Standardization with Theoretical Underpinnings: `glmb_Standardize_Model()`
 
-The theoretical results and formulas in the \insertCITE{Nygren2006}{glmbayes} paper assume that models are in a standardized form. The paper contains the following key definitions and remarks:
+The theoretical results and formulas in the Nygren and Nygren (2006) paper assume that models are in a standardized form. The paper contains the following key definitions and remarks:
 
 (i) **Definition 3**: A probability model with a multivariate normal prior and log-concave likelihood function is in standard form if:
 
@@ -140,9 +140,12 @@ The theoretical results and formulas in the \insertCITE{Nygren2006}{glmbayes} pa
 
 (iv) **Remark 13**: Let `P` and `D` be as in the previous remark. It then follows that the following two models have the same posterior density:
 
-- A model with prior mean vector `μ`, prior precision matrix `P`, and log-likelihood function `LL(θ)`.  
-- A model with prior mean vector `μ`, prior precision matrix `D`, and log-likelihood function  
-  `LL*(θ) = -0.5(θ - μ)^T(P - D)(θ - μ) + LL(θ)`.
+- A model with prior mean vector \(\mu\), prior precision matrix \(P\), and log-likelihood function \(LL(\theta)\).
+
+- A model with prior mean vector \(\mu\), prior precision matrix \(D\), and log-likelihood function  
+  \[
+  LL^{*}(\theta) = -0.5\,(\theta - \mu)^{T}(P - D)(\theta - \mu) + LL(\theta).
+  \]
 
 (v) **Remark 14**: Suppose that a model has a multivariate normal prior with a diagonal variance–covariance matrix. Also assume that the posterior precision at the posterior mode is a diagonal matrix. Then the model can be reparameterized into a model in standard form.
 
@@ -158,7 +161,7 @@ The function `glmb_Standardize_Model()` implements this transformation in practi
 
 (i) The first decomposition diagonalizes the Hessian of the log-posterior at the posterior mode. This yields a transformation matrix `L2` that is used to normalize the posterior precision. The transformed design matrix and prior precision are updated accordingly.
 
-(ii) The second decomposition identifies a diagonal matrix `ε` such that the difference `P - ε` remains positive definite. This ensures that the transformed model has a diagonal prior precision and can be reparameterized into standard form. A scaling loop is used to find the largest possible `ε` that satisfies this condition.
+(ii) The second decomposition identifies a diagonal matrix \(\varepsilon\) such that the difference \(P - \varepsilon\) remains positive definite. This ensures that the transformed model has a diagonal prior precision and can be reparameterized into standard form. A scaling loop is used to find the largest possible \(\varepsilon\) that satisfies this condition.
 
 The function then applies a second transformation `L3` to finalize the standardization. This results in a model where both the prior and the data precision matrices are diagonal and that the prior precision matrix is the identity matrix, satisfying the theoretical conditions for standard form.
 
@@ -180,31 +183,32 @@ The envelope sizing logic is governed by the `Gridtype` parameter, which control
 
 **Gridtype Logic (Nygren & Nygren 2006)**
 
-Let `a_i` be the **data precision** for dimension `i` (i.e., `A2[i,i]`).  
-In a standardized model, the prior precision is the identity matrix, so the **posterior precision** becomes `1 + a_i`.  
-Let `ω_i` be the width parameter computed below.
+Let \(a_i\) be the **data precision** for dimension \(i\) (i.e., \(A2[i,i]\)).  
+In a standardized model, the prior precision is the identity matrix, so the **posterior precision** becomes \(1 + a_i\).  
+Let \(\omega_i\) be the width parameter computed below.
 
 ### 1. Gridtype 1: Static Threshold Test
 
 - If \( \sqrt{1 + a_i} \leq \frac{2}{\sqrt{\pi}} \approx 1.128379 \), then the expected number of candidate draws per accepted sample under a single tangent envelope is less than the limiting upper bound provided by the three-tangent envelope.  
-  ⇒ Building more points doesn’t meaningfully reduce rejections.
+  Therefore, building more points does not meaningfully reduce rejections.
 
   - Use a single-point envelope at the mode:  
-    `G2[i] = {θ⋆_i}`, `GIndex1[i] = {4}`
+    \(G2[i] = \{\theta_i^{\ast}\}\), \(GIndex1[i] = \{4\}\)
 
 - Else: build a three-point envelope at  
-  `{θ⋆_i − ω_i, θ⋆_i, θ⋆_i + ω_i}`, `GIndex1[i] = {1,2,3}`
+  \(\{\theta_i^{\ast} - \omega_i,\ \theta_i^{\ast},\ \theta_i^{\ast} + \omega_i\}\),  
+  \(GIndex1[i] = \{1,2,3\}\)
 
 ### 2. Gridtype 2: Dynamic Envelope via `EnvelopeOpt(a, n)`
 
-- Rather than a fixed-bound test, this approach solves (per dimension) the cost-tradeoff between:
+- Rather than a fixed-bound test, this approach solves (per dimension) the cost tradeoff between:
 
-  - `T_build(g_i) ∝ g_i` (linear grid-construction cost)  
-  - `T_sample(n, acc_i(g_i)) ∝ n / acc_i(g_i)` where `acc_i(g_i)` ≈ acceptance rate given `g_i` grid points
+  - \(T_{\text{build}}(g_i) \propto g_i\) (linear grid-construction cost)  
+  - \(T_{\text{sample}}(n, \text{acc}_i(g_i)) \propto n / \text{acc}_i(g_i)\), where \(\text{acc}_i(g_i)\) is the approximate acceptance rate given \(g_i\) grid points
 
-- `EnvelopeOpt` returns `gridindex[i] ∈ {1, 3}` by minimizing `T_build + T_sample` under approximations from subgradient theory.
+- `EnvelopeOpt` returns \( \text{gridindex}[i] \in \{1, 3\} \) by minimizing \(T_{\text{build}} + T_{\text{sample}}\) under approximations from subgradient theory.
 
-- This allows more envelope points up-front when `n` is large, because reduced rejections during sampling more than pay for the extra build cost.
+- This allows more envelope points up front when \(n\) is large, because reduced rejections during sampling more than pay for the extra build cost.
 
 ### 3. Gridtype 3: Always Three-Point Grid
 
@@ -236,13 +240,13 @@ If \( \sqrt{1 + a_i} \leq \frac{2}{\sqrt{\pi}} \), then the expected number of c
 
 This logic is especially useful for low-variance dimensions, where the posterior is sharply peaked and additional tangents offer little marginal benefit. The resulting envelope is minimal and fast to construct:
 
-- Grid: `{θ⋆_i}`  
-- Index: `{4}` (single tangent at mode)
+- Grid: \(\{\theta_i^{\ast}\}\)  
+- Index: \(\{4\}\) (single tangent at the mode)
 
 If the threshold is exceeded, a symmetric three-point grid is used:
 
-- Grid: `{θ⋆_i − ω_i, θ⋆_i, θ⋆_i + ω_i}`  
-- Index: `{1, 2, 3}` (left, center, right tangents)
+- Grid: \(\{\theta_i^{\ast} - \omega_i,\ \theta_i^{\ast},\ \theta_i^{\ast} + \omega_i\}\)  
+- Index: \(\{1, 2, 3\}\) (left, center, right tangents)
 
 The width parameter \( \omega_i \) is derived from the local curvature of the log-likelihood at the posterior mode. Specifically:
 
@@ -266,8 +270,9 @@ Gridtype 2 uses a dynamic strategy to select the number of grid points per dimen
 
 The tradeoff is formalized as:
 
-- `T_build(g_i) ∝ g_i`: cost of building `g_i` tangents in dimension `i`  
-- `T_sample(n, acc_i(g_i)) ∝ n / acc_i(g_i)`: cost of drawing `n` samples given acceptance rate `acc_i(g_i)`
+- \(T_{\text{build}}(g_i) \propto g_i\): cost of building \(g_i\) tangents in dimension \(i\)
+
+- \(T_{\text{sample}}(n, \text{acc}_i(g_i)) \propto n / \text{acc}_i(g_i)\): cost of drawing \(n\) samples given acceptance rate \(\text{acc}_i(g_i)\)
 
 The function `EnvelopeOpt(a_i, n)` solves this tradeoff using approximations from subgradient theory. Dimensions are ranked by decreasing posterior standard deviation — equivalently, by increasing values of \( 1 / (1 + a_i) \). Dimensions with larger `a_i` (i.e., sharper curvature) are more likely to benefit from additional tangents.
 
@@ -346,6 +351,7 @@ The optimizer selects the configuration that minimizes this total. Intuitively:
 
 When GPU acceleration is available through OpenCL, the Grid construction can be performed in parallel, reducing the amount of time that components takes. To that end, we modify the call to the function to reflect the lower Grid contruction cost by passing a scaled up sample size (which yields the same optimization result).
 
+```cpp
   int core_CNT=get_opencl_core_count();
   
   if (verbose) {
@@ -371,6 +377,7 @@ When GPU acceleration is available through OpenCL, the Grid construction can be 
     
     //gridindex=EnvelopeOpt(a_2,n);
   }
+```
 
 
 ## 6. Building the Envelope

@@ -656,7 +656,7 @@ Centering the intercept prior at the full model MLE ensures:
 
 ### Effect Priors: Centered at Zero
 
-By contrast, the default prior for effect coefficients is centered at zero. This reflects a common statistical convention: the null hypothesis typically assumes no effect. Centering at zero allows users to interpret posterior summaries in terms of deviation from no effect, and makes tail probabilities (e.g. Pr(β < 0)) directly meaningful.
+By contrast, the default prior for effect coefficients is centered at zero. This reflects a common statistical convention: the null hypothesis typically assumes no effect. Centering at zero allows users to interpret posterior summaries in terms of deviation from no effect, and makes tail probabilities (e.g., \(\Pr(\beta < 0)\)) directly meaningful.
 
 This setup also makes it easy to specify informative priors centered at zero simply by adjusting:
 
@@ -814,7 +814,7 @@ lmb.women_hipwt=lmb(weight ~ height,dNormal(mu_hipwt,V_hipwt,dispersion=disp_ML_
 ## 5.7 Comparative Impact of Prior Specifications on Inference
 
 
-This section compares posterior summaries for the height effect across five Bayesian prior configurations and a classical linear model. We report the posterior mean, one-sided tail probability Pr(β > mu), posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
+This section compares posterior summaries for the height effect across five Bayesian prior configurations and a classical linear model. We report the posterior mean, the one-sided tail probability \(\Pr(\beta > \mu)\), the posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
 
 
 ```{r Summary_Comparisons}
@@ -952,45 +952,46 @@ knitr::kable(
 ```{r half_space_tail}
 
 directional_half_space_tail <- function(fit,
-                                               normalize = TRUE) {
+                                        normalize = TRUE) {
+
   # 1. Extract posterior draws and prior moments
-  post        <- fit$coefficients            # S × p matrix
+  post        <- fit$coefficients            # S x p matrix
   mu_prior    <- as.numeric(fit$Prior$mean)  # length-p
-  V0          <- as.matrix(fit$Prior$Variance)  # p × p
-  
+  V0          <- as.matrix(fit$Prior$Variance)  # p x p
+
   # 2. Compute prior precision and its symmetric square root
-  P0    <- solve(V0)   # prior precision = Σ_prior^{-1}
+  P0    <- solve(V0)   # prior precision = Sigma_prior^{-1}
   eig   <- eigen(P0, symmetric = TRUE)
   P0_sqrt <- eig$vectors %*% diag(sqrt(eig$values)) %*% t(eig$vectors)
   # Now P0_sqrt %*% P0_sqrt = P0
-  
+
   # 3. Whiten draws and prior mean
-  #    Z = Σ_prior^{-1/2} * (post - mu_prior)
-  centered <- sweep(post, 2, mu_prior, FUN = "-")   # S × p
-  Z        <- t(P0_sqrt %*% t(centered))            # S × p
+  #    Z = Sigma_prior^{-1/2} * (post - mu_prior)
+  centered <- sweep(post, 2, mu_prior, FUN = "-")   # S x p
+  Z        <- t(P0_sqrt %*% t(centered))            # S x p
   # In this whitened space the prior is N(0, I)
-  
+
   # 4. Compute posterior mean in whitened space
   mu_post_z <- colMeans(Z)     # length-p
   delta     <- mu_post_z       # shift from zero
-  
-  # 5. Choose signed weights: +1 if delta>0, -1 if delta<0
-  sign_vec <- sign(delta)      # length-p of ±1
-  
-  # 6. Raw weights (no need to divide by any SD since prior sd=1 in Z-space)
+
+  # 5. Choose signed weights: +1 if delta > 0, -1 if delta < 0
+  sign_vec <- sign(delta)      # length-p of +/- 1
+
+  # 6. Raw weights (no need to divide by any SD since prior sd = 1 in Z-space)
   w_raw    <- sign_vec         # length-p
-  
+
   # 7. Optional normalization to unit length
   if (normalize) {
     w <- w_raw / sqrt(sum(w_raw^2))
   } else {
     w <- w_raw
   }
-  
-  # 8. Project and get reverse‐tail probability
-  proj      <- Z %*% w         # S×1 vector of wᵀZ
-  tail_prob <- mean(proj < 0)  # P(wᵀZ < 0)
-  
+
+  # 8. Project and get reverse-tail probability
+  proj      <- Z %*% w         # S x 1 vector of t(w) %*% Z
+  tail_prob <- mean(proj < 0)  # P(t(w) %*% Z < 0)
+
   # 9. Return results
   list(
     tail_prob = as.numeric(tail_prob),
@@ -1499,7 +1500,7 @@ summary(lm.D9_default)
 ## 5.6 Comparative Impact of Prior Specifications on Inference
 
 
-This section compares posterior summaries for the group effect (groupTrt) across five Bayesian prior configurations and a classical linear model. We report the posterior mean, one-sided tail probability Pr(β < 0), posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
+This section compares posterior summaries for the group effect (groupTrt) across five Bayesian prior configurations and a classical linear model. We report the posterior mean, the one-sided tail probability \(\Pr(\beta < 0)\), the posterior standard deviation, and the effective number of parameters. These metrics reveal how prior centering and prior weight (pwt) influence inference, uncertainty, and model complexity.
 
 ```{r Null_Dev_residuals}
 
@@ -1566,9 +1567,9 @@ p_Bayes        <- mean(T_draws >= T_obs)
 
 p_Bayes
 
-#sprintf("Classical F-test p ≈ %.3f;  Bayesian deviance-drop p = %.3f",
-#        pf(q = T_obs, df1 = p, df2 = n - (p+1), lower.tail = FALSE),
-#        p_Bayes)
+# sprintf("Classical F-test p ~= %.3f; Bayesian deviance-drop p = %.3f",
+#         pf(q = T_obs, df1 = p, df2 = n - (p + 1), lower.tail = FALSE),
+#         p_Bayes)
 ```
 
 
@@ -1738,32 +1739,30 @@ directional_half_space_tail
 
 #### Key Patterns
 
-🔸 Posterior Means
-- Changing intercept_source alone (Default vs Null) shifts the intercept but leaves the slope nearly unchanged (–0.3486 → –0.3483).
-- Centering effects on the MLE (Full-Model Prior) pulls the slope toward the classical estimate (–0.3816 vs –0.3710).
+**Posterior Means**
+- Changing `intercept_source` alone (Default vs. Null) shifts the intercept but leaves the slope nearly unchanged (-0.3486 to -0.3483).
+- Centering effects on the MLE (Full-Model Prior) pulls the slope toward the classical estimate (-0.3816 vs. -0.3710).
 - Decreasing pwt (Low-pwt) gives more weight to the data, nudging the slope closer to the MLE.
-- Increasing pwt (High-pwt) shrinks the slope toward zero, halving its magnitude.
+- Increasing pwt (High-pwt) shrinks the slope toward zero, reducing its magnitude.
 
-🔸 Tail Probabilities Pr(β < 0)
-- Weak or default priors (Default, Null, Low) yield Pr(β < 0) ≈ 0.11–0.13, echoing the classical one-sided p-value.
-- Full-Model centering produces a symmetric posterior around the MLE, yielding Pr(β < 0) ≈ 0.48.
-- A strong skeptical prior (High-pwt) reduces certainty, lowering Pr(β < 0) to 0.193.
+**Tail Probabilities \(\Pr(\beta < 0)\)**
+- Weak or default priors (Default, Null, Low) yield \(\Pr(\beta < 0) \approx 0.11\text{--}0.13\), echoing the classical one-sided p-value.
+- Full-model centering produces a symmetric posterior around the MLE, yielding \(\Pr(\beta < 0) \approx 0.48\).
+- A strong skeptical prior (High-pwt) reduces certainty, lowering \(\Pr(\beta < 0)\) to 0.193.
 
-🔸 Effective Number of Parameters
-- Low-pwt behaves like an unregularized fit: Eff.Params ≈ 1.00.
-- Default/Null priors (pwt = 0.05) modestly regularize: Eff.Params ≈ 0.88–0.89.
-- Full-Model Prior (centered at MLE) avoids shrinkage: Eff.Params ≈ 0.96.
-- High-pwt (strong shrinkage) reduces flexibility: Eff.Params ≈ 0.49.
+**Effective Number of Parameters**
+- Low-pwt behaves like an unregularized fit: Eff.Params \(\approx 1.00\).
+- Default/Null priors (pwt = 0.05) modestly regularize: Eff.Params \(\approx 0.88\text{--}0.89\).
+- Full-Model Prior (centered at the MLE) avoids shrinkage: Eff.Params \(\approx 0.96\).
+- High-pwt (strong shrinkage) reduces flexibility: Eff.Params \(\approx 0.49\).
 
-🔸 Posterior Standard Deviations
-- As pwt ↓, Post.SD ↑ toward classical SEs (Low-pwt: 0.3165 vs SE = 0.311).
-- Default/Null priors yield modest SD reduction (0.2953–0.2992).
+**Posterior Standard Deviations**
+- As pwt decreases, Post.SD increases toward classical SEs (Low-pwt: 0.3165 vs. SE = 0.311).
+- Default/Null priors yield modest SD reduction (0.2953 to 0.2992).
 - Full-Model centering slightly inflates SD (0.3042).
-- High-pwt sharply reduces SD (0.2223), reflecting equal prior–data precision
+- High-pwt sharply reduces SD (0.2223), reflecting equal prior--data precision.
 
-In practice, selecting a prior involves balancing skepticism (via pwt) with your anchoring assumptions (via intercept_source and effects_source). This comparison illustrates how those choices shape posterior estimates, uncertainty, and model complexity—offering a transparent framework for prior sensitivity analysis in Bayesian GLMs.
- 
-
+In practice, selecting a prior involves balancing skepticism (via pwt) with anchoring assumptions (via `intercept_source` and `effects_source`). This comparison illustrates how those choices shape posterior estimates, uncertainty, and model complexity, offering a transparent framework for prior sensitivity analysis in Bayesian GLMs.
 
 
 # References

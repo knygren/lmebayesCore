@@ -153,6 +153,7 @@ Below the coefficient table, `summary(lm.D9)` prints four key measures of fit:
 
 These metrics gauge how well the model captures variation in the data and whether the added predictor meaningfully improves over an intercept-only model.
 
+
 ---
 
 **Residual standard error (RSE)**
@@ -271,13 +272,12 @@ sumlmb$Percentiles
 -The effective number of parameters (pD) quantifies how much your posterior has “moved” from the prior. A pD near the number of coefficients signals a relatively data‐driven fit; a smaller pD indicates stronger shrinkage toward the prior.
 
 
--The expected residual deviance (D̄) is the posterior mean of the deviance statistic. It’s analogous to the classical deviance but averaged over your posterior draws, giving a Bayesian measure of overall fit.
+- The expected residual deviance (\(\bar{D}\)) is the posterior mean of the deviance statistic. It is analogous to the classical deviance but averaged over your posterior draws, giving a Bayesian measure of overall fit.
 
-
-- The Deviance Information Criterion (DIC) combines D̄ and pD into a single metric for model comparison:  
+- The Deviance Information Criterion (DIC) combines \(\bar{D}\) and \(p_D\) into a single metric for model comparison:
 \[
-\text{DIC} = D̄ + p_D
-\]  
+\text{DIC} = \bar{D} + p_D
+\]
 Lower values signal better trade-offs between fit and complexity under your chosen prior.
 
 ### 4.2.6 Expected mean dispersion
@@ -295,26 +295,23 @@ Finally, taking the square root of the expected mean dispersion yields a Bayesia
 
 | Vignette Section               | Textbook Chapter & Section    | Notes (provisional)                                                                                                                          |
 |--------------------------------|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| 3.1.1 Calling the classical lm function | 3.4 Example Normal Linear Model Inference | Formal definition of y = Xβ + ε; shows OLS as the MLE under Normal errors (see derivation in Example 3.1).                                         |
-| 3.2.1 Setting the prior        | 10.2 Bayesian Linear Models   | Construction of conjugate Normal priors and Zellner’s g-prior (V = g·(XᵀX)⁻¹, g = (1–pwt)/pwt); see Example 10.2.                                  |
-| 3.2.2 Calling the lmb function | 10.2 Bayesian Linear Models   | Shows closed-form posterior updates under conjugate Normal priors: derivation of the posterior mean and variance for β in the linear model.     |
+| 3.1.1 Calling the classical lm function | 3.4 Example Normal Linear Model Inference | Formal definition of \(y = X\beta + \varepsilon\); shows OLS as the MLE under Normal errors (see derivation in Example 3.1). |
+| 3.2.1 Setting the prior        | 10.2 Bayesian Linear Models   | Construction of conjugate Normal priors and Zellner's g-prior \(V = g (X^{T} X)^{-1}\), with \(g = (1 - \text{pwt})/\text{pwt}\); see Example 10.2. |
+| 3.2.2 Calling the lmb function | 10.2 Bayesian Linear Models   | Shows closed-form posterior updates under conjugate Normal priors: derivation of the posterior mean and variance for \(\beta\) in the linear model. |
 
 
 | Vignette Section                              | Textbook Chapter & Section                              | Notes                                                                                              |
 |-----------------------------------------------|----------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| 4.1.1 Residual summary                        | 3.4 Example Normal Linear Model Inference               | Discussion of raw, standardized, and studentized residuals; graphical diagnostics (residual vs fitted, Q–Q plots); measures of leverage and influence. |
+| 4.1.1 Residual summary                        | 3.4 Example Normal Linear Model Inference               | Discussion of raw, standardized, and studentized residuals; graphical diagnostics (residual vs fitted, Q-Q plots); measures of leverage and influence. |
 | 4.1.2 Coefficient Estimates and Hypothesis Tests | 3.2 Significance Tests for Normal Linear Models        | Formal derivation of t-tests and confidence intervals for slopes; interpretation of estimates, standard errors, t-statistics, two-sided p-values, and significance codes. |
-| 4.1.3 Model fit statistics                    | 3.2 Significance Tests for Normal Linear Models        | Definition and interpretation of residual standard error; R² and adjusted R²; ANOVA F-test for overall model significance. |
-| 4.2.1 Prior and maximum‐likelihood estimates  | 10.1 The Bayesian Approach to Statistical Inference    | Presentation of conjugate Normal priors and Zellner’s g-prior; overlay of prior and sampling distributions (MLEs); role of g in shrinkage. |
-| 4.2.2 Posterior estimates                     | 10.2 Bayesian Linear Models                            | Closed-form posterior mode, mean, and variance under conjugacy; Monte Carlo approximation for non-conjugate settings; interpretation of “Pr(tail)” statements. |
+| 4.1.3 Model fit statistics                    | 3.2 Significance Tests for Normal Linear Models        | Definition and interpretation of residual standard error; \(R^2\) and adjusted \(R^2\); ANOVA F-test for overall model significance. |
+| 4.2.1 Prior and maximum-likelihood estimates  | 10.1 The Bayesian Approach to Statistical Inference    | Presentation of conjugate Normal priors and Zellner's g-prior; overlay of prior and sampling distributions (MLEs); role of \(g\) in shrinkage. |
+| 4.2.2 Posterior estimates                     | 10.2 Bayesian Linear Models                            | Closed-form posterior mode, mean, and variance under conjugacy; Monte Carlo approximation for non-conjugate settings; interpretation of "Pr(tail)" statements. |
 | 4.2.3 Distribution percentiles                | 10.2 Bayesian Linear Models                            | Definition of equal-tailed and HPD intervals; extraction of key posterior quantiles (2.5%, 97.5%, etc.); assessing skew and tail behavior. |
-| 4.2.4 Effective number of parameters (pD)     | 10.3 Bayesian Generalized Linear Models                | Introduction of deviance-based effective number of parameters (pD); interpretation of pD as a penalty/shrinkage measure in model comparison. |
-| 4.2.5 Expected residual deviance (D̄)         | 10.3 Bayesian Generalized Linear Models                | Definition of deviance for GLMs; calculation of posterior mean deviance; use of D̄ as a Bayesian fit statistic. |
-| 4.2.6 Deviance Information Criterion (DIC)     | 10.3 Bayesian Generalized Linear Models                | Derivation of DIC = D̄ + pD; guidelines for using DIC to compare Bayesian models under a common prior. |
-| 4.2.7 Expected mean dispersion                | 10.2 Bayesian Linear Models                            | Bayesian estimation of the Gaussian error variance (σ²) via conjugate priors; posterior mean of σ². |
-| 4.2.8 Square-root of expected mean dispersion | 10.2 Bayesian Linear Models                            | Transformation of posterior σ² into σ (residual standard-error analogue); direct comparison to classical RSE. |
+| 4.2.4 Effective number of parameters (pD)     | 10.3 Bayesian Generalized Linear Models                | Introduction of deviance-based effective number of parameters (\(p_D\)); interpretation of \(p_D\) as a penalty/shrinkage measure in model comparison. |
+| 4.2.5 Expected residual deviance (\(\bar{D}\)) | 10.3 Bayesian Generalized Linear Models               | Definition of deviance for GLMs; calculation of posterior mean deviance; use of \(\bar{D}\) as a Bayesian fit statistic. |
+| 4.2.6 Deviance Information Criterion (DIC)     | 10.3 Bayesian Generalized Linear Models               | Derivation of \(\text{DIC} = \bar{D} + p_D\); guidelines for using DIC to compare Bayesian models under a common prior. |
+| 4.2.7 Expected mean dispersion                | 10.2 Bayesian Linear Models                            | Bayesian estimation of the Gaussian error variance \((\sigma^2)\) via conjugate priors; posterior mean of \(\sigma^2\). |
+| 4.2.8 Square-root of expected mean dispersion | 10.2 Bayesian Linear Models                            | Transformation of posterior \(\sigma^2\) into \(\sigma\) (residual standard-error analogue); direct comparison to classical RSE. |
 
 # 6. References
-
-
-

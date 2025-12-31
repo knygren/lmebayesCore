@@ -29,16 +29,16 @@ f(y \mid \theta, \phi) = \exp\left\{ \frac{y \theta - b(\theta)}{a(\phi)} + c(y,
 
 Here:
 
-- `theta` is the **canonical (natural) parameter**  
-- `b(theta)` is the **cumulant function**, ensuring normalization  
-- `a(phi)` is a **dispersion** or **scale** parameter  
-- `c(y, phi)` collects terms not involving `theta`
+- $\theta$ is the **canonical (natural) parameter**  
+- $b(\theta)$ is the **cumulant function**, ensuring normalization  
+- $a(\phi)$ is a **dispersion** or **scale** parameter  
+- $c(y, \phi)$ collects terms not involving $\theta$
 
 This formulation includes the Gaussian, Poisson, Binomial, Gamma, and many others.  
 The exponential-family form is not merely aesthetic: it guarantees several structural properties that GLMs rely on:
 
-- The mean is given by `mu = b'(theta)`.  
-- The variance is `Var(Y) = b''(theta) * a(phi)`.  
+- The mean is given by $\mu = b'(\theta)$.  
+- The variance is $\mathrm{Var}(Y) = b''(\theta)\, a(\phi)$.  
 - Sufficient statistics are low-dimensional (often just the sample mean).  
 - Likelihoods are typically smooth and well-behaved.
 
@@ -52,7 +52,7 @@ A GLM specifies a relationship between the mean `mu` and a linear predictor `eta
 g(\mu) = \eta.
 \]
 
-When the link function is chosen so that `theta = eta`, the link is called **canonical**.  
+When the link function is chosen so that $\theta = \eta$, the link is called **canonical**.  
 Canonical links have several advantages:
 
 - The score equations become linear in the sufficient statistics.  
@@ -153,7 +153,9 @@ In R, the linear predictor is defined using a formula such as:
 
 This corresponds to the linear predictor
 
-    η = Xβ
+\[
+\eta = X \beta
+\]
 
 where X is the model matrix constructed from the formula.  
 The formula interface automatically handles:
@@ -177,20 +179,20 @@ When glm is called, this expression is evaluated first.
 The result is a structured object containing:
 
 - the name of the distribution  
-- the link function g(μ)  
-- the inverse link g⁻¹(η)  
-- the variance function V(μ)  
+- the link function $g(\mu)$  
+- the inverse link $g^{-1}(\eta)$  
+- the variance function $V(\mu)$  
 - the derivative of the inverse link  
 - deviance and AIC functions  
 - initialization and validation rules  
 
 glm then uses this object to:
 
-- map between μ and η  
+- map between $\mu$ and $\eta$  
 - compute IRLS weights  
 - evaluate deviance residuals  
-- check that μ and η lie in valid domains  
-- compute likelihood‑based quantities when available  
+- check that $\mu$ and $\eta$ lie in valid domains  
+- compute likelihood-based quantities when available
 
 ### Specifying a non‑default link
 
@@ -226,13 +228,13 @@ They behave like GLMs but without a fixed likelihood.
 
 ## 2.3 Link Functions: Connecting Means to Linear Predictors
 
-The link function g(μ) = η determines how the mean of the response relates to the linear predictor.  
+The link function $g(\mu) = \eta$ determines how the mean of the response relates to the linear predictor.  
 Each family has a canonical link, which ensures that:
 
-- the canonical parameter equals the linear predictor (θ = η)  
-- the log‑likelihood is often concave in β  
+- the canonical parameter equals the linear predictor ($\theta = \eta$)  
+- the log-likelihood is often concave in $\beta$  
 - IRLS has a simple form  
-- the score equations are linear in the sufficient statistics  
+- the score equations are linear in the sufficient statistics
 
 Examples of canonical links include:
 
@@ -240,20 +242,20 @@ Examples of canonical links include:
 - Binomial: logit  
 - Poisson: log  
 - Gamma: inverse  
-- Inverse Gaussian: 1/μ²  
+- Inverse Gaussian: $1 / \mu^{2}$
 
 Noncanonical links (for example, probit, cloglog, identity for binomial) are also available.  
 They use the same family‑object machinery but may lose some of the computational advantages of canonical links.
 
 ## 2.4 How glm Combines Formulas, Families, and Links
 
-The glm function brings together the components above in a way that mirrors the theory of Section 1:
+The glm function brings together the components above in a way that mirrors the theory of Section 1:
 
-- The formula defines the linear predictor η = Xβ.  
-- The family object provides the variance function V(μ) and the exponential‑family functions b(θ), b′(θ), and b″(θ).  
-- The link provides g(μ), g⁻¹(η), and the derivative of the inverse link.  
-- The IRLS algorithm solves the likelihood equations using the curvature implied by V(μ).  
-- With canonical links, the log‑likelihood is typically log‑concave, ensuring a unique maximum and stable convergence.
+- The formula defines the linear predictor $\eta = X \beta$.  
+- The family object provides the variance function $V(\mu)$ and the exponential-family functions $b(\theta)$, $b'(\theta)$, and $b''(\theta)$.  
+- The link provides $g(\mu)$, $g^{-1}(\eta)$, and the derivative of the inverse link.  
+- The IRLS algorithm solves the likelihood equations using the curvature implied by $V(\mu)$.  
+- With canonical links, the log-likelihood is typically log-concave, ensuring a unique maximum and stable convergence.
 
 ### A critical example: how glm receives formula, family, and link
 
@@ -266,18 +268,18 @@ This line shows all three components working together:
 
 1. **Formula**  
    `counts ~ outcome + treatment`  
-   tells glm how to build the model matrix X, and therefore the linear predictor η = Xβ.
+   tells glm how to build the model matrix X, and therefore the linear predictor $\eta = X \beta$.
 
 2. **Family**  
    `poisson(...)`  
-   constructs a family object describing the Poisson distribution and its variance function V(μ) = μ.
+   constructs a family object describing the Poisson distribution and its variance function $V(\mu) = \mu$.
 
 3. **Link**  
    `link = "log"`  
    is passed inside the family call, telling glm to use the log link  
-       g(μ) = log(μ),  
+       $g(\mu) = \log(\mu)$,  
    with inverse  
-       μ = exp(η).
+       $\mu = \exp(\eta)$.
 
 glm evaluates the family call first, constructs the family object, builds the model matrix from the formula, and then fits the model using IRLS under the Poisson log‑link specification.
 
@@ -300,22 +302,22 @@ A complete, fully expanded reference of all family–link combinations—includi
 
 The table below summarizes the families available in base R’s `glm()` function and the link functions supported for each family. Canonical links are marked with “(canonical)”.
 
-| Family        | Description                                   | Supported Link Functions                                                                 |
-|---------------|-----------------------------------------------|-------------------------------------------------------------------------------------------|
-| `gaussian()`  | Continuous outcomes with constant variance     | `identity` (canonical), `log`, `inverse`                                                  |
-| `binomial()`  | Binary data or proportions                    | `logit` (canonical), `probit`, `cauchit`, `cloglog`, `identity`                           |
-| `poisson()`   | Count data                                    | `log` (canonical), `identity`, `sqrt`                                                     |
-| `Gamma()`     | Positive continuous, skewed                   | `inverse` (canonical), `identity`, `log`                                                  |
-| `inverse.gaussian()` | Positive continuous with heavy tails | `1/mu^2` (canonical), `identity`, `log`, `inverse`                                        |
-| `quasi()`     | User‑specified mean–variance relationship     | Depends on user specification                                                             |
-| `quasibinomial()` | Overdispersed binomial                   | Same as `binomial()`                                                                      |
-| `quasipoisson()`  | Overdispersed Poisson                    | Same as `poisson()`                                                                       |
+| Family               | Description                                   | Supported Link Functions                                                                 |
+|----------------------|-----------------------------------------------|-------------------------------------------------------------------------------------------|
+| `gaussian()`         | Continuous outcomes with constant variance     | `identity` (canonical), `log`, `inverse`                                                  |
+| `binomial()`         | Binary data or proportions                    | `logit` (canonical), `probit`, `cauchit`, `cloglog`, `identity`                           |
+| `poisson()`          | Count data                                    | `log` (canonical), `identity`, `sqrt`                                                     |
+| `Gamma()`            | Positive continuous, skewed                   | `inverse` (canonical), `identity`, `log`                                                  |
+| `inverse.gaussian()` | Positive continuous with heavy tails          | `$1 / \mu^{2}$` (canonical), `identity`, `log`, `inverse`                                 |
+| `quasi()`            | User-specified mean-variance relationship     | Depends on user specification                                                             |
+| `quasibinomial()`    | Overdispersed binomial                        | Same as `binomial()`                                                                      |
+| `quasipoisson()`     | Overdispersed Poisson                         | Same as `poisson()`                                                                       |
 
 ### Notes
 
-- Canonical links ensure that the canonical parameter `theta` equals the linear predictor `eta`, which often yields concave log‑likelihoods and stable IRLS updates.
-- Quasi‑families (`quasi`, `quasibinomial`, `quasipoisson`) do not correspond to true exponential‑family distributions but retain the GLM mean–variance structure.
-- All families listed above integrate cleanly with the formula interface described in Section 2.
+- Canonical links ensure that the canonical parameter $\theta$ equals the linear predictor $\eta$, which often yields concave log-likelihoods and stable IRLS updates.  
+- Quasi-families (`quasi`, `quasibinomial`, `quasipoisson`) do not correspond to true exponential-family distributions but retain the GLM mean-variance structure.  
+- All families listed above integrate cleanly with the formula interface described in Section 2.
 
 ## 3.2 How Families and Links Fit the Exponential‑Family Structure
 
@@ -403,7 +405,7 @@ The default prior is a multivariate normal:
 
     pfamily = dNormal(mu, Sigma)
 
-The helper function `Prior_Setup()` constructs sensible defaults for `mu` and `Sigma`, using a reparameterized form of Zellner’s g‑prior.  
+The helper function `Prior_Setup()` constructs sensible defaults for `mu` and `Sigma`, using a reparameterized form of Zellner's g-prior.  
 Users may also fully customize the prior.
 
 Supported prior families include:

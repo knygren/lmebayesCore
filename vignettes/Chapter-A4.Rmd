@@ -28,21 +28,40 @@ There are three distinct, concrete reasons the Bayesian posterior tail probabili
 
 *** 1.1 Different effective degrees of freedom (**v**)
 
--- In the conjugate parameterization above, posterior **v=2\alpha_{0}+n**. If the prior has positive **\alpha_{0}** (an informative prior on the variance), the posterior  **v** will be larger than the classical **n-p**. Increasing **v** makes the student-t closer to normal (lighter tails), so the tail probability at the same t value is smaller.
+In the conjugate parameterization above, posterior $\boldsymbol{v = 2\alpha_{0} + n}$.
+If the prior has positive $\boldsymbol{\alpha_{0}}$ (an informative prior on the variance),
+the posterior $\boldsymbol{v}$ will be larger than the classical $n - p$.
+Increasing $v$ makes the Student‑t closer to normal (lighter tails), so the tail probability
+at the same $t$ value is smaller.
 
 -- Even for vaguely inforative priors, the prior contributes "pseudo-observations" to the posterior **df**. This is often the main cause of smaller Bayesian tails
 
 *** 1.2 Different standard error (scale) used in the denominator
 
--- Bayesian marginal variance for **\beta_{j}** is **\frac{\beta_{n}}{\alpha_{n}} V_{n}[j,j]**.  Two effects happen here: (a) **V_{n}** generally skrinks relative to **(X^{TX})^{-1}** because of the prior precision **V_{0}^{-1}**, and (b) the posterior scale factor  **\frac{\beta_{n}}{\alpha_{n}}** can be smaller than the classical estimate **\hat(s)^{2}** depending on prior hyperparameters and the data (e.g., prior favors smaller variance). Either effect reduces the denominator and can increase the raw t value -but combined with larger **v** the net tail probability can still be smaller
+Bayesian marginal variance for $\boldsymbol{\beta_{j}}$ is 
+$\boldsymbol{\frac{\beta_{n}}{\alpha_{n}} V_{n}[j,j]}$.
+
+Two effects happen here:  
+(a) $\boldsymbol{V_{n}}$ generally shrinks relative to $(X^{T}X)^{-1}$ because of the prior precision $\boldsymbol{V_{0}^{-1}}$, and  
+(b) the posterior scale factor $\boldsymbol{\frac{\beta_{n}}{\alpha_{n}}}$ can be smaller than the classical estimate $\hat{s}^{2}$ depending on prior hyperparameters and the data (e.g., prior favors smaller variance).
+
+Either effect reduces the denominator and can increase the raw $t$ value — but combined with larger $\boldsymbol{v}$ the net tail probability can still be smaller.
 
 
---So you must compare both the numerator (posterior mean **m_{n,j}) vs OLS \hat{beta}_{j})  and the denominator (posterior scale vs **\hat{s}\sqrt{(X^{T}Xjj)^{-1}})**. Prior shrinkage often makes **mn,j** closer to zero and **V_{n}[j,j]** smaller, those reduce evidence against H0.
+So you must compare both the numerator (posterior mean $\boldsymbol{m_{n,j}}$) 
+vs. the OLS estimate $\hat{\beta}_{j}$, and the denominator 
+(posterior scale vs. $\boldsymbol{\hat{s}\sqrt{(X^{T}X)^{-1}_{jj}}}$). 
+Prior shrinkage often makes $m_{n,j}$ closer to zero and $V_{n}[j,j]$ smaller, 
+both of which reduce evidence against $H_{0}$.
 
-*** 1.3 Different centering (posterior mean vs OLS) and prior Shrinkage
+### 1.3 Different centering (posterior mean vs. OLS) and prior shrinkage
 
-- If the prior pulls **m_{n,j}** towards **\beta_{0}** (for example 0), the numerator of the Bayesian t is smaller in magnitude that **\beta_{ji}**, further reducing tail probability. In combination with (1) and (2), the posterior tail probability will often be noticably smaller than the classical one. Griffin & Brown and other skrinkage prior literature discuss this tradeoff explicitly for normal-gamma shrinkage priors.
-
+- If the prior pulls $\boldsymbol{m_{n,j}}$ toward $\boldsymbol{\beta_{0}}$ (e.g., 0), 
+  the numerator of the Bayesian $t$ is smaller in magnitude than $\hat{\beta}_{j}$, 
+  further reducing tail probability. In combination with (1) and (2), the posterior 
+  tail probability will often be noticeably smaller than the classical one. 
+  Griffin & Brown and other shrinkage‑prior literature discuss this tradeoff 
+  explicitly for normal–gamma shrinkage priors.
 
 
 For Bayesian linear models with normal-gamma priors, it seems like standard errors used in t-statistic calculations need to be adjusted relative to the classical estimates. In particular, the adjustment seems to be
@@ -55,21 +74,27 @@ The adjusted standard error is:
 
 which leads to:
 
+
 \[
-t_{\text{adj},i} = \frac{n}{n + n_{\text{prior}}} \cdot t_{\text{unadjusted},i} \cdot \sqrt{ \frac{n + n_{\text{prior}}}{n - p} }
+t_{\text{adj},i}
+= \frac{n}{n + n_{\text{prior}}}
+  \, t_{\text{unadjusted},i}
+  \, \sqrt{\frac{n + n_{\text{prior}}}{n - p}}.
 \]
 
 where the first ratio shows the skrinkage effect (lower t-value) and the second effect the impact of the adjustment to the standard error (which boosts the t-value).
 
-\[
-t_{\text{adj},i} = \sqrt{\frac{n}{n + n_{\text{prior}}}} \cdot \sqrt{\frac{n}{n -p}}  \cdot t_{\text{unadjusted},i} 
-\]
-
 
 \[
 t_{\text{adj},i} = \sqrt{\frac{n}{n + n_{\text{prior}}}} \cdot \sqrt{\frac{n}{n -p}}  \cdot t_{\text{unadjusted},i} 
 \]
 
+
+
+
+\[
+t_{\text{adj},i} = \sqrt{\frac{n}{n + n_{\text{prior}}}} \cdot \sqrt{\frac{n}{n -p}}  \cdot t_{\text{unadjusted},i} 
+\]
 
 \[
 t_{\text{adj},i} = \sqrt{1-pwt} \cdot \sqrt{\frac{n}{n -p}}  \cdot t_{\text{unadjusted},i} 
@@ -78,6 +103,7 @@ t_{\text{adj},i} = \sqrt{1-pwt} \cdot \sqrt{\frac{n}{n -p}}  \cdot t_{\text{unad
 
 It can be seen from the above that t-statitic in the Bayesian context is larger than the unadjusted t-statistic (i.e., inflated)  whenver
 
+
 \[
 n_{\text{prior}} < p \cdot \frac{n}{n - p}
 \]
@@ -85,20 +111,52 @@ n_{\text{prior}} < p \cdot \frac{n}{n - p}
 
 which implies tail probabilities smaller than their classical counterparts.
 
-n+n_{prior}=n + n(pwt/(1-pwt)) =(n(1-pwt) +n (pwt))/(1-pwt)= n/(1-pwt)
+
+\[
+n + n_{\text{prior}}
+= n + n\left(\frac{\text{pwt}}{1 - \text{pwt}}\right)
+= \frac{n(1 - \text{pwt}) + n(\text{pwt})}{1 - \text{pwt}}
+= \frac{n}{1 - \text{pwt}}.
+\]
 
 
 
-The adjusted standard error is given by  
-$ \text{Std\_err}_t = \text{Std\_err} \cdot \sqrt{ \frac{n - p}{n + n_{\text{prior}}} } $,  
-which leads to the adjusted t-statistic:  
-$ t_{\text{adj},i} = t_{\text{unadjusted},i} \cdot \sqrt{ \frac{n + n_{\text{prior}}}{n - p} } $.
 
-$  Std_err_t = Std_err * \sqrt((n-p)/(n+n_prior))  $
+The adjusted standard error is
+\[
+\text{StdErr}_{t}
+= \text{StdErr} \cdot 
+\sqrt{\frac{n - p}{n + n_{\text{prior}}}},
+\]
+which leads to the adjusted t-statistic
 
-which leads to 
 
-$  t_adj_{i} = t_unadjusted_{i} * \sqrt(n+n_prior)/(n-p))  $
+\[
+t_{\text{adj},i}
+= t_{\text{unadjusted},i} \cdot 
+\sqrt{\frac{n + n_{\text{prior}}}{n - p}}.
+\]
+
+For reference, the same expression can be written as
+
+
+\[
+\text{StdErr}_{t}
+= \text{StdErr} \cdot 
+\sqrt{\frac{n - p}{n + n_{\text{prior}}}}.
+\]
+
+which leads to
+
+
+\[
+t_{\text{adj},i}
+= t_{\text{unadjusted},i} \cdot
+  \sqrt{\frac{n + n_{\text{prior}}}{n - p}}.
+\]
+
+
+
 
 
 The **glmb** function and related *method functions* that handle the output are designed to be Bayesian versions of the **glm** function and many of its *method functions*. This vignette shows how the basic setup/calling of the functions compare and then walks through how the method functions for glmb can be called to generate similar outputs to those from the glm functions.

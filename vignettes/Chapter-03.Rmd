@@ -655,7 +655,7 @@ Centering the intercept prior at the full model MLE ensures:
 
 ### 4.2.2 Effect Priors: Centered at Zero
 
-By contrast, the default prior for effect coefficients is centered at zero. This reflects a common statistical convention: the null hypothesis typically assumes no effect. Centering at zero allows users to interpret posterior summaries in terms of deviation from no effect, and makes tail probabilities (e.g. Pr(β < 0)) directly meaningful.
+By contrast, the default prior for effect coefficients is centered at zero. This reflects a common statistical convention: the null hypothesis typically assumes no effect. Centering at zero allows users to interpret posterior summaries in terms of deviation from no effect, and makes tail probabilities (e.g., \(\Pr(\beta < 0)\)) directly meaningful.
 
 This setup also makes it easy to specify informative priors centered at zero simply by adjusting:
 

@@ -147,10 +147,10 @@ $$
        - \(\text{lmc2} \cdot \text{dispstar2}\) adjusts the shape to ensure the proposal dominates the posterior.  
      - rate parameter and is defined further down
        \[
-       \text{rate}_2 = \text{rate} + \tfrac{\text{RSS_Min}}{2}
+       \text{rate}_2 = \text{rate} + \tfrac{\text{RSS\_Min}}{2}
        \]
        where:
-       - \(\tfrac{\text{RSS_Min}}{2}\) is the classical residual sum of squares,  
+       - \(\tfrac{\text{RSS\_Min}}{2}\) is the classical residual sum of squares,  
        - used as a conservative bound on the residual term that varies across tangency points.  
    - Construct the **Per-Face Subgradient Selection Probabilities (PLSD)** for each grid component \(j\) as follows:  
      \[
@@ -213,29 +213,50 @@ By laying out these constants first, we ensure that every symbol used in the pro
 | Envelope dispersion anchor | $d^{*}_{1} = \dfrac{\text{rate}_2}{\text{shape}_2 - 1}$ | Dispersion used for baseline envelope. |
 | Dispersion bounds | $\text{low} = \tfrac{1}{qgamma(\mathrm{max\_disp\_perc},\, \text{shape}_2,\, \text{rate}_2)}$ <br> $\text{upp} = \tfrac{1}{qgamma(1-\mathrm{max\_disp\_perc},\, \text{shape}_2,\, \text{rate}_2)}$ | Lower and upper bounds for dispersion. |
 | Tangency offset vector | $B(d) = P\mu + \tfrac{1}{d}\,X^\top W(\alpha - y)$ | Offset vector used in the inverse map $c^{-1}(\bar{c}, d)$. Combines prior mean $\mu$ and weighted residuals. |
-| Tangency slope components | $\begin{aligned} Q &= X^\top X \\[6pt] A(d) &= Q + dP \\[6pt] r &= X^\top (y - \alpha) \\[6pt] V(d) &= \bar c_j - P\,A(d)^{-1}(r + d\,\bar c_j) \end{aligned}$ | Components for quad-linear slope term. |
+| Tangency slope components | $$\begin{aligned}
+Q &= X^\top X \\[6pt]
+A(d) &= Q + dP \\[6pt]
+r &= X^\top (y - \alpha) \\[6pt]
+V(d) &= \bar c_j - P\,A(d)^{-1}(r + d\,\bar c_j)
+\end{aligned}$$ | Components for quad-linear slope term. |
 | Tangency inverse map | $c^{-1}(\bar{c}, d) = A(d)^{-1}(\bar{c} - B(d))$ | Inverse map from gradient vector $\bar{c}$ and dispersion $d$ to tangency point $\theta$. |
 | Tangency map | $\theta(d) = c^{-1}(\bar c_j,d)$ | Tangency point in coefficient space at dispersion $d$. |
-| Baseline face constant | $\begin{aligned} \mathrm{thetabarconst}[j] \;=\;& -\tfrac{1}{2}\,\big(c^{-1}(\bar c_j,d^{*}_{1})\big)^\top P \,\big(c^{-1}(\bar c_j,d^{*}_{1})\big) \\ &+ \bar c_j^\top \,c^{-1}(\bar c_j,d^{*}_{1}) \end{aligned}$ | Per-face baseline constant at the tangency point. |
-| Quad-linear dispersion slope | $\begin{aligned} \mathrm{New\_LL\_Slope}[j] &= V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} \bar c_j \\ &\quad - V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} P\,A(d^{*}_{1})^{-1}(r + d^{*}_{1}\,\bar c_j) \end{aligned}$ | Gradient of the tangency quadratic–linear form with respect to dispersion $d$. |
+| Baseline face constant | $$\begin{aligned}
+\mathrm{thetabarconst}[j] \;=\;& -\tfrac{1}{2}\,\big(c^{-1}(\bar c_j,d^{*}_{1})\big)^\top P \,\big(c^{-1}(\bar c_j,d^{*}_{1})\big) \\
+&+ \bar c_j^\top \,c^{-1}(\bar c_j,d^{*}_{1})
+\end{aligned}$$ | Per-face baseline constant at the tangency point. |
+| Quad-linear dispersion slope | $$\begin{aligned}
+\mathrm{New\_LL\_Slope}[j] &= V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} \bar c_j \\
+&\quad - V(d^{*}_{1})^\top A(d^{*}_{1})^{-1} P\,A(d^{*}_{1})^{-1}(r + d^{*}_{1}\,\bar c_j)
+\end{aligned}$$ | Gradient of the tangency quadratic–linear form with respect to dispersion $d$. |
 | Mean quad-linear dispersion slope | $\mathrm{m\_New\_LL\_Slope} = \mathrm{mean}\big(\mathrm{New\_LL\_Slope}[i]\big)$ | Global average of per-face quad-linear slopes. |
-| Extrapolated face constants | $\begin{aligned} \mathrm{thetabarconst\_upp\_apprx}[j] &= \mathrm{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \\[6pt] \mathrm{thetabarconst\_low\_apprx}[j] &= \mathrm{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \end{aligned}$ | Linear extrapolations of the face constant to upper and lower dispersion bounds. |
-| Endpoint maxima | $\begin{aligned} \mathrm{max\_upp} &= \max_j \Big( \mathrm{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \Big) \\[6pt] \mathrm{max\_low} &= \max_j \Big( \mathrm{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \Big) \end{aligned}$ | Maxima at upper and lower dispersion bounds. |
+| Extrapolated face constants | $$\begin{aligned}
+\mathrm{thetabarconst\_upp\_apprx}[j] &= \mathrm{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \\[6pt]
+\mathrm{thetabarconst\_low\_apprx}[j] &= \mathrm{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j]
+\end{aligned}$$ | Linear extrapolations of the face constant to upper and lower dispersion bounds. |
+| Endpoint maxima | $$\begin{aligned}
+\mathrm{max\_upp} &= \max_j \Big( \mathrm{thetabarconst}[j] + (\text{upp} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \Big) \\[6pt]
+\mathrm{max\_low} &= \max_j \Big( \mathrm{thetabarconst}[j] + (\text{low} - d^{*}_{1})\,\mathrm{New\_LL\_Slope}[j] \Big)
+\end{aligned}$$ | Maxima at upper and lower dispersion bounds. |
 | Mean lower-bound maximum | $\mathrm{max\_low\_mean} = \mathrm{max\_upp} - \mathrm{m\_New\_LL\_Slope} \cdot (\text{upp} - \text{low})$ | Approximate lower-bound maximum via linear adjustment. |
 | Global line parameters | $\text{lmc}_2 = \dfrac{\mathrm{max\_upp} - \mathrm{max\_low\_mean}}{\text{upp} - \text{low}}$ <br> $\text{lmc}_1 = \mathrm{max\_low\_mean} - \text{lmc}_2 \cdot \text{low}$ | Slope and intercept of global bounding line. |
 | Log-linear anchor | $d^{*}_{2} = \dfrac{\text{upp} - \text{low}}{\log(\text{upp}/\text{low})}$ | Anchor point for log–linear tilt. |
 | Log–tilt coefficients | $\mathrm{lm\_log2} = \text{lmc}_2 \cdot d^{*}_{2}$ <br> $\mathrm{lm\_log1} = \text{lmc}_1 + \text{lmc}_2 \cdot d^{*}_{2} - \text{lmc}_2 \cdot \log(d^{*}_{2})$ <br> $\mathrm{max\_LL\_log\_disp} = \mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log(\text{upp})$ | Coefficients for log–tilt slope and intercept. |
-| $\text{RSS}_{j}(d)$ | $\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2$ | Residual Sum of of Squares for face j at d. |
-| $\text{RSS_Min}$ | $\begin{aligned} 
-&\min_{j}\;\min\limits_{d \in [\mathrm{low},\, \mathrm{upp}]} \;\sum_{i=1}^n w_i \,\Big(y_i - x_i^\top \bar c^{-1}(\bar c_j,d)\Big)^2 
-\end{aligned}$ | Global minimum residual sum of squares across all faces $j$ and dispersion values $d$ in $[d_{\mathrm{low}}, d_{\mathrm{upp}}]$. |
-| $\text{UB2}_{j}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \mathrm{RSS}_{Min}\Big)$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| $\text{UB2_Min}_{j}$ | $\begin{aligned} 
-&\min\limits_{d \in [\mathrm{low},\, \mathrm{upp}]} \;\text{UB2}_{j}(d)
-\end{aligned}$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| Per-face shift | $\begin{aligned} \mathrm{lg\_prob\_factor}_j &= \max \Big\{ \mathrm{thetabarconst\_upp\_apprx}[j] - \mathrm{max\_upp}, \\[6pt] & \mathrm{thetabarconst\_low\_apprx}[j] - \mathrm{max\_low} \Big\} \\[6pt] &
--\text{UB2_Min}_{j} \end{aligned}$ | Adjustment factor per face, based on extrapolated shifts. |
-| Gamma proposal parameters | $\text{shape}_3 = \text{shape}_2 - \mathrm{lm\_log2}$ <br> $\text{rate}_3 = \text{Rate} + \text{RSS_Min}/2$ | Adjusted Gamma proposal parameters. |
+| $\text{RSS}_{j}(d)$ | $\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2$ | Residual Sum of Squares for face j at d. |
+| $\text{RSS\_Min}$ | $$\begin{aligned}
+\min_{j}\;\min\limits_{d \in [\mathrm{low},\, \mathrm{upp}]} \;\sum_{i=1}^n w_i \,\Big(y_i - x_i^\top \bar c^{-1}(\bar c_j,d)\Big)^2
+\end{aligned}$$ | Global minimum residual sum of squares across all faces $j$ and dispersion values $d$. |
+| $\text{UB2}_{j}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \mathrm{RSS}_{Min}\Big)$ | Bound relative to the ML residual sum of squares. |
+| $\text{UB2\_Min}_{j}$ | $$\begin{aligned}
+\min\limits_{d \in [\mathrm{low},\, \mathrm{upp}]} \;\text{UB2}_{j}(d)
+\end{aligned}$$ | Minimum UB2 value across dispersion range. |
+| Per-face shift | $$\begin{aligned}
+\mathrm{lg\_prob\_factor}_j &= \max \Big\{ \mathrm{thetabarconst\_upp\_apprx}[j] - \mathrm{max\_upp}, \\
+& \mathrm{thetabarconst\_low\_apprx}[j] - \mathrm{max\_low} \Big\} \\[6pt]
+&\quad -\text{UB2\_Min}_{j}
+\end{aligned}$$ | Adjustment factor per face, based on extrapolated shifts. |
+| Gamma proposal parameters | $\text{shape}_3 = \text{shape}_2 - \mathrm{lm\_log2}$ <br> $\text{rate}_3 = \text{Rate} + \text{RSS\_Min}/2$ | Adjusted Gamma proposal parameters. |
+
 
 
 
@@ -256,6 +277,8 @@ These proposals are constructed to be tractable for sampling and to support tigh
 
 For dispersion \(d \in [\,\text{low},\,\text{upp}\,]\), define the truncated inverse‑Gamma proposal density (equivalently, a truncated Gamma in \(1/d\)):
 
+
+
 \[
 \begin{aligned}
 \log q_\Gamma^{\text{trunc}}(d)
@@ -265,10 +288,10 @@ For dispersion \(d \in [\,\text{low},\,\text{upp}\,]\), define the truncated inv
    - \frac{\text{Rate} + \tfrac{\mathrm{RSS_Min}}{2}}{d} \\[6pt]
 &\quad - \log\!\Bigg(
 F_\Gamma\!\Big(\tfrac{1}{\text{low}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
-\text{Rate} + \tfrac{\text{RSS_Min}}{2}\Big)
+\text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big)
 -\;
 F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
-\text{Rate} + \tfrac{\text{RSS_Min}}{2}\Big)
+\text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big)
 \Bigg),
 \end{aligned}
 \]
@@ -330,18 +353,28 @@ Together, they measure the “gap” between the proposal approximation and the 
 
 | Term | Definition | Description |
 |------|------------|-------------|
-| $\text{test1}_{j}(\beta,d)$ | $\begin{aligned}  & LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt] &= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt] &\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg] \end{aligned}$ | Difference between the log‑likelihood and its linearization at the tangency point. By concavity, this term is always $\leq 0$. |
-| $\text{RSS}_{j}(d)$ | $\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2$ | Residual Sum of of Squares for face j at d. |
-| $\text{RSS_Min}$ | $\begin{aligned} 
-&\min_{j}\;\min\limits_{d \in [d_{\mathrm{low}},\, d_{\mathrm{upp}}]} \;\sum_{i=1}^n w_i \,\Big(y_i - x_i^\top \bar c^{-1}(\bar c_j,d)\Big)^2 
-\end{aligned}$ | Global minimum residual sum of squares across all faces $j$ and dispersion values $d$ in $[d_{\mathrm{low}}, d_{\mathrm{upp}}]$. |
-| $\text{UB2}_{j}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \mathrm{RSS}_{Min}\Big)$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| $\text{UB2_Min}_{j}$ | $\begin{aligned} 
-&\min\limits_{d \in [d_{\mathrm{low}},\, d_{\mathrm{upp}}]} \;\text{UB2}_{j}(d)
-\end{aligned}$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| $\text{UB2A}_{j}(d)$ | $\text{UB2}_{j}(d) - \text{UB2_Min}_{j}$  | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| $\text{UB3A}_j(d)$ | $\begin{aligned} &\mathrm{lg\_prob\_factor\_j} + \text{lmc}_1 + \text{lmc}_2\, d \\ &\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big) \end{aligned}$ | Bound from the quadratic–linear face energy. Constructed so that the global line $(\text{lmc}_1 + \text{lmc}_2\,d)$ dominates the exact quadratic–linear term. |
-| $\text{UB3B}(d)$ | $\begin{aligned} &(\mathrm{max\_upp} - \mathrm{max\_LL\_log\_disp}) \\ &\quad + (\mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log d) - (\text{lmc}_1 + \text{lmc}_2 \cdot d) \end{aligned}$ | Bound from the dispersion log–tilt construction. Ensures that the global log–linear approximation dominates the true log‑dispersion curve. |
+| $\text{test1}_{j}(\beta,d)$ | $$\begin{aligned}
+& LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt]
+&= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt]
+&\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg]
+\end{aligned}$$ | Difference between the log‑likelihood and its linearization at the tangency point. By concavity, this term is always $\leq 0$. |
+| $\text{RSS}_{j}(d)$ | $\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2$ | Residual Sum of Squares for face j at dispersion $d$. |
+| $\text{RSS\_Min}$ | $$\begin{aligned}
+\min_{j}\;\min\limits_{d \in [d_{\mathrm{low}},\, d_{\mathrm{upp}}]} \;\sum_{i=1}^n w_i \,\Big(y_i - x_i^\top \bar c^{-1}(\bar c_j,d)\Big)^2
+\end{aligned}$$ | Global minimum residual sum of squares across all faces $j$ and dispersion values $d$. |
+| $\text{UB2}_{j}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \mathrm{RSS}_{Min}\Big)$ | Bound relative to the ML residual sum of squares. Always $\geq 0$. |
+| $\text{UB2\_Min}_{j}$ | $$\begin{aligned}
+\min\limits_{d \in [d_{\mathrm{low}},\, d_{\mathrm{upp}}]} \;\text{UB2}_{j}(d)
+\end{aligned}$$ | Minimum UB2 value across the dispersion range. |
+| $\text{UB2A}_{j}(d)$ | $\text{UB2}_{j}(d) - \text{UB2\_Min}_{j}$ | Non‑negative UB2 adjustment. |
+| $\text{UB3A}_j(d)$ | $$\begin{aligned}
+&\mathrm{lg\_prob\_factor\_j} + \text{lmc}_1 + \text{lmc}_2\, d \\
+&\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big)
+\end{aligned}$$ | Bound from the quadratic–linear face energy. Constructed so the global line dominates the exact quadratic–linear term. |
+| $\text{UB3B}(d)$ | $$\begin{aligned}
+&(\mathrm{max\_upp} - \mathrm{max\_LL\_log\_disp}) \\
+&\quad + (\mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log d) - (\text{lmc}_1 + \text{lmc}_2 \cdot d)
+\end{aligned}$$ | Bound from the dispersion log–tilt construction. Ensures the global log–linear approximation dominates the true log‑dispersion curve. |
 
 
 
@@ -467,6 +500,7 @@ Define the following:
 
 **(1a)**
 
+\[
 \begin{aligned}
 \log q_{\Gamma,2}(d) 
   &= \log q_\Gamma(d) + lm\_log2 \,\log \tfrac{1}{d} \\[6pt]
@@ -483,6 +517,9 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
 \Bigg),
 \end{aligned}
+\]
+
+
 
 **(1b)**
 
@@ -499,6 +536,8 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 
 **(1c)**
 
+
+
 \[
 \begin{aligned}
 \text{UB3B}_{2}(d) 
@@ -510,6 +549,7 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 
 **(2a)**
 
+\[
 \begin{aligned}
 \text{test1}_{2}(\beta,d) & = \text{test1}(\beta,d)  + \Big(
    -\tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d)
@@ -522,9 +562,11 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 &\quad - \Bigg[
    - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \bar c_j^{\top}\beta  \Bigg].
 \end{aligned}
+\]
 
 **(2b)**
 
+\[
 \begin{aligned}
 \log \text{PLSD}_{j,2} & =\log \text{PLSD}_j -\lg\_prob\_factor_j  \\[6pt]
 & =  \tfrac{1}{2}\bar c_j^\top \bar c_j
@@ -535,9 +577,11 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
 \right).
 \end{aligned}
+\]
 
 **(3a)**
 
+\[
 \begin{aligned}
 \log q_{\Gamma,3}(d) 
   &= \log q_{\Gamma,2}(d)  + (RSS_{ML}/2)\,\tfrac{1}{d}  \\[6pt]
@@ -553,9 +597,11 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
 \Bigg),
 \end{aligned}
+\]
 
 **(3b)**
 
+\[
 \begin{aligned}
 \text{test1}_{3}(\beta,d) & = \text{test1}_{2}(\beta,d)  + \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 \\[6pt]
 &= \Bigg[
@@ -563,9 +609,13 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
    - \tfrac{1}{2}\beta^\top P \beta
    \Bigg] + \bar c_j^{\top}\beta\\[6pt]
 \end{aligned}
+\]
+
+
 
 **(4a)**
 
+$$
 \begin{aligned}
 \log q_{\Gamma,4}(d) 
   &= \log q_{\Gamma,3}(d)  - (n/2)\,\log \tfrac{1}{d}  \\[6pt]
@@ -573,7 +623,7 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
    - \text{Rate}\,\tfrac{1}{d} \\[6pt]
 &\quad + (\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2)
    - \log \Gamma(\text{Shape} + n/2 - lm\_log2) \\[6pt]
-   &\quad - \log\!\Bigg(
+&\quad - \log\!\Bigg(
 F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
 \text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
 &\qquad\qquad\;\; -\;
@@ -581,9 +631,13 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
 \Bigg),
 \end{aligned}
+$$
+
+
 
 **(4b)**
 
+\[
 \begin{aligned}
 \log q_{\text{TN},2}(\beta\mid j) 
 &= \log q_{\text{TN}}(\beta\mid j) + \bar c_j^\top \beta + \tfrac{1}{2}\bar c_j^\top \bar c_j \\[6pt]
@@ -591,9 +645,11 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 + \tfrac{p}{2}\log(2\pi)
 - \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big).
 \end{aligned}
+\]
 
 **(4c)**
 
+\[
 \begin{aligned}
 \log \text{PLSD}_{j,3} & = \text{PLSD}_{j,2} -\tfrac{1}{2}\bar c_j^\top \bar c_j  \\[6pt]
 & =  \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big)
@@ -603,9 +659,13 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \prod_{r=1}^p \big(e^{\text{logrt}_{k,r}} - e^{\text{loglt}_{k,r}}\big)
 \right).
 \end{aligned}
+\]
+
+
 
 **(4d)**
 
+\[
 \begin{aligned}
 \text{test1}_{4}(\beta,d) & = \text{test1}_{3}(\beta,d)  - \bar c_j^{\top}\beta + (n/2)\,\log \tfrac{1}{d} \\[6pt]
 &= \Bigg[
@@ -615,46 +675,51 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
    \\[6pt]
 & = LL(\beta,d)
 \end{aligned}
+\]
+
 
 **(5a)**
 
+$$
 \begin{aligned}
 \log q_{\Gamma,5}(d) 
   &= \log q_{\Gamma,4}(d) 
    + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
   &\quad - \Big[(\text{Shape} + n/2 - lm\_log2)\,\log(\text{Rate} + RSS_{ML}/2) 
    - \log \Gamma(\text{Shape} + n/2 - lm\_log2)\Big] \\[6pt]
-   &\quad - \log\!\Bigg(
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
-\text{Rate} \Big) \\[4pt]
+  &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,
+\text{Rate}\Big) \\[4pt]
 &\qquad\qquad\;\; -\;
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
-\text{Rate} \Big)
-\Bigg),  \\[6pt]
-   
-   
-   &\quad + \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,
+\text{Rate}\Big)
+\Bigg) \\[6pt]
+  &\quad + \log\!\Bigg(
 F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
 \text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \\[4pt]
 &\qquad\qquad\;\; -\;
 F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac{n}{2} - lm\_log2,\,
-\text{Rate} + \tfrac{RSS_{ML}}{2}\Big) \Bigg), \\[6pt]
-
-  &= \text{Shape}   \,\log \tfrac{1}{d}
+\text{Rate} + \tfrac{RSS_{ML}}{2}\Big)
+\Bigg) \\[6pt]
+  &= \text{Shape}\,\log \tfrac{1}{d}
    - \text{Rate}\,\tfrac{1}{d} \\[6pt]
-&\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
-   &\quad - \log\!\Bigg(
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape} ,\,
-\text{Rate} \Big) \\[4pt]
+  &\quad + \Big[\text{Shape}\,\log(\text{Rate}) - \log \Gamma(\text{Shape})\Big] \\[6pt]
+  &\quad - \log\!\Bigg(
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,
+\text{Rate}\Big) \\[4pt]
 &\qquad\qquad\;\; -\;
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
-\text{Rate} \Big)
-\Bigg),  \\[6pt]
-   
+F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,
+\text{Rate}\Big)
+\Bigg)
 \end{aligned}
+$$
+
+
+
 
 **(5b)**
 
+$$
 \begin{aligned}
 \log q_{\text{TN},3}(\beta\mid j)
 &= \log q_{\text{TN},2}(\beta\mid j)
@@ -662,14 +727,17 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
 &= -\tfrac{1}{2}\beta^\top \beta
    + \tfrac{p}{2}\log(2\pi).
 \end{aligned}
+$$
+
+
 
 **(5c)**
 
+\[
 \begin{aligned}
 \log \text{PLSD}_{j,4}
   &= \log \text{PLSD}_{j,3}
    \;-\; \sum_{r=1}^p \log\!\big(e^{\text{logrt}_{j,r}} - e^{\text{loglt}_{j,r}}\big) \\[6pt]
-   
   &  \;+\; \underbrace{
      \log\!\left(
        \sum_{k=1}^K
@@ -679,6 +747,10 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} ,\,
    }_{\displaystyle C_{\text{PLSD}}} \\[6pt]
 &= 0
 \end{aligned}
+\]
+
+
+
 
 **(5d)**
 
@@ -718,8 +790,12 @@ F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape} + \tfrac
 \end{aligned}
 \]
 
+
 Then for each face j:
 
+
+
+\[
 \begin{aligned}
 & \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
 + \underbrace{\log q_{\text{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
@@ -751,6 +827,11 @@ Then for each face j:
 + \underbrace{LL(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
 + C_{\text{final}}
 \end{aligned}
+\]
+
+
+
+
 
 **Narrative explanation.**  
 In the above chain of equalities, each step systematically replaces interim definitions with their standardized counterparts, while absorbing constants into a global term:
@@ -1088,8 +1169,10 @@ This completes the proof of Claim 4.
 Define function \(f1(.) \) and \(f2(.) \)
 
 by 
-\[
-\begin{align}
+
+
+$$
+\begin{aligned}
 f1(d) 
 &= \big(\mathrm{max\_upp} - \mathrm{max\_LL\_log\_disp}\big) \\[6pt]
 &\quad + \big(\mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log d \big) \\[6pt]
@@ -1099,21 +1182,29 @@ f1(d)
 - (\text{lmc}_1 + \text{lmc}_2 \cdot d^{*}_{2} - \text{lmc}_2 \cdot \log(\text{upp})) \big) \\[6pt]
 &\quad + \big(\text{lmc}_1 + \text{lmc}_2 \cdot d^{*}_{2} - \text{lmc}_2 \cdot \log(d^{*}_{2})
 + \text{lmc}_2 \cdot d^{*}_{2} \cdot \log d \big)
-\end{align}
-\]
+\end{aligned}
+$$
+
 and
+
+
+
+
 \[
-\begin{align}
+\begin{aligned}
 f2(d) &= \text{lmc}_1 + \text{lmc}_2 \cdot d \\[6pt]
 &= \mathrm{max\_low\_mean} - \text{lmc}_2 \cdot \text{low} + \text{lmc}_2 \cdot d
-\end{align}
+\end{aligned}
 \]
+
+
 
 so \(\text{UB3B}(d)  =f1(d)-f2(d) \).
 
 When  \(d=\text{upp} \), we have
 
-\begin{align}
+\[
+\begin{aligned}
 \text{UB3B}(\text{upp}) 
 &= f1(\text{upp}) - f2(\text{upp}) \\[6pt]
 &= \big(\mathrm{max\_upp} - \big(\mathrm{max\_low\_mean} + \text{lmc}_2 \cdot (\text{upp} - \text{low})\big)\big) \\[6pt]
@@ -1121,7 +1212,8 @@ When  \(d=\text{upp} \), we have
    + \tfrac{(\mathrm{max\_upp} - \mathrm{max\_low\_mean})}{(\text{upp} - \text{low})} \cdot (\text{upp} - \text{low})\big)\big) \\[6pt]
 &= \big(\mathrm{max\_upp} - \mathrm{max\_upp}\big) \\[6pt]
 &= 0
-\end{align}
+\end{aligned}
+\]
 
 
 so \( f1(upp)=f2(upp)\).
@@ -1129,7 +1221,8 @@ so \( f1(upp)=f2(upp)\).
 Likewise, when \(d=\text{low} \), we have
 
 
-\begin{align}
+\[
+\begin{aligned}
 \text{UB3B}(\text{low}) 
 &= f1(\text{low}) - f2(\text{low}) \\[6pt]
 &= \big(\mathrm{max\_upp} - \big(\mathrm{lm\_log2} \cdot (\log(\text{upp}) - \log(\text{low}))\big)\big) \\[6pt]
@@ -1143,7 +1236,9 @@ Likewise, when \(d=\text{low} \), we have
 &= \big(\mathrm{max\_upp} - (\mathrm{max\_upp} - \mathrm{max\_low\_mean})\big) \\[6pt]
 &\quad - \mathrm{max\_low\_mean} \\[6pt]
 &= 0
-\end{align}
+\end{aligned}
+\]
+
 
 
 so \( f1(low)=f2(low)\).
@@ -1151,6 +1246,8 @@ so \( f1(low)=f2(low)\).
 From properties of the log and the result from Remark 4, that $\mathrm{lm\_log2} \ge 0$, it follows that $f1(\cdot)$ is a concave function.
 
 Now, pick any \( t \in [0,1] \).  It then follows that
+
+
 
 \begin{align} f1(\text{t} \cdot \text{low} +\text{(1-t)} \cdot \text{upp} ) & \geq \text{t} \cdot f1(\text{low}) +\text{(1-t)} \cdot f1(\text{upp}) \\
 & = \text{t} \cdot f2(\text{low}) +\text{(1-t)} \cdot f2(\text{upp}) \\
@@ -1167,12 +1264,28 @@ which completes the proof.
 ## 6.0 - Modified UB2 approach
 
 
+
+
 | Term | Definition | Description |
 |------|------------|-------------|
-| $\text{test1}(\beta,d)$ | $\begin{aligned}  & LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt] &= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt] &\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg] \end{aligned}$ | Difference between the log‑likelihood and its linearization at the tangency point. By concavity, this term is always $\leq 0$. |
+| $\text{test1}(\beta,d)$ | $$\begin{aligned}
+& LL(\beta,d) - \Big( LL(\bar c^{-1}(\bar c_j,d),d) - \bar c_j^{\top}(\beta - \bar c^{-1}(\bar c_j,d)) \Big) \\[6pt]
+&= \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2 - \tfrac{1}{2}\beta^\top P \beta \Bigg] \\[6pt]
+&\quad - \Bigg[ - \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \tfrac{1}{2}\big(\bar c^{-1}(\bar c_j,d)\big)^\top P\,\bar c^{-1}(\bar c_j,d) - \bar c_j^{\top}\big(\beta - \bar c^{-1}(\bar c_j,d)\big) \Bigg]
+\end{aligned}$$ | Difference between the log‑likelihood and its linearization at the tangency point. By concavity, this term is always $\leq 0$. |
 | $\text{UB2}(d)$ | $\tfrac{1}{2d}\Big(\sum_{i=1}^n w_i\,(y_i - x_i^\top \bar c^{-1}(\bar c_j,d))^2 - \mathrm{RSS}_{ML}\Big)$ | Bound relative to the ML residual sum of squares. Always $\geq 0$ because the ML fit minimizes residuals. |
-| $\text{UB3A}_j(d)$ | $\begin{aligned} &\mathrm{lg\_prob\_factor\_j} + \text{lmc}_1 + \text{lmc}_2\, d \\ &\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big) \end{aligned}$ | Bound from the quadratic–linear face energy. Constructed so that the global line $(\text{lmc}_1 + \text{lmc}_2\,d)$ dominates the exact quadratic–linear term. |
-| $\text{UB3B}(d)$ | $\begin{aligned} &(\mathrm{max\_upp} - \mathrm{max\_LL\_log\_disp}) \\ &\quad + (\mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log d) - (\text{lmc}_1 + \text{lmc}_2 \cdot d) \end{aligned}$ | Bound from the dispersion log–tilt construction. Ensures that the global log–linear approximation dominates the true log‑dispersion curve. |
+| $\text{UB3A}_j(d)$ | $$\begin{aligned}
+&\mathrm{lg\_prob\_factor\_j} + \text{lmc}_1 + \text{lmc}_2\, d \\
+&\quad - \Big(-\tfrac{1}{2}(\bar c^{-1}(\bar c_j,d))^\top P\,\bar c^{-1}(\bar c_j,d) + \bar c_j^\top \bar c^{-1}(\bar c_j,d)\Big)
+\end{aligned}$$ | Bound from the quadratic–linear face energy. Constructed so that the global line $(\text{lmc}_1 + \text{lmc}_2\,d)$ dominates the exact quadratic–linear term. |
+| $\text{UB3B}(d)$ | $$\begin{aligned}
+&(\mathrm{max\_upp} - \mathrm{max\_LL\_log\_disp}) \\
+&\quad + (\mathrm{lm\_log1} + \mathrm{lm\_log2} \cdot \log d) - (\text{lmc}_1 + \text{lmc}_2 \cdot d)
+\end{aligned}$$ | Bound from the dispersion log–tilt construction. Ensures that the global log–linear approximation dominates the true log‑dispersion curve. |
+
+
+
+
 
 
 New Construction for UB2:
@@ -1279,3 +1392,4 @@ Thus the analytic gradient matches the implementation:
 \boxed{\;\frac{d}{dd}\,\mathrm{RSS}(d)
 = \frac{2}{d^2}\,\mathrm{resid}(d)^\top W X A(d)^{-1}\Big(\mathrm{base\_A}\,\beta(d) - \mathrm{base\_B0}\Big)\;}
 \]
+
