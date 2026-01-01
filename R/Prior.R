@@ -347,8 +347,9 @@ if (!is.null(sd)) {
   
   ## conditional dispersion
   if (family$family == "gaussian") {
-    ## summary(glm) gives you the MLE \eqn{\sigma^2} via $dispersion
     dispersion <- summary(glm_full)$dispersion
+  } else if (family$family == "Gamma") {
+    dispersion <- MASS::gamma.dispersion(glm_full)
   } else {
     dispersion <- NULL
   }
