@@ -1,13 +1,14 @@
-data(menarche2)
+data(menarche,package="MASS")
+
 ## ----Analysis Setup-----------------------------------------------------------
 ## Number of variables in model
-Age=menarche2$Age
+Age=menarche$Age
 nvars=2
 ## Reference Ages for setting of priors and Age_Difference
 ref_age1=13  # user can modify this
 ref_age2=15  ## user can modify this
 ## Define variables used later in analysis
-Age2=menarche2$Age-ref_age1
+Age2=menarche$Age-ref_age1
 Age_Diff=ref_age2-ref_age1
 mu1=as.matrix(c(0,1.098612),ncol=1)
 V1<-1*diag(nvars)
@@ -15,8 +16,8 @@ V1[1,1]=0.18687882
 V1[2,2]=0.10576217
 V1[1,2]=-0.03389182
 V1[2,1]=-0.03389182
-Menarche_Model_Data=data.frame(Age=menarche2$Age,Total=menarche2$Total,
-                               Menarche=menarche2$Menarche,Age2)
+Menarche_Model_Data=data.frame(Age=menarche$Age,Total=menarche$Total,
+                               Menarche=menarche$Menarche,Age2)
 glmb.out1<-glmb(n=1000,cbind(Menarche, Total-Menarche) ~Age2,family=binomial(logit),
                 pfamily=dNormal(mu=mu1,Sigma=V1),data=Menarche_Model_Data)
 

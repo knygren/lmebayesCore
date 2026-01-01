@@ -262,33 +262,33 @@ summary(glmb.D93)
 
 
 # Menarche Binomial Data Example 
-data(menarche2)
-Age2=menarche2$Age-13
+data(menarche,package="MASS")
+Age2=menarche$Age-13
 
-## Classicak Model
+## Classical Model
 
-glm.out<-glm(cbind(Menarche, Total-Menarche) ~ Age2, family=binomial(logit), data=menarche2)
+glm.out<-glm(cbind(Menarche, Total-Menarche) ~ Age2, family=binomial(logit), data=menarche)
 summary(glm.out)
 
 ## Logit Prior and Model
-ps1=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit), data=menarche2)
+ps1=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(logit), data=menarche)
 
 glmb.out1<-glmb(cbind(Menarche, Total-Menarche) ~ Age2,
-family=binomial(logit),pfamily=dNormal(mu=ps1$mu,Sigma=ps1$Sigma), data=menarche2)
+family=binomial(logit),pfamily=dNormal(mu=ps1$mu,Sigma=ps1$Sigma), data=menarche)
 summary(glmb.out1)
 
 ## Probit Prior and Model
-ps2=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(probit), data=menarche2)
+ps2=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(probit), data=menarche)
 
 glmb.out2<-glmb(cbind(Menarche, Total-Menarche) ~ Age2,
-                family=binomial(probit),pfamily=dNormal(mu=ps2$mu,Sigma=ps2$Sigma), data=menarche2)
+                family=binomial(probit),pfamily=dNormal(mu=ps2$mu,Sigma=ps2$Sigma), data=menarche)
 summary(glmb.out2)
 
 ## clog-log Prior and Model
-ps3=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(cloglog), data=menarche2)
+ps3=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(cloglog), data=menarche)
 
 glmb.out3<-glmb(cbind(Menarche, Total-Menarche) ~ Age2,
-                family=binomial(cloglog),pfamily=dNormal(mu=ps3$mu,Sigma=ps3$Sigma), data=menarche2)
+                family=binomial(cloglog),pfamily=dNormal(mu=ps3$mu,Sigma=ps3$Sigma), data=menarche)
 summary(glmb.out3)
 
 ## Comparison of DIC Statistics

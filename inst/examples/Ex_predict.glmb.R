@@ -1,7 +1,8 @@
-data(menarche2)
+data(menarche,package="MASS")
+
 ## ----Analysis Setup-----------------------------------------------------------
 ## Number of variables in model
-Age=menarche2$Age
+Age=menarche$Age
 nvars=2
 ## Reference Ages for setting of priors and Age_Difference
 ref_age1=13  # user can modify this
@@ -15,8 +16,8 @@ V1[1,1]=0.18687882
 V1[2,2]=0.10576217
 V1[1,2]=-0.03389182
 V1[2,1]=-0.03389182
-Menarche_Model_Data=data.frame(Age=menarche2$Age,Total=menarche2$Total,
-                               Menarche=menarche2$Menarche,Age2)
+Menarche_Model_Data=data.frame(Age=menarche$Age,Total=menarche$Total,
+                               Menarche=menarche$Menarche,Age2)
 glmb.out1<-glmb(n=1000,cbind(Menarche, Total-Menarche) ~Age2,family=binomial(logit),
                 pfamily=dNormal(mu=mu1,Sigma=V1),data=Menarche_Model_Data)
 
@@ -32,9 +33,9 @@ colMeans(pred1)
 Age_New <- seq(8, 20, 0.25)
 Age2_New=Age_New-13
 mod_Object=glmb.out1
-obs_size=median(menarche2$Total) ## Counts for sim from Binomial
-olddata=data.frame(Age=menarche2$Age,
-                   Menarche=menarche2$Menarche,Total=menarche2$Total,Age2=Age2)
+obs_size=median(menarche$Total) ## Counts for sim from Binomial
+olddata=data.frame(Age=menarche$Age,
+                   Menarche=menarche$Menarche,Total=menarche$Total,Age2=Age2)
 
 newdata=data.frame(Age=Age_New,Age2=Age2_New)
 
@@ -59,7 +60,7 @@ quant1_m_y=apply(pred_y/obs_size,2,FUN=quantile,probs=c(0.025))
 quant2_m_y=apply(pred_y/obs_size,2,FUN=quantile,probs=c(0.975))
 
 #Plot Predictions for newdata
-plot(Menarche/Total ~ Age, data=menarche2,
+plot(Menarche/Total ~ Age, data=menarche,
 main="Percentage of girls Who have had their first period")
 lines(Age_New, pred_m,lty=1)
 lines(Age_New, quant1_m,lty=2)

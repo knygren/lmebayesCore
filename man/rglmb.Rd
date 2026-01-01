@@ -139,15 +139,16 @@ and may be useful for Gibbs sampling implementations or other workflows where fu
 reconstruction is unnecessary.
 }
 \examples{
-data(menarche2)
+data(menarche,package="MASS")
 
-summary(menarche2)
-plot(Menarche/Total ~ Age, data=menarche2)
+
+summary(menarche)
+plot(Menarche/Total ~ Age, data=menarche)
 design_df <- data.frame(
-  Age = menarche2$Age,
-  Age2 = menarche2$Age - 13,
-  Proportion = menarche2$Menarche / menarche2$Total,
-  Total = menarche2$Total
+  Age = menarche$Age,
+  Age2 = menarche$Age - 13,
+  Proportion = menarche$Menarche / menarche$Total,
+  Total = menarche$Total
 )
 x <- model.matrix(~ Age2, data = design_df)
 y <- design_df$Proportion

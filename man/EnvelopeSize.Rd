@@ -124,18 +124,18 @@ Expected candidates per draw:
 }
 
 \examples{
-data(menarche2)
+data(menarche,package="MASS")
 
-summary(menarche2)
-plot(Menarche/Total ~ Age, data=menarche2)
+summary(menarche)
+plot(Menarche/Total ~ Age, data=menarche)
 
-Age2=menarche2$Age-13
+Age2=menarche$Age-13
 
 x<-matrix(as.numeric(1.0),nrow=length(Age2),ncol=2)
 x[,2]=Age2
 
-y=menarche2$Menarche/menarche2$Total
-wt=menarche2$Total
+y=menarche$Menarche/menarche$Total
+wt=menarche$Total
 
 mu<-matrix(as.numeric(0.0),nrow=2,ncol=1)
 mu[2,1]=(log(0.9/0.1)-log(0.5/0.5))/3
