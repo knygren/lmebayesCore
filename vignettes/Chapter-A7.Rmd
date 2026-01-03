@@ -61,7 +61,9 @@ y_i \mid \beta, d \;\sim\; \mathcal{N}(x_i^\top \beta,\; d\, w_i^{-1}), \quad i=
 $$
 
 
-with independent priors (adjusted to the simulation bounds \(d \in [\,\mathrm{disp}_{\mathrm{lower}},\,\mathrm{disp}_{\mathrm{upper}}\,]\), equivalently \(x=\tfrac{1}{d} \in [\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,]\)):
+with independent priors (adjusted to the simulation bounds 
+\(d \in [\,\mathrm{disp}_{\mathrm{lower}},\,\mathrm{disp}_{\mathrm{upper}}\,]\), equivalently  
+\(x=\tfrac{1}{d} \in [\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,]\)):
 $$
 \beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
 \qquad 
@@ -71,18 +73,26 @@ $$
 
 i.e., the prior density for \(x=\tfrac{1}{d}\) is
 \[
+\begin{aligned}
 f(x)
-= \frac{\text{Rate}^{\text{Shape}}}{\Gamma(\text{Shape})}\,x^{\text{Shape}-1} e^{-\text{Rate}\,x}
-\;\Big/\;
-\Bigg(
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};\,\text{Shape},\,\text{Rate}\Big)
--\;
-F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};\,\text{Shape},\,\text{Rate}\Big)
-\Bigg),
-\quad
-x \in \Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big],
+&= 
+\frac{\text{Rate}^{\text{Shape}}}{\Gamma(\text{Shape})}\,
+  x^{\text{Shape}-1} e^{-\text{Rate}\,x}
+  \Bigg/
+  \Bigg(
+      F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
+                     \text{Shape},\text{Rate}\Big)
+      -
+      F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
+                     \text{Shape},\text{Rate}\Big)
+  \Bigg),
+\\[6pt]
+&\qquad
+x \in 
+\Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},
+       \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big].
+\end{aligned}
 \]
-
 
 Because $W = \mathrm{diag}(w_1,\dots,w_n)$, the likelihood factorizes into weighted univariate normals.  
 The full joint log-posterior (up to an additive constant) is
@@ -268,9 +278,8 @@ For dispersion \(d \in [\,\text{low},\,\text{upp}\,]\), define the truncated inv
    - \frac{\text{Rate} + \tfrac{\mathrm{RSS_Min}}{2}}{d} \\[6pt]
 &\quad - \log\!\Bigg(
 F_\Gamma\!\Big(\tfrac{1}{\text{low}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
-\text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big)
--\;
-F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
+\text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big) \\[6pt]
+&\quad  -\;  F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
 \text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big)
 \Bigg),
 \end{aligned}
@@ -289,16 +298,27 @@ We construct a mixture over faces, each with a truncated normal component. Sampl
 1. **Sample the face index \(j\) (mixture weights):**
 
 \[
-\log \text{PLSD}_j
-= \mathrm{lg\_prob\_factor}_j
-+ \tfrac{1}{2}\,\bar c_j^\top \bar c_j
-+ \sum_{r=1}^p \log\!\big(e^{\mathrm{logrt}_{j,r}} - e^{\mathrm{loglt}_{j,r}}\big)
+\begin{aligned}
+\log \mathrm{PLSD}_j
+&= \mathrm{lg\_prob\_factor}_j
+   + \tfrac{1}{2}\,\bar c_j^\top \bar c_j
+   + \sum_{r=1}^p 
+       \log\!\big(e^{\mathrm{logrt}_{j,r}} - e^{\mathrm{loglt}_{j,r}}\big)
+\\[6pt]
+&\quad
 - \log\!\left(
-  \sum_{k=1}^K
-  \exp\!\Big(\mathrm{lg\_prob\_factor}_k + \tfrac{1}{2}\bar c_k^\top \bar c_k\Big)
-  \prod_{r=1}^p \big(e^{\mathrm{logrt}_{k,r}} - e^{\mathrm{loglt}_{k,r}}\big)
-\right).
+    \sum_{k=1}^K
+      \exp\!\Big(
+        \mathrm{lg\_prob\_factor}_k
+        + \tfrac{1}{2}\,\bar c_k^\top \bar c_k
+      \Big)
+      \prod_{r=1}^p
+        \big(e^{\mathrm{logrt}_{k,r}} - e^{\mathrm{loglt}_{k,r}}\big)
+  \right).
+\end{aligned}
 \]
+
+
    - Exponentiating and normalizing across \(j=1,\dots,K\) yields a valid categorical distribution for the face index.
 
 2. **Sample \(\beta\) conditional on \(j\) (truncated normal):**
@@ -384,16 +404,23 @@ Together, these correction terms guarantee that the proposals dominate the targe
 For face index \(j\), dispersion \(d\), and tangency point \(\theta(d) = c^{-1}(\bar c_j,d)\),  
 the joint log‑posterior can be written as
 \[
+\begin{aligned}
 \log \pi(\beta,d)
-= \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
-+ \underbrace{\log q_{\mathrm{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
-+ \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}}
-+ \underbrace{\mathrm{test1}(\beta,d)
-              - \mathrm{UB2A}_j(d)
-              - \mathrm{UB3A}_j(d)
-              - \mathrm{UB3B}(d)}_{\text{Correction block}}
-+ \text{const}.
+&= \underbrace{\log q_\Gamma(d)}_{\text{Gamma proposal}}
+ + \underbrace{\log q_{\mathrm{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
+ + \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}}
+\\[6pt]
+&\quad
+ + \underbrace{
+      \mathrm{test1}(\beta,d)
+      - \mathrm{UB2A}_j(d)
+      - \mathrm{UB3A}_j(d)
+      - \mathrm{UB3B}(d)
+   }_{\text{Correction block}}
+ + \text{const}.
+\end{aligned}
 \]
+
 
 Moreover, the correction terms satisfy the following sign properties:
 
@@ -968,24 +995,24 @@ Then for each face j:
 \begin{aligned}
 & \underbrace{\log q_{\Gamma}(d)}_{\text{Gamma proposal}}
 + \underbrace{\log q_{\mathrm{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
-+ \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}}
-+ \underbrace{\mathrm{test1}(\beta,d)
++ \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}} \\[6pt]
+& + \underbrace{\mathrm{test1}(\beta,d)
               - \mathrm{UB2A}_j(d)
               - \mathrm{UB3A}_j(d)
               - \mathrm{UB3B}(d)}_{\text{corrections}}
 + \mathrm{const} \\[6pt]
 &= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
 + \underbrace{\log q_{\mathrm{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
-+ \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}}
-+ \underbrace{\mathrm{test1}(\beta,d)
++ \underbrace{\log \mathrm{PLSD}_j}_{\text{Per‑face mixture weight}} \\[6pt]
+&  + \underbrace{\mathrm{test1}(\beta,d)
               - \mathrm{UB2A}_j(d)
               - \mathrm{UB3A}_{j,2}(d)
               - \mathrm{UB3B}_{2}(d)}_{\text{Interim correction terms}}
 + \mathrm{const} \\[6pt]
 &= \underbrace{\log q_{\Gamma,2}(d)}_{\text{Interim Gamma Term}}
 + \underbrace{\log q_{\mathrm{TN}}(\beta\mid j)}_{\text{Truncated normal proposal}}
-+ \underbrace{\log \mathrm{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}}
-+ \underbrace{\mathrm{test1}_{2}(\beta,d)
++ \underbrace{\log \mathrm{PLSD}_{j,2}}_{\text{Interim Per‑face mixture weight}} \\[6pt]
+&   + \underbrace{\mathrm{test1}_{2}(\beta,d)
               - \mathrm{UB2A}_j(d)
               - \mathrm{UB3B}_{2}(d)}_{\text{Interim correction Terms}}
 + \mathrm{const} \\[6pt]
@@ -1037,7 +1064,7 @@ Thus, the final decomposition is:
 = \underbrace{\log q_{\Gamma,5}(d)}_{\text{Prior Gamma Distribution Term}}
 + \underbrace{\log q_{\mathrm{TN},3}(\beta\mid j)}_{\text{Prior Multivariate Normal Term}}
 + \underbrace{LL(\beta,d)}_{\text{Standardized Log-Likelihood Term}}
-+ C_{\text{final adjusted constant}}.
++ C_{\text{final}}.
 \]
 
 This shows that after all substitutions, the surviving terms are exactly the **prior Gamma distribution in \(d\)**, the **prior multivariate normal distribution in \(\beta\)**, and the **standardized log‑likelihood contribution**. Everything else has been absorbed into a global constant. In other words, the decomposition now cleanly separates into the canonical **prior** and **likelihood** components, with no extraneous dependence on interim proposals or mixture weights.
