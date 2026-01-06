@@ -51,109 +51,126 @@ weight <- c(ctl, trt)
 ```
 
 
-# 2. Exponential-Family Background and Log-Concavity
+## 2. Exponential-Family Background and Log-Concavity
 
-Many likelihoods used in generalized linear models belong to the exponential family, which can be written in the general weighted form independent observations  
-\((y_{1},\ldots,y_{n})\) with weights \((w_{1},\ldots,w_{n})\) can be written as
+Many likelihoods used in generalized linear models belong to the exponential family.  
+With observation weights \(w_1,\dots,w_n \ge 0\), the weighted exponential-family density is
 
 \[
 f(y \mid \theta,\phi,w)
-= \exp\!\left\{
+= \exp\left\{
   \sum_{i=1}^{n}
-    w_{i}
-    \left[
-      \frac{y_{i}\,\theta_{i} - b(\theta_{i})}{a(\phi)}
-      + c(y_{i},\phi)
+    w_i \left[
+      \frac{y_i \theta_i - b(\theta_i)}{a(\phi)}
+      + c(y_i,\phi)
     \right]
 \right\}.
 \]
 
 Here:
 
-- \( \theta_{i} \) is the canonical (natural) parameter  
-- \( b(\theta_{i}) \) is the cumulant function  
-- \( a(\phi) \) is a dispersion or scale parameter  
-- \( c(y_{i},\phi) \) collects terms not involving \( \theta_{i} \)  
-- \( w_{i} \) is the observation weight (typically \( w_{i} \ge 0 \))
-When observations carry nonnegative weights \( w_i \), the weighted log-likelihood becomes
+- \( \theta_i \) is the canonical parameter  
+- \( b(\theta_i) \) is the cumulant function  
+- \( a(\phi) \) is the dispersion function  
+- \( c(y_i,\phi) \) collects terms not involving \( \theta_i \)  
+- \( w_i \) is the observation weight  
+
+The **weighted log-likelihood** is therefore
 
 \[
 \ell(\beta,\phi)
-= \sum_{i=1}^{n}
-  w_i \left[
-    \frac{y_i\theta_i - b(\theta_i)}{a(\phi)}
-    + c(y_i,\phi)
-  \right].
+=
+\sum_{i=1}^{n}
+w_i \left[
+\frac{y_i\theta_i - b(\theta_i)}{a(\phi)}
++ c(y_i,\phi)
+\right].
 \]
 
-This is the form used by both `glm` and the Bayesian functions `glmb`, `lmb`, `rglmb`, and `rlmb`.
+This is the form used by both `glm()` and the Bayesian functions  
+`glmb()`, `lmb()`, `rglmb()`, and `rlmb()`.
+
 
 ---
 
-## 2.1 Log-Concavity in the Exponential Family
+## 2.2 Special Case: Weighted Gaussian Linear Regression
 
-For many canonical-link GLMs (Gaussian, Poisson, Binomial, Gamma with log link), the following properties hold.
+Consider the weighted Gaussian model
 
-1. **For fixed dispersion \( \phi \)**,  
-   the weighted log-likelihood is concave in \( \beta \) because  
-   \[
-   \theta_i = \theta(\eta_i), \qquad \eta_i = x_i^{T}\beta,
-   \]  
-   and \( b(\theta) \) is convex.  
-   The weights \( w_i \) simply scale each contribution and preserve concavity.
+\[
+y_i \mid \beta,\phi \sim N(x_i^\top\beta,\;\phi/w_i),
+\qquad i=1,\dots,n.
+\]
 
-2. **For fixed coefficients \( \beta \)**,  
-   the weighted log-likelihood is often concave in the precision  
-   \[
-   \tau = \frac{1}{\phi},
-   \]  
-   because \( a(\phi) \) enters as a positive scalar factor and the weights again preserve concavity.
+Let \(W = \mathrm{diag}(w_1,\dots,w_n)\) and define the precision
 
-These concavity properties are essential for:
+\[
+\tau = \frac{1}{\phi}.
+\]
 
-- unique posterior modes  
-- valid tangent-envelope construction for accept-reject sampling  
-- stable Gibbs updates for dispersion parameters  
-- efficient iid sampling in the glmbayes framework  
+### **Weighted log-likelihood**
 
----
-
-# 2.2 Special Case: Gaussian Linear Regression
-
-A weighted Gaussian linear model with response vector \( y \in \mathbb{R}^{n} \), design matrix \( X \), coefficients \( \beta \), weights \( w_i \ge 0 \), and dispersion \( \phi \) has log-likelihood
+The log-likelihood (up to constants) is
 
 \[
 \ell(\beta,\phi)
 =
 -\frac{1}{2\phi}
 \sum_{i=1}^{n}
-w_i (y_i - x_i^{T}\beta)^{2}
+w_i (y_i - x_i^\top\beta)^2
 \;-\;
 \frac{1}{2}
 \sum_{i=1}^{n}
 w_i \log(2\pi\phi).
 \]
 
-This matches the exponential-family form with
+Equivalently, in precision form:
 
 \[
-\theta = \mu = X\beta, \qquad
-b(\theta) = \tfrac{1}{2}\theta^{2}, \qquad
-a(\phi) = \phi, \qquad
-c(y,\phi) = -\tfrac{1}{2\phi}y^{2} - \tfrac{1}{2}\log(2\pi\phi).
+\ell(\beta,\tau)
+=
+\frac{\tau}{2}
+\sum_{i=1}^{n}
+w_i (y_i - x_i^\top\beta)^2
+\;-\;
+\frac{1}{2}
+\sum_{i=1}^{n}
+w_i \log\left(\frac{2\pi}{\tau}\right).
 \]
 
-Weighted least squares in base R is implemented by transforming the data as
+### **Exponential-family identification**
+
+This matches the weighted exponential-family form with
 
 \[
-y^{\ast} = W^{1/2} y, \qquad
-X^{\ast} = W^{1/2} X,
+\theta_i = \mu_i = x_i^\top\beta,
+\qquad
+b(\theta_i) = \tfrac{1}{2}\theta_i^2,
+\qquad
+a(\phi) = \phi,
 \]
 
-where \( W = \mathrm{diag}(w_1,\ldots,w_n) \).  
-The glmbayes functions use the same weighted likelihood, so the theoretical expressions above apply directly.
+and
 
----
+\[
+c(y_i,\phi)
+=
+-\frac{1}{2\phi}y_i^2
+-\frac{1}{2}\log(2\pi\phi).
+\]
+
+### **Weighted least squares representation**
+
+Base R implements weighted least squares via
+
+\[
+y^\ast = W^{1/2} y,
+\qquad
+X^\ast = W^{1/2} X.
+\]
+
+The glmbayes functions use the same weighted likelihood, so all theoretical expressions above apply directly.
+
 
 ## Log-Concavity Properties in the Weighted Gaussian Case
 
@@ -174,7 +191,7 @@ The glmbayes functions use the same weighted likelihood, so the theoretical expr
    \[
    \ell(\beta,\tau)
    =
-   \frac{\tau}{2}
+   -\frac{\tau}{2}
    (y - X\beta)^{T} W (y - X\beta)
    - \frac{1}{2}
    \left( \sum_{i=1}^{n} w_i \right)
@@ -191,58 +208,77 @@ These properties guarantee:
 
 The weighted Gaussian model thus provides the cleanest illustration of how weights enter the exponential-family structure and how they preserve log-concavity.
 
-## 2.3 Special Case: Gamma Regression With a Log Link
+### 2.3 Special Case: Gamma Regression With a Log Link
 
-The Gamma family with a log link, as implemented in the glm function, provides another important illustration of exponential–family structure and log–concavity. In this model the mean is
-
-\[
-\mu_{i} = \exp(\eta_{i}), \qquad \eta_{i} = x_{i}^{T}\beta,
-\]
-
-and the response satisfies
+Consider the weighted Gamma regression model with log link:
 
 \[
-Y_{i} \mid \beta,\phi \sim \text{Gamma}\!\left(\text{shape} = \frac{1}{\phi},\ \text{scale} = \phi \mu_{i}\right),
+y_i \mid \beta,\phi \;\sim\; \text{Gamma}\!\left(
+\text{shape}=\frac{1}{\phi},\;
+\text{scale}=\phi\,\mu_i
+\right),
+\qquad 
+\mu_i = \exp(x_i^\top\beta),
 \]
 
-so that \( \mathbb{E}[Y_{i}] = \mu_{i} \) and \( \text{Var}(Y_{i}) = \phi \mu_{i}^{2} \).  
-The corresponding canonical parameter is
+with observation weights \(w_i \ge 0\).  
+Let the **precision** be
 
 \[
-\theta_{i} = -\frac{1}{\mu_{i}},
+\tau = \frac{1}{\phi}.
 \]
 
-and the cumulant function is
+---
+
+#### **Weighted log-likelihood**
+
+Up to an additive constant, the weighted log-likelihood is
 
 \[
-b(\theta_{i}) = -\log(-\theta_{i}).
+\ell(\beta,\tau)
+=
+\sum_{i=1}^n 
+w_i\left[
+\tau\log\tau
+- \tau\log \mu_i
++ (\tau-1)\log y_i
+- \frac{\tau y_i}{\mu_i}
+\right].
 \]
 
-The dispersion parameter \( \phi \) (or equivalently the precision \( v = 1/\phi \)) enters only through the scalar function \( a(\phi) = \phi \), consistent with the exponential–family form.
+Using \(\mu_i = \exp(x_i^\top\beta)\), this becomes
 
-### Log–Concavity Properties
+\[
+\ell(\beta,\tau)
+=
+\sum_{i=1}^n 
+w_i\left[
+\tau\log\tau
+- \tau x_i^\top\beta
++ (\tau-1)\log y_i
+- \tau y_i e^{-x_i^\top\beta}
+\right].
+\]
 
-For the Gamma log–link model, two key concavity results hold:
+---
 
-1. **Concavity in \( \beta \) for fixed dispersion \( \phi \)**  
-   Because the log link ensures  
-   \[
-   \eta_{i} = x_{i}^{T}\beta, \qquad \mu_{i} = \exp(\eta_{i}),
-   \]
-   and because the Gamma log–likelihood is concave in the canonical parameter, the overall log–likelihood is concave in \( \beta \).  
-   This guarantees a unique posterior mode and stable envelope construction for sampling.
+#### **Log‑concavity**
 
-2. **Concavity in the precision \( v = 1/\phi \) for fixed \( \beta \)**  
-   The log–likelihood contribution for a single observation can be written as
-   \[
-   \ell_{i}(v)
-   = v \log\!\left(\frac{v}{\mu_{i}}\right)
-     - \log\Gamma(v)
-     + (v - 1)\log y_{i}
-     - \frac{v y_{i}}{\mu_{i}},
-   \]
-   which is concave in \( v \) because the terms involving \( \log\Gamma(v) \) and \( v \log v \) have negative second derivatives.  
-   This concavity is essential for constructing tangent–based envelopes for accept–reject sampling.
+For fixed \(\tau\):
+
+- the log-likelihood is **concave in \(\beta\)** because  
+  \(\mu_i = \exp(x_i^\top\beta)\) enters through a convex function and the Gamma log-likelihood is concave in the canonical parameter.
+
+For fixed \(\beta\):
+
+- the log-likelihood is **concave in \(\tau\)** because  
+  \(\tau\log\tau\), \((\tau-1)\log y_i\), and \(-\tau y_i/\mu_i\) combine into a concave function.
+
+These properties ensure:
+
+- unique posterior modes  
+- stable envelope construction to support accept-reject sampling for \(\beta\)  
+- valid accept–reject sampling for \(\tau\)  
 
 
 ### Implications for Bayesian GLMs
@@ -296,24 +332,57 @@ rate     <- ps$rate
 ```
 
 
-## 3.1 Priors for the Dispersion Parameter Only
+## 3. Priors for Gaussian Models With Unknown Dispersion
 
-A conjugate prior for the precision (inverse dispersion)\( \tau = 1/\phi \) is
+We now specify priors for \((\beta,\tau)\) and derive the corresponding log-priors and log-posteriors.
+
+Throughout:
+
+- dispersion: \( \phi \)  
+- precision: \( \tau = 1/\phi \)  
+- weighted residual sum of squares:
 
 \[
-\tau \sim \mathrm{Gamma}(a_{0}, b_{0}).
+\mathrm{RSS}(\beta)
+=
+\sum_{i=1}^{n}
+w_i (y_i - x_i^\top\beta)^2.
 \]
 
-Given \( \beta \), the posterior is then also a gamma distribution
+---
+
+## 3.1 Prior on the Dispersion Only (Gamma Prior on Precision)
+
+We place a Gamma prior on the precision:
+
+\[
+\tau \sim \mathrm{Gamma}(a_0,b_0),
+\]
+
+with log-prior
+
+\[
+\log p(\tau)
+=
+(a_0 - 1)\log\tau - b_0\tau + \text{const}.
+\]
+
+Given fixed \(\beta\), the conditional posterior is
 
 \[
 \tau \mid \beta,y
 \sim
-\mathrm{Gamma}\!\left(
-  a_{0} + \frac{n}{2},\;
-  b_{0} + \frac{S(\beta)}{2}
-\right).
+\mathrm{Gamma}\left(
+a_0 + \frac{n_{w}}{2},
+\;
+b_0 + \frac{\mathrm{RSS}(\beta)}{2}
+\right),
 \]
+
+where \(n_{w} = \sum_i w_i\).
+
+---
+
 
 To illustrate this, we estimate the classical glm model and treat the resulting coefficients as fixed. We can then generate conditional Bayesian draws for the dispersion as below. This is essentially the equivalent of the classical function **gamma.dispersion()** function provided by the **MASS** package. 
 
@@ -341,13 +410,46 @@ The posterior mean of the dispersion is then:
 
 ## 3.2 Joint Conjugate Normal–Gamma Prior
 
-A conjugate prior for the Gaussian model is
+The conjugate prior couples \(\beta\) and \(\tau\):
 
 \[
-\beta \mid \tau \sim N(\mu_{0},\, \tau^{-1}\Sigma_{0}),
+\beta \mid \tau \sim N(\mu_0,\;(\tau\Sigma_0)^{-1}),
 \qquad
-\tau \sim \mathrm{Gamma}(a_{0}, b_{0}).
+\tau \sim \mathrm{Gamma}(a_0,b_0).
 \]
+
+### **Log-prior**
+
+\[
+\log p(\beta,\tau)
+=
+(a_0 - 1)\log\tau - b_0\tau
+-\frac{\tau}{2}(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++\text{const}.
+\]
+
+### **Log-posterior**
+
+Combining with the Gaussian log-likelihood:
+
+\[
+\log p(\beta,\tau \mid y)
+=
+\frac{\tau}{2}\mathrm{RSS}(\beta)
+-\frac{n_{w}}{2}\log\left(\frac{2\pi}{\tau}\right)
++(a_0 - 1)\log\tau - b_0\tau
+-\frac{\tau}{2}(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++\text{const}.
+\]
+
+This yields closed-form conditional posteriors:
+
+- \( \tau \mid y \) is Gamma  
+- \( \beta \mid \tau,y \) is Normal  
+
+allowing pure i.i.d. Monte Carlo sampling.
+
+---
 
 The defining property of conjugacy is that the **posterior has the same posterio functional form**. In glmbayes, this model can be estimated as below.
 
@@ -368,22 +470,57 @@ summary(lmb.D9_v2)$dispersion
 
 ```
 
-## 3.3 Independent Normal-Gamma Prior
+## 3.3 Independent Normal–Gamma Prior
 
-The independent Normal-Gamma prior removes the conjugate coupling between coefficients and dispersion:
+Here the prior factorizes:
 
 \[
-\beta \sim N(\mu_{0}, \Sigma_{0}), \qquad
-\tau \sim \text{Gamma}(a_{0}, b_{0}),
+\beta \sim N(\mu_0,\Sigma_0),
+\qquad
+\tau \sim \mathrm{Gamma}(a_0,b_0),
 \]
 
-so that \( \beta \) and \( \tau \) are a priori independent.
+so \(\beta\) and \(\tau\) are *a priori independent*.
+
+### **Log-prior**
+
+\[
+\log p(\beta,\tau)
+=
+-\frac{1}{2}(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++
+(a_0 - 1)\log\tau - b_0\tau
++\text{const}.
+\]
+
+### **Log-posterior**
+
+\[
+\log p(\beta,\tau \mid y)
+=
+\frac{\tau}{2}\mathrm{RSS}(\beta)
+-\frac{n_{w}}{2}\log\left(\frac{2\pi}{\tau}\right)
+-\frac{1}{2}(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++
+(a_0 - 1)\log\tau - b_0\tau
++\text{const}.
+\]
+
+A variation on this prior specification—using a **truncated Gamma prior** for the dispersion—is the model developed in **Chapter A7**, where:
+
+- the conditional posterior in \( \beta \) is *not conjugate*,  
+- the conditional posterior in \( \tau = 1/\phi \) is *not conjugate*, and  
+- the joint posterior remains **log‑concave**, enabling  
+  the **accept–reject envelope sampler**.
+
+This truncated‑Gamma, non‑conjugate Normal–Gamma model is therefore a direct extension of the independent Normal–Gamma prior described above, but requires the more advanced envelope‑based sampling strategy documented in Chapter A7.
 
 ### 3.3.1 Independent Normal Gamma Prior in glmbayes
 
 This prior is implemented in glmbayes using the below specification (but where a truncated gamma replaces the full gamma).
 
 ```{r Independent_normal_gamma_prior}
+
 lmb.D9_v3 <- lmb(n=10000,
   weight ~ group,
   dIndependent_Normal_Gamma(
@@ -496,7 +633,17 @@ the complete envelope construction and accept‑reject algorithm for the indepen
 
 
 
-## 4. Gamma regression models with unknown dispersion parameter
+## 4. Gamma Regression Models With Unknown Dispersion
+
+We now specify priors for \((\beta,\tau)\) and derive the corresponding log‑priors and log‑posteriors.
+
+Throughout:
+
+- dispersion: \(\phi\)  
+- precision: \(\tau = 1/\phi\)  
+- mean: \(\mu_i = \exp(x_i^\top\beta)\)  
+- weighted log-likelihood: \(\ell(\beta,\tau)\) from Section 2.3  
+
 
 
 
@@ -530,14 +677,36 @@ p<-ncol(x)
 
 
 
-## 4.1 Priors for the Dispersion Parameter Only
+---
 
-A prior for the precision (inverse dispersion)\( \tau = 1/\phi \) is
+### 4.1 Prior on the Dispersion Only (Gamma Prior on Precision)
+
+We place a Gamma prior on the precision:
 
 \[
-\tau \sim \mathrm{Gamma}(a_{0}, b_{0}).
+\tau \sim \text{Gamma}(a_0,b_0),
 \]
 
+with log‑prior
+
+\[
+\log p(\tau)
+=
+(a_0 - 1)\log\tau - b_0\tau + \text{const}.
+\]
+
+Given fixed \(\beta\), the conditional posterior is
+
+\[
+\log p(\tau \mid \beta,y)
+=
+\ell(\beta,\tau)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+This posterior is **log‑concave in \(\tau\)**, enabling envelope‑based accept–reject sampling in the Gamma regression case.  
 
 
 ```{r glm_call_gamma_prior2}
@@ -563,16 +732,65 @@ mean(out2$dispersion)
 
 
 
-## 4.2 Indepdent Normal Gamma Prior 
+### 4.2 Independent Normal–Gamma Prior
 
-Just like for the gaussian() regression, we can can give the regression coefficients and the inverse dispersion independent priors.
+Here the priors factorize:
 
 \[
-\beta \sim N(\mu_{0}, \Sigma_{0}), \qquad
-\tau \sim \text{Gamma}(a_{0}, b_{0}),
+\beta \sim N(\mu_0,\Sigma_0), 
+\qquad
+\tau \sim \text{Gamma}(a_0,b_0),
 \]
 
-so that \( \beta \) and \( \tau \) are a priori independent.
+so \(\beta\) and \(\tau\) are **a priori independent**.
+
+---
+
+#### **Log‑prior**
+
+\[
+\log p(\beta,\tau)
+=
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+---
+
+#### **Log‑posterior**
+
+\[
+\log p(\beta,\tau \mid y)
+=
+\ell(\beta,\tau)
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+In Gamma regression:
+
+- the conditional posterior in \(\beta\) is **not conjugate**  
+- the conditional posterior in \(\tau\) is **not conjugate**  
+- the joint posterior remains **log‑concave**
+
+This in theory enables two sampling strategies for the Gamma regression model:
+
+1. **Two‑block Gibbs sampler**  
+   - \( \beta \mid \tau, y \): sampled using a Normal approximation (via `rglmb`)  
+   - \( \tau \mid \beta, y \): sampled using a Gamma‑based quasi‑likelihood update  
+   This is the **only fully implemented method** for Gamma regression in the current version of *glmbayes*.
+
+2. **Accept–reject envelope sampler (Chapter A7)**  
+   Chapter A7 develops an accept–reject sampler using a **truncated Gamma prior** for \( \tau \) and a joint envelope over \((\beta,\tau)\).  
+   **However, this method is implemented only for the Gaussian family.**  
+   Extending the envelope‑based sampler to the Gamma regression model would require additional mathematical development and corresponding modifications to the code.
+
+The truncated‑Gamma independent Normal–Gamma model in **Chapter A7** therefore applies exclusively to the Gaussian case, while Gamma regression currently relies on the two‑block Gibbs sampler described above.
+
 
 ```{r Block_Gibbs_gamma_Regression}
 

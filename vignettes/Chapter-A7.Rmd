@@ -32,85 +32,166 @@ file.exists("../inst/REFERENCES.bib")
 This vignette documents the envelope construction when the prior for $\beta$ is independent of the data dispersion. The regression coefficients have a fixed Normal prior with covariance $\Sigma_\beta$, and the data precision $\sigma_{\text{data}}$ has its own Gamma prior.
 
 
-## 1. Model setup
+# 1. Model Setup (Gaussian Regression with Independent Normal–Gamma Prior)
 
-Gaussian regression model:
-$$
-y \mid \beta, d \;\sim\; \mathcal{N}\!\big(X\beta,\; d\,W^{-1}\big),
-$$
+We consider the weighted Gaussian regression model
 
-with independent priors:
-$$
-\beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
-\qquad 
-\frac{1}{d} \;\sim\; \mathrm{Gamma}(\text{Shape},\, \text{Rate}),
-$$
-
-where $W = \mathrm{diag}(w_1,\dots,w_n)$ and $\Sigma_\beta$ is fixed.
-
-
-
-
-## 2. Full joint log-posterior (with diagonal weights)
-
-Let \(d\) denote the data dispersion, so that the precision is \(\tau = 1/d\).  
-The model is
-
-$$
-y_i \mid \beta, d \;\sim\; \mathcal{N}(x_i^\top \beta,\; d\, w_i^{-1}), \quad i=1,\dots,n,
-$$
-
-
-with independent priors (adjusted to the simulation bounds 
-\(d \in [\,\mathrm{disp}_{\mathrm{lower}},\,\mathrm{disp}_{\mathrm{upper}}\,]\), equivalently  
-\(x=\tfrac{1}{d} \in [\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,]\)):
-$$
-\beta \;\sim\; \mathcal{N}(0,\; \Sigma_\beta), 
-\qquad 
-\frac{1}{d} \;\sim\; \mathrm{Gamma}(\text{Shape},\, \text{Rate}) \;\text{truncated to}\; \Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},\,\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big],
-$$
-
-
-i.e., the prior density for \(x=\tfrac{1}{d}\) is
 \[
-\begin{aligned}
-f(x)
-&= 
-\frac{\text{Rate}^{\text{Shape}}}{\Gamma(\text{Shape})}\,
-  x^{\text{Shape}-1} e^{-\text{Rate}\,x}
-  \Bigg/
-  \Bigg(
-      F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-                     \text{Shape},\text{Rate}\Big)
-      -
-      F_\Gamma\!\Big(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-                     \text{Shape},\text{Rate}\Big)
-  \Bigg),
-\\[6pt]
-&\qquad
-x \in 
-\Big[\,\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}},
-       \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}}\,\Big].
-\end{aligned}
+y_i \mid \beta, \phi \;\sim\; N(x_i^\top\beta,\; \phi / w_i),
+\qquad i = 1,\ldots,n,
 \]
 
-Because $W = \mathrm{diag}(w_1,\dots,w_n)$, the likelihood factorizes into weighted univariate normals.  
-The full joint log-posterior (up to an additive constant) is
+with observation weights \( w_i > 0 \).  
+Let the **precision** be
 
-$$
-\ell(\beta,d) =
-\frac{n}{2}\log \tfrac{1}{d} + \frac{1}{2}\sum_{i=1}^n \log w_i - \frac{n}{2}\log(2\pi)
-\;-\;\frac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
-$$
+\[
+\tau = \frac{1}{\phi}.
+\]
 
-$$
-\quad -\;\frac{1}{2}\log|\Sigma_\beta| - \frac{p}{2}\log(2\pi)
-\;-\;\tfrac{1}{2}\beta^\top \Sigma_\beta^{-1}\beta
-$$
+Define the diagonal weight matrix
 
-$$
-\quad +\;(\text{Shape}-1)\log \tfrac{1}{d} \;-\; \text{Rate}\,\tfrac{1}{d}.
-$$
+\[
+W = \mathrm{diag}(w_1,\ldots,w_n),
+\qquad
+n_w = \sum_{i=1}^n w_i.
+\]
+
+---
+
+## 1.1 Weighted log‑likelihood
+
+Define the weighted residual sum of squares
+
+\[
+\mathrm{RSS}(\beta)
+=
+\sum_{i=1}^n w_i (y_i - x_i^\top\beta)^2.
+\]
+
+The weighted Gaussian log‑likelihood (up to constants) is
+
+\[
+\ell(\beta,\phi)
+=
+-\frac{1}{2\phi}\,\mathrm{RSS}(\beta)
+\;-\;
+\frac{n_w}{2}\log\phi
+\;+\; \text{const}.
+\]
+
+In precision form \( \tau = 1/\phi \):
+
+\[
+\ell(\beta,\tau)
+=
+-\frac{\tau}{2}\,\mathrm{RSS}(\beta)
+\;+\;
+\frac{n_w}{2}\log\tau
+\;+\; \text{const}.
+\]
+
+This form is **jointly concave** in \((\beta,\tau)\).
+
+---
+
+## 1.2 Independent Normal–Gamma prior
+
+Chapter A7 uses the **independent** Normal–Gamma prior:
+
+\[
+\beta \sim N(\mu_0,\Sigma_0),
+\qquad
+\tau \sim \text{Gamma}(a_0,b_0),
+\]
+
+with log‑prior
+
+\[
+\log p(\beta,\tau)
+=
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+For numerical stability and envelope construction, the Gamma prior on \( \tau \) is **truncated** to
+
+\[
+\tau \in [\tau_{\min}, \tau_{\max}],
+\]
+
+equivalently
+
+\[
+\phi \in [\phi_{\min}, \phi_{\max}],
+\qquad
+\phi = \frac{1}{\tau}.
+\]
+
+The truncated prior density is
+
+\[
+p_{\text{trunc}}(\tau)
+=
+\frac{
+\tau^{a_0 - 1} e^{-b_0\tau}
+}{
+F_{\Gamma}(\tau_{\max};a_0,b_0)
+-
+F_{\Gamma}(\tau_{\min};a_0,b_0)
+},
+\qquad
+\tau_{\min} \le \tau \le \tau_{\max}.
+\]
+
+---
+
+# 2. Full Joint Log‑Posterior (Gaussian Case, Weighted)
+
+Combining the weighted log‑likelihood and the independent Normal–Gamma prior gives
+
+\[
+\log p(\beta,\tau \mid y)
+=
+\ell(\beta,\tau)
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+Substituting the likelihood expression:
+
+\[
+\log p(\beta,\tau \mid y)
+=
+-\frac{\tau}{2}\,\mathrm{RSS}(\beta)
+\;+\;
+\frac{n_w}{2}\log\tau
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ (a_0 - 1)\log\tau
+- b_0\tau
++ \text{const}.
+\]
+
+Collecting terms in \( \tau \):
+
+\[
+\log p(\beta,\tau \mid y)
+=
+-\left(
+\frac{\mathrm{RSS}(\beta)}{2} + b_0
+\right)\tau
+\;+\;
+\left(
+a_0 - 1 + \frac{n_w}{2}
+\right)\log\tau
+-\tfrac12(\beta-\mu_0)^\top\Sigma_0^{-1}(\beta-\mu_0)
++ \text{const}.
+\]
+
+This joint log‑posterior is **jointly concave** in \((\beta,\tau)\), which is the key property enabling the envelope‑based accept–reject sampler developed in the remainder of Chapter A7.
 
 ## 3. General Sampling Process
 
@@ -122,9 +203,17 @@ $$
    - Start from the classical dispersion estimate and iteratively refine it.  
    - At each iteration, fit a Bayesian model with dispersion held fixed, compute posterior residual sums of squares (`RSS_Post2`), and update the Gamma parameters for the precision:  
      \[
-     \text{shape}_2 = \text{shape} + \tfrac{n_{\text{obs}}}{2}, \qquad
+     \text{shape}_2 = \text{shape} + \tfrac{n_{w}}{2}, \qquad
      \text{rate}_2 = \text{rate} + \tfrac{\text{RSS}_{\text{Post}}}{2}.
      \]
+     
+where  
+ \[
+ \text{RSS}_{\text{post}} = \sum_{i=1}^n w_i (y_i - x_i^\top\hat\beta)^2.
+ \]
+
+     
+     
    - The posterior for the **precision** \(\tau = 1/\sigma^2\) is then \(\text{Gamma}(\text{shape}_2, \text{rate}_2)\), whose mode is  
      \[
      \tau_{\text{mode}} = \frac{\text{shape}_2 - 1}{\text{rate}_2}.
@@ -133,7 +222,9 @@ $$
      \[
      \text{dispstar1} = \frac{\text{rate}_2}{\text{shape}_2 - 1}.
      \]
-   - This value serves as the working dispersion for the posterior mode search and subsequent standardization.
+
+ Here `shape2` and `rate2` use the **weighted** likelihood via \(n_{w}\) and weighted RSS.  
+ Thus `dispstar1` is the mode of the **weighted** dispersion posterior.
 
 3. **Find the posterior mode for the model with calibrated dispersion (`dispstar1`)**  
    - With the refined dispersion, locate the posterior mode of the regression coefficients.  
@@ -299,14 +390,14 @@ For dispersion \(d \in [\,\text{low},\,\text{upp}\,]\), define the truncated inv
 \[
 \begin{aligned}
 \log q_\Gamma^{\text{trunc}}(d)
-&= \Big(\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2}\Big)\,\log\!\Big(\text{Rate} + \tfrac{\mathrm{RSS_Min}}{2}\Big) \\
-&\quad - \log \Gamma\!\Big(\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2}\Big) \\[6pt]
-&\quad - \Big(\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2} + 1\Big)\,\log d
+&= \Big(\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2}\Big)\,\log\!\Big(\text{Rate} + \tfrac{\mathrm{RSS_Min}}{2}\Big) \\
+&\quad - \log \Gamma\!\Big(\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2}\Big) \\[6pt]
+&\quad - \Big(\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2} + 1\Big)\,\log d
    - \frac{\text{Rate} + \tfrac{\mathrm{RSS_Min}}{2}}{d} \\[6pt]
 &\quad - \log\!\Bigg(
-F_\Gamma\!\Big(\tfrac{1}{\text{low}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
+F_\Gamma\!\Big(\tfrac{1}{\text{low}};\,\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},\,
 \text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big) \\[6pt]
-&\quad  -\;  F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},\,
+&\quad  -\;  F_\Gamma\!\Big(\tfrac{1}{\text{upp}};\,\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},\,
 \text{Rate} + \tfrac{\text{RSS\_Min}}{2}\Big)
 \Bigg),
 \end{aligned}
@@ -416,7 +507,7 @@ Together, they measure the “gap” between the proposal approximation and the 
 Here, the standardized log‑likelihood is
 
 \[
-LL(\beta,d) \;=\; -\tfrac{n}{2}\log d
+LL(\beta,d) \;=\; -\tfrac{n_{w}}{2}\log d
 \;-\; \tfrac{1}{2d}\sum_{i=1}^n w_i\,(y_i - x_i^\top \beta)^2
 \;-\; \tfrac{1}{2}\,\beta^\top P\,\beta.
 \]
@@ -631,13 +722,13 @@ Define the following.
    - \mathrm{lm\_log2}\,\log d \\[6pt]
 &= (\text{Shape} + n/2)\,\log \tfrac{1}{d}
    - (\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)\,\tfrac{1}{d} \\[6pt]
-&\quad + (\text{Shape} + n/2 - \mathrm{lm\_log2})\,
+&\quad + (\text{Shape} + n_{w}/2 - \mathrm{lm\_log2})\,
       \log(\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
-   - \log \Gamma(\text{Shape} + n/2 - \mathrm{lm\_log2}) \\[6pt]
+   - \log \Gamma(\text{Shape} + n_{w}/2 - \mathrm{lm\_log2}) \\[6pt]
 &\quad - \log\!\Bigg(
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \\[-2pt]
@@ -645,7 +736,7 @@ F_{\Gamma}\!\Big(
 -\;
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \Bigg).
@@ -752,15 +843,15 @@ where
 \log q_{\Gamma,3}(d)
 &= \log q_{\Gamma,2}(d)
   + (\mathrm{RSS}_{\mathrm{Min}}/2)\,\tfrac{1}{d} \\[6pt]
-&= (\text{Shape} + n/2)\,\log \tfrac{1}{d}
+&= (\text{Shape} + n_{w}/2)\,\log \tfrac{1}{d}
    - \text{Rate}\,\tfrac{1}{d} \\[6pt]
 &\quad + (\text{Shape} + n/2 - \mathrm{lm\_log2})\,
       \log(\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
-   - \log \Gamma(\text{Shape} + n/2 - \mathrm{lm\_log2}) \\[6pt]
+   - \log \Gamma(\text{Shape} + n_{w}/2 - \mathrm{lm\_log2}) \\[6pt]
 &\quad - \log\!\Bigg(
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \\[-2pt]
@@ -768,7 +859,7 @@ F_{\Gamma}\!\Big(
 -\;
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \Bigg).
@@ -802,16 +893,16 @@ F_{\Gamma}\!\Big(
 \begin{aligned}
 \log q_{\Gamma,4}(d)
 &= \log q_{\Gamma,3}(d)
-  - (n/2)\,\log \tfrac{1}{d} \\[6pt]
+  - (n_{w}/2)\,\log \tfrac{1}{d} \\[6pt]
 &= \text{Shape}\,\log \tfrac{1}{d}
    - \text{Rate}\,\tfrac{1}{d} \\[6pt]
-&\quad + (\text{Shape} + n/2 - \mathrm{lm\_log2})\,
+&\quad + (\text{Shape} + n_{w}/2 - \mathrm{lm\_log2})\,
       \log(\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
-   - \log \Gamma(\text{Shape} + n/2 - \mathrm{lm\_log2}) \\[6pt]
+   - \log \Gamma(\text{Shape} + n_{w}/2 - \mathrm{lm\_log2}) \\[6pt]
 &\quad - \log\!\Bigg(
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \\[-2pt]
@@ -819,7 +910,7 @@ F_{\Gamma}\!\Big(
 -\;
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{w}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \Bigg).
@@ -880,7 +971,7 @@ F_{\Gamma}\!\Big(
 \mathrm{test1}_{4}(\beta,d)
 &= \mathrm{test1}_{3}(\beta,d)
   - \bar c_j^\top \beta
-  + (n/2)\,\log \tfrac{1}{d} \\[6pt]
+  + (n_{w}/2)\,\log \tfrac{1}{d} \\[6pt]
 &=
 \Big[
  -\tfrac{1}{2d}\sum_{i=1}^n w_i (y_i - x_i^\top \beta)^2
@@ -902,9 +993,9 @@ F_{\Gamma}\!\Big(
  + \big[\text{Shape}\log(\text{Rate})
        - \log\Gamma(\text{Shape})\big] \\[6pt]
 &\quad - \Big[
-(\text{Shape} + n/2 - \mathrm{lm\_log2})
+(\text{Shape} + n_{2}/2 - \mathrm{lm\_log2})
 \log(\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
- - \log\Gamma(\text{Shape} + n/2 - \mathrm{lm\_log2})
+ - \log\Gamma(\text{Shape} + n_{2}/2 - \mathrm{lm\_log2})
 \Big] \\[6pt]
 &\quad - \log\!\Bigg(
 F_{\Gamma}\!\Big(
@@ -920,7 +1011,7 @@ F_{\Gamma}\!\Big(
 &\quad + \log\!\Bigg(
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{2}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \\[-2pt]
@@ -928,7 +1019,7 @@ F_{\Gamma}\!\Big(
 -
 F_{\Gamma}\!\Big(
 \tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-\text{Shape} + \tfrac{n}{2} - \mathrm{lm\_log2},
+\text{Shape} + \tfrac{n_{2}}{2} - \mathrm{lm\_log2},
 \text{Rate} + \tfrac{\mathrm{RSS}_{\mathrm{Min}}}{2}
 \Big)
 \Bigg) \\[6pt]
@@ -994,9 +1085,9 @@ C_{\mathrm{final}}
  + \text{Shape}\log(\text{Rate})
  - \log\Gamma(\text{Shape}) \\[4pt]
 &\quad - \Big[
-(\text{Shape} + n/2 - \mathrm{lm\_log2})
+(\text{Shape} + n_{2}/2 - \mathrm{lm\_log2})
 \log(\text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
- - \log\Gamma(\text{Shape} + n/2 - \mathrm{lm\_log2})
+ - \log\Gamma(\text{Shape} + n_{2}/2 - \mathrm{lm\_log2})
 \Big] \\[4pt]
 &\quad + \log\!\Big(
 F_{\Gamma}(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
@@ -1007,13 +1098,13 @@ F_{\Gamma}(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
 \Big) \\[4pt]
 &\quad - \log\!\Big(
 F_{\Gamma}(\tfrac{1}{\mathrm{disp}_{\mathrm{lower}}};
-\text{Shape} + n/2 - \mathrm{lm\_log2},
+\text{Shape} + n_{2}/2 - \mathrm{lm\_log2},
 \text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
 \\[-2pt]
 &\qquad\qquad\qquad
 -
 F_{\Gamma}(\tfrac{1}{\mathrm{disp}_{\mathrm{upper}}};
-\text{Shape} + n/2 - \mathrm{lm\_log2},
+\text{Shape} + n_{2}/2 - \mathrm{lm\_log2},
 \text{Rate} + \mathrm{RSS}_{\mathrm{Min}}/2)
 \Big).
 \end{aligned}
@@ -1139,6 +1230,9 @@ This completes the proof of Claim 2.
 **Claim 3.**  
 \(\mathrm{UB2A}_j(d) \ge 0.\)
 
+
+
+
 **Proof of Claim 3.**  
 For every face \(j\) and dispersion \(d\),
 \[
@@ -1161,6 +1255,12 @@ it follows that
 \]
 
 This completes the proof of Claim 3.
+
+
+ Here \(\text{RSS}_j(d)\) and \(\text{RSS}_{\min}\) use weighted residuals  
+ \[
+ \sum_i w_i (y_i - x_i^\top\theta)^2.
+ \]
 
 
 ---
@@ -1649,6 +1749,10 @@ Thus the analytic gradient matches the implementation:
 \boxed{\;\frac{d}{dd}\,\mathrm{RSS}(d)
 = \frac{2}{d^2}\,\mathrm{resid}(d)^\top W X A(d)^{-1}\Big(\mathrm{base\_A}\,\beta(d) - \mathrm{base\_B0}\Big)\;}
 \]
+
+These definitions use the same weight matrix \(W\) as the likelihood and RSS, ensuring the tangency maps and slopes are fully consistent with the weighted model.
+
+
 
 # References
 
