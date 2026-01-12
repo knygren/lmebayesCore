@@ -143,7 +143,7 @@ distribution and associated bounding function and establish a key claims.
 
 ## 2.1 Proposal Distribution
 
-Let \( \bar{c}(v_{\text{tangent}}) \) be a gradient for \( \ell(.)\) at $v_{\text{tangent}}$. We then defined a gamma proposal distribution by:
+Let \( \bar{c}(v_{\text{tangent}}) \) be a gradient for \( -\ell(.)\) at $v_{\text{tangent}}$. We then defined a gamma proposal distribution by:
 
 \[
 v \sim \mathrm{Gamma}_{prop}(a_0+  \frac{1}{2}\sum_i w_i, b_0 - \bar{c}(v_{\text{tangent}}))\
@@ -152,10 +152,10 @@ v \sim \mathrm{Gamma}_{prop}(a_0+  \frac{1}{2}\sum_i w_i, b_0 - \bar{c}(v_{\text
 where the log of the proposal distribution specifically takes the form
 
 \[
-\begin{array}
+\begin{aligned}
 \log p_{prop}(v) & = (a_0+  \frac{1}{2}\sum_i w_i )\log [ b_0 - \bar{c}(v_{\text{tangent}})] \;-\; \log\Gamma(a_0+  \frac{1}{2}\sum_i w_i ) \\[4pt]
 &  \;+\; ((a_0+  \frac{1}{2}\sum_i w_i ) - 1)\log v \;-\; [ b_0 - \bar{c}(v_{\text{tangent}})] v.
-\end{array}
+\end{aligned}
 \]
 ---
 
@@ -235,6 +235,33 @@ f(v) & = \log p(v) +\ell(v) - \log (C_{1}) \\[4pt]
 \]
 
 
+## 2.4 Implementation Outline
+
+To implement the sampler, we proceed as follows:
+
+1. **Find the posterior mode** \(v_\star\) using a Gamma‑surrogate fixed‑point iteration.
+2. **Approximate the posterior mean** \(v_{\text{mean}}\) using curvature at \(v_\star\) and a
+   Gamma surrogate \(\Gamma(\alpha_{\!bar}, \beta_{\!bar})\).
+3. **Set the tangency point** to
+   \[
+   v_{\text{tangent}} = v_{\text{mean}}.
+   \]
+4. **Build the proposal and bounding function** using \(v_{\text{tangent}}\) as above.
+5. **Sample** as follows:
+   - (a) Generate a candidate \(v_{\text{cand}}\) from the (possibly truncated) proposal
+     \(\mathrm{Gamma}(\text{shape}_\text{prop}, \text{rate}_\text{prop})\).
+   - (b) Draw \(u \sim \mathrm{Uniform}(0,1)\).
+   - (c) Accept if
+     \[
+     \log h(v_{\text{cand}}) - \log u > 0.
+     \]
+
+The accepted draws for \(v\) are then transformed to dispersion by \(\phi = 1/v\).
+
+
+
+
+
 
 ## 4.1 Proxy Model and Shape Adjustment
 
@@ -248,13 +275,13 @@ We build an equivalent “proxy model” with the following three key properties
 
 2. **Proxy log‑likelihood.**  
    \[
-   \ell^\*(v) = \ell(v) - \frac{1}{2}\Bigl(\sum_i w_i\Bigr)\log v,
+   \ell^{*}(v) = \ell(v) - \frac{1}{2}\Bigl(\sum_i w_i\Bigr)\log v,
    \]
    where \(\ell(v)\) is the original weighted log‑likelihood for the precision \(v\).
 
 3. **Concavity preserved.**  
-   The proxy log‑likelihood \(\ell^\*(\cdot)\) is constructed so that it **retains the concavity** of the
-   original log‑likelihood in \(v\). This ensures that tangent envelopes based on \(\ell^\*\) produce valid
+   The proxy log‑likelihood \(\ell^{*}(\cdot)\) is constructed so that it **retains the concavity** of the
+   original log‑likelihood in \(v\). This ensures that tangent envelopes based on \(\ell^{*}\) produce valid
    upper bounds for the posterior log‑density.
 
 The purpose of this step is to allow a **shape‑shifted Gamma proposal** whose shape parameter incorporates
