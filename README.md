@@ -207,7 +207,7 @@ https://knygren.r-universe.dev/articles/glmbayes/Chapter-A2.html
 - **Chapter A3 — Methods Available in glmbayes**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A3.html
 
-- **Chapter A5 — Technical Report for Likelihood Subgradient Based Samplers**  
+- **Chapter A5 — Simulation Methods - Likelihood Subgradient Densities**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A5.html
 
 - **Chapter A6 — Accept-Reject Sampling for Dispersion in Gamma Regression**  
