@@ -6,7 +6,7 @@ author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A5: t-statistics for Bayesian Linear models with normal-gamma priors}
+  %\VignetteIndexEntry{Chapter A4: t-statistics for Bayesian Linear models with normal-gamma priors}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
