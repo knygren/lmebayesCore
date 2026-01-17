@@ -230,3 +230,4 @@ procedure is valid and unbiased.
 \seealso{
 \code{\link{EnvelopeBuild}}, \code{\link{glmb}}, \code{\link{glmbfamfunc}}
 }
+\keyword{internal}

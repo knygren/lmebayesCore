@@ -41,5 +41,5 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom MASS mvrnorm
 #' @importFrom Rdpack reprompt
-#' @useDynLib glmbayes
+#' @useDynLib glmbayes, .registration = TRUE
 "_PACKAGE"

@@ -10,7 +10,6 @@ Imports:
     stats,
     Rcpp (>= 1.0.4.6),
     RcppArmadillo,
-    RcppParallel,
     Rdpack (>= 0.11-0)
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel
