@@ -423,7 +423,6 @@ glmbfamfunc<-function(family){
 #' @rdname glmbfamfunc
 #' @order 2
 #' @method print glmbfamfunc
-#' @keywords internal
 
 
 print.glmbfamfunc<-function(x,...)

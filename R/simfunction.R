@@ -967,7 +967,6 @@ summary.rGamma_reg<-function(object,...){
 
 
 #' @export
-#' @keywords internal
 #' @rdname simfuncs
 #' @order 9
 #' @method print summary.rGamma_reg
