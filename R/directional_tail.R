@@ -109,7 +109,7 @@ directional_tail <- function(fit, mu0 = NULL) {
 #' @method print directional_tail
 #' @export
 
-print.directional_tail <- function(x, ...) {
+print.directional_tail <- function(x) {
   # Determine number of draws
   n_draws <- nrow(x$draws$Z)
   

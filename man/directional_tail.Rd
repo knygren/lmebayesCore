@@ -7,7 +7,7 @@
 \usage{
 directional_tail(fit, mu0 = NULL)
 
-\method{print}{directional_tail}(x, ...)
+\method{print}{directional_tail}(x)
 }
 \arguments{
 \item{fit}{A fitted model object of class 'glmb' or 'lmb'}
