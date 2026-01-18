@@ -277,7 +277,6 @@ Inv_f3_with_disp <- function(cache, dispersion, cbars_small) {
 #' @order 5
 
 
-#' @keywords internal
 
 UB2 <- function(dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global) {
   .Call(`_glmbayes_UB2`, dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global)
@@ -287,7 +286,6 @@ UB2 <- function(dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global) {
 #' @export
 #' @rdname dispenvelopes
 #' @order 6
-#' @keywords internal
 
 rss_face_at_disp<- function(dispersion, cache, cbars_j, y, x, alpha, wt) {
   .Call(`_glmbayes_rss_face_at_disp`, dispersion, cache, cbars_j, y, x, alpha, wt)
@@ -299,7 +297,6 @@ rss_face_at_disp<- function(dispersion, cache, cbars_j, y, x, alpha, wt) {
 #' @export
 #' @rdname dispenvelopes
 #' @order 7
-#' @keywords internal
 
 drss_ddisp <- function(dispersion, cache, cbars_j, y, x, alpha, wt) {
   .Call(`_glmbayes_drss_ddisp`, dispersion, cache, cbars_j, y, x, alpha, wt)

@@ -218,4 +218,3 @@ Env2
 \seealso{
 \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSort}}
 }
-\keyword{internal}

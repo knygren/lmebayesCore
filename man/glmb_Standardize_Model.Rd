@@ -137,4 +137,3 @@ P2=Standard_Mod$P2
 L2Inv=Standard_Mod$L2Inv
 L3Inv=Standard_Mod$L3Inv
 }
-\keyword{internal}

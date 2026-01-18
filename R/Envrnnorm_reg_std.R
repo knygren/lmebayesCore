@@ -50,7 +50,6 @@
 #' 
 #' 
 #' 
-#' @keywords internal
 #' @example inst/examples/Ex_rnnorm_reg_std.R
 #' @export
 

@@ -17,6 +17,7 @@
 #' @param a1 A vector containing the diagonal of the standardized precision matrix
 #' @param E_draws Bound on Expected number of candidates per accepted draw
 #' @param lg_prob_factor vector of lg_prob_factors used for the Envelope connected to the independent normal gamma prior
+#' @param UB2min Vector containing min for UB2 for each component (relevant for EnvelopeDispersionBuild)
 #' @return The function returns a list consisting of the following components (the first six of which are matrics with number of rows equal to the number of components in the Grid and columns equal to the number of parameters):
 #' \item{GridIndex}{A matrix containing information on how each dimension should be sampled (1 means left tail of a restricted normal, 2 center, 3 right tail, and 4 the entire line)}
 #' \item{thetabars}{A matrix containing the points of tangencies associated with each component of the grid}
@@ -33,7 +34,6 @@
 #' speed up simulation once the envelope is constructed.
 #' @example inst/examples/Ex_EnvelopeSort.R
 #' @export
-#' @keywords internal
 
 EnvelopeSort <- function(l1, l2,
                          GIndex, G3, cbars, logU, logrt, loglt,

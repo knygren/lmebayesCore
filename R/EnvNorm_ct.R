@@ -36,7 +36,6 @@
 #' between the upper and lower bounds \code{b-a} are small. In such cases,
 #' using \code{pnorm(b)-pnorm(a)} may result in 0 being returned even when the 
 #' difference is supposed to be positive.
-#' @keywords internal 
 #' @example inst/examples/Ex_Normal_ct.R
 #' @rdname Normal_ct
 #' @order 1
@@ -98,7 +97,6 @@ output
 
 
 
-#' @keywords internal
 #' @rdname Normal_ct
 #' @order 2
 #' @export

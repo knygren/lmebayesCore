@@ -22,7 +22,6 @@
 #' @export
 #' @rdname glmbfamfunc
 #' @order 1
-#' @keywords internal
 
 glmbfamfunc<-function(family){
   

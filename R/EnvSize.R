@@ -104,8 +104,6 @@
 #' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeOpt.R
 #' @export
-#' @keywords internal
-
 #' @usage EnvelopeSize(a, G1, Gridtype = 2L, n = 1000L, n_envopt = -1,
 #'                     use_opencl = FALSE, verbose = FALSE)
 #' @rdname EnvelopeSize

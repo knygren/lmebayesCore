@@ -9,6 +9,7 @@
 #' @param fit A fitted model object of class 'glmb' or 'lmb'
 #' @param mu0 An optional argument containing a reference vector relative to which the directional tail is computed. Defaults to the prior mean.
 #' @param x An object of class \code{directional_tail}
+#' @param ... Additional arguments passed to or from other methods.
 #' @return An object of class 'directional_tail' containing:
 #'   \item{mahalanobis_shift}{Measures the standardized Mahalanobis distance between the posterior and prior means, 
 #' using posterior precision for scaling. In the Gaussian case, this directly determines the directional tail probability via Phi(-||w||).}
@@ -109,7 +110,7 @@ directional_tail <- function(fit, mu0 = NULL) {
 #' @method print directional_tail
 #' @export
 
-print.directional_tail <- function(x) {
+print.directional_tail <- function(x, ...) {
   # Determine number of draws
   n_draws <- nrow(x$draws$Z)
   

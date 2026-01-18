@@ -176,7 +176,6 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #' @rdname EnvelopeEval
 #' @export
 #' @usage f2_f3_non_opencl(family, link, b, y, x, mu, P, alpha, wt, progbar)
-#' @keywords internal 
 
 f2_f3_non_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar = 0L) {
   f2_f3_non_opencl(family, link, b, y, x, mu, P, alpha, wt, progbar)
@@ -185,7 +184,6 @@ f2_f3_non_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar = 
 #' @rdname EnvelopeEval
 #' @export
 #' @usage f2_f3_opencl(family, link, b, y, x, mu, P, alpha, wt, progbar)
-#' @keywords internal 
 
 f2_f3_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar = 0L) {
   f2_f3_opencl(family, link, b, y, x, mu, P, alpha, wt, progbar)
@@ -197,7 +195,6 @@ f2_f3_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar = 0L) 
 #'                         family, link,
 #'                         use_opencl, verbose,
 #'                         threshold_sec = 300)
-#' @keywords internal
 
 
 run_opencl_pilot <- function(G4, y, x, mu, P, alpha, wt,

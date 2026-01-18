@@ -1075,7 +1075,6 @@ Set_Grid <- function(GridIndex, cbars, Lint) {
 #' @usage setlogP(logP, NegLL, cbars, G3)
 #' @rdname EnvelopeBuild
 #' @export
-#' @keywords internal
 setlogP <- function(logP, NegLL, cbars, G3) {
   .setlogP_cpp(logP, NegLL, cbars, G3)
 }

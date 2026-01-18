@@ -7,7 +7,7 @@
 \usage{
 directional_tail(fit, mu0 = NULL)
 
-\method{print}{directional_tail}(x)
+\method{print}{directional_tail}(x, ...)
 }
 \arguments{
 \item{fit}{A fitted model object of class 'glmb' or 'lmb'}
@@ -15,6 +15,8 @@ directional_tail(fit, mu0 = NULL)
 \item{mu0}{An optional argument containing a reference vector relative to which the directional tail is computed. Defaults to the prior mean.}
 
 \item{x}{An object of class \code{directional_tail}}
+
+\item{...}{Additional arguments passed to or from other methods.}
 }
 \value{
 An object of class 'directional_tail' containing:

@@ -200,4 +200,3 @@ from the true posterior \eqn{\pi(\theta \mid y)}.#'
 \references{
 \insertAllCited{}
 }
-\keyword{internal}

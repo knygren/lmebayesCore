@@ -1095,4 +1095,3 @@ evaluations, starting gradient evaluations, and invoking GPU kernels.
 Any constants needed by the sampling are added to a list and returned.
 }
 
-\keyword{internal}
