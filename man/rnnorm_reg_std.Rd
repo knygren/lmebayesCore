@@ -61,7 +61,7 @@ acceptance for each draw}
 }
 \description{
 \code{rnnorm_reg_std} is used to generate iid samplers from Non-Gaussian Generalized
-Linear Models in standard form. The function should onlybe called after standardization
+Linear Models in standard form. The function should only be called after standardization
 of a Generalized Linear Model.
 }
 \details{

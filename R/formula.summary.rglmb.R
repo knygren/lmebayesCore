@@ -1,11 +1,10 @@
-#' Extract Log-Likelihood
+#' Model Formulae
 #'
-#' This function is a method function for the \code{"glmb"} class used to 
-#' Extract the log-Likelihood from a Bayesian Generalized Linear Model.
-#' @param x an object of class \code{glmb}, typically the result of a call to \link{glmb}
+#' This function is a method function for the \code{"summary.rglmb"} class used to 
+#' Extract a formulae for the objective and the family
+#' @param x an object of class \code{summary.rglmb}, typically the result of a call to \link{summary.glmb}
 #' @param ... further arguments to or from other methods
-#' @return The function returns a vector, \code{logLikout} with the estimated log-likelihood for each draw. 
-#' @example inst/examples/Ex_logLik.glmb.R
+#' @return The function returns model formulae
 #' @export
 #' @method formula summary.rglmb
 

@@ -583,7 +583,6 @@ glmb.wfit<-function(x,y,weights=rep.int(1, nobs),offset=rep.int(0, nobs),family=
 # Helpers --------------------------------------------------------------------
 #
 # 1) DIC_Info
-# 2) glmb.wfit
 
 #' Calculates DIC and Deviance Information
 #'

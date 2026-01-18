@@ -1,7 +1,7 @@
 #' The Bayesian Generalized Linear Model Distribution in Standard Form
 #'
 #' \code{rnnorm_reg_std} is used to generate iid samplers from Non-Gaussian Generalized
-#' Linear Models in standard form. The function should onlybe called after standardization 
+#' Linear Models in standard form. The function should only be called after standardization 
 #' of a Generalized Linear Model.
 #' @param n number of draws to generate. If \code{length(n) > 1}, the length is taken to be the number required.
 #' @param y a vector of observations of length \code{m}.

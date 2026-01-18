@@ -1,3 +1,22 @@
+#' Low-Level Simulation Pipeline for Bayesian GLMs
+#'
+#' @description
+#' A detailed overview of the low-level simulation pipeline used by
+#' \code{rglmb()} and related functions. These routines implement the
+#' optimization → standardization → envelope sizing → envelope construction →
+#' sampling → back-transformation workflow described in Nygren & Nygren (2006).
+#'
+#' @details
+#' (summaries of each step)
+#'
+#' @example inst/examples/Ex_rnnorm_reg_std.R
+#'
+#' @name SimulationPipeline
+NULL
+
+# Functions to add
+
+
 #' Return family functions used during simulation and post processing
 #'
 #' This function takes as input a \code{\link{family}} object and returns a 
@@ -61,11 +80,11 @@ glmbfamfunc<-function(family){
       ## adds 2*log-likelihood at mean=y which measn this is 2* Negative log-likelihood difference from saturated
       ## Multiplication by dispersion likely is/was incorrect
       ## As long as single value for the parameters and dispersion, can do the below
-  
+      
       #dispersion*(2*f1(b,y,x,alpha,wt)+2*sum(dnorm(y, mean=y,sd=sqrt(1/wt),log=TRUE)))
       2*f1(b,y,x,alpha,wt/dispersion)+2*sum(dnorm(y, mean=y,sd=sqrt(dispersion/wt),log=TRUE))
       
-      }
+    }
     
     # Edit This
     #	f5<-f2_gaussian
@@ -121,20 +140,20 @@ glmbfamfunc<-function(family){
     #  f5<-f2_poisson
     #  f6<-f3_poisson
     
-#    f7<-function(b,y,x,mu,P,alpha=0,wt=1){
-#      l2<-length(y)
-#      ltemp<-length(wt)
-#      yxb2<-NULL
-#      if(ltemp==1){
-#        Ptemp<-wt*diag(l2)
-#      }
-#      else {
-#        Ptemp<-diag(wt)      
-#      }
-#      Pout<-t(x)%*%(Ptemp)%*%x*exp(alpha+x%*%b)
-#      Pout
-#    }
- 
+    #    f7<-function(b,y,x,mu,P,alpha=0,wt=1){
+    #      l2<-length(y)
+    #      ltemp<-length(wt)
+    #      yxb2<-NULL
+    #      if(ltemp==1){
+    #        Ptemp<-wt*diag(l2)
+    #      }
+    #      else {
+    #        Ptemp<-diag(wt)      
+    #      }
+    #      Pout<-t(x)%*%(Ptemp)%*%x*exp(alpha+x%*%b)
+    #      Pout
+    #    }
+    
     f7<-function(b, y, x, mu, P, alpha = 0, wt = 1) {
       l2 <- length(y)
       l1 <- length(b)
@@ -163,7 +182,7 @@ glmbfamfunc<-function(family){
       Pout
     }
     
-       
+    
     
     
   }
@@ -348,13 +367,13 @@ glmbfamfunc<-function(family){
       disp2  <- 1 / wt
       
       ## TEMPORARY DIAGNOSTIC (optional)
-#      if (any(!is.finite(scale2)) || any(scale2 == 0)) {
-#        cat("\n*** scale2 is zero or non-finite in f2 ***\n")
-#        cat("alpha:\n")
-#        print(alpha)
-#        cat("range(eta):", range(eta), "\n")
-#        cat("range(scale2):", range(scale2), "\n")
-#      }
+      #      if (any(!is.finite(scale2)) || any(scale2 == 0)) {
+      #        cat("\n*** scale2 is zero or non-finite in f2 ***\n")
+      #        cat("alpha:\n")
+      #        print(alpha)
+      #        cat("range(eta):", range(eta), "\n")
+      #        cat("range(scale2):", range(scale2), "\n")
+      #      }
       
       -sum(dgamma(y, shape = 1/disp2, scale = scale2, log = TRUE)) +
         0.5 * t((b - mu)) %*% P %*% (b - mu)
@@ -419,6 +438,7 @@ glmbfamfunc<-function(family){
   
 }
 
+
 #' @rdname glmbfamfunc
 #' @order 2
 #' @method print glmbfamfunc
@@ -441,6 +461,9 @@ print.glmbfamfunc<-function(x,...)
 }
 
 
+# Helpers --------------------------------------------------------------------
+
+
 dpois2<-function(x,lambda,log=TRUE){
   
   test=max(abs(round(x)-x))
@@ -450,7 +473,9 @@ dpois2<-function(x,lambda,log=TRUE){
     return(-lambda+x*log(lambda)-log(gamma(x+1)))
     
   } 
-      
-    return(dpois(x,lambda,log=TRUE))
+  
+  return(dpois(x,lambda,log=TRUE))
 }
+
+
 
