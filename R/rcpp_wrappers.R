@@ -122,3 +122,48 @@
     verbose
   )
 }
+
+
+#' @noRd
+#' @keywords internal
+
+.EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
+                          family, link,
+                          use_opencl = FALSE,
+                          verbose = FALSE) {
+  .Call(`_glmbayes_EnvelopeEval`,
+        G4, y, x, mu, P, alpha, wt,
+        family, link,
+        use_opencl, verbose)
+}
+
+#' @noRd
+#' @keywords internal
+
+.f2_f3_non_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar) {
+  .Call(`_glmbayes_f2_f3_non_opencl`,
+        family, link, b, y, x, mu, P, alpha, wt, progbar)
+}
+
+#' @noRd
+#' @keywords internal
+
+.f2_f3_opencl <- function(family, link, b, y, x, mu, P, alpha, wt, progbar) {
+  .Call(`_glmbayes_f2_f3_opencl`,
+        family, link, b, y, x, mu, P, alpha, wt, progbar)
+}
+
+#' @noRd
+#' @keywords internal
+
+.run_opencl_pilot <- function(G4, y, x, mu, P, alpha, wt,
+                              family, link,
+                              use_opencl,
+                              verbose,
+                              threshold_sec = 300.0) {
+  .Call(`_glmbayes_run_opencl_pilot`,
+        G4, y, x, mu, P, alpha, wt,
+        family, link,
+        use_opencl, verbose, threshold_sec)
+}
+
