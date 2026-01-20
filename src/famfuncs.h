@@ -27,29 +27,9 @@ arma::vec f2_binomial_logit_rmat(
 
 arma::mat  f3_binomial_logit(NumericMatrix b,NumericVector y, NumericMatrix x,NumericMatrix mu,NumericMatrix P,NumericVector alpha,NumericVector wt,int progbar);
 
-List f2_binomial_logit_prep(
-    NumericMatrix b,       // l2 × m1
-    NumericVector y,       // length l1
-    NumericMatrix x,       // l1 × l2
-    NumericMatrix mu,      // l2 × 1
-    NumericMatrix P,       // l2 × l2
-    NumericVector alpha,   // length l1
-    NumericVector wt,      // length l1
-    int progbar = 0
-);
+
 
 List f2_binomial_logit_prep_v2(
-    NumericMatrix b,       // l2 × m1
-    NumericVector y,       // length l1
-    NumericMatrix x,       // l1 × l2
-    NumericMatrix mu,      // l2 × 1
-    NumericMatrix P,       // l2 × l2
-    NumericVector alpha,   // length l1
-    NumericVector wt,      // length l1
-    int progbar = 0
-);
-
-List f2_binomial_logit_prep_v3(
     NumericMatrix b,       // l2 × m1
     NumericVector y,       // length l1
     NumericMatrix x,       // l1 × l2

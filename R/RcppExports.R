@@ -65,10 +65,6 @@ gpu_names <- function() {
     .Call(`_glmbayes_gpu_names`)
 }
 
-f2_binomial_logit_prep <- function(b, y, x, mu, P, alpha, wt, progbar) {
-    .Call(`_glmbayes_f2_binomial_logit_prep`, b, y, x, mu, P, alpha, wt, progbar)
-}
-
 .RSS <- function(y, x, b, alpha, wt) {
     .Call(`_glmbayes_RSS`, y, x, b, alpha, wt)
 }
