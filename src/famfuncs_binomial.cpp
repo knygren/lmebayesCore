@@ -12,11 +12,11 @@ using namespace Rcpp;
 using namespace RcppParallel;
 
 #include "OpenCL_helper.h"
-using namespace OpenCLHelper;
+ using namespace OpenCLHelper;
 
 
-#include "OpenCL_proxy_kernels.h"
-using namespace OpenCLProxy;
+// #include "OpenCL_proxy_kernels.h"
+// using namespace OpenCLProxy;
 
 
 
@@ -1571,100 +1571,100 @@ List f2_binomial_logit_prep_v2(
 
 
 
-// [[Rcpp::export]]
-List f2_binomial_logit_prep_v3(
-    NumericMatrix b,        // (l2 × m1) grid of β
-    NumericVector y,        // (l1) responses (unused in prep)
-    NumericMatrix x,        // (l1 × l2) design matrix
-    NumericMatrix mu,       // (l2 × 1) prior means
-    NumericMatrix P,        // (l2 × l2) precision matrix
-    NumericVector alpha,    // (l1) offsets
-    NumericVector wt,       // (l1) weights (unused)
-    int progbar = 0
-) {
-  // 1) INPUT MARSHALLING
-  int l1 = x.nrow();
-  int l2 = x.ncol();
-  int m1 = b.ncol();
-  
-  std::vector<double> X_flat     = flattenMatrix(x);   // length = l1*l2
-  std::vector<double> B_flat     = flattenMatrix(b);   // length = l2*m1
-  std::vector<double> mu_flat    = flattenMatrix(mu);  // length = l2
-  std::vector<double> P_flat     = flattenMatrix(P);   // length = l2*l2
-  std::vector<double> alpha_flat = copyVector(alpha);  // length = l1
-  
-  // 2) INVOKE PROXY KERNEL
-  std::vector<double> qf_flat(m1);
-  std::vector<double> xb_flat((size_t)l1 * m1);
-  
-  
-  // —— DEBUG INPUTS ——  
-  Rcpp::Rcout << "[DEBUG] l1=" << l1 
-              << "  l2=" << l2 
-              << "  m1=" << m1 << "\n";
-  
-  // show first 3 entries of each flat buffer  
-  int K = std::min(3, m1);  
-  Rcpp::Rcout << "X_flat[0..2]: ";  
-  for (int i = 0; i < std::min(3, (int)X_flat.size()); ++i)  
-    Rcpp::Rcout << X_flat[i] << " ";  
-  Rcpp::Rcout << "\nB_flat[0..2]: ";  
-  for (int i = 0; i < std::min(3, (int)B_flat.size()); ++i)  
-    Rcpp::Rcout << B_flat[i] << " ";  
-  Rcpp::Rcout << "\nmu_flat[0..2]: ";  
-  for (int i = 0; i < std::min(3, (int)mu_flat.size()); ++i)  
-    Rcpp::Rcout << mu_flat[i] << " ";  
-  Rcpp::Rcout << "\nalpha_flat[0..2]: ";  
-  for (int i = 0; i < std::min(3, (int)alpha_flat.size()); ++i)  
-    Rcpp::Rcout << alpha_flat[i] << " ";  
-  Rcpp::Rcout << "\n\n";  
-  R_FlushConsole();
-  // —— end DEBUG ——  
-  
-  
-  f2_binomial_logit_prep_kernel_proxy(
-    X_flat, B_flat, mu_flat, P_flat, alpha_flat,
-    l1, l2, m1,
-    qf_flat, xb_flat,
-    progbar
-  );
-  
-  
-
-  
-  
-  // —— DEBUG OUTPUTS ——  
-  Rcpp::Rcout << "[DEBUG] first " << K << " qf_flat: ";  
-  for (int j = 0; j < K; ++j)  
-    Rcpp::Rcout << qf_flat[j] << " ";  
-  
-  Rcpp::Rcout << "\n[DEBUG] first xb_flat(·,0): ";  
-  for (int j = 0; j < K; ++j)  
-    Rcpp::Rcout << xb_flat[(size_t)j * l1 + 0] << " ";  
-  
-  Rcpp::Rcout << "\n\n";  
-  R_FlushConsole();  
-  // —— end DEBUG ——  
-  
-  
-  // 3) OUTPUT MARSHALLING
-  NumericVector qf(m1);
-  for (int j = 0; j < m1; ++j) {
-    qf[j] = qf_flat[j];
-  }
-  
-  NumericMatrix xb(l1, m1);
-  for (int j = 0; j < m1; ++j) {
-    for (int i = 0; i < l1; ++i) {
-      xb(i, j) = xb_flat[(size_t)j * l1 + i];
-    }
-  }
-  
-  return List::create(
-    Named("xb") = xb,
-    Named("qf") = qf
-  );
-}
+// // [[Rcpp::export]]
+// List f2_binomial_logit_prep_v3(
+//     NumericMatrix b,        // (l2 × m1) grid of β
+//     NumericVector y,        // (l1) responses (unused in prep)
+//     NumericMatrix x,        // (l1 × l2) design matrix
+//     NumericMatrix mu,       // (l2 × 1) prior means
+//     NumericMatrix P,        // (l2 × l2) precision matrix
+//     NumericVector alpha,    // (l1) offsets
+//     NumericVector wt,       // (l1) weights (unused)
+//     int progbar = 0
+// ) {
+//   // 1) INPUT MARSHALLING
+//   int l1 = x.nrow();
+//   int l2 = x.ncol();
+//   int m1 = b.ncol();
+//   
+//   std::vector<double> X_flat     = flattenMatrix(x);   // length = l1*l2
+//   std::vector<double> B_flat     = flattenMatrix(b);   // length = l2*m1
+//   std::vector<double> mu_flat    = flattenMatrix(mu);  // length = l2
+//   std::vector<double> P_flat     = flattenMatrix(P);   // length = l2*l2
+//   std::vector<double> alpha_flat = copyVector(alpha);  // length = l1
+//   
+//   // 2) INVOKE PROXY KERNEL
+//   std::vector<double> qf_flat(m1);
+//   std::vector<double> xb_flat((size_t)l1 * m1);
+//   
+//   
+//   // —— DEBUG INPUTS ——  
+//   Rcpp::Rcout << "[DEBUG] l1=" << l1 
+//               << "  l2=" << l2 
+//               << "  m1=" << m1 << "\n";
+//   
+//   // show first 3 entries of each flat buffer  
+//   int K = std::min(3, m1);  
+//   Rcpp::Rcout << "X_flat[0..2]: ";  
+//   for (int i = 0; i < std::min(3, (int)X_flat.size()); ++i)  
+//     Rcpp::Rcout << X_flat[i] << " ";  
+//   Rcpp::Rcout << "\nB_flat[0..2]: ";  
+//   for (int i = 0; i < std::min(3, (int)B_flat.size()); ++i)  
+//     Rcpp::Rcout << B_flat[i] << " ";  
+//   Rcpp::Rcout << "\nmu_flat[0..2]: ";  
+//   for (int i = 0; i < std::min(3, (int)mu_flat.size()); ++i)  
+//     Rcpp::Rcout << mu_flat[i] << " ";  
+//   Rcpp::Rcout << "\nalpha_flat[0..2]: ";  
+//   for (int i = 0; i < std::min(3, (int)alpha_flat.size()); ++i)  
+//     Rcpp::Rcout << alpha_flat[i] << " ";  
+//   Rcpp::Rcout << "\n\n";  
+//   R_FlushConsole();
+//   // —— end DEBUG ——  
+//   
+//   
+//   f2_binomial_logit_prep_kernel_proxy(
+//     X_flat, B_flat, mu_flat, P_flat, alpha_flat,
+//     l1, l2, m1,
+//     qf_flat, xb_flat,
+//     progbar
+//   );
+//   
+//   
+// 
+//   
+//   
+//   // —— DEBUG OUTPUTS ——  
+//   Rcpp::Rcout << "[DEBUG] first " << K << " qf_flat: ";  
+//   for (int j = 0; j < K; ++j)  
+//     Rcpp::Rcout << qf_flat[j] << " ";  
+//   
+//   Rcpp::Rcout << "\n[DEBUG] first xb_flat(·,0): ";  
+//   for (int j = 0; j < K; ++j)  
+//     Rcpp::Rcout << xb_flat[(size_t)j * l1 + 0] << " ";  
+//   
+//   Rcpp::Rcout << "\n\n";  
+//   R_FlushConsole();  
+//   // —— end DEBUG ——  
+//   
+//   
+//   // 3) OUTPUT MARSHALLING
+//   NumericVector qf(m1);
+//   for (int j = 0; j < m1; ++j) {
+//     qf[j] = qf_flat[j];
+//   }
+//   
+//   NumericMatrix xb(l1, m1);
+//   for (int j = 0; j < m1; ++j) {
+//     for (int i = 0; i < l1; ++i) {
+//       xb(i, j) = xb_flat[(size_t)j * l1 + i];
+//     }
+//   }
+//   
+//   return List::create(
+//     Named("xb") = xb,
+//     Named("qf") = qf
+//   );
+// }
 
 
 NumericVector f2_binomial_logit_accum(

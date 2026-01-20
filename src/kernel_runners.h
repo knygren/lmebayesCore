@@ -8,7 +8,7 @@
 // then accumulates ∂/∂β [ log‐prior + log‐likelihood ] into grad_flat.
 //
 // kernel_source : full OpenCL program text (helpers + kernel)
-// kernel_name   : e.g. "f2_binomial_logit_prep_grad"
+// kernel_name   : e.g. "f2_f2_opencl"
 // l1, l2, m1    : dims (observations, coefficients, grid size)
 // X_flat        : length = l1 * l2, column‐major design matrix
 // B_flat        : length = m1 * l2, row‐major grid of β
