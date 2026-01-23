@@ -224,23 +224,6 @@ Rcpp::List rnnorm_reg_std_cpp(
 
 
 
-
-
-//static tbb::mutex rng_mutex;
-
-//inline double safe_runif() {
-//  tbb::mutex::scoped_lock lock(rng_mutex);
-//  return R::runif(0.0, 1.0);
-//}
-
-
-
-
-
-
-
-
-
 // [[Rcpp::export(".rnnorm_reg_std_cpp")]]
 
 Rcpp::List  rnnorm_reg_std_cpp(int n,NumericVector y,NumericMatrix x,
@@ -1128,22 +1111,6 @@ Rcpp::List rnnorm_reg_cpp(int n,NumericVector y,NumericMatrix x,
   return(outlist);
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

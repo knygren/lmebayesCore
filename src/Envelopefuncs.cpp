@@ -583,10 +583,6 @@ Rcpp::List EnvelopeEval(const Rcpp::NumericMatrix& G4,   // grid (parameters × 
 }
 
 
-
-
-
-
 // [[Rcpp::export(".EnvelopeBuild_cpp")]]
 
 List EnvelopeBuild_cpp(NumericVector bStar,
@@ -1226,37 +1222,6 @@ Rcpp::List Inv_f3_precompute_disp(NumericMatrix cbars,
 
 
 
-// // [[Rcpp::export]]
-// 
-// double rss_face_at_disp(const Rcpp::List cache,
-//                                       double dispersion,
-//                                       const Rcpp::NumericVector cbars_j) {
-//   // Extract cached matrices
-//   arma::mat Pmat    = cache["Pmat"];
-//   arma::mat Pmu     = cache["Pmu"];
-//   arma::vec base_B0 = cache["base_B0"];
-//   arma::mat base_A  = cache["base_A"];
-//   
-//   // Scale terms by dispersion
-//   arma::vec B0 = base_B0 / dispersion + Pmu;
-//   arma::mat A  = Pmat + base_A / dispersion;
-//   A = 0.5 * (A + A.t());                // ensure symmetry
-//   
-//   arma::mat R = arma::chol(A);          // Cholesky
-//   
-//   // Wrap cbars_j as Armadillo vector
-// //  arma::vec c_j(cbars_j.begin(), cbars_j.size(), false);
-//   arma::vec c_j = Rcpp::as<arma::vec>(cbars_j);
-//   
-//   
-//   // Solve A^{-1}(-c_j + B0)
-//   arma::vec b    = -c_j + B0;
-//   arma::vec ytmp = arma::solve(arma::trimatl(R.t()), b);
-//   arma::vec sol  = arma::solve(arma::trimatu(R), ytmp);
-//   
-//   // RSS is squared norm of the solution
-//   return arma::dot(sol, sol);
-// }
 
 // [[Rcpp::export("rss_face_at_disp")]]
 
@@ -1285,49 +1250,6 @@ double rss_face_at_disp(double dispersion,
 }
 
 
-// // [[Rcpp::export("drss_ddisp")]]
-// 
-// double drss_ddisp(double dispersion,
-//                   Rcpp::List cache,
-//                   Rcpp::NumericVector cbars_j,
-//                   Rcpp::NumericVector y,
-//                   Rcpp::NumericMatrix x,
-//                   Rcpp::NumericVector alpha,
-//                   Rcpp::NumericVector wt) {
-//   // Build cbars_small
-//   int l1 = cbars_j.size();
-//   Rcpp::NumericMatrix cbars_small(1, l1);
-//   for (int k = 0; k < l1; ++k) cbars_small(0, k) = cbars_j[k];
-//   
-//   // Get beta via Inv_f3_with_disp
-//   arma::mat theta_row = Inv_f3_with_disp(cache, dispersion, Rcpp::transpose(cbars_small));
-//   arma::vec beta = theta_row.t();
-//   
-//   // Armadillo views
-//   arma::vec y2(y.begin(), y.size(), false);
-//   arma::vec a2(alpha.begin(), alpha.size(), false);
-//   arma::mat X(x.begin(), x.nrow(), x.ncol(), false);
-//   arma::vec w(wt.begin(), wt.size(), false);
-//   
-//   arma::vec resid = (y2 - a2 - X * beta);
-//   
-//   // Cache pieces
-//   arma::mat Pmat    = cache["Pmat"];
-//   arma::vec base_B0 = cache["base_B0"];
-//   arma::mat base_A  = cache["base_A"];
-//   
-//   arma::mat A = Pmat + base_A / dispersion;
-//   A = 0.5 * (A + A.t());
-//   
-//   // Compute A^{-1}(base_A*beta - base_B0)
-//   arma::vec rhs = base_A * beta - base_B0;
-//   arma::vec solve_rhs = arma::solve(A, rhs); // A^{-1} * rhs
-//   
-//   arma::vec WXsolve = (X * solve_rhs) % w; // W is diag(w)
-//   
-//   double grad = (2.0 / (dispersion * dispersion)) * arma::dot(resid, WXsolve);
-//   return grad;
-// }
 
 // [[Rcpp::export]]
 double UB2(double dispersion,
@@ -1418,9 +1340,6 @@ NumericVector thetabar_const_cpp(NumericMatrix P,
   std::copy(thetaconst.begin(), thetaconst.end(), out.begin());
   return out;
 }
-
-
-
 
 
 // --- Internal helper: RSS pilot timing block ---
@@ -2232,10 +2151,7 @@ List EnvelopeDispersionBuild_cpp(
   NumericVector lg_prob_factor = clone(prob_factor);
   NumericVector lg_prob_factor2 = clone(prob_factor2);
   
-  
-  
-  
-  
+
   // Normalize weights (PLSD)
   NumericVector prob_factor_exp(gs);
   NumericVector prob_factor_exp2(gs);
