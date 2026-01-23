@@ -642,6 +642,11 @@ void rindep_loop_rmat(
 
 
     
+
+
+
+
+
 // Classic loop implementation: consumes pre-extracted inputs.
 // Calls f2_gaussian(...) directly (assumed defined elsewhere).
 void rindep_loop_classic(
@@ -653,17 +658,17 @@ void rindep_loop_classic(
     const Rcpp::NumericMatrix& P_nm,
     const Rcpp::NumericVector& alpha_nv,
     const Rcpp::NumericVector& wt_nv,
-    
+
     // Envelope matrices/vectors
     Rcpp::NumericMatrix& cbars,
     Rcpp::NumericVector& PLSD,
     Rcpp::NumericMatrix& loglt,
     Rcpp::NumericMatrix& logrt,
-    
+
     // UB vectors
     Rcpp::NumericVector& lg_prob_factor,
     Rcpp::NumericVector& UB2min,
-    
+
     // Scalar constants
     double shape3,
     double rate2,
@@ -676,17 +681,17 @@ void rindep_loop_classic(
     double lm_log2,
     double lmc1,
     double lmc2,
-    
+
     // Precomputed cache
     Rcpp::List& cache,
-    
+
     // Armadillo views for UB math
     arma::vec& y2,          // length l2
     arma::vec& alpha2,      // length l2
     arma::mat& x2,          // l2 × l1
     arma::mat& P2,          // l1 × l1
     arma::vec& sqrt_wt1b,   // length l2: sqrt(wt)
-    
+
     // Outputs
     Rcpp::NumericMatrix& beta_out,   // n × l1
     Rcpp::NumericVector& disp_out,   // length n
@@ -696,15 +701,15 @@ void rindep_loop_classic(
 
   const int l1 = x2.n_cols;
   const int l2 = x2.n_rows;
-  
-  
+
+
   // Declare storage before the for-loop
   // int J_idx_first = -1;
-  
+
 
   for (int i = 0; i < n; ++i) {
-    
-    
+
+
     int a1 = 0;
     iters_out[i] = 1;
 
@@ -730,8 +735,8 @@ void rindep_loop_classic(
       double dispersion = r_invgamma_safe(shape3, rate2, disp_upper, disp_lower);
 
 
-  
-      
+
+
       // Compute theta row
       Rcpp::NumericMatrix cbars_small = cbars(Rcpp::Range(J_idx, J_idx),
                                               Rcpp::Range(0, cbars.ncol() - 1));
@@ -745,11 +750,11 @@ void rindep_loop_classic(
           std::to_string(theta2.n_rows) + "x" + std::to_string(theta2.n_cols) +
           ", expected 1×l1 (l1=" + std::to_string(l1) + ")");
       }
-      
+
       // Deterministic copy into thetabars_new row
       for (int j = 0; j < l1; ++j) thetabars_new(0, j) = theta2(0, j);
-      
-      
+
+
       // Likelihoods (calls f2_gaussian directly with Rcpp inputs)
       Rcpp::NumericVector wt2(l2);
       for (int r = 0; r < l2; ++r) wt2[r] = wt_nv[r] / dispersion;
@@ -757,9 +762,9 @@ void rindep_loop_classic(
 
       Rcpp::NumericVector LL_New2 = -f2_gaussian(Rcpp::transpose(thetabars_new),
                                                  y_nv, x_nm, mu_nm, P_nm, alpha_nv, wt2);
-      
-      
-      
+
+
+
 
       Rcpp::NumericVector LL_Test = -f2_gaussian(Rcpp::transpose(out),
                                                  y_nv, x_nm, mu_nm, P_nm, alpha_nv, wt2);
@@ -774,7 +779,7 @@ void rindep_loop_classic(
       arma::vec cbars_vec(cbars_row.begin(), l1, false);
       arma::colvec betadiff = b_out2.t() - theta_vec;
       double UB1 = LL_New2[0] - arma::as_scalar(cbars_vec.t() * betadiff);
-      
+
       // UB2
       double quad_sum = 0.0;
       for (int r = 0; r < l2; ++r) {
@@ -784,37 +789,37 @@ void rindep_loop_classic(
         double scaled = resid * sqrt_wt1b[r];
         quad_sum += scaled * scaled;
       }
-      
 
-      
+
+
       double UB2 = 0.5 * (1.0 / dispersion) * (quad_sum - RSS_Min);
       UB2 -= UB2min[J_idx];
-      
+
       // UB3A
       double theta_P_theta = arma::as_scalar(theta_vec.t() * P2 * theta_vec);
       double c_theta       = arma::as_scalar(cbars_vec.t() * theta_vec);
       double New_LL_J      = -0.5 * theta_P_theta + c_theta;
       double UB3A          = lg_prob_factor[J_idx] + lmc1 + lmc2 * dispersion - New_LL_J;
-      
+
       // UB3B
       double New_LL_log_disp = lm_log1 + lm_log2 * std::log(dispersion);
       double UB3B = (max_New_LL_UB - max_LL_log_disp + New_LL_log_disp)
         - (lmc1 + lmc2 * dispersion);
-      
+
       // Acceptance test
     //  double test1 = LL_Test[0] - UB1;
-      
+
       double test1=LL_Test[0] - UB1;
-      
-      double test= test1-(UB2+UB3A+UB3B);  // Should be all negative 
+
+      double test= test1-(UB2+UB3A+UB3B);  // Should be all negative
 
       test = test - log_U2;
-      
-      
+
+
       // Record outputs
       disp_out[i] = dispersion;
       beta_out(i, Rcpp::_) = out(0, Rcpp::_);
-      
+
       if (test >= 0.0) {
         a1 = 1;
       } else {
@@ -822,17 +827,14 @@ void rindep_loop_classic(
       }
     } // end while
   }   // end for
-  
-  
+
+
 
 
 }
 
 
-
-
 // [[Rcpp::export(".rindep_norm_gamma_reg_std_parallel_cpp")]]
-
 
 Rcpp::List rindep_norm_gamma_reg_std_parallel_cpp(
     int n,
