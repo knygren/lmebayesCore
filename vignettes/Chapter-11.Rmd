@@ -531,7 +531,8 @@ lmb.D9_v3 <- lmb(n=10000,
   max_disp_perc = 0.99,
   disp_lower = NULL,
   disp_upper = NULL
-  )
+  ),
+  use_parallel=FALSE
 )
 summary(lmb.D9_v3)$coefficients
 

@@ -1026,128 +1026,128 @@ rindependent_norm_gamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,fam
   }
   
   
-#   Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
-#                      as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),
-#                      as.vector(wt2),
-#                      family="gaussian",link="identity",
-#                      Gridtype=Gridtype, n=as.integer(n),
-#                      n_envopt=n_envopt,
-#                      sortgrid=TRUE,use_opencl = use_opencl,verbose = verbose)
-#   
-#   if (verbose) {
-#     end_envbuild <- as.numeric(Sys.time())
-#     elapsed <- end_envbuild - start_envbuild
-#     h <- as.integer(elapsed / 3600)
-#     m <- as.integer((elapsed - h*3600) / 60)
-#     s <- as.integer(elapsed - h*3600 - m*60)
-#     
-#     cat("[EnvelopeBuild] >>> Exiting EnvelopeBuild at",
-#         format(Sys.time(), "%H:%M:%S"), "<<<\n")
-#     cat("[EnvelopeBuild] EnvelopeBuild completed in:",
-#         h, "h ", m, "m ", s, "s.\n")
-#   }
-#   
-#   
-#   
-#   ###  Call new function to build shared envelope
-# 
-#   if (verbose) {
-# 
-#     start_dispbuild <- as.numeric(Sys.time())
-#     
-#     cat("[EnvelopeDispersionBuild] >>> Entering EnvelopeDispersionBuild at",
-#         format(Sys.time(), "%H:%M:%S"), "<<<\n")
-#   }
-#   
-#   
-#   
-#   disp_env_out <- EnvelopeDispersionBuild_cpp(
-#     Env        = Env2,
-#     Shape      = shape,
-#     Rate       = rate,
-#     P          = P2,
-#     y          = y,
-#     x          = x2,
-#     alpha      = as.vector(alpha),
-#     n_obs      = n_obs,
-#     RSS_post   = RSS_Post2,
-#     RSS_ML     = RSS_ML,
-#     mu=as.matrix(mu2,ncol=1),
-# #    wt=as.vector(wt2),
-#     wt=as.vector(wt),
-#     max_disp_perc = max_disp_perc,
-#     disp_lower = disp_lower,
-#     disp_upper = disp_upper,
-#     verbose    = verbose,   # optional, matches the C++ signature
-#     use_parallel=use_parallel
-#   )
-#   
-#   
-#   if (verbose) {
-#     end_dispbuild <- as.numeric(Sys.time())
-#     elapsed <- end_dispbuild - start_dispbuild
-#     h <- as.integer(elapsed / 3600)
-#     m <- as.integer((elapsed - h*3600) / 60)
-#     s <- as.integer(elapsed - h*3600 - m*60)
-#     
-#     cat("[EnvelopeDispersionBuild] >>> Exiting EnvelopeDispersionBuild at",
-#         format(Sys.time(), "%H:%M:%S"), "<<<\n")
-#     cat("[EnvelopeDispersionBuild] EnvelopeDispersionBuild completed in:",
-#         h, "h ", m, "m ", s, "s.\n")
-#   }
-#   
-#   
-#   Env3_raw       <- disp_env_out$Env_out
-#   gamma_list_new <- disp_env_out$gamma_list
-#   UB_list_new    <- disp_env_out$UB_list
-#   low            <- gamma_list_new$disp_lower
-#   upp            <- gamma_list_new$disp_upper
-#   diagnostics    <- disp_env_out$diagnostics
-#   
-#   # Decide how many rows to keep
-#   l1 <- ncol(x2)
-#   l2 <- nrow(Env3_raw$cbars)
-#   
-#   logP_mat <- if (is.null(dim(Env3_raw$logP))) {
-#     # Gaussian path: coerce vector to one-column matrix
-#     as.matrix(Env3_raw$logP)
-#   } else {
-#     Env3_raw$logP
-#   }
-#   
-#   Env3 <- EnvelopeSort(
-#     l1      = ncol(Env3_raw$cbars),
-#     l2      = nrow(Env3_raw$cbars),
-#     GIndex  = Env3_raw$GridIndex,
-#     G3      = Env3_raw$thetabars,
-#     cbars   = Env3_raw$cbars,
-#     logU    = Env3_raw$logU,
-#     logrt   = Env3_raw$logrt,
-#     loglt   = Env3_raw$loglt,
-#     logP    = logP_mat,
-#     LLconst = Env3_raw$LLconst,
-#     PLSD    = Env3_raw$PLSD,
-#     a1      = Env3_raw$a1,
-#     E_draws = Env3_raw$E_draws,
-#     lg_prob_factor = disp_env_out$UB_list$lg_prob_factor,
-#     UB2min = disp_env_out$UB_list$UB2min
-#   )
+   Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
+                      as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),
+                      as.vector(wt2),
+                      family="gaussian",link="identity",
+                      Gridtype=Gridtype, n=as.integer(n),
+                      n_envopt=n_envopt,
+                      sortgrid=TRUE,use_opencl = use_opencl,verbose = verbose)
 
-  
+   if (verbose) {
+     end_envbuild <- as.numeric(Sys.time())
+     elapsed <- end_envbuild - start_envbuild
+     h <- as.integer(elapsed / 3600)
+     m <- as.integer((elapsed - h*3600) / 60)
+     s <- as.integer(elapsed - h*3600 - m*60)
 
-  # Env3_temp           <- disp_env_out$Env_out
-  # gamma_list_new <- disp_env_out$gamma_list
-  # UB_list_new    <- disp_env_out$UB_list
-  # low            <- gamma_list_new$disp_lower
-  # upp            <- gamma_list_new$disp_upper  
-  # diagnostics     <- disp_env_out$diagnostics
-  # 
-  # ## USE reordered lg_prob factor and UB2min
-  # UB_list_new$lg_prob_factor=Env3$lg_prob_factor
-  # UB_list_new$UB2min=Env3$UB2min
-  
+     cat("[EnvelopeBuild] >>> Exiting EnvelopeBuild at",
+         format(Sys.time(), "%H:%M:%S"), "<<<\n")
+     cat("[EnvelopeBuild] EnvelopeBuild completed in:",
+         h, "h ", m, "m ", s, "s.\n")
+   }
 
+
+
+   ###  Call new function to build shared envelope
+
+   if (verbose) {
+
+     start_dispbuild <- as.numeric(Sys.time())
+
+     cat("[EnvelopeDispersionBuild] >>> Entering EnvelopeDispersionBuild at",
+         format(Sys.time(), "%H:%M:%S"), "<<<\n")
+   }
+
+
+
+   disp_env_out <- EnvelopeDispersionBuild_cpp(
+     Env        = Env2,
+     Shape      = shape,
+     Rate       = rate,
+     P          = P2,
+     y          = y,
+     x          = x2,
+     alpha      = as.vector(alpha),
+     n_obs      = n_obs,
+     RSS_post   = RSS_Post2,
+     RSS_ML     = RSS_ML,
+     mu=as.matrix(mu2,ncol=1),
+ #    wt=as.vector(wt2),
+     wt=as.vector(wt),
+     max_disp_perc = max_disp_perc,
+     disp_lower = disp_lower,
+     disp_upper = disp_upper,
+     verbose    = verbose,   # optional, matches the C++ signature
+     use_parallel=use_parallel
+   )
+
+
+   if (verbose) {
+     end_dispbuild <- as.numeric(Sys.time())
+     elapsed <- end_dispbuild - start_dispbuild
+     h <- as.integer(elapsed / 3600)
+     m <- as.integer((elapsed - h*3600) / 60)
+     s <- as.integer(elapsed - h*3600 - m*60)
+
+     cat("[EnvelopeDispersionBuild] >>> Exiting EnvelopeDispersionBuild at",
+         format(Sys.time(), "%H:%M:%S"), "<<<\n")
+     cat("[EnvelopeDispersionBuild] EnvelopeDispersionBuild completed in:",
+         h, "h ", m, "m ", s, "s.\n")
+   }
+
+
+   Env3_raw       <- disp_env_out$Env_out
+   gamma_list_new <- disp_env_out$gamma_list
+   UB_list_new    <- disp_env_out$UB_list
+   low            <- gamma_list_new$disp_lower
+   upp            <- gamma_list_new$disp_upper
+   diagnostics    <- disp_env_out$diagnostics
+
+   # Decide how many rows to keep
+   l1 <- ncol(x2)
+   l2 <- nrow(Env3_raw$cbars)
+
+   logP_mat <- if (is.null(dim(Env3_raw$logP))) {
+     # Gaussian path: coerce vector to one-column matrix
+     as.matrix(Env3_raw$logP)
+   } else {
+     Env3_raw$logP
+   }
+
+   Env3 <- EnvelopeSort(
+     l1      = ncol(Env3_raw$cbars),
+     l2      = nrow(Env3_raw$cbars),
+     GIndex  = Env3_raw$GridIndex,
+     G3      = Env3_raw$thetabars,
+     cbars   = Env3_raw$cbars,
+     logU    = Env3_raw$logU,
+     logrt   = Env3_raw$logrt,
+     loglt   = Env3_raw$loglt,
+     logP    = logP_mat,
+     LLconst = Env3_raw$LLconst,
+     PLSD    = Env3_raw$PLSD,
+     a1      = Env3_raw$a1,
+     E_draws = Env3_raw$E_draws,
+     lg_prob_factor = disp_env_out$UB_list$lg_prob_factor,
+     UB2min = disp_env_out$UB_list$UB2min
+   )
+
+
+
+   Env3_temp           <- disp_env_out$Env_out
+   gamma_list_new <- disp_env_out$gamma_list
+   UB_list_new    <- disp_env_out$UB_list
+   low            <- gamma_list_new$disp_lower
+   upp            <- gamma_list_new$disp_upper
+   diagnostics     <- disp_env_out$diagnostics
   
+   ## USE reordered lg_prob factor and UB2min
+   UB_list_new$lg_prob_factor=Env3$lg_prob_factor
+    UB_list_new$UB2min=Env3$UB2min
+
+
+
 
   
   if (!use_parallel || n == 1) {

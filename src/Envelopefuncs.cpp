@@ -935,8 +935,10 @@ Rcpp::List compute_envelope_geometry_cpp(
 // Internal helper: mixture weights, gamma tilt, UB_list, diagnostics
 // Updates the existing Env by adding/overwriting PLSD.
 // ---------------------------------------------------------------------
+
+// [[Rcpp::export]]
 Rcpp::List compute_mixture_and_outputs_cpp(
-    Rcpp::List Env,   // ← existing envelope passed in
+    Rcpp::List Env,   // existing envelope (must contain "cbars")
     const Rcpp::NumericVector& thetabar_const_low_apprx,
     const Rcpp::NumericVector& thetabar_const_upp_apprx,
     const Rcpp::NumericVector& New_LL_Slope,
@@ -948,38 +950,54 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     double new_int,
     double dispstar,
     double shape2,
-    double rate3,
+    double Rate,              // ← prior rate (as in old code)
     double low,
     double upp,
     double RSS_ML,
     double rss_min_global,
     bool verbose
 ) {
-  using namespace Rcpp;
-  
   int gs = logP1.size();
+  
+  // cbars from Env (needed for 0.5 * ||c_j||^2 term)
+  NumericMatrix cbars = Env["cbars"];
+  int l1 = cbars.ncol();
   
   NumericVector New_logP2(gs);
   NumericVector prob_factor(gs);
   NumericVector prob_factor2(gs);
   
+  // --- Step 9: Mixture weights per face (match original) ---
   for (int j = 0; j < gs; ++j) {
+    Rcpp::checkUserInterrupt();
+    
+    // pf_upp / pf_low as before
     double pf_upp = thetabar_const_upp_apprx[j] - max_upp;
     double pf_low = thetabar_const_low_apprx[j] - max_low;
     
     prob_factor[j]  = (pf_upp > pf_low ? pf_upp : pf_low);
     prob_factor2[j] = prob_factor[j] - ub2_min[j];
     
-    New_logP2[j] = logP1[j];
+    // 0.5 * ||c_j||^2 term
+    double norm2 = 0.0;
+    for (int k = 0; k < l1; ++k) {
+      double cjk = cbars(j, k);
+      norm2 += cjk * cjk;
+    }
+    New_logP2[j] = logP1[j] + 0.5 * norm2;
   }
   
+  // Log-space prob factors (kept separate for UB_list, as in R)
   NumericVector lg_prob_factor  = clone(prob_factor);
   NumericVector lg_prob_factor2 = clone(prob_factor2);
   
+  // Normalize weights (PLSD)
   NumericVector prob_factor_exp(gs);
   NumericVector prob_factor_exp2(gs);
   
   for (int j = 0; j < gs; ++j) {
+    Rcpp::checkUserInterrupt();
+    
     prob_factor_exp[j]  = std::exp(New_logP2[j] + prob_factor[j]);
     prob_factor_exp2[j] = std::exp(New_logP2[j] + prob_factor2[j]);
   }
@@ -992,16 +1010,19 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     prob_factor_exp2[j] /= sumP2;
   }
   
+  // --- Step 10: Envelope constants for dispersion and gamma tilt ---
   double lm_log2 = new_slope * dispstar;
   double lm_log1 = new_int + new_slope * dispstar - new_slope * std::log(dispstar);
   double shape3  = shape2 - lm_log2;
   
-  // --- UPDATE EXISTING ENVELOPE ---
+  // --- Step 11: Package outputs (match original) ---
+  
+  // Update Env with PLSD (uses prob_factor_exp2, as in old code)
   Env["PLSD"] = prob_factor_exp2;
   
   List gamma_list = List::create(
     Named("shape3")     = shape3,
-    Named("rate2")      = rate3 + rss_min_global / 2.0,
+    Named("rate2")      = Rate + rss_min_global / 2.0,  // ← original definition
     Named("disp_upper") = upp,
     Named("disp_lower") = low
   );
@@ -1023,24 +1044,39 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     Named("dispstar")     = dispstar,
     Named("New_LL_Slope") = New_LL_Slope,
     Named("shape2")       = shape2,
-    Named("rate3")        = rate3,
+    Named("rate3")        = Rate,          // or keep a separate rate3 if you prefer
     Named("shape3")       = shape3,
     Named("max_low")      = max_low,
     Named("max_upp")      = max_upp,
     Named("new_slope")    = new_slope,
     Named("new_int")      = new_int,
-    Named("prob_factor")  = prob_factor_exp,
+    Named("prob_factor")  = prob_factor_exp,  // as in old diagnostics
     Named("UB2min")       = ub2_min
   );
   
+  if (verbose) {
+    Rcout << "EnvelopeDispersionBuild diagnostics:\n";
+    Rcout << "  dispstar      = " << dispstar << "\n";
+    Rcout << "  new_slope     = " << new_slope << "\n";
+    Rcout << "  new_int       = " << new_int << "\n";
+    Rcout << "  lm_log1       = " << lm_log1 << "\n";
+    Rcout << "  lm_log2       = " << lm_log2 << "\n";
+    Rcout << "  shape3        = " << shape3 << "\n";
+    Rcout << "  max_low       = " << max_low << "\n";
+    Rcout << "  max_upp       = " << max_upp << "\n";
+    Rcout << "  RSS_ML        = " << RSS_ML << "\n";
+    Rcout << "  RSS_Min       = " << rss_min_global << "\n";
+    Rcout << "  disp_lower    = " << low << "\n";
+    Rcout << "  disp_upper    = " << upp << "\n";
+  }
+  
   return List::create(
-    Named("Env")         = Env,          // updated envelope
+    Named("Env")         = Env,
     Named("gamma_list")  = gamma_list,
     Named("UB_list")     = UB_list,
     Named("diagnostics") = diagnostics
   );
 }
-
 // [[Rcpp::export]]
 List EnvelopeDispersionBuild_cpp(
     List Env,
@@ -1172,12 +1208,12 @@ List EnvelopeDispersionBuild_cpp(
     shape2,
     rate3
   );
-  
+
   NumericVector thetabar_const_base      = geom["thetabar_const_base"];
   NumericVector New_LL_Slope             = geom["New_LL_Slope"];
   NumericVector thetabar_const_low_apprx = geom["thetabar_const_low_apprx"];
   NumericVector thetabar_const_upp_apprx = geom["thetabar_const_upp_apprx"];
-  
+
   double max_low  = geom["max_low"];
   double max_upp  = geom["max_upp"];
   double new_slope = geom["new_slope"];
@@ -1185,6 +1221,55 @@ List EnvelopeDispersionBuild_cpp(
   double dispstar  = geom["dispstar"];
 
 
+    // Step 4: Base face constants via R helper (keep R version for now)
+  //  Function thetabar_const_R("thetabar_const");
+  //  NumericVector thetabar_const_base =
+  //    thetabar_const_R(P, cbars, thetabars);   // length gs
+
+  //   NumericVector thetabar_const_base =
+  //     thetabar_const_cpp(P, cbars, thetabars);
+  // 
+  // 
+  //   // Step 5: initial anchor (posterior mean; optional)
+  //   // Note: consistency with external rate2: here rate3=Rate+RSS_post/2 as in R function
+  //   double dispstar = rate3 / (shape2 - 1.0);
+  // 
+  // 
+  //   // Step 6: Face slopes at dispstar via R helper
+  // //  Function EnvBuildLinBound_R("EnvBuildLinBound");
+  // //  NumericVector New_LL_Slope =
+  // //    EnvBuildLinBound_R(thetabars, cbars, y, x, P, alpha, dispstar); // length gs
+  // 
+  // 
+  //   NumericVector New_LL_Slope =
+  //     EnvBuildLinBound_cpp(thetabars, cbars, y, x, P, alpha, dispstar);
+  // 
+  // 
+  //   // Step 7: Linear extrapolation of face constants to bounds
+  //   NumericVector thetabar_const_upp_apprx(gs), thetabar_const_low_apprx(gs);
+  //   for (int j = 0; j < gs; ++j) {
+  //     thetabar_const_upp_apprx[j] = thetabar_const_base[j] + (upp - dispstar) * New_LL_Slope[j];
+  //     thetabar_const_low_apprx[j] = thetabar_const_base[j] + (low - dispstar) * New_LL_Slope[j];
+  //   }
+  // 
+  //   // Step 8: Global upper line geometry (match original mean-slope correction)
+  //   double max_low = max_vec(thetabar_const_low_apprx);
+  //   double max_upp = max_vec(thetabar_const_upp_apprx);
+  // 
+  //   // No-op in original; keep for parity via mean slope correction
+  //   double m_New_LL_Slope = Rcpp::mean(New_LL_Slope);
+  //   double max_low_mean   = max_upp - m_New_LL_Slope * (upp - low);
+  //   max_low = max_low_mean;
+  // 
+  //   double new_slope = (max_upp - max_low) / (upp - low);
+  //   double new_int   = max_low - new_slope * low;
+  // 
+  //   // Step 9a: Dispersion anchor (exactly as in original: b1/(-c1))
+  //   double b1 = (upp - low);
+  //   double c1 = -std::log(upp / low);
+  //   dispstar  = b1 / (-c1);  // equivalently (upp - low)/log(upp/low)
+  // 
+  
 
   ////////////////////////////////////////////////////////////
   
@@ -1202,19 +1287,134 @@ List EnvelopeDispersionBuild_cpp(
     new_int,
     dispstar,
     shape2,
-    rate3,
+    Rate,
     low,
     upp,
     RSS_ML,
     rss_min_global,
     verbose
-  );  
-  
-  
+  );
+
+
   Env         = mix["Env"];
   List gamma_list  = mix["gamma_list"];
   List UB_list     = mix["UB_list"];
   List diagnostics = mix["diagnostics"];
+
+  
+    // Step 9: Mixture weights per face (match original)
+
+  //   NumericVector New_logP2(gs);
+  //   NumericVector prob_factor(gs);
+  //   NumericVector prob_factor2(gs);
+  //   for (int j = 0; j < gs; ++j) {
+  // 
+  //     Rcpp::checkUserInterrupt();  // allow user to break out
+  // 
+  //     // cbars_temp is row j (length l1)
+  //     double norm2 = 0.0;
+  //     for (int k = 0; k < l1; ++k) {
+  //       double cjk = cbars(j, k);
+  //       norm2 += cjk * cjk;
+  //     }
+  //     New_logP2[j] = logP1[j] + 0.5 * norm2;
+  // 
+  //     double pf_upp = thetabar_const_upp_apprx[j] - max_upp;
+  //     double pf_low = thetabar_const_low_apprx[j] - max_low;
+  //     prob_factor[j] = (pf_upp > pf_low ? pf_upp : pf_low);
+  //     prob_factor2[j] =prob_factor[j]-ub2_min[j];
+  // 
+  // 
+  //   }
+  // 
+  // 
+  //   // Log-space prob factors (kept separate for UB_list, as in R)
+  //   NumericVector lg_prob_factor = clone(prob_factor);
+  //   NumericVector lg_prob_factor2 = clone(prob_factor2);
+  // 
+  // 
+  //   // Normalize weights (PLSD)
+  //   NumericVector prob_factor_exp(gs);
+  //   NumericVector prob_factor_exp2(gs);
+  //   for (int j = 0; j < gs; ++j){
+  // 
+  //     Rcpp::checkUserInterrupt();  // allow user to break out
+  // 
+  // 
+  // 
+  //     prob_factor_exp[j] = std::exp(New_logP2[j] + prob_factor[j]);
+  //     prob_factor_exp2[j] = std::exp(New_logP2[j] + prob_factor2[j]);
+  // 
+  //   }
+  //   double sumP = std::accumulate(prob_factor_exp.begin(), prob_factor_exp.end(), 0.0);
+  //   double sumP2 = std::accumulate(prob_factor_exp2.begin(), prob_factor_exp2.end(), 0.0);
+  //   for (int j = 0; j < gs; ++j){
+  //     prob_factor_exp[j] /= sumP;
+  //     prob_factor_exp2[j] /= sumP2;
+  // 
+  //   }
+  //   // Step 10: Envelope constants for dispersion and gamma tilt
+  //   double lm_log2 = new_slope * dispstar;
+  //   double lm_log1 = new_int + new_slope * dispstar - new_slope * std::log(dispstar);
+  //   double shape3  = shape2 - lm_log2;
+  // 
+  //   // Step 11: Package outputs
+  // //  Env["PLSD"] = prob_factor_exp;
+  //   Env["PLSD"] = prob_factor_exp2;
+  // 
+  //   List gamma_list = List::create(
+  //     Named("shape3")     = shape3,
+  // //    Named("rate2")      = Rate + RSS_ML / 2.0,  // matches original definition
+  //     Named("rate2")      = Rate + rss_min_global / 2.0,  // matches original definition
+  //     Named("disp_upper") = upp,
+  //     Named("disp_lower") = low
+  //   );
+  // 
+  //   List UB_list = List::create(
+  //     Named("RSS_ML")         = RSS_ML,               // not RSS_post
+  //     Named("RSS_Min")        = rss_min_global,       // Minimum across faces
+  //     Named("max_New_LL_UB")  = max_upp,
+  //     Named("max_LL_log_disp")= lm_log1 + lm_log2 * std::log(upp),
+  //     Named("lm_log1")        = lm_log1,
+  //     Named("lm_log2")        = lm_log2,
+  //     Named("lg_prob_factor") = lg_prob_factor,
+  //     Named("lmc1")           = new_int,
+  //     Named("lmc2")           = new_slope,
+  //     Named("UB2min")           = ub2_min
+  // 
+  //   );
+  // 
+  //   List diagnostics = List::create(
+  //     Named("dispstar")     = dispstar,
+  //     Named("New_LL_Slope") = New_LL_Slope,
+  //     Named("shape2")       = shape2,
+  //     Named("rate3")        = rate3,
+  //     Named("shape3")       = shape3,
+  //     Named("max_low")      = max_low,
+  //     Named("max_upp")      = max_upp,
+  //     Named("new_slope")    = new_slope,
+  //     Named("new_int")      = new_int,
+  //     Named("prob_factor")  = prob_factor_exp,
+  //     Named("UB2min")           = ub2_min
+  // //  Named("prob_factor2")  = prob_factor_exp2
+  //   );
+  // 
+  //   if (verbose) {
+  //     Rcout << "EnvelopeDispersionBuild diagnostics:\n";
+  //     Rcout << "  dispstar      = " << dispstar << "\n";
+  //     Rcout << "  new_slope     = " << new_slope << "\n";
+  //     Rcout << "  new_int       = " << new_int << "\n";
+  //     Rcout << "  lm_log1       = " << lm_log1 << "\n";
+  //     Rcout << "  lm_log2       = " << lm_log2 << "\n";
+  //     Rcout << "  shape3        = " << shape3 << "\n";
+  //     Rcout << "  max_low       = " << max_low << "\n";
+  //     Rcout << "  max_upp       = " << max_upp << "\n";
+  //     Rcout << "  RSS_ML       = " << RSS_ML << "\n";
+  //     Rcout << "  RSS_Min       = " << rss_min_global << "\n";
+  //     Rcout << "  disp_lower       = " << low << "\n";
+  //     Rcout << "  disp_upper       = " << upp << "\n";
+  //   }
+
   
   
   return List::create(

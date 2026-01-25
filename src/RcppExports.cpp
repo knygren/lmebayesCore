@@ -136,6 +136,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// compute_mixture_and_outputs_cpp
+Rcpp::List compute_mixture_and_outputs_cpp(Rcpp::List Env, const Rcpp::NumericVector& thetabar_const_low_apprx, const Rcpp::NumericVector& thetabar_const_upp_apprx, const Rcpp::NumericVector& New_LL_Slope, const Rcpp::NumericVector& ub2_min, const Rcpp::NumericVector& logP1, double max_low, double max_upp, double new_slope, double new_int, double dispstar, double shape2, double Rate, double low, double upp, double RSS_ML, double rss_min_global, bool verbose);
+RcppExport SEXP _glmbayes_compute_mixture_and_outputs_cpp(SEXP EnvSEXP, SEXP thetabar_const_low_apprxSEXP, SEXP thetabar_const_upp_apprxSEXP, SEXP New_LL_SlopeSEXP, SEXP ub2_minSEXP, SEXP logP1SEXP, SEXP max_lowSEXP, SEXP max_uppSEXP, SEXP new_slopeSEXP, SEXP new_intSEXP, SEXP dispstarSEXP, SEXP shape2SEXP, SEXP RateSEXP, SEXP lowSEXP, SEXP uppSEXP, SEXP RSS_MLSEXP, SEXP rss_min_globalSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type Env(EnvSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type thetabar_const_low_apprx(thetabar_const_low_apprxSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type thetabar_const_upp_apprx(thetabar_const_upp_apprxSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type New_LL_Slope(New_LL_SlopeSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type ub2_min(ub2_minSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type logP1(logP1SEXP);
+    Rcpp::traits::input_parameter< double >::type max_low(max_lowSEXP);
+    Rcpp::traits::input_parameter< double >::type max_upp(max_uppSEXP);
+    Rcpp::traits::input_parameter< double >::type new_slope(new_slopeSEXP);
+    Rcpp::traits::input_parameter< double >::type new_int(new_intSEXP);
+    Rcpp::traits::input_parameter< double >::type dispstar(dispstarSEXP);
+    Rcpp::traits::input_parameter< double >::type shape2(shape2SEXP);
+    Rcpp::traits::input_parameter< double >::type Rate(RateSEXP);
+    Rcpp::traits::input_parameter< double >::type low(lowSEXP);
+    Rcpp::traits::input_parameter< double >::type upp(uppSEXP);
+    Rcpp::traits::input_parameter< double >::type RSS_ML(RSS_MLSEXP);
+    Rcpp::traits::input_parameter< double >::type rss_min_global(rss_min_globalSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_mixture_and_outputs_cpp(Env, thetabar_const_low_apprx, thetabar_const_upp_apprx, New_LL_Slope, ub2_min, logP1, max_low, max_upp, new_slope, new_int, dispstar, shape2, Rate, low, upp, RSS_ML, rss_min_global, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // EnvelopeDispersionBuild_cpp
 List EnvelopeDispersionBuild_cpp(List Env, double Shape, double Rate, NumericMatrix P, NumericVector y, NumericMatrix x, NumericVector alpha, int n_obs, double RSS_post, double RSS_ML, NumericMatrix mu, NumericVector wt, double max_disp_perc, Nullable<double> disp_lower, Nullable<double> disp_upper, bool verbose, bool use_parallel);
 RcppExport SEXP _glmbayes_EnvelopeDispersionBuild_cpp(SEXP EnvSEXP, SEXP ShapeSEXP, SEXP RateSEXP, SEXP PSEXP, SEXP ySEXP, SEXP xSEXP, SEXP alphaSEXP, SEXP n_obsSEXP, SEXP RSS_postSEXP, SEXP RSS_MLSEXP, SEXP muSEXP, SEXP wtSEXP, SEXP max_disp_percSEXP, SEXP disp_lowerSEXP, SEXP disp_upperSEXP, SEXP verboseSEXP, SEXP use_parallelSEXP) {
@@ -393,6 +421,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayes_EnvelopeSize", (DL_FUNC) &_glmbayes_EnvelopeSize, 7},
     {"_glmbayes_rss_face_at_disp", (DL_FUNC) &_glmbayes_rss_face_at_disp, 7},
     {"_glmbayes_UB2", (DL_FUNC) &_glmbayes_UB2, 8},
+    {"_glmbayes_compute_mixture_and_outputs_cpp", (DL_FUNC) &_glmbayes_compute_mixture_and_outputs_cpp, 18},
     {"_glmbayes_EnvelopeDispersionBuild_cpp", (DL_FUNC) &_glmbayes_EnvelopeDispersionBuild_cpp, 17},
     {"_glmbayes_has_opencl", (DL_FUNC) &_glmbayes_has_opencl, 0},
     {"_glmbayes_Set_Grid", (DL_FUNC) &_glmbayes_Set_Grid, 3},

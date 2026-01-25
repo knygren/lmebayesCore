@@ -25,6 +25,10 @@ UB2 <- function(dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global) {
     .Call(`_glmbayes_UB2`, dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global)
 }
 
+compute_mixture_and_outputs_cpp <- function(Env, thetabar_const_low_apprx, thetabar_const_upp_apprx, New_LL_Slope, ub2_min, logP1, max_low, max_upp, new_slope, new_int, dispstar, shape2, Rate, low, upp, RSS_ML, rss_min_global, verbose) {
+    .Call(`_glmbayes_compute_mixture_and_outputs_cpp`, Env, thetabar_const_low_apprx, thetabar_const_upp_apprx, New_LL_Slope, ub2_min, logP1, max_low, max_upp, new_slope, new_int, dispstar, shape2, Rate, low, upp, RSS_ML, rss_min_global, verbose)
+}
+
 EnvelopeDispersionBuild_cpp <- function(Env, Shape, Rate, P, y, x, alpha, n_obs, RSS_post, RSS_ML, mu, wt, max_disp_perc, disp_lower, disp_upper, verbose, use_parallel) {
     .Call(`_glmbayes_EnvelopeDispersionBuild_cpp`, Env, Shape, Rate, P, y, x, alpha, n_obs, RSS_post, RSS_ML, mu, wt, max_disp_perc, disp_lower, disp_upper, verbose, use_parallel)
 }
