@@ -286,6 +286,14 @@
 
 #' @noRd
 #' @keywords internal
+
+.EnvelopeOrchestrator_cpp <- function(bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose) {
+  .Call(`_glmbayes_EnvelopeOrchestrator_cpp`, bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose)
+}
+
+
+#' @noRd
+#' @keywords internal
 .has_opencl <- function() {
   .Call("_glmbayes_has_opencl")
 }

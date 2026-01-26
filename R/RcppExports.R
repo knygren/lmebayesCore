@@ -13,6 +13,10 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt, family, link, use_opencl, v
     .Call(`_glmbayes_EnvelopeEval`, G4, y, x, mu, P, alpha, wt, family, link, use_opencl, verbose)
 }
 
+EnvelopeOrchestrator_cpp <- function(bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose) {
+    .Call(`_glmbayes_EnvelopeOrchestrator_cpp`, bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose)
+}
+
 EnvelopeSize <- function(a, G1, Gridtype, n, n_envopt, use_opencl, verbose) {
     .Call(`_glmbayes_EnvelopeSize`, a, G1, Gridtype, n, n_envopt, use_opencl, verbose)
 }

@@ -84,6 +84,37 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// EnvelopeOrchestrator_cpp
+Rcpp::List EnvelopeOrchestrator_cpp(NumericVector bstar2, NumericMatrix A, NumericVector y, NumericMatrix x2, NumericMatrix mu2, NumericMatrix P2, NumericVector alpha, NumericVector wt, int n, int Gridtype, Nullable<int> n_envopt, double shape, double rate, double RSS_Post2, double RSS_ML, double max_disp_perc, Nullable<double> disp_lower, Nullable<double> disp_upper, bool use_parallel, bool use_opencl, bool verbose);
+RcppExport SEXP _glmbayes_EnvelopeOrchestrator_cpp(SEXP bstar2SEXP, SEXP ASEXP, SEXP ySEXP, SEXP x2SEXP, SEXP mu2SEXP, SEXP P2SEXP, SEXP alphaSEXP, SEXP wtSEXP, SEXP nSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP shapeSEXP, SEXP rateSEXP, SEXP RSS_Post2SEXP, SEXP RSS_MLSEXP, SEXP max_disp_percSEXP, SEXP disp_lowerSEXP, SEXP disp_upperSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type bstar2(bstar2SEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type A(ASEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type x2(x2SEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type mu2(mu2SEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type P2(P2SEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type Gridtype(GridtypeSEXP);
+    Rcpp::traits::input_parameter< Nullable<int> >::type n_envopt(n_envoptSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type rate(rateSEXP);
+    Rcpp::traits::input_parameter< double >::type RSS_Post2(RSS_Post2SEXP);
+    Rcpp::traits::input_parameter< double >::type RSS_ML(RSS_MLSEXP);
+    Rcpp::traits::input_parameter< double >::type max_disp_perc(max_disp_percSEXP);
+    Rcpp::traits::input_parameter< Nullable<double> >::type disp_lower(disp_lowerSEXP);
+    Rcpp::traits::input_parameter< Nullable<double> >::type disp_upper(disp_upperSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_parallel(use_parallelSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_opencl(use_openclSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(EnvelopeOrchestrator_cpp(bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // EnvelopeSize
 Rcpp::List EnvelopeSize(const arma::vec& a, const Rcpp::NumericMatrix& G1, int Gridtype, int n, int n_envopt, bool use_opencl, bool verbose);
 RcppExport SEXP _glmbayes_EnvelopeSize(SEXP aSEXP, SEXP G1SEXP, SEXP GridtypeSEXP, SEXP nSEXP, SEXP n_envoptSEXP, SEXP use_openclSEXP, SEXP verboseSEXP) {
@@ -418,6 +449,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayes_EnvelopeBuild_cpp", (DL_FUNC) &_glmbayes_EnvelopeBuild_cpp, 16},
     {"_glmbayes_EnvelopeBuild_Ind_Normal_Gamma", (DL_FUNC) &_glmbayes_EnvelopeBuild_Ind_Normal_Gamma, 16},
     {"_glmbayes_EnvelopeEval", (DL_FUNC) &_glmbayes_EnvelopeEval, 11},
+    {"_glmbayes_EnvelopeOrchestrator_cpp", (DL_FUNC) &_glmbayes_EnvelopeOrchestrator_cpp, 21},
     {"_glmbayes_EnvelopeSize", (DL_FUNC) &_glmbayes_EnvelopeSize, 7},
     {"_glmbayes_rss_face_at_disp", (DL_FUNC) &_glmbayes_rss_face_at_disp, 7},
     {"_glmbayes_UB2", (DL_FUNC) &_glmbayes_UB2, 8},
