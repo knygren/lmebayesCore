@@ -8,8 +8,10 @@
 
 using namespace Rcpp;
 using namespace RcppParallel;
-using namespace famfuncs;
+using namespace glmbayes::famfuncs;
 
+
+namespace glmbayes{
 
 namespace famfuncs {
 
@@ -481,4 +483,6 @@ arma::mat Inv_f3_with_disp_rmat(
   return Out; // m × p
 }
 
-}
+}  //famfuncs
+
+} //glmbayes

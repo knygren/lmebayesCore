@@ -8,7 +8,7 @@
 //
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include "famfuncs.h"
+// #include "famfuncs.h"
 #include "Envelopefuncs.h"
 #include "kernel_wrappers.h"
 #include <RcppParallel.h>
@@ -17,10 +17,7 @@
 
 using namespace Rcpp;
 using namespace openclPort;
-using namespace famfuncs;
-
-
-
+// using namespace glmbayes::famfuncs;
 
 
 

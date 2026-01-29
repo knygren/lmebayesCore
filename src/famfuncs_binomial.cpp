@@ -10,10 +10,12 @@
 #include "openclPort.h"
 #include "famfuncs.h"
 
+// Namespaces
+
 using namespace Rcpp;
 using namespace RcppParallel;
 using namespace openclPort;
-using namespace famfuncs;
+using namespace glmbayes::famfuncs;
 
 
 void progress_bar2(double x, double N);
@@ -29,6 +31,8 @@ inline double dbinom_raw_local(double x, double n, double p, double q, int give_
 
 
 ///////////////////////////////////////////////////////////
+
+namespace glmbayes{
 
 namespace famfuncs {
 // Neg log binomial likelihood, vectorized
@@ -934,4 +938,5 @@ arma::mat  f3_binomial_cloglog(NumericMatrix b,NumericVector y, NumericMatrix x,
     return trans(out2);      
 }
 
-}
+}  //famfuncs
+}  //glmbayes

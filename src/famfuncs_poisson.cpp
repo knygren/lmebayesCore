@@ -7,7 +7,7 @@
 
 using namespace Rcpp;
 using namespace RcppParallel;
-using namespace famfuncs;
+using namespace glmbayes::famfuncs;
 
 
 void progress_bar2(double x, double N);
@@ -35,6 +35,7 @@ double dpois2(double x,double lambda,int lg){
 }
 
 
+namespace glmbayes{
 
 namespace famfuncs {
 
@@ -374,4 +375,6 @@ arma::mat  f3_poisson(NumericMatrix b,NumericVector y, NumericMatrix x,NumericMa
     return trans(out2);      
 }
 
-}
+} //famfuncs
+
+} //glmbayes

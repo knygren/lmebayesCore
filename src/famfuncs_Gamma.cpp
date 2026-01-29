@@ -11,12 +11,13 @@
 
 using namespace Rcpp;
 using namespace RcppParallel;
-using namespace famfuncs;
+using namespace glmbayes::famfuncs;
 
 
 
 void progress_bar2(double x, double N);
 
+namespace glmbayes{
 
 namespace famfuncs {
 void neg_dgamma_glmb_rmat(const RVector<double>& x,           // observations
@@ -363,6 +364,8 @@ arma::mat  f3_gamma(NumericMatrix b,NumericVector y, NumericMatrix x,NumericMatr
 }
 
 
-}
+} //famfuncs
+
+} //glmbayes
 
 ///////////////////////////////////////////////////////////////////

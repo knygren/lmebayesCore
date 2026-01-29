@@ -17,7 +17,7 @@
 
 using namespace Rcpp;
 using namespace openclPort;
-using namespace famfuncs;
+// using namespace famfuncs;
 
 // no export tag
 Rcpp::List EnvelopeSize(const arma::vec& a,
