@@ -1,6 +1,8 @@
 #include "RcppArmadillo.h"
 #include "Envelopefuncs.h"
 
+using namespace glmbayes::envelopefuncs;
+
 // No [[Rcpp::export]] — prevents RcppExports generation
 
 extern "C" SEXP _glmbayes_EnvelopeSize(SEXP aSEXP,
@@ -23,12 +25,10 @@ extern "C" SEXP _glmbayes_EnvelopeSize(SEXP aSEXP,
     bool verbose    = Rcpp::as<bool>(verboseSEXP);
     
     // Call the implementation (namespaced or not)
-    Rcpp::List out = EnvelopeSize(
+    Rcpp::List out = glmbayes::envelopefuncs::EnvelopeSize(
       a, G1, Gridtype, n, n_envopt, use_opencl, verbose
     );
-    // If you move it into a namespace, change to:
-    // Rcpp::List out = envelope::EnvelopeSize(...);
-    
+
     return out;
   }
   catch (std::exception &ex) {

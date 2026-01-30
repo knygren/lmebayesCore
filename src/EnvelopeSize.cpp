@@ -17,9 +17,13 @@
 
 using namespace Rcpp;
 using namespace openclPort;
-// using namespace famfuncs;
+
 
 // no export tag
+
+namespace glmbayes {
+
+namespace envelopefuncs {
 Rcpp::List EnvelopeSize(const arma::vec& a,
                         const Rcpp::NumericMatrix& G1,
                         int Gridtype   ,
@@ -124,3 +128,5 @@ Rcpp::List EnvelopeSize(const arma::vec& a,
 }
 
 
+} //envelopefuncs
+} //glmbayes

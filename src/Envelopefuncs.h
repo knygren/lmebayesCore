@@ -5,6 +5,23 @@
 
 using namespace Rcpp;
 
+namespace glmbayes{
+
+namespace envelopefuncs{
+Rcpp::List EnvelopeSize(const arma::vec& a,
+                        const Rcpp::NumericMatrix& G1,
+                        int Gridtype   = 2,
+                        int n          = 1000,
+                        int n_envopt   = -1,
+                        bool use_opencl = false,
+                        bool verbose    = false);
+
+
+} //envelopefuncs
+
+}  //glmbayes
+
+
 List EnvelopeBuild_cpp(NumericVector bStar,
                      NumericMatrix A,
                      NumericVector y,
@@ -25,21 +42,7 @@ List EnvelopeBuild_cpp(NumericVector bStar,
 
 
 
-double rss_face_at_disp(double dispersion,
-                        Rcpp::List cache,
-                        Rcpp::NumericVector cbars_j,
-                        Rcpp::NumericVector y,
-                        Rcpp::NumericMatrix x,
-                        Rcpp::NumericVector alpha,
-                        Rcpp::NumericVector wt) ;
 
-Rcpp::List EnvelopeSize(const arma::vec& a,
-                        const Rcpp::NumericMatrix& G1,
-                        int Gridtype   = 2,
-                        int n          = 1000,
-                        int n_envopt   = -1,
-                        bool use_opencl = false,
-                        bool verbose    = false);
 
 Rcpp::List EnvelopeEval(const Rcpp::NumericMatrix& G4,   // grid (parameters × grid points)
                         const Rcpp::NumericVector& y,
@@ -73,14 +76,6 @@ List EnvelopeBuild_Ind_Normal_Gamma(NumericVector bStar,
 
 NumericVector RSS(NumericVector y, NumericMatrix x,NumericMatrix b,NumericVector alpha,NumericVector wt);
 
-double UB2(double dispersion,
-           Rcpp::List cache,
-           Rcpp::NumericVector cbars_j,
-           Rcpp::NumericVector y,
-           Rcpp::NumericMatrix x,
-           Rcpp::NumericVector alpha,
-           Rcpp::NumericVector wt,
-           double rss_min_global);
 
 List EnvelopeDispersionBuild_cpp(
     List Env,
@@ -142,3 +137,20 @@ List   setlogP(NumericMatrix logP,NumericVector NegLL,NumericMatrix cbars,Numeri
 void setlogP_C2(NumericMatrix logP,NumericVector NegLL,NumericMatrix cbars,NumericMatrix G3,NumericMatrix LLconst);
 
 
+// double rss_face_at_disp(double dispersion,
+//                         Rcpp::List cache,
+//                         Rcpp::NumericVector cbars_j,
+//                         Rcpp::NumericVector y,
+//                         Rcpp::NumericMatrix x,
+//                         Rcpp::NumericVector alpha,
+//                         Rcpp::NumericVector wt) ;
+// 
+// double UB2(double dispersion,
+//            Rcpp::List cache,
+//            Rcpp::NumericVector cbars_j,
+//            Rcpp::NumericVector y,
+//            Rcpp::NumericMatrix x,
+//            Rcpp::NumericVector alpha,
+//            Rcpp::NumericVector wt,
+//            double rss_min_global);
+// 
