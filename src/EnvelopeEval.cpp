@@ -295,7 +295,7 @@ Rcpp::List f2_f3_non_opencl(
 
 
 
-// [[Rcpp::export]]
+
 Rcpp::List EnvelopeEval(const Rcpp::NumericMatrix& G4,   // grid (parameters × grid points)
                         const Rcpp::NumericVector& y,
                         const Rcpp::NumericMatrix& x,

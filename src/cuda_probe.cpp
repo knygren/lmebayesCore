@@ -6,7 +6,7 @@ using namespace Rcpp;
 #include <stdlib.h>
 #endif
 
-// [[Rcpp::export]]
+
 CharacterVector gpu_names() {
 #ifdef __linux__
   FILE *fp;

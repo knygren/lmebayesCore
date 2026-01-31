@@ -17,28 +17,31 @@ Rcpp::List EnvelopeSize(const arma::vec& a,
                         bool verbose    = false);
 
 
+
+List EnvelopeBuild_cpp(NumericVector bStar,
+                       NumericMatrix A,
+                       NumericVector y,
+                       NumericMatrix x,
+                       NumericMatrix mu,
+                       NumericMatrix P,
+                       NumericVector alpha,
+                       NumericVector wt,
+                       std::string family = "binomial",
+                       std::string link   = "logit",
+                       int Gridtype       = 2,
+                       int n              = 1,
+                       int n_envopt       = -1,   // NEW: effective sample size for EnvelopeOpt (defaults to n if -1)
+                       bool sortgrid      = false,
+                       bool use_opencl    = false, // Enables OpenCL acceleration during envelope construction
+                       bool verbose       = false  // Enables diagnostic output
+);
+
+
 } //envelopefuncs
 
 }  //glmbayes
 
 
-List EnvelopeBuild_cpp(NumericVector bStar,
-                     NumericMatrix A,
-                     NumericVector y,
-                     NumericMatrix x,
-                     NumericMatrix mu,
-                     NumericMatrix P,
-                     NumericVector alpha,
-                     NumericVector wt,
-                     std::string family = "binomial",
-                     std::string link   = "logit",
-                     int Gridtype       = 2,
-                     int n              = 1,
-                     int n_envopt       = -1,   // NEW: effective sample size for EnvelopeOpt (defaults to n if -1)
-                     bool sortgrid      = false,
-                     bool use_opencl    = false, // Enables OpenCL acceleration during envelope construction
-                     bool verbose       = false  // Enables diagnostic output
-);
 
 
 
@@ -137,20 +140,21 @@ List   setlogP(NumericMatrix logP,NumericVector NegLL,NumericMatrix cbars,Numeri
 void setlogP_C2(NumericMatrix logP,NumericVector NegLL,NumericMatrix cbars,NumericMatrix G3,NumericMatrix LLconst);
 
 
-// double rss_face_at_disp(double dispersion,
-//                         Rcpp::List cache,
-//                         Rcpp::NumericVector cbars_j,
-//                         Rcpp::NumericVector y,
-//                         Rcpp::NumericMatrix x,
-//                         Rcpp::NumericVector alpha,
-//                         Rcpp::NumericVector wt) ;
-// 
-// double UB2(double dispersion,
-//            Rcpp::List cache,
-//            Rcpp::NumericVector cbars_j,
-//            Rcpp::NumericVector y,
-//            Rcpp::NumericMatrix x,
-//            Rcpp::NumericVector alpha,
-//            Rcpp::NumericVector wt,
-//            double rss_min_global);
-// 
+
+
+double rss_face_at_disp(double dispersion,
+                        Rcpp::List cache,
+                        Rcpp::NumericVector cbars_j,
+                        Rcpp::NumericVector y,
+                        Rcpp::NumericMatrix x,
+                        Rcpp::NumericVector alpha,
+                        Rcpp::NumericVector wt);
+
+double UB2(double dispersion,
+           Rcpp::List cache,
+           Rcpp::NumericVector cbars_j,
+           Rcpp::NumericVector y,
+           Rcpp::NumericMatrix x,
+           Rcpp::NumericVector alpha,
+           Rcpp::NumericVector wt,
+           double rss_min_global);

@@ -5,6 +5,15 @@
 #include <string>
 #include <vector>
 
+#ifdef __linux__
+#include <stdio.h>
+#include <stdlib.h>
+#endif
+
+using namespace Rcpp;
+
+
+
 //
 // -----------------------------------------------------------------------------
 // openclPort: Public API for OpenCL kernel loading, device utilities,
@@ -74,3 +83,5 @@ std::string load_kernel_library_wrapper(
 
 bool has_opencl();
 int get_opencl_core_count();
+
+CharacterVector gpu_names();

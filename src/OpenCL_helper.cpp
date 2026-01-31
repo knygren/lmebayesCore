@@ -32,7 +32,7 @@ std::vector<double> copyVector(const Rcpp::NumericVector& vec) {
 
 
 
-// [[Rcpp::export]]
+
 bool has_opencl() {
 #ifdef USE_OPENCL
   return true;

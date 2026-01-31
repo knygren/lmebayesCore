@@ -76,70 +76,28 @@
 #' @noRd
 #' @keywords internal
 
-.EnvelopeDispersionBuild_cpp <- function(
-    Env,
-    Shape,
-    Rate,
-    P,
-    y,
-    x,
-    alpha,
-    n_obs,
-    RSS_post,
-    RSS_ML,
-    mu,
-    wt,
-    max_disp_perc,
-    disp_lower = NULL,
-    disp_upper = NULL,
-    verbose = FALSE,
-    use_parallel = TRUE
-) {
-  .Call(
-    "_glmbayes_EnvelopeDispersionBuild_cpp",
-    Env,
-    Shape,
-    Rate,
-    P,
-    y,
-    x,
-    alpha,
-    n_obs,
-    RSS_post,
-    RSS_ML,
-    mu,
-    wt,
-    max_disp_perc,
-    disp_lower,
-    disp_upper,
-    verbose,
-    use_parallel
-  )
+
+
+.EnvelopeSize <- function(a, G1, Gridtype, n, n_envopt, use_opencl, verbose) {
+  .Call(`_glmbayes_EnvelopeSize_export`, a, G1, Gridtype, n, n_envopt, use_opencl, verbose)
+}
+
+#' @noRd
+#' @keywords internal
+
+
+.EnvelopeBuild_cpp<- function(bStar, A, y, x, mu, P, alpha, wt, family, link, Gridtype, n, n_envopt, sortgrid, use_opencl, verbose) {
+  .Call(`_glmbayes_EnvelopeBuild_cpp_export`, bStar, A, y, x, mu, P, alpha, wt, family, link, Gridtype, n, n_envopt, sortgrid, use_opencl, verbose)
 }
 
 
 #' @noRd
 #' @keywords internal
-.EnvelopeSize <- function(
-    a,
-    G1,
-    Gridtype,
-    n,
-    n_envopt,
-    use_opencl,
-    verbose
-) {
-  .Call(
-    "_glmbayes_EnvelopeSize",
-    a,
-    G1,
-    Gridtype,
-    n,
-    n_envopt,
-    use_opencl,
-    verbose
-  )
+
+.EnvelopeBuild_Ind_Normal_Gamma <- function(bStar, A, y, x, mu, P, alpha, wt, family, link, Gridtype, n, n_envopt, sortgrid, use_opencl, verbose) {
+  .Call(`_glmbayes_EnvelopeBuild_Ind_Normal_Gamma_export`, bStar, A, y, x, mu, P, alpha, wt, family, link, Gridtype, n, n_envopt, sortgrid, use_opencl, verbose)
 }
+
 
 
 #' @noRd
@@ -149,7 +107,7 @@
                           family, link,
                           use_opencl = FALSE,
                           verbose = FALSE) {
-  .Call(`_glmbayes_EnvelopeEval`,
+  .Call(`_glmbayes_EnvelopeEval_export`,
         G4, y, x, mu, P, alpha, wt,
         family, link,
         use_opencl, verbose)
@@ -157,24 +115,26 @@
 
 
 
+
+
 #' @noRd
 #' @keywords internal
 .load_kernel_source_wrapper <- function(relative_path, package = "glmbayes") {
-  .Call(`_glmbayes_load_kernel_source_wrapper`, relative_path, package)
+  .Call(`_glmbayes_load_kernel_source_wrapper_export`, relative_path, package)
 }
 
 
 #' @noRd
 #' @keywords internal
 .load_kernel_library_wrapper <- function(subdir, package = "glmbayes", verbose = FALSE) {
-  .Call(`_glmbayes_load_kernel_library_wrapper`, subdir, package, verbose)
+  .Call(`_glmbayes_load_kernel_library_wrapper_export`, subdir, package, verbose)
 }
 
 
 #' @noRd
 #' @keywords internal
 .get_opencl_core_count <- function() {
-  .Call("_glmbayes_get_opencl_core_count")
+  .Call("_glmbayes_get_opencl_core_count_export")
 }
 
 
@@ -184,7 +144,7 @@
 #' @keywords internal
 #' @noRd
 .rss_face_at_disp <- function(dispersion, cache, cbars_j, y, x, alpha, wt) {
-  .Call(`_glmbayes_rss_face_at_disp`,
+  .Call(`_glmbayes_rss_face_at_disp_export`,
         dispersion, cache, cbars_j, y, x, alpha, wt)
 }
 
@@ -195,33 +155,11 @@
 #' @keywords internal
 #' @noRd
 .UB2 <- function(dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global) {
-  .Call(`_glmbayes_UB2`,
+  .Call(`_glmbayes_UB2_export`,
         dispersion, cache, cbars_j, y, x, alpha, wt, rss_min_global)
 }
 
 
-#' @noRd
-#' @keywords internal
-.EnvelopeSize <- function(
-    a,
-    G1,
-    Gridtype,
-    n,
-    n_envopt,
-    use_opencl,
-    verbose
-) {
-  .Call(
-    "_glmbayes_EnvelopeSize",
-    a,
-    G1,
-    Gridtype,
-    n,
-    n_envopt,
-    use_opencl,
-    verbose
-  )
-}
 
 #' @noRd
 #' @keywords internal
@@ -239,7 +177,7 @@
     verbose = FALSE
 ) {
   .Call(
-    "_glmbayes_EnvelopeEval",
+    "_glmbayes_EnvelopeEval_export",
     G4, y, x, mu, P, alpha, wt,
     family, link,
     use_opencl, verbose
@@ -269,7 +207,7 @@
     use_parallel = TRUE
 ) {
   .Call(
-    "_glmbayes_EnvelopeDispersionBuild_cpp",
+    "_glmbayes_EnvelopeDispersionBuild_cpp_export",
     Env,
     Shape,
     Rate,
@@ -294,20 +232,30 @@
 #' @keywords internal
 
 .EnvelopeOrchestrator_cpp <- function(bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose) {
-  .Call(`_glmbayes_EnvelopeOrchestrator_cpp`, bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose)
+  .Call(`_glmbayes_EnvelopeOrchestrator_cpp_export`, bstar2, A, y, x2, mu2, P2, alpha, wt, n, Gridtype, n_envopt, shape, rate, RSS_Post2, RSS_ML, max_disp_perc, disp_lower, disp_upper, use_parallel, use_opencl, verbose)
 }
+
+
+.Set_Grid_cpp <- function(GIndex, cbars, Lint) {
+  .Call(`_glmbayes_Set_Grid_export`, GIndex, cbars, Lint)
+}
+
+.setlogP_cpp <- function(logP, NegLL, cbars, G3) {
+  .Call(`_glmbayes_setlogP_export`, logP, NegLL, cbars, G3)
+}
+
 
 
 #' @noRd
 #' @keywords internal
 .has_opencl <- function() {
-  .Call("_glmbayes_has_opencl")
+  .Call("_glmbayes_has_opencl_export")
 }
 
 #' @noRd
 #' @keywords internal
 .gpu_names <- function() {
-  .Call("_glmbayes_gpu_names")
+  .Call("_glmbayes_gpu_names_export")
 }
 
 

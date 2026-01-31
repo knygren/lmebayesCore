@@ -117,8 +117,9 @@ using namespace glmbayes::envelopefuncs;
 
 
 
-// [[Rcpp::export(".EnvelopeBuild_cpp")]]
+namespace glmbayes {
 
+namespace envelopefuncs {
 List EnvelopeBuild_cpp(NumericVector bStar,
                        NumericMatrix A, /// Diagonal Precision Matrix for Adjusted Likelihood Function
                        NumericVector y, 
@@ -406,3 +407,5 @@ List EnvelopeBuild_cpp(NumericVector bStar,
   
 }
 
+}
+}

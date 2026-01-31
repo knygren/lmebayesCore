@@ -91,7 +91,6 @@ double r_invgamma(double shape,double rate,double disp_upper,double disp_lower){
 
 
 
-namespace {
 
 
 //-----------------------------------------------------------------------------
@@ -336,7 +335,7 @@ void rindep_norm_gamma_worker::operator()(std::size_t begin, std::size_t end) {
 }
 
 
-}
+
 
 
 // [[Rcpp::export(".rindep_norm_gamma_reg_std_cpp")]]

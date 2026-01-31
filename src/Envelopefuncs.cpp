@@ -78,7 +78,6 @@ NumericVector RSS(NumericVector y, NumericMatrix x,NumericMatrix b,NumericVector
 
 
 
-// [[Rcpp::export("rss_face_at_disp")]]
 
 double rss_face_at_disp(double dispersion,
                                Rcpp::List cache,
@@ -105,7 +104,7 @@ double rss_face_at_disp(double dispersion,
 }
 
 
-// [[Rcpp::export]]
+
 double UB2(double dispersion,
            Rcpp::List cache,
            Rcpp::NumericVector cbars_j,
@@ -935,7 +934,7 @@ Rcpp::List compute_envelope_geometry_cpp(
 // Updates the existing Env by adding/overwriting PLSD.
 // ---------------------------------------------------------------------
 
-// [[Rcpp::export]]
+
 Rcpp::List compute_mixture_and_outputs_cpp(
     Rcpp::List Env,   // existing envelope (must contain "cbars")
     const Rcpp::NumericVector& thetabar_const_low_apprx,
@@ -1076,7 +1075,8 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     Named("diagnostics") = diagnostics
   );
 }
-// [[Rcpp::export]]
+
+
 List EnvelopeDispersionBuild_cpp(
     List Env,
     double Shape,

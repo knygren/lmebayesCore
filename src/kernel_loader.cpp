@@ -193,7 +193,7 @@ std::string load_kernel_library(const std::string& subdir, const std::string& pa
 }
 
 
-// [[Rcpp::export]]
+
 int get_opencl_core_count() {
 #ifdef USE_OPENCL
   return std::max(1, detect_num_gpus_internal());  // ensure at least 1
@@ -203,7 +203,7 @@ int get_opencl_core_count() {
 }
 
 
-// [[Rcpp::export]]
+
 std::string load_kernel_source_wrapper(std::string relative_path,
                                        std::string package ) {
 #ifdef USE_OPENCL
@@ -215,7 +215,7 @@ std::string load_kernel_source_wrapper(std::string relative_path,
 
 
 
-// [[Rcpp::export]]
+
 std::string load_kernel_library_wrapper(std::string subdir,
                                         std::string package ,
                                         bool verbose ) {

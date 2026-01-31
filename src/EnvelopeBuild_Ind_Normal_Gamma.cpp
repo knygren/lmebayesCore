@@ -22,7 +22,7 @@ using namespace openclPort;
 
 
 
-// [[Rcpp::export(".EnvelopeBuild_Ind_Normal_Gamma")]]
+
 
 List EnvelopeBuild_Ind_Normal_Gamma(NumericVector bStar,NumericMatrix A,
                                     NumericVector y, 

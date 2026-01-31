@@ -10,7 +10,9 @@
 
 #include "Envelopefuncs.h"
 
-// [[Rcpp::export]]
+using namespace glmbayes::envelopefuncs;
+
+
 Rcpp::List EnvelopeOrchestrator_cpp(
     NumericVector bstar2,
     NumericMatrix A,

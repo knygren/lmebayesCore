@@ -284,7 +284,6 @@ void Set_Grid_C2(Rcpp::NumericMatrix GIndex,
 //   This could be bad when function is called many times                 //////////////  
 
 
-// [[Rcpp::export(".Set_Grid_cpp")]]
 Rcpp::List Set_Grid(Rcpp::NumericMatrix GIndex,
                     Rcpp::NumericMatrix cbars,
                     Rcpp::NumericMatrix Lint) {
