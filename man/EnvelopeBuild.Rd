@@ -2,16 +2,16 @@
 % Please edit documentation in R/simulationpipeline.R
 \name{EnvelopeBuild}
 \alias{EnvelopeBuild}
-\alias{Set_Grid}
-\alias{setlogP}
+\alias{EnvelopeSetGrid}
+\alias{EnvelopeSetLogP}
 \title{GPU-Accelerated Envelope Construction for Posterior Simulation}
 \usage{
 EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", 
 Gridtype = 2L,n = 1L,n_envopt=NULL,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
 
-Set_Grid(GridIndex, cbars, Lint)
+EnvelopeSetGrid(GridIndex, cbars, Lint)
 
-setlogP(logP, NegLL, cbars, G3)
+EnvelopeSetLogP(logP, NegLL, cbars, G3)
 }
 \arguments{
 \item{bStar}{Point at which envelope should be centered (typically posterior mode).}
@@ -58,7 +58,7 @@ at each grid component.}
 depending on whether sampling is from the left, center, or right.}
 
 \item{logP}{A matrix (typically two columns) with information for each grid component.
-The first column usually holds the output from \code{Set_Grid()}, corresponding to
+The first column usually holds the output from \code{EnvelopeSetGrid()}, corresponding to
 the restricted normal density.}
 
 \item{NegLL}{A vector of negative log-likelihood evaluations at each grid component.}
@@ -82,7 +82,7 @@ the restricted normal density.}
 }
 }
 
-\item{\code{Set_Grid()}}{A list of matrices computed for grid-based log-density evaluation:
+\item{\code{EnvelopeSetGrid()}}{A list of matrices computed for grid-based log-density evaluation:
 \describe{
 \item{\code{Down}}{Lower bounds for truncated-normal evaluation per dimension and region.}
 \item{\code{Up}}{Upper bounds for truncated-normal evaluation per dimension and region.}
@@ -94,7 +94,7 @@ the restricted normal density.}
 }
 }
 
-\item{\code{setlogP()}}{A list with updated mixture-weight and acceptance constants:
+\item{\code{EnvelopeSetLogP()}}{A list with updated mixture-weight and acceptance constants:
 \describe{
 \item{\code{logP}}{Input \code{logP} with its second column populated by the log of unnormalized visit probabilities per region (mixture denominators).}
 \item{\code{LLconst}}{Vector of acceptance constants \eqn{-\log f(y \mid \bar{\theta}_j) - c(\bar{\theta}_j)^{T}\bar{\theta}_j} used in the accept-reject test.}
@@ -273,10 +273,10 @@ The constants \eqn{\tilde{a}(\bar{\theta})} are then obtained by scaling
 the global constant with these integrals, and the mixture weights
 (\code{PLSD}) are normalized accordingly. In practice:
 \itemize{
-\item \code{Set_Grid_C2_pointwise} evaluates restricted densities
+\item \code{EnvelopeSet_Grid_C2_pointwise} evaluates restricted densities
 at each grid point.
 \item \code{LLconst} stores the log of the restricted integrals.
-\item \code{setlogP_C2} computes \eqn{\tilde{a}(\bar{\theta})} and
+\item \code{EnvelopeSet_LogP_C2} computes \eqn{\tilde{a}(\bar{\theta})} and
 normalizes mixture weights.
 }
 }
@@ -381,7 +381,7 @@ efficiently evaluated across grid regions.
 
 This tractability is central to the envelope construction: it allows
 \code{EnvelopeBuild} to evaluate the envelope function pointwise using
-\code{Set_Grid_C2_pointwise}, and ensures that the resulting approximation
+\code{EnvelopeSet_Grid_C2_pointwise}, and ensures that the resulting approximation
 remains bounded between 0 and 1. At the tangency point, we recover
 \deqn{
   h_{\bar{\theta}}(\bar{\theta}) = 1,
@@ -451,7 +451,7 @@ where:
 \itemize{
 \item \code{LLconst[J(i)]} stores the precomputed quantity
 \eqn{-\log f(y \mid \bar{\theta}_{J(i)}) - c(\bar{\theta}_{J(i)})^{T} \bar{\theta}_{J(i)}},
-computed during envelope construction via \code{setlogP_C2()}.
+computed during envelope construction via \code{EnvelopeSet_LogP_C2()}.
 \item \code{cbars[J(i), ]} is the precomputed subgradient vector
 \eqn{c(\bar{\theta}_{J(i)})}, extracted via \code{cbars(J(i), _)}.
 It defines the exponential tilt direction used to evaluate the envelope.
@@ -573,11 +573,11 @@ CPU and GPU routines compute these values efficiently.
 \item On CPU: via \code{f2_*} and \code{f3_*} routines.
 \item On GPU: via \code{f2_f3_opencl}, which computes both together
 }
-\item \strong{Call \code{Set_Grid_C2_pointwise} to evaluate restricted multivariate normal log-densities.}
+\item \strong{Call \code{EnvelopeSet_Grid_C2_pointwise} to evaluate restricted multivariate normal log-densities.}
 (Claim 2; Remark 5).
 Each restricted density corresponds to a subset of the partition, normalized
 as in Remark 5.
-\item \strong{Call \code{setlogP_C2} to compute component log-probabilities and constants.}
+\item \strong{Call \code{EnvelopeSet_LogP_C2} to compute component log-probabilities and constants.}
 (Remark 6).
 The constants \eqn{\tilde{a}} and mixture weights \eqn{\tilde{p}_i} are computed
 explicitly as in Remark 6, ensuring that the mixture envelope is properly normalized.
@@ -1029,9 +1029,9 @@ where the weights \eqn{p_j} are computed using log-CDF differences and constants
 \item On CPU: via \code{f2_*} and \code{f3_*} routines.
 \item On GPU: via \code{f2_f3_opencl}, which computes both in parallel.
 }
-\item Call \code{Set_Grid_C2_pointwise} to evaluate restricted multivariate normal
+\item Call \code{EnvelopeSet_Grid_C2_pointwise} to evaluate restricted multivariate normal
 log-densities in parallel.
-\item Call \code{setlogP_C2} to compute component log-probabilities and constants.
+\item Call \code{EnvelopeSetlogP_C2} to compute component log-probabilities and constants.
 \item Normalize probabilities (\code{PLSD}) and optionally sort grid components
 by probability if \code{sortgrid = TRUE}.
 }
@@ -1095,3 +1095,91 @@ evaluations, starting gradient evaluations, and invoking GPU kernels.
 Any constants needed by the sampling are added to a list and returned.
 }
 
+\examples{
+data(menarche,package="MASS")
+Age2=menarche$Age-13
+
+summary(menarche)
+plot(Menarche/Total ~ Age, data=menarche)
+
+
+x<-matrix(as.numeric(1.0),nrow=length(Age2),ncol=2)
+x[,2]=Age2
+
+y=menarche$Menarche/menarche$Total
+wt=menarche$Total
+
+mu<-matrix(as.numeric(0.0),nrow=2,ncol=1)
+mu[2,1]=(log(0.9/0.1)-log(0.5/0.5))/3
+
+V1<-1*diag(as.numeric(2.0))
+
+# 2 standard deviations for prior estimate at age 13 between 0.1 and 0.9
+## Specifies uncertainty around the point estimates
+
+V1[1,1]<-((log(0.9/0.1)-log(0.5/0.5))/2)^2 
+V1[2,2]=(3*mu[2,1]/2)^2  # Allows slope to be up to 1 times as large as point estimate 
+
+famfunc<-glmbfamfunc(binomial(logit))
+
+f1<-famfunc$f1
+f2<-famfunc$f2
+f3<-famfunc$f3
+f5<-famfunc$f5
+f6<-famfunc$f6
+
+dispersion2<-as.numeric(1.0)
+start <- mu
+offset2=rep(as.numeric(0.0),length(y))
+P=solve(V1)
+n=1000
+
+
+###### Adjust weight for dispersion
+
+wt2=wt/dispersion2
+
+######################### Shift mean vector to offset so that adjusted model has 0 mean
+
+alpha=x\%*\%as.vector(mu)+offset2
+mu2=0*as.vector(mu)
+P2=P
+x2=x
+
+
+#####  Optimization step to find posterior mode and associated Precision
+
+parin=start-mu
+
+opt_out=optim(parin,f2,f3,y=as.vector(y),x=as.matrix(x),mu=as.vector(mu2),
+              P=as.matrix(P),alpha=as.vector(alpha),wt=as.vector(wt2),
+              method="BFGS",hessian=TRUE
+)
+
+bstar=opt_out$par  ## Posterior mode for adjusted model
+bstar
+bstar+as.vector(mu)  # mode for actual model
+A1=opt_out$hessian # Approximate Precision at mode
+
+## Standardize Model
+
+Standard_Mod=glmb_Standardize_Model(y=as.vector(y), x=as.matrix(x),P=as.matrix(P),
+                                    bstar=as.matrix(bstar,ncol=1), A1=as.matrix(A1))
+
+bstar2=Standard_Mod$bstar2  
+A=Standard_Mod$A
+x2=Standard_Mod$x2
+mu2=Standard_Mod$mu2
+P2=Standard_Mod$P2
+L2Inv=Standard_Mod$L2Inv
+L3Inv=Standard_Mod$L3Inv
+
+Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
+as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),as.vector(wt2),
+family="binomial",link="logit",Gridtype=as.integer(3), n=as.integer(n),
+sortgrid=TRUE)
+
+## These now seem to match
+
+Env2
+}
