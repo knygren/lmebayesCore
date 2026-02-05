@@ -1939,8 +1939,6 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 
 #' Builds Dispersion-Aware Envelope for Simulation
 #'
-#' @name dispenvelopes
-#'
 #' @description
 #' Constructs a dispersion-aware envelope for simulation in Gaussian models with uncertain variance.
 #' This function extrapolates the coefficient envelope across a high-probability interval for the
@@ -2127,7 +2125,6 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #'   verbose = FALSE, use_parallel = TRUE
 #' )
 #' @export 
-#' @rdname dispenvelopes
 #' @order 1
 
 
