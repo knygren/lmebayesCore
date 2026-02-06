@@ -429,6 +429,49 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rGammaGaussian_cpp_export
+Rcpp::List rGammaGaussian_cpp_export(int n, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::NumericVector& beta, const Rcpp::NumericVector& wt, const Rcpp::NumericVector& alpha, double shape, double rate, Rcpp::Nullable<Rcpp::NumericVector> disp_lower, Rcpp::Nullable<Rcpp::NumericVector> disp_upper, bool verbose);
+RcppExport SEXP _glmbayes_rGammaGaussian_cpp_export(SEXP nSEXP, SEXP ySEXP, SEXP xSEXP, SEXP betaSEXP, SEXP wtSEXP, SEXP alphaSEXP, SEXP shapeSEXP, SEXP rateSEXP, SEXP disp_lowerSEXP, SEXP disp_upperSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type rate(rateSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type disp_lower(disp_lowerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type disp_upper(disp_upperSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(rGammaGaussian_cpp_export(n, y, x, beta, wt, alpha, shape, rate, disp_lower, disp_upper, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rGammaGamma_cpp_export
+Rcpp::List rGammaGamma_cpp_export(int n, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::NumericVector& beta, const Rcpp::NumericVector& wt, const Rcpp::NumericVector& alpha, double shape, double rate, double max_disp_perc, Rcpp::Nullable<double> disp_lower, Rcpp::Nullable<double> disp_upper, bool verbose);
+RcppExport SEXP _glmbayes_rGammaGamma_cpp_export(SEXP nSEXP, SEXP ySEXP, SEXP xSEXP, SEXP betaSEXP, SEXP wtSEXP, SEXP alphaSEXP, SEXP shapeSEXP, SEXP rateSEXP, SEXP max_disp_percSEXP, SEXP disp_lowerSEXP, SEXP disp_upperSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type shape(shapeSEXP);
+    Rcpp::traits::input_parameter< double >::type rate(rateSEXP);
+    Rcpp::traits::input_parameter< double >::type max_disp_perc(max_disp_percSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<double> >::type disp_lower(disp_lowerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<double> >::type disp_upper(disp_upperSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(rGammaGamma_cpp_export(n, y, x, beta, wt, alpha, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // glmb_Standardize_Model_export
 Rcpp::List glmb_Standardize_Model_export(const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::NumericMatrix& P, const Rcpp::NumericMatrix& bstar, const Rcpp::NumericMatrix& A1);
 RcppExport SEXP _glmbayes_glmb_Standardize_Model_export(SEXP ySEXP, SEXP xSEXP, SEXP PSEXP, SEXP bstarSEXP, SEXP A1SEXP) {
@@ -467,6 +510,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayes_rindep_norm_gamma_reg_std_cpp_export", (DL_FUNC) &_glmbayes_rindep_norm_gamma_reg_std_cpp_export, 15},
     {"_glmbayes_rindep_norm_gamma_reg_std_parallel_cpp_export", (DL_FUNC) &_glmbayes_rindep_norm_gamma_reg_std_parallel_cpp_export, 15},
     {"_glmbayes_rindep_norm_gamma_reg_cpp_export", (DL_FUNC) &_glmbayes_rindep_norm_gamma_reg_cpp_export, 18},
+    {"_glmbayes_rGammaGaussian_cpp_export", (DL_FUNC) &_glmbayes_rGammaGaussian_cpp_export, 11},
+    {"_glmbayes_rGammaGamma_cpp_export", (DL_FUNC) &_glmbayes_rGammaGamma_cpp_export, 12},
     {"_glmbayes_glmb_Standardize_Model_export", (DL_FUNC) &_glmbayes_glmb_Standardize_Model_export, 5},
     {NULL, NULL, 0}
 };

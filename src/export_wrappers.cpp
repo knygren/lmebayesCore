@@ -513,6 +513,61 @@ Rcpp::List rindep_norm_gamma_reg_cpp_export(
   );
 }
 
+
+// =====================================================================
+//  rGammaGaussian_cpp_export
+// =====================================================================
+
+// [[Rcpp::export]]
+Rcpp::List rGammaGaussian_cpp_export(
+    int n,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    const Rcpp::NumericVector& beta,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::NumericVector& alpha,
+    double shape,
+    double rate,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_lower = R_NilValue,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_upper = R_NilValue,
+    bool verbose = false
+) {
+  return glmbayes::sim::rGammaGaussian(
+    n, y, x, beta, wt, alpha,
+    shape, rate,
+    disp_lower, disp_upper,
+    verbose
+  );
+}
+
+
+// =====================================================================
+//  rGammaGamma_cpp_export
+// =====================================================================
+
+// [[Rcpp::export]]
+Rcpp::List rGammaGamma_cpp_export(
+    int n,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    const Rcpp::NumericVector& beta,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::NumericVector& alpha,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower = R_NilValue,
+    Rcpp::Nullable<double> disp_upper = R_NilValue,
+    bool verbose = false
+) {
+  return glmbayes::sim::rGammaGamma(
+    n, y, x, beta, wt, alpha,
+    shape, rate, max_disp_perc,
+    disp_lower, disp_upper,
+    verbose
+  );
+}
+
 // =====================================================================
 //  glmb_Standardize_Model_export
 // =====================================================================

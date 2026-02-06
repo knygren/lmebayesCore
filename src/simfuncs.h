@@ -110,6 +110,36 @@ Rcpp::List rIndepNormalGammaReg(
     bool progbar
 );
 
+Rcpp::List rGammaGaussian(
+    int n,
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    Rcpp::NumericVector beta,
+    Rcpp::NumericVector wt,
+    Rcpp::NumericVector alpha,
+    double shape,
+    double rate,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_lower,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_upper,
+    bool verbose = false
+);
+
+
+Rcpp::List rGammaGamma(
+    int n,
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    Rcpp::NumericVector beta,
+    Rcpp::NumericVector wt,
+    Rcpp::NumericVector alpha,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    bool verbose = false
+);
+
 Rcpp::List glmb_Standardize_Model(
     NumericVector y, 
     NumericMatrix x,   // Original design matrix (to be adjusted)

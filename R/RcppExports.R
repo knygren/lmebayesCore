@@ -85,6 +85,14 @@ rindep_norm_gamma_reg_cpp_export <- function(n, y, x, mu, P, offset, wt, shape, 
     .Call(`_glmbayes_rindep_norm_gamma_reg_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
 }
 
+rGammaGaussian_cpp_export <- function(n, y, x, beta, wt, alpha, shape, rate, disp_lower = NULL, disp_upper = NULL, verbose = FALSE) {
+    .Call(`_glmbayes_rGammaGaussian_cpp_export`, n, y, x, beta, wt, alpha, shape, rate, disp_lower, disp_upper, verbose)
+}
+
+rGammaGamma_cpp_export <- function(n, y, x, beta, wt, alpha, shape, rate, max_disp_perc, disp_lower = NULL, disp_upper = NULL, verbose = FALSE) {
+    .Call(`_glmbayes_rGammaGamma_cpp_export`, n, y, x, beta, wt, alpha, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose)
+}
+
 glmb_Standardize_Model_export <- function(y, x, P, bstar, A1) {
     .Call(`_glmbayes_glmb_Standardize_Model_export`, y, x, P, bstar, A1)
 }
