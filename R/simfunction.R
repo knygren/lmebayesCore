@@ -807,65 +807,7 @@ rNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussia
   
   return(outlist)
   
-  # famfunc=glmbfamfunc(gaussian())  
-  # f1=famfunc$f1
-  # 
-  # fit=rNormal_reg.wfit(x,y,P,mu, w=wt,offset=offset2,method="qr",tol=1e-7,singular.ok=TRUE)
-  # Btilde=fit$Btilde
-  # IR=fit$IR
-  # S=fit$S
-  # k=fit$k
-  # m=1  ## Used to fix dimension to 1 --> Will eventually do away with
-  # 
-  # out1<-matrix(0,nrow=n,ncol=k)
-  # 
-  # if(m==1){  out2=matrix(0,nrow=n,ncol=1)  }
-  # if(m>1){  out2<-vector("list", n)}   # Code if we had multiple columns of data (should perhaps have m items)
-  # 
-  # # Effective sample size for Gaussian likelihood
-  # sum_wt <- sum(wt)  # wt has already been expanded to length nobs
-  # 
-  # a_prior=shape     ## Should be relationship to shape in Wishart  
-  # b_prior=rate  ## Should be relationship to scale in Wishart (could also be V/2)
-  # 
-  # # Posterior Gamma parameters for precision tau = 1/phi
-  # a_post <- a_prior + sum_wt / 2      # instead of nobs / 2
-  # b_post <- b_prior + 0.5 * S         # S is weighted RSS from rNormal_reg.wfit
-  # 
-  # out1<-matrix(0,nrow=n,ncol=k)
-  # dispersion=1/rgamma(n=n,shape=a_post,rate=b_post)
-  # out2<-matrix(dispersion,nrow=n,ncol=1)
-  # 
-  # for(i in 1:n){out1[i,1:k]<- t(Btilde + IR%*%matrix(rnorm(m*k),ncol=m)*sqrt(dispersion[i])) }
-  # 
-  # draws<-matrix(1,n)
-  # 
-  # outlist<-list(
-  #   coefficients=out1
-  #   ,coef.mode=Btilde,
-  #   dispersion=dispersion,
-  #   offset=offset,
-  #   Prior=list(mean=as.numeric(mu),Precision=P),
-  #   prior.weights=wt,
-  #   y=y,
-  #   x=x,
-  #   fit=fit,
-  #   famfunc=famfunc,
-  #   iters=draws,
-  #   Envelope=NULL
-  #   # , loglike=LL
-  # )
-  # 
-  # 
-  # colnames(outlist$coefficients)<-colnames(x)
-  # 
-  # outlist$call<-match.call()
-  # 
-  # class(outlist)<-c(outlist$class,"rglmb")
-  # 
-  # return(outlist)
-  
-  
+
 }
 
 
