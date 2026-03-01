@@ -7,13 +7,13 @@
 #'
 #' This function coordinates:
 #'
-#' * fixed‑dispersion envelope construction via [`EnvelopeBuild()`],
-#' * dispersion‑refined envelope construction via [`EnvelopeDispersionBuild()`],
-#' * envelope sorting and reindexing via [`EnvelopeSort()`], and
+#' * fixed‑dispersion envelope construction via \link[glmbayes]{EnvelopeBuild},
+#' * dispersion‑refined envelope construction via \link[glmbayes]{EnvelopeDispersionBuild},
+#' * envelope sorting and reindexing via \link[glmbayes]{EnvelopeSort}, and
 #' * UB‑list alignment (reordered `lg_prob_factor` and `UB2min`).
 #'
-#' It is typically used inside higher‑level simulation routines such as
-#' [`rindepNormalGamma_reg()`], but may also be called directly for
+#' It is typically used inside *.cpp routines such as
+#' \code{rIndepNormalGammaReg()}, but may also be called directly for
 #' diagnostics, envelope visualization, or custom simulation workflows.
 #'
 #' @param bstar2 Numeric vector. Posterior mode of the standardized regression
@@ -43,9 +43,9 @@
 #' @param disp_upper Optional numeric. Upper bound for the dispersion
 #'   (\eqn{\sigma^2}). Must be strictly greater than \code{disp_lower}.
 #' @param use_parallel Logical. Whether to allow parallel computation inside
-#'   [`EnvelopeDispersionBuild()`].
+#'   \link[glmbayes]{EnvelopeDispersionBuild}.
 #' @param use_opencl Logical. Whether to allow OpenCL acceleration inside
-#'   [`EnvelopeBuild()`].
+#'   \link[glmbayes]{EnvelopeBuild}.
 #' @param verbose Logical. Whether to print detailed progress and timing
 #'   messages.
 #'
@@ -60,7 +60,7 @@
 #'   \item{\code{UB_list}}{Updated UB‑list including reordered
 #'     \code{lg_prob_factor} and \code{UB2min}.}
 #'   \item{\code{diagnostics}}{Diagnostic quantities returned by
-#'     [`EnvelopeDispersionBuild()`], useful for debugging or envelope
+#'     \link[glmbayes]{EnvelopeDispersionBuild}, useful for debugging or envelope
 #'     visualization.}
 #'   \item{\code{low}}{Lower dispersion bound used.}
 #'   \item{\code{upp}}{Upper dispersion bound used.}
@@ -79,10 +79,10 @@
 #' \code{use_parallel} flag.
 #'
 #' @seealso
-#' * [`EnvelopeBuild()`] – fixed‑dispersion envelope construction  
-#' * [`EnvelopeDispersionBuild()`] – dispersion‑aware envelope refinement  
-#' * [`EnvelopeSort()`] – envelope sorting and reindexing  
-#' * [`rindepNormalGamma_reg()`] – full Normal–Gamma simulation routine  
+#' * \link[glmbayes]{EnvelopeBuild} – fixed‑dispersion envelope construction
+#' * \link[glmbayes]{EnvelopeDispersionBuild} – dispersion‑aware envelope refinement
+#' * \link[glmbayes]{EnvelopeSort} – envelope sorting and reindexing
+#' * \code{rIndepNormalGammaReg()} – full Normal–Gamma *.cpp simulation routine 
 #'
 #' @examples
 #' \dontrun{

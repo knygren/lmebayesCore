@@ -74,10 +74,10 @@ determine dispersion bounds when not explicitly supplied.}
 (\eqn{\sigma^2}). Must be strictly greater than \code{disp_lower}.}
 
 \item{use_parallel}{Logical. Whether to allow parallel computation inside
-\code{\link[=EnvelopeDispersionBuild]{EnvelopeDispersionBuild()}}.}
+\link[glmbayes]{EnvelopeDispersionBuild}.}
 
 \item{use_opencl}{Logical. Whether to allow OpenCL acceleration inside
-\code{\link[=EnvelopeBuild]{EnvelopeBuild()}}.}
+\link[glmbayes]{EnvelopeBuild}.}
 
 \item{verbose}{Logical. Whether to print detailed progress and timing
 messages.}
@@ -93,7 +93,7 @@ PLSD component inserted by the dispersion‑aware refinement step.}
 \item{\code{UB_list}}{Updated UB‑list including reordered
 \code{lg_prob_factor} and \code{UB2min}.}
 \item{\code{diagnostics}}{Diagnostic quantities returned by
-\code{\link[=EnvelopeDispersionBuild]{EnvelopeDispersionBuild()}}, useful for debugging or envelope
+\link[glmbayes]{EnvelopeDispersionBuild}, useful for debugging or envelope
 visualization.}
 \item{\code{low}}{Lower dispersion bound used.}
 \item{\code{upp}}{Upper dispersion bound used.}
@@ -106,14 +106,14 @@ simulation for Bayesian Gaussian regression with Normal–Gamma priors.
 
 This function coordinates:
 \itemize{
-\item fixed‑dispersion envelope construction via \code{\link[=EnvelopeBuild]{EnvelopeBuild()}},
-\item dispersion‑refined envelope construction via \code{\link[=EnvelopeDispersionBuild]{EnvelopeDispersionBuild()}},
-\item envelope sorting and reindexing via \code{\link[=EnvelopeSort]{EnvelopeSort()}}, and
+\item fixed‑dispersion envelope construction via \link[glmbayes]{EnvelopeBuild},
+\item dispersion‑refined envelope construction via \link[glmbayes]{EnvelopeDispersionBuild},
+\item envelope sorting and reindexing via \link[glmbayes]{EnvelopeSort}, and
 \item UB‑list alignment (reordered \code{lg_prob_factor} and \code{UB2min}).
 }
 
-It is typically used inside higher‑level simulation routines such as
-\code{\link[=rindepNormalGamma_reg]{rindepNormalGamma_reg()}}, but may also be called directly for
+It is typically used inside *.cpp routines such as
+\code{rIndepNormalGammaReg()}, but may also be called directly for
 diagnostics, envelope visualization, or custom simulation workflows.
 }
 \details{
@@ -160,9 +160,9 @@ Env3 <- env_out$Env
 }
 \seealso{
 \itemize{
-\item \code{\link[=EnvelopeBuild]{EnvelopeBuild()}} – fixed‑dispersion envelope construction
-\item \code{\link[=EnvelopeDispersionBuild]{EnvelopeDispersionBuild()}} – dispersion‑aware envelope refinement
-\item \code{\link[=EnvelopeSort]{EnvelopeSort()}} – envelope sorting and reindexing
-\item \code{\link[=rindepNormalGamma_reg]{rindepNormalGamma_reg()}} – full Normal–Gamma simulation routine
+\item \link[glmbayes]{EnvelopeBuild} – fixed‑dispersion envelope construction
+\item \link[glmbayes]{EnvelopeDispersionBuild} – dispersion‑aware envelope refinement
+\item \link[glmbayes]{EnvelopeSort} – envelope sorting and reindexing
+\item \code{rIndepNormalGammaReg()} – full Normal–Gamma *.cpp simulation routine
 }
 }

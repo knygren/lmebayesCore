@@ -1333,7 +1333,6 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' In fact, the optimal placement of the tangencies for each element of the
 #' partition should satisfy the property that the tangency points are the
 #' expectations of the resulting restricted likelihood-subgradient densities.
-
 #' @section Example 2 (standard normal prior, restricted set):
 #' Suppose that the prior \eqn{\pi(\cdot)} in Definition 2 is a
 #' \eqn{p}-dimensional multivariate normal density with mean vector 0
@@ -1696,12 +1695,11 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeBuild.R
 #' @importFrom Rdpack reprompt
-
-
 #' @usage EnvelopeBuild(bStar,A,y,x,mu,P,alpha,wt,family = "binomial",link = "logit", 
 #' Gridtype = 2L,n = 1L,n_envopt=NULL,sortgrid = FALSE,use_opencl = FALSE,verbose = FALSE)
 #' @rdname EnvelopeBuild
 #' @export
+
 EnvelopeBuild <- function(
     bStar, A, y, x, mu, P, alpha, wt,
     family     = "binomial",

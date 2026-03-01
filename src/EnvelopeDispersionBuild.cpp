@@ -13,11 +13,14 @@
 #include <RcppParallel.h>
 #include "openclPort.h"
 #include "progress_utils.h"
+#include "rng_utils.h"  // for safe_runif()
+
 
 using namespace Rcpp;
 using namespace openclPort;
 using namespace glmbayes::fam;
 using namespace glmbayes::env;
+using namespace glmbayes::rng;
 
 
 
@@ -1221,6 +1224,8 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     prob_factor[j]  = (pf_upp > pf_low ? pf_upp : pf_low);
     prob_factor2[j] = prob_factor[j] - ub2_min[j];
 
+    
+    
     /////////////////////////////////////////////////////////
         
     double norm2 = 0.0;
@@ -1230,6 +1235,7 @@ Rcpp::List compute_mixture_and_outputs_cpp(
     }
     New_logP2[j] = logP1[j] + 0.5 * norm2;
   }
+  
   
   NumericVector lg_prob_factor  = clone(prob_factor);
 
@@ -1474,21 +1480,55 @@ Rcpp::List compute_mixture_and_outputs_face_cpp(
     
     lm_log1_face[j] = lm_log1_j;
     
+    
+    
+    //--------------------------------------------------------
+    // 6. Three-term decomposition of lm_log1_j
+    //
+    // lm_log1_j =
+    //   (1) theta_base_j
+    // + (2) { [lm_log1_j + lm_log2_j * log(d1_star)] - theta_base_j }
+    // + (3) { - lm_log2_j * log(d1_star) }
+    //--------------------------------------------------------
+    double term1 = theta_base_j;
+    
+    double term2 =
+      (lm_log1_j + lm_log2_j * std::log(d1_star))
+      - theta_base_j;
+    
+    double term3 =
+    -lm_log2_j * std::log(d1_star);
+    
+    // Optional diagnostic print
+    if (verbose && j < 20) {
+      Rcpp::Rcout
+      << "[face " << j << "] "
+      << "term1=" << term1
+      << "  term2=" << term2
+      << "  term3=" << term3
+      << "  lm_log1_j=" << lm_log1_j
+      << "  recon=" << (term1 + term2 + term3)
+      << "\n";
+    }
+    
+    
     //--------------------------------------------------------
     // 6. Face-specific Gamma shape (diagnostic only)
     //--------------------------------------------------------
     shape3_face[j] = shape2 - lm_log2_j;
     
-    if (j < 27) {
-      Rcpp::Rcout << "j=" << j
-                  << "  shape3_face=" << std::setprecision(12) << shape3_face[j]
-                  << "\n";
-    }
+    // if (j < 27) {
+    //   Rcpp::Rcout << "j=" << j
+    //               << "  shape3_face=" << std::setprecision(12) << shape3_face[j]
+    //               << "\n";
+    // }
     
     
     if (shape3_face[j] < min_shape3_face) min_shape3_face = shape3_face[j];
     if (shape3_face[j] > max_shape3_face) max_shape3_face = shape3_face[j];
   }
+  
+  
   
   ////////////////////////////////////////////////////////////////////////
   
@@ -1514,9 +1554,14 @@ Rcpp::List compute_mixture_and_outputs_face_cpp(
 
 //  Modified shift accounting for need to bound (need to determine )
 
-//    prob_factor[j]  = -lm_log1_face[j];
-    prob_factor[j]  = thetabar_const_base[j];
-    prob_factor2[j] = prob_factor[j] - ub2_min[j];
+    double lgp_j=log_p_inv_gamma_ct_safe(low, upp,shape3_face[j],rate2);
+
+
+    prob_factor[j]  = lm_log1_face[j];
+//    prob_factor[j]  = thetabar_const_base[j];
+    prob_factor2[j] = prob_factor[j] - ub2_min[j]+lgp_j;
+    
+    
     
     /////////////////////////////////////////////////////////
     
@@ -1530,7 +1575,9 @@ Rcpp::List compute_mixture_and_outputs_face_cpp(
       norm2 += cjk * cjk;
     }
     New_logP2[j] = logP1[j] + 0.5 * norm2;
-  }
+
+    
+    }
   
   NumericVector lg_prob_factor  = clone(prob_factor);
   NumericVector lg_prob_factor2 = clone(prob_factor2);
@@ -1549,6 +1596,31 @@ Rcpp::List compute_mixture_and_outputs_face_cpp(
   for (int j = 0; j < gs; ++j) {
     prob_factor_exp2[j] = std::exp(logw2[j] - max_logw2);
     sumP2 += prob_factor_exp2[j];
+    
+    
+    //------------------------------------------------------------
+    // Diagnostic: total PLSD shift contribution for face j
+    //------------------------------------------------------------
+    if (verbose && j < 20) {
+      double term1 = thetabar_const_base[j];
+      double term2 = (lm_log1_face[j] + lm_log2_face[j] * std::log(d1_star))
+        - thetabar_const_base[j];
+      double term3 = -lm_log2_face[j] * std::log(d1_star);
+      
+      double lm_total = lm_log1_face[j];
+      double total_with_New_logP2 = lm_total + New_logP2[j];
+      
+      Rcpp::Rcout
+      << "[face " << j << "] "
+      << "term1=" << term1
+      << "  term2=" << term2
+      << "  term3=" << term3
+      << "  lm_log1_j=" << lm_total
+      << "  New_logP2=" << New_logP2[j]
+      << "  total(lm_log1_j + New_logP2)=" << total_with_New_logP2
+      << "\n";
+    }
+    
   }
   
   if (sumP2 <= 0.0 || !R_finite(sumP2)) {
@@ -1565,6 +1637,9 @@ Rcpp::List compute_mixture_and_outputs_face_cpp(
     }
     
   }
+  
+  stop("Stop after PLSD derivation");
+  
   
   Env["PLSD"] = prob_factor_exp2;
   

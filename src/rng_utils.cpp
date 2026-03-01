@@ -150,5 +150,30 @@ double rinvgamma_ct_safe(double shape,
   
 }
 
+// log P(disp_lower <= X <= disp_upper) for X ~ InvGamma(shape, rate)
+// Consistent with: log_p_inv_gamma_safe, p_inv_gamma_safe,
+// q_inv_gamma_safe, rinvgamma_ct_safe.
+double log_p_inv_gamma_ct_safe(double disp_lower,
+                               double disp_upper,
+                               double shape,
+                               double rate
+                               )
+{
+  // log P(X <= d)
+  double lg_low = log_p_inv_gamma_safe(disp_lower, shape, rate);
+  double lg_upp = log_p_inv_gamma_safe(disp_upper, shape, rate);
+  
+  // Valid interval requires lg_upp > lg_low
+  if (!(lg_upp > lg_low)) {
+    return -std::numeric_limits<double>::infinity();
+  }
+  
+  // Stable log-difference:
+  // log( exp(lg_upp) - exp(lg_low) )
+  // = lg_upp + log(1 - exp(lg_low - lg_upp))
+  double diff = lg_low - lg_upp;
+  return lg_upp + std::log1p(-std::exp(diff));
+}
+
 }
 }

@@ -23,6 +23,7 @@ library(glmbayes)
 ```
 
 
+
 ## 1. Introduction
 
 Many of the key models implemented in the `glmbayes` package make use of independent and identically distributed (iid) sampling procedures for models with log-concave likelihoods and multivariate normal priors. The implementation is based on theory developed in the Nygren & Nygren (2006) paper.

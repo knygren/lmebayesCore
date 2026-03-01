@@ -21,6 +21,10 @@ double  rnorm_ct(double lgrt,double lglt,double mu,double sigma);
 
 double rinvgamma_ct(double shape,double rate,double disp_upper,double disp_lower);
 
+double log_p_inv_gamma_ct_safe(double disp_lower,
+                               double disp_upper,
+                               double shape,
+                               double rate);
 
 }
 }
