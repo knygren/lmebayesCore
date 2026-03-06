@@ -8,16 +8,16 @@
 #' Normal_ct
 #' pnorm_ct
 #' rnorm_ct
-#' @param a lower bound
-#' @param b upper bound
+#' @param a Lower bound for the interval. Numeric vector; must be finite when used in `rnorm_ct`.
+#' @param b Upper bound for the interval. Numeric vector; must be finite when used in `rnorm_ct`.
 #' @param n number of draws to generate. If \code{length(n) > 1}, 
 #' the length is taken to be the number required
 #' @param lgrt log of the distribution function between the 
-#' lower bound and infinity
+#' lower bound and infinity. Numeric vectors of length `n`; used internally to avoid cancellation when `b - a` is small.
 #' @param lglt log of the distribution function between negative 
-#' infinity and the upper bound
-#' @param mu mean parameter
-#' @param sigma standard deviation
+#' infinity and the upper bound. Numeric vectors of length `n`; used internally to avoid cancellation when `b - a` is small.
+#' @param mu mean parameter of the underlying normal distribution.
+#' @param sigma standard deviation of the underlying normal distribution.
 #' @param log.p Logical argument. If \code{TRUE}, the log probability is provided
 #' @param Diff Logical argument. If \code{TRUE} the second parameter is the difference between the lower and upper bound
 #' @return For \code{pnorm_ct}, vector of length equal to length of \code{a} and for

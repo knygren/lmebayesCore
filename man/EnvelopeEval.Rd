@@ -20,7 +20,7 @@ EnvelopeEval(G4, y, x, mu, P, alpha, wt,
 \item{P}{Numeric matrix representing the portion of the prior precision
 shifted into the likelihood.}
 
-\item{alpha}{Numeric vector of prior shape parameters.}
+\item{alpha}{Numeric offset vector of length \code{m}}
 
 \item{wt}{Numeric vector of weights.}
 

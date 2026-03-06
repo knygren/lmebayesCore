@@ -490,8 +490,8 @@ print.glmb<-function (x, digits = max(3, getOption("digits") - 3), ...)
 #' @param y a vector of observations of length m
 #' @param x a design matrix of dimension m*p
 #' @param alpha an offset parameter or vector
-#' @param f1 A function used to calculate the negative log-likelihood
-#' @param f4 A function used to calculate the deviance
+#' @param f1 Function with signature `f1(b, y, x, alpha, wt)` returning negative log-likelihood (scalar).
+#' @param f4 Function with signature `f4(b, y, x, alpha, wt, dispersion)` returning deviance (scalar).
 #' @param wt a vector of weights
 #' @param dispersion dispersion parameter
 #' 

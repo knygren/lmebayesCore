@@ -11,13 +11,13 @@ pnorm_ct(a = -Inf, b = Inf, mu = 0, sigma = 1, log.p = TRUE, Diff = FALSE)
 rnorm_ct(n, lgrt, lglt, mu = 0, sigma = 1)
 }
 \arguments{
-\item{a}{lower bound}
+\item{a}{Lower bound for the interval. Numeric vector; must be finite when used in \code{rnorm_ct}.}
 
-\item{b}{upper bound}
+\item{b}{Upper bound for the interval. Numeric vector; must be finite when used in \code{rnorm_ct}.}
 
-\item{mu}{mean parameter}
+\item{mu}{mean parameter of the underlying normal distribution.}
 
-\item{sigma}{standard deviation}
+\item{sigma}{standard deviation of the underlying normal distribution.}
 
 \item{log.p}{Logical argument. If \code{TRUE}, the log probability is provided}
 
@@ -27,10 +27,10 @@ rnorm_ct(n, lgrt, lglt, mu = 0, sigma = 1)
 the length is taken to be the number required}
 
 \item{lgrt}{log of the distribution function between the
-lower bound and infinity}
+lower bound and infinity. Numeric vectors of length \code{n}; used internally to avoid cancellation when \code{b - a} is small.}
 
 \item{lglt}{log of the distribution function between negative
-infinity and the upper bound}
+infinity and the upper bound. Numeric vectors of length \code{n}; used internally to avoid cancellation when \code{b - a} is small.}
 }
 \value{
 For \code{pnorm_ct}, vector of length equal to length of \code{a} and for

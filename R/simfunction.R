@@ -10,7 +10,8 @@
 #' @param x An object of class \code{"simfunction"} or \code{"rGamma_reg"} to be printed.
 #' @param n Number of draws to generate. If \code{length(n) > 1}, the length is taken to be the number required.
 #' @param y A vector of observations of length \code{m}.
-#' @param x A design matrix of dimension \code{m * p}.
+#' @param x for the simulation functions a design matrix of dimension \code{m * p} and for 
+#' the print functions the object to be printed. 
 #' @param prior_list A list with prior parameters (e.g., shape, rate, beta) used in the simulation.
 #' @param offset Optional numeric vector of length \code{m} specifying known components of the linear predictor.
 #' @param weights Optional numeric vector of prior weights.

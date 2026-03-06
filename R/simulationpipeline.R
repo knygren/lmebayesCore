@@ -1788,7 +1788,7 @@ EnvelopeSetLogP <- function(logP, NegLL, cbars, G3) {
 #' @param mu Numeric matrix of offsets or prior means.
 #' @param P Numeric matrix representing the portion of the prior precision
 #'   shifted into the likelihood.
-#' @param alpha Numeric vector of prior shape parameters.
+#' @param alpha Numeric offset vector of length `m`
 #' @param wt Numeric vector of weights.
 #' @param family Character string; model family (e.g. \code{"gaussian"}).
 #' @param link Character string; link function (e.g. \code{"identity"}).
@@ -2014,9 +2014,9 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #' @param Rate       Prior rate parameter for precision
 #' @param mu         Prior mean parameter
 #' @param P          Prior precision matrix for coefficients
-#' @param y          Design matrix
-#' @param x          Design matrix
-#' @param alpha          Design matrix
+#' @param y          Numeric response vector of length `m`
+#' @param x          a design matrix of dimension \code{m * p}
+#' @param alpha      Numeric offset vector of length `m`
 #' @param n_obs      Number of observations
 #' @param RSS_post   Posterior-predictive residual sum of squares
 #' @param RSS_ML   Residual sum of squares associated with MLE estimate

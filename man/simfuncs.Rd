@@ -41,7 +41,8 @@ rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 
 \item{y}{A vector of observations of length \code{m}.}
 
-\item{x}{A design matrix of dimension \code{m * p}.}
+\item{x}{for the simulation functions a design matrix of dimension \code{m * p} and for
+the print functions the object to be printed.}
 
 \item{prior_list}{A list with prior parameters (e.g., shape, rate, beta) used in the simulation.}
 

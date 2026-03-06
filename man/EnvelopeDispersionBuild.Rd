@@ -20,11 +20,11 @@ EnvelopeDispersionBuild(
 
 \item{P}{Prior precision matrix for coefficients}
 
-\item{y}{Design matrix}
+\item{y}{Numeric response vector of length \code{m}}
 
-\item{x}{Design matrix}
+\item{x}{a design matrix of dimension \code{m * p}}
 
-\item{alpha}{Design matrix}
+\item{alpha}{Numeric offset vector of length \code{m}}
 
 \item{n_obs}{Number of observations}
 
