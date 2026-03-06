@@ -1,12 +1,12 @@
 Yaml
 
 ---
-title: "Chapter A5: Simulation Methods - Likelihood Subgradient Densities"
+title: "Chapter A05: Simulation Methods - Likelihood Subgradient Densities"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A5: Simulation Methods - Likelihood Subgradient Densities}
+  %\VignetteIndexEntry{Chapter A05: Simulation Methods - Likelihood Subgradient Densities}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

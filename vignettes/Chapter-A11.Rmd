@@ -96,7 +96,7 @@ This form is **jointly concave** in \((\beta,\tau)\).
 
 ## 1.2 Independent Normal–Gamma prior
 
-Chapter A7 uses the **independent** Normal–Gamma prior:
+Chapter A07 uses the **independent** Normal–Gamma prior:
 
 \[
 \beta \sim N(\mu_0,\Sigma_0),
@@ -191,7 +191,7 @@ a_0 - 1 + \frac{n_w}{2}
 + \text{const}.
 \]
 
-This joint log‑posterior is **jointly concave** in \((\beta,\tau)\), which is the key property enabling the envelope‑based accept–reject sampler developed in the remainder of Chapter A7.
+This joint log‑posterior is **jointly concave** in \((\beta,\tau)\), which is the key property enabling the envelope‑based accept–reject sampler developed in the remainder of Chapter A07.
 
 ## 3. General Sampling Process
 
@@ -1921,7 +1921,7 @@ Only Claim 1 and Claim 3 required structural updates.
 ## Face-specific dispersion tilt and Gamma proposals
 
 We now construct **face-specific** dispersion tilts and Gamma proposals, keeping the same structure
-as in Chapter A7 but allowing the log-tilt coefficients and Gamma parameters to depend on the face \(j\).
+as in Chapter A07 but allowing the log-tilt coefficients and Gamma parameters to depend on the face \(j\).
 
 We work on the dispersion scale
 \[
@@ -2177,7 +2177,7 @@ With face-specific dispersion tilts and Gamma proposals, three objects must be u
 2. The Gamma proposal parameters become face-specific: shape3_j, rate3_j.
 3. The per-face mixture shift lg_prob_factor_j must absorb the face-specific Gamma truncation normalizer.
 
-We keep the quad-linear geometry and UB3A_j(d) exactly as in Chapter A7; only the dispersion tilt
+We keep the quad-linear geometry and UB3A_j(d) exactly as in Chapter A07; only the dispersion tilt
 and mixture shifts change.
 
 ### 1. Face-specific dispersion tilt and UB3B_j(d)
@@ -2256,7 +2256,7 @@ By construction (secant of a concave curve), \(\mathrm{UB3B}_j(d) \ge 0\) for al
 
 ### 2. UB3A_j(d): unchanged in form
 
-The quad-linear bound \(\mathrm{UB3A}_j(d)\) remains as in Chapter A7:
+The quad-linear bound \(\mathrm{UB3A}_j(d)\) remains as in Chapter A07:
 \[
 \mathrm{UB3A}_j(d)
 =
@@ -2441,7 +2441,7 @@ is also global (independent of \(j\)). Since it multiplies every face’s joint 
 constant, it cancels in the PLSD normalization and does not need to be absorbed into
 \(\mathrm{lg_prob_factor}_j\).
 
-Thus, under the global \(\mathrm{RSS}_{\min}\) assumption, the original PLSD expression from Chapter A7
+Thus, under the global \(\mathrm{RSS}_{\min}\) assumption, the original PLSD expression from Chapter A07
 remains valid without modification.
 
 ### Summary table (global RSS_min case)
@@ -2457,7 +2457,7 @@ remains valid without modification.
 | \(\mathrm{shape3}\)          | \(\mathrm{shape2} - \mathrm{lm_log2}\)                                    |
 | \(\mathrm{rate3}\)           | \(\mathrm{Rate} + \tfrac{1}{2}\,\mathrm{RSS}_{\min}\)                     |
 | \(\mathrm{UB3B}(d)\)         | \((\mathrm{lm_log1} + \mathrm{lm_log2}\log d) - (\mathrm{lmc1} + \mathrm{lmc2} d)\) |
-| PLSD, \(\mathrm{lg_prob_factor}_j\) | Same as in Chapter A7; no extra \(\log Z\) term needed   
+| PLSD, \(\mathrm{lg_prob_factor}_j\) | Same as in Chapter A07; no extra \(\log Z\) term needed
 
 
 ## Face–Specific UB3A and UB3B Construction (Independent Normal–Gamma Regression)
@@ -2740,7 +2740,7 @@ This UB3B\(_j\):
 - bounds the **same face–specific line** used in UB3A\(_j\),
 - uses a **single global log–tilt**,
 - ensures **UB3B\(_j\) ≥ 0** for all faces and all \(d\),
-- preserves the algebraic structure of Claim 1 in Chapter A7.
+- preserves the algebraic structure of Claim 1 in Chapter A07.
 
 
 
@@ -2794,7 +2794,7 @@ This is exactly the term
 \bar c_j^\top \bar c^{-1}(\bar c_j, d)
 \Bigr)
 \]
-from Chapter A7, written in standardized notation.
+from Chapter A07, written in standardized notation.
 
 From the geometry of the standardized construction (Claim 4 in A7), we know:
 
@@ -3375,7 +3375,7 @@ This gives you a **face-specific** log-tilt construction that is algebraically a
 
 
 # Face–Specific Dispersion Tilt Construction  
-### (Fully consistent with Sections 4 and 5 of Chapter A7)
+### (Fully consistent with Sections 4 and 5 of Chapter A07)
 
 This block gives you the **correct**, **theory‑consistent**, and **face‑specific** versions of all dispersion‑tilt quantities.  
 It mirrors the global construction in Sections 4–5 *exactly*, but replaces the global affine line with the face‑specific one wherever the theory allows.
@@ -3533,7 +3533,7 @@ T_j(d)
 
 
 # Face–Specific Dispersion Tilt Construction  
-### (Fully consistent with Sections 4 and 5 of Chapter A7)
+### (Fully consistent with Sections 4 and 5 of Chapter A07)
 
 This block gives you the **correct**, **theory‑consistent**, and **face‑specific** versions of all dispersion‑tilt quantities.  
 It mirrors the global construction in Sections 4–5 *exactly*, but replaces the global affine line with the face‑specific one wherever the theory allows.

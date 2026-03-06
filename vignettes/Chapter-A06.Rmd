@@ -1,12 +1,12 @@
 Yaml
 
 ---
-title: "Chapter A6: Accept–Reject Sampling for Dispersion in Gamma Regression"
+title: "Chapter A06: Accept–Reject Sampling for Dispersion in Gamma Regression"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A6: Accept–Reject Sampling for Dispersion in Gamma Regression}
+  %\VignetteIndexEntry{Chapter A06: Accept–Reject Sampling for Dispersion in Gamma Regression}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

@@ -507,14 +507,14 @@ so \(\beta\) and \(\tau\) are *a priori independent*.
 +\text{const}.
 \]
 
-A variation on this prior specification—using a **truncated Gamma prior** for the dispersion—is the model developed in **Chapter A7**, where:
+A variation on this prior specification—using a **truncated Gamma prior** for the dispersion—is the model developed in **Chapter A07**, where:
 
 - the conditional posterior in \( \beta \) is *not conjugate*,  
 - the conditional posterior in \( \tau = 1/\phi \) is *not conjugate*, and  
 - the joint posterior remains **log‑concave**, enabling  
   the **accept–reject envelope sampler**.
 
-This truncated‑Gamma, non‑conjugate Normal–Gamma model is therefore a direct extension of the independent Normal–Gamma prior described above, but requires the more advanced envelope‑based sampling strategy documented in Chapter A7.
+This truncated‑Gamma, non‑conjugate Normal–Gamma model is therefore a direct extension of the independent Normal–Gamma prior described above, but requires the more advanced envelope‑based sampling strategy documented in Chapter A07.
 
 ### 3.3.1 Independent Normal Gamma Prior in glmbayes
 
@@ -629,7 +629,7 @@ The Gibbs sampler mixes well for this model class, but it inevitably shows mild 
 
 For most users, the iid sampler is easier to work with and safer as no convergence diagnostics are needed.
 
-For readers who want the full mathematical details of the iid sampler, see **Chapter A7**, which documents
+For readers who want the full mathematical details of the iid sampler, see **Chapter A07**, which documents
 the complete envelope construction and accept‑reject algorithm for the independent Normal–Gamma prior.
 
 
@@ -787,12 +787,12 @@ This in theory enables two sampling strategies for the Gamma regression model:
    - \( \tau \mid \beta, y \): sampled using a Gamma‑based quasi‑likelihood update  
    This is the **only fully implemented method** for Gamma regression in the current version of *glmbayes*.
 
-2. **Accept–reject envelope sampler (Chapter A7)**  
-   Chapter A7 develops an accept–reject sampler using a **truncated Gamma prior** for \( \tau \) and a joint envelope over \((\beta,\tau)\).  
+2. **Accept–reject envelope sampler (Chapter A07)**
+   Chapter A07 develops an accept–reject sampler using a **truncated Gamma prior** for \( \tau \) and a joint envelope over \((\beta,\tau)\).
    **However, this method is implemented only for the Gaussian family.**  
    Extending the envelope‑based sampler to the Gamma regression model would require additional mathematical development and corresponding modifications to the code.
 
-The truncated‑Gamma independent Normal–Gamma model in **Chapter A7** therefore applies exclusively to the Gaussian case, while Gamma regression currently relies on the two‑block Gibbs sampler described above.
+The truncated‑Gamma independent Normal–Gamma model in **Chapter A07** therefore applies exclusively to the Gaussian case, while Gamma regression currently relies on the two‑block Gibbs sampler described above.
 
 
 ```{r Block_Gibbs_gamma_Regression}
@@ -882,7 +882,7 @@ mean(iters_out)
 
 ### 4.3 Conditional Sampling for the Dispersion Parameter
 
-Chapter A6 provides a detailed derivation of the conditional posterior for the precision parameter \( v = 1/\phi \) in Gamma regression. The posterior can be written in the form
+Chapter A06 provides a detailed derivation of the conditional posterior for the precision parameter \( v = 1/\phi \) in Gamma regression. The posterior can be written in the form
 
 \[
 \ell(v)
@@ -1065,7 +1065,7 @@ The truncation is introduced for numerical stability and does not change the bas
 
 The iid sampler for this prior family is based on the envelope accept-reject method described in:
 
-**Chapter A7 — Accept-Reject Sampling for Gaussian Regression Models with Independent Normal-Gamma Priors**
+**Chapter A07 — Accept-Reject Sampling for Gaussian Regression Models with Independent Normal-Gamma Priors**
 
 That vignette explains the full simulation procedure, including:
 

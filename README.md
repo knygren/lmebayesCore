@@ -200,29 +200,29 @@ estimation procedures, likelihood subgradient densities, envelope construction, 
 sampling, and technical reports on sampler design including implementation aspects for GPU acceleration using
 OpenCL.
 
-- **Chapter A1 — A detailed overview of the glmbayes package**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A1.html
+- **Chapter A01 — A detailed overview of the glmbayes package**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A01.html
 
-- **Chapter A2 — Overview of Estimation Procedures**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A2.html
+- **Chapter A02 — Overview of Estimation Procedures**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A02.html
 
-- **Chapter A3 — Methods Available in glmbayes**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A3.html
+- **Chapter A03 — Methods Available in glmbayes**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A03.html
 
-- **Chapter A5 — Simulation Methods - Likelihood Subgradient Densities**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A5.html
+- **Chapter A05 — Simulation Methods - Likelihood Subgradient Densities**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A05.html
 
-- **Chapter A6 — Accept-Reject Sampling for Dispersion in Gamma Regression**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A6.html
+- **Chapter A06 — Accept-Reject Sampling for Dispersion in Gamma Regression**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A06.html
 
-- **Chapter A7 — Accept-Reject Sampling for gaussian Regression models with independent normal-gamma priors**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A7.html
+- **Chapter A07 — Accept-Reject Sampling for gaussian Regression models with independent normal-gamma priors**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A07.html
 
-- **Chapter A8 — Overview of Envelope Related Functions**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A8.html
+- **Chapter A08 — Overview of Envelope Related Functions**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A08.html
 
-- **Chapter A9 — Parallel Sampling Implementation using RcppParallel**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-A9.html
+- **Chapter A09 — Parallel Sampling Implementation using RcppParallel**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A09.html
 
 - **Chapter A10 — Accelerated EnvelopeBuild Implementation using OpenCL**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A10.html

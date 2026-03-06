@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter A8: Overview of Envelope Related Functions"
+title: "Chapter A08: Overview of Envelope Related Functions"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A8: Overview of Envelope Related Functions}
+  %\VignetteIndexEntry{Chapter A08: Overview of Envelope Related Functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

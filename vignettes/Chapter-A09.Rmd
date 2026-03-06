@@ -1,10 +1,10 @@
 Yaml
 
 ---
-title: "Chapter A9: Parallel Sampling Implementation using RcppParallel"
+title: "Chapter A09: Parallel Sampling Implementation using RcppParallel"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A9: Parallel Sampling Implementation using RcppParallel}
+  %\VignetteIndexEntry{Chapter A09: Parallel Sampling Implementation using RcppParallel}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
