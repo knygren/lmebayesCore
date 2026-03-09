@@ -1565,16 +1565,13 @@ List EnvelopeDispersionBuild(
   // Strategy B (R-side): call optim("Brent") on [low, upp] — easier to prototype
   
   // Step 3C: Minimize RSS over dispersion for each face
-  
-  
+  // [COMMENTED OUT] Leave for easy re-enable of checks/validations
+  /*
   if (verbose) {
-    
     Rcpp::Rcout << "[EnvelopeDipsersionBuild:minimize_rss] Entering: "
-    //            << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
                   << glmbayes::progress::timestamp_cpp()
                   << "\n";
   }
-  
   Rcpp::List rss_res = minimize_rss_over_dispersion(
     gs,                // number of faces
     l1,                // dimension of cbars rows
@@ -1587,16 +1584,12 @@ List EnvelopeDispersionBuild(
     use_parallel,      // whether to use parallel helper
     verbose            // verbosity flag
   );
-  
-
   if (verbose) {
-    
     Rcpp::Rcout << "[EnvelopeDipsersionBuild:minimize_rss] Exiting: "
-    //            << Rcpp::as<std::string>(Rcpp::Function("format")(Rcpp::Function("Sys.time")())) 
                   << glmbayes::progress::timestamp_cpp()
                   << "\n";
   }
-  
+  */
     
     
   double rss_min_global;
@@ -1609,6 +1602,8 @@ List EnvelopeDispersionBuild(
   rss_min_parallel  = Rcpp::as<Rcpp::NumericVector>(rss_bound_res["rss_min_parallel"]);
   disp_min_parallel = Rcpp::as<Rcpp::NumericVector>(rss_bound_res["disp_min_parallel"]);
 
+  // [COMMENTED OUT] Temporary check + Comparison + quadratic test (require minimize_rss)
+  /*
   // Temporary check: bound <= rss_min from minimization for all faces, and diff is small
   if (verbose && gs <= 81) {
     NumericVector rss_min_from_minimize = rss_res["rss_min_parallel"];
@@ -1627,7 +1622,6 @@ List EnvelopeDispersionBuild(
       Rcpp::Rcout << "[rss_bound:CHECK] bound should be <= min for all faces; diff should be small.\n";
     }
   }
-
   // Comparison: bound (source) vs minimize (check), when gs <= 81 and verbose
   if (gs <= 81 && verbose) {
     NumericVector rss_min_from_minimize = rss_res["rss_min_parallel"];
@@ -1649,7 +1643,7 @@ List EnvelopeDispersionBuild(
                   << disp_min_parallel[j] << " | "
                   << diff_bound << " | " << diff_min << " | " << diff_check << "\n";
     }
-    // Per-face diagnostic: compare closed-form bound to actual (each face)
+    // Per-face diagnostic: rss_face_bound_from_cache_cpp + rss_face_quadratic_sum_internal (quad vs quad_lb)
     if (gs > 0) {
       Rcpp::Rcout << "  face | bound | actual | diff\n";
       arma::mat X_mat(x.begin(), x.nrow(), x.ncol(), false);
@@ -1690,6 +1684,7 @@ List EnvelopeDispersionBuild(
       }
     }
   }
+  */
 
   if (verbose) {
     
