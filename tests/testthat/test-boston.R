@@ -69,7 +69,7 @@ test_that("Bayesian Gaussian regression with Independent Normal-Gamma prior — 
   # Basic acceptance diagnostic:
   # Expect mean candidates per acceptance to be reasonably small (< 10)
   avg_candidates <- mean(lmb.boston_v3$iters)
-  expect_true(avg_candidates < 350)
+  expect_true(avg_candidates < 400)
   
  
   

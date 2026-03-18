@@ -106,7 +106,10 @@ Use example() and demo() to explore built-in examples and demos for supported fa
     ## Two-block Gibbs sampler compared to iid-sampling for linear model
     example("rlmb")
 
-    ## Larger Binomial Model with GPU Acceleration (requires OpenCL)
+    ## Larger gaussian Model (14 variables) with GPU Acceleration (requires OpenCL)
+    example("Boston")
+
+    ## Larger Binomial Model (14 variables) with GPU Acceleration (requires OpenCL)
     example("Cleveland")
 
     ## Rubin/Gelman's Hierarchical 8 schools Model

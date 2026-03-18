@@ -54,42 +54,12 @@ for (i in 1:1000) {
 colMeans(beta_out)
 mean(disp_out)
 
-lmb.D9_v4 <- lmb(
-  n       = 10000,
+lmb.D9 <- lmb(
+  n       = 1000,
   weight  ~ group,
-  #  family  = gaussian(),
   pfamily = dIndependent_Normal_Gamma(
     ps$mu, ps$Sigma,
     shape = ps$shape,
     rate  = ps$rate)
 )
-summary(lmb.D9_v4)
-lmb.D9_v4$pfamily$prior_list
-## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- glmb(
-  n       = 10000,
-  weight  ~ group,
-  family  = gaussian(),
-  pfamily = dIndependent_Normal_Gamma(
-    ps$mu, ps$Sigma,
-    shape = ps$shape,
-    rate  = ps$rate
-    # ,disp_lower = 0.2711,
-    # disp_upper = 1.0422
-  )
-  # use_opencl = TRUE,
-  # verbose    = TRUE
-)
-summary(lmb.D9_v3)
-lmb.D9_v3$pfamily$prior_list
-lmb.D9_v4 <- glmb(
-  n       = 10000,
-  weight  ~ group,
-  family  = gaussian(),
-  pfamily = dIndependent_Normal_Gamma(
-    ps$mu, ps$Sigma,
-    shape = ps$shape,
-    rate  = ps$rate)
-)
-summary(lmb.D9_v4)
-
+summary(lmb.D9)
