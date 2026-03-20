@@ -115,12 +115,38 @@ sqrt(diag(var(theta_out)))
 ## -----------------------------
 ## Acceptance diagnostics
 ## -----------------------------
+mean_iters_out1 <- mean(iters_out1)
+cat("\nMean iters_out1 (burn-in; 1 / acceptance rate):\n")
+print(mean_iters_out1)
+cat("\nEstimated burn-in acceptance rate:\n")
+print(1 / mean_iters_out1)
+
 mean_iters_out2 <- mean(iters_out2)
 cat("\nMean iters_out2 (1 / acceptance rate):\n")
 print(mean_iters_out2)
 
 cat("\nEstimated acceptance rate:\n")
 print(1 / mean_iters_out2)
+
+cat("\nCODA diagnostics (Independent NG):\n")
+
+mcmc_ind_ng <- coda::mcmc(cbind(theta_out,
+                               mu = mu_out,
+                               sigma_theta = sigma_theta_out))
+print(summary(mcmc_ind_ng))
+
+cat("\nEffective sample size:\n")
+print(coda::effectiveSize(mcmc_ind_ng))
+
+cat("\nGeweke z-scores (first 10 parameters shown):\n")
+gwe <- coda::geweke.diag(mcmc_ind_ng)$z
+print(utils::head(gwe, 10))
+
+mcmc_iters <- coda::mcmc(iters_out2)
+cat("\nLag-1 autocorrelation (mu, sigma_theta, iters_out2):\n")
+print(c(mu = coda::autocorr(coda::mcmc(mu_out), lag = 1),
+        sigma_theta = coda::autocorr(coda::mcmc(sigma_theta_out), lag = 1),
+        iters_out2 = coda::autocorr(mcmc_iters, lag = 1)))
 
 
 readline("\n--- End of Independent NG sampler block. Press <Enter> to continue... ---")
@@ -147,6 +173,8 @@ theta_ng            <- estimate
 theta_out_ng        <- matrix(0, nrow = n_sim_ng, ncol = J)
 mu_out_ng           <- numeric(n_sim_ng)
 sigma_theta_out_ng  <- numeric(n_sim_ng)
+iters_out1_ng       <- numeric(n_burn_ng)
+iters_out2_ng       <- numeric(n_sim_ng)
 
 set.seed(101)
 x_one <- matrix(1, nrow = J, ncol = 1)
@@ -175,6 +203,8 @@ burn_time_ng <- system.time({
         pfamily = dNormal(mu_theta, Sigma = sigma_theta_sq, dispersion = sigma_y_sq[j])
       )$coefficients[1, 1]
     }
+    
+    iters_out1_ng[k] <- out_pop$iters
   }
 })
 
@@ -206,6 +236,7 @@ sim_time_ng <- system.time({
     theta_out_ng[k, ]       <- theta_ng
     mu_out_ng[k]            <- mu_theta
     sigma_theta_out_ng[k]   <- sqrt(sigma_theta_sq)
+    iters_out2_ng[k]        <- out_pop$iters
   }
 })
 
@@ -221,6 +252,38 @@ colMeans(theta_out_ng)
 mean(mu_out_ng)
 mean(sigma_theta_out_ng)
 sqrt(diag(var(theta_out_ng)))
+
+## -----------------------------
+## Acceptance diagnostics (conjugate NG)
+## -----------------------------
+mean_iters_out1_ng <- mean(iters_out1_ng)
+cat("\nMean iters_out1_ng (burn-in; 1 / acceptance rate):\n")
+print(mean_iters_out1_ng)
+cat("\nEstimated burn-in acceptance rate:\n")
+print(1 / mean_iters_out1_ng)
+
+mean_iters_out2_ng <- mean(iters_out2_ng)
+cat("\nMean iters_out2_ng (1 / acceptance rate):\n")
+print(mean_iters_out2_ng)
+cat("\nEstimated acceptance rate:\n")
+print(1 / mean_iters_out2_ng)
+
+cat("\nCODA diagnostics (Conjugate NG):\n")
+mcmc_conj_ng <- coda::mcmc(cbind(theta_out_ng,
+                                mu = mu_out_ng,
+                                sigma_theta = sigma_theta_out_ng))
+print(summary(mcmc_conj_ng))
+
+cat("\nEffective sample size:\n")
+print(coda::effectiveSize(mcmc_conj_ng))
+
+cat("\nGeweke z-scores (first 10 parameters shown):\n")
+gwe <- coda::geweke.diag(mcmc_conj_ng)$z
+print(utils::head(gwe, 10))
+
+cat("\nLag-1 autocorrelation (mu, sigma_theta):\n")
+print(c(mu = coda::autocorr(coda::mcmc(mu_out_ng), lag = 1),
+        sigma_theta = coda::autocorr(coda::mcmc(sigma_theta_out_ng), lag = 1)))
 
 
 readline("\n--- End of Conjugate NG sampler block. Press <Enter> to continue... ---")
@@ -252,6 +315,8 @@ theta_n      <- y
 mu_n         <- mu_mu
 theta_out_n  <- matrix(0, nrow = n_sim_n, ncol = J)
 mu_out_n     <- numeric(n_sim_n)
+iters_out1_n <- numeric(n_burn_n)
+iters_out2_n <- numeric(n_sim_n)
 
 set.seed(104)
 x_one <- matrix(1, nrow = J, ncol = 1)
@@ -280,6 +345,8 @@ burn_time_n <- system.time({
         pfamily = dNormal(mu_n, Sigma = sigma_theta_fixed, dispersion = sigma_y_sq[j])
       )$coefficients[1, 1]
     }
+    
+    iters_out1_n[k] <- out_pop$iters
   }
 })
 
@@ -310,6 +377,7 @@ sim_time_n <- system.time({
     
     theta_out_n[k, ] <- theta_n
     mu_out_n[k]      <- mu_n
+    iters_out2_n[k]  <- out_pop$iters
   }
 })
 
@@ -325,5 +393,34 @@ colMeans(theta_out_n)
 mean(mu_out_n)
 rep(sqrt(sigma_theta_fixed), J)
 sqrt(diag(var(theta_out_n)))
+
+## -----------------------------
+## Acceptance diagnostics (Fixed-sigma Normal)
+## -----------------------------
+mean_iters_out1_n <- mean(iters_out1_n)
+cat("\nMean iters_out1_n (burn-in; 1 / acceptance rate):\n")
+print(mean_iters_out1_n)
+cat("\nEstimated burn-in acceptance rate:\n")
+print(1 / mean_iters_out1_n)
+
+mean_iters_out2_n <- mean(iters_out2_n)
+cat("\nMean iters_out2_n (1 / acceptance rate):\n")
+print(mean_iters_out2_n)
+cat("\nEstimated acceptance rate:\n")
+print(1 / mean_iters_out2_n)
+
+cat("\nCODA diagnostics (Fixed-sigma Normal):\n")
+mcmc_fix_n <- coda::mcmc(cbind(theta_out_n, mu = mu_out_n))
+print(summary(mcmc_fix_n))
+
+cat("\nEffective sample size:\n")
+print(coda::effectiveSize(mcmc_fix_n))
+
+cat("\nGeweke z-scores (first 10 parameters shown):\n")
+gwe <- coda::geweke.diag(mcmc_fix_n)$z
+print(utils::head(gwe, 10))
+
+cat("\nLag-1 autocorrelation (mu):\n")
+print(coda::autocorr(coda::mcmc(mu_out_n), lag = 1))
 
 

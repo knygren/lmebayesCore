@@ -8,6 +8,7 @@ Description: Generates iid samples for Bayesian Generalized Linear Models.
 License: GPL-2
 Imports:
     stats,
+    coda,
     Rcpp (>= 1.0.4.6),
     RcppArmadillo,
     RcppParallel,
