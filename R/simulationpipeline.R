@@ -2184,20 +2184,28 @@ EnvelopeSort <- function(l1, l2,
                          # New_LL_Slope=NULL,
                          # shape3_face=NULL
                          ) {   # <-- new optional arg
+  # Enforce matrix inputs for logU and LLconst
+  if (!is.matrix(logU)) {
+    stop("EnvelopeSort: logU must be a matrix, got ", typeof(logU))
+  }
+  if (!is.matrix(LLconst)) {
+    stop("EnvelopeSort: LLconst must be a matrix, got ", typeof(LLconst))
+  }
+
   # Order indices by decreasing PLSD
   ord <- order(PLSD, decreasing = TRUE)
   sel <- ord[seq_len(l2)]  # top l2 rows
   
   
-  # Reorder inputs once
+  # Reorder inputs once (preserve matrix structure for logU, LLconst)
   GIndex <- GIndex[sel, , drop = FALSE]
   G3     <- G3[sel, , drop = FALSE]
   cbars  <- cbars[sel, , drop = FALSE]
-  logU   <- logU[sel]
+  logU   <- logU[sel, , drop = FALSE]
   logrt  <- logrt[sel, , drop = FALSE]
   loglt  <- loglt[sel, , drop = FALSE]
   logP   <- logP[sel, 1, drop = TRUE]
-  LLconst<- LLconst[sel]
+  LLconst<- LLconst[sel, , drop = FALSE]
   PLSD   <- PLSD[sel]
   
   if (!is.null(lg_prob_factor)) {

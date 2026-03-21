@@ -168,11 +168,11 @@ Rcpp::List EnvelopeSort_cpp(
     const Rcpp::NumericMatrix& GIndex,
     const Rcpp::NumericMatrix& G3,
     const Rcpp::NumericMatrix& cbars,
-    const Rcpp::NumericVector& logU,
+    const Rcpp::NumericMatrix& logU,   // l2 x l1 (or l2 x ncol); R also accepts vector
     const Rcpp::NumericMatrix& logrt,
     const Rcpp::NumericMatrix& loglt,
-    const Rcpp::NumericVector& logP,
-    const Rcpp::NumericVector& LLconst,
+    const Rcpp::NumericMatrix& logP,   // l2 x 2 (or l2 x ncol)
+    const Rcpp::NumericMatrix& LLconst,  // l2 x 1 (or l2 x ncol)
     const Rcpp::NumericVector& PLSD,
     const Rcpp::NumericVector& a1,
     double E_draws,

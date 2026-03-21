@@ -13,11 +13,11 @@ Rcpp::List EnvelopeSort_cpp(
     const NumericMatrix& GIndex,      // GridIndex: l2 x l1
     const NumericMatrix& G3,          // thetabars: l2 x l1
     const NumericMatrix& cbars,       // cbars: l2 x l1
-    const NumericVector& logU,        // length l2
+    const NumericMatrix& logU,        // l2 x l1 (or l2 x ncol)
     const NumericMatrix& logrt,       // l2 x l1
     const NumericMatrix& loglt,       // l2 x l1
-    const NumericVector& logP,        // length l2 (already col 0)
-    const NumericVector& LLconst,     // length l2
+    const NumericMatrix& logP,        // l2 x 2 (or l2 x ncol)
+    const NumericMatrix& LLconst,     // l2 x 1 (or l2 x ncol)
     const NumericVector& PLSD,        // length l2
     const NumericVector& a1,          // length l1
     double E_draws,                   // scalar
@@ -27,8 +27,8 @@ Rcpp::List EnvelopeSort_cpp(
   // --- Dimension checks ---
   if (GIndex.nrow() != l2 || G3.nrow() != l2 || cbars.nrow() != l2 ||
       logrt.nrow()  != l2 || loglt.nrow() != l2 ||
-      logU.size()   != l2 || LLconst.size() != l2 ||
-      PLSD.size()   != l2 || logP.size()    != l2) {
+      logU.nrow()   != l2 || LLconst.nrow() != l2 ||
+      PLSD.size()   != l2 || logP.nrow()    != l2) {
     stop("EnvelopeSort_cpp: dimension mismatch with l2.");
   }
   
@@ -76,10 +76,10 @@ Rcpp::List EnvelopeSort_cpp(
   NumericMatrix logrt_out(l2, l1);
   NumericMatrix loglt_out(l2, l1);
   
-  NumericVector logU_out(l2);
-  NumericVector LLconst_out(l2);
+  NumericMatrix logU_out(logU.nrow(), logU.ncol());
+  NumericMatrix LLconst_out(LLconst.nrow(), LLconst.ncol());
   NumericVector PLSD_out(l2);
-  NumericVector logP_out(l2);
+  NumericMatrix logP_out(logP.nrow(), logP.ncol());
   
   NumericVector lg_prob_factor_out;
   if (has_lg_prob_factor)
@@ -100,11 +100,13 @@ Rcpp::List EnvelopeSort_cpp(
       logrt_out(r, c)  = logrt(src, c);
       loglt_out(r, c)  = loglt(src, c);
     }
-    
-    logU_out[r]     = logU[src];
-    LLconst_out[r]  = LLconst[src];
+    for (int c = 0; c < logU.ncol(); ++c)
+      logU_out(r, c) = logU(src, c);
+    for (int c = 0; c < logP.ncol(); ++c)
+      logP_out(r, c) = logP(src, c);
+    for (int c = 0; c < LLconst.ncol(); ++c)
+      LLconst_out(r, c) = LLconst(src, c);
     PLSD_out[r]     = PLSD[src];
-    logP_out[r]     = logP[src];
     
     if (has_lg_prob_factor)
       lg_prob_factor_out[r] = lg_prob_factor_vec[src];
@@ -113,7 +115,11 @@ Rcpp::List EnvelopeSort_cpp(
       UB2min_out[r] = UB2min_vec[src];
   }
   
-  // --- Build output list ---
+  // --- Build output list (logP/logU: downstream expects vectors for single-column case) ---
+  // Downstream expects logP as vector (first column)
+  NumericVector logP_col0(l2);
+  for (int i = 0; i < l2; ++i) logP_col0[i] = logP_out(i, 0);
+
   List out = List::create(
     _["GridIndex"] = GIndex_out,
     _["thetabars"] = G3_out,
@@ -122,7 +128,7 @@ Rcpp::List EnvelopeSort_cpp(
     _["logrt"]     = logrt_out,
     _["loglt"]     = loglt_out,
     _["LLconst"]   = LLconst_out,
-    _["logP"]      = logP_out,
+    _["logP"]      = logP_col0,
     _["PLSD"]      = PLSD_out,
     _["a1"]        = a1,
     _["E_draws"]   = E_draws

@@ -158,36 +158,31 @@ Rcpp::Function EnvelopeSort = pkg["EnvelopeSort"];
 
 
 
-// --- Call C++ EnvelopeSort_cpp instead of R's EnvelopeSort ---
-// Rcpp::List Env3 = glmbayes::env::EnvelopeSort_cpp(
-//   l1,
-//   l2,
-//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["GridIndex"]),   // GIndex
-//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["thetabars"]),   // G3
-//   cbars,                                                  // cbars
-//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["logU"]),        // logU
-//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["logrt"]),       // logrt
-//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["loglt"]),       // loglt
-//   logP_vec,                                               // logP (vector)
-//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["LLconst"]),     // LLconst
-//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["PLSD"]),        // PLSD
-//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["a1"]),          // a1 (vector)
-//   Rcpp::as<double>(Env3_raw["E_draws"]),                  // E_draws (scalar)
+// Test C++ sort (commented out for now; uncomment to verify EnvelopeSort_cpp)
+// Rcpp::NumericVector logU_vec = Env3_raw["logU"];
+// Rcpp::NumericMatrix logU_mat(logU_vec.size(), 1, logU_vec.begin());
+// Rcpp::NumericVector LLconst_vec = Env3_raw["LLconst"];
+// Rcpp::NumericMatrix LLconst_mat(LLconst_vec.size(), 1, LLconst_vec.begin());
+// (void) glmbayes::env::EnvelopeSort_cpp(
+//   l1, l2,
+//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["GridIndex"]),
+//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["thetabars"]),
+//   cbars,
+//   logU_mat,
+//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["logrt"]),
+//   Rcpp::as<Rcpp::NumericMatrix>(Env3_raw["loglt"]),
+//   logP_mat,
+//   LLconst_mat,
+//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["PLSD"]),
+//   Rcpp::as<Rcpp::NumericVector>(Env3_raw["a1"]),
+//   Rcpp::as<double>(Env3_raw["E_draws"]),
 //   UB_list_new.containsElementNamed("lg_prob_factor")
-//   ? Rcpp::Nullable<Rcpp::NumericVector>(UB_list_new["lg_prob_factor"])
+//     ? Rcpp::Nullable<Rcpp::NumericVector>(UB_list_new["lg_prob_factor"])
 //     : Rcpp::Nullable<Rcpp::NumericVector>(),
-//       UB_list_new.containsElementNamed("UB2min")
-//   ? Rcpp::Nullable<Rcpp::NumericVector>(UB_list_new["UB2min"])
+//   UB_list_new.containsElementNamed("UB2min")
+//     ? Rcpp::Nullable<Rcpp::NumericVector>(UB_list_new["UB2min"])
 //     : Rcpp::Nullable<Rcpp::NumericVector>()
 // );
-
-
-
-
-// TEMPORARY: stop after calling C++ sorter
-//Rcpp::stop("DEBUG STOP: after EnvelopeSort_cpp");
-
-//Rcpp::stop("DEBUG STOP: halting before EnvelopeSort");
 
 Rcpp::List Env3;
 

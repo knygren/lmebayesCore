@@ -421,9 +421,17 @@ List EnvelopeBuild(NumericVector bStar,
                   << glmbayes::progress::timestamp_cpp()
                   << "\n";
     }
-    
-    
-    Rcpp::List outlist=EnvSort(l1,l2,GIndex,G3,cbars,logU,logrt,loglt,logP,LLconst,PLSD,a_1,E_draws);
+
+    // Test C++ sort (commented out for now; uncomment to verify EnvelopeSort_cpp)
+    // (void) EnvelopeSort_cpp(
+    //   l1, l2,
+    //   GIndex, G3, cbars,
+    //   logU, logrt, loglt, logP,
+    //   LLconst, PLSD, a_1, E_draws
+    // );
+
+    // Use R result downstream
+    Rcpp::List outlist = EnvSort(l1, l2, GIndex, G3, cbars, logU, logrt, loglt, logP, LLconst, PLSD, a_1, E_draws);
 
     if (verbose) {
       

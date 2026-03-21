@@ -1492,16 +1492,17 @@ Rcpp::List rNormalGLM(int n,NumericVector y,NumericMatrix x,
   //Rcpp::Rcout << "Starting Envelope Creation:" << std::endl;
 
   Rcpp::List Envelope; // Can move this towards top of the function
-  
-  
+
+  // sortgrid: false when n==1, true when n>1. Sorting orders faces by decreasing
+  // probability so simulation checks highest-probability faces first; with many draws
+  // only a small number of faces need to be assessed (e.g., not all 47M). The benefit
+  // of pre-sorting grows with sample size. For a single draw (e.g., Gibbs step),
+  // skipping the sort is typically faster overall. In practice: n==1 for Gibbs, n>>1
+  // for iid sampling (default 1000).
   if(n==1){
     Envelope=EnvelopeBuild(bstar2_temp, A_temp,y, x2_temp,mu2_temp,
                              P2_temp,alpha,wt2,family,link,Gridtype, n,n_envopt,false,use_opencl,verbose);
-
-
-    
-      }
-  
+  }
   if(n>1){
     Envelope=EnvelopeBuild(bstar2_temp, A_temp,y, x2_temp,mu2_temp,
                              P2_temp,alpha,wt2,family,link,Gridtype, n,n_envopt,true,use_opencl,verbose);
