@@ -363,6 +363,12 @@ rlmb <- function(
       cat("No simbounds returned in outlist.\n")
     }
   }
+
+  if (pfamily$pfamily == "dGamma") {
+    class(outlist) <- c("rGamma_reg", "rlmb", "rglmb", "glmb", "glm", "lm")
+  } else {
+    class(outlist) <- c("rlmb", "rglmb", "glmb", "glm", "lm")
+  }
   
   simfun_call <- outlist$call 
   
@@ -371,7 +377,6 @@ rlmb <- function(
   outlist$simfun_call <- simfun_call   # simulation call
   outlist$simfun_args <- simfun_args   # simulation arguments
   
-  class(outlist) <- c("rlmb", "rglmb", "glmb", "glm", "lm")
   return(outlist)
 }
 

@@ -10,6 +10,7 @@
 #' @param x an object of class \code{"summary.rGamma_reg"} for which a printed output is desired.
 #' @param digits the number of significant digits to use when printing.
 #' @param \ldots Additional optional arguments
+#' @example inst/examples/Ex_summary.rgamma_reg.R
 #' @export
 #' @rdname summary.rgamma_reg
 #' @order 1

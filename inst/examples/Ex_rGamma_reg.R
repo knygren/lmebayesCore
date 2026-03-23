@@ -20,7 +20,7 @@ x<-as.matrix(lm.D9$x)
 b_old=lm.D9$coefficients
 v_old=lm_summary$sigma^2
 
-#### Set up for rglmb_dispersion
+#### Set up for rGamma_reg
 
 n0=0.1
 shape=n0/2
@@ -102,3 +102,11 @@ colMeans((outtemp3$coefficients))
 b_old
 mean(outtemp3$dispersion)  ## Seems slightly smaller --> Needs qc
 v_old
+
+
+## rGamma_reg with dGamma prior via Prior_Setup (dispersion-only; coefficients fixed)
+ps_dg <- Prior_Setup(weight ~ group, family = gaussian())
+prior_list_dg <- list(beta = coef(lm.D9), shape = ps_dg$shape, rate = ps_dg$rate)
+dispout_dGamma <- rGamma_reg(n = 100, y = y, x = x, prior_list = prior_list_dg,
+  offset = rep(0, length(y)), weights = rep(1, length(y)), family = gaussian())
+summary(dispout_dGamma)

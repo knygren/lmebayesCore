@@ -69,7 +69,7 @@ A1=opt_out$hessian # Approximate Precision at mode
 Standard_Mod=glmb_Standardize_Model(y=as.vector(y), x=as.matrix(x),
 P=as.matrix(P),bstar=as.matrix(bstar,ncol=1), A1=as.matrix(A1))
 
-bstar2=Standard_Mod$bstar2  
+bstar2=Standard_Mod$bstar2
 A=Standard_Mod$A
 x2=Standard_Mod$x2
 mu2=Standard_Mod$mu2
@@ -77,11 +77,34 @@ P2=Standard_Mod$P2
 L2Inv=Standard_Mod$L2Inv
 L3Inv=Standard_Mod$L3Inv
 
-Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
-as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),as.vector(wt2),
-family="binomial",link="logit",Gridtype=as.integer(3), 
-n=as.integer(n),sortgrid=TRUE)
+## Derive a and G1 (as EnvelopeBuild does internally)
+a <- diag(A)
+omega <- (sqrt(2) - exp(-1.20491 - 0.7321*sqrt(0.5 + a))) / sqrt(1 + a)
+b2 <- as.vector(bstar2)
+G1 <- rbind(b2 - omega, b2, b2 + omega)
 
-## These now seem to match
+## EnvelopeOpt: standalone call (used by EnvelopeSize when Gridtype=2)
+grid_opt <- EnvelopeOpt(a, n)
+grid_opt
 
-Env2
+## EnvelopeSize for each Gridtype
+size_1 <- EnvelopeSize(a, G1, Gridtype=1L, n=n)   # static threshold
+size_2 <- EnvelopeSize(a, G1, Gridtype=2L, n=n)   # uses EnvelopeOpt
+size_3 <- EnvelopeSize(a, G1, Gridtype=3L, n=n)   # always 3-point
+size_4 <- EnvelopeSize(a, G1, Gridtype=4L, n=n)   # always single-point
+
+## EnvelopeBuild for each Gridtype
+Env_1 <- EnvelopeBuild(as.vector(bstar2), as.matrix(A), y, as.matrix(x2),
+  as.matrix(mu2,ncol=1), as.matrix(P2), as.vector(alpha), as.vector(wt2),
+  family="binomial", link="logit", Gridtype=1L, n=as.integer(n), sortgrid=FALSE)
+Env_2 <- EnvelopeBuild(as.vector(bstar2), as.matrix(A), y, as.matrix(x2),
+  as.matrix(mu2,ncol=1), as.matrix(P2), as.vector(alpha), as.vector(wt2),
+  family="binomial", link="logit", Gridtype=2L, n=as.integer(n), sortgrid=FALSE)
+Env_3 <- EnvelopeBuild(as.vector(bstar2), as.matrix(A), y, as.matrix(x2),
+  as.matrix(mu2,ncol=1), as.matrix(P2), as.vector(alpha), as.vector(wt2),
+  family="binomial", link="logit", Gridtype=3L, n=as.integer(n), sortgrid=FALSE)
+Env_4 <- EnvelopeBuild(as.vector(bstar2), as.matrix(A), y, as.matrix(x2),
+  as.matrix(mu2,ncol=1), as.matrix(P2), as.vector(alpha), as.vector(wt2),
+  family="binomial", link="logit", Gridtype=4L, n=as.integer(n), sortgrid=FALSE)
+
+Env_3

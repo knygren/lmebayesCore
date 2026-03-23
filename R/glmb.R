@@ -262,13 +262,14 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   
   prior_list=pfamily$prior_list 
   
-  mu<-as.matrix(as.vector(prior_list$mu))
-  Sigma<-as.matrix(prior_list$Sigma)    
+  if (pfamily$pfamily != "dGamma") {
+    mu<-as.matrix(as.vector(prior_list$mu))
+    Sigma<-as.matrix(prior_list$Sigma)    
 
-  R <- chol(Sigma)
-  P <- chol2inv(R)
-  P <- 0.5 * (P + t(P))
-  
+    R <- chol(Sigma)
+    P <- chol2inv(R)
+    P <- 0.5 * (P + t(P))
+  }
   
     wtin<-fit$prior.weights	
   
@@ -316,10 +317,14 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   
   
     
-  Prior<-list(mean=prior_list$mu,Variance=prior_list$Sigma)
-  names(Prior$mean)<-colnames(fit$x)
-  colnames(Prior$Variance)<-colnames(fit$x)
-  rownames(Prior$Variance)<-colnames(fit$x)
+  if (pfamily$pfamily == "dGamma") {
+    Prior <- list(shape = prior_list$shape, rate = prior_list$rate)
+  } else {
+    Prior <- list(mean = prior_list$mu, Variance = prior_list$Sigma)
+    names(Prior$mean) <- colnames(fit$x)
+    colnames(Prior$Variance) <- colnames(fit$x)
+    rownames(Prior$Variance) <- colnames(fit$x)
+  }
   
   
   ### Set dispersion to null for quasi-families to prevent DIC from calculating
@@ -450,7 +455,11 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   
   outlist$call<-match.call()
   
-  class(outlist)<-c(outlist$class,"glmb","glm","lm")
+  if (pfamily$pfamily == "dGamma") {
+    class(outlist) <- c("rGamma_reg", outlist$class, "glmb", "glm", "lm")
+  } else {
+    class(outlist) <- c(outlist$class, "glmb", "glm", "lm")
+  }
   outlist
 }
 

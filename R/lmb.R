@@ -479,13 +479,16 @@ lmb <- function (
   y <- z$y
   x <- z$x
   b <- z$coefficients
-  mu <- as.matrix(as.vector(prior_list$mu))
-  Sigma <- as.matrix(prior_list$Sigma)
-  dispersion <- prior_list$dispersion
-  
-  R <- chol(Sigma)
-  P <- chol2inv(R)
-  P <- 0.5 * (P + t(P))
+
+  if (pfamily$pfamily != "dGamma") {
+    mu <- as.matrix(as.vector(prior_list$mu))
+    Sigma <- as.matrix(prior_list$Sigma)
+    dispersion <- prior_list$dispersion
+
+    R <- chol(Sigma)
+    P <- chol2inv(R)
+    P <- 0.5 * (P + t(P))
+  }
   
   if (is.null(z$weights)) wtin <- rep(1, length(y))
   else wtin <- z$weights
@@ -519,11 +522,15 @@ lmb <- function (
   
   dispersion2 <- sim$dispersion
   famfunc <- sim$famfunc
-  
-  Prior <- list(mean = as.numeric(mu), Variance = Sigma)
-  names(Prior$mean) <- colnames(z$x)
-  colnames(Prior$Variance) <- colnames(z$x)
-  rownames(Prior$Variance) <- colnames(z$x)
+
+  if (pfamily$pfamily == "dGamma") {
+    Prior <- list(shape = prior_list$shape, rate = prior_list$rate)
+  } else {
+    Prior <- list(mean = as.numeric(mu), Variance = Sigma)
+    names(Prior$mean) <- colnames(z$x)
+    colnames(Prior$Variance) <- colnames(z$x)
+    rownames(Prior$Variance) <- colnames(z$x)
+  }
   
   if (!is.null(offset)) {
     
@@ -573,6 +580,12 @@ lmb <- function (
     
   }
   
+  # For dGamma, coefficients have 1 row; replicate to n rows for consistent structure
+  if (nrow(sim$coefficients) == 1L) {
+    fitted.values <- matrix(rep(fitted.values, n), nrow = n, byrow = TRUE)
+    linear.predictors <- matrix(rep(linear.predictors, n), nrow = n, byrow = TRUE)
+  }
+  
   residuals <- fitted.values
   
   for (i in 1:n) {
@@ -616,7 +629,11 @@ lmb <- function (
   
   outlist$call <- match.call()
   
-  class(outlist) <- c(outlist$class, "lmb", "glmb", "glm", "lm")
+  if (pfamily$pfamily == "dGamma") {
+    class(outlist) <- c("rGamma_reg", outlist$class, "lmb", "glmb", "glm", "lm")
+  } else {
+    class(outlist) <- c(outlist$class, "lmb", "glmb", "glm", "lm")
+  }
   outlist
 }
 

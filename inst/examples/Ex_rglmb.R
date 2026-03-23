@@ -35,3 +35,15 @@ out<-rglmb(n = 1000, y=y, x=x, pfamily=dNormal(mu=mu,Sigma=V1), weights = wt,
            family = binomial(logit)) 
 summary(out)
 
+
+## rglmb with dGamma prior (dispersion-only; coefficients fixed)
+ctl <- c(4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14)
+trt <- c(4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69)
+group <- gl(2, 10, 20, labels = c("Ctl", "Trt"))
+weight <- c(ctl, trt)
+lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
+ps_dg <- Prior_Setup(weight ~ group, family = gaussian())
+out_dGamma <- rglmb(n = 100, y = lm.D9$y, x = as.matrix(lm.D9$x),
+  pfamily = dGamma(shape = ps_dg$shape, rate = ps_dg$rate, beta = coef(lm.D9)),
+  weights = rep(1, length(lm.D9$y)), family = gaussian())
+summary(out_dGamma)

@@ -211,6 +211,13 @@ lmb.D9 <- lmb(n= 4000,weight  ~ group,
 summary(lmb.D9)
 
 
+## rlmb with dGamma prior (dispersion-only; coefficients fixed)
+lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
+out_rlmb_dGamma <- rlmb(n = 100, y = y, x = x,
+  pfamily = dGamma(shape = shape, rate = rate, beta = coef(lm.D9)),
+  weights = rep(1, length(y)))
+summary(out_rlmb_dGamma)
+
 }
 \references{
 \insertAllCited{}

@@ -178,12 +178,28 @@ L3Inv=Standard_Mod$L3Inv
 Env2=EnvelopeBuild(as.vector(bstar2), as.matrix(A),y, as.matrix(x2),
 as.matrix(mu2,ncol=1),as.matrix(P2),as.vector(alpha),as.vector(wt2),
 family="binomial",link="logit",Gridtype=as.integer(3), 
-n=as.integer(n),sortgrid=TRUE)
+n=as.integer(n),sortgrid=FALSE)
 
-## These now seem to match
+## Extract l1, l2 from envelope (as done in C++) and call EnvelopeSort
+l1 <- ncol(Env2$cbars)
+l2 <- nrow(Env2$cbars)
+logP_mat <- matrix(Env2$logP, ncol = 1)
 
-#Env1
-Env2
+Env_sorted <- EnvelopeSort(l1, l2,
+  GIndex  = Env2$GridIndex,
+  G3      = Env2$thetabars,
+  cbars   = Env2$cbars,
+  logU    = Env2$logU,
+  logrt   = Env2$logrt,
+  loglt   = Env2$loglt,
+  logP    = logP_mat,
+  LLconst = Env2$LLconst,
+  PLSD    = Env2$PLSD,
+  a1      = Env2$a1,
+  E_draws = Env2$E_draws
+)
+
+Env_sorted
 
 
 }
