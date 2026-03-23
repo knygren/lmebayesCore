@@ -112,11 +112,14 @@ Use example() and demo() to explore built-in examples and demos for supported fa
     ## Larger Binomial Model (14 variables) with GPU Acceleration (requires OpenCL)
     example("Cleveland")
 
-    ## Rubin/Gelman's Hierarchical 8 schools Model
+    ## Hierarchial Linear Model (Rubin/Gelman's 8 schools Model) - rlmb
     demo("Ex_07_Schools")
 
-    ## Hierarchical Poisson (BikeSharing) - two-block Gibbs with rglmb
+    ## Hierarchical Generalized Linear Model (Poisson - BikeSharing) - rglmb
     demo("Ex_09_BikeSharingPoisson")
+
+    ## Detailed Simulation Pipeline for rNormalGLM models
+    example("rNormalGLM_std")
 
 ## Methodology
 

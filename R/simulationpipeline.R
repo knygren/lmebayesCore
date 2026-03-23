@@ -9,7 +9,7 @@
 #' @details
 #' (summaries of each step)
 #'
-#' @example inst/examples/Ex_rnnorm_reg_std.R
+#' @example inst/examples/Ex_rNormalGLM_std.R
 #'
 #' @name SimulationPipeline
 NULL
@@ -2298,7 +2298,7 @@ EnvelopeSort <- function(l1, l2,
 
 #' The Bayesian Generalized Linear Model Distribution in Standard Form
 #'
-#' \code{rnnorm_reg_std} is used to generate iid samplers from Non-Gaussian Generalized
+#' \code{rNormalGLM_std} is used to generate iid samplers from Non-Gaussian Generalized
 #' Linear Models in standard form. The function should only be called after standardization 
 #' of a Generalized Linear Model.
 #' @param n number of draws to generate. If \code{length(n) > 1}, the length is taken to be the number required.
@@ -2348,12 +2348,12 @@ EnvelopeSort <- function(l1, l2,
 #' 
 #' 
 #' 
-#' @example inst/examples/Ex_rnnorm_reg_std.R
+#' @example inst/examples/Ex_rNormalGLM_std.R
 #' @export
 
 
 
-rnnorm_reg_std<-function(n, y, x, mu, P, alpha, wt, f2, Envelope, family, link, progbar = 1L){
+rNormalGLM_std<-function(n, y, x, mu, P, alpha, wt, f2, Envelope, family, link, progbar = 1L){
   
   return(.rNormalGLM_std_cpp(n, y, x, mu, P, alpha, wt, f2, Envelope, family, link, progbar = progbar))
   

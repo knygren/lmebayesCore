@@ -405,7 +405,7 @@ For estimation of Bayesian generalized linear models with Normal Priors but with
 * *EnvelopeSort* sorts the envelope after construction to increade efficiency of the simulation
 * *EnvelopeSetGrid* calculates log-densities associated with the restricted normals used to generate candidates
 * *EnvelopeSetLogP* calculates constants used during sampling from the constructed envelope
-* *rnnorm_reg_std* simulates from a standardized Bayesian Generalized linear model using an Enveloping function
+* *rNormalGLM_std* simulates from a standardized Bayesian Generalized linear model using an Enveloping function
 * *Neg_logLik*  returns the Negative log-likelihood for a Generalized Linear Model
 * *Neg_logPost* returns the negative log-posterior for a Bayesian Generalized Linear Model
 * *Neg_logPost_Gradient* returns the Gradient for the Negative Log-posteror of a Bayesian Generalized Linear Model

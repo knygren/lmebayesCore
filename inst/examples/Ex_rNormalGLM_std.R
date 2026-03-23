@@ -1,3 +1,4 @@
+############################### Start of rNormalGLM_std examples ####################
 data(menarche,package="MASS")
 
 summary(menarche)
@@ -98,7 +99,7 @@ Env2
 ### May be better to call an R function wrapper that checks (and converts when possible) 
 ##  to correct types
 
-sim=rnnorm_reg_std(n=as.integer(n),y=as.vector(y),x=as.matrix(x2),mu=as.matrix(mu2,ncol=1),
+sim=rNormalGLM_std(n=as.integer(n),y=as.vector(y),x=as.matrix(x2),mu=as.matrix(mu2,ncol=1),
                    P=as.matrix(P2),alpha=as.vector(alpha),wt=as.vector(wt2),
                    f2=f2,Envelope=Env2,family="binomial",link="logit",as.integer(0))
 

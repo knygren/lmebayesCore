@@ -196,6 +196,111 @@ subgradients \insertCite{Chen1979,glmbayesGammaVignette}{glmbayes}.
 }
 }
 \examples{
+############################### Start of rNormal_reg examples ####################
+set.seed(333)
+
+## Dobson (1990) Page 93: Randomized Controlled Trial :
+counts <- c(18, 17, 15, 20, 10, 20, 25, 13, 12)
+outcome <- gl(3, 1, 9)
+treatment <- gl(3, 3)
+print(d.AD <- data.frame(treatment, outcome, counts))
+
+## Poisson Prior and rNormal_reg call (using Prior_Setup for x, y, and prior values)
+ps <- Prior_Setup(counts ~ outcome + treatment, family = poisson(), data = d.AD)
+
+out_pois <- rNormal_reg(
+  n = 1000,
+  y = ps$y,
+  x = ps$x,
+  prior_list = list(mu = ps$mu, Sigma = ps$Sigma),
+  family = poisson(link = "log"),
+  weights = rep(1, nrow(ps$x))
+)
+summary(out_pois)
+
+
+## Menarche Binomial Data Example
+data(menarche, package = "MASS")
+menarche$Age2 <- menarche$Age - 13
+
+## Logit Prior and rNormal_reg call (use proportion + trial weights)
+ps1 <- Prior_Setup(
+  Menarche / Total ~ Age2,
+  family = binomial(logit),
+  data = menarche,
+  weights = menarche$Total
+)
+
+out_logit <- rNormal_reg(
+  n = 1000,
+  y = ps1$y,
+  x = ps1$x,
+  prior_list = list(mu = ps1$mu, Sigma = ps1$Sigma),
+  family = binomial(logit),
+  weights = menarche$Total
+)
+summary(out_logit)
+
+## Probit Prior and rNormal_reg call
+ps2 <- Prior_Setup(
+  Menarche / Total ~ Age2,
+  family = binomial(probit),
+  data = menarche,
+  weights = menarche$Total
+)
+
+out_probit <- rNormal_reg(
+  n = 1000,
+  y = ps2$y,
+  x = ps2$x,
+  prior_list = list(mu = ps2$mu, Sigma = ps2$Sigma),
+  family = binomial(probit),
+  weights = menarche$Total
+)
+summary(out_probit)
+
+## clog-log Prior and rNormal_reg call
+ps3 <- Prior_Setup(
+  Menarche / Total ~ Age2,
+  family = binomial(cloglog),
+  data = menarche,
+  weights = menarche$Total
+)
+
+out_cloglog <- rNormal_reg(
+  n = 1000,
+  y = ps3$y,
+  x = ps3$x,
+  prior_list = list(mu = ps3$mu, Sigma = ps3$Sigma),
+  family = binomial(cloglog),
+  weights = menarche$Total
+)
+summary(out_cloglog)
+
+
+## Gamma regression
+data(carinsca)
+carinsca$Merit <- ordered(carinsca$Merit)
+carinsca$Class <- factor(carinsca$Class)
+options(contrasts = c("contr.treatment", "contr.treatment"))
+
+psg <- Prior_Setup(
+  Cost / Claims ~ Merit + Class,
+  family = Gamma(link = "log"),
+  data = carinsca,
+  weights = carinsca$Claims
+)
+
+out_gamma <- rNormal_reg(
+  n = 1000,
+  y = psg$y,
+  x = psg$x,
+  prior_list = list(mu = psg$mu, Sigma = psg$Sigma),
+  family = Gamma(link = "log"),
+  weights = carinsca$Claims
+)
+summary(out_gamma)
+############################### Start of rNormalGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
 ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
@@ -229,40 +334,7 @@ ngamma.D9=rNormalGamma_reg(n=1000,y=y,x=x,
   prior_list=prior_list)
 summary(ngamma.D9$coefficients)
 
-## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
-## Page 9: Plant Weight Data.
-ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
-trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
-group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
-weight <- c(ctl, trt)
-
-ps=Prior_Setup(weight ~ group)
-mu=ps$mu
-V=ps$Sigma
-mu[1,1]=mean(weight)
-
-Prior_Check(weight ~ group,family =gaussian(),
-           pfamily=dNormal(mu=mu,Sigma=V))
-
-## Will move this step inside the Prior_Check
-lm.D9 <- lm(weight ~ group,x=TRUE,y=TRUE)
-disp_ML=sigma(lm.D9)^2
-n_prior=2
-shape=n_prior/2
-rate= disp_ML*shape
-
-lmb.D9=lmb(weight ~ group,dNormal_Gamma(mu,V/disp_ML,shape=shape,rate=rate))
-summary(lmb.D9)
-
-n<-10000
-y<-lmb.D9$y
-x<-as.matrix(lmb.D9$x)
-prior_list=list(mu=mu,Sigma=V/disp_ML,shape=shape,rate=rate)
-ngamma.D9=rNormalGamma_reg(n=1000,y=y,x=x,
-  prior_list=prior_list)
-summary(ngamma.D9$coefficients)
-
-
+############################### Start of rindepNormalGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
 ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
@@ -360,6 +432,7 @@ offset=NULL,weights=1)
  
  
  
+############################### Start of rGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
 ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)

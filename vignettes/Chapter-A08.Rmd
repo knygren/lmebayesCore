@@ -41,7 +41,7 @@ The envelope-based pipeline follows this sequence:
 3. **Size** – Choose the number of tangency points per dimension (`EnvelopeSize`, `EnvelopeOpt`).
 4. **Build** – Construct the envelope (`EnvelopeBuild`).
 5. **Sort** – Order envelope components for sampling efficiency (`EnvelopeSort`).
-6. **Sample** – Generate candidates from the mixture envelope and accept/reject (`rnnorm_reg_std` or C++ equivalents).
+6. **Sample** – Generate candidates from the mixture envelope and accept/reject (`rNormalGLM_std` or C++ equivalents).
 
 For models with unknown dispersion, an additional **dispersion envelope** step (`EnvelopeDispersionBuild`) extends the coefficient envelope to a joint envelope over \((\beta, \phi)\). This is orchestrated by `EnvelopeOrchestrator` for the independent Normal–Gamma case.
 
@@ -101,7 +101,7 @@ The following functions are invoked in sequence during envelope-based sampling:
 
 5. **`EnvelopeSetGrid`**, **`EnvelopeSetLogP`** – Low-level helpers that compute log-densities and constants for the envelope. Typically called internally by `EnvelopeBuild` or the C++ routines.
 
-6. **`rnnorm_reg_std`** – Samples from the posterior using the constructed envelope via accept–reject. Used for non-Gaussian GLMs.
+6. **`rNormalGLM_std`** – Samples from the posterior using the constructed envelope via accept–reject. Used for non-Gaussian GLMs.
 
 7. **`EnvelopeDispersionBuild`** – For Gaussian regression with independent Normal–Gamma priors, refines the coefficient envelope to a joint envelope over \((\beta, \phi)\). Called by `EnvelopeOrchestrator`.
 
@@ -121,7 +121,7 @@ The following functions are invoked in sequence during envelope-based sampling:
 | `EnvelopeSetLogP` | Compute mixture constants | `EnvelopeBuild` (internal) | — |
 | `EnvelopeDispersionBuild` | Joint envelope for \((\beta, \phi)\) | `EnvelopeOrchestrator` | A07 |
 | `EnvelopeOrchestrator` | Coordinate build + dispersion + sort | `rindepNormalGamma_reg` C++ | A07, A08 |
-| `rnnorm_reg_std` | Sample from standardized model | `rNormal_reg` (non-Gaussian path) | A05 |
+| `rNormalGLM_std` | Sample from standardized model | `rNormal_reg` (non-Gaussian path) | A05 |
 | `EnvelopeEval` | Evaluate envelope at points | Diagnostics, validation | — |
 
 Users typically do not call these functions directly; they are invoked by `glmb()`, `lmb()`, `rglmb()`, or `rlmb()` through the simfunctions. The `Envelope` component of the returned object (when applicable) contains the constructed envelope and can be inspected for diagnostics.

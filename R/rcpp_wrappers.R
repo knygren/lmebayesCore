@@ -95,7 +95,7 @@
 # =============================================================================
 #  Tier 2: Envelope & Standardization
 #  Callers: EnvelopeSize, EnvelopeBuild, EnvelopeEval, EnvelopeDispersionBuild,
-#           EnvelopeOrchestrator, rnnorm_reg_std; EnvelopeSet_* are internal
+#           EnvelopeOrchestrator, rNormalGLM_std; EnvelopeSet_* are internal
 #  User:    Advanced users – understanding algorithm, custom envelope workflows
 # =============================================================================
 

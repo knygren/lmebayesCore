@@ -481,7 +481,7 @@ print.rGamma_reg<-function (x, digits = max(3, getOption("digits") - 3), ...)
 
 
 #' @family simfuncs 
-#' @example inst/examples/Ex_rindep_norm_gamma_reg.R
+#' @example inst/examples/Ex_rindepNormalGamma_reg.R
 #' @usage rindepNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
 #'                              family = gaussian(), Gridtype = 2,n_envopt = NULL,
 #'                               use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
@@ -676,7 +676,7 @@ rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=ga
 
 
 #' @family simfuncs 
-#' @example inst/examples/Ex_rnorm_gamma_reg.R
+#' @example inst/examples/Ex_rNormalGamma_reg.R
 #' @usage rNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 #'                   Gridtype = 2,n_envopt = NULL, 
 #'                   use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,progbar=FALSE)
@@ -818,7 +818,7 @@ rNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussia
 
 
 #' @family simfuncs 
-#' @example inst/examples/Ex_rnorm_gamma_reg.R
+#' @example inst/examples/Ex_rNormal_reg.R
 #' @usage rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1,
 #'             family = gaussian(), Gridtype = 2, n_envopt = NULL,
 #'             use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,progbar=FALSE)
@@ -1034,6 +1034,16 @@ rNormal_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
   
   
   colnames(outlist$coefficients)<-colnames(x)
+
+  ## Build pfamily object so summary.rglmb etc. can detect prior type
+  pl_disp <- if (!is.null(dispersion)) dispersion else outlist$dispersion
+  pfamily_obj <- list(
+    pfamily = "dNormal",
+    prior_list = list(mu = as.numeric(mu), Sigma = Sigma, dispersion = pl_disp)
+  )
+  attr(pfamily_obj, "Prior Type") <- "dNormal"
+  class(pfamily_obj) <- "pfamily"
+  outlist$pfamily <- pfamily_obj
   
   # include family in final list
   
@@ -1072,7 +1082,7 @@ logdiffexp <- function(a, b) {
 
 
 
-# .rnnorm_reg_std_cpp -->rNormalGLM_std_cpp
+# .rNormalGLM_std_cpp --> rNormalGLM_std
 # .rnorm_reg_cpp --> rNormalReg_cpp
 # .rindep_norm_gamma_reg_cpp --> rIndepNormalGammaReg_cpp
 # .rindep_norm_gamma_reg_std_cpp -->rIndepNormalGammaReg_std_cpp
