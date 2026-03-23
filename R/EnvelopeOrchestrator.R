@@ -84,34 +84,7 @@
 #' * \link[glmbayes]{EnvelopeSort} – envelope sorting and reindexing
 #' * \code{rIndepNormalGammaReg()} – full Normal–Gamma *.cpp simulation routine 
 #'
-#' @examples
-#' \dontrun{
-#' env_out <- EnvelopeOrchestrator(
-#'   bstar2 = bstar2,
-#'   A = A,
-#'   y = y,
-#'   x2 = x2,
-#'   mu2 = mu2,
-#'   P2 = P2,
-#'   alpha = alpha,
-#'   wt = wt,
-#'   n = 200,
-#'   Gridtype = 2,
-#'   n_envopt = NULL,
-#'   shape = 2,
-#'   rate = 1,
-#'   RSS_Post2 = RSS_Post2,
-#'   RSS_ML = RSS_ML,
-#'   max_disp_perc = 0.99,
-#'   disp_lower = NULL,
-#'   disp_upper = NULL,
-#'   use_parallel = TRUE,
-#'   use_opencl = FALSE,
-#'   verbose = TRUE
-#' )
-#'
-#' Env3 <- env_out$Env
-#' }
+#' @example inst/examples/Ex_EnvelopeOrchestrator.R
 #'
 #' @export
 
