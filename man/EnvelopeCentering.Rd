@@ -36,8 +36,7 @@ EnvelopeCentering(
 
 \item{Gridtype}{Integer. Grid construction method (default \code{2}).}
 
-\item{verbose}{Logical. Reserved for API compatibility; diagnostic print
-block in C++ is commented out (restore with \code{RSS_helper} comparison).}
+\item{verbose}{Logical. Reserved for API compatibility; currently unused in C++.}
 }
 \value{
 A list with components:

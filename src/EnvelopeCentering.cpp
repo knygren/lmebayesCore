@@ -6,75 +6,6 @@
 
 using namespace Rcpp;
 
-namespace {
-
-// Legacy reference implementation (lm.fit + full recompute each iteration).
-// Kept commented for audit / recovery; live path uses precomputed quantities below.
-/*
-/// Closed-form E[ sum_i w_i (y_i - x_i' beta - offset_i)^2 ] under the same
-/// Gaussian posterior as rNormalReg (weighted Normal–Normal conjugate update).
-double RSS_helper(
-    NumericVector y,
-    NumericMatrix x,
-    NumericVector mu,
-    NumericMatrix P,
-    NumericVector offset,
-    NumericVector wt,
-    double dispersion
-) {
-  Function asMat("as.matrix");
-  const int l1 = x.ncol();
-  const int l2 = x.nrow();
-
-  NumericMatrix mu2a = asMat(mu);
-  NumericMatrix x2b = clone(x);
-  arma::mat x2bb(x2b.begin(), l2, l1, false);
-  arma::mat P2(P.begin(), P.nrow(), P.ncol(), false);
-
-  NumericVector wt2 = wt / dispersion;
-  NumericVector y1 = y - offset;
-  arma::vec y2b(y1.begin(), l2, false);
-  NumericMatrix W1(l2 + l1, l1);
-  arma::mat W(W1.begin(), W1.nrow(), W1.ncol(), false);
-  NumericVector z1(l2 + l1);
-  arma::vec z(z1.begin(), l2 + l1, false);
-
-  int i;
-  for (i = 0; i < l2; i++) {
-    x2b(i, _) = x2b(i, _) * std::sqrt(wt2[i]);
-    y1(i) = y1(i) * std::sqrt(wt2[i]);
-  }
-
-  arma::mat RA = arma::chol(P2);
-  W.rows(0, l2 - 1) = x2bb;
-  W.rows(l2, l2 + l1 - 1) = RA;
-  arma::mat mu2(mu2a.begin(), mu2a.nrow(), mu2a.ncol(), false);
-  z.rows(0, l2 - 1) = y2b;
-  z.rows(l2, l1 + l2 - 1) = RA * mu2;
-
-  Function lm_fit_fun("lm.fit");
-  List fit = lm_fit_fun(_["x"] = W, _["y"] = z);
-  NumericMatrix b2a = asMat(fit[0]);
-
-  arma::mat IR = arma::inv(arma::trimatu(arma::chol(arma::trans(W) * W)));
-  arma::mat Sigma = IR * arma::trans(IR);
-  arma::vec b2(b2a.begin(), static_cast<arma::uword>(b2a.nrow() * b2a.ncol()));
-
-  arma::mat X = as<arma::mat>(x);
-  arma::vec Y = as<arma::vec>(y);
-  arma::vec off = as<arma::vec>(offset);
-  arma::vec wv = as<arma::vec>(wt);
-
-  const arma::vec r = Y - X * b2 - off;
-  const double rss_at_mean = arma::dot(wv, r % r);
-  const arma::mat XtWX = arma::trans(X) * (arma::diagmat(wv) * X);
-  const double trace_term = arma::trace(XtWX * Sigma);
-  return rss_at_mean + trace_term;
-}
-*/
-
-}  // namespace
-
 namespace glmbayes {
 
 namespace env {
@@ -147,10 +78,6 @@ List EnvelopeCentering(
   double RSS_post_expected = NA_REAL;
 
   for (int j = 0; j < n_rss_iter; ++j) {
-    // const double RSS_closed = RSS_helper(
-    //     y, x, mu, P, offset, wt, dispersion2
-    // );
-
     const double s = 1.0 / std::sqrt(dispersion2);
     W.rows(0, l2 - 1) = s * Xw;
     W.rows(l2, l2 + l1 - 1) = RA;
@@ -166,13 +93,6 @@ List EnvelopeCentering(
     const double rss_at_mean_fast = arma::dot(wv, r_fast % r_fast);
     const double trace_term_fast = arma::trace(XtWX * Sigma);
     const double RSS_precomputed = rss_at_mean_fast + trace_term_fast;
-
-    // if (verbose) {
-    //   Rcpp::Rcout << "[EnvelopeCentering] iter " << j
-    //               << "  RSS (helper)=" << RSS_closed
-    //               << "  RSS (precomputed)=" << RSS_precomputed
-    //               << "  diff=" << (RSS_closed - RSS_precomputed) << "\n";
-    // }
 
     RSS_post_expected = RSS_precomputed;
 
