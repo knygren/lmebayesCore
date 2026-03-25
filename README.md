@@ -27,7 +27,7 @@ install.packages("glmbayes",
 
 To install a version suitable for large models with GPU acceleration, follow the instructions from 
 
-**Chapter 12 — Large Models: GPU Acceleration using OpenCL**
+**Chapter 12 - Large Models: GPU Acceleration using OpenCL**
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html
 
 ## Minimal Working Example
@@ -152,10 +152,10 @@ Overview of the package, its design philosophy, and the basic workflow for
 fitting Bayesian linear and generalized linear models. It introduces the core functions, model
 objects, and the structure of the modeling interface.
 
-- **Chapter 00 — Introduction**  
+- **Chapter 00 - Introduction**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-00.html
 
-- **Chapter 01 — Getting Started with glmbayes**  
+- **Chapter 01 - Getting Started with glmbayes**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-01.html
 
 ### Part 2: Estimating Bayesian Linear Models
@@ -164,13 +164,13 @@ model fitting, prior construction, posterior summaries, predictions, and devianc
 This part establishes the foundation for understanding the Bayesian GLM framework used throughout
 the package.
 
-- **Chapter 02 — Estimating Bayesian Linear Models**  
+- **Chapter 02 - Estimating Bayesian Linear Models**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-02.html
 
-- **Chapter 03 — Tailoring Priors - Leveraging the Prior_Setup Function**  
+- **Chapter 03 - Tailoring Priors - Leveraging the Prior_Setup Function**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-03.html
 
-- **Chapter 04 — Reviewing Model Predictions, Deviance Residuals and Model Statistics**  
+- **Chapter 04 - Reviewing Model Predictions, Deviance Residuals and Model Statistics**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-04.html
 
 ### Part 3: Generalized Linear Models
@@ -178,19 +178,19 @@ This part presents Bayesian GLMs across the major likelihood families, including
 quasi-binomial, Poisson, quasi-Poisson, and Gamma models. It covers model specification,
 link functions, log-concavity, diagnostics, and interpretation of posterior results.
 
-- **Chapter 05 — Foundations of GLMs - Families, Links, and Log-Concave Likelihoods**  
+- **Chapter 05 - Foundations of GLMs - Families, Links, and Log-Concave Likelihoods**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-05.html
 
-- **Chapter 06 — Estimating Bayesian Generalized Linear Models**  
+- **Chapter 06 - Estimating Bayesian Generalized Linear Models**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-06.html
 
-- **Chapter 07 — Models for the Binomial Family**  
+- **Chapter 07 - Models for the Binomial Family**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-07.html
 
-- **Chapter 08 — Models for the Poisson Family**  
+- **Chapter 08 - Models for the Poisson Family**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-08.html
 
-- **Chapter 09 — Models for the Gamma Family**  
+- **Chapter 09 - Models for the Gamma Family**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-09.html
 
 ### Part 4: Advanced Topics
@@ -199,19 +199,19 @@ informative priors, two-block Gibbs sampling, hierarchical linear and generalize
 models with unknown dispersion parameters, and large-scale model fitting using GPU acceleration
 using OpenCL.
 
-- **Chapter 10 — Informative Priors: Centering and priors with differential prior weights**  
+- **Chapter 10 - Informative Priors: Centering and priors with differential prior weights**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-10.html
 
-- **Chapter 11 — Estimating Models with unknown dispersion parameters**  
+- **Chapter 11 - Estimating Models with unknown dispersion parameters**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-11.html
 
-- **Chapter 12 — Large Models: GPU Acceleration using OpenCL**  
+- **Chapter 12 - Large Models: GPU Acceleration using OpenCL**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html
 
-- **Chapter 13 — Hierarchical Linear Models**  
+- **Chapter 13 - Hierarchical Linear Models**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-13.html
 
-- **Chapter 14 — Hierarchical Generalized Linear Models**  
+- **Chapter 14 - Hierarchical Generalized Linear Models**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-14.html
 
 ### Part 5: Simulation Methods and Technical Implementation
@@ -220,35 +220,38 @@ estimation procedures, likelihood subgradient densities, envelope construction, 
 sampling, and technical reports on sampler design including implementation aspects for GPU acceleration using
 OpenCL.
 
-- **Chapter A01 — A detailed overview of the glmbayes package**  
+- **Chapter A01 - A detailed overview of the glmbayes package**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A01.html
 
-- **Chapter A02 — Overview of Estimation Procedures**  
+- **Chapter A02 - Overview of Estimation Procedures**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A02.html
 
-- **Chapter A03 — Methods Available in glmbayes**  
+- **Chapter A03 - Methods Available in glmbayes**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A03.html
 
-- **Chapter A04 — Directional Tail Diagnostics for Prior-Posterior Disagreement**  
+- **Chapter A04 - Directional Tail Diagnostics for Prior-Posterior Disagreement**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A04.html
 
-- **Chapter A05 — Simulation Methods - Likelihood Subgradient Densities**  
+- **Chapter A05 - Simulation Methods - Likelihood Subgradient Densities**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A05.html
 
-- **Chapter A06 — Accept-Reject Sampling for Dispersion in Gamma Regression**  
+- **Chapter A06 - Accept-Reject Sampling for Dispersion in Gamma Regression**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A06.html
 
-- **Chapter A07 — Accept-Reject Sampling for gaussian Regression models with independent normal-gamma priors**  
+- **Chapter A07 - Accept-Reject Sampling for gaussian Regression models with independent normal-gamma priors**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A07.html
 
-- **Chapter A08 — Overview of Envelope Related Functions**  
+- **Chapter A08 - Overview of Envelope Related Functions**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A08.html
 
-- **Chapter A09 — Parallel Sampling Implementation using RcppParallel**  
+- **Chapter A09 - Parallel Sampling Implementation using RcppParallel**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A09.html
 
-- **Chapter A10 — Accelerated EnvelopeBuild Implementation using OpenCL**  
+- **Chapter A10 - Accelerated EnvelopeBuild Implementation using OpenCL**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A10.html
+
+- **Chapter A11 - Implementation Companion for Independent Normal-Gamma**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A11.html
 
 
 Together, these vignettes form a comprehensive reference that supports users at all levels, 

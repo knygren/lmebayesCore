@@ -3,8 +3,8 @@
 #' @description
 #' A detailed overview of the low-level simulation pipeline used by
 #' \code{rglmb()} and related functions. These routines implement the
-#' optimization → standardization → envelope sizing → envelope construction →
-#' sampling → back-transformation workflow described in Nygren & Nygren (2006).
+#' optimization -> standardization -> envelope sizing -> envelope construction ->
+#' sampling -> back-transformation workflow described in Nygren & Nygren (2006).
 #'
 #' @details
 #' (summaries of each step)

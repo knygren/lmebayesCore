@@ -1,10 +1,10 @@
 ---
-title: "Chapter A11: Implementation Companion for Independent Normal–Gamma"
+title: "Chapter A11: Implementation Companion for Independent Normal-Gamma"
 author: "Kjell Nygren"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chapter A11: Implementation Companion for Independent Normal–Gamma}
+  %\VignetteIndexEntry{Chapter A11: Implementation Companion for Independent Normal-Gamma}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 bibliography: REFERENCES.bib
@@ -21,25 +21,25 @@ knitr::opts_chunk$set(
 library(glmbayes)
 ```
 
-# Chapter A11: Implementation Companion for Independent Normal–Gamma
+# Chapter A11: Implementation Companion for Independent Normal-Gamma
 
 ## 1. Introduction
 
-This vignette documents the implementation of the **independent Normal–Gamma extension** for Gaussian regression, focusing on the internal workflow of:
+This vignette documents the implementation of the **independent Normal-Gamma extension** for Gaussian regression, focusing on the internal workflow of:
 
-1. `rIndepNormalGammaReg` (non-`_std`) — the top-level director of traffic for the independent Normal–Gamma sampling path; and
-2. `EnvelopeOrchestrator` — which composes the coefficient-envelope construction (`EnvelopeBuild`) with the dispersion-aware refinement (`EnvelopeDispersionBuild`).
+1. `rIndepNormalGammaReg` (non-`_std`) - the top-level director of traffic for the independent Normal-Gamma sampling path; and
+2. `EnvelopeOrchestrator` - which composes the coefficient-envelope construction (`EnvelopeBuild`) with the dispersion-aware refinement (`EnvelopeDispersionBuild`).
 
-The discussion then deep-dives into the **accept–reject sampler** used after the envelope is constructed:
+The discussion then deep-dives into the **accept-reject sampler** used after the envelope is constructed:
 `rIndepNormalGammaReg_std` (serial) / `rIndepNormalGammaReg_std_parallel` (parallel).
 
-Theory justification and the underlying accept–reject / envelope construction are described in:
-- Chapter A07 (the independent Normal–Gamma extension theory), and
+Theory justification and the underlying accept-reject / envelope construction are described in:
+- Chapter A07 (the independent Normal-Gamma extension theory), and
 - Nygren & Nygren (2006) for the base likelihood subgradient approach.
 
 For the fixed-dispersion coefficient-envelope implementation details, see Chapter A05.
 
-## 2. Core Function #1: `rIndepNormalGammaReg` (non-`_std`) — Internal Workflow
+## 2. Core Function #1: `rIndepNormalGammaReg` (non-`_std`) - Internal Workflow
 
 The entry point in C++ is `src/rIndepNormalGammaReg.cpp`, function `rIndepNormalGammaReg(...)`.
 At a high level, it performs the following stages:
@@ -56,7 +56,7 @@ At a high level, it performs the following stages:
    - coefficient envelope via `EnvelopeBuild`,
    - dispersion-aware refinement via `EnvelopeDispersionBuild`, and
    - sorting of envelope components via `EnvelopeSort`.
-5. **Sampling** by delegating to the standardized accept–reject sampler:
+5. **Sampling** by delegating to the standardized accept-reject sampler:
    - `rIndepNormalGammaReg_std` (serial) or
    - `rIndepNormalGammaReg_std_parallel` (parallel),
    depending on `use_parallel` and `n`.
@@ -81,7 +81,7 @@ The key output for the dispersion-aware refinement is `RSS_Post2`, which drives 
 
 ### 2.2 Stage B: Posterior mode (`bstar`) and Hessian (`A1`)
 
-After centering, `rIndepNormalGammaReg` performs posterior mode optimization using R’s `optim()` with:
+After centering, `rIndepNormalGammaReg` performs posterior mode optimization using R's `optim()` with:
 - BFGS,
 - supplied functions `f2` and `f3` (negative log-posterior and its gradient),
 - `hessian = TRUE` to obtain a Hessian estimate `A1`.
@@ -100,7 +100,7 @@ In implementation terms, the code extracts:
 
 For the full theoretical and implementation details of standardization, see Chapter A05.
 
-### 2.4 Stage D: `EnvelopeOrchestrator()` — envelope + dispersion refinement
+### 2.4 Stage D: `EnvelopeOrchestrator()` - envelope + dispersion refinement
 
 `rIndepNormalGammaReg` delegates the construction of the coefficient envelope and the dispersion-aware extension to `EnvelopeOrchestrator`.
 
@@ -115,7 +115,7 @@ It passes:
 The orchestrator returns:
 - `Env` (sorted envelope object including the PLSD component),
 - `gamma_list` (tilt parameters and dispersion bounds),
-- `UB_list` (the various constants used by the sampler accept–reject test),
+- `UB_list` (the various constants used by the sampler accept-reject test),
 - and additional diagnostics including `low` / `upp`.
 
 ### 2.5 Stage E: Delegation to `rIndepNormalGammaReg_std` / `_parallel`
@@ -125,7 +125,7 @@ After envelope construction, the code selects:
 - parallel sampler `rIndepNormalGammaReg_std_parallel(...)`,
 based on `use_parallel` and `n`.
 
-This is where the accept–reject loop actually executes and where `iters_out` is recorded.
+This is where the accept-reject loop actually executes and where `iters_out` is recorded.
 
 ### 2.6 Stage F: Back-transform and return values
 
@@ -137,12 +137,12 @@ The returned structure mirrors the expected R-level contract:
 - samples (coefficients and dispersion),
 - plus runtime / iteration diagnostics (`iters_out`, `weight_out`).
 
-## 3. Core Function #2: `EnvelopeOrchestrator` — Composition of Envelope Steps
+## 3. Core Function #2: `EnvelopeOrchestrator` - Composition of Envelope Steps
 
 `src/EnvelopeOrchestrator.cpp` provides a single orchestrator that composes:
 
-1. `EnvelopeBuild()` — fixed-dispersion coefficient envelope, and
-2. `EnvelopeDispersionBuild()` — dispersion-aware refinement for the independent Normal–Gamma extension,
+1. `EnvelopeBuild()` - fixed-dispersion coefficient envelope, and
+2. `EnvelopeDispersionBuild()` - dispersion-aware refinement for the independent Normal-Gamma extension,
 followed by:
 3. `EnvelopeSort()` on the R side.
 
@@ -171,7 +171,7 @@ The orchestrator calls `EnvelopeBuild(...)` in C++ with:
 
 Implementation detail worth noting: the orchestrator uses internal policy around grid size and sorting to avoid redundant work when followed by the dispersion-aware build.
 
-### 3.3 Step 2 (Deep Dive): `EnvelopeDispersionBuild()` — dispersion-aware extension
+### 3.3 Step 2 (Deep Dive): `EnvelopeDispersionBuild()` - dispersion-aware extension
 
 This subsection focuses on `EnvelopeDispersionBuild()` as the **extension-specific** computational workhorse for dispersion.
 
@@ -207,7 +207,7 @@ This anchor is used to extrapolate dispersion-dependent face constants to both e
 
 #### 3.3.4 RSS/UB minimization and construction of `UB_list`
 
-The dispersion-aware machinery constructs the constants required by the accept–reject sampler:
+The dispersion-aware machinery constructs the constants required by the accept-reject sampler:
 - global residual-minimum quantity `RSS_Min`,
 - per-face `UB2min`,
 - along with the various log/linear constants and diagnostic maxima used in the acceptance bound.
@@ -228,7 +228,7 @@ and a collection of diagnostics fields.
 
 The main return object is a list with:
 - `Env_out` (the updated envelope with dispersion-aware PLSD / mixture structure),
-- `UB_list` (accept–reject constants and UB diagnostics),
+- `UB_list` (accept-reject constants and UB diagnostics),
 - `gamma_list` (Gamma proposal tilt params),
 - and additional diagnostics (e.g., anchor value, computed maxima, UB minima).
 
@@ -238,18 +238,18 @@ This entire structure is consumed by the sampler in `rIndepNormalGammaReg_std`.
 
 `EnvelopeOrchestrator` then calls the R function `EnvelopeSort(...)` to reorder components based on probability mass in a way that improves simulation runtime.
 
-The sorted envelope and associated UB constants are carried forward into the accept–reject simulation.
+The sorted envelope and associated UB constants are carried forward into the accept-reject simulation.
 
-## 4. Simulation Execution: `rIndepNormalGammaReg_std` — Serial Accept–Reject Loop
+## 4. Simulation Execution: `rIndepNormalGammaReg_std` - Serial Accept-Reject Loop
 
-After `EnvelopeOrchestrator()` returns the sorted envelope together with the dispersion proposal parameters and the accept–reject constants, `rIndepNormalGammaReg_std` generates iid posterior draws using an envelope-based rejection sampler.
+After `EnvelopeOrchestrator()` returns the sorted envelope together with the dispersion proposal parameters and the accept-reject constants, `rIndepNormalGammaReg_std` generates iid posterior draws using an envelope-based rejection sampler.
 
 Conceptually, each accepted draw consists of two pieces:
 
 1. a regression coefficient vector `beta` proposed from an envelope-restricted multivariate normal (face-wise), and
 2. a dispersion/precision draw `dispersion` (via a truncated inverse-Gamma proposal).
 
-The accept–reject decision is then made by checking that a bound constructed from `UB_list` and envelope-derived tangency quantities dominates the target density.
+The accept-reject decision is then made by checking that a bound constructed from `UB_list` and envelope-derived tangency quantities dominates the target density.
 
 ### 4.1 Precomputation (`Inv_f3_precompute_disp`)
 
@@ -259,7 +259,7 @@ Before the per-draw loop, the sampler builds a cache once:
 cache = Inv_f3_precompute_disp(cbars, y, x, mu, P, alpha, wt)
 ```
 
-This cache is reused inside the accept–reject loop so that repeated evaluations at dispersion-dependent tangency points avoid rebuilding expensive matrices.
+This cache is reused inside the accept-reject loop so that repeated evaluations at dispersion-dependent tangency points avoid rebuilding expensive matrices.
 
 ### 4.2 Proposal generation (per accepted draw)
 
@@ -281,7 +281,7 @@ For each draw index `i`, the sampler repeats a `while` loop until the proposal i
      - the candidate `beta` (stored as `LL_Test`).
      The likelihood evaluations use weights adjusted as `wt2 = wt / dispersion`.
 
-### 4.3 Accept–reject test statistic
+### 4.3 Accept-reject test statistic
 
 With the proposal `(beta, dispersion)` and the chosen face `J`, the sampler computes the acceptance bound via four non-negative surplus terms:
 
@@ -321,7 +321,7 @@ The fields below are the ones from the envelope/UB structures that directly driv
 - `PLSD`: selects the face index `J`;
 - `loglt` / `logrt` and `cbars`: define the restricted normal proposal for `beta` (and the face-centering);
 - `shape3`, `rate2`, `disp_lower`, `disp_upper`: define the dispersion proposal;
-- `RSS_Min`, `UB2min`, `lg_prob_factor`, `lmc1`, `lmc2`, and related precomputed maxima: define `UB1`–`UB3B` in the acceptance test.
+- `RSS_Min`, `UB2min`, `lg_prob_factor`, `lmc1`, `lmc2`, and related precomputed maxima: define `UB1`-`UB3B` in the acceptance test.
 
 - `beta_out[i, ]` stores the accepted coefficients,
 - `disp_out[i]` stores the accepted dispersion draw,
@@ -329,7 +329,7 @@ The fields below are the ones from the envelope/UB structures that directly driv
 
 ## 5. Dataflow: From `EnvelopeOrchestrator` Outputs to the Sampler
 
-This section is a “developer dataflow map” connecting `EnvelopeOrchestrator` / `EnvelopeDispersionBuild` outputs to the serial accept–reject sampler.
+This section is a "developer dataflow map" connecting `EnvelopeOrchestrator` / `EnvelopeDispersionBuild` outputs to the serial accept-reject sampler.
 
 ### 5.1 What the sampler reads from `Env`
 
@@ -360,26 +360,26 @@ This is the key interface that ensures the dispersion-aware envelope dominates t
 ### 6.1 Tuning parameters
 
 Key arguments affecting the internal workflow:
-- `n` (number of iid draws) — affects how often sorting / envelope sizing is amortized,
-- `Gridtype` and `n_envopt` — controls envelope grid complexity,
-- `use_parallel` and `use_opencl` — controls whether the sampling and/or envelope evaluation is parallelized / accelerated,
-- `max_disp_perc` and optional `disp_lower` / `disp_upper` — controls truncation interval tightness.
+- `n` (number of iid draws) - affects how often sorting / envelope sizing is amortized,
+- `Gridtype` and `n_envopt` - controls envelope grid complexity,
+- `use_parallel` and `use_opencl` - controls whether the sampling and/or envelope evaluation is parallelized / accelerated,
+- `max_disp_perc` and optional `disp_lower` / `disp_upper` - controls truncation interval tightness.
 
 ### 6.2 Interpreting `iters_out`
 
-The vector `iters_out` captures the number of accept–reject attempts per accepted draw.
+The vector `iters_out` captures the number of accept-reject attempts per accepted draw.
 Large values indicate a loose envelope (or expensive bounds), while values near 1 suggest a tight envelope and efficient acceptance.
 
 ### 6.3 Minimal examples
 
 For runnable examples that exercise the envelope construction and sampler path, see:
-- Chapter A07 (independent Normal–Gamma extension theory),
+- Chapter A07 (independent Normal-Gamma extension theory),
 - Chapter A05 (fixed-dispersion envelope build),
 - and the `inst/examples/` directory for end-to-end usage patterns.
 
 ## 7. Cross-References
 
 - Chapter A05 for coefficient-envelope construction (`EnvelopeBuild`) and standardization (`glmb_Standardize_Model`).
-- Chapter A07 for the independent Normal–Gamma extension theory and the accept–reject decomposition.
-- Chapter A06 for dispersion accept–reject foundations in other Gaussian families (as relevant).
+- Chapter A07 for the independent Normal-Gamma extension theory and the accept-reject decomposition.
+- Chapter A06 for dispersion accept-reject foundations in other Gaussian families (as relevant).
 
