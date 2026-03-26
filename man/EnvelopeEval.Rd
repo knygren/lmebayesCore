@@ -176,7 +176,7 @@ gradients at every candidate draw - it simply reuses the stored values
 This design ensures that the envelope is tangent to the log-likelihood at
 each \eqn{\bar{\theta}_j}, lies above it elsewhere, and that the
 accept-reject procedure can run efficiently while still producing samples
-from the true posterior \eqn{\pi(\theta \mid y)}.#'
+from the true posterior \eqn{\pi(\theta \mid y)}.
 }
 \examples{
 ############################### Start of EnvelopeEval example ####################

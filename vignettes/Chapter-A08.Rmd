@@ -143,106 +143,251 @@ If \(f(y\mid\bar{\theta}) = g(\bar{\theta})\), then \(h_{\bar{\theta}}(\bar{\the
 
 Operationally, \(a(\bar{\theta})\) governs acceptance efficiency: the acceptance probability is \(1/a(\bar{\theta})\).
 
-### 2.4 Log-scale form of \(h_{\bar{\theta}}\)
+### 2.4 Models in standard form
 
-When \(g(\bar{\theta}) = f(y\mid\bar{\theta})\), the envelope function in Theorem 1 simplifies to
-\[
-h_{\bar{\theta}}(\theta)
-=
-\exp\!\big(c(\bar{\theta})^T(\theta-\bar{\theta})\big)\,
-\frac{f(y\mid\theta)}{f(y\mid\bar{\theta})},
-\]
-hence
-\[
-\log h_{\bar{\theta}}(\theta)
-=
-c(\bar{\theta})^T(\theta-\bar{\theta})
-+\log f(y\mid\theta)-\log f(y\mid\bar{\theta}).
-\]
-At the tangency point, \(h_{\bar{\theta}}(\bar{\theta})=1\).
+Following Nygren & Nygren (2006, Section 3.3), the envelope construction assumes the model has been reparameterized into *standard form*. In this form:
 
-### 2.5 Subgradient inequality and \(h_{\bar{\theta}}\le 1\) (log-concave likelihood)
+- The prior precision matrix is the identity.
+- The posterior precision matrix, evaluated at the posterior mode \(\theta^\star\), is diagonal.
 
-When \(\log f(y\mid\cdot)\) is concave and \(c(\bar{\theta})\) is a subgradient at \(\bar{\theta}\),
-\[
-\log f(y\mid\theta)
-\le
-\log f(y\mid\bar{\theta})
-+
-c(\bar{\theta})^T(\theta-\bar{\theta}).
-\]
-Thus \(\log h_{\bar{\theta}}(\theta)\le 0\) and \(0\le h_{\bar{\theta}}(\theta)\le 1\): the tangent majorization of the log-likelihood is exactly what makes \(h\) a valid envelope factor.
+Example 2 in the paper illustrates the special case of a zero-mean normal prior with identity covariance. In this setting:
 
-### 2.6 Claim 2, Remark 5, and restricted subgradient densities
+- The generalized likelihood-subgradient density at a tangency point \(\bar{\theta}\) has mean vector \(-c(\bar{\theta})\) and covariance \(I\).
+- The normalizing integrals over restricted sets factorize across dimensions. Specifically, for a rectangular set
+  \(A = \{\theta : l_L \le \theta \le l_U\}\), we have
 
-**Claim 2.** Let \(A_1,\ldots,A_k\) partition \(\Theta\). Suppose that on each \(A_i\) there exist \(\tilde{a}_i>0\), densities \(\tilde{q}_i\), and functions \(\tilde{h}_i\) such that:
+  \[
+  \int_{\theta \in A} q^{\bar{\theta}}(\theta)\, d\theta
+  \;=\;
+  \prod_{r=1}^{p}
+  \Big[
+    \Phi\!\big(l_{U,r} + c_{r}(\bar{\theta})\big)
+    - \Phi\!\big(l_{L,r} + c_{r}(\bar{\theta})\big)
+  \Big],
+  \]
 
-- **(a)** if \(\theta\in A_i\), then \(\tilde{a}_i\,\tilde{h}_i(\theta)\,\tilde{q}_i(\theta)=\pi(\theta\mid y)\);
-- **(b)** if \(\theta\in A_i\), then \(0\le \tilde{h}_i(\theta)\le 1\).
+  and the truncated expectation in coordinate \(r\) is
 
-Define mixture weights \(\tilde{p}_i=\tilde{a}_i/\sum_j \tilde{a}_j\), \(\tilde{a}=\sum_j\tilde{a}_j\), and \(\tilde{q}(\theta)=\sum_i \tilde{p}_i\,\tilde{q}_i(\theta)\), with \(\tilde{h}(\theta)=\tilde{h}_i(\theta)\) on \(A_i\). Then
-\[
-\tilde{a}\,\tilde{h}(\theta)\,\tilde{q}(\theta) = \pi(\theta\mid y),
-\qquad
-0\le \tilde{h}(\theta)\le 1.
-\]
-Remark 5 shows how to obtain restricted densities \(\tilde{q}_i\) satisfying these conditions from unrestricted generalized likelihood-subgradient densities.
+  \[
+  \mathbb{E}_{\tilde{q}^{\bar{\theta}}}[\theta_r \mid \theta \in A]
+  =
+  -\,c_{r}(\bar{\theta})
+  +
+  \frac{
+    \phi\!\big(l_{L,r} + c_{r}(\bar{\theta})\big)
+    - \phi\!\big(l_{U,r} + c_{r}(\bar{\theta})\big)
+  }{
+    \Phi\!\big(l_{U,r} + c_{r}(\bar{\theta})\big)
+    - \Phi\!\big(l_{L,r} + c_{r}(\bar{\theta})\big)
+  }.
+  \]
 
-**Remark 5.** Given \(q_{\bar{\theta}}\) and \(a(\bar{\theta})\) from Theorem 1, restrict to \(A\subset\Theta\) by
+These closed-form expressions explain why `EnvelopeBuild` evaluates `logU`, `loglt`, and `logrt` using univariate normal CDFs and densities, rather than numerical integration. The gradients (`cbars`) directly determine the shifted means of the restricted densities, and the separability across dimensions makes the grid-based construction computationally tractable.
+
+Models with Zellner's \(g\)-priors are essentially in standard form, since in the whitened design space both the prior and likelihood precisions are diagonal. Each dimension still needs to be scaled so that the prior precision is exactly the identity matrix. For other models, standard form can be achieved by reparameterization (e.g. via Cholesky of the posterior precision) or by shifting part of the prior quadratic form into the likelihood.
+
+### 2.5 Construction of restricted subgradient densities
+
+Following Remark 5 in Nygren & Nygren (2006), each unrestricted likelihood-subgradient density \(q_{\bar{\theta}}(\cdot)\) can be restricted to a subset \(A \subset \Theta\). The restricted density is defined as
+
 \[
 \tilde{q}_{\bar{\theta}}(\theta)
 =
-\frac{q_{\bar{\theta}}(\theta)\,\mathbf{1}_{\{\theta\in A\}}}
-{\int_{\theta'\in A} q_{\bar{\theta}}(\theta')\,d\theta'},
-\qquad
-\tilde{a}(\bar{\theta}) = a(\bar{\theta})\int_{\theta\in A} q_{\bar{\theta}}(\theta)\,d\theta.
+\frac{ q_{\bar{\theta}}(\theta)\,\mathbf{1}_{\{\theta \in A\}} }
+       { \int_{\theta' \in A} q_{\bar{\theta}}(\theta')\, d\theta' },
 \]
-Then for all \(\theta\in A\),
-\[
-\tilde{a}(\bar{\theta})\,h_{\bar{\theta}}(\theta)\,\tilde{q}_{\bar{\theta}}(\theta) = \pi(\theta\mid y).
-\]
+and the corresponding constant is
 
-### 2.7 Remark 6: mixture constants and weights (explicit forms)
-
-When the restricted pieces are those built from Remark 5, Remark 6 gives
 \[
-\tilde{a}
+\tilde{a}(\theta_{\text{bar}})
 =
-\frac{1}{f(y)}
-\sum_{j=1}^{k}
-g(\bar{\theta}_j)\,
-\mathrm{MGF}\!\big(-c(\bar{\theta}_j)\big)\,
-\left(\int_{\theta\in A_j} q_{\bar{\theta}_j}(\theta)\,d\theta\right)
-\exp\!\big(-c(\bar{\theta}_j)^T\bar{\theta}_j\big)
+a(\theta_{\text{bar}})\,
+\int_{\theta \in A} q_{\theta_{\text{bar}}}(\theta)\, d\theta,
 \]
-and
+where \(a(\theta_{\text{bar}})\) is the global normalizing constant from Theorem 1. For every \(\theta \in A\), the identity
+
+\[
+\tilde{a}(\theta_{\text{bar}})\, h_{\theta_{\text{bar}}}(\theta)\, \tilde{q}_{\theta_{\text{bar}}}(\theta)
+= \pi(\theta \mid y)
+\]
+holds, ensuring that the restricted densities reproduce the posterior when combined.
+
+The constant \(a(\bar{\theta})\) is defined in Theorem 1 as
+
+\[
+a(\bar{\theta}) =
+\frac{g(\bar{\theta})\,\mathrm{MGF}\!\big(-c(\bar{\theta})\big)}
+       {f(y)\,\exp\!\big(-c(\bar{\theta})^{T}\bar{\theta}\big)},
+\]
+where \(g(\bar{\theta})\) is the reference density at the tangency point, \(c(\bar{\theta})\) is the subgradient of the log-likelihood, and \(\mathrm{MGF}(-c(\bar{\theta}))\) is the moment-generating function of the prior evaluated at \(-c(\bar{\theta})\).
+
+The envelope function \(h_{\bar{\theta}}(\theta)\) is defined as
+
+\[
+h_{\bar{\theta}}(\theta) =
+\frac{\exp\!\big(-c(\bar{\theta})^{T}\bar{\theta}\big)\,f(y\mid\theta)}
+     {\exp\!\big(-c(\bar{\theta})^{T}\theta\big)\,g(\bar{\theta})},
+\]
+and satisfies
+
+\[
+0 \le h_{\bar{\theta}}(\theta) \le 1
+\quad \forall\,\theta \in \Theta,
+\qquad
+h_{\bar{\theta}}(\bar{\theta}) = 1
+\quad \text{if } f(y\mid\bar{\theta}) = g(\bar{\theta}).
+\]
+
+In the standardized model (zero-mean normal prior with identity covariance and diagonal posterior precision at the mode), the restricted integral \(\int_{A} q_{\bar{\theta}}(\theta)\, d\theta\) factorizes across dimensions and can be evaluated in closed form using normal CDFs:
+
+\[
+\int_{\theta \in A} q_{\bar{\theta}}(\theta)\, d\theta
+=
+\prod_{r=1}^{p}
+\Big[
+  \Phi\!\big(l_{U,r} + c_{r}(\bar{\theta})\big)
+  - \Phi\!\big(l_{L,r} + c_{r}(\bar{\theta})\big)
+\Big].
+\]
+
+In standardized models, where the prior is \(\mathcal{N}(0, I)\), the moment-generating function simplifies to
+
+\[
+\mathrm{MGF}\big(-c(\bar{\theta})\big)
+= \exp\left(\tfrac{1}{2} c(\bar{\theta})^{T} c(\bar{\theta})\right),
+\]
+so the constant \(a(\bar{\theta})\) from Theorem 1 becomes
+
+\[
+a(\bar{\theta}) =
+\frac{g(\bar{\theta})\,\exp\left(\tfrac{1}{2} c(\bar{\theta})^{T} c(\bar{\theta})\right)}
+     {f(y)\,\exp\!\big(-c(\bar{\theta})^{T} \bar{\theta}\big)}.
+\]
+
+This is why `EnvelopeBuild` computes and stores `logU`, `loglt`, and `logrt` using univariate normal CDF evaluations. The constants \(\tilde{a}(\bar{\theta})\) are then obtained by scaling the global constant with these integrals, and the mixture weights (`PLSD`) are normalized accordingly. In practice:
+
+- `EnvelopeSet_Grid_C2_pointwise` evaluates restricted densities at each grid point.
+- `LLconst` stores the log of the restricted integrals.
+- `EnvelopeSet_LogP_C2` computes \(\tilde{a}(\bar{\theta})\) and normalizes mixture weights.
+
+### 2.6 Mixture construction and tractable probabilities
+
+Claim 2 in Nygren & Nygren (2006) shows that the posterior density \(\pi(\theta \mid y)\) can be expressed as a mixture of restricted likelihood-subgradient densities. Let \(A_1, \dots, A_m\) be a partition of the parameter space \(\Theta\), and define
+
+\[
+\tilde{q}_{\bar{\theta}}(\theta)
+  =
+  \sum_{i=1}^{m} \tilde{p}_i \, q^{\bar{\theta}}_{A_i}(\theta),
+  \qquad
+  \tilde{p}_i = \frac{ \tilde{a}_i }{ \sum_{j=1}^{k} \tilde{a}_j }.
+\]
+
+In Remark 6 of Nygren & Nygren (2006), the mixture weights \(\tilde{p}_i\) for each restricted likelihood-subgradient density \(q^{\bar{\theta}_i}_{A_i}\) are defined as
+
 \[
 \tilde{p}_i
 =
 \frac{
-g(\bar{\theta}_i)\,
-\mathrm{MGF}\!\big(-c(\bar{\theta}_i)\big)\,
-\left(\int_{\theta\in A_i} q_{\bar{\theta}_i}(\theta)\,d\theta\right)
-\exp\!\big(-c(\bar{\theta}_i)^T\bar{\theta}_i\big)
+  g(\bar{\theta}_i)\,\mathrm{MGF}\!\left(-c(\bar{\theta}_i)\right)\,
+  \dfrac{
+    \int_{\theta \in A_i} q^{{\bar{\theta}_i}}(\theta)\, d\theta
+  }{
+    \exp\!\left(-c(\bar{\theta}_i)^{\top}\bar{\theta}_i\right)
+  }
 }{
-\sum_{j=1}^{k}
-g(\bar{\theta}_j)\,
-\mathrm{MGF}\!\big(-c(\bar{\theta}_j)\big)\,
-\left(\int_{\theta\in A_j} q_{\bar{\theta}_j}(\theta)\,d\theta\right)
-\exp\!\big(-c(\bar{\theta}_j)^T\bar{\theta}_j\big)
+  \displaystyle\sum_{j=1}^{k}
+  g(\bar{\theta}_j)\,\mathrm{MGF}\!\left(-c(\bar{\theta}_j)\right)\,
+  \dfrac{
+    \int_{\theta \in A_j} q^{{\bar{\theta}_j}}(\theta)\, d\theta
+  }{
+    \exp\!\left(-c(\bar{\theta}_j)^{\top}\bar{\theta}_j\right)
+  }
 }.
 \]
 
-Remark 6 further notes that optimal placement of tangencies is tied to expectations under the resulting restricted likelihood-subgradient densities.
+This expression reflects the full normalization of the mixture, where each \(\tilde{p}_i\) is proportional to the restricted constant \(\tilde{a}_i(\bar{\theta}_i)\) from Remark 5, and the denominator sums over all such constants across the partition. The resulting mixture \(\tilde{q}^{\bar{\theta}}(\theta)\) is a valid approximation to the posterior density \(\pi(\theta \mid y)\).
 
-In standard form with \(\mathcal{N}(0,I)\) prior and diagonal posterior Hessian at the mode, each \(\int_{A_i} q_{\bar{\theta}}(\theta)\,d\theta\) over a rectangle factorizes into products of univariate normal CDF differences, so \(\tilde{a}\) and \(\tilde{p}_i\) are computable without numerical integration over \(\mathbb{R}^p\).
+Remark 6 emphasizes that these mixture weights are tractable to compute in standardized models. When the prior is \(\mathcal{N}(0, I)\) and the posterior precision is diagonal at the mode, each integral \(\int_{A_i} q^{\bar{\theta}}(\theta)\, d\theta\) factorizes across dimensions and can be evaluated using normal CDFs:
+
+\[
+\int_{\theta\in A_i} q^{{\bar{\theta}}}(\theta)\, d\theta
+=
+\displaystyle\prod_{r=1}^{p}
+\Bigl[
+\Phi\!\bigl(l_{U,r}^{(i)} + c_{r}(\bar{\theta})\bigr)
+-
+\Phi\!\bigl(l_{L,r}^{(i)} + c_{r}(\bar{\theta})\bigr)
+\Bigr].
+\]
+
+where \(l_{L}^{(i)}\) and \(l_{U}^{(i)}\) are the bounds defining region \(A_i\).
+
+This tractability is central to the envelope construction. It allows `EnvelopeBuild` to compute:
+
+- `LLconst`, which stores the log of each restricted integral \(\log \int_{A_i} q^{\bar{\theta}}(\theta)\, d\theta\).
+- `PLSD`, which stores the normalized mixture weights \(\tilde{p}_i\).
+
+These quantities are used to construct the combined density \(\tilde{q}_{\bar{\theta}}(\theta)\) and to evaluate the envelope approximation to the posterior. Because all components are normalized and tractable, the mixture is both valid and computationally efficient.
+
+### 2.7 Log-scale properties of the envelope function
+
+The envelope function \(h_{\bar{\theta}}(\theta)\) is defined in Theorem 1 as
+
+\[
+h_{\bar{\theta}}(\theta) =
+\frac{\exp\!\big(-c(\bar{\theta})^{T} \bar{\theta}\big)\,f(y \mid \theta)}
+     {\exp\!\big(-c(\bar{\theta})^{T} \theta\big)\,g(\bar{\theta})}.
+\]
+
+When \(g(\bar{\theta}) = f(y \mid \bar{\theta})\), this simplifies to
+
+\[
+h_{\bar{\theta}}(\theta) =
+  \exp\!\big( c(\bar{\theta})^{T}(\theta - \bar{\theta}) \big)
+  \cdot \frac{f(y \mid \theta)}{f(y \mid \bar{\theta})}.
+\]
+
+Taking logarithms yields
+
+\[
+\log h_{\bar{\theta}}(\theta)
+  =
+  c(\bar{\theta})^{T}(\theta - \bar{\theta})
+  + \log f(y \mid \theta) - \log f(y \mid \bar{\theta}),
+\]
+
+which is tractable as long as the log-likelihood \(\log f(y \mid \theta)\) is. In particular, if the log-likelihood is concave or piecewise affine, then \(\log h_{\bar{\theta}}(\theta)\) inherits that structure and can be efficiently evaluated across grid regions.
+
+This tractability is central to the envelope construction: it allows `EnvelopeBuild` to evaluate the envelope function pointwise using `EnvelopeSet_Grid_C2_pointwise`, and ensures that the resulting approximation remains bounded between 0 and 1. At the tangency point, we recover
+
+\[
+h_{\bar{\theta}}(\bar{\theta}) = 1,
+\]
+confirming that the envelope touches the posterior density exactly.
+
+The key inequality that ensures envelope dominance follows from the subgradient inequality for concave functions. If \(\log f(y \mid \theta)\) is concave and \(c(\bar{\theta})\) is a subgradient at \(\bar{\theta}\), then
+
+\[
+\log f(y \mid \theta)
+  \le \log f(y \mid \bar{\theta}) + c(\bar{\theta})^{T}(\theta - \bar{\theta}),
+\]
+
+which implies
+
+\[
+\log h_{\bar{\theta}}(\theta)
+  \le 0,
+  \qquad
+  h_{\bar{\theta}}(\theta) \le 1.
+\]
+
+This inequality guarantees that the envelope function dominates the posterior density pointwise, as required by Theorem 1. Equality holds at the tangency point \(\theta = \bar{\theta}\), where
+
+\[
+h_{\bar{\theta}}(\bar{\theta}) = 1.
+\]
 
 ### 2.8 Standard form: Definition 3 and Remarks 11-15 (paper Section 3.3)
-
-**Definition 3.** A model with multivariate Normal prior and log-concave likelihood is in **standard form** if:
-
-1. the prior covariance is the identity (prior precision \(I\));
-2. the Hessian of \(\log\pi(\theta\mid y)\) at the posterior mode is diagonal.
 
 **Remark 11.** If the log-likelihood is concave and twice continuously differentiable, a Cholesky reparameterization from the posterior precision at the unique mode achieves diagonal posterior Hessian at the mode.
 
@@ -253,55 +398,6 @@ In standard form with \(\mathcal{N}(0,I)\) prior and diagonal posterior Hessian 
 **Remark 14.** If the prior covariance is diagonal and the posterior Hessian at the mode is diagonal, the model can be reparameterized into standard form.
 
 **Remark 15.** Any model with Normal prior and log-concave, twice differentiable log-likelihood can be reparameterized into standard form.
-
-**Zellner \(g\)-prior (paper discussion).** In the whitened design space, both prior and likelihood contributions to precision are often diagonal; one still rescales so that the **prior precision is exactly** \(I\) before applying the rectangular / \(3^p\) partition machinery.
-
-### 2.9 Example 2: rectangular restrictions and truncated moments
-
-Assume \(\pi\) is \(\mathcal{N}(0,I)\) and \(q_{\bar{\theta}}\) is the generalized likelihood-subgradient density at \(\bar{\theta}\). Then \(q_{\bar{\theta}}\) is \(\mathcal{N}(-c(\bar{\theta}),I)\).
-
-For a box \(A=\{\theta:\ell^L\le \theta\le \ell^U\}\),
-\[
-\int_{\theta\in A} q_{\bar{\theta}}(\theta)\,d\theta
-=
-\prod_{r=1}^{p}
-\left[
-\Phi\!\big(\ell^U_r + c_r(\bar{\theta})\big)
--
-\Phi\!\big(\ell^L_r + c_r(\bar{\theta})\big)
-\right].
-\]
-
-The conditional mean of coordinate \(\theta_r\) given \(\theta\in A\) under the restricted density satisfies
-\[
-\mathbb{E}_{\tilde{q}_{\bar{\theta}}}[\theta_r\mid \theta\in A]
-=
--c_r(\bar{\theta})
-+
-\frac{
-\varphi\!\big(\ell^L_r + c_r(\bar{\theta})\big)
--
-\varphi\!\big(\ell^U_r + c_r(\bar{\theta})\big)
-}{
-\Phi\!\big(\ell^U_r + c_r(\bar{\theta})\big)
--
-\Phi\!\big(\ell^L_r + c_r(\bar{\theta})\big)
-},
-\]
-where \(\varphi\) is the standard normal density.
-
-For \(\mathcal{N}(0,I)\) prior, \(\mathrm{MGF}(-c(\bar{\theta}))=\exp(\tfrac12 c(\bar{\theta})^Tc(\bar{\theta}))\), and Theorem 1 gives
-\[
-a(\bar{\theta})
-=
-\frac{
-g(\bar{\theta})\,
-\exp\!\big(\tfrac12 c(\bar{\theta})^T c(\bar{\theta})\big)
-}{
-f(y)\,
-\exp\!\big(-c(\bar{\theta})^T\bar{\theta}\big)
-}.
-\]
 
 ### 2.10 Remarks 7-8: sampling restricted normals (paper)
 
