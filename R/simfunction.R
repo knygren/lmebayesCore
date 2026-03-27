@@ -665,6 +665,24 @@ rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=ga
     #,test_out=test_out
   )
   
+  ## Build a minimal pfamily object so summary.rglmb can detect prior type
+  pfamily_obj <- list(
+    pfamily = "dIndependent_Normal_Gamma",
+    prior_list = list(
+      mu = mu,
+      Sigma = Sigma,
+      dispersion = dispersion,
+      shape = shape,
+      rate = rate,
+      max_disp_perc = max_disp_perc,
+      disp_lower = low,
+      disp_upper = upp
+    )
+  )
+  attr(pfamily_obj, "Prior Type") <- "dIndependent_Normal_Gamma"
+  class(pfamily_obj) <- "pfamily"
+  outlist$pfamily <- pfamily_obj
+  
   colnames(outlist$coefficients)<-colnames(x)
   outlist$offset2<-offset2
   class(outlist)<-c(outlist$class,"rglmb")
@@ -794,6 +812,7 @@ rNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussia
     coefficients   = out1,
     coef.mode      = Btilde,
     dispersion     = dispersion,
+    family         = family,
     offset         = offset,
     Prior          = list(mean = as.numeric(mu), Precision = P),
     prior.weights  = wt,
@@ -804,6 +823,20 @@ rNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussia
     iters          = draws,
     Envelope       = NULL
   )
+  
+  ## Build a minimal pfamily object so summary.rglmb can detect prior type
+  pfamily_obj <- list(
+    pfamily = "dNormal_Gamma",
+    prior_list = list(
+      mu = as.numeric(mu),
+      P = P,
+      shape = shape,
+      rate = rate
+    )
+  )
+  attr(pfamily_obj, "Prior Type") <- "dNormal_Gamma"
+  class(pfamily_obj) <- "pfamily"
+  outlist$pfamily <- pfamily_obj
   
   colnames(outlist$coefficients) <- colnames(x)
   

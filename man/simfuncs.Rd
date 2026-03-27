@@ -309,31 +309,19 @@ group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
 weight <- c(ctl, trt)
 
 ps=Prior_Setup(weight ~ group)
-mu=ps$mu
-V=ps$Sigma
-mu[1,1]=mean(weight)
+mu <- ps$mu
+Sigma <- ps$Sigma
+shape <- ps$shape
+rate <- ps$rate
+disp <- ps$dispersion
 
-Prior_Check(weight ~ group,family =gaussian(),
-           pfamily=dNormal(mu=mu,Sigma=V))
+y <- ps$y
+x <- as.matrix(ps$x)
+prior_list <- list(mu = mu, Sigma = Sigma / disp, shape = shape, rate = rate)
+ngamma.D9 <- rNormalGamma_reg(n = 1000, y = y, x = x,
+  prior_list = prior_list)
 
-## Will move this step inside the Prior_Check
-lm.D9 <- lm(weight ~ group,x=TRUE,y=TRUE)
-disp_ML=sigma(lm.D9)^2
-n_prior=2
-shape=n_prior/2
-rate= disp_ML*shape
-
-lmb.D9=lmb(weight ~ group,dNormal_Gamma(mu,V/disp_ML,shape=shape,rate=rate))
-summary(lmb.D9)
-
-n<-10000
-y<-lmb.D9$y
-x<-as.matrix(lmb.D9$x)
-prior_list=list(mu=mu,Sigma=V/disp_ML,shape=shape,rate=rate)
-ngamma.D9=rNormalGamma_reg(n=1000,y=y,x=x,
-  prior_list=prior_list)
-summary(ngamma.D9$coefficients)
-
+summary(ngamma.D9)
 ############################### Start of rindepNormalGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
@@ -341,92 +329,31 @@ ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
 trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
 group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
 weight <- c(ctl, trt)
-lm.D9 <- lm(weight ~ group,y=TRUE,x=TRUE)
+p_setup <- Prior_Setup(weight ~ group, family = gaussian())
 
-p_setup=Prior_Setup(weight ~ group,family=gaussian())
-dispersion=sigma(lm.D9)^2
+mu <- p_setup$mu
+Sigma_prior <- p_setup$Sigma
+dispersion <- p_setup$dispersion
+shape <- p_setup$shape
+rate <- p_setup$rate
+y <- p_setup$y
+x <- p_setup$x
 
-## Initialize dispersion
-p=1/dispersion
-
-mu=p_setup$mu
-Sigma_Prior=
-Sigma_prior=p_setup$Sigma
-y=lm.D9$y
-x=lm.D9$x
-
-Prior_Check(weight ~ group,gaussian(),dNormal(mu=mu,Sigma=Sigma_prior))
-
-## This simple "standardization" for the prior appears to 
-## correct the issue with the prior
-
-## "Standardize" the prior for the intercept by setting the
-## mean equal to the mean of the dependent variable
-## and setting the variance equal to the variance of the dependent variable
-
-mu[1,1]=mean(y)
-##Sigma_prior[1,1]=var(y)
-
-## For factors, set the "standad prior to mean=0 and variance driven by the range
-## of the dependent variable 
-
-mu[2,1]=0
-
-# Temporarily edit this out
-#Sigma_prior[2,2]=((max(y)-min(y))/1.96)^2
-
-#Prior_Check(lm.D9,mu,Sigma_prior)
-Prior_Check(weight ~ group,gaussian(),dNormal(mu=mu,Sigma=Sigma_prior))
-
-
-#prior=list(mu=mu,Sigma=Sigma_prior,dispersion=dispersion)
-glmb.D9=glmb(weight~group, family=gaussian(),dNormal(mu=mu,Sigma=Sigma_prior,dispersion=dispersion))
-post_mode=glmb.D9$coef.mode
-
-sum_out1=summary(glmb.D9)
-
-## Try mean one standard deviation away to see how it works
-#mu[1,1]=mu[1,1]-2*sum_out1$coefficients[1,3]
-#mu[2,1]=mu[2,1]+2*sum_out1$coefficients[1,3]
-
-#prior=list(mu=mu,Sigma=Sigma_prior,dispersion=dispersion)
-
-# Temporarily lower the prior variance
-Sigma_prior=1*Sigma_prior
-
-glmb.D9_v2=glmb(n=1000,weight~group, family=gaussian(),
-dNormal(mu=mu,Sigma=Sigma_prior,dispersion=dispersion))
-
-n_prior=2
-shape=n_prior/2
-rate= dispersion*shape
-
-
-summary(glmb.D9)
-summary(glmb.D9_v2)
-
-
-#lm_out=lm(y ~ x-1) # returns same model
-RSS=sum(residuals(lm.D9)^2)
-
-n_prior=4
-n_data=length(y)
-shape=(n_prior/2)
-rate=n_prior*RSS/n_data
-
-
-
-prior_list=list(mu=mu,Sigma=Sigma_prior,dispersion=dispersion,
-                 shape=shape,rate=rate,Precision=solve(Sigma_prior),max_disp_perc=0.99)
+prior_list <- list(
+  mu = mu,
+  Sigma = Sigma_prior,
+  dispersion = dispersion,
+  shape = shape,
+  rate = rate,
+  Precision = solve(Sigma_prior),
+  max_disp_perc = 0.99
+)
 
 
 set.seed(360)
 
- ptm <- proc.time()
- sim2=rindepNormalGamma_reg(n=1000,y,x,prior_list=prior_list,
-offset=NULL,weights=1)
- proc.time()-ptm
-
+sim2 <- rindepNormalGamma_reg(n = 1000, y, x, prior_list = prior_list)
+summary(sim2)
  
  
  
@@ -435,116 +362,23 @@ offset=NULL,weights=1)
 ############################### Start of rGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
-ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
-trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
-group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
+ctl <- c(4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14)
+trt <- c(4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69)
+group <- gl(2, 10, 20, labels = c("Ctl", "Trt"))
 weight <- c(ctl, trt)
-lm.D9 <- lm(weight ~ group,x=TRUE,y=TRUE)
 
-lm_summary=summary(lm.D9)
+## Set up prior hyperparameters (shape/rate) and model matrix via Prior_Setup
+ps <- Prior_Setup(weight ~ group, family = gaussian())
+y <- ps$y
+x <- as.matrix(ps$x)
 
-lm_summary
-lm.D9$coefficients
+## rGamma_reg uses a dGamma-style prior on dispersion with fixed beta.
+## Use OLS coefficients for beta.
+lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
+prior_list <- list(beta = coef(lm.D9), shape = ps$shape, rate = ps$rate)
 
-n<-10000
-y<-lm.D9$y
-x<-as.matrix(lm.D9$x)
-
-### Set old regression and dispersion coefficients
-
-b_old=lm.D9$coefficients
-v_old=lm_summary$sigma^2
-
-#### Set up for rGamma_reg
-
-n0=0.1
-shape=n0/2
-rate=shape*v_old
-
-rate/(shape-1)
-rate/shape
-
-#a1<-shape+n1/2
-#b1<-rate+sum(SS)/2
-
-#out<-1/rgamma(n,shape=a1,rate=b1)
-## v0=sum(SS)/n1 ~ (2*rate+sum(SS))/(2*shape+n1)=[(2*rate+sum(SS))/2]/((2*shape+n1)/2) 
-n1=length(y)
-SS=v_old*n1
-
-n1 # This is equal to 20
-
-
-n0=2 # Prior observations
-v_prior=v_old  # Prior point estimate for variance (the mean of (1/dispersion=1/v_prior))
-wt0=(n0/n1)  
-
-## set shape=0.01*(n1/2)
-## set rate= 0.01*SS/2
-
-shape=wt0*(n1/2)   ###  Shape is prior observations /2
-rate=shape*v_prior  ### rate is essentiall prior SS - V in rmultireg should be this
-rate/shape ## Should match v_prior (currently also v_old)
-
-## We see that this currently matches 
-### (test different v_prior with various prior observations below) 
-
-prior_list=list(beta=b_old,shape=shape,rate=rate)
-
-dispout<-rGamma_reg(n=n,y,x,prior_list=prior_list,
-offset= rep(0, length(y)),family=gaussian())
-
-mean(dispout$dispersion) 
-v_prior
-v_old
-#summary(dispout)  ## Summary function not working - need to write
-
-### Set up test rglmb regressions without and with prior for dispersion 
-
-mu<-c(0,0)
-mu=b_old  ### For testing purposes, set prior=b_old
-P<-0.1*diag(2)
-wt2=rep(1,length(y))
-
-### Check
-prior=list(mu=mu,Sigma=solve(P),dispersion=v_old)
-outtemp1<-glmb(n = 1000, weight ~ group, family = gaussian(),
-pfamily=dNormal(mu=mu,Sigma=solve(P),dispersion=v_old))
-## Could use a residuals function here -- For now, maybe run the glmb function
-
-summary(outtemp1)
-mean(colMeans(residuals(outtemp1)^2))
-v_old
-colMeans((outtemp1$coefficients))
-b_old
-prior=list(mu=mu,P=P,dispersion=v_old)
-outtemp2<-rglmb(n = 1000, y, x, family = gaussian(),
-pfamily=dNormal(mu=mu,Sigma=solve(P),dispersion=v_old),
-offset = rep(0, length(y)), weights = wt2)
-summary(outtemp2)
-colMeans((outtemp2$coefficients))
-b_old
-
-prior=list(mu=mu,Sigma=solve(P),shape=shape,rate=rate)
-outtemp3<-glmb(n = 10000, weight ~ group,family = gaussian(),  
-               dNormal_Gamma(mu=mu,Sigma=solve(P),shape=shape,rate=rate))
-## Could use a residuals function here -- For now, maybe run the glmb function
-
-summary(outtemp3)
-mean(colMeans(residuals(outtemp3)^2))
-v_old
-colMeans((outtemp3$coefficients))
-b_old
-mean(outtemp3$dispersion)  ## Seems slightly smaller --> Needs qc
-v_old
-
-
-## rGamma_reg with dGamma prior via Prior_Setup (dispersion-only; coefficients fixed)
-ps_dg <- Prior_Setup(weight ~ group, family = gaussian())
-prior_list_dg <- list(beta = coef(lm.D9), shape = ps_dg$shape, rate = ps_dg$rate)
-dispout_dGamma <- rGamma_reg(n = 100, y = y, x = x, prior_list = prior_list_dg,
-  offset = rep(0, length(y)), weights = rep(1, length(y)), family = gaussian())
-summary(dispout_dGamma)
+out <- rGamma_reg(n = 1000, y = y, x = x, prior_list = prior_list, family = gaussian())
+summary(out)
 }
 \references{
 \insertAllCited{}

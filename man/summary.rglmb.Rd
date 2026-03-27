@@ -43,7 +43,6 @@ function. This is particularly true for the print output from the function
 data(menarche,package="MASS")
 
 summary(menarche)
-plot(Menarche/Total ~ Age, data=menarche)
 
 Age2=menarche$Age-13
 
@@ -68,9 +67,7 @@ out<-rglmb(n = 1000, y=y, x=x, pfamily=dNormal(mu=mu,Sigma=V1), weights = wt,
            family = binomial(logit)) 
 summary(out)
 
-print(summary(out),digits=4)
 
-mean(out$iters)
 }
 \references{
 \insertAllCited{}

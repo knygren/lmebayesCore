@@ -95,33 +95,43 @@ subgradient-based accept-reject algorithms (for models where other standard iid 
 
 ## Examples and Demos
 
-Use example() and demo() to explore built-in examples and demos for supported families and links:
+Use `example()` and `demo()` to explore built-in examples and demos for supported families and links:
 
     ## Bayesian linear regression
     example("lmb")
 
-    ## Bayesian Generalized Linear Models
+    ## Bayesian generalized linear models
     example("glmb")
 
-    ## Two-block Gibbs sampler compared to iid-sampling for linear model
+    ## Two-block Gibbs sampler compared with iid sampling (linear model)
     example("rlmb")
 
-    ## Larger gaussian Model (14 variables) with GPU Acceleration (requires OpenCL)
+    ## Default prior specification using Prior_Setup
+    example("Prior_Setup")
+
+    ## Matrix-input GLM example with an informative prior
+    example("rglmb")
+
+    ## Two-step Boston example: estimates and summarizes models with unknown
+    ## dispersion using dGamma priors via rGamma_reg, rglmb, rlmb, glmb, and lmb
+    example("summary.rgamma_reg")
+
+    ## High-dimensional Gaussian model (14 predictors) with GPU acceleration (requires OpenCL)
     demo("Ex_08_Boston")
 
-    ## Larger Binomial Model (14 variables) with GPU Acceleration (requires OpenCL)
+    ## High-dimensional binomial model (14 predictors) with GPU acceleration (requires OpenCL)
     example("Cleveland")
 
-    ## Hierarchial Linear Model (Rubin/Gelman's 8 schools Model) - rlmb
+    ## Hierarchical linear model (Rubin/Gelman 8-schools) via rlmb
     demo("Ex_07_Schools")
 
-    ## Hierarchical Generalized Linear Model (Poisson - BikeSharing) - rglmb
+    ## Hierarchical generalized linear model (Poisson BikeSharing) via rglmb
     demo("Ex_09_BikeSharingPoisson")
 
-    ## Detailed Simulation Pipeline for rNormalGLM models (JASA 2006, Vignette Chapter A05)
+    ## Detailed simulation pipeline for rNormalGLM models (JASA 2006; Vignette Chapter A05)
     example("rNormalGLM_std")
 
-    ## Detailed Simulation Pipeline for rIndepNormalGammaReg models (Vignette Chapter A07)
+    ## Detailed simulation pipeline for rIndepNormalGammaReg models (Vignette Chapter A07)
     example("rIndepNormalGammaReg_std")
 
 ## Methodology

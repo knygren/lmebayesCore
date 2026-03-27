@@ -21,7 +21,7 @@ lmb.D9 <- lmb(
 )
 summary(lmb.D9)
 
-## Conjugate Normal_Gamma Prior
+## Conjugate Normal_Gamma Prior (note division by dispersion)
 lmb.D9_v2 <- lmb(
   weight ~ group,
   pfamily = dNormal_Gamma(
@@ -42,55 +42,10 @@ lmb.D9_v3 <- lmb(
     shape = ps$shape,
     rate  = ps$rate
   )
-  ,verbose=TRUE
 )
 summary(lmb.D9_v3)
 
-## Temporary non zellner test 
-
-## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
-  weight ~ group,
-  dIndependent_Normal_Gamma(
-    ps$mu,
-    0.001*diag(diag(ps$Sigma)),
-    shape = ps$shape,
-    rate  = ps$rate
-  )
-  ,verbose=TRUE
-)
-
-
-
-## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
-  weight ~ group,
-  dIndependent_Normal_Gamma(
-    ps$mu,
-    ps$Sigma,
-    shape = ps$shape,
-    rate  = ps$rate
-  ),
-  use_parallel = FALSE
-)
-
-summary(lmb.D9_v3)
-
-
-## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
-  weight ~ group,
-  dIndependent_Normal_Gamma(
-    ps$mu,
-    ps$Sigma,
-    shape = ps$shape,
-    rate  = ps$rate
-  ),
-  use_opencl=TRUE
-)
-summary(lmb.D9_v3)
-
-
+## anova 
 anova(lmb.D9)
 
 

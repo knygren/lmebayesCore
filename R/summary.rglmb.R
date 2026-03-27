@@ -181,7 +181,7 @@ summary.rglmb<-function(object,...){
     coefficients=object$coefficients,
     coef.means=colMeans(object$coefficients),
     coef.mode=object$mode,
-    dispersion=object$dispersion,
+    dispersion=mean(object$dispersion),
     Prior=object$Prior,
     fitted.values=fitted.values,
     family=family(glm_mle),

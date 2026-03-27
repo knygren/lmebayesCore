@@ -277,6 +277,18 @@ glmb.out1<-glmb(cbind(Menarche, Total-Menarche) ~ Age2,
 family=binomial(logit),pfamily=dNormal(mu=ps1$mu,Sigma=ps1$Sigma), data=menarche)
 summary(glmb.out1)
 
+## Posterior mean fitted probabilities on the response scale (see also
+## \code{vignette("Chapter-04", package = "glmbayes")})
+require(graphics)
+pred1 <- predict(glmb.out1, type = "response")
+pred1_m <- colMeans(pred1)
+plot(
+  Menarche / Total ~ Age,
+  data = menarche,
+  main = "Proportion with menarche (data and posterior mean fit)"
+)
+lines(menarche$Age, pred1_m, col = "blue", lwd = 2)
+
 ## Probit Prior and Model
 ps2=Prior_Setup(cbind(Menarche, Total-Menarche) ~ Age2,family=binomial(probit), data=menarche)
 

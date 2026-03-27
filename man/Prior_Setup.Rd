@@ -262,6 +262,95 @@ lmb.D9_v3 <- lmb(
     rate = ps2$rate
   )
 )
+
+## -------------------------------------------------------------------------
+## Matrix-input bridge: use Prior_Setup outputs with rglmb() and rlmb()
+## -------------------------------------------------------------------------
+y <- ps2$y
+x <- as.matrix(ps2$x)
+wt <- rep(1, length(y))
+
+rglmb.D9 <- rglmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dIndependent_Normal_Gamma(
+    ps2$mu,
+    ps2$Sigma,
+    shape = ps2$shape,
+    rate = ps2$rate
+  ),
+  weights = wt,
+  family = gaussian()
+)
+
+rlmb.D9 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dIndependent_Normal_Gamma(
+    ps2$mu,
+    ps2$Sigma,
+    shape = ps2$shape,
+    rate = ps2$rate
+  ),
+  weights = wt
+)
+
+## -------------------------------------------------------------------------
+## Prior-list templates for lower-level samplers
+## -------------------------------------------------------------------------
+prior_list_rNormalGamma <- list(
+  mu = ps2$mu,
+  Sigma = ps2$Sigma / ps2$dispersion,
+  shape = ps2$shape,
+  rate = ps2$rate
+)
+
+prior_list_rindepNormalGamma <- list(
+  mu = ps2$mu,
+  Sigma = ps2$Sigma,
+  dispersion = ps2$dispersion,
+  shape = ps2$shape,
+  rate = ps2$rate,
+  Precision = solve(ps2$Sigma),
+  max_disp_perc = 0.99
+)
+
+beta_fix <- coef(lm(weight ~ group, x = TRUE, y = TRUE))
+prior_list_rGamma <- list(
+  beta = beta_fix,
+  shape = ps2$shape,
+  rate = ps2$rate
+)
+
+## Note: for a full dGamma run across rGamma_reg/rglmb/rlmb/glmb/lmb, see:
+## example("summary.rgamma_reg")
+
+## -------------------------------------------------------------------------
+## dGamma prior illustration: using Prior_Setup(shape, rate) + fixed beta
+## -------------------------------------------------------------------------
+## For gaussian models, Prior_Setup() provides Gamma hyperparameters for the
+## precision: tau = 1/dispersion ~ Gamma(shape, rate). The lmb() / rGamma_reg()
+## constructors consume these via dGamma(pfamily) and rGamma_reg(prior_list),
+## respectively.
+
+## dGamma via pfamily for lmb()
+lmb.D9_dGamma <- lmb(
+  weight ~ group,
+  pfamily = dGamma(shape = ps2$shape, rate = ps2$rate, beta = beta_fix)
+)
+
+## dGamma via prior_list for rGamma_reg()
+out.rGamma_reg <- rGamma_reg(
+  n = 1000,
+  y = y,
+  x = x,
+  prior_list = prior_list_rGamma,
+  offset = rep(0, length(y)),
+  weights = wt,
+  family = gaussian()
+)
 }
 \references{
 \insertAllCited{}

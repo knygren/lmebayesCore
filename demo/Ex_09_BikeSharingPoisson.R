@@ -16,7 +16,7 @@ form2 <- cnt ~ part_of_day + quarter + holiday + workingday + weathersit +
   hr_sin + hr_cos + mon_sin + mon_cos
 
 
-pct_train  <- 0.01   # 2% of data (~350 obs) for fast demo; use 0.05+ for analysis
+pct_train  <- 0.01   # 1% of data (~175 obs) for fast demo; use 0.05+ for analysis
 
 # 5% train / 95% test split
 set.seed(42)
