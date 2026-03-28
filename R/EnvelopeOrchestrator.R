@@ -437,11 +437,5 @@ EnvelopeOrchestrator <- function(bstar2,
   }
   
   return(out_cpp)
-  
-  
-
-  
-  } 
- 
-
+}
 
