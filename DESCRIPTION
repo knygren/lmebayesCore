@@ -6,6 +6,8 @@ Date: 2025-12-13
 Authors@R: person("Kjell", "Nygren", role = c("aut","cre"), email = "kjell.a.nygren@gmail.com")
 Description: Generates iid samples for Bayesian Generalized Linear Models.
 License: GPL-2
+URL: https://github.com/knygren/glmbayes, https://knygren.r-universe.dev/glmbayes
+BugReports: https://github.com/knygren/glmbayes/issues
 Imports:
     stats,
     coda,
