@@ -24,10 +24,9 @@
 #' function. This is particularly true for the print output from the function 
 #' (i.e. the output of the function \code{\link{print.summary.rglmb}}).
 #' 
-#' @seealso \code{\link{lmb}}, \code{\link{glmb}}, \code{\link{summary}}, \code{[stats]\link{summary.lm}},\code{[stats]\link{summary.glm}}. 
-#' @references
-#' \insertAllCited{}
-#' @importFrom Rdpack reprompt
+#' @seealso \code{\link{rglmb}}; \code{\link{glmb}}, \code{\link{glmbayes-package}},
+#'   \code{\link{rlmb}}, \code{\link{lmb}}, \code{\link{summary}},
+#'   \code{\link[stats]{summary.lm}}, \code{\link[stats]{summary.glm}}.
 #' @example inst/examples/Ex_summary.rglmb.R
 #' @export
 #' @method summary rglmb

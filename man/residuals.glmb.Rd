@@ -99,5 +99,7 @@ lines(Age, res_high1,lty=2)
 \insertAllCited{}
 }
 \seealso{
-\code{\link{predict.glmb}}, \code{\link{summary.glmb}}, \code{\link[stats]{residuals.glm}}
+\code{\link{predict.glmb}}, \code{\link{summary.glmb}}, \code{\link{glmb}},
+\code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+\code{\link[stats]{residuals.glm}}
 }

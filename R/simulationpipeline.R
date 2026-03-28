@@ -627,7 +627,9 @@ glmb_Standardize_Model<-function(y, x, P, bstar, A1){
 #'   1 (single-point) or 3 (three-point).}
 #' }
 #'
-#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSort}}
+#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}};
+#' \code{\link{rNormal_reg}}, \code{\link{rglmb}} for user-facing sampling that uses these grids.
+#' Vignettes: \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -1062,7 +1064,12 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #'     }
 #'   }
 #' }
-#' 
+#'
+#' @seealso \code{\link{EnvelopeSize}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}},
+#' \code{\link{glmb_Standardize_Model}}; \code{\link{rNormal_reg}}, \code{\link{rglmb}}, \code{\link{glmb}}.
+#' Theory and vignettes: \insertCite{Nygren2006}{glmbayes};
+#' \insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+#'
 #'  @references
 #' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeBuild.R
@@ -1268,6 +1275,10 @@ EnvelopeSetLogP <- function(logP, NegLL, cbars, G3) {
 #' accept-reject procedure can run efficiently while still producing samples
 #' from the true posterior \eqn{\pi(\theta \mid y)}.
 #'
+#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSize}}, \code{\link{EnvelopeSort}};
+#' \code{\link{rNormal_reg}}, \code{\link{rglmb}}. Vignettes:
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+#'
 #' @references
 #' \insertAllCited{}
 #' @return
@@ -1459,6 +1470,8 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #'
 #' The dispersion anchor point is chosen as the log-scale center of the credible interval,
 #' and the Gamma proposal is tilted to match the envelope slope at this point.
+#' Theory and narrative: \insertCite{Nygren2006}{glmbayes}; vignettes
+#' \code{Chapter-A07}, \code{Chapter-A11}; \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
 #' @section Use in accept/reject procedure:
 #'
 #' The accept/reject sampler relies on a decomposition of the log-posterior into
@@ -1493,8 +1506,12 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #' \deqn{ test = test1 - UB2 - UB3A - UB3B, }
 #' with \eqn{test1 \le 0} and each UB term \eqn{\ge 0}, ensuring the accept/reject
 #' procedure is valid and unbiased.
-#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeCentering}} (for obtaining
-#'   \code{RSS_post} and anchored dispersion), \code{\link{glmb}}, \code{\link{glmbfamfunc}}
+#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}},
+#'   \code{\link{EnvelopeCentering}} (for obtaining \code{RSS_post} and anchored dispersion),
+#'   \code{\link{rindepNormalGamma_reg}}, \code{\link{rlmb}};
+#'   \code{\link{glmb}}, \code{\link{glmbfamfunc}}.
+#' @references
+#' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeDispersionBuild.R
 #' @usage EnvelopeDispersionBuild(
 #'   Env, Shape, Rate, P, y, x, alpha, n_obs, RSS_post, RSS_ML,
@@ -1554,6 +1571,13 @@ EnvelopeDispersionBuild <- function(Env, Shape, Rate, P, y, x, alpha, n_obs, RSS
 #' speed up simulation once the envelope is constructed. If memory allocation 
 #' fails (e.g. for very large grids), the function returns the unsorted envelope 
 #' with \code{sort_ok = FALSE}; the sampler remains valid but may have poorer acceptance.
+#'
+#' Used after \code{\link{EnvelopeBuild}} and (for Normal--Gamma models)
+#' \code{\link{EnvelopeDispersionBuild}}; see \insertCite{Nygren2006,glmbayesChapterA08}{glmbayes}.
+#' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}},
+#'   \code{\link{EnvelopeDispersionBuild}}, \code{\link{rNormal_reg}}, \code{\link{rglmb}}.
+#' @references
+#' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeSort.R
 #' @export
 

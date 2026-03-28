@@ -7,7 +7,7 @@
 \method{formula}{summary.rglmb}(x, ...)
 }
 \arguments{
-\item{x}{an object of class \code{summary.rglmb}, typically the result of a call to \link{summary.glmb}}
+\item{x}{an object of class \code{summary.rglmb}, typically the result of a call to \code{\link{summary.rglmb}}}
 
 \item{...}{further arguments to or from other methods}
 }
@@ -17,4 +17,8 @@ The function returns model formulae
 \description{
 This function is a method function for the \code{"summary.rglmb"} class used to
 Extract a formulae for the objective and the family
+}
+\seealso{
+\code{\link{rglmb}}, \code{\link{summary.rglmb}}; \code{\link{glmb}}, \code{\link{glmbayes-package}};
+\code{\link{rlmb}}, \code{\link{lmb}}; \code{\link[stats]{formula}}.
 }

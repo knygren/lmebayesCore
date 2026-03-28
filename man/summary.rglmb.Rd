@@ -69,9 +69,8 @@ summary(out)
 
 
 }
-\references{
-\insertAllCited{}
-}
 \seealso{
-\code{\link{lmb}}, \code{\link{glmb}}, \code{\link{summary}}, \code{[stats]\link{summary.lm}},\code{[stats]\link{summary.glm}}.
+\code{\link{rglmb}}; \code{\link{glmb}}, \code{\link{glmbayes-package}},
+\code{\link{rlmb}}, \code{\link{lmb}}, \code{\link{summary}},
+\code{\link[stats]{summary.lm}}, \code{\link[stats]{summary.glm}}.
 }

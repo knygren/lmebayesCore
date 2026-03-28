@@ -363,6 +363,10 @@ for classical modeling functions, family objects, and formula syntax
 
 \code{\link{EnvelopeBuild}} for envelope construction  methods.
 
+Further reading: \insertCite{Nygren2006}{glmbayes};
+\insertCite{glmbayesChapter00,glmbayesChapterA02,glmbayesSimmethods,glmbayesChapterA08}{glmbayes};
+OpenCL/GPU: \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
+
 \code{\link{summary.glmb}}, \code{\link{predict.glmb}}, \code{\link{residuals.glmb}}, \code{\link{simulate.glmb}},
 \code{\link{extractAIC.glmb}}, \code{\link{dummy.coef.glmb}} and methods(class="glmb") for \code{glmb}
 and the methods and generic functions for classes \code{glm} and \code{lm} from which class \code{glmb} inherits.

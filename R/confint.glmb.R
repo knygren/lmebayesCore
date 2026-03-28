@@ -13,7 +13,8 @@
 #' upper credible limits for each parameter. These will be labeled
 #' (1-level)/2 and 1-(1-level)/2 in \% (by default 2.5\% and 97.5\%).
 #' @seealso \code{\link{summary.glmb}}, \code{\link{vcov.glmb}}, \code{\link{glmb}},
-#' \code{\link[stats]{confint}} for classical confidence intervals
+#'   \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+#'   \code{\link[stats]{confint}} for classical confidence intervals
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

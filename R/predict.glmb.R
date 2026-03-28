@@ -44,8 +44,10 @@
 #' used in the fit).  A warning will be given if the
 #' variables found are not of the same length as those in \code{newdata}
 #' if it was supplied.
-#' @seealso \code{\link{simulate.glmb}}, \code{\link{residuals.glmb}}, \code{\link{glmb}};
-#' see \insertCite{glmbayesChapter04}{glmbayes} for predictions and model statistics.
+#' @seealso \code{\link{simulate.glmb}}, \code{\link{residuals.glmb}}, \code{\link{glmb}},
+#'   \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+#'   \code{\link[stats]{predict.glm}}.
+#'   See \insertCite{glmbayesChapter04}{glmbayes} for predictions and model statistics.
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

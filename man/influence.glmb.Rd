@@ -151,6 +151,8 @@ hat2
 \insertAllCited{}
 }
 \seealso{
+\code{\link{glmb}}, \code{\link{glmbayes-package}}; \code{\link{lmb}}, \code{\link{rglmb}},
+\code{\link{rlmb}}; \code{\link{summary.glmb}};
 \code{\link[stats]{influence}}, \code{\link[stats]{influence.measures}},
-\code{\link[stats]{cooks.distance}}, \code{\link[stats]{dfbetas}}, \code{\link{summary.glmb}}
+\code{\link[stats]{cooks.distance}}, \code{\link[stats]{dfbetas}}
 }

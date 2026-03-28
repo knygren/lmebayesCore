@@ -386,11 +386,16 @@ summary(out)
 A reference
 }
 \seealso{
-\code{\link{pfamily}}, \code{\link{glmb}}, \code{\link{lmb}}, \code{\link{rglmb}} for modeling functions that consume simulation functions.
+\code{\link{pfamily}}, \code{\link{glmb}}, \code{\link{lmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}
+for modeling functions that consume simulation functions.
 
 \code{\link{rNormal_reg}}, \code{\link{rNormalGamma_reg}}, \code{\link{rGamma_reg}} for individual simulation functions.
 
-\code{\link{EnvelopeBuild}} for envelope construction methods used in likelihood subgradient sampling.
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSize}} for envelope construction
+and grid evaluation used in likelihood-subgradient sampling.
+
+Theory and implementation narrative: \insertCite{Nygren2006}{glmbayes};
+\insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
 }
 \author{
 The simulation framework was developed by Kjell Nygren as part of the \pkg{glmbayes} package. It builds on the likelihood subgradient approach described in \insertCite{Nygren2006}{glmbayes}, and extends classical Bayesian GLM sampling techniques.

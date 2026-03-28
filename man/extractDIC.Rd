@@ -53,5 +53,7 @@ extractAIC(glmb.D93)
 \insertAllCited{}
 }
 \seealso{
-\code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link{lmb}}
+\code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link{glmbayes-package}},
+\code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+\code{\link[stats]{extractAIC}} for the classical AIC computation on \code{lm}/\code{glm} fits
 }

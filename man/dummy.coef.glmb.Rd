@@ -59,5 +59,7 @@ print(myd)
 \insertAllCited{}
 }
 \seealso{
-\code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link[stats]{dummy.coef}}
+\code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link{glmbayes-package}};
+\code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+\code{\link[stats]{dummy.coef}}
 }

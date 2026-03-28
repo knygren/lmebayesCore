@@ -79,10 +79,17 @@
 #' 
 #' @family modelfuns
 #' @seealso The classical modeling functions \code{\link[stats]{lm}} and \code{\link[stats]{glm}}.
+#'
+#' \code{\link{lmb}}, \code{\link{glmb}}, \code{\link{rglmb}} for related interfaces;
+#' \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}} for envelope stages
+#' used in non-conjugate Gaussian sampling.
 #' 
 #' \code{\link{pfamily}} for documentation of pfamily functions used to specify priors.
 #' 
 #' \code{\link{Prior_Setup}}, \code{\link{Prior_Check}} for functions used to initialize and to check priors,  
+#'
+#' Further reading: \insertCite{Nygren2006}{glmbayes};
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
 #'
 #' \code{\link{summary.glmb}}, \code{\link{predict.glmb}}, \code{\link{simulate.glmb}}, 
 #' \code{\link{extractAIC.glmb}}, \code{\link{dummy.coef.glmb}} and methods(class="glmb") for methods 

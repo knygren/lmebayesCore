@@ -50,5 +50,6 @@ confint(glmb.D93)
 }
 \seealso{
 \code{\link{summary.glmb}}, \code{\link{vcov.glmb}}, \code{\link{glmb}},
+\code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
 \code{\link[stats]{confint}} for classical confidence intervals
 }

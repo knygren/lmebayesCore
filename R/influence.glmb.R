@@ -13,8 +13,10 @@
 #' and \code{lmb} store coefficient draws rather than a single mode, these methods use the fitted
 #' \code{fit} component (from the underlying \code{glm}/\code{lm} fit at the posterior mode) for
 #' influence calculations.
-#' @seealso \code{\link[stats]{influence}}, \code{\link[stats]{influence.measures}},
-#' \code{\link[stats]{cooks.distance}}, \code{\link[stats]{dfbetas}}, \code{\link{summary.glmb}}
+#' @seealso \code{\link{glmb}}, \code{\link{glmbayes-package}}; \code{\link{lmb}}, \code{\link{rglmb}},
+#'   \code{\link{rlmb}}; \code{\link{summary.glmb}};
+#'   \code{\link[stats]{influence}}, \code{\link[stats]{influence.measures}},
+#'   \code{\link[stats]{cooks.distance}}, \code{\link[stats]{dfbetas}}
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

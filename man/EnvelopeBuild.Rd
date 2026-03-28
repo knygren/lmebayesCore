@@ -101,9 +101,6 @@ the restricted normal density.}
 }
 }
 }
-
-@references
-\insertAllCited{}
 }
 \description{
 GPU-Accelerated Envelope Construction for Posterior Simulation
@@ -527,4 +524,13 @@ sortgrid=TRUE)
 ## These now seem to match
 
 Env2
+}
+\seealso{
+\code{\link{EnvelopeSize}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}},
+\code{\link{glmb_Standardize_Model}}; \code{\link{rNormal_reg}}, \code{\link{rglmb}}, \code{\link{glmb}}.
+Theory and vignettes: \insertCite{Nygren2006}{glmbayes};
+\insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+
+@references
+\insertAllCited{}
 }

@@ -36,3 +36,7 @@ glmb.D93 <- glmb(
 ## ----glmb logLik-------------------------------------------------------------
 colMeans(logLik(glmb.D93))
 }
+\seealso{
+\code{\link{glmb}}, \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}},
+\code{\link{lmb}}; \code{\link[stats]{logLik}}.
+}

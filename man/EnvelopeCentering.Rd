@@ -63,6 +63,10 @@ Normal posterior (closed form), (2) updates the
 dispersion via the Gamma posterior using the expected RSS. The result is used
 as \code{dispersion2} and \code{RSS_Post2} in downstream envelope construction
 (e.g., \code{\link{EnvelopeOrchestrator}}).
+
+This anchors the joint Normal--Gamma accept--reject construction in
+\insertCite{Nygren2006}{glmbayes}; see vignettes \code{Chapter-A07},
+\code{Chapter-A11}, and \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
 }
 \examples{
 ############################### Start of EnvelopeCentering example ####################
@@ -121,7 +125,12 @@ centering$RSS_post
 # End of EnvelopeCentering example
 ###############################################################################
 }
+\references{
+\insertAllCited{}
+}
 \seealso{
-\code{\link{EnvelopeOrchestrator}} for envelope construction,
-\code{\link{rindepNormalGamma_reg}} for the full simulation routine.
+\code{\link{EnvelopeOrchestrator}} for envelope construction;
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeDispersionBuild}};
+\code{\link{rindepNormalGamma_reg}} for the full simulation routine;
+\code{\link{rlmb}} for the user-facing linear-model interface.
 }

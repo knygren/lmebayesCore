@@ -13,7 +13,9 @@
 #' on a comparison to the simulated data instead. The credible intervals
 #' for residuals based on simulated data should be a more appropriate measure of
 #' whether individual residuals represent outliers or not.
-#' @seealso \code{\link{predict.glmb}}, \code{\link{summary.glmb}}, \code{\link[stats]{residuals.glm}}
+#' @seealso \code{\link{predict.glmb}}, \code{\link{summary.glmb}}, \code{\link{glmb}},
+#'   \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+#'   \code{\link[stats]{residuals.glm}}
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

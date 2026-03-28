@@ -32,8 +32,9 @@
 #' diagnostic; see \code{\link{directional_tail}} and \insertCite{glmbayesChapterA04}{glmbayes}
 #' for interpretation.
 #'
-#' @seealso \code{\link{directional_tail}}, \code{\link{lmb}}, \code{\link{glmb}}, \code{\link{summary}},
-#' \code{[stats]\link{summary.lm}},\code{[stats]\link{summary.glm}} 
+#' @seealso \code{\link{directional_tail}}, \code{\link{glmb}}, \code{\link{glmbayes-package}},
+#'   \code{\link{lmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{summary}},
+#'   \code{\link[stats]{summary.lm}}, \code{\link[stats]{summary.glm}}
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

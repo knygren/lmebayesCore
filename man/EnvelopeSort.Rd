@@ -78,6 +78,9 @@ probability associated with each component in the Grid. Sorting helps
 speed up simulation once the envelope is constructed. If memory allocation
 fails (e.g. for very large grids), the function returns the unsorted envelope
 with \code{sort_ok = FALSE}; the sampler remains valid but may have poorer acceptance.
+
+Used after \code{\link{EnvelopeBuild}} and (for Normal--Gamma models)
+\code{\link{EnvelopeDispersionBuild}}; see \insertCite{Nygren2006,glmbayesChapterA08}{glmbayes}.
 }
 \examples{
 data(menarche,package="MASS")
@@ -202,4 +205,11 @@ Env_sorted <- EnvelopeSort(l1, l2,
 Env_sorted
 
 
+}
+\references{
+\insertAllCited{}
+}
+\seealso{
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}},
+\code{\link{EnvelopeDispersionBuild}}, \code{\link{rNormal_reg}}, \code{\link{rglmb}}.
 }

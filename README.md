@@ -103,6 +103,12 @@ Use `example()` and `demo()` to explore built-in examples and demos for supporte
     ## Bayesian generalized linear models
     example("glmb")
 
+    ## Predictions for fitted glmb objects (newdata, type, etc.)
+    example("predict.glmb")
+
+    ## Deviance residuals and simulate() for posterior predictive checks (menarche)
+    example("residuals.glmb")
+
     ## Two-block Gibbs sampler compared with iid sampling (linear model)
     example("rlmb")
 

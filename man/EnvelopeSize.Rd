@@ -231,5 +231,7 @@ Env_3
 \insertAllCited{}
 }
 \seealso{
-\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSort}}
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}};
+\code{\link{rNormal_reg}}, \code{\link{rglmb}} for user-facing sampling that uses these grids.
+Vignettes: \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
 }

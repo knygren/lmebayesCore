@@ -41,3 +41,7 @@ glmb.D93 <- glmb(
 ## ----glmb vcov----------------------------------------------------------------
 case.names(glmb.D93)
 }
+\seealso{
+\code{\link{glmb}}, \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}},
+\code{\link{lmb}}; \code{\link[stats]{case.names}}.
+}

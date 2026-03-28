@@ -45,5 +45,6 @@ vcov(glmb.D93)
 }
 \seealso{
 \code{\link{confint.glmb}}, \code{\link{summary.glmb}}, \code{\link{glmb}},
+\code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
 \code{\link[stats]{vcov}}
 }

@@ -37,9 +37,18 @@
 #' as \code{dispersion2} and \code{RSS_Post2} in downstream envelope construction
 #' (e.g., \code{\link{EnvelopeOrchestrator}}).
 #'
+#' This anchors the joint Normal--Gamma accept--reject construction in
+#' \insertCite{Nygren2006}{glmbayes}; see vignettes \code{Chapter-A07},
+#' \code{Chapter-A11}, and \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
+#'
 #' @seealso
-#' \code{\link{EnvelopeOrchestrator}} for envelope construction,
-#' \code{\link{rindepNormalGamma_reg}} for the full simulation routine.
+#' \code{\link{EnvelopeOrchestrator}} for envelope construction;
+#' \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeDispersionBuild}};
+#' \code{\link{rindepNormalGamma_reg}} for the full simulation routine;
+#' \code{\link{rlmb}} for the user-facing linear-model interface.
+#'
+#' @references
+#' \insertAllCited{}
 #'
 #' @example inst/examples/Ex_EnvelopeCentering.R
 #'
@@ -368,7 +377,9 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #' * \link[glmbayes]{EnvelopeCentering} – \code{RSS_Post2} and dispersion anchor
 #' * \link[glmbayes]{glmb_Standardize_Model} – standardized inputs for the orchestrator
 #' * \code{\link{rindepNormalGamma_reg}} – full Normal–Gamma workflow (R + C++)
-#' * Vignettes \code{Chapter-A07}, \code{Chapter-A08}, \code{Chapter-A11}
+#' * \code{\link{rlmb}}, \code{\link{rglmb}}, \code{\link{simfuncs}} – higher-level sampling entry points
+#' * Vignettes \code{Chapter-A07}, \code{Chapter-A08}, \code{Chapter-A11}; cited as
+#'   \insertCite{Nygren2006,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}
 #'
 #' @example inst/examples/Ex_EnvelopeOrchestrator.R
 #'

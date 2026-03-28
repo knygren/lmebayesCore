@@ -64,5 +64,6 @@ anova(glm.D93)
 }
 \seealso{
 \code{\link{directional_tail}}, \code{\link{summary.glmb}}, \code{\link{glmb}},
+\code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
 \code{\link[stats]{anova.glm}}
 }

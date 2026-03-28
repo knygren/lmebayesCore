@@ -120,6 +120,7 @@ lines(menarche$Age, pred1_m, col = "blue", lwd = 2)
 \insertAllCited{}
 }
 \seealso{
-\code{\link{directional_tail}}, \code{\link{lmb}}, \code{\link{glmb}}, \code{\link{summary}},
-\code{[stats]\link{summary.lm}},\code{[stats]\link{summary.glm}}
+\code{\link{directional_tail}}, \code{\link{glmb}}, \code{\link{glmbayes-package}},
+\code{\link{lmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{summary}},
+\code{\link[stats]{summary.lm}}, \code{\link[stats]{summary.glm}}
 }

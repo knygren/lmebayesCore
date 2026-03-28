@@ -221,12 +221,20 @@ summary(out_dGamma)
 \insertAllCited{}
 }
 \seealso{
-\code{\link[stats]{lm}} and \code{\link[stats]{glm}} for classical modeling functions.
+\code{\link{glmb}} for the formula interface; \code{\link[stats]{lm}} and
+\code{\link[stats]{glm}} for classical modeling functions.
+
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSize}}, \code{\link{EnvelopeEval}}
+for envelope construction and grid evaluation used in non-conjugate sampling.
 
 \code{\link{family}} for documentation of family functions used to specify priors.
 \code{\link{pfamily}} for documentation of pfamily functions used to specify priors.
 
 \code{\link{Prior_Setup}}, \code{\link{Prior_Check}} for functions used to initialize and to check priors,
+
+Further reading: \insertCite{Nygren2006}{glmbayes};
+\insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes};
+OpenCL/GPU: \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
 
 \code{\link{summary.glmb}}, \code{\link{predict.glmb}}, \code{\link{residuals.glmb}}, \code{\link{simulate.glmb}},
 \code{\link{extractAIC.glmb}}, \code{\link{dummy.coef.glmb}} and methods(class="glmb") for \code{glmb}

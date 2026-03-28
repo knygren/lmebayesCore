@@ -10,7 +10,8 @@
 #' row and column names corresponding to the parameter names given by the
 #' \code{\link{coef}} method.
 #' @seealso \code{\link{confint.glmb}}, \code{\link{summary.glmb}}, \code{\link{glmb}},
-#' \code{\link[stats]{vcov}}
+#'   \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+#'   \code{\link[stats]{vcov}}
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

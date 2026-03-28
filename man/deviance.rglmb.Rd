@@ -35,3 +35,7 @@ glmb.D93 <- glmb(
 ## ----rglmb deviance-------------------------------------------------------------
 deviance(glmb.D93)
 }
+\seealso{
+\code{\link{rglmb}}; \code{\link{glmb}}, \code{\link{glmbayes-package}};
+\code{\link{rlmb}}, \code{\link{lmb}}; \code{\link[stats]{deviance}}.
+}

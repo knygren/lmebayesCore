@@ -4,7 +4,9 @@
 #' Extract the log-Likelihood from a Bayesian Generalized Linear Model.
 #' @param object an object of class \code{glmb}, typically the result of a call to \link{glmb}
 #' @param ... further arguments to or from other methods
-#' @return The function returns a vector, \code{logLikout} with the estimated log-likelihood for each draw. 
+#' @return The function returns a vector, \code{logLikout} with the estimated log-likelihood for each draw.
+#' @seealso \code{\link{glmb}}, \code{\link{glmbayes-package}}; \code{\link{rglmb}}, \code{\link{rlmb}},
+#'   \code{\link{lmb}}; \code{\link[stats]{logLik}}.
 #' @example inst/examples/Ex_logLik.glmb.R
 #' @export
 #' @method logLik glmb

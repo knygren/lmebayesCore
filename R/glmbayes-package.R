@@ -24,9 +24,22 @@
 #' The package includes extensive documentation on model fitting, prior
 #' construction, diagnostics, and optional GPU acceleration using OpenCL.
 #'
+#' IID posterior simulation for non-Gaussian GLMs and several non-conjugate
+#' linear-model setups uses the likelihood-subgradient envelope method of
+#' \insertCite{Nygren2006}{glmbayes}. Introductory material and worked
+#' examples are in \insertCite{glmbayesChapter00,glmbayesChapterA01}{glmbayes};
+#' estimation and simulation background in
+#' \insertCite{glmbayesChapterA02,glmbayesSimmethods,glmbayesChapterA08}{glmbayes};
+#' GPU/OpenCL topics in
+#' \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
+#'
 #' @example inst/examples/Ex_glmbayes-package.R
 #'
 #' @seealso
+#' Main interfaces: \code{\link{glmb}}, \code{\link{lmb}},
+#' \code{\link{rglmb}}, \code{\link{rlmb}}; low-level simulation API
+#' \code{\link{simfuncs}}; envelope construction \code{\link{EnvelopeBuild}}.
+#'
 #' Useful links:
 #' \itemize{
 #'   \item GitHub: <https://github.com/knygren/glmbayes>

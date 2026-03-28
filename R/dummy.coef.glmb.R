@@ -16,7 +16,9 @@
 #' will be respected. There will be little point in using dummy.coef for contr.treatment
 #' contrasts, as the missing coefficients are by definition zero.
 #' @return A list giving for each term the draws for the coefficients.
-#' @seealso \code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link[stats]{dummy.coef}}
+#' @seealso \code{\link{summary.glmb}}, \code{\link{glmb}}, \code{\link{glmbayes-package}};
+#'   \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{lmb}};
+#'   \code{\link[stats]{dummy.coef}}
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

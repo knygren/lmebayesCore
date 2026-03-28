@@ -282,3 +282,8 @@ eval_out$cbars
 \references{
 \insertAllCited{}
 }
+\seealso{
+\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSize}}, \code{\link{EnvelopeSort}};
+\code{\link{rNormal_reg}}, \code{\link{rglmb}}. Vignettes:
+\insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+}
