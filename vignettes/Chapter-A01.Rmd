@@ -167,7 +167,7 @@ This prior is typically used when giving a prior for the dispersion parameter in
 part of Block-Gibbs sampling where the regression coefficients are updated in a separate block.
 
 ```{r Calling dGamma,results = "hide"}
-b=lm.D9$coefficients
+b <- p_info$coefficients
 dGamma(shape=4,rate=0.1,beta=b)
 ```
 

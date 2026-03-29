@@ -51,5 +51,5 @@ anova(lmb.D9)
 
 ## lmb with dGamma prior (dispersion-only; coefficients fixed)
 out_lmb_dGamma <- lmb(weight ~ group,
-  pfamily = dGamma(shape = ps$shape, rate = ps$rate, beta = coef(lm.D9)))
+  pfamily = dGamma(shape = ps$shape, rate = ps$rate, beta = ps$coefficients))
 summary(out_lmb_dGamma)

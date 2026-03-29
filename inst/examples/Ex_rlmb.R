@@ -79,9 +79,8 @@ summary(lmb.D9)
 
 
 ## rlmb with dGamma prior (dispersion-only; coefficients fixed)
-lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
 out_rlmb_dGamma <- rlmb(n = 100, y = y, x = x,
-  pfamily = dGamma(shape = shape, rate = rate, beta = coef(lm.D9)),
+  pfamily = dGamma(shape = shape, rate = rate, beta = ps$coefficients),
   weights = rep(1, length(y)))
 summary(out_rlmb_dGamma)
 

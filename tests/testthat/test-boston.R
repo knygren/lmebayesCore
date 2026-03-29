@@ -21,11 +21,6 @@ test_that("Bayesian Gaussian regression with Independent Normal-Gamma prior — 
   form <- medv ~     crim + zn +     indus + chas + nox + age +  dis + rad + tax + ptratio + black + lstat+ rm 
   
   # --------------------------------
-  # Classical linear model
-  # --------------------------------
-  lm.boston <- lm(form, data = Boston_centered, x = TRUE, y = TRUE)
-
-  # --------------------------------
   # Conjugate Normal prior (fixed dispersion)
   # --------------------------------
   ps <- Prior_Setup(form, gaussian(), data = Boston_centered)

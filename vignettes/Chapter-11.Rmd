@@ -396,22 +396,19 @@ where \(n_{w} = \sum_i w_i\).
 ---
 
 
-To illustrate this, we estimate the classical glm model and treat the resulting
-coefficients as fixed.
+To illustrate this, we fix \(\beta\) at the full-model coefficient vector from
+`Prior_Setup()` (`ps$coefficients`, the internal GLM maximum-likelihood estimate).
 We can then generate conditional Bayesian draws for the dispersion as below.
 This is essentially the equivalent of the classical function
 **gamma.dispersion()** function provided by the **MASS** package.
 
 
 ```{r glm_call_gamma_prior}
-## Call to glm
-lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
-
 out_rlmb <- rlmb(
     n = 1000,
     y = y, x = x,
     pfamily = dGamma(shape = shape, rate = rate,
-                     beta = lm.D9$coefficients)
+                     beta = ps$coefficients)
   )
 
 
@@ -816,16 +813,14 @@ accept–reject sampling in the Gamma regression case.
 
 
 ```{r glm_call_gamma_prior2}
-## Carinsca Gamma GLM (already fitted in the Carinsca chunk)
+## Carinsca Gamma GLM (already fitted in the Carinsca chunk for gamma.dispersion etc.)
 gamma.dispersion(glm.carinsca)
 
-beta = glm.carinsca$coefficients
- 
 out2 <- rglmb(
     n = 1000, y = y, x = x,
     family  =Gamma(link="log"),
     pfamily = dGamma(shape = shape, rate = rate,
-                     beta = glm.carinsca$coefficients),
+                     beta = ps$coefficients),
 weights = Claims_Adj
   )
 

@@ -373,9 +373,8 @@ y <- ps$y
 x <- as.matrix(ps$x)
 
 ## rGamma_reg uses a dGamma-style prior on dispersion with fixed beta.
-## Use OLS coefficients for beta.
-lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
-prior_list <- list(beta = coef(lm.D9), shape = ps$shape, rate = ps$rate)
+## Use coefficients from Prior_Setup (full-model GLM MLE by default).
+prior_list <- list(beta = ps$coefficients, shape = ps$shape, rate = ps$rate)
 
 out <- rGamma_reg(n = 1000, y = y, x = x, prior_list = prior_list, family = gaussian())
 summary(out)
