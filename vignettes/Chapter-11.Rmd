@@ -1115,6 +1115,61 @@ S_{\text{marg}}
 (y - X\mu_{0}).
 \]
 
+Here \( \Sigma_{0} \) is the same matrix as in Section 3.2 and in A1.2 (so that
+\( \Sigma_{0}^{-1} \) is the prior precision factor in
+\( -\frac{\tau}{2}(\beta-\mu_{0})^{\mathsf T}\Sigma_{0}^{-1}(\beta-\mu_{0}) \)).
+Let \( \hat\beta = (X^{\mathsf T}X)^{-1} X^{\mathsf T} y \) be the ordinary least
+squares estimator and
+\( \mathrm{RSS} = (y - X\hat\beta)^{\mathsf T}(y - X\hat\beta) \).
+Write \( G = X^{\mathsf T}X \) (invertible in the usual full-rank setup).
+The **same** scalar \( S_{\text{marg}} \) can be written as
+
+\[
+S_{\text{marg}}
+=
+\mathrm{RSS}
++
+(\hat\beta - \mu_{0})^{\mathsf T}
+\left(\Sigma_{0} + G^{-1}\right)^{-1}
+(\hat\beta - \mu_{0}).
+\]
+
+Equivalently, expanding \( (I + X\Sigma_{0}X^{\mathsf T})^{-1} \) with the
+Sherman--Morrison--Woodbury formula gives the same middle matrix in the
+precision form
+\[
+G - G\left(\Sigma_{0}^{-1} + G\right)^{-1}G
+=
+\left(\Sigma_{0} + G^{-1}\right)^{-1}.
+\]
+In particular, if \( \mu_{0} = \hat\beta \) then the second term vanishes and
+\( S_{\text{marg}} = \mathrm{RSS} \).
+
+**Step-by-step (Woodbury + least-squares split).** Set
+\(e = y - X\hat\beta\), \(\delta = \hat\beta - \mu_{0}\), so
+\(y - X\mu_{0} = e + X\delta\). Normal equations give \(X^{\mathsf T}e = 0\), hence
+\(\|e + X\delta\|^{2} = \mathrm{RSS} + \delta^{\mathsf T}G\delta\) and
+\(X^{\mathsf T}(e + X\delta) = G\delta\). Woodbury says
+\((I + X\Sigma_{0}X^{\mathsf T})^{-1}
+= I - X(\Sigma_{0}^{-1}+G)^{-1}X^{\mathsf T}\).
+Substitute \(y-X\mu_{0}=e+X\delta\) into the quadratic form for
+\(S_{\text{marg}}\); cross terms vanish because \(e^{\mathsf T}X=0\), and the
+algebra reduces to
+\(\mathrm{RSS} + \delta^{\mathsf T}\bigl(G - G(\Sigma_{0}^{-1}+G)^{-1}G\bigr)\delta\),
+which equals the display above.
+
+For observation weights \( w_{i} \) (Section 2.2), define
+\(G = X^{\mathsf T}WX\),
+\(\hat\beta = G^{-1} X^{\mathsf T}Wy\), and
+\(\mathrm{RSS} = (y - X\hat\beta)^{\mathsf T}W(y - X\hat\beta)\).
+The **RSS + \((\hat\beta-\mu_{0})^{\mathsf T}(\Sigma_{0}+G^{-1})^{-1}(\hat\beta-\mu_{0})\)**
+identity is unchanged (same proof in whitened coordinates
+\(\tilde y = W^{1/2}y\), \(\tilde X = W^{1/2}X\)).
+The **first** display becomes
+\((y-X\mu_{0})^{\mathsf T}W^{1/2}(I + W^{1/2}X\Sigma_{0}X^{\mathsf T}W^{1/2})^{-1}W^{1/2}(y-X\mu_{0})\)
+for any factor \(W^{1/2}\) with \(W^{1/2}(W^{1/2})^{\mathsf T}=W\)
+(e.g.\ diagonal \(\sqrt{w_i}\)).
+
 This closed‑form marginal is what makes the Normal–Gamma prior so computationally
 attractive:
 sampling \( \tau \) requires **only a single Gamma draw**.
@@ -1247,4 +1302,516 @@ That vignette explains the full simulation procedure, including:
 The key point for users is that the posterior remains log-concave, so the
 accept-reject sampler produces independent draws for \( (\beta, \tau) \).
 There is no Markov chain, no burn-in, and no autocorrelation.
+
+## A3. Posterior mean of \( \beta \) and marginal covariance (Zellner-type prior)
+
+This subsection records closed-form **posterior moments** for \( \beta \) in the
+**conjugate Normal-Gamma** Gaussian regression model, in the same weighted
+likelihood notation as Section 2.2 and in the **prior weight / effective prior
+sample size** notation used by `Prior_Setup()`.
+
+### A3.1 Weighted likelihood and prior precision
+
+Assume
+
+\[
+y \mid \beta,\phi \sim N\!\left(X\beta,\;\phi W^{-1}\right),
+\qquad
+\tau = 1/\phi,
+\]
+
+with \(W = \mathrm{diag}(w_{1},\dots,w_{n})\) and \(w_i \ge 0\).
+Define the **effective sample size**
+
+\[
+n_{w} = \sum_{i=1}^{n} w_i
+\]
+
+(the quantity `sum(wt)` in `rNormalGammaReg()`).
+Write the **weighted Gram matrix** as
+
+\[
+G = X^{\mathsf T} W X.
+\]
+
+Let \(\hat\beta\) denote the **weighted least squares** estimator
+
+\[
+\hat\beta = G^{-1} X^{\mathsf T} W y
+\]
+
+and the **weighted residual sum of squares**
+
+\[
+\mathrm{RSS}
+=
+(y - X\hat\beta)^{\mathsf T} W (y - X\hat\beta).
+\]
+
+Take a **Zellner-type** conditional Normal prior on \(\beta\) given \(\tau\)
+that is proportional to the data precision:
+
+\[
+\beta \mid \tau \sim N\!\left(\mu_{0},\; \tau^{-1}\left(\frac{pwt}{1-pwt}G\right)^{-1}\right),
+\qquad
+0 < pwt < 1,
+\]
+
+equivalently prior **precision** \(\tau\, (pwt/(1-pwt))\, G\).
+This is the structure implied by `Prior_Setup()` together with
+`dNormal_Gamma(..., Sigma / dispersion, ...)` when
+\(\Sigma/\texttt{dispersion} = ((1-pwt)/pwt)\, G^{-1}\) (Zellner \(g\)-prior
+relative to \(G^{-1}\); see Section 3.2).
+
+Define the **effective prior sample size** \(n_{\mathrm{prior}} > 0\) by
+
+\[
+pwt = \frac{n_{\mathrm{prior}}}{n_{\mathrm{prior}} + n_{w}},
+\qquad
+1 - pwt = \frac{n_{w}}{n_{\mathrm{prior}} + n_{w}}.
+\]
+
+This is the relationship implemented when `Prior_Setup()` is called with
+scalar `n_prior` (`n_prior` and `n_effective` in the function).
+
+### A3.2 Posterior mean of \( \beta \)
+
+Combining likelihood precision \(\tau G\) with prior precision
+\(\tau (pwt/(1-pwt)) G\) gives posterior precision **given \(\tau\)**:
+
+\[
+\tau G + \tau \frac{pwt}{1-pwt} G
+=
+\frac{\tau}{1-pwt}\, G.
+\]
+
+Hence
+
+\[
+\mathrm{Cov}(\beta \mid \tau, y)
+=
+\frac{1-pwt}{\tau}\, G^{-1}
+=
+\frac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\,\frac{1}{\tau}\, G^{-1}.
+\]
+
+The **posterior mean** \(m_{\mathrm{post}} = E(\beta \mid \tau,y)\) solves the
+same normal equations as the **precision-weighted average** of \(\hat\beta\) and
+\(\mu_{0}\), and simplifies to
+
+\[
+\boxed{
+E(\beta \mid y)
+=
+(1-pwt)\,\hat\beta + pwt\,\mu_{0}
+=
+\frac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\,\hat\beta
++
+\frac{n_{\mathrm{prior}}}{n_{\mathrm{prior}} + n_{w}}\,\mu_{0}.
+}
+\]
+
+The right-hand side **does not depend on \(\tau\)** (for this prior), so
+\(E(\beta \mid y) = E(\beta \mid \tau,y)\).
+
+### A3.3 Marginal covariance of \( \beta \) and the Gamma parameters
+
+Marginalize \(\tau\) with
+
+\[
+\tau \mid y \sim \mathrm{Gamma}(a_{n}, b_{n})
+\]
+
+in the **shape-rate** parameterization
+\(p(\tau) \propto \tau^{a_{n}-1} e^{-b_{n}\tau}\) used in `rNormalGammaReg()`
+(`R::rgamma(shape, 1/rate)`), so
+\(E(\tau^{-1} \mid y) = b_{n}/(a_{n}-1)\) for \(a_{n} > 1\).
+
+Let
+
+\[
+V_{n} = (1-pwt)\, G^{-1}
+=
+\frac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\, G^{-1},
+\]
+
+so \(\mathrm{Cov}(\beta \mid \tau,y) = \tau^{-1} V_{n}\).
+Because \(E(\beta \mid \tau,y)\) is constant in \(\tau\), the **law of total
+covariance** gives
+
+\[
+\boxed{
+\mathrm{Cov}(\beta \mid y)
+=
+E(\tau^{-1} \mid y)\, V_{n}
+=
+\frac{b_{n}}{a_{n}-1}\,
+\frac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\,
+G^{-1},
+\qquad a_{n} > 1.
+}
+\]
+
+In the sampler,
+
+\[
+a_{n} = a_{0} + \frac{n_{w}}{2},
+\qquad
+b_{n} = b_{0} + \frac{1}{2} S_{\mathrm{marg}},
+\]
+
+with \(S_{\mathrm{marg}}\) the marginal sum of squares from Section A1.1. In the
+notation of this section (\(G = X^{\mathsf T}WX\), weighted least squares
+\(\hat\beta = G^{-1} X^{\mathsf T}Wy\), weighted
+\(\mathrm{RSS} = (y - X\hat\beta)^{\mathsf T}W(y - X\hat\beta)\), and
+\(\Sigma_{0}\) as in Section 3.2),
+
+\[
+S_{\mathrm{marg}}
+=
+\mathrm{RSS}
++
+(\hat\beta - \mu_{0})^{\mathsf T}
+\left(\Sigma_{0} + G^{-1}\right)^{-1}
+(\hat\beta - \mu_{0}).
+\]
+
+This is the same scalar as the augmented residual sum of squares `S` produced by
+`rNormal_reg.wfit()` (Section A1).
+Under the Zellner \(g\)-prior of A3.1, the prior **covariance** is
+\(\Sigma_{0} = ((1-pwt)/pwt)\,G^{-1}\), so
+\(\Sigma_{0} + G^{-1} = G^{-1}/pwt\) and
+\((\Sigma_{0} + G^{-1})^{-1} = pwt\, G\). Equivalently,
+\[
+S_{\mathrm{marg}}
+=
+\mathrm{RSS}
++
+pwt\,
+(\hat\beta - \mu_{0})^{\mathsf T} G (\hat\beta - \mu_{0}).
+\]
+The **structural** point is that the prior--data mismatch enters only through the
+scalar factor **\(pwt\)** multiplying a nonnegative quadratic in
+\(\hat\beta-\mu_{0}\). Hence, holding the data and \(\mu_{0}\) fixed so that
+\((\hat\beta-\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0})\) stays finite,
+\[
+pwt \to 0^{+}
+\quad\Longrightarrow\quad
+pwt\,(\hat\beta-\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0}) \to 0,
+\]
+and \(S_{\mathrm{marg}} \to \mathrm{RSS}\): weak prior weight **washes out** the
+gap even when \(\mu_{0} \neq \hat\beta\).
+Equivalently, \(pwt\to 0\) whenever
+\(n_{\mathrm{prior}}/(n_{\mathrm{prior}}+n_{w})\to 0\)---for example
+\(n_{\mathrm{prior}}\to 0\) with \(n_{w}\) held fixed, or \(n_{w}\to\infty\) with
+\(n_{\mathrm{prior}}\) held fixed.
+The **exact** cancellation \(S_{\mathrm{marg}} = \mathrm{RSS}\) also holds for
+any \(pwt\) when \(\mu_{0} = \hat\beta\) (for example
+`Prior_Setup(..., intercept_source = "full_model", effects_source = "full_model")`).
+For fixed \(pwt>0\) and \(\mu_{0} \neq \hat\beta\), the second term is strictly
+positive unless \(\hat\beta-\mu_{0}\) lies in the null space of \(G\).
+Under standard regularity, with fixed \(n_{\mathrm{prior}}\) and
+\(n_{w}\to\infty\), one has \(pwt = O(1/n_{w})\) while
+\((\hat\beta-\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0})\) is typically
+\(O_{p}(n_{w})\), so the mismatch term is often \(O_{p}(1)\): the **additive**
+difference \(S_{\mathrm{marg}}-\mathrm{RSS}\) need not vanish at finite
+\(n_{w}\), but \(S_{\mathrm{marg}}/n_{w}\) and \(\mathrm{RSS}/n_{w}\) share the
+same leading order.
+
+**Limit \(pwt\to 0\) and coefficient covariance.**
+Under the Zellner decomposition above, **\(pwt\to 0^{+}\)** forces
+**\(S_{\mathrm{marg}}\to \mathrm{RSS}\)** (for fixed data and \(\mu_{0}\), with a
+finite mismatch quadratic), not only when \(\mu_{0}=\hat\beta\).
+Since \(b_{n} = b_{0} + \tfrac{1}{2} S_{\mathrm{marg}}\), the marginal Gamma rate
+then limits to **\(b_{0} + \tfrac{1}{2}\mathrm{RSS}\)** whenever \(b_{0}\) is held
+fixed along the path; \(E(\tau^{-1}\mid y)=b_{n}/(a_{n}-1)\) therefore ties to
+**RSS** through \(b_{n}\) in the same limit.
+At the same time, **\((1-pwt)\,G^{-1}\to G^{-1}\)** from A3.2--A3.3.
+Thus \(\mathrm{Cov}(\beta \mid \tau,y) = \tau^{-1}(1-pwt)\,G^{-1}\) tends to
+\(\tau^{-1}G^{-1}\) (likelihood-only WLS covariance given \(\tau\)), and
+\[
+\mathrm{Cov}(\beta \mid y)
+=
+\frac{b_{n}}{a_{n}-1}\,(1-pwt)\,G^{-1},
+\qquad a_{n}>1,
+\]
+has both **\(b_{n}\)** driven by **\(S_{\mathrm{marg}}\to \mathrm{RSS}\)** and the
+matrix prefactor \((1-pwt)\,G^{-1}\to G^{-1}\): weak \(pwt\) removes prior
+shrinkage of precision **and** drives the residual sum of squares in the
+\(\tau\) update back to the **data** \(\mathrm{RSS}\).
+The usual \(\sigma^{2}(X^{\mathsf T}WX)^{-1}\) limit is recovered when, in
+addition, \(a_{n}\) and \(b_{0}\) follow the weak-prior path discussed below
+(e.g.\ formal \(n_{\mathrm{prior}}\to 0\) with \(n_{w}\) fixed, holding
+\(a_{n}>1\)).
+If \(pwt\) is driven to zero by \(n_{w}\to\infty\) at fixed \(n_{\mathrm{prior}}\),
+then \((1-pwt)\to 1\) **and** \(G^{-1}\) typically scales as \(O(1/n_{w})\), so
+\(\mathrm{Cov}(\beta\mid y)\) shrinks with more weighted data even though the
+prior contributes negligibly to precision.
+
+With `Prior_Setup()` defaults for the Gamma on \(\tau\),
+\(a_{0} = n_{\mathrm{prior}}/2\) for `shape_df = "n_prior"`, so
+\(a_{n} = (n_{\mathrm{prior}} + n_{w})/2\); the prior rate is
+\(b_{0} = (n_{\mathrm{prior}}/2)\, d\) with `dispersion` \(d\) returned by
+`Prior_Setup()` (see Section 3.2 and `?Prior_Setup`).
+
+The **marginal** posterior of \(\beta\) is **multivariate \(t\)**; the matrix
+above is its **covariance** (not the scale matrix in every textbook
+parameterization of the \(t\) density).
+
+#### `Prior_Setup()` dispersion and the Gamma rates \(b_{0}\), \(b_{n}\)
+
+For Gaussian models with scalar `n_prior`, `Prior_Setup()` sets the prior Gamma
+**rate** to \(\texttt{rate} = (n_{\mathrm{prior}}/2)\, d\) with
+\(d = \texttt{dispersion}\) returned by the function. In the notation above,
+\(b_{0} = \texttt{rate}\).
+
+- **`disp_type = "OLS_mean"`** fixes \(d\) at the **classical** weighted
+  residual-variance plug-in from the internal `glm.fit` object,
+  \(d_{\mathrm{OLS}} = \mathrm{RSS}_{w}/(n_{\mathrm{effective}}-2)\)
+  (see `?Prior_Setup`, Details). Then
+  \(b_{0} = (n_{\mathrm{prior}}/2)\, d_{\mathrm{OLS}}\) is directly tied to
+  that OLS-style estimate of \(\sigma^{2}\).
+
+- **`disp_type = "Post_mean"`** (the default) chooses \(d\) (together with the
+  joint scaling of the location prior) by a numerical search so that the
+  returned `dispersion` is **consistent with a posterior-mean target** for
+  residual dispersion under the prior fragment. The resulting \(d\) is
+  generally **not** equal to \(d_{\mathrm{OLS}}\), so \(b_{0}\) differs from
+  the `OLS_mean` path even when `pwt`, `shape_df`, and data are otherwise the
+  same.
+
+In both cases the **posterior** Gamma rate is
+\(b_{n} = b_{0} + \frac{1}{2} S_{\mathrm{marg}}\). Thus a larger returned
+\(d\) increases \(b_{0}\) and, holding \(S_{\mathrm{marg}}\) fixed, would
+increase \(b_{n}\). In practice, for **`dNormal_Gamma`** the matrix passed to
+the sampler is **`Sigma / dispersion`**, so changing \(d\) also rescales the
+Normal--Gamma coupling of \(\beta\) given \(\tau\); the augmented least-squares
+step then produces a **different** \(S_{\mathrm{marg}}\) and posterior mean
+\(m_{\mathrm{post}}\) as well. The `OLS_mean` route therefore emphasizes a
+direct link to the classical \(\sigma^{2}\) plug-in for both the Gamma **rate**
+and the **g**-prior geometry, whereas `Post_mean` re-tunes \(d\) (and related
+quantities) for internal coherence, which moves **both** \(b_{0}\) and the
+term \(\frac{1}{2} S_{\mathrm{marg}}\) relative to the `OLS_mean`
+specification.
+
+#### Special case: \(b_{0} = \frac{1}{2}(n_{\mathrm{prior}}/n_{w})\,S_{\mathrm{marg}}\)
+
+
+
+\frac{S_{\mathrm{marg}}}{n_{w}}
+
+This choice is **not** the `Prior_Setup()` default; it is a **hypothetical**
+reparameterization that sets the prior Gamma rate proportional to the **same**
+marginal sum of squares that enters the likelihood fragment, with weight
+\(n_{\mathrm{prior}}/n_{w}\) on the prior piece relative to the data piece (see
+the discussion in the main text). Because \(S_{\mathrm{marg}}\) depends on
+\(y\) (and on \(\mu_{0}\) versus \(\hat\beta\)), such a \(b_{0}\) is
+**data-dependent** unless used only in stylized derivations.
+
+Assume \(a_{0} = n_{\mathrm{prior}}/2\) (`shape_df = "n_prior"`). Then
+\(a_{n} = (n_{\mathrm{prior}} + n_{w})/2\) and, provided \(a_{n} > 1\)
+(equivalently \(n_{\mathrm{prior}} + n_{w} > 2\)),
+
+\[
+a_{n} - 1 = \frac{n_{\mathrm{prior}} + n_{w} - 2}{2}.
+\]
+
+Take
+
+\[
+b_{0} = \frac{1}{2}\,\frac{n_{\mathrm{prior}}}{n_{w}}\, S_{\mathrm{marg}},
+\qquad
+b_{n} = b_{0} + \frac{1}{2} S_{\mathrm{marg}}
+= \frac{1}{2}\, S_{\mathrm{marg}}\left(1 + \frac{n_{\mathrm{prior}}}{n_{w}}\right)
+= \frac{S_{\mathrm{marg}}}{2}\,\frac{n_{w} + n_{\mathrm{prior}}}{n_{w}}.
+\]
+
+Then the posterior expectation of \(\tau^{-1} = \phi = \sigma^{2}\) is
+
+\[
+\frac{b_{n}}{a_{n}-1}
+=
+\frac{S_{\mathrm{marg}}(n_{w} + n_{\mathrm{prior}})/n_{w}}
+{(n_{\mathrm{prior}} + n_{w} - 2)}.
+\]
+
+Under the Zellner prior of A3.1,
+\(V_{n} = (1-pwt)\, G^{-1} = \dfrac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\, G^{-1}\).
+One may write \(\mathrm{Cov}(\beta \mid y)\) as the product of
+\(b_{n}/(a_{n}-1)\) and \(V_{n}\) **without** combining the
+\((n_{\mathrm{prior}} + n_{w})\) terms:
+
+\[
+\boxed{
+\mathrm{Cov}(\beta \mid y)
+=
+\frac{b_{n}}{a_{n}-1}\, V_{n}
+=
+\dfrac{S_{\mathrm{marg}}\,(n_{\mathrm{prior}} + n_{w})/n_{w}}
+{n_{\mathrm{prior}} + n_{w} - 2}
+\cdot
+\dfrac{n_{w}}{n_{\mathrm{prior}} + n_{w}}\,
+G^{-1}.
+}
+\]
+
+The two fractions cancel to
+\(S_{\mathrm{marg}} / (n_{\mathrm{prior}} + n_{w} - 2)\) times \(G^{-1}\).
+So with this \(b_{0}\), the marginal coefficient covariance matches that
+heuristic pattern---analogous in structure to \(\mathrm{RSS}/(n-p)\) times
+\((X^{\mathsf T}WX)^{-1}\) when \(S_{\mathrm{marg}} = \mathrm{RSS}\)
+(e.g.\ \(\mu_{0} = \hat\beta\)) and one reads
+\(n_{\mathrm{prior}} + n_{w} - 2\) as an effective residual degrees of freedom
+for the **joint** Normal--Gamma fragment. The factor \(a_{n}-1\) in the
+denominator of \(b_{n}/(a_{n}-1)\) is exactly half that count, and the factor
+\((1-pwt) = n_{w}/(n_{\mathrm{prior}}+n_{w})\) from \(V_{n}\) supplies the
+remaining alignment.
+
+**Limit \(n_{\mathrm{prior}} \to 0\) (formal comparison to classical).**
+Holding \(n_{w} > 2\) and the data fixed, \(pwt = n_{\mathrm{prior}}/(n_{\mathrm{prior}}+n_{w}) \to 0\),
+\(b_{0} = \frac{1}{2}(n_{\mathrm{prior}}/n_{w})S_{\mathrm{marg}} \to 0\),
+\(a_{n} = (n_{\mathrm{prior}}+n_{w})/2 \to n_{w}/2\), and
+\(a_{n}-1 \to (n_{w}-2)/2\).
+Along the same path, \(S_{\mathrm{marg}} = \mathrm{RSS} + pwt\,(\hat\beta -
+\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0}) \to \mathrm{RSS}\) because
+\(pwt\to 0\) (Section A3.3): the prior--data mismatch vanishes **even when**
+\(\mu_{0} \neq \hat\beta\).
+Also \(b_{n} = b_{0} + \frac{1}{2}S_{\mathrm{marg}} \to \frac{1}{2}\mathrm{RSS}\),
+so
+
+\[
+\frac{b_{n}}{a_{n}-1} \to \frac{\mathrm{RSS}}{n_{w}-2},
+\qquad
+V_{n} = (1-pwt)\,G^{-1} \to G^{-1}.
+\]
+
+Hence
+\[
+\mathrm{Cov}(\beta \mid y) \to \frac{\mathrm{RSS}}{n_{w}-2}\,(X^{\mathsf T}WX)^{-1},
+\]
+the usual weighted least squares covariance under the Gaussian `glm.fit`
+dispersion convention of `Prior_Setup()` (see `?Prior_Setup`, Details).
+**Before** taking \(n_{\mathrm{prior}}\to 0\), a fixed \(n_{\mathrm{prior}}>0\)
+with \(\mu_{0} \neq \hat\beta\) typically has \(S_{\mathrm{marg}} > \mathrm{RSS}\)
+and hence a **larger** \(b_{n}\) and posterior spread than this classical
+limit suggests; only in the limit does \(S_{\mathrm{marg}}\) coincide with
+\(\mathrm{RSS}\) for every \(\mu_{0}\).
+At \(n_{\mathrm{prior}} = 0\) the Zellner \(g\)-prior weight and the Gamma
+shape \(a_{0}\) are degenerate, so this limit is best read as **asymptotic
+intuition** for weak prior weight, not as a literal prior specification.
+
+**Growth of \(n_{w}\) at fixed \(n_{\mathrm{prior}}\).**
+The posterior mean of \(\tau^{-1}=\sigma^{2}\) in the special case can be written
+with the uncancelled factors as
+\[
+\frac{b_{n}}{a_{n}-1}
+=
+\frac{S_{\mathrm{marg}}\,(n_{\mathrm{prior}} + n_{w})/n_{w}}
+{n_{\mathrm{prior}} + n_{w} - 2}
+=
+\frac{S_{\mathrm{marg}}}{n_{w}}
+\cdot
+\frac{n_{\mathrm{prior}} + n_{w}}{n_{\mathrm{prior}} + n_{w} - 2}.
+\]
+As \(n_{w} \to \infty\) with \(n_{\mathrm{prior}}\) fixed,
+\((n_{\mathrm{prior}} + n_{w})/(n_{\mathrm{prior}} + n_{w} - 2) \to 1\) and
+\((n_{\mathrm{prior}} + n_{w})/n_{w} \to 1\), so asymptotically
+\((b_{n}/(a_{n}-1)) \sim S_{\mathrm{marg}}/n_{w}\): the leading behavior is
+**mean marginal residual energy per effective observation**.
+Moreover \(pwt = n_{\mathrm{prior}}/(n_{\mathrm{prior}}+n_{w}) \to 0\), so in the
+Zellner decomposition
+\(S_{\mathrm{marg}} = \mathrm{RSS} + pwt\,(\hat\beta-\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0})\)
+the mismatch term is multiplied by a coefficient tending to **zero**; under
+typical regularity \(pwt\,(\hat\beta-\mu_{0})^{\mathsf T}G(\hat\beta-\mu_{0}) = O_{p}(1)\)
+while \(\mathrm{RSS}\) grows with \(n_{w}\), so
+\(S_{\mathrm{marg}}/n_{w}\) and \(\mathrm{RSS}/n_{w}\) have the same leading
+order. The factor \((n_{\mathrm{prior}}+n_{w})/n_{w}\)
+is the only explicit **\(O(1/n_{w})\)** correction linking total sample size to
+effective data count before cancellation with \(V_{n}\).
+
+#### `dGamma` posterior with fixed \(\beta\): general form and special choices
+
+For a precision-only prior
+\[
+\tau \sim \mathrm{Gamma}(a_0,b_0),
+\]
+and Gaussian weighted likelihood with \(\beta\) treated as fixed, define
+\[
+\mathrm{RSS}_w(\beta)=\sum_i w_i(y_i-x_i^\top\beta)^2.
+\]
+Then
+\[
+\tau\mid y,\beta \sim \mathrm{Gamma}\!\left(a_0+\frac{n_w}{2},\; b_0+\frac12\,\mathrm{RSS}_w(\beta)\right).
+\]
+
+Using the Chapter 11 calibration
+\[
+a_0=\frac{n_{\mathrm{prior}}}{2},
+\qquad
+b_0=\frac12\frac{n_{\mathrm{prior}}}{n_w}\,\mathrm{RSS}_w(\beta),
+\]
+we get
+\[
+\tau\mid y,\beta \sim
+\mathrm{Gamma}\!\left(
+\frac{n_{\mathrm{prior}}+n_w}{2},
+\frac12\left(1+\frac{n_{\mathrm{prior}}}{n_w}\right)\mathrm{RSS}_w(\beta)
+\right).
+\]
+
+Hence, for \(n_{\mathrm{prior}}+n_w>2\),
+\[
+E(\tau^{-1}\mid y,\beta)
+=
+\frac{b_n}{a_n-1}
+=
+\frac{\left(\frac{n_{\mathrm{prior}}+n_w}{n_w}\right)\mathrm{RSS}_w(\beta)}
+{n_{\mathrm{prior}}+n_w-2}.
+\]
+
+This expression holds for any fixed \(\beta\).
+
+#### Choice \(\beta=\beta_\star\) (posterior mode from `dNormal_Gamma`) and weak-prior limit
+
+If \(\beta=\beta_\star\), where \(\beta_\star\) is the posterior mode from the
+`dNormal_Gamma` fit, the same formula applies with \(\mathrm{RSS}_w(\beta_\star)\).
+
+Using the weighted least-squares decomposition:
+\[
+\mathrm{RSS}_w(\beta)
+=
+\mathrm{RSS}_w(\hat\beta)
++
+(\beta-\hat\beta)^\top G(\beta-\hat\beta),\qquad
+G=X^\top W X,
+\]
+so
+\[
+\mathrm{RSS}_w(\beta_\star)
+=
+\mathrm{RSS}_w(\hat\beta)
++
+(\beta_\star-\hat\beta)^\top G(\beta_\star-\hat\beta).
+\]
+
+Under scalar Zellner weighting, \(\beta_\star=(1-pwt)\hat\beta+pwt\,\mu_0\), giving
+\[
+\mathrm{RSS}_w(\beta_\star)
+=
+\mathrm{RSS}_w(\hat\beta)
++
+pwt^2(\hat\beta-\mu_0)^\top G(\hat\beta-\mu_0).
+\]
+
+As \(n_{\mathrm{prior}}\to 0\) with \(n_w\) fixed, \(pwt\to 0\), so
+\[
+\mathrm{RSS}_w(\beta_\star)\to \mathrm{RSS}_w(\hat\beta),
+\]
+and therefore
+\[
+E(\tau^{-1}\mid y,\beta_\star)
+\to
+\frac{\mathrm{RSS}_w(\hat\beta)}{n_w-2},
+\]
+the classical weighted residual-variance limit.
 

@@ -13,16 +13,21 @@ ps <- Prior_Setup(weight ~ group, gaussian())
 ## Classical model
 lm.D9 <- lm(weight ~ group, x = TRUE, y = TRUE)
 summary(lm.D9)
+vcov(lm.D9)
+s <- summary(lm.D9)
+disp_classical <- s$sigma^2
+cat("Classical lm dispersion (sigma^2 = RSS/(n-p)):", disp_classical, "\n")
 
 ## Conjugate Normal Prior (fixed dispersion)
-lmb.D9 <- lmb(
+lmb.D9 <- lmb(n=1000,
   weight ~ group,
   pfamily = dNormal(mu = ps$mu, ps$Sigma, dispersion = ps$dispersion)
 )
 summary(lmb.D9)
+vcov(lmb.D9)
 
 ## Conjugate Normal_Gamma Prior (note division by dispersion)
-lmb.D9_v2 <- lmb(
+lmb.D9_v2 <- lmb(n=1000,
   weight ~ group,
   pfamily = dNormal_Gamma(
     ps$mu,
@@ -32,24 +37,42 @@ lmb.D9_v2 <- lmb(
   )
 )
 summary(lmb.D9_v2)
+vcov(lmb.D9_v2)
 
 ## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
+#p<-2
+
+ps2 <- Prior_Setup(weight ~ group, gaussian(),shape_df="n_prior+p")
+
+lmb.D9_v3 <- lmb(n=1000,
   weight ~ group,
   dIndependent_Normal_Gamma(
-    ps$mu,
-    ps$Sigma,
-    shape = ps$shape,
-    rate  = ps$rate
+    ps2$mu,
+    ps2$Sigma,
+    shape = ps2$shape,
+    rate  = ps2$rate
   )
 )
 summary(lmb.D9_v3)
 
+vcov(lm.D9)
+0.99*vcov(lm.D9)
+vcov(lmb.D9)
+vcov(lmb.D9_v2)
+vcov(lmb.D9_v3)
+
+disp_classical
+mean(lmb.D9$dispersion)
+mean(lmb.D9_v2$dispersion)
+mean(lmb.D9_v3$dispersion)
+
+
 ## anova 
 anova(lmb.D9)
 
-
 ## lmb with dGamma prior (dispersion-only; coefficients fixed)
-out_lmb_dGamma <- lmb(weight ~ group,
+out_lmb_dGamma <- lmb(n=1000,
+  weight ~ group,
   pfamily = dGamma(shape = ps$shape, rate = ps$rate, beta = ps$coefficients))
 summary(out_lmb_dGamma)
+

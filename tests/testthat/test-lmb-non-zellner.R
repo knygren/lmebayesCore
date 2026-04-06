@@ -29,3 +29,27 @@ test_that("lmb: Independent Normal-Gamma with scaled diagonal Sigma (non-Zellner
   expect_equal(ncol(fit$coefficients), nrow(ps$mu))
   expect_true(all(is.finite(fit$coef.means)))
 })
+
+test_that("Prior_Setup shape_df n_prior+p matches shape + p/2 with rate unchanged", {
+  ctl <- c(4.17, 5.58)
+  trt <- c(4.81, 4.17)
+  group <- gl(2, 2, 4)
+  weight <- c(ctl, trt)
+  ps <- Prior_Setup(
+    weight ~ group,
+    gaussian(),
+    pwt = 0.01,
+    disp_type = "OLS_mean",
+    shape_df = "n_prior"
+  )
+  p <- ncol(ps$x)
+  ps1 <- Prior_Setup(
+    weight ~ group,
+    gaussian(),
+    pwt = 0.01,
+    disp_type = "OLS_mean",
+    shape_df = "n_prior+p"
+  )
+  expect_equal(ps1$shape, ps$shape + p / 2)
+  expect_equal(ps1$rate, ps$rate)
+})

@@ -19,6 +19,8 @@ Prior_Setup(
   pwt_default_high = 0.05,
   n_prior = NULL,
   sd = NULL,
+  shape_df = c("n_prior", "n_prior+p", "n_prior-p"),
+  disp_type = c("Post_mean", "OLS_mean"),
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model"),
   mu = NULL,
@@ -79,6 +81,43 @@ dimension is 14 or greater. Defaults to 0.05.}
 
 \item{sd}{Optional vector argument with the prior standard deviations for the coefficients}
 
+\item{shape_df}{How the Gamma \strong{shape} on residual precision is built from the scalar
+\eqn{n_{\mathrm{prior}}} and the number of coefficients \eqn{p=\texttt{ncol}(x)}.
+Here \strong{df} means the \strong{numerator} (effective prior count) before dividing by 2 for the
+Gamma shape---not residual degrees of freedom and not a \code{data.frame}.
+\describe{
+\item{\code{"n_prior"}}{(default) \eqn{\texttt{shape} = n_{\mathrm{prior}}/2}. With
+\code{\link{dIndependent_Normal_Gamma}}, the weak-prior limit of the log-target is
+close to the \strong{joint} Gaussian log-likelihood in \eqn{(\beta,\tau)} (full-sample
+counting for dispersion). With \code{\link{dNormal_Gamma}}, the conjugate conditional
+\eqn{\pi(\beta\mid\tau)} adds an extra \eqn{(p/2)\log\tau} term, so the \strong{same}
+\code{shape} implies \strong{different} limiting dispersion behavior across these
+\code{pfamily}s.}
+\item{\code{"n_prior+p"}}{\eqn{\texttt{shape} = (n_{\mathrm{prior}}+p)/2}; \code{rate} is still
+\eqn{(n_{\mathrm{prior}}/2)\cdot\texttt{dispersion}} (same as \code{"n_prior"}), i.e. the usual
+\code{shape <- shape + p/2} with \code{rate} fixed. Intended for
+\code{\link{dIndependent_Normal_Gamma}} when you want marginal coefficient uncertainty
+in the \strong{\eqn{n_{\mathrm{effective}}-p}} / \code{summary(\link[stats]{lm})} spirit
+as \code{pwt} approaches 0 (weak-prior limit). The weak-prior log-target \strong{no longer} coincides with the raw
+log-likelihood because a \eqn{(p/2)\log\tau} prior contribution remains.}
+\item{\code{"n_prior-p"}}{\eqn{\texttt{shape} = (n_{\mathrm{prior}}-p)/2}; \code{rate} is still
+\eqn{(n_{\mathrm{prior}}/2)\cdot\texttt{dispersion}}. Intended for
+\code{\link{dNormal_Gamma}} when you want to \strong{offset} the \eqn{(p/2)\log\tau} from
+\eqn{\pi(\beta\mid\tau)} so the total prior \eqn{\log\tau} term aligns with an
+independent Gamma\eqn{(n_{\mathrm{prior}}/2,\cdot)} specification---pushing weak-prior
+marginal dispersion toward \strong{full-sample} (\eqn{n_{\mathrm{effective}}}) counting.
+\strong{Requires} \eqn{n_{\mathrm{prior}} > p} so \eqn{\texttt{shape} > 0} (proper Gamma
+prior); the posterior may remain proper in some cases when this fails, but the prior
+is then invalid for the compound sampler.}
+}
+Ignored when \code{shape} and \code{rate} are not computed (non-scalar \code{n_prior}, or
+no dispersion for the family).}
+
+\item{disp_type}{For Gaussian models, how \code{dispersion} and \code{rate} are set.
+\code{"Post_mean"} (default) chooses them so \code{dispersion} is \strong{consistent with the
+posterior distribution} for dispersion under the prior and data (see Details).
+\code{"OLS_mean"} uses \eqn{\mathrm{RSS}_w/(n_{\mathrm{effective}}-2)}.}
+
 \item{intercept_source}{Specifies the method through which the prior mean for the intercept term is set. Options are based on the null intercept only model (null_model) or full_models. The default is the null model which is safer if variables are not centered.}
 
 \item{effects_source}{Specifies the method through which the prior means for the effects terms are set. Options are null_effects (prior means set to zero) or full_model (effect means set to match maximum likelihood estimates).}
@@ -98,12 +137,14 @@ dimension is 14 or greater. Defaults to 0.05.}
 A list with items related to the prior.
 \item{mu}{A prior mean vector}
 \item{Sigma}{A prior variance-covariance matrix}
-\item{dispersion}{For \code{gaussian()}, \eqn{\mathrm{RSS}_w/(n_{\mathrm{effective}}-2)}
-from response residuals and \code{prior.weights} of the internal
-\code{\link[stats]{glm.fit}} fit (see Details). \code{NULL} for other families except Gamma.}
+\item{dispersion}{Empirical bayes estimate for the dispersion (gaussian model only)}
 \item{shape}{Derived prior shape parameter (gaussian model only). Defaults to n_prior/2 where n_prior is derived from pwt if not provided}
 \item{rate}{Derived prior rate parameter (gaussian model only). Defaults to (n_prior*dispersion)/2 where n_prior is derived from pwt if not provided}
-\item{coefficients}{Named numeric vector of regression coefficients from the internal full-model GLM (same convention as \code{\link[stats]{coef}}); see Details}
+\item{coefficients}{Named numeric vector of prior-implied posterior-mean coefficients.
+For \code{gaussian()} this uses the closed-form Zellner blend
+\eqn{(1-\texttt{pwt})\hat\beta+\texttt{pwt}\mu} (scalar or per-coefficient \code{pwt})
+when available; otherwise it falls back to the internal full-model GLM coefficients
+(same convention as \code{\link[stats]{coef}}).}
 \item{model}{The model frame from \code{object} if it exists}
 \item{x}{The design matrix from \code{object} if it exists}
 \item{PriorSettings}{A list containing prior configuration details}
@@ -191,6 +232,9 @@ and envelope controls such as \code{max_disp_perc} (see examples).
 \code{dGamma(shape = ps2$shape, rate = ps2$rate, beta = ps2$coefficients)}.
 For \code{\link{rGamma_reg}}, pass
 \code{prior_list = list(beta = ps2$coefficients, shape = ps2$shape, rate = ps2$rate)}.
+
+For a runnable comparison of \code{shape_df} settings with \code{\link{lmb}}, see the package
+demo \code{demo(Ex_10_Prior_Setup_shape_df, package = "glmbayes")}.
 }
 
 \subsection{References and further reading}{
@@ -222,6 +266,8 @@ The inputs to \code{Prior_Setup()} fall into three conceptual categories:
 \item \code{pwt}: prior weight relative to the likelihood. If scalar, used to compute Zellner's g-prior.
 \item \code{n_prior}: optional effective prior sample size. If provided, overrides \code{pwt}.
 \item \code{sd}: optional vector of prior standard deviations. If provided, used to compute \code{pwt}.
+\item \code{shape_df}: maps scalar \code{n_prior} and \code{p = ncol(x)} to the Gamma \strong{shape} on residual precision
+(see argument description and Details).
 }
 
 \strong{3. Prior mean specification}
@@ -264,32 +310,56 @@ Likewise, if \code{n_prior} is provided, \code{pwt} is computed as:
 \deqn{pwt = \frac{n_{\mathrm{prior}}}{n_{\mathrm{prior}} + n_{\mathrm{effective}}}}
 
 When applicable, \code{Prior_Setup()} computes the shape and rate parameters for a Gamma prior on the residual precision (inverse variance), used in
-compound prior families such as \code{dNormal_Gamma()}, \code{dIndependent_Normal_Gamma()}, and \code{dGamma()}. These are derived from the effective prior sample size and the estimated dispersion:
-
-\deqn{\text{shape} = \frac{n_{\mathrm{prior}}}{2}}
-\deqn{\text{rate} = \text{shape} \cdot \text{dispersion} = \frac{n_{\mathrm{prior}}}{2} \cdot \text{dispersion}}
+compound prior families such as \code{dNormal_Gamma()}, \code{dIndependent_Normal_Gamma()}, and \code{dGamma()}. Let \eqn{p=\texttt{ncol}(x)}. The \strong{shape} is
+\deqn{\text{shape} = \frac{n_{\mathrm{shape}}}{2}}
+where \eqn{n_{\mathrm{shape}}} is set by \code{shape_df}:
+\describe{
+\item{\code{shape_df = "n_prior"}}{\eqn{n_{\mathrm{shape}} = n_{\mathrm{prior}}}}
+\item{\code{shape_df = "n_prior+p"}}{\eqn{n_{\mathrm{shape}} = n_{\mathrm{prior}} + p}}
+\item{\code{shape_df = "n_prior-p"}}{\eqn{n_{\mathrm{shape}} = n_{\mathrm{prior}} - p}
+(requires \eqn{n_{\mathrm{prior}} > p})}
+}
+The \strong{rate} is tied to the \strong{nominal} prior sample size \eqn{n_{\mathrm{prior}}}, not to the
+adjusted \strong{shape} when \code{shape_df} adds or subtracts \eqn{p}:
+\deqn{\text{rate} = \frac{n_{\mathrm{prior}}}{2} \cdot \text{dispersion}}
+So for \code{shape_df = "n_prior+p"}, \eqn{\texttt{shape} = (n_{\mathrm{prior}}+p)/2} but
+\eqn{\texttt{rate}} is the same as for \code{shape_df = "n_prior"} with the same \eqn{n_{\mathrm{prior}}}
+and \code{dispersion}. This matches the common recipe for \code{\link{dIndependent_Normal_Gamma}}:
+increase Gamma \strong{shape} by \eqn{p/2} while leaving \strong{rate} at the \code{"n_prior"} value.
+With \code{disp_type = "Post_mean"}, the joint search updates \code{dispersion} and then sets
+\eqn{\texttt{rate} = (n_{\mathrm{prior}}/2)\cdot\texttt{dispersion}} at the optimum.
 }
 
-\subsection{Default Gaussian dispersion (point estimate)}{
+\subsection{Gaussian dispersion and \code{disp_type}}{
 
-For \code{family = gaussian()}, the returned \code{dispersion} is a \strong{weighted}
-residual-variance point estimate from response residuals and \code{prior.weights}
-of the internal \code{\link[stats]{glm.fit}} fit (\code{\link[stats]{glm}} is not called).
-With \eqn{\mathrm{RSS}_w = \sum_i w_i r_i^2} and \eqn{n_{\mathrm{effective}} = \sum_i w_i}
-(see \code{PriorSettings$n_effective}), the default is
-\deqn{\texttt{dispersion} = \frac{\mathrm{RSS}_w}{n_{\mathrm{effective}} - 2},}
+For \code{family = gaussian()}, the function always computes a \strong{classical} weighted
+residual-variance ratio from the internal \code{\link[stats]{glm.fit}} (not \code{\link[stats]{glm}}):
+with \eqn{\mathrm{RSS}_w = \sum_i w_i r_i^2} and \eqn{n_{\mathrm{effective}} = \sum_i w_i},
+\deqn{d_{\mathrm{OLS}} = \frac{\mathrm{RSS}_w}{n_{\mathrm{effective}} - 2}}
 requiring \eqn{n_{\mathrm{effective}} > 2}. This is \strong{not}
-\code{summary(glm.fit(...))$dispersion} (which uses residual df \eqn{n-\mathrm{rank}}).
-The older MLE-style ratio \eqn{\mathrm{RSS}_w/n_{\mathrm{effective}}} is commented out
-in the source for reference. With the current \eqn{n-2} denominator, posterior summaries
-of precision and dispersion generally depend on \code{pwt} unless additional structure
-holds (e.g.\ prior mean on \eqn{\beta} aligned with the MLE in conjugate Normal--Gamma).
+\code{summary(glm.fit(...))$dispersion}. That value is the \strong{returned} \code{dispersion}
+when \code{disp_type = "OLS_mean"}; when \code{disp_type = "Post_mean"}, it is used only as an
+internal starting value.
 
-The posterior shape and rate for precision under the same Gamma--likelihood fragment are:
+If \code{n_prior} is available so a Gamma prior on precision is defined (\code{shape},
+\code{rate}), the returned \code{dispersion} and \code{rate} are set according to
+\code{disp_type}:
+\itemize{
+\item \code{disp_type = "Post_mean"} (default): choose \code{dispersion} and \code{rate} so the
+prior's dispersion input is \strong{consistent with the posterior distribution} for residual
+dispersion (given the rest of the prior and the data).
+\item \code{disp_type = "OLS_mean"}: return \eqn{d_{\mathrm{OLS}}} as \code{dispersion} and
+\eqn{\mathrm{rate} = (n_{\mathrm{prior}}/2)\cdot \texttt{dispersion}} (for any \code{shape_df}).
+}
+
+The posterior shape and rate for residual precision (Gaussian sampling fragment) are:
 \deqn{\text{shape}_{\mathrm{post}} = \text{shape} + \frac{n_{\mathrm{effective}}}{2}
-      = \frac{n_{\mathrm{prior}} + n_{\mathrm{effective}}}{2}}
-\deqn{\text{rate}_{\mathrm{post}} = \text{rate} + \frac{\mathrm{RSS}_w}{2}
-      = \texttt{dispersion}\,\frac{n_{\mathrm{prior}}}{2} + \frac{\mathrm{RSS}_w}{2}.}
+      = \frac{n_{\mathrm{shape}} + n_{\mathrm{effective}}}{2}}
+\deqn{\text{rate}_{\mathrm{post}} = \text{rate} + \frac{\mathrm{RSS}_w}{2}.}
+With the default \code{shape_df = "n_prior"}, \eqn{n_{\mathrm{shape}}=n_{\mathrm{prior}}} and
+\eqn{\text{rate} = \texttt{dispersion}\,n_{\mathrm{prior}}/2}, so
+\eqn{\text{rate}_{\mathrm{post}} = \texttt{dispersion}\,n_{\mathrm{prior}}/2 + \mathrm{RSS}_w/2}
+as before.
 
 This structure allows the prior to contribute pseudo-observations to the residual precision estimate, enabling adaptive shrinkage and hierarchical
 regularization---especially valuable in small-sample or high-dimensional settings.
