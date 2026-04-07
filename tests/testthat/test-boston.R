@@ -38,7 +38,7 @@ test_that("Bayesian Gaussian regression with Independent Normal-Gamma prior — 
     form,
     data     = Boston_centered,
     pfamily  = dNormal_Gamma(mu   = ps$mu,
-                             Sigma = ps$Sigma / ps$dispersion,
+                             Sigma = ps$Sigma_0,
                              shape = ps$shape,
                              rate  = ps$rate)
   )

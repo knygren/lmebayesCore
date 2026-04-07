@@ -4,7 +4,8 @@
 #' Given Gaussian-model sufficient inputs and a dispersion-independent
 #' coefficient prior covariance \eqn{\Sigma_0} (Chapter 11 framing), this
 #' function computes calibrated Gaussian prior quantities:
-#' \code{dispersion}, \code{shape}, \code{rate}, and \code{Sigma}.
+#' \code{dispersion}, \code{shape}, \code{rate}, and \code{Sigma}, and returns
+#' the input \code{Sigma_0} as \code{Sigma_0}.
 #'
 #' The function is structured as a step-wise pipeline:
 #' \enumerate{
@@ -91,6 +92,9 @@
 #'   \item \code{shape}: Gamma shape for residual precision.
 #'   \item \code{rate}: Gamma rate for residual precision.
 #'   \item \code{Sigma}: calibrated coefficient prior covariance matrix.
+#'   \item \code{Sigma_0}: the dispersion-independent prior covariance matrix passed in
+#'     via argument \code{Sigma_0} (same matrix, with \code{dimnames} taken from
+#'     \code{colnames(X)} when available).
 #' }
 #'
 #' @export
@@ -230,11 +234,15 @@ compute_gaussian_prior <- function(
   Sigma <- (n_effective / n_prior) * dispersion * Ginv
   dimnames(Sigma) <- list(colnames(X), colnames(X))
 
+  Sigma_0_out <- Sigma_0
+  dimnames(Sigma_0_out) <- list(colnames(X), colnames(X))
+
   ## Step F: return calibrated outputs.
   list(
     dispersion = dispersion,
     shape = shape,
     rate = rate,
-    Sigma = Sigma
+    Sigma = Sigma,
+    Sigma_0 = Sigma_0_out
   )
 }

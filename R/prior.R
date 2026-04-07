@@ -73,6 +73,12 @@
 #' The function returns a list containing:
 #' * `mu`: the prior mean vector
 #' * `Sigma`: the prior variance-covariance matrix
+#' * `Sigma_0`: for \code{family = gaussian()}, the dispersion-independent coefficient
+#'   prior covariance matrix on the precision-weighted scale (the \eqn{\Sigma_0} passed
+#'   into \code{\link{compute_gaussian_prior}}): the Zellner \code{Sigma} before calibration,
+#'   divided by the classical weighted residual variance
+#'   \eqn{\sum_i w_i r_i^2/(n_{\mathrm{effective}}-2)} from the internal \code{glm.fit}.
+#'   \code{NULL} for non-Gaussian families.
 #' * `dispersion`: the estimated dispersion (for Gaussian models)
 #' * `shape`: the shape parameter for Normal-Gamma priors (if applicable)
 #' * `rate`: the rate parameter for Normal-Gamma priors (if applicable)
@@ -101,8 +107,10 @@
 #' The recommended mapping from the returned list into a \code{\link{pfamily}}
 #' or into \code{prior_list} for \code{\link{simfuncs}} follows the worked
 #' patterns in \code{example("Prior_Setup")} (\code{inst/examples/Ex_Prior_Setup.R}).
-#' Distinct priors use **different** combinations of \code{Sigma} versus
-#' \code{Sigma/dispersion}; mixing these up is a common error.
+#' Distinct priors use **different** combinations of coefficient-scale \code{Sigma},
+#' dispersion-free \code{Sigma_0} (Gaussian, for \code{\link{dNormal_Gamma}} /
+#' \code{\link{rNormalGamma_reg}}), and \code{dNormal(..., dispersion = ...)}; mixing
+#' these up is a common error.
 #'
 #' #### \code{\link{dNormal}()}
 #' * **Typical use (e.g. Poisson \code{\link{glmb}}):** \code{dNormal(mu = ps$mu, Sigma = ps$Sigma)}.
@@ -114,12 +122,11 @@
 #'
 #' #### \code{\link{dNormal_Gamma}()} (conjugate Normal--Gamma, Gaussian)
 #' The second argument is the prior covariance on the **precision-weighted**
-#' coefficient scale: use **\code{ps2$Sigma / ps2$dispersion}**, not \code{ps2$Sigma}
-#' alone. Recommended call:
-#' \code{dNormal_Gamma(ps2$mu, ps2$Sigma / ps2$dispersion, shape = ps2$shape, rate = ps2$rate)}.
+#' coefficient scale: use **\code{ps2$Sigma_0}** from \code{\link{Prior_Setup}} (Gaussian
+#' only), not coefficient-scale \code{ps2$Sigma} alone. Recommended call:
+#' \code{dNormal_Gamma(ps2$mu, ps2$Sigma_0, shape = ps2$shape, rate = ps2$rate)}.
 #' For \code{\link{rNormalGamma_reg}}, build
-#' \code{prior_list = list(mu = ps2$mu, Sigma = ps2$Sigma / ps2$dispersion, shape = ps2$shape, rate = ps2$rate)}
-#' (again **divided** \code{Sigma}).
+#' \code{prior_list = list(mu = ps2$mu, Sigma = ps2$Sigma_0, shape = ps2$shape, rate = ps2$rate)}.
 #'
 #' #### \code{\link{dIndependent_Normal_Gamma}()} (Gaussian, non-conjugate joint \eqn{(\beta,\phi)})
 #' Here the second argument is the **full** prior covariance on \eqn{\beta}:
@@ -249,6 +256,9 @@
 #' @return A list with items related to the prior.
 #' \item{mu}{A prior mean vector}
 #' \item{Sigma}{A prior variance-covariance matrix}
+#' \item{Sigma_0}{For \code{gaussian()} only: dispersion-independent prior covariance on
+#'   the precision-weighted coefficient scale (same as the \code{Sigma_0} argument to
+#'   \code{\link{compute_gaussian_prior}}). \code{NULL} for other families.}
 #' \item{dispersion}{Empirical bayes estimate for the dispersion (gaussian model only)}
 #' \item{shape}{Derived prior shape parameter (gaussian model only). Defaults to n_prior/2 where n_prior is derived from pwt if not provided}
 #' \item{rate}{Derived prior rate parameter (gaussian model only). Defaults to (n_prior*dispersion)/2 where n_prior is derived from pwt if not provided}
@@ -846,6 +856,19 @@ if (!is.null(sd)) {
     rownames(Sigma) <- var_names
     colnames(Sigma) <- var_names
   }
+
+  Sigma_0_out <- NULL
+  if (identical(family$family, "gaussian")) {
+    if (!is.null(.gauss_helper_preview)) {
+      Sigma_0_out <- .gauss_helper_preview$Sigma_0
+    } else if (is.finite(dispersion_classical) && dispersion_classical > 0) {
+      Sigma_0_out <- Sigma_pre_nm / dispersion_classical
+    }
+    if (!is.null(Sigma_0_out)) {
+      rownames(Sigma_0_out) <- var_names
+      colnames(Sigma_0_out) <- var_names
+    }
+  }
   
   ## ---------------------------------------------------------------------------
   ## Step 11: Assemble and return PriorSetup object.
@@ -853,6 +876,7 @@ if (!is.null(sd)) {
   prior_list <- list(
     mu = mu,
     Sigma = Sigma,
+    Sigma_0 = Sigma_0_out,
     dispersion = dispersion,
     shape = shape,
     rate = rate,

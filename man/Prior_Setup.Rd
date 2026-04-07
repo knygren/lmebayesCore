@@ -142,6 +142,9 @@ no dispersion for the family).}
 A list with items related to the prior.
 \item{mu}{A prior mean vector}
 \item{Sigma}{A prior variance-covariance matrix}
+\item{Sigma_0}{For \code{gaussian()} only: dispersion-independent prior covariance on
+the precision-weighted coefficient scale (same as the \code{Sigma_0} argument to
+\code{\link{compute_gaussian_prior}}). \code{NULL} for other families.}
 \item{dispersion}{Empirical bayes estimate for the dispersion (gaussian model only)}
 \item{shape}{Derived prior shape parameter (gaussian model only). Defaults to n_prior/2 where n_prior is derived from pwt if not provided}
 \item{rate}{Derived prior rate parameter (gaussian model only). Defaults to (n_prior*dispersion)/2 where n_prior is derived from pwt if not provided}
@@ -166,6 +169,12 @@ The function returns a list containing:
 \itemize{
 \item \code{mu}: the prior mean vector
 \item \code{Sigma}: the prior variance-covariance matrix
+\item \code{Sigma_0}: for \code{family = gaussian()}, the dispersion-independent coefficient
+prior covariance matrix on the precision-weighted scale (the \eqn{\Sigma_0} passed
+into \code{\link{compute_gaussian_prior}}): the Zellner \code{Sigma} before calibration,
+divided by the classical weighted residual variance
+\eqn{\sum_i w_i r_i^2/(n_{\mathrm{effective}}-2)} from the internal \code{glm.fit}.
+\code{NULL} for non-Gaussian families.
 \item \code{dispersion}: the estimated dispersion (for Gaussian models)
 \item \code{shape}: the shape parameter for Normal-Gamma priors (if applicable)
 \item \code{rate}: the rate parameter for Normal-Gamma priors (if applicable)
@@ -196,8 +205,10 @@ on the scale implied by the likelihood and your \code{pwt} / \code{n_prior}.
 The recommended mapping from the returned list into a \code{\link{pfamily}}
 or into \code{prior_list} for \code{\link{simfuncs}} follows the worked
 patterns in \code{example("Prior_Setup")} (\code{inst/examples/Ex_Prior_Setup.R}).
-Distinct priors use \strong{different} combinations of \code{Sigma} versus
-\code{Sigma/dispersion}; mixing these up is a common error.
+Distinct priors use \strong{different} combinations of coefficient-scale \code{Sigma},
+dispersion-free \code{Sigma_0} (Gaussian, for \code{\link{dNormal_Gamma}} /
+\code{\link{rNormalGamma_reg}}), and \code{dNormal(..., dispersion = ...)}; mixing
+these up is a common error.
 \subsection{\code{\link{dNormal}()}}{
 \itemize{
 \item \strong{Typical use (e.g. Poisson \code{\link{glmb}}):} \code{dNormal(mu = ps$mu, Sigma = ps$Sigma)}.
@@ -212,12 +223,11 @@ taken from \code{ps$y} and \code{as.matrix(ps$x)} (see examples).
 \subsection{\code{\link{dNormal_Gamma}()} (conjugate Normal--Gamma, Gaussian)}{
 
 The second argument is the prior covariance on the \strong{precision-weighted}
-coefficient scale: use \strong{\code{ps2$Sigma / ps2$dispersion}}, not \code{ps2$Sigma}
-alone. Recommended call:
-\code{dNormal_Gamma(ps2$mu, ps2$Sigma / ps2$dispersion, shape = ps2$shape, rate = ps2$rate)}.
+coefficient scale: use \strong{\code{ps2$Sigma_0}} from \code{\link{Prior_Setup}} (Gaussian
+only), not coefficient-scale \code{ps2$Sigma} alone. Recommended call:
+\code{dNormal_Gamma(ps2$mu, ps2$Sigma_0, shape = ps2$shape, rate = ps2$rate)}.
 For \code{\link{rNormalGamma_reg}}, build
-\code{prior_list = list(mu = ps2$mu, Sigma = ps2$Sigma / ps2$dispersion, shape = ps2$shape, rate = ps2$rate)}
-(again \strong{divided} \code{Sigma}).
+\code{prior_list = list(mu = ps2$mu, Sigma = ps2$Sigma_0, shape = ps2$shape, rate = ps2$rate)}.
 }
 
 \subsection{\code{\link{dIndependent_Normal_Gamma}()} (Gaussian, non-conjugate joint \eqn{(\beta,\phi)})}{
@@ -402,7 +412,7 @@ lmb.D9_v2 <- lmb(
   weight ~ group,
   pfamily = dNormal_Gamma(
     ps2$mu,
-    ps2$Sigma / ps2$dispersion,
+    ps2$Sigma_0,
     shape = ps2$shape,
     rate = ps2$rate
   )
@@ -458,7 +468,7 @@ rlmb.D9 <- rlmb(
 ## -------------------------------------------------------------------------
 prior_list_rNormalGamma <- list(
   mu = ps2$mu,
-  Sigma = ps2$Sigma / ps2$dispersion,
+  Sigma = ps2$Sigma_0,
   shape = ps2$shape,
   rate = ps2$rate
 )

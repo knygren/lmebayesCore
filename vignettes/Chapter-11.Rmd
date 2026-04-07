@@ -476,7 +476,7 @@ lmb.D9_v2 <- lmb(
   weight ~ group,
   pfamily = dNormal_Gamma(
     ps$mu,
-    ps$Sigma / ps$dispersion,
+    ps$Sigma_0,
     shape = ps$shape,
     rate  = ps$rate
   )
@@ -1359,8 +1359,8 @@ that is proportional to the data precision:
 
 equivalently prior **precision** \(\tau\, (pwt/(1-pwt))\, G\).
 This is the structure implied by `Prior_Setup()` together with
-`dNormal_Gamma(..., Sigma / dispersion, ...)` when
-\(\Sigma/\texttt{dispersion} = ((1-pwt)/pwt)\, G^{-1}\) (Zellner \(g\)-prior
+`dNormal_Gamma(..., Sigma_0, ...)` when
+\(\texttt{Sigma_0} = ((1-pwt)/pwt)\, G^{-1}\) (Zellner \(g\)-prior
 relative to \(G^{-1}\); see Section 3.2).
 
 Define the **effective prior sample size** \(n_{\mathrm{prior}} > 0\) by
@@ -1569,9 +1569,10 @@ The **posterior** Gamma rate is
 \(b_{n} = b_{0} + \frac{1}{2} S_{\mathrm{marg}}\). Thus a larger returned
 \(d\) increases \(b_{0}\) and, holding \(S_{\mathrm{marg}}\) fixed, would
 increase \(b_{n}\). In practice, for **`dNormal_Gamma`** the matrix passed to
-the sampler is **`Sigma / dispersion`**, so changing \(d\) also rescales the
-Normal--Gamma coupling of \(\beta\) given \(\tau\); the augmented least-squares
-step then produces a **different** \(S_{\mathrm{marg}}\) and posterior mean
+the sampler is **`Sigma_0`** (dispersion-free prior covariance from `Prior_Setup()`),
+while the returned **`dispersion`** calibrates the Gamma rate and the coefficient-scale
+**`Sigma`**; changing \(d\) rescales the Normal--Gamma coupling of \(\beta\) given \(\tau\);
+the augmented least-squares step then produces a **different** \(S_{\mathrm{marg}}\) and posterior mean
 \(m_{\mathrm{post}}\) as well.
 
 #### Special case: \(b_{0} = \frac{1}{2}(n_{\mathrm{prior}}/n_{w})\,S_{\mathrm{marg}}\)

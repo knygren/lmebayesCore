@@ -54,6 +54,9 @@ A list with elements:
 \item \code{shape}: Gamma shape for residual precision.
 \item \code{rate}: Gamma rate for residual precision.
 \item \code{Sigma}: calibrated coefficient prior covariance matrix.
+\item \code{Sigma_0}: the dispersion-independent prior covariance matrix passed in
+via argument \code{Sigma_0} (same matrix, with \code{dimnames} taken from
+\code{colnames(X)} when available).
 }
 }
 \description{
@@ -61,7 +64,8 @@ Gaussian Normal-Gamma calibration function used by \code{\link{Prior_Setup}}.
 Given Gaussian-model sufficient inputs and a dispersion-independent
 coefficient prior covariance \eqn{\Sigma_0} (Chapter 11 framing), this
 function computes calibrated Gaussian prior quantities:
-\code{dispersion}, \code{shape}, \code{rate}, and \code{Sigma}.
+\code{dispersion}, \code{shape}, \code{rate}, and \code{Sigma}, and returns
+the input \code{Sigma_0} as \code{Sigma_0}.
 }
 \details{
 The function is structured as a step-wise pipeline:

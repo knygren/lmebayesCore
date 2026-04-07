@@ -37,7 +37,7 @@ lmb.D9_v2 <- lmb(
   weight ~ group,
   pfamily = dNormal_Gamma(
     ps2$mu,
-    ps2$Sigma / ps2$dispersion,
+    ps2$Sigma_0,
     shape = ps2$shape,
     rate = ps2$rate
   )
@@ -93,7 +93,7 @@ rlmb.D9 <- rlmb(
 ## -------------------------------------------------------------------------
 prior_list_rNormalGamma <- list(
   mu = ps2$mu,
-  Sigma = ps2$Sigma / ps2$dispersion,
+  Sigma = ps2$Sigma_0,
   shape = ps2$shape,
   rate = ps2$rate
 )

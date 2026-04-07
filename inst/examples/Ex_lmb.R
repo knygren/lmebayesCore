@@ -31,7 +31,7 @@ lmb.D9_v2 <- lmb(n=1000,
   weight ~ group,
   pfamily = dNormal_Gamma(
     ps$mu,
-    ps$Sigma / ps$dispersion,
+    ps$Sigma_0,
     shape = ps$shape,
     rate  = ps$rate
   )

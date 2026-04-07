@@ -8,14 +8,12 @@ weight <- c(ctl, trt)
 
 ps=Prior_Setup(weight ~ group)
 mu <- ps$mu
-Sigma <- ps$Sigma
 shape <- ps$shape
 rate <- ps$rate
-disp <- ps$dispersion
 
 y <- ps$y
 x <- as.matrix(ps$x)
-prior_list <- list(mu = mu, Sigma = Sigma / disp, shape = shape, rate = rate)
+prior_list <- list(mu = mu, Sigma = ps$Sigma_0, shape = shape, rate = rate)
 ngamma.D9 <- rNormalGamma_reg(n = 1000, y = y, x = x,
   prior_list = prior_list)
 

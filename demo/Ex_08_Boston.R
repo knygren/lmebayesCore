@@ -54,7 +54,7 @@ lmb.boston_v2 <- lmb(
   form,
   data     = Boston_centered,
   pfamily  = dNormal_Gamma(mu   = ps$mu,
-                           Sigma = ps$Sigma / ps$dispersion,
+                           Sigma = ps$Sigma_0,
                            shape = ps$shape,
                            rate  = ps$rate)
 )

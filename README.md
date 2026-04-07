@@ -75,7 +75,7 @@ More specifically, each pfamily constructor requires parameters associated with 
 
 - dNormal(mu, Sigma, dispersion = NULL)
 - dGamma(shape, rate, beta, disp_lower = NULL, disp_upper = NULL)
-- dNormal_Gamma(mu, Sigma, shape, rate)
+- dNormal_Gamma(mu, Sigma, shape, rate) — for Gaussian models, `Prior_Setup()` supplies dispersion-free **`Sigma_0`** as this `Sigma` argument
 - dIndependent_Normal_Gamma(
     mu,
     Sigma,
