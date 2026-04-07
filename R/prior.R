@@ -772,6 +772,32 @@ if (!is.null(sd)) {
   S_marg_post_mean <- NA_real_
   S_marg_scalar_zellner <- NA_real_
   Sigma_pre_nm <- Sigma
+  .gauss_helper_preview <- NULL
+  ## Temporary wiring: call compute_gaussian_prior() without affecting outputs.
+  if (identical(family$family, "gaussian") &&
+      is.finite(dispersion_classical) && dispersion_classical > 0 &&
+      !is.null(n_prior) && length(n_prior) == 1L && is.finite(n_prior) && n_prior > 0 &&
+      !is.null(mu) && length(as.numeric(mu)) == nvar && all(is.finite(as.numeric(mu)))) {
+    w_h <- if (is.null(weights)) rep(1, n_obs) else as.numeric(weights)
+    off_h <- if (is.null(offset)) rep(0, n_obs) else as.numeric(offset)
+    bhat_h <- coef(glm_full)
+    if (length(bhat_h) == nvar && all(is.finite(bhat_h))) {
+      Sigma_0_h <- Sigma_pre_nm / dispersion_classical
+      .gauss_helper_preview <- compute_gaussian_prior(
+        X = X,
+        Y = Y,
+        weights = w_h,
+        offset = off_h,
+        n_effective = n_effective,
+        bhat = bhat_h,
+        mu = mu,
+        Sigma_0 = Sigma_0_h,
+        n_prior = n_prior,
+        shape_df = shape_df,
+        apply_smarg_remap = TRUE
+      )
+    }
+  }
   if (identical(family$family, "gaussian") &&
       is.finite(rss_weighted_stored) && rss_weighted_stored > 0 &&
       is.finite(dispersion_classical) && dispersion_classical > 0) {
@@ -1446,6 +1472,61 @@ if (!is.null(sd)) {
       names(coefficients) <- var_names
     }
   }
+
+  ## Temporary comparison of helper output vs current path output.
+#   if (identical(family$family, "gaussian") &&
+#       !is.null(.gauss_helper_preview)) {
+#     h <- .gauss_helper_preview
+#     scalar_line <- function(lbl, a, b) {
+#       if (!(is.finite(a) && is.finite(b))) {
+#         return(paste0("  ", lbl, ": old=", format(a, digits = 10),
+#                       ", helper=", format(b, digits = 10), ", diff=NA"))
+#       }
+#       d <- abs(a - b)
+#       r <- if (abs(a) > 0) d / abs(a) else d
+#       paste0(
+#         "  ", lbl, ": old=", format(a, digits = 10),
+#         ", helper=", format(b, digits = 10),
+#         ", |diff|=", format(d, digits = 10),
+#         ", rel=", format(r, digits = 10)
+#       )
+#     }
+#     sigma_abs_max <- NA_real_
+#     sigma_rel_max <- NA_real_
+#     if (is.matrix(Sigma) && is.matrix(h$Sigma) &&
+#         all(dim(Sigma) == dim(h$Sigma))) {
+#       dmat <- abs(Sigma - h$Sigma)
+#       sigma_abs_max <- max(dmat, na.rm = TRUE)
+#       denom <- max(abs(Sigma), na.rm = TRUE)
+#       sigma_rel_max <- if (is.finite(denom) && denom > 0) sigma_abs_max / denom else sigma_abs_max
+#     }
+#     message(
+#       "Prior_Setup temporary helper comparison (old path vs compute_gaussian_prior):\n",
+#       paste(
+#         c(
+#           scalar_line("dispersion", dispersion, h$dispersion),
+#           scalar_line("shape", shape, h$shape),
+#           scalar_line("rate", rate, h$rate),
+#           paste0("  Sigma max|diff|=", format(sigma_abs_max, digits = 10),
+#                  ", max rel=", format(sigma_rel_max, digits = 10)),
+#           paste0("  helper remap_applied=", h$diag$remap_applied)
+#         ),
+#         collapse = "\n"
+#       )
+#     )
+#   }
+
+  ## Temporary switchover: source returned Gaussian scale/hyperparameters from helper.
+  ## Keep old path above for comparison during refactor validation.
+  if (identical(family$family, "gaussian") &&
+      !is.null(.gauss_helper_preview)) {
+    dispersion <- .gauss_helper_preview$dispersion
+    shape <- .gauss_helper_preview$shape
+    rate <- .gauss_helper_preview$rate
+    Sigma <- .gauss_helper_preview$Sigma
+    rownames(Sigma) <- var_names
+    colnames(Sigma) <- var_names
+  }
   
   prior_list <- list(
     mu = mu,
@@ -1472,6 +1553,156 @@ if (!is.null(sd)) {
   class(prior_list) <- "PriorSetup"
   return(prior_list)
   
+}
+
+compute_gaussian_prior <- function(
+    X,
+    Y,
+    weights,
+    offset,
+    n_effective,
+    bhat,
+    mu,
+    Sigma_0,
+    n_prior,
+    shape_df = c("n_prior", "n_prior+p", "n_prior-p"),
+    apply_smarg_remap = TRUE
+) {
+  shape_df <- match.arg(shape_df)
+
+  n_obs <- NROW(Y)
+  if (!is.matrix(X) || NROW(X) != n_obs) {
+    stop("compute_gaussian_prior: X must be a matrix with nrow(X) == length(Y).", call. = FALSE)
+  }
+  if (!is.numeric(Y) || length(Y) != n_obs) {
+    stop("compute_gaussian_prior: Y must be a numeric vector with length equal to nrow(X).", call. = FALSE)
+  }
+  if (!is.numeric(weights) || length(weights) != n_obs) {
+    stop("compute_gaussian_prior: weights must be a numeric vector with length equal to nrow(X).", call. = FALSE)
+  }
+  if (!is.numeric(offset) || length(offset) != n_obs) {
+    stop("compute_gaussian_prior: offset must be a numeric vector with length equal to nrow(X).", call. = FALSE)
+  }
+  p <- NCOL(X)
+  if (!is.numeric(bhat) || length(bhat) != p || any(!is.finite(bhat))) {
+    stop("compute_gaussian_prior: bhat must be a finite numeric vector with length ncol(X).", call. = FALSE)
+  }
+  mu_num <- as.numeric(mu)
+  if (length(mu_num) != p || any(!is.finite(mu_num))) {
+    stop("compute_gaussian_prior: mu must be a finite numeric vector with length ncol(X).", call. = FALSE)
+  }
+  if (!is.matrix(Sigma_0) || nrow(Sigma_0) != p || ncol(Sigma_0) != p || anyNA(Sigma_0)) {
+    stop("compute_gaussian_prior: Sigma_0 must be a numeric [p x p] matrix with no missing values.", call. = FALSE)
+  }
+  if (!is.numeric(n_prior) || length(n_prior) != 1L || !is.finite(n_prior) || n_prior <= 0) {
+    stop("compute_gaussian_prior: n_prior must be a single positive finite numeric value.", call. = FALSE)
+  }
+  if (!is.numeric(n_effective) || length(n_effective) != 1L || !is.finite(n_effective) || n_effective <= 0) {
+    stop("compute_gaussian_prior: n_effective must be a single positive finite numeric value.", call. = FALSE)
+  }
+
+  ## Weighted RSS and classical dispersion
+  res <- as.numeric(Y) - as.numeric(X %*% bhat) - as.numeric(offset)
+  rss_weighted <- sum(as.numeric(weights) * res^2)
+  if (!is.finite(rss_weighted) || rss_weighted <= 0) {
+    stop("compute_gaussian_prior: weighted RSS must be strictly positive.", call. = FALSE)
+  }
+  if (n_effective <= 2) {
+    stop("compute_gaussian_prior: require n_effective > 2 for Gaussian dispersion (denominator n_effective - 2).", call. = FALSE)
+  }
+  dispersion_classical <- rss_weighted / (n_effective - 2)
+  if (!is.finite(dispersion_classical) || dispersion_classical <= 0) {
+    stop("compute_gaussian_prior: dispersion_classical must be strictly positive.", call. = FALSE)
+  }
+
+  ## Gram and marginal SS (Sigma_0 is constant, per Chapter 11)
+  XtW <- sweep(X, 1, as.numeric(weights), `*`)
+  Gm <- crossprod(XtW, X)
+  Ginv <- tryCatch(
+    solve(Gm),
+    error = function(e) {
+      stop("compute_gaussian_prior: cannot invert weighted Gram matrix X'WX. ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  dlt <- matrix(bhat, ncol = 1L) - matrix(mu_num, ncol = 1L)
+  M <- Sigma_0 + Ginv
+  Mi <- tryCatch(
+    solve(M),
+    error = function(e) {
+      stop("compute_gaussian_prior: cannot invert Sigma_0 + (X'WX)^{-1}. ", conditionMessage(e), call. = FALSE)
+    }
+  )
+  quad <- as.numeric(crossprod(dlt, Mi %*% dlt))
+  if (!is.finite(quad) || quad < 0) {
+    stop("compute_gaussian_prior: S_marg quadratic form is not finite or nonnegative.", call. = FALSE)
+  }
+  S_marg <- rss_weighted + quad
+
+  ## Gamma hyperparameters and special remap terms
+  n_shape_num <- switch(
+    shape_df,
+    "n_prior"   = n_prior,
+    "n_prior+p" = n_prior + p,
+    "n_prior-p" = {
+      if (!is.finite(n_prior) || !is.finite(p) || n_prior <= p) {
+        stop(
+          "compute_gaussian_prior: shape_df = \"n_prior-p\" requires n_prior > p (number of coefficients). ",
+          "Got n_prior = ", n_prior, " and p = ", p, ".",
+          call. = FALSE
+        )
+      }
+      n_prior - p
+    }
+  )
+  shape <- n_shape_num / 2
+  if (!is.finite(shape) || shape <= 0) {
+    stop("compute_gaussian_prior: computed shape must be strictly positive.", call. = FALSE)
+  }
+
+  b_0_S_marg_formula <- 0.5 * (n_prior / n_effective) * S_marg
+  den_phi <- n_prior + n_effective - 2
+  E_phi_sigma2_special <- NA_real_
+  if (is.finite(den_phi) && den_phi > 0) {
+    E_phi_sigma2_special <- S_marg * (n_effective + n_prior) / n_effective / den_phi
+  }
+
+  remap_applied <- FALSE
+  dispersion <- dispersion_classical
+  rate <- dispersion_classical * (n_prior / 2)
+  Sigma <- (n_effective / n_prior) * dispersion * Ginv
+  dimnames(Sigma) <- list(colnames(X), colnames(X))
+
+  if (isTRUE(apply_smarg_remap)) {
+    if (!is.finite(E_phi_sigma2_special) || E_phi_sigma2_special <= 0) {
+      stop("compute_gaussian_prior: E[sigma^2|y] (special) is missing or not positive.", call. = FALSE)
+    }
+    if (!is.finite(b_0_S_marg_formula) || b_0_S_marg_formula <= 0) {
+      stop("compute_gaussian_prior: b_0 (special) is missing or not positive.", call. = FALSE)
+    }
+    dispersion <- E_phi_sigma2_special
+    rate <- b_0_S_marg_formula
+    Sigma <- (n_effective / n_prior) * dispersion * Ginv
+    dimnames(Sigma) <- list(colnames(X), colnames(X))
+    remap_applied <- TRUE
+  }
+
+  list(
+    dispersion = dispersion,
+    shape = shape,
+    rate = rate,
+    Sigma = Sigma,
+    diag = list(
+      rss_weighted = rss_weighted,
+      dispersion_classical = dispersion_classical,
+      Gm = Gm,
+      Ginv = Ginv,
+      S_marg = S_marg,
+      b_0_S_marg_formula = b_0_S_marg_formula,
+      den_phi = den_phi,
+      E_phi_sigma2_special = E_phi_sigma2_special,
+      remap_applied = remap_applied
+    )
+  )
 }
 
 
