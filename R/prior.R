@@ -810,6 +810,7 @@ if (!is.null(sd)) {
         bhat = bhat_h,
         mu = mu,
         Sigma_0 = Sigma_0_h,
+        Sigma = if (!is.null(sd)) Sigma_pre_nm else NULL,
         n_prior = n_prior,
         shape_df = shape_df
       )

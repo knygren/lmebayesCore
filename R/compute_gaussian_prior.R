@@ -82,6 +82,12 @@
 #'   of length \code{ncol(X)}.
 #' @param Sigma_0 Dispersion-independent prior covariance matrix on coefficients,
 #'   dimension \code{[p x p]} where \code{p = ncol(X)}.
+#' @param Sigma Optional coefficient-scale covariance matrix from upstream
+#'   \code{Prior_Setup()} plumbing (default \code{NULL}). When provided, the
+#'   returned \code{Sigma} is set to this matrix and the returned
+#'   \code{Sigma_0} is set to \code{Sigma / dispersion} using the returned
+#'   calibrated \code{dispersion}. When \code{NULL}, the existing calibrated
+#'   \code{Sigma} / input \code{Sigma_0} path is used.
 #' @param n_prior Positive scalar effective prior sample size.
 #' @param shape_df Character string controlling the Gamma shape numerator:
 #'   \code{"n_prior"}, \code{"n_prior+p"}, or \code{"n_prior-p"}.
@@ -108,6 +114,7 @@ compute_gaussian_prior <- function(
     bhat,
     mu,
     Sigma_0,
+    Sigma = NULL,
     n_prior,
     shape_df = c("n_prior", "n_prior+p", "n_prior-p")
 ) {
@@ -128,6 +135,7 @@ compute_gaussian_prior <- function(
     }
   }
   dispersion_input <- dispersion
+  Sigma_input <- Sigma
 
   ## Step A: validate all required Gaussian inputs.
   n_obs <- NROW(Y)
@@ -231,11 +239,22 @@ compute_gaussian_prior <- function(
   }
   dispersion <- E_phi_sigma2_special
   rate <- b_0_S_marg_formula
-  Sigma <- (n_effective / n_prior) * dispersion * Ginv
-  dimnames(Sigma) <- list(colnames(X), colnames(X))
+  Sigma_calibrated <- (n_effective / n_prior) * dispersion * Ginv
+  dimnames(Sigma_calibrated) <- list(colnames(X), colnames(X))
 
-  Sigma_0_out <- Sigma_0
-  dimnames(Sigma_0_out) <- list(colnames(X), colnames(X))
+  if (!is.null(Sigma_input)) {
+    if (!is.matrix(Sigma_input) || nrow(Sigma_input) != p || ncol(Sigma_input) != p || anyNA(Sigma_input)) {
+      stop("compute_gaussian_prior: Sigma must be NULL or a numeric [p x p] matrix with no missing values.", call. = FALSE)
+    }
+    Sigma <- Sigma_input
+    dimnames(Sigma) <- list(colnames(X), colnames(X))
+    Sigma_0_out <- Sigma / dispersion
+    dimnames(Sigma_0_out) <- list(colnames(X), colnames(X))
+  } else {
+    Sigma <- Sigma_calibrated
+    Sigma_0_out <- Sigma_0
+    dimnames(Sigma_0_out) <- list(colnames(X), colnames(X))
+  }
 
   ## Step F: return calibrated outputs.
   list(

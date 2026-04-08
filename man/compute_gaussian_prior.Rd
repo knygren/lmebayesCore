@@ -14,6 +14,7 @@ compute_gaussian_prior(
   bhat,
   mu,
   Sigma_0,
+  Sigma = NULL,
   n_prior,
   shape_df = c("n_prior", "n_prior+p", "n_prior-p")
 )
@@ -41,6 +42,13 @@ of length \code{ncol(X)}.}
 
 \item{Sigma_0}{Dispersion-independent prior covariance matrix on coefficients,
 dimension \code{[p x p]} where \code{p = ncol(X)}.}
+
+\item{Sigma}{Optional coefficient-scale covariance matrix from upstream
+\code{Prior_Setup()} plumbing (default \code{NULL}). When provided, the
+returned \code{Sigma} is set to this matrix and the returned
+\code{Sigma_0} is set to \code{Sigma / dispersion} using the returned
+calibrated \code{dispersion}. When \code{NULL}, the existing calibrated
+\code{Sigma} / input \code{Sigma_0} path is used.}
 
 \item{n_prior}{Positive scalar effective prior sample size.}
 
