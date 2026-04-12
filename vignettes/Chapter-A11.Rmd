@@ -38,6 +38,8 @@ Theory justification and the underlying accept-reject / envelope construction ar
 
 For the fixed-dispersion coefficient-envelope implementation details, see Chapter A05.
 
+Prior construction and the Gaussian calibration of `shape`, `rate`, `dispersion`, and coefficient covariances returned by `Prior_Setup()` are derived in **Chapter A12** (<https://knygren.r-universe.dev/articles/glmbayes/Chapter-A12.html>).
+
 ## 2. Core Function #1: `rIndepNormalGammaReg` (non-`_std`) - Internal Workflow
 
 The entry point in C++ is `src/rIndepNormalGammaReg.cpp`, function `rIndepNormalGammaReg(...)`.

@@ -269,6 +269,9 @@ https://knygren.r-universe.dev/articles/glmbayes/Chapter-A10.html
 - **Chapter A11 - Implementation Companion for Independent Normal-Gamma**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-A11.html
 
+- **Chapter A12 - Technical Derivations for Priors Returned by `Prior_Setup()`**  
+https://knygren.r-universe.dev/articles/glmbayes/Chapter-A12.html
+
 
 Together, these vignettes form a comprehensive reference that supports users at all levels, 
 from first-time Bayesian GLM users to researchers interested in the mathematical and computational

@@ -147,3 +147,6 @@ under the conjugate Zellner setup, so marginal coefficient covariance
 aligns with \eqn{\mathrm{RSS}_w/(n_w-p)\,(X^TWX)^{-1}} in the same limit.
 }
 }
+\references{
+\insertCite{glmbayesChapterA12}{glmbayes}.
+}

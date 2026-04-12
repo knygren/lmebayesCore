@@ -34,6 +34,8 @@ linear-model setups uses the likelihood-subgradient envelope method of
 examples are in \insertCite{glmbayesChapter00,glmbayesChapterA01}{glmbayes};
 estimation and simulation background in
 \insertCite{glmbayesChapterA02,glmbayesSimmethods,glmbayesChapterA08}{glmbayes};
+prior derivations for \code{Prior_Setup()} in
+\insertCite{glmbayesChapterA12}{glmbayes};
 GPU/OpenCL topics in
 \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
 }

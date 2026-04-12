@@ -235,7 +235,8 @@ Zellner-style scaling of \code{Sigma} from the likelihood
 on non-Gaussian families and for \code{dIndependent_Normal_Gamma()}
 \insertCite{Nygren2006}{glmbayes}; Normal--Gamma / GLM background
 \insertCite{Gelman2013,Dobson1990,McCullagh1989}{glmbayes}; prior tailoring
-\insertCite{glmbayesChapter03}{glmbayes}.
+\insertCite{glmbayesChapter03}{glmbayes}; technical derivations for priors returned by
+\code{Prior_Setup()} \insertCite{glmbayesChapterA12}{glmbayes}.
 }
 
 }
@@ -500,7 +501,8 @@ structure; \code{\link{simfuncs}} for functions that take a \code{prior_list}
 assembled from those components (including \code{\link{rindepNormalGamma_reg}}
 for \code{\link{dIndependent_Normal_Gamma}()}).
 
-\insertCite{glmbayesChapter03}{glmbayes} for prior tailoring and examples.
+\insertCite{glmbayesChapter03}{glmbayes} for prior tailoring and examples;
+\insertCite{glmbayesChapterA12}{glmbayes} for full derivations.
 
 Other prior: 
 \code{\link{Prior_Check}()}

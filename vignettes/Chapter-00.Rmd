@@ -151,6 +151,10 @@ The appendices document the mathematical and algorithmic foundations of the samp
   Document the implementation workflow for independent Normal-Gamma sampling, with a deep dive into `rIndepNormalGammaReg`, `EnvelopeOrchestrator`, `EnvelopeDispersionBuild`, and the standardized accept-reject sampler.  
   <https://knygren.r-universe.dev/articles/glmbayes/Chapter-A11.html>
 
+- **Chapter A12 - Technical Derivations for Priors Returned by `Prior_Setup()`**  
+  Full mathematical derivations for Gaussian calibration, Normal--Gamma and independent Normal--Gamma prior pieces, and the objects returned by `Prior_Setup()` (including `compute_gaussian_prior`).  
+  <https://knygren.r-universe.dev/articles/glmbayes/Chapter-A12.html>
+
 ---
 
 Together, these chapters and appendices form a coherent progression: from basic usage and model specification, through applied Bayesian GLMs, to the mathematical and computational details that underlie the envelope-based samplers and GPU-accelerated implementations in **glmbayes**.

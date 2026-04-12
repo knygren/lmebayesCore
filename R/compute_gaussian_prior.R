@@ -114,6 +114,9 @@
 #'     \code{colnames(X)} when available).
 #' }
 #'
+#' @references
+#' \insertCite{glmbayesChapterA12}{glmbayes}.
+#' @importFrom Rdpack reprompt
 #' @export
 compute_gaussian_prior <- function(
     X,

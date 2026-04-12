@@ -143,7 +143,8 @@ Prior_Check(counts ~ outcome + treatment,family = poisson(),
 \insertAllCited{}
 }
 \seealso{
-\code{\link{Prior_Setup}}, \code{\link{glmb}}; see \insertCite{glmbayesChapter03}{glmbayes} for prior tailoring.
+\code{\link{Prior_Setup}}, \code{\link{glmb}}; see \insertCite{glmbayesChapter03}{glmbayes} for prior tailoring;
+\insertCite{glmbayesChapterA12}{glmbayes} for full derivations.
 
 Other prior: 
 \code{\link{Prior_Setup}()}

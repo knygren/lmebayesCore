@@ -40,6 +40,8 @@ set.seed(333)
 
 In this chapter, we explore how the Prior_Setup function can be used to specify multivariate normal priors for both Bayesian linear models and the generalized linear models (GLMs) introduced in later chapters. In the previous chapter, we covered the minimal arguments required to invoke the function: a model formula and a family (with an optional link function). These define the structure of the model to which the prior will be applied—namely, the variables being modeled, the assumed distribution of the response, and the link function connecting the linear predictor to the data. Multivariate normal and g-prior structure connects to standard GLM treatments [@McCullagh1989; @VenablesRipley2002; @zellner1986gprior]. Prior–data conflict diagnostics (when used elsewhere in the package) relate to [@EvansMoshonov2006]. Envelope sampling builds on [@Nygren2006].
 
+For full technical derivations of the priors and calibrated quantities returned by `Prior_Setup()` (including Gaussian Normal--Gamma calibration), see **Chapter A12** (<https://knygren.r-universe.dev/articles/glmbayes/Chapter-A12.html>).
+
 In many cases, it is also helpful to provide a data frame to Prior_Setup, allowing the function to correctly identify and extract the relevant variables from the model environment.
 
 Now, let’s examine the remaining key arguments that enable the specification of multivariate normal priors. We begin by reviewing the function signature and a representative call—similar to the one used in the previous chapter, but now with visibility into the default settings:

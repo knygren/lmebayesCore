@@ -31,7 +31,7 @@ For users who are interested in the details of how the simulation is performed t
 | **pfamilies** | **dNormal**|Chapter 02 — Estimating Bayesian Linear Models|
 | **Main Model Interfaces (GLM / LM)**| **lmb**  |Chapter 02 — Estimating Bayesian Linear Models |
 | **Methods**| **summary.lmb**  |Chapter 02 — Estimating Bayesian Linear Models |
-| **Prior Setup function**| **Prior_Setup** | Chapter 03 - Tailoring Priors - Leveraging the Prior_Setup Function  |
+| **Prior Setup function**| **Prior_Setup** | Chapter 03 — Tailoring Priors - Leveraging the Prior_Setup Function; Chapter A12 — Technical Derivations for Priors Returned by Prior_Setup  |
 | **Methods** | **print.PriorSetup** | Chapter 03 - Tailoring Priors - Leveraging the Prior_Setup Function  |
 | **Methods**| **predict.glmb, residuals.glmb, extractAIC.glmb** | Chapter 04 — Predictions, Deviance Residuals, Model Statistics |
 |**Main Model Interfaces (GLM / LM)**|**glmb** | Chapter 06 — Estimating Bayesian Generalized Linear Models |
