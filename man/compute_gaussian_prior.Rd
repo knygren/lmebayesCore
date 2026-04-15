@@ -2,7 +2,7 @@
 % Please edit documentation in R/compute_gaussian_prior.R
 \name{compute_gaussian_prior}
 \alias{compute_gaussian_prior}
-\title{Compute Gaussian Normal-Gamma Calibration Components}
+\title{Compute Calibrated Gaussian Normal–Gamma Prior Components}
 \usage{
 compute_gaussian_prior(
   X,
@@ -24,140 +24,135 @@ compute_gaussian_prior(
 
 \item{Y}{Numeric response vector.}
 
-\item{weights}{Numeric case weights vector of length \code{nrow(X)}.}
+\item{weights}{Numeric vector of case weights.}
 
-\item{offset}{Numeric offset vector of length \code{nrow(X)}.}
+\item{offset}{Numeric offset vector.}
 
-\item{dispersion}{Optional scalar dispersion input (default \code{NULL}).
-Must be \code{NULL} or a single positive finite numeric value.}
+\item{dispersion}{Optional scalar dispersion. If supplied, overrides the
+calibrated value.}
 
-\item{n_effective}{Positive scalar effective sample size, typically
-\code{sum(weights)} for Gaussian models in this package.}
+\item{n_effective}{Effective sample size (typically \code{sum(weights)}).}
 
-\item{bhat}{Numeric coefficient vector (typically full-model MLE), length
-\code{ncol(X)}.}
+\item{bhat}{Numeric coefficient vector, usually the weighted least–squares
+estimate.}
 
-\item{mu}{Numeric prior mean vector (or one-column matrix coercible to vector)
-of length \code{ncol(X)}.}
+\item{mu}{Numeric prior mean vector.}
 
-\item{Sigma_0}{Dispersion-independent prior covariance matrix on coefficients,
-dimension \code{[p x p]} where \code{p = ncol(X)}.}
+\item{Sigma_0}{Dispersion–independent prior covariance matrix \eqn{[p \times p]}.}
 
-\item{Sigma}{Optional coefficient-scale covariance matrix from upstream
-\code{Prior_Setup()} plumbing (default \code{NULL}). When provided, the
-returned \code{Sigma} is set to this matrix and the returned
-\code{Sigma_0} is set to \code{Sigma / dispersion} using the returned
-\code{dispersion}. If \code{Sigma} is \code{NULL} but \code{dispersion} is
-provided, the returned \code{dispersion} is set to that input and the
-returned \code{Sigma} is set to \code{Sigma_0 * dispersion}. When both are
-\code{NULL}, the existing calibrated \code{Sigma} / input \code{Sigma_0}
-path is used.}
+\item{Sigma}{Optional coefficient–scale covariance matrix. If supplied,
+overrides the calibrated \code{Sigma}.}
 
-\item{n_prior}{Positive scalar effective prior sample size.}
+\item{n_prior}{Effective prior sample size.}
 
-\item{k}{Scalar (default \code{1}), non-negative (\eqn{k \geq 0}), with \eqn{k + p \geq 2}
-where \eqn{p = }\code{ncol(X)}. \code{k} controls the tail behavior and effective degrees of
-freedom of the variance prior. It does not change the posterior mean of \eqn{\sigma^2} or the
-covariance of \eqn{\beta}, but larger \code{k} makes the prior and posterior for
-\eqn{\sigma^2} more concentrated and less heavy-tailed. Not yet used in the calibration
-formulas; reserved for future use.}
+\item{k}{Non–negative scalar with \eqn{k + p \ge 2}. Controls tail behavior
+of the variance prior; does not affect posterior means.}
 }
 \value{
-A list with elements:
+A list with components:
 \itemize{
-\item \code{dispersion}: calibrated Gaussian dispersion scalar.
-\item \code{shape}: Gamma shape for residual precision.
-\item \code{shape_ING}: dedicated shape for \code{\link{dIndependent_Normal_Gamma}}
-under the Gaussian calibration, \eqn{\texttt{shape} + p/2} where
-\eqn{p = \texttt{ncol}(X)}.
-\item \code{rate}: Gamma rate for residual precision.
-\item \code{rate_gamma}: Prior Gamma rate for the \code{\link{dGamma}} / fixed-\eqn{\beta}
-construction, using the same \eqn{(n_{\mathrm{prior}}+k+p-2)/(n_{\mathrm{effective}}-p)}
-scaling as \code{rate} but with weighted RSS at the scalar Zellner blend
-\eqn{\beta_\star=(1-\mathrm{pwt})\hat\beta+\mathrm{pwt}\mu},
-\eqn{\mathrm{pwt}=n_{\mathrm{prior}}/(n_{\mathrm{prior}}+n_{\mathrm{effective}})}.
-Use with \code{shape} for \code{dGamma(..., shape, rate = rate_gamma, beta = coefficients)} when
-pairing prior and likelihood on \eqn{\mathrm{RSS}_w(\beta_\star)}.
-\item \code{Sigma}: calibrated coefficient prior covariance matrix.
-\item \code{Sigma_0}: the dispersion-independent prior covariance matrix passed in
-via argument \code{Sigma_0} (same matrix, with \code{dimnames} taken from
-\code{colnames(X)} when available).
+\item \code{dispersion} — calibrated Gaussian dispersion.
+\item \code{shape} — Gamma shape for residual precision.
+\item \code{shape_ING} — shape for the independent Normal–Gamma prior.
+\item \code{rate} — Gamma rate for residual precision.
+\item \code{rate_gamma} — Gamma rate for the fixed–\eqn{\beta} path
+(\code{\link{dGamma}}).
+\item \code{Sigma} — calibrated coefficient–scale covariance.
+\item \code{Sigma_0} — the input dispersion–free covariance.
 }
 }
 \description{
-Gaussian Normal-Gamma calibration function used by \code{\link{Prior_Setup}}.
-Given Gaussian-model sufficient inputs and a dispersion-independent
-coefficient prior covariance \eqn{\Sigma_0} (Chapter 11 framing), this
-function computes calibrated Gaussian prior quantities:
-\code{dispersion}, \code{shape}, \code{shape_ING}, \code{rate}, \code{rate_gamma}, and \code{Sigma},
-and returns the input \code{Sigma_0} as \code{Sigma_0}.
+Internal Gaussian calibration routine used by \code{\link{Prior_Setup}}.
+Given weighted Gaussian regression inputs and a dispersion–independent
+coefficient–scale prior covariance \eqn{\Sigma_0}, this function computes
+all Normal–Gamma quantities required by the Gaussian prior families:
+\code{dispersion}, \code{shape}, \code{shape_ING}, \code{rate},
+\code{rate_gamma}, and the calibrated coefficient–scale covariance
+\code{Sigma}. The input \code{Sigma_0} is returned unchanged.
 }
 \details{
-The function is structured as a step-wise pipeline:
+The computation follows a structured pipeline:
 \enumerate{
 \item Validate dimensions and numeric inputs.
-\item Compute weighted residual sum of squares at \code{bhat}.
-\item Build \eqn{X'WX}, invert it, and construct \eqn{S_{marg}}.
-\item Map \code{n_prior} to Gamma shape and calibrate rate.
-\item Calibrate \code{dispersion}, \code{rate}, and coefficient covariance.
-\item Return calibrated outputs.
+\item Compute the weighted residual sum of squares at \code{bhat}.
+\item Form the weighted Gram matrix \eqn{X^\top W X}, invert it, and
+construct the marginal quadratic term \eqn{S_{marg}}.
+\item Map \code{n_prior} and \code{k} to the Normal–Gamma shape and rate.
+\item Calibrate the implied dispersion and coefficient covariance.
+\item Return all calibrated prior components.
 }
 
-Chapter 11 emphasizes a parameterization where \eqn{\Sigma_0} is constant
-with respect to dispersion. In that framing, \eqn{\Sigma_0} is the prior
-covariance on the precision-weighted coefficient scale, while the returned
-\code{Sigma} is the covariance on the coefficient scale after calibration.
+The function assumes the Chapter 11 convention that \eqn{\Sigma_0} is
+\emph{dispersion–free}: it encodes prior structure on the precision–weighted
+coefficient scale. The returned \code{Sigma} is the corresponding
+coefficient–scale covariance after calibration.
 
-A common choice is to set \eqn{\Sigma_0} proportional to the inverse weighted
-Gram matrix, \eqn{(X^T W X)^{-1}}. In the scalar-\code{pwt} (single prior
-weight shared by all coefficients) Zellner-style setup used in
-\code{\link{Prior_Setup}}, the implied form is:
+A common choice is the Zellner–type form
 \deqn{
-\Sigma_0 = \frac{1-\mathrm{pwt}}{\mathrm{pwt}} (X^T W X)^{-1}.
+  \Sigma_0 = \frac{1 - \mathrm{pwt}}{\mathrm{pwt}} (X^\top W X)^{-1},
 }
-More generally, users may pass any positive-definite \eqn{\Sigma_0} encoding
-alternative prior structure on coefficients.
+where \eqn{\mathrm{pwt}} is a scalar prior weight. More generally,
+\code{Sigma_0} may be any positive–definite matrix.
 
 The function computes:
 \itemize{
-\item \eqn{S_{marg} = RSS_w + (\hat\beta-\mu)^T(\Sigma_0 + (X^T W X)^{-1})^{-1}(\hat\beta-\mu)}
-\item Prior Gamma \code{shape} is \eqn{(n_{\mathrm{prior}}+k)/2}{}. Posterior Gamma shape is
-\eqn{a_n = (n_{\mathrm{prior}}+n_w+k)/2}{} with \eqn{n_w}{} = \code{n_effective}.
-\item Calibrated \code{dispersion} equals \eqn{S_{marg}/(n_w-p)}{} with \eqn{p=\texttt{ncol}(X)}{},
-i.e.\ the usual weighted residual-df denominator.
-\item Prior rate \eqn{b_0 = \frac{1}{2} S_{marg}(n_{\mathrm{prior}}+k+p-2)/(n_w-p)}{} so that
-\eqn{b_n=b_0+S_{marg}/2}{} gives \eqn{E[\sigma^2\mid y]=b_n/(a_n-1)=S_{marg}/(n_w-p)}{}.
-The \eqn{k}{} in the prior shape and \eqn{k+p-2}{} in the rate numerator pair so
-\eqn{a_n-1}{} and \eqn{b_n}{} share a factor \eqn{n_{\mathrm{prior}}+n_w+k-2}{}; this
-preserves the posterior mean dispersion while improving prior propriety when
-\eqn{p=1}{} and \eqn{n_{\mathrm{prior}}}{} is small.
-\item \eqn{\Sigma = (n_w/n_{\mathrm{prior}}) E[\sigma^2 \mid y] (X^T W X)^{-1}}{}
+\item The marginal quadratic term
+\deqn{
+      S_{marg}
+      = RSS_w
+      + (\hat\beta - \mu)^\top
+        \left(\Sigma_0 + (X^\top W X)^{-1}\right)^{-1}
+        (\hat\beta - \mu).
+    }
+
+\item Prior Gamma shape:
+\eqn{a_0 = (n_{\mathrm{prior}} + k)/2}.
+
+\item Posterior Gamma shape:
+\eqn{a_n = (n_{\mathrm{prior}} + n_w + k)/2},
+where \eqn{n_w = \texttt{n_effective}}.
+
+\item Calibrated dispersion:
+\deqn{
+      E[\sigma^2 \mid y]
+      = \frac{S_{marg}}{n_w - p},
+    }
+the usual weighted residual–df estimator.
+
+\item Prior Gamma rate:
+\deqn{
+      b_0
+      = \frac{1}{2} S_{marg}
+        \frac{n_{\mathrm{prior}} + k + p - 2}{n_w - p},
+    }
+ensuring \eqn{E[\sigma^2 \mid y] = S_{marg}/(n_w - p)}.
+
+\item Calibrated coefficient covariance:
+\deqn{
+      \Sigma
+      = \frac{n_w}{n_{\mathrm{prior}}}
+        E[\sigma^2 \mid y]
+        (X^\top W X)^{-1}.
+    }
 }
 
-Limiting behavior:
+\strong{Limiting behavior.}
 \itemize{
-\item As \eqn{n_{prior} \to \infty}, prior information dominates and the
-Gamma prior on precision becomes increasingly concentrated.
-\item The expected coefficient location remains centered at \eqn{\mu}; this
-function does not change the mean vector, only scale components.
-\item As \eqn{n_{prior}\to 0^+}, the returned expected dispersion tends to
-\eqn{S_{marg}/(n_{\mathrm{effective}}-p)} when \eqn{n_{\mathrm{effective}}>p}.
-With \eqn{S_{marg}\to \mathrm{RSS}_w}, this matches the usual weighted
-Gaussian unbiased dispersion \eqn{\mathrm{RSS}_w/(n_{\mathrm{effective}}-p)}.
-\item Strict positivity of \eqn{b_0}{} requires \eqn{n_{\mathrm{prior}}+k+p>2}{}.
-With \eqn{n_{\mathrm{prior}}>0}{} and \eqn{k\geq 0}{}, prior \code{shape} is
-\eqn{(n_{\mathrm{prior}}+k)/2>0}{}.
-As \eqn{n_{prior}\to 0^+}, terms can become very small; this
-corresponds to a very diffuse precision prior and may be numerically
-delicate near the boundary.
-\item In the Chapter 11 scalar-\code{pwt} path
-(\eqn{pwt=n_{prior}/(n_{prior}+n_w)} with fixed \eqn{n_w>p}), one has
-\eqn{pwt\to 0}, \eqn{S_{marg}\to \mathrm{RSS}_w},
-\eqn{E[\sigma^2\mid y]\to \mathrm{RSS}_w/(n_w-p)}, and \eqn{V_n\to (X^TWX)^{-1}}
-under the conjugate Zellner setup, so marginal coefficient covariance
-aligns with \eqn{\mathrm{RSS}_w/(n_w-p)\,(X^TWX)^{-1}} in the same limit.
+\item As \eqn{n_{\mathrm{prior}} \to \infty}, the prior becomes increasingly
+concentrated and dominates the likelihood.
+
+\item As \eqn{n_{\mathrm{prior}} \to 0^+} with \eqn{n_w > p},
+\eqn{S_{marg} \to RSS_w} and
+\eqn{E[\sigma^2 \mid y] \to RSS_w/(n_w - p)},
+matching the classical weighted Gaussian estimator.
+
+\item Strict positivity of the prior rate requires
+\eqn{n_{\mathrm{prior}} + k + p > 2}.
+
+\item The prior mean \eqn{\mu} is never altered; this function calibrates
+only scale parameters.
 }
 }
 \references{
-\insertCite{glmbayesChapterA12}{glmbayes}.
+\insertCite{glmbayesChapterA12}{glmbayes}
 }

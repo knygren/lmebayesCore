@@ -18,9 +18,14 @@
 #' or \code{quasipoisson} families. The \code{binomial()} and \code{poisson()} families
 #' do not have dispersion coefficients. Omitted or \code{NULL} uses the internal default
 #' \code{1} and sets \code{ddef} in \code{prior_list} (see Details).
-#' @param shape the prior shape parameter used by the gamma component of the prior. 
-#' The gamma distribution is used as a prior for the inverse dispersion coefficients.
-#' @param rate the rate parameter used by the gamma component of the prior.
+#' @param shape The prior shape parameter for the gamma piece (inverse dispersion / precision).
+#'   When taking defaults from \code{\link{Prior_Setup}}, use \code{ps$shape} with
+#'   \code{\link{dNormal_Gamma}()} and \code{\link{dGamma}()}, and \code{ps$shape_ING} with
+#'   \code{\link{dIndependent_Normal_Gamma}()} on the Gaussian calibrated path (see Details).
+#' @param rate The prior rate parameter paired with \code{shape}. With Gaussian
+#'   \code{\link{Prior_Setup}}, \code{\link{dNormal_Gamma}()} and \code{\link{dIndependent_Normal_Gamma}()}
+#'   use \code{ps$rate}; for \code{\link{dGamma}()} with fixed \code{beta}, prefer \code{ps$rate_gamma}
+#'   when that field is non-\code{NULL} (see Details).
 #' @param beta the regression coefficients to be assumed when it is not given a prior. 
 #' Needs to be provided when the Gamma prior is used for the dispersion. This
 #' specification is typically only used as part of Gibbs sampling where the beta and 
@@ -35,25 +40,12 @@
 #' @param disp_upper upper bound truncation for dispersion
 #' @param x an object, a pfamily function that is to be printed
 #' @param \ldots additional argument(s) for methods.
-#' @details \code{pfamily} is a generic function with methods for classe \code{glmb} and 
-#' \code{lmb}. Many \code{glmb} models currently only have implementations for the \code{dNormal()} 
-#' prior family. The \code{Gamma()} family also works with the \code{dGamma()} prior 
-#' family while the \code{gaussian()} family works with the \code{dGamma()} and 
-#' \code{dNormal_Gamma()} pfamilies.  
-#' @return An object of class \code{"pfamily"} (which has a concise print method). This is a
-#' list with elements.
-#' \item{pfamily}{character: the pfamily name}
-#' \item{prior_list}{a list with the prior parameters associated with the prior specification.
-#'   For \code{dNormal}, this includes logical \code{ddef}: \code{TRUE} if \code{dispersion}
-#'   was omitted or \code{NULL} (internal default \code{1}), \code{FALSE} if set explicitly.}
-#' \item{okfamilies}{currently implemented families for which the prior family can be used.}
-#' \item{plinks}{a function that assigns a set of oklinks for the combination of a family and 
-#' and pfamily.}
-#' \item{simfun}{function: the function used to generate samples from the posterior density. 
-#' All currently implemented pfamilies have simulation functions that generate iid samples
-#' for the associated posterior distribution.}
-#' 
 #' @details
+#' \code{pfamily} is a generic with methods for fitted objects such as \code{\link{glmb}} and
+#' \code{\link{lmb}}. Many \code{glmb} models currently only implement the \code{dNormal()}
+#' prior family. The \code{Gamma()} response family works with \code{dGamma()}; the
+#' \code{gaussian()} family works with \code{dGamma()} and \code{dNormal_Gamma()}.
+#'
 #' A `pfamily` object represents a structured prior specification for use in Bayesian generalized linear modeling. 
 #' Each constructor function (e.g., `dNormal()`, `dGamma()`, `dNormal_Gamma()`) returns an object of class `"pfamily"` 
 #' containing the prior parameters, supported likelihood families, compatible link functions, and a simulation function 
@@ -62,6 +54,21 @@
 #' These priors are designed to integrate seamlessly with modeling functions such as `glmb()` and `rlmb()` in the 
 #' \pkg{glmbayes} package, which consume the `pfamily` object to define the prior distribution over model parameters. 
 #' The `pfamily()` generic retrieves the embedded prior from a fitted model object, while `print.pfamily()` displays its structure.
+#'
+#' **\code{prior_list} and \code{simfun}.** The named list \code{prior_list} holds the hyperparameters for the chosen
+#' prior family. When a model function draws from the posterior, it passes \code{prior_list} into the element
+#' \code{simfun} (e.g., \code{\link{rNormal_reg}}, \code{\link{rGamma_reg}}) so the low-level sampler receives
+#' one consistent list structure regardless of which constructor built the \code{pfamily}.
+#'
+#' **\code{\link{Prior_Setup}} and default hyperparameters.** \code{Prior_Setup()} fits an auxiliary GLM and returns
+#' default \code{mu}, \code{Sigma} / \code{Sigma_0}, \code{dispersion}, Gamma \code{shape} and \code{rate}, and
+#' related fields aligned with the data and prior-weight (\code{pwt}) choices. Those values can be supplied as
+#' arguments to the \code{pfamily} constructors when you want package-default priors on the same scale as the model
+#' matrix. Recommended use of \code{shape} and \code{rate} is not identical across constructors: for
+#' \code{\link{dIndependent_Normal_Gamma}()}, pass \code{shape = ps$shape_ING} from \code{Prior_Setup} (not the
+#' scalar \code{ps$shape} used by \code{\link{dNormal_Gamma}()}). For \code{\link{dGamma}()} with fixed coefficients
+#' (\code{beta}), pass \code{rate = ps$rate_gamma} when that field is present (otherwise \code{ps$rate}); see
+#' \code{\link{Prior_Setup}} and \code{\link{compute_gaussian_prior}}.
 #'
 #' ## Prior Families
 #'
@@ -88,6 +95,8 @@
 #' - **`dGamma()`**: Defines a gamma prior over a scalar precision parameter, often used in hierarchical models 
 #'   or variance components. This prior is particularly relevant for Gamma likelihoods and dispersion modeling 
 #'   in exponential families \insertCite{Gelman2013,Dobson1990,McCullagh1989}{glmbayes}.
+#'   With Gaussian \code{\link{Prior_Setup}} output, prefer \code{rate_gamma} for \code{rate} when updating
+#'   dispersion with fixed \code{beta} (see Details above).
 #'
 #' - **`dNormal_Gamma()`**: Combines a multivariate normal prior on coefficients with a gamma prior on precision, 
 #'   forming a conjugate structure for Gaussian models with unknown variance. The second argument is \code{Sigma_0}
@@ -97,13 +106,35 @@
 #'
 #' - **`dIndependent_Normal_Gamma()`**: Similar to `dNormal_Gamma()`, but assumes independence between the 
 #'   coefficient and precision priors. This structure is useful for models where prior independence is desired 
-#'   or analytically convenient.
+#'   or analytically convenient. With \code{\link{Prior_Setup}} on a Gaussian model, pass \code{shape_ING} as the
+#'   \code{shape} argument (see Details above).
 #'
 #' Each `pfamily` object includes:
-#' - `prior_list`: A named list of prior parameters (for `dNormal`, includes `ddef`; see above)
-#' - `okfamilies`: A character vector of compatible likelihood families
-#' - `plinks`: A function returning valid link functions for a given family
-#' - `simfun`: A simulation function used for posterior sampling
+#' - `pfamily`, `prior_list`, `okfamilies`, `plinks`, and `simfun` (see Value).
+#'
+#' @return An object of class \code{"pfamily"} (with a concise \code{print} method). A list with elements:
+#' \item{pfamily}{Character string: the constructor name (\code{"dNormal"}, \code{"dGamma"},
+#'   \code{"dNormal_Gamma"}, or \code{"dIndependent_Normal_Gamma"}).}
+#' \item{prior_list}{Named list of prior hyperparameters. It is passed into \code{simfun} when sampling so the
+#'   relevant low-level routine receives the prior in a fixed list form. Contents depend on the constructor:
+#'   \describe{
+#'     \item{\code{dNormal}:}{\code{mu}, \code{Sigma}, \code{dispersion}, and logical \code{ddef}
+#'       (\code{TRUE} if \code{dispersion} was omitted or \code{NULL}, so the default \code{1} was used;
+#'       \code{FALSE} if set explicitly).}
+#'     \item{\code{dGamma}:}{\code{shape}, \code{rate}, \code{beta}, \code{max_disp_perc},
+#'       \code{disp_lower}, \code{disp_upper}.}
+#'     \item{\code{dNormal_Gamma}:}{\code{mu}, \code{Sigma} (the \code{Sigma_0} precision-weighted input),
+#'       \code{shape}, \code{rate}.}
+#'     \item{\code{dIndependent_Normal_Gamma}:}{\code{mu}, \code{Sigma} (coefficient-scale covariance),
+#'       \code{shape}, \code{rate}, \code{max_disp_perc}, \code{disp_lower}, \code{disp_upper}.}
+#'   }
+#' }
+#' \item{okfamilies}{Character vector of implemented \code{\link[stats]{family}} names for which this
+#'   \code{pfamily} may be used.}
+#' \item{plinks}{Function of one \code{family} argument returning allowed link names for that family.}
+#' \item{simfun}{Function used to generate posterior draws (e.g., \code{\link{rNormal_reg}},
+#'   \code{\link{rGamma_reg}}, \code{\link{rNormalGamma_reg}}, \code{\link{rindepNormalGamma_reg}});
+#'   for standard use these produce i.i.d.\ posterior samples for the implemented settings.}
 #' 
 #' @references
 #' \insertAllCited{}
