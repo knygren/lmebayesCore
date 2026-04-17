@@ -379,8 +379,6 @@ summary(out)
 }
 \references{
 \insertAllCited{}
-
-A reference
 }
 \seealso{
 \code{\link{pfamily}}, \code{\link{glmb}}, \code{\link{lmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}

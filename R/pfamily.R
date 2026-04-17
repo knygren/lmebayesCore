@@ -136,17 +136,11 @@
 #'   \code{\link{rGamma_reg}}, \code{\link{rNormalGamma_reg}}, \code{\link{rindepNormalGamma_reg}});
 #'   for standard use these produce i.i.d.\ posterior samples for the implemented settings.}
 #' 
-#' @references
-#' \insertAllCited{}
-#'   
 #' @author The design of the \code{pfamily} set of functions was developed by Kjell Nygren and was 
 #' inspired by the family used by the \code{\link{glmb}} function to specify the likelihood 
-#' function. That design in turn was inspired by S functions of the same names described in
-#' Hastie and Pregibon (1992).
-#' @references
-#' \insertAllCited{}
-#' @importFrom Rdpack reprompt
-#' 
+#' function. That design in turn was inspired by S functions of the same names from
+#' the statistical modeling literature.
+#'
 #' @seealso
 #' \code{\link{glmb}}, \code{\link{rlmb}}, \code{\link{lmb}}, \code{\link{rglmb}} for modeling functions that consume \code{pfamily} objects.
 #'
@@ -157,7 +151,11 @@
 #' \code{\link{EnvelopeBuild}} for envelope construction methods used in likelihood subgradient sampling \insertCite{Nygren2006}{glmbayes}.
 #'
 #' See also \insertCite{Hastie1992}{glmbayes} for the original S modeling framework that inspired the design of \code{pfamily}.
-#'  
+#'
+#' @references
+#' \insertAllCited{}
+#' @importFrom Rdpack reprompt
+#'
 #' @example inst/examples/Ex_pfamily.R
 #' @export 
 # #' @exportClass pfamily # Temporarily disabled - No Current exportclass

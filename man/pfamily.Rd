@@ -252,8 +252,6 @@ pfamily(lmb.D9_v3)
 }
 \references{
 \insertAllCited{}
-
-\insertAllCited{}
 }
 \seealso{
 \code{\link{glmb}}, \code{\link{rlmb}}, \code{\link{lmb}}, \code{\link{rglmb}} for modeling functions that consume \code{pfamily} objects.
@@ -269,6 +267,6 @@ See also \insertCite{Hastie1992}{glmbayes} for the original S modeling framework
 \author{
 The design of the \code{pfamily} set of functions was developed by Kjell Nygren and was
 inspired by the family used by the \code{\link{glmb}} function to specify the likelihood
-function. That design in turn was inspired by S functions of the same names described in
-Hastie and Pregibon (1992).
+function. That design in turn was inspired by S functions of the same names from
+the statistical modeling literature.
 }

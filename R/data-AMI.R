@@ -13,9 +13,15 @@
 #'   \item{\code{QRS}}{QRS wave measurement}
 #' }
 #'
-#' @details Details to be added...
+#' @details
+#' Each row is one overdose episode. Variables include total tricyclic antidepressant
+#' level, amitriptyline component, gender, reported amount ingested, and ECG-related
+#' measures (PR interval, QRS duration, diastolic blood pressure). The dataset is used
+#' in package examples for binomial and related regression; see \insertCite{Dobson1990}{glmbayes}
+#' for analogous generalized linear modelling of clinical outcomes.
 #'
-#' @references UVA Example - Add Reference Here.
+#' @references
+#' \insertAllCited{}
 #'
 #' @usage data(AMI)
 #'

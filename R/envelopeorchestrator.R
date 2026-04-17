@@ -182,8 +182,9 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #' constants are adjusted so that, together with a **truncated inverse-Gamma**
 #' (dispersion) proposal derived from \code{gamma_list}, the joint proposal
 #' dominates the target posterior on the truncated dispersion interval
-#' \code{[low, upp]}. Chapter A07 derives the dispersion-related bounds;
-#' Chapter A11 records how \code{UB_list} entries enter the code.
+#' \code{[low, upp]}. \code{vignette("Chapter-A07", package = "glmbayes")} derives
+#' the dispersion-related bounds; \code{vignette("Chapter-A11", package = "glmbayes")}
+#' records how \code{UB_list} entries enter the code.
 #'
 #' **One accept--reject iteration** (standardized coordinates) proceeds as follows:
 #'

@@ -219,7 +219,7 @@ which under scalar \code{pwt} and the default calibration reduces to
 \strong{Gaussian Normal–Gamma calibration and \eqn{S_{\mathrm{marg}}}}
 
 For \code{family = gaussian()}, the function performs the Normal–Gamma
-calibration described in Chapter A12. Let:
+calibration described in \insertCite{glmbayesChapterA12}{glmbayes}. Let:
 \itemize{
 \item \eqn{p = \texttt{ncol}(x)},
 \item \eqn{n_{\mathrm{effective}} = \sum_i w_i},
@@ -460,6 +460,9 @@ out.rGamma_reg <- rGamma_reg(
   weights = wt,
   family = gaussian()
 )
+}
+\references{
+\insertAllCited{}
 }
 \seealso{
 \code{\link{pfamily}} for prior-family objects and the constructors

@@ -4,10 +4,13 @@
 #' A detailed overview of the low-level simulation pipeline used by
 #' \code{rglmb()} and related functions. These routines implement the
 #' optimization -> standardization -> envelope sizing -> envelope construction ->
-#' sampling -> back-transformation workflow described in Nygren & Nygren (2006).
+#' sampling -> back-transformation workflow described in \insertCite{Nygren2006}{glmbayes}.
 #'
 #' @details
 #' (summaries of each step)
+#'
+#' @references
+#' \insertAllCited{}
 #'
 #' @example inst/examples/Ex_rNormalGLM_std.R
 #'
@@ -515,9 +518,9 @@ print.glmbfamfunc<-function(x,...)
 #' identity matrix and that the data precision A (at the posterior mode) is a diagonal matrix. Hence the variables
 #' in the standardized model are approximately independent at the posterior mode.
 #' 
-#' The steps here are based on the procedure descrived in \insertCite{Nygren2006}{glmbayes}.
-#' 
-#'  @references
+#' The steps here are based on the procedure described in \insertCite{Nygren2006}{glmbayes}.
+#'
+#' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt
 #' @example inst/examples/Ex_glmb_Standardize_Model.R
@@ -721,8 +724,8 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Models in standard form:
 #'
 #' The standard-form restriction and its closed-form truncated-normal integrals
-#' follow Nygren & Nygren (2006), "Likelihood Subgradient Densities". See
-#' Chapter A08 for the full theoretical details (standard form restriction,
+#' follow \insertCite{Nygren2006}{glmbayes}. See
+#' \insertCite{glmbayesChapterA08}{glmbayes} for the full theoretical details (standard form restriction,
 #' closed-form truncated-normal integrals, and the resulting log-scale tractability).
 #'
 #' In the implementation, these standard-form quantities determine the grid-based
@@ -732,7 +735,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Construction of restricted subgradient densities:
 #'
 #' For the full restricted density construction and the resulting envelope
-#' constants, see Chapter A08.
+#' constants, see \insertCite{glmbayesChapterA08}{glmbayes}.
 #'
 #' In the implementation, these theory objects become the precomputed
 #' region log-constants (via closed-form CDF pieces) that are used to normalize
@@ -741,13 +744,13 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Mixture construction and tractable probabilities:
 #'
 #' The mixture construction and its tractable region probabilities are derived
-#' in Chapter A08. In the implementation, these theory objects become the
+#' in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these theory objects become the
 #' precomputed region log-constants and the mixture weights (`PLSD`) used by
 #' the envelope-based accept-reject sampler.
 #' @section Log-scale properties of the envelope function:
 #'
 #' The log-scale form of the envelope factor and the subgradient inequality that
-#' imply envelope dominance are given in Chapter A08. In the implementation, these
+#' imply envelope dominance are given in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these
 #' properties allow pointwise evaluation in the log-domain and provide the
 #' theoretical basis for the rejection test inside the sampler.
 #' @section Use of the envelope during sampling:
@@ -834,7 +837,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Algorithmic steps (linked to theory):
 #'
 #' The implementation of \code{EnvelopeBuild} follows the envelope construction
-#' in Nygren & Nygren (2006) for models in standard form (See Section 3-3.3). 
+#' in \insertCite{Nygren2006}{glmbayes} for models in standard form (see Section 3--3.3 there). 
 #' Each computational step corresponds to a theoretical guarantee:
 #'
 #' 1. **Compute width parameters \eqn{\omega_i} from the diagonal precision matrix.**  In particular,
@@ -903,11 +906,11 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #'    likelihood subgradient densities and to facilitate accept rejection sampling**  
 #'      
 #'    The subgradients \eqn{c(\bar{\theta})} enter the likelihood-subgradient density construction
-#'    (Nygren & Nygren 2006; see also vignette \code{Chapter-A08}), and both subgradients and
+#'    (\insertCite{Nygren2006}{glmbayes}; see also \insertCite{glmbayesChapterA08}{glmbayes}), and both subgradients and
 #'    negative log-likelihoods (through \eqn{h_{\bar{\theta}}(\cdot)}) are used in the accept-reject procedure. 
 #'    CPU and GPU routines compute these values efficiently.
 #'    - On CPU: via \code{f2_f3_non_opencl}.
-#'    - On GPU: via \code{f2_f3_opencl}, which computes these in parallel acros faces
+#'    - On GPU: via \code{f2_f3_opencl}, which computes these in parallel across faces
 #'    
 #' 6. **Call \code{EnvelopeSet_Grid_C2_pointwise} to evaluate restricted multivariate normal log-densities.**  
 #'    Each restricted density corresponds to a subset of the partition, normalized
@@ -1070,7 +1073,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' Theory and vignettes: \insertCite{Nygren2006}{glmbayes};
 #' \insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
 #'
-#'  @references
+#' @references
 #' \insertAllCited{}
 #' @example inst/examples/Ex_EnvelopeBuild.R
 #' @importFrom Rdpack reprompt

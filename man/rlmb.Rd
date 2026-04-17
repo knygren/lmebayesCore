@@ -102,8 +102,7 @@ the design matrix, response vector, and prior specification via the \code{\link{
 Internally, \code{rlmb} generates independent draws from the posterior distribution using multivariate
 normal simulation when conjugate priors are specified.
 
-The modeling framework follows the conventions introduced by Wilkinson and Rogers
-\insertCite{WilkinsonRogers1973}{glmbayes}, and the prior structure builds on the S system
+The modeling framework follows \insertCite{WilkinsonRogers1973}{glmbayes}, and the prior structure builds on the S system
 \insertCite{Chambers1992}{glmbayes}, Zellner's g-prior \insertCite{zellner1986gprior}{glmbayes}, and
 the conjugate prior formulation of Raiffa and Schlaifer \insertCite{Raiffa1961}{glmbayes}.
 

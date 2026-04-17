@@ -154,5 +154,5 @@ only scale parameters.
 }
 }
 \references{
-\insertCite{glmbayesChapterA12}{glmbayes}
+\insertAllCited{}
 }

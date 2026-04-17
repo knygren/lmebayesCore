@@ -125,8 +125,8 @@ envelope function that dominates the posterior density.
 
 
 The standard-form restriction and its closed-form truncated-normal integrals
-follow Nygren & Nygren (2006), "Likelihood Subgradient Densities". See
-Chapter A08 for the full theoretical details (standard form restriction,
+follow \insertCite{Nygren2006}{glmbayes}. See
+\insertCite{glmbayesChapterA08}{glmbayes} for the full theoretical details (standard form restriction,
 closed-form truncated-normal integrals, and the resulting log-scale tractability).
 
 In the implementation, these standard-form quantities determine the grid-based
@@ -138,7 +138,7 @@ that drive the mixture weights used by the envelope sampler.
 
 
 For the full restricted density construction and the resulting envelope
-constants, see Chapter A08.
+constants, see \insertCite{glmbayesChapterA08}{glmbayes}.
 
 In the implementation, these theory objects become the precomputed
 region log-constants (via closed-form CDF pieces) that are used to normalize
@@ -149,7 +149,7 @@ the envelope mixture weights for the accept-reject sampler.
 
 
 The mixture construction and its tractable region probabilities are derived
-in Chapter A08. In the implementation, these theory objects become the
+in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these theory objects become the
 precomputed region log-constants and the mixture weights (\code{PLSD}) used by
 the envelope-based accept-reject sampler.
 }
@@ -158,7 +158,7 @@ the envelope-based accept-reject sampler.
 
 
 The log-scale form of the envelope factor and the subgradient inequality that
-imply envelope dominance are given in Chapter A08. In the implementation, these
+imply envelope dominance are given in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these
 properties allow pointwise evaluation in the log-domain and provide the
 theoretical basis for the rejection test inside the sampler.
 }
@@ -251,7 +251,7 @@ dimension and region, guiding how each coordinate is simulated.
 
 
 The implementation of \code{EnvelopeBuild} follows the envelope construction
-in Nygren & Nygren (2006) for models in standard form (See Section 3-3.3).
+in \insertCite{Nygren2006}{glmbayes} for models in standard form (see Section 3--3.3 there).
 Each computational step corresponds to a theoretical guarantee:
 \enumerate{
 \item \strong{Compute width parameters \eqn{\omega_i} from the diagonal precision matrix.}  In particular,
@@ -319,12 +319,12 @@ densities described in the paper, ensuring coverage of the full parameter space.
 likelihood subgradient densities and to facilitate accept rejection sampling}
 
 The subgradients \eqn{c(\bar{\theta})} enter the likelihood-subgradient density construction
-(Nygren & Nygren 2006; see also vignette \code{Chapter-A08}), and both subgradients and
+(\insertCite{Nygren2006}{glmbayes}; see also \insertCite{glmbayesChapterA08}{glmbayes}), and both subgradients and
 negative log-likelihoods (through \eqn{h_{\bar{\theta}}(\cdot)}) are used in the accept-reject procedure.
 CPU and GPU routines compute these values efficiently.
 \itemize{
 \item On CPU: via \code{f2_f3_non_opencl}.
-\item On GPU: via \code{f2_f3_opencl}, which computes these in parallel acros faces
+\item On GPU: via \code{f2_f3_opencl}, which computes these in parallel across faces
 }
 \item \strong{Call \code{EnvelopeSet_Grid_C2_pointwise} to evaluate restricted multivariate normal log-densities.}
 Each restricted density corresponds to a subset of the partition, normalized
@@ -525,12 +525,12 @@ sortgrid=TRUE)
 
 Env2
 }
+\references{
+\insertAllCited{}
+}
 \seealso{
 \code{\link{EnvelopeSize}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}},
 \code{\link{glmb_Standardize_Model}}; \code{\link{rNormal_reg}}, \code{\link{rglmb}}, \code{\link{glmb}}.
 Theory and vignettes: \insertCite{Nygren2006}{glmbayes};
 \insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
-
-@references
-\insertAllCited{}
 }

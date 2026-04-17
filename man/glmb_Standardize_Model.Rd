@@ -50,10 +50,7 @@ identity matrix and that the data precision A (at the posterior mode) is a diago
 in the standardized model are approximately independent at the posterior mode.
 }
 
-The steps here are based on the procedure descrived in \insertCite{Nygren2006}{glmbayes}.
-
-@references
-\insertAllCited{}
+The steps here are based on the procedure described in \insertCite{Nygren2006}{glmbayes}.
 }
 \examples{
 data(menarche,package="MASS")
@@ -136,4 +133,7 @@ mu2=Standard_Mod$mu2
 P2=Standard_Mod$P2
 L2Inv=Standard_Mod$L2Inv
 L3Inv=Standard_Mod$L3Inv
+}
+\references{
+\insertAllCited{}
 }

@@ -272,8 +272,7 @@ print.simfunction <- function(x, ...) {
 
 
 
-#' @family simfuncs 
-#' @references A reference
+#' @family simfuncs
 #' @example inst/examples/Ex_rGamma_reg.R
 #' @usage rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
 #'            Gridtype = 2,n_envopt = NULL,

@@ -39,7 +39,7 @@ UCI Machine Learning Repository: Bike Sharing Dataset.
 \url{https://archive.ics.uci.edu/ml/machine-learning-databases/00275/}
 }
 \usage{
-data("BikeSharing")
+BikeSharing
 }
 \description{
 A processed version of the UCI Bike Sharing Dataset (hourly data). The data

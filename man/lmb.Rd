@@ -157,8 +157,7 @@ posterior simulation and prior specification via the \code{\link{pfamily}} argum
 draws from the posterior distribution using either multivariate normal simulation (for Gaussian priors)
 or accept-reject sampling via likelihood-subgradient envelopes \insertCite{Nygren2006}{glmbayes}.
 
-The symbolic formula interface follows the conventions introduced by Wilkinson and Rogers
-\insertCite{WilkinsonRogers1973}{glmbayes}, and the overall design of \code{lm} was inspired by the S system
+The symbolic formula interface follows \insertCite{WilkinsonRogers1973}{glmbayes}, and the overall design of \code{lm} was inspired by the S system
 \insertCite{Chambers1992}{glmbayes}. \code{lmb} comes with many of the same types of generic methods
 that are available to \code{lm} and \code{glm}, including \code{predict}, \code{residuals}, \code{extractAIC},
 and \code{summary}. Many of these are inherited from \code{glmb}.

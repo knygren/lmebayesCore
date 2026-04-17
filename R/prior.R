@@ -102,7 +102,7 @@
 #' \strong{Gaussian Normal–Gamma calibration and \eqn{S_{\mathrm{marg}}}}
 #'
 #' For \code{family = gaussian()}, the function performs the Normal–Gamma
-#' calibration described in Chapter A12. Let:
+#' calibration described in \insertCite{glmbayesChapterA12}{glmbayes}. Let:
 #' * \eqn{p = \texttt{ncol}(x)},
 #' * \eqn{n_{\mathrm{effective}} = \sum_i w_i},
 #' * \eqn{\hat\beta} the weighted least-squares estimator,
@@ -250,6 +250,9 @@
 #' \insertCite{McCullagh1989}{glmbayes};
 #' \insertCite{glmbayesChapter03}{glmbayes};
 #' \insertCite{glmbayesChapterA12}{glmbayes}.
+#'
+#' @references
+#' \insertAllCited{}
 #'
 #' @example inst/examples/Ex_Prior_Setup.R
 #' @export

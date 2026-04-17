@@ -121,7 +121,7 @@
 #' }
 #'
 #' @references
-#' \insertCite{glmbayesChapterA12}{glmbayes}
+#' \insertAllCited{}
 #'
 #' @importFrom Rdpack reprompt
 #' @export
