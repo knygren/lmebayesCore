@@ -745,15 +745,8 @@ if (!is.null(sd)) {
   ## --- S_marg_new / S_marg_sigma0_vcov before Post_mean / Nelder (full Sigma_pre_nm: scalar or vector pwt)
   ## Sigma_0 = Sigma_pre_nm / d with d = d_OLS or d_vcov = summary(glm)$dispersion (cancels vcov scale in V0).
   ## S_marg keeps the same value for downstream b_0 / remap logic (identical to S_marg_new here).
-  ## Legacy old-path temporaries (commented out while calibration path is active).
-#   S_marg <- NA_real_
-#   S_marg_new <- NA_real_
-#   S_marg_sigma0_vcov <- NA_real_
-#   S_marg_post_mean <- NA_real_
-#   S_marg_scalar_zellner <- NA_real_
   Sigma_pre_nm <- Sigma
   .gauss_helper_preview <- NULL
-  ## Temporary wiring: call compute_gaussian_prior() without affecting outputs.
   if (identical(family$family, "gaussian") &&
       is.finite(dispersion_classical) && dispersion_classical > 0 &&
       !is.null(n_prior) && length(n_prior) == 1L && is.finite(n_prior) && n_prior > 0 &&
@@ -808,9 +801,7 @@ if (!is.null(sd)) {
     }
   }
 
-  ## Temporary switchover: source returned Gaussian scale/hyperparameters from
-  ## compute_gaussian_prior().
-  ## Keep old path above for comparison during refactor validation.
+  ## When calibration ran, take Gaussian dispersion and Gamma hyperparameters from compute_gaussian_prior().
   if (identical(family$family, "gaussian") &&
       !is.null(.gauss_helper_preview)) {
     dispersion <- .gauss_helper_preview$dispersion

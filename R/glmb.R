@@ -161,28 +161,19 @@
 #' @example inst/examples/Ex_glmb.R
 #' 
 #' @export
-# #' @exportClass glmb # temporarily disabled - no current exportclass
-
 
 glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1),n=1000,data, weights,
                 use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
                 subset,
                 offset,na.action, Gridtype=2,
-                n_envopt = NULL,       # NEW: envelope sizing proxy (defaults to n)
+                n_envopt = NULL,       # envelope sizing proxy (defaults to n)
                 start = NULL, etastart, 
                 mustart,  control = list(...), model = TRUE, 
                 method = "glm.fit", x = FALSE, y = TRUE, contrasts = NULL, 
                 ...) 
 {
-  # Note, renamed subset argument to subset2 as it caused conflict with subset function
-  
   call <- match.call()
-  
-  # In earlier iteration, subset did not work so used subset2 as argument.
-  # Trying to rename argument and then setting subset2=subset as part of process of changing
-  
-  #subset2=subset # line 153, 
-  
+
   if (is.character(family)) 
     family <- get(family, mode = "function", envir = parent.frame())
   if (is.function(family)) 

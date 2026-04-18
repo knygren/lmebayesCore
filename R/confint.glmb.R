@@ -27,16 +27,6 @@ confint.glmb<-function(object,parm,level=0.95,...)
 {
   a <- (1 - level)/2
   a <- c(a, 1 - a)
-#  pnames <- colnames(object$coefficients)
-#  fac <- qt(a, object$df.residual)
-#  ci <- array(NA_real_, dim = c(length(parm), 2L), dimnames = list(parm, 
-#                                                                   pct))
-#  ci[] <- cf[parm] + ses[parm] %o% fac
-#  ci
-#  if (missing(parm))       ## for now force parm to be pnames
-#    parm <- pnames 
-ci <-t(apply(object$coefficients, 2, FUN = quantile,probs=a))  
-
-#dimnames(ci)=list(parm, a)
-return(ci)
+  ci <- t(apply(object$coefficients, 2, FUN = quantile, probs = a))
+  return(ci)
 }

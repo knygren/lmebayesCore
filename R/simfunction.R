@@ -339,13 +339,7 @@ rGamma_reg <- function(
   b     <- prior_list$beta
   shape <- prior_list$shape
   rate  <- prior_list$rate
-  
-#  if (shape <= 1) {
-#    stop("The inverse-gamma prior on dispersion has no finite mean unless shape > 1. 
-#       Please supply a prior_list$shape value greater than 1.")
-#  }
 
-    
   if (!is.null(prior_list$max_disp_perc)) {
     max_disp_perc <- prior_list$max_disp_perc
   } else {
