@@ -93,15 +93,26 @@ jobs:
           Rscript -e "cat('R:', R.version.string, '\n')"
           Rscript -e "if (requireNamespace('Rcpp', quietly=TRUE)) cat('Rcpp:', as.character(packageVersion('Rcpp')), '\n') else cat('Rcpp: <not installed>\\n')"
 
-      - name: Force reinstall Rcpp (GitHub) for R-devel
+      # Option 1: CRAN source — no GitHub PAT / remotes::install_github (avoids HTTP 401 on rhub).
+      - name: Force reinstall Rcpp from CRAN (source) for R-devel
         if: ${{ matrix.config.label == 'valgrind' || matrix.config.label == 'nosuggests' }}
         run: |
-          Rscript -e "install.packages('remotes', repos='https://cloud.r-project.org')"
-          Rscript -e "remotes::install_github('RcppCore/Rcpp', upgrade='never')"
+          Rscript -e "install.packages('Rcpp', repos='https://cloud.r-project.org', type='source')"
       - uses: r-hub/actions/run-check@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
+
+      # On install ERROR, R points to check/*/00install.out — upload so you can download from the Actions UI.
+      - name: Upload R CMD check logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhub-check-${{ matrix.config.label }}
+          if-no-files-found: warn
+          path: |
+            check/**/00install.out
+            check/**/00check.log
 
   other-platforms:
     needs: setup
@@ -137,23 +148,34 @@ jobs:
           Rscript -e "cat('R:', R.version.string, '\n')"
           Rscript -e "if (requireNamespace('Rcpp', quietly=TRUE)) cat('Rcpp:', as.character(packageVersion('Rcpp')), '\n') else cat('Rcpp: <not installed>\\n')"
 
-      - name: Force reinstall Rcpp (GitHub) for R-devel
+      # Option 1: CRAN source — no GitHub PAT / remotes::install_github (avoids HTTP 401 on rhub).
+      - name: Force reinstall Rcpp from CRAN (source) for R-devel
         if: ${{ matrix.config.label == 'windows' }}
         shell: bash
         run: |
-          Rscript -e "install.packages('remotes', repos='https://cloud.r-project.org')"
-          Rscript -e "remotes::install_github('RcppCore/Rcpp', upgrade='never')"
+          Rscript -e "install.packages('Rcpp', repos='https://cloud.r-project.org', type='source')"
 
       # Workaround for: ubuntu-next vignette build fails loading rlang.so
-      # Error: undefined symbol: SETLENGTH
+      # Error: undefined symbol: SETLENGTH (rlang.so built for wrong R / stale binary in user lib).
+      # setup-deps may install a bad rlang first — remove then install.packages(type='source').
       - name: Force rebuild vignette toolchain from source (ubuntu-next)
         if: ${{ matrix.config.label == 'ubuntu-next' }}
         shell: bash
         run: |
           Rscript -e "cat('R:', R.version.string, '\n')"
-          Rscript -e "install.packages('pak', repos='https://cloud.r-project.org')"
-          Rscript -e "pak::pkg_install(c('rlang','cli','glue','vctrs','lifecycle','xfun','yaml','knitr','rmarkdown'), upgrade=TRUE, source=TRUE)"
+          Rscript -e 'user_lib <- Sys.getenv("R_LIBS_USER"); if (!nzchar(user_lib)) user_lib <- .libPaths()[1L]; message("Rebuilding rlang stack in: ", user_lib); pkgs <- c("rmarkdown","knitr","yaml","xfun","lifecycle","vctrs","glue","cli","rlang"); ip <- rownames(installed.packages(lib.loc = user_lib, noCache = TRUE)); for (p in pkgs) if (p %in% ip) remove.packages(p, lib = user_lib); install.packages(rev(pkgs), lib = user_lib, repos = "https://cloud.r-project.org", type = "source", Ncpus = 2L)'
       - uses: r-hub/actions/run-check@v1
         with:
           job-config: ${{ matrix.config.job-config }}
           token: ${{ secrets.RHUB_TOKEN }}
+
+      # On install ERROR, R points to check/*/00install.out — upload so you can download from the Actions UI.
+      - name: Upload R CMD check logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rhub-check-${{ matrix.config.label }}
+          if-no-files-found: warn
+          path: |
+            check/**/00install.out
+            check/**/00check.log

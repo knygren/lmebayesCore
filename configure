@@ -4,22 +4,32 @@
 # It detects RcppParallel, OpenCL headers/libs, performs a runtime probe,
 # detects CUDA (optional), and generates src/Makevars dynamically.
 
-# Use R_HOME/bin/Rscript (Writing R Extensions). Bare "Rscript" on PATH can print
-# warnings on some check systems that get captured into Makevars and break g++.
-#
-# Prefer R on PATH (R RHOME): GitHub Actions / rhub sometimes set R_HOME to a
-# stale value; the R used for R CMD INSTALL must match this configure run.
-if command -v R >/dev/null 2>&1; then
-  R_HOME=$(R RHOME)
-elif [ -z "$R_HOME" ]; then
-  echo "configure: R not on PATH and R_HOME is unset" >&2
+# Use R_HOME/bin/Rscript (Writing R Extensions). Never invoke bare "R" or "Rscript"
+# (some rhub images print a warning to stdout/stderr that has been mistaken for R_HOME).
+# R CMD INSTALL normally sets R_HOME; if it is missing or bogus, derive from PATH.
+R_HOME_EFFECTIVE=""
+if [ -n "$R_HOME" ] && [ -x "$R_HOME/bin/Rscript" ]; then
+  R_HOME_EFFECTIVE="$R_HOME"
+else
+  R_BIN=$(command -v R 2>/dev/null || true)
+  if [ -n "$R_BIN" ] && [ -x "$R_BIN" ]; then
+    R_HOME_EFFECTIVE=$(cd "$(dirname "$R_BIN")/.." && pwd)
+  fi
+  if [ -z "$R_HOME_EFFECTIVE" ] || [ ! -x "$R_HOME_EFFECTIVE/bin/Rscript" ]; then
+    RS_BIN=$(command -v Rscript 2>/dev/null || true)
+    if [ -n "$RS_BIN" ] && [ -x "$RS_BIN" ]; then
+      R_HOME_EFFECTIVE=$(cd "$(dirname "$RS_BIN")/.." && pwd)
+    fi
+  fi
+fi
+
+if [ -z "$R_HOME_EFFECTIVE" ] || [ ! -x "$R_HOME_EFFECTIVE/bin/Rscript" ]; then
+  echo "configure: could not resolve R_HOME with executable bin/Rscript (R_HOME=$R_HOME)" >&2
   exit 1
 fi
-if [ -z "$R_HOME" ] || [ ! -x "$R_HOME/bin/Rscript" ]; then
-  echo "configure: could not find executable Rscript at \$R_HOME/bin/Rscript (R_HOME=$R_HOME)" >&2
-  exit 1
-fi
+R_HOME="$R_HOME_EFFECTIVE"
 RSCRIPT="$R_HOME/bin/Rscript"
+echo ">> configure: R_HOME = '$R_HOME'"
 
 # ---- 1. Detect RcppParallel include and library paths ----
 RPP_INC_DIR=$("$RSCRIPT" -e "cat(system.file('include', package = 'RcppParallel'))")
