@@ -1,13 +1,18 @@
 // -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 
-#include "nmath_local.h"
-#include "dpq_local.h"
-
-
-#include "rng_utils.h"
+// Include <random> before nmath_local.h: that header defines calloc/free as R_chk_*
+// macros (R mathlib). If libc++ pulls in <stdlib.h> after those macros, Clang
+// sees mismatched declarations vs R_chk_calloc/R_chk_free (clang-asan / libc++).
 #include <random>
 
+#include "nmath_local.h"
+#include "dpq_local.h"
+#include "rng_utils.h"
 
+// nmath_local.h defines calloc/free as R_chk_*; libc++ may include <stdlib.h> again later
+// in this TU (Clang + libc++, e.g. clang-asan). Undef so system declarations match.
+#undef calloc
+#undef free
 
 // Thread-local RNG and distribution
 thread_local std::mt19937 safe_rng_engine(std::random_device{}());
