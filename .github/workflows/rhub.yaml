@@ -74,7 +74,7 @@ jobs:
           job-config: ${{ matrix.config.job-config }}
 
       # ubuntu-next: CRAN *binary* rlang.so can reference SETLENGTH while R-patched no longer exposes it;
-      # library(testthat) → rlang then fails. Rebuild rlang from source for this R (vignettes still skipped below).
+      # library(testthat) → rlang then fails. Rebuild rlang from source for this R (also fixes rmarkdown/knitr).
       - name: Reinstall rlang from source (ubuntu-next — testthat / SETLENGTH)
         if: ${{ matrix.config.label == 'ubuntu-next' }}
         run: |

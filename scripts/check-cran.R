@@ -17,8 +17,11 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
   stop("Install devtools: install.packages(\"devtools\")")
 }
 
-# Local check with CRAN incoming-style environment
+# Local check with CRAN incoming-style environment (default omits PDF manual; rhub uses --no-manual).
 devtools::check(cran = TRUE)
+
+# Second pass: same check including PDF reference manual (requires LaTeX). Runs full R CMD check again.
+devtools::check(cran = TRUE, manual = TRUE)
 
 # Submit source package to win-builder (results arrive by email; runs can be long).
 # Comment out any of the following if you only want a subset.
@@ -30,5 +33,5 @@ devtools::check_win_oldrelease()
 if (!nzchar(Sys.getenv("GITHUB_PAT", ""))) {
   message("Skipping rhub::rhub_check(): set environment variable GITHUB_PAT (do not commit tokens).")
 } else {
-  rhub::rhub_check(platform = "windows")
+  rhub::rhub_check(platforms = c( "windows", "linux", "macos-arm64", "ubuntu-release", "ubuntu-next","atlas", "clang-asan", "valgrind","nosuggests","intel"))
 }
