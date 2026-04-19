@@ -139,6 +139,20 @@ jobs:
         run: |
           Rscript -e "lib <- .libPaths()[1L]; if ('RcppArmadillo' %in% rownames(installed.packages(lib.loc=lib, noCache=TRUE))) remove.packages('RcppArmadillo', lib=lib); install.packages('RcppArmadillo', lib=lib, repos='https://cloud.r-project.org', type='source', Ncpus=2L)"
 
+      # Valgrind: R CMD check can report Status: OK while Valgrind still logs "ERROR SUMMARY: N errors"
+      # in *.Rout files. r-hub run-check then runs a separate "Fail for valgrind errors" step that
+      # greps those lines — so the job fails even when rcmdcheck exits successfully. Pass R's own
+      # memcheck suppressions (under R_HOME/share/valgrind/) via VALGRIND_OPTS; add package-specific
+      # suppressions only after inspecting which .Rout file matches (see on-failure step below).
+      - name: Valgrind — R memcheck suppressions (VALGRIND_OPTS)
+        if: ${{ matrix.config.label == 'valgrind' }}
+        run: |
+          set -eux
+          OPTS=$(Rscript -e 'd <- file.path(R.home("share"), "valgrind"); supp <- if (dir.exists(d)) list.files(d, pattern = "[.]supp$", full.names = TRUE) else character(); if (length(supp)) cat(paste(paste0("--suppressions=", supp), collapse = " "))')
+          if [ -n "${OPTS:-}" ]; then
+            echo "VALGRIND_OPTS=${OPTS}" >> "$GITHUB_ENV"
+          fi
+
       # clang-asan / gcc-asan: use r-lib check-r-package directly — r-hub run-check adds a post-step
       # "Fail for UBSAN errors" that greps *.Rout for "runtime error:" / "SUMMARY: UndefinedBehaviorSanitizer:".
       # TBB/RcppParallel still prints those even when rcmdcheck exits OK, so the rhub step fails spuriously.
@@ -169,6 +183,12 @@ jobs:
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
+
+      - name: Valgrind — ERROR SUMMARY lines in check/*.Rout (on failure)
+        if: ${{ failure() && matrix.config.label == 'valgrind' }}
+        run: |
+          set -x
+          grep -R "ERROR SUMMARY" check/ 2>/dev/null | head -120 || true
 
       # On install ERROR, R points to check/*/00install.out — upload so you can download from the Actions UI.
       - name: Upload R CMD check logs (on failure)
@@ -238,7 +258,8 @@ jobs:
       # ubuntu-next: CRAN rlang vs R-devel (SETLENGTH) breaks vignette rebuild. Skip vignettes via
       # BUILD_ARGS/CHECK_ARGS in GITHUB_ENV (see nosuggests comment — nested check-r-package needs it).
       # Re-enable when CRAN/GitHub rlang matches ubuntu-next R.
-      # run-check: Windows uses PKG_CPPFLAGS from GitHub Rcpp in R_LIBS_USER; other platforms use defaults.
+      # Windows: use r-lib check-r-package directly (not r-hub run-check). Nested run-check did not
+      # reliably pass PKG_CPPFLAGS / job env into rcmdcheck’s compile, so LinkingTo kept using stale CRAN Rcpp.
       - name: Skip vignettes (ubuntu-next) — BUILD_ARGS/CHECK_ARGS for rcmdcheck
         if: ${{ matrix.config.label == 'ubuntu-next' }}
         shell: bash
@@ -246,11 +267,16 @@ jobs:
           echo "BUILD_ARGS=--no-build-vignettes" >> "$GITHUB_ENV"
           echo "CHECK_ARGS=--no-build-vignettes --ignore-vignettes" >> "$GITHUB_ENV"
 
-      - uses: r-hub/actions/run-check@v1
+      # Same flags as r-hub/actions/run-check inner rcmdcheck (empty BUILD_ARGS/CHECK_ARGS → strsplit gives nothing extra).
+      - uses: r-lib/actions/check-r-package@v2
         if: ${{ matrix.config.label == 'windows' }}
+        env:
+          R_KEEP_PKG_SOURCE: yes
         with:
-          job-config: ${{ matrix.config.job-config }}
-          token: ${{ secrets.RHUB_TOKEN }}
+          args: 'c("--no-manual", "--as-cran", "--install-args=--build", "--no-stop-on-test-error")'
+          build_args: 'c("--no-manual")'
+          upload-results: never
+          upload-snapshots: false
 
       - uses: r-hub/actions/run-check@v1
         if: ${{ matrix.config.label == 'ubuntu-next' }}
