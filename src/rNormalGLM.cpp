@@ -965,7 +965,7 @@ Rcpp::List run_rcppparallel_pilot(
     Rcpp::Named("any_maxdraw")    = any_hit_after_test,
     Rcpp::Named("est_total_sec")  = est_total_sec,
     Rcpp::Named("cal_elapsed_sec")= cal_elapsed_sec
-  ));
+  );
 }
 
 

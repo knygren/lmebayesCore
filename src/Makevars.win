@@ -1,2 +1,3 @@
+PKG_CPPFLAGS = -I"C:/Users/kjell/AppData/Local/R/win-library/4.5/Rcpp/include"
 PKG_CXXFLAGS = -DGLMBAYES_BUILD -DUSE_OPENCL -I"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/include"
 PKG_LIBS = -L"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/lib/x64" -lOpenCL $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
