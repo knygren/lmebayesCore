@@ -278,6 +278,58 @@ jobs:
             log <<- c(log, line)
             ok
           }
+          # "OK" on install is not enough: we require a readable Rcpp Version under `lib` before adopting preferred.
+          log_if_preferred_not_adopted <- function(ok1, ver) {
+            if (isTRUE(ok1) && !is.na(ver)) {
+              return(invisible())
+            }
+            desc_p <- file.path(lib, "Rcpp", "DESCRIPTION")
+            if (identical(as.character(preferred), "1.1.1-1")) {
+              if (!isTRUE(ok1)) {
+                log <<- c(
+                  log,
+                  "- **1.1.1-1 not adopted**: `remotes::install_version(..., version=\"1.1.1-1\", lib=...)` **failed** (message on the `FAILED` line for that step). A successful install is required to use 1.1.1-1. Next: try CRAN 1.1.1, then GitHub if needed."
+                )
+                message("Ensure Rcpp: 1.1.1-1 not adopted (install error).")
+              } else {
+                dexists <- file.exists(desc_p)
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **1.1.1-1 not adopted**: The first install did **not** error, so it is not that 1.1.1-1 is \"incompatible\" with this image in the sense of an R exception. But Rcpp could **not** be **verified** under `lib`=",
+                    encodeString(lib, quote = "\""),
+                    " (path `",
+                    desc_p,
+                    "`; exists=",
+                    dexists,
+                    "). The requested CRAN line `1.1.1-1` is therefore **not in use** until a readable install appears there. Next: strip and try CRAN ",
+                    alternate,
+                    ", then GitHub. (`.libPaths()`: ",
+                    paste(encodeString(.libPaths(), quote = "\""), collapse = ", "),
+                    ".)"
+                  )
+                )
+                message("Ensure Rcpp: 1.1.1-1 not verifiable in lib; see job summary. Falling back.")
+              }
+            } else {
+              if (!isTRUE(ok1)) {
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **Preferred CRAN ", preferred, " not adopted**: `remotes::install_version` failed; see the `FAILED` line for that install. Next: try CRAN ", alternate, "."
+                  )
+                )
+              } else {
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **Preferred CRAN ", preferred, " not adopted**: Rcpp not verifiable (no readable `Version` at `", desc_p, "`). Next: try CRAN ", alternate, "."
+                  )
+                )
+              }
+            }
+            invisible()
+          }
           install_github_rcpp <- function() {
             args <- list(repo = "RcppCore/Rcpp", lib = lib, upgrade = "always", force = TRUE)
             if (nzchar(tok)) args$auth_token <- tok
@@ -327,6 +379,7 @@ jobs:
             if (oldrel && nzchar(ge)) cat("_R_CHECK_FORCE_SUGGESTS_=FALSE\n", file = ge, append = TRUE)
           }
           log <- c(log, paste0("- **Context**: label=", label, ", R=", rv, ", CRAN release=", if (is.na(rel)) "unknown" else rel, ", preferred=", preferred))
+          log <- c(log, "- **Note on OK**: A CRAN line marked **OK** only means `remotes::install_version` did not throw. The run **adopts** a tree when `Rcpp` is found and `Version` is read under `lib` (see **Resolved** = verified, or a **not adopted** line if not).")
           ensure_remotes()
           strip_rcpp()
           ok1 <- try_install(paste0("CRAN Rcpp ", preferred, " (source)"), {
@@ -336,9 +389,10 @@ jobs:
           if (ok1 && !is.na(ver)) {
             message("Using Rcpp ", ver, " (CRAN preferred install path)")
             maybe_patch(ver)
-            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ")"))
+            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ", verified under lib)"))
             quit(status = 0L)
           }
+          log_if_preferred_not_adopted(ok1, ver)
           strip_rcpp()
           ok2 <- try_install(paste0("CRAN Rcpp ", alternate, " (source)"), {
             remotes::install_version("Rcpp", version = alternate, lib = lib, repos = cran, type = "source", dependencies = TRUE, Ncpus = 2L)
@@ -347,19 +401,36 @@ jobs:
           if (ok2 && !is.na(ver)) {
             message("Using Rcpp ", ver, " from CRAN (alternate)")
             maybe_patch(ver)
-            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", alternate, "; patch if needed)"))
+            rline <- if (identical(as.character(preferred), "1.1.1-1")) {
+              paste0(
+                "- **Resolved**: ", ver, " (CRAN ", alternate, " — **fallback** after 1.1.1-1 was not adopted; `patch if needed` applies. See the **1.1.1-1 not adopted** line above for why."
+              )
+            } else {
+              paste0(
+                "- **Resolved**: ", ver, " (CRAN ", alternate, " — **fallback** after preferred ", preferred, " was not adopted; see `not adopted` line above. Patch if needed."
+              )
+            }
+            finish_ok(rline)
             quit(status = 0L)
           }
           strip_rcpp()
+          log <<- c(
+            log,
+            "- **CRAN alternate not adopted**: Rcpp still missing or unverifiable after both CRAN attempts; see FAILED lines. Trying GitHub."
+          )
           ok3 <- try_install("GitHub RcppCore/Rcpp (master)", { install_github_rcpp() })
           ver <- rcpp_desc_version()
           if (!ok3 || is.na(ver)) {
             append_summary(log)
-            stop("Could not install Rcpp after CRAN 1.1.1-1, CRAN 1.1.1, and GitHub.")
+            stop("Could not install Rcpp after preferred CRAN, alternate CRAN, and GitHub. See Rcpp install summary in the job.")
           }
           message("Using Rcpp ", ver, " from GitHub (fallback)")
           maybe_patch(ver)
-          finish_ok(paste0("- **Resolved**: ", ver, " (GitHub master; patch if needed)"))
+          finish_ok(
+            paste0(
+              "- **Resolved**: ", ver, " (GitHub master; **last resort** after CRAN attempts did not leave a verifiable Rcpp. See `not adopted` and FAILED lines above.)"
+            )
+          )
           quit(status = 0L)
           RS
           Rscript "$f"
@@ -569,6 +640,57 @@ jobs:
             log <<- c(log, line)
             ok
           }
+          log_if_preferred_not_adopted <- function(ok1, ver) {
+            if (isTRUE(ok1) && !is.na(ver)) {
+              return(invisible())
+            }
+            desc_p <- file.path(lib, "Rcpp", "DESCRIPTION")
+            if (identical(as.character(preferred), "1.1.1-1")) {
+              if (!isTRUE(ok1)) {
+                log <<- c(
+                  log,
+                  "- **1.1.1-1 not adopted**: `remotes::install_version(..., version=\"1.1.1-1\", lib=...)` **failed** (message on the `FAILED` line for that step). A successful install is required to use 1.1.1-1. Next: try CRAN 1.1.1, then GitHub if needed."
+                )
+                message("Ensure Rcpp: 1.1.1-1 not adopted (install error).")
+              } else {
+                dexists <- file.exists(desc_p)
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **1.1.1-1 not adopted**: The first install did **not** error, so it is not that 1.1.1-1 is \"incompatible\" with this image in the sense of an R exception. But Rcpp could **not** be **verified** under `lib`=",
+                    encodeString(lib, quote = "\""),
+                    " (path `",
+                    desc_p,
+                    "`; exists=",
+                    dexists,
+                    "). The requested CRAN line `1.1.1-1` is therefore **not in use** until a readable install appears there. Next: strip and try CRAN ",
+                    alternate,
+                    ", then GitHub. (`.libPaths()`: ",
+                    paste(encodeString(.libPaths(), quote = "\""), collapse = ", "),
+                    ".)"
+                  )
+                )
+                message("Ensure Rcpp: 1.1.1-1 not verifiable in lib; see job summary. Falling back.")
+              }
+            } else {
+              if (!isTRUE(ok1)) {
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **Preferred CRAN ", preferred, " not adopted**: `remotes::install_version` failed; see the `FAILED` line for that install. Next: try CRAN ", alternate, "."
+                  )
+                )
+              } else {
+                log <<- c(
+                  log,
+                  paste0(
+                    "- **Preferred CRAN ", preferred, " not adopted**: Rcpp not verifiable (no readable `Version` at `", desc_p, "`). Next: try CRAN ", alternate, "."
+                  )
+                )
+              }
+            }
+            invisible()
+          }
           install_github_rcpp <- function() {
             args <- list(repo = "RcppCore/Rcpp", lib = lib, upgrade = "always", force = TRUE)
             if (nzchar(tok)) args$auth_token <- tok
@@ -618,6 +740,7 @@ jobs:
             if (oldrel && family != "mac" && nzchar(ge)) cat("_R_CHECK_FORCE_SUGGESTS_=FALSE\n", file = ge, append = TRUE)
           }
           log <- c(log, paste0("- **Context**: label=", label, ", family=", family, ", R=", rv, ", CRAN release=", if (is.na(rel)) "unknown" else rel, ", preferred=", preferred))
+          log <- c(log, "- **Note on OK**: A CRAN line marked **OK** only means `remotes::install_version` did not throw. The run **adopts** a tree when `Rcpp` is found and `Version` is read under `lib` (see **Resolved** = verified, or a **not adopted** line if not).")
           ensure_remotes()
           strip_rcpp()
           ok1 <- try_install(paste0("CRAN Rcpp ", preferred, " (source)"), {
@@ -627,9 +750,10 @@ jobs:
           if (ok1 && !is.na(ver)) {
             message("Using Rcpp ", ver, " (CRAN preferred install path)")
             maybe_patch(ver)
-            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ")"))
+            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ", verified under lib)"))
             quit(status = 0L)
           }
+          log_if_preferred_not_adopted(ok1, ver)
           strip_rcpp()
           ok2 <- try_install(paste0("CRAN Rcpp ", alternate, " (source)"), {
             remotes::install_version("Rcpp", version = alternate, lib = lib, repos = cran, type = "source", dependencies = TRUE, Ncpus = 2L)
@@ -638,19 +762,36 @@ jobs:
           if (ok2 && !is.na(ver)) {
             message("Using Rcpp ", ver, " from CRAN (alternate)")
             maybe_patch(ver)
-            finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", alternate, "; patch if needed)"))
+            rline <- if (identical(as.character(preferred), "1.1.1-1")) {
+              paste0(
+                "- **Resolved**: ", ver, " (CRAN ", alternate, " — **fallback** after 1.1.1-1 was not adopted; `patch if needed` applies. See the **1.1.1-1 not adopted** line above for why."
+              )
+            } else {
+              paste0(
+                "- **Resolved**: ", ver, " (CRAN ", alternate, " — **fallback** after preferred ", preferred, " was not adopted; see `not adopted` line above. Patch if needed."
+              )
+            }
+            finish_ok(rline)
             quit(status = 0L)
           }
           strip_rcpp()
+          log <<- c(
+            log,
+            "- **CRAN alternate not adopted**: Rcpp still missing or unverifiable after both CRAN attempts; see FAILED lines. Trying GitHub."
+          )
           ok3 <- try_install("GitHub RcppCore/Rcpp (master)", { install_github_rcpp() })
           ver <- rcpp_desc_version()
           if (!ok3 || is.na(ver)) {
             append_summary(log)
-            stop("Could not install Rcpp after CRAN 1.1.1-1, CRAN 1.1.1, and GitHub.")
+            stop("Could not install Rcpp after preferred CRAN, alternate CRAN, and GitHub. See Rcpp install summary in the job.")
           }
           message("Using Rcpp ", ver, " from GitHub (fallback)")
           maybe_patch(ver)
-          finish_ok(paste0("- **Resolved**: ", ver, " (GitHub master; patch if needed)"))
+          finish_ok(
+            paste0(
+              "- **Resolved**: ", ver, " (GitHub master; **last resort** after CRAN attempts did not leave a verifiable Rcpp. See `not adopted` and FAILED lines above.)"
+            )
+          )
           quit(status = 0L)
           RS
           Rscript "$f"

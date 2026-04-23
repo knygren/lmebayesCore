@@ -657,6 +657,54 @@ void rNormalGLM_worker::operator()(std::size_t begin, std::size_t end) {
 
 
 
+namespace {
+
+// Build pilot return list without Rcpp::Named / CharacterVector::create (rchk-sensitive paths).
+Rcpp::List make_rcppparallel_pilot_result(
+    SEXP out_sexp,
+    SEXP draws_sexp,
+    int any_maxdraw_value,
+    bool include_message,
+    const std::string& message,
+    bool include_estimates,
+    double est_total,
+    double cal_elapsed
+) {
+  constexpr R_len_t k_n = 6;
+  static const char* k_names[k_n] = {
+    "out", "draws", "any_maxdraw", "message", "est_total_sec", "cal_elapsed_sec"
+  };
+
+  SEXP res = PROTECT(Rf_allocVector(VECSXP, k_n));
+  SET_VECTOR_ELT(res, 0, out_sexp);
+  SET_VECTOR_ELT(res, 1, draws_sexp);
+  SET_VECTOR_ELT(res, 2, Rf_ScalarInteger(any_maxdraw_value));
+  if (include_message) {
+    SET_VECTOR_ELT(res, 3, Rf_mkString(message.c_str()));
+  } else {
+    SET_VECTOR_ELT(res, 3, R_NilValue);
+  }
+  if (include_estimates) {
+    SET_VECTOR_ELT(res, 4, Rf_ScalarReal(est_total));
+    SET_VECTOR_ELT(res, 5, Rf_ScalarReal(cal_elapsed));
+  } else {
+    SET_VECTOR_ELT(res, 4, Rf_ScalarReal(NA_REAL));
+    SET_VECTOR_ELT(res, 5, Rf_ScalarReal(NA_REAL));
+  }
+
+  SEXP nms = PROTECT(Rf_allocVector(STRSXP, k_n));
+  for (R_len_t i = 0; i < k_n; ++i) {
+    SET_STRING_ELT(nms, i, Rf_mkChar(k_names[i]));
+  }
+  Rf_setAttrib(res, R_NamesSymbol, nms);
+  UNPROTECT(1); // nms (now reachable from attributes of res)
+
+  Rcpp::List out(res);
+  UNPROTECT(1); // res
+  return out;
+}
+
+} // namespace
 
 
 // Keep this helper internal (no // [[Rcpp::export]])
@@ -672,6 +720,7 @@ Rcpp::List run_rcppparallel_pilot(
     double E_draws,                                  // expected candidates per acceptance (scalar)
     bool verbose = true
 ) {
+
   // --- single-threaded test run with timing and diagnostic print
   int m_test = 1; // deterministic single-threaded test
   auto t0 = std::chrono::steady_clock::now();
@@ -700,16 +749,18 @@ Rcpp::List run_rcppparallel_pilot(
     << "  - Strengthen the prior to stabilize behavior in the tails.\n"
     << std::endl;
     
-    // interactive prompt
+    // interactive prompt (use base::interactive(); Rf_interactive is not portable on Windows)
     Rcpp::Function r_interactive("interactive");
-    bool is_interactive = Rcpp::as<bool>(r_interactive());
+    Rcpp::Shield<SEXP> interactive_sexp(r_interactive());
+    bool is_interactive = Rcpp::as<bool>(interactive_sexp);
     
     if (is_interactive) {
       Rcpp::Function readline("readline");
       std::string prompt = "Enter 1 to continue full run, 2 to stop and return partial results: ";
       
       while (true) {
-        Rcpp::Shield<SEXP> ans_sexp(readline(Rcpp::wrap(prompt)));
+        Rcpp::Shield<SEXP> prompt_sexp(Rf_mkString(prompt.c_str()));
+        Rcpp::Shield<SEXP> ans_sexp(readline(prompt_sexp));
         std::string ans = Rcpp::as<std::string>(ans_sexp);
         // trim whitespace
         auto ltrim = [](std::string &s) {
@@ -727,13 +778,15 @@ Rcpp::List run_rcppparallel_pilot(
           break; // fall through to construct/run full worker
         } else if (ans == "2" || ans == "stop" || ans == "n" || ans == "no") {
           Rcpp::Rcout << "[INFO] User chose to stop. Returning partial test results.\n";
-          return Rcpp::List::create(
-            Rcpp::Named("out")         = out,          // zero-copy: return original containers
-            Rcpp::Named("draws")       = draws,
-            Rcpp::Named("any_maxdraw") = any_hit_after_test,
-            Rcpp::Named("message")     = std::string("Stopped by user after test"),
-            Rcpp::Named("est_total_sec") = Rcpp::NumericVector::get_na(), // no estimate
-            Rcpp::Named("cal_elapsed_sec") = Rcpp::NumericVector::get_na()
+          return make_rcppparallel_pilot_result(
+            out,
+            draws,
+            any_hit_after_test,
+            true,
+            std::string("Stopped by user after test"),
+            false,
+            NA_REAL,
+            NA_REAL
           );
         } else {
           Rcpp::Rcout << "Invalid input. Please enter 1 (continue) or 2 (stop).\n";
@@ -904,14 +957,16 @@ Rcpp::List run_rcppparallel_pilot(
     std::string prompt = "Do you want to continue? [y/N]: ";
     
     Rcpp::Function r_interactive("interactive");
-    bool is_interactive = Rcpp::as<bool>(r_interactive());
+    Rcpp::Shield<SEXP> interactive_sexp(r_interactive());
+    bool is_interactive = Rcpp::as<bool>(interactive_sexp);
     
     if (is_interactive) {
       
       Rcpp::Function readline("readline");
       
       while (true) {
-        Rcpp::Shield<SEXP> ans_sexp(readline(Rcpp::wrap(prompt)));
+        Rcpp::Shield<SEXP> prompt_sexp(Rf_mkString(prompt.c_str()));
+        Rcpp::Shield<SEXP> ans_sexp(readline(prompt_sexp));
         std::string ans = Rcpp::as<std::string>(ans_sexp);
         
         // trim whitespace
@@ -959,12 +1014,15 @@ Rcpp::List run_rcppparallel_pilot(
   
   
   // Return summary with zero-copy references to original out/draws
-  return Rcpp::List::create(
-    Rcpp::Named("out")            = out,
-    Rcpp::Named("draws")          = draws,
-    Rcpp::Named("any_maxdraw")    = any_hit_after_test,
-    Rcpp::Named("est_total_sec")  = est_total_sec,
-    Rcpp::Named("cal_elapsed_sec")= cal_elapsed_sec
+  return make_rcppparallel_pilot_result(
+    out,
+    draws,
+    any_hit_after_test,
+    false,
+    std::string(),
+    true,
+    est_total_sec,
+    cal_elapsed_sec
   );
 }
 
