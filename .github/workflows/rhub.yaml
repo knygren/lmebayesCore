@@ -532,6 +532,73 @@ jobs:
             check/**/00install.out
             check/**/00check.log
 
+      - name: Collect platform report (always)
+        if: always()
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.config.label }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -eu
+          mkdir -p platform-report
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+
+          def rscript(code: str) -> str:
+              try:
+                  out = subprocess.check_output(
+                      ["Rscript", "-e", code],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  ).strip()
+                  return out or "unknown"
+              except Exception:
+                  return "unknown"
+
+          plat = os.environ.get("PLATFORM", "unknown")
+          job_status = os.environ.get("JOB_STATUS", "unknown")
+
+          rver = rscript("cat(as.character(getRversion()))")
+          rcpp = rscript(
+              'if (requireNamespace("Rcpp", quietly=TRUE)) '
+              'cat(as.character(packageVersion("Rcpp"))) else cat("not-installed")'
+          )
+
+          r_cmd = "no-check-log"
+          check_root = Path("check")
+          if check_root.exists():
+              logs = list(check_root.rglob("00check.log"))
+              if logs:
+                  logs.sort(key=lambda p: p.stat().st_mtime)
+                  lines = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()
+                  status = None
+                  for line in reversed(lines):
+                      if line.startswith("Status:"):
+                          status = line.split(":", 1)[1].strip()
+                          break
+                  r_cmd = status if status else "no-status-line"
+
+          report = {
+              "platform": plat,
+              "r_version": rver,
+              "rcpp_version": rcpp,
+              "r_cmd_check_status": r_cmd,
+              "job_status": job_status,
+          }
+          Path("platform-report/report.json").write_text(
+              json.dumps(report, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Upload platform report artifact (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-report-${{ matrix.config.label }}
+          if-no-files-found: warn
+          path: platform-report/report.json
+
   other-platforms:
     needs: setup
     if: ${{ needs.setup.outputs.platforms != '[]' }}
@@ -907,3 +974,138 @@ jobs:
           path: |
             check/**/00install.out
             check/**/00check.log
+
+      - name: Collect platform report (always)
+        if: always()
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.config.label }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -eu
+          mkdir -p platform-report
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+
+          def rscript(code: str) -> str:
+              try:
+                  out = subprocess.check_output(
+                      ["Rscript", "-e", code],
+                      text=True,
+                      stderr=subprocess.DEVNULL,
+                  ).strip()
+                  return out or "unknown"
+              except Exception:
+                  return "unknown"
+
+          plat = os.environ.get("PLATFORM", "unknown")
+          job_status = os.environ.get("JOB_STATUS", "unknown")
+
+          rver = rscript("cat(as.character(getRversion()))")
+          rcpp = rscript(
+              'if (requireNamespace("Rcpp", quietly=TRUE)) '
+              'cat(as.character(packageVersion("Rcpp"))) else cat("not-installed")'
+          )
+
+          r_cmd = "no-check-log"
+          check_root = Path("check")
+          if check_root.exists():
+              logs = list(check_root.rglob("00check.log"))
+              if logs:
+                  logs.sort(key=lambda p: p.stat().st_mtime)
+                  lines = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()
+                  status = None
+                  for line in reversed(lines):
+                      if line.startswith("Status:"):
+                          status = line.split(":", 1)[1].strip()
+                          break
+                  r_cmd = status if status else "no-status-line"
+
+          report = {
+              "platform": plat,
+              "r_version": rver,
+              "rcpp_version": rcpp,
+              "r_cmd_check_status": r_cmd,
+              "job_status": job_status,
+          }
+          Path("platform-report/report.json").write_text(
+              json.dumps(report, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Upload platform report artifact (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-report-${{ matrix.config.label }}
+          if-no-files-found: warn
+          path: platform-report/report.json
+
+  platform-summary:
+    needs: [linux-containers, other-platforms]
+    if: always()
+    runs-on: ubuntu-latest
+    name: platform-summary
+    steps:
+      - name: Download per-platform reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: platform-report-*
+          merge-multiple: true
+          path: platform-reports
+
+      - name: Build cross-platform summary table
+        shell: bash
+        run: |
+          set -eu
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("platform-reports")
+          rows = []
+          if root.exists():
+            for p in sorted(root.rglob("*.json")):
+              try:
+                rows.append(json.loads(p.read_text(encoding="utf-8")))
+              except Exception:
+                pass
+
+          def rcmd_status(r: dict) -> str:
+            return r.get("r_cmd_check_status", "unknown")
+
+          def job_outcome(r: dict) -> str:
+            # Older reports only stored job outcome as check_status.
+            return r.get("job_status", r.get("check_status", "unknown"))
+
+          out = []
+          out.append("## Cross-Platform Summary")
+          out.append("")
+          out.append(
+            "_R CMD check_ column is parsed from `check/**/00check.log` (`Status:` line). "
+            "_Job_ column is the GitHub Actions job outcome after all steps (e.g. Valgrind grep can fail after `Status: OK`)."
+          )
+          out.append("")
+          if not rows:
+            out.append("_No platform report artifacts were found._")
+          else:
+            out.append("| Platform | R version | Rcpp version | R CMD check (00check) | Job |")
+            out.append("|---|---:|---:|---|---|")
+            for r in sorted(rows, key=lambda x: x.get("platform", "")):
+              out.append(
+                f"| {r.get('platform','unknown')} | {r.get('r_version','unknown')} | "
+                f"{r.get('rcpp_version','unknown')} | {rcmd_status(r)} | {job_outcome(r)} |"
+              )
+          out.append("")
+          Path("platform-summary.md").write_text("\n".join(out), encoding="utf-8")
+          PY
+
+          cat platform-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload platform summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-summary
+          if-no-files-found: warn
+          path: platform-summary.md
