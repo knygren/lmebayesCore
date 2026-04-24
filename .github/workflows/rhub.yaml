@@ -68,6 +68,23 @@ jobs:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
 
+      # Rcpp Function.h: R_getRegisteredNamespace branch needs R >= 4.6.0 and R_SVN_REVISION >= 89746.
+      # Stale rhub images report R 4.6.0 with svn 896xx: setup-deps then builds CRAN Rcpp source and fails.
+      # Only then: temporarily drop Rcpp lines from DESCRIPTION for setup-deps; restore before Ensure Rcpp.
+      - name: Detect R 4.6.0 low-svn snapshot (DESCRIPTION workaround gate)
+        id: glmbayes_r460_snapshot
+        shell: bash
+        env:
+          MATRIX_LABEL: ${{ matrix.config.label }}
+        run: |
+          set -eu
+          relax="$(Rscript -e "lab <- Sys.getenv(\"MATRIX_LABEL\", \"\"); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[[\"svn.rev\"]])) v[[\"svn.rev\"]] else v[[\"svn rev\"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.integer(rv[1:3]), c(4L, 6L, 0L)); relax <- !identical(lab, \"rchk\") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) \"true\" else \"false\")")"
+          note="$(Rscript -e "lab <- Sys.getenv(\"MATRIX_LABEL\", \"\"); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[[\"svn.rev\"]])) v[[\"svn.rev\"]] else v[[\"svn rev\"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.integer(rv[1:3]), c(4L, 6L, 0L)); relax <- !identical(lab, \"rchk\") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat(\"R 4.6.0 svn\", svn, \"(<89746): DESCRIPTION relax + Ensure Rcpp\") else cat(\"none\")")"
+          echo "relax_description=${relax}" >> "$GITHUB_OUTPUT"
+          echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND=${relax}" >> "$GITHUB_ENV"
+          echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE=${note}" >> "$GITHUB_ENV"
+          echo "glmbayes_r460_snapshot: relax_description=${relax} note=${note}"
+
       # ubuntu-next: preemptively install rlang from GitHub before setup-deps.
       # CRAN rlang (currently 1.2.0 in pak plan) can fail to load on R-next with
       # undefined symbol SETLENGTH while installing pkgload.
@@ -82,21 +99,21 @@ jobs:
       # Make setup-deps skip direct Rcpp resolution: duplicate Rcpp constraints in DESCRIPTION can make
       # pak force source builds too early. We temporarily remove Rcpp lines from Imports/Suggests, run
       # setup-deps, then restore DESCRIPTION and perform a custom Rcpp install policy below.
-      # Skip rchk here: rchk image intentionally lacks full build tools and should keep setup-deps defaults.
-      # - name: Rhub — relax DESCRIPTION for setup-deps (temporary) [disabled]
-      #   if: ${{ matrix.config.label != 'rchk' }}
-      #   run: |
-      #     Rscript -e "f <- 'DESCRIPTION'; b <- 'DESCRIPTION.rhub-orig'; file.copy(f, b, overwrite = TRUE); x <- readLines(f, warn = FALSE); x <- x[!grepl('^[[:space:]]*Rcpp [(]>= [0-9.]+(-[0-9]+)?[)],$', x, perl = TRUE)]; writeLines(x, f); cat('Rhub DESCRIPTION patched for setup-deps (removed temporary Rcpp entries)\\n')"
+      # Only on stale R 4.6.0 (svn < 89746); see "Detect R 4.6.0 low-svn snapshot" above. Skip rchk.
+      - name: Rhub — relax DESCRIPTION for setup-deps (R 4.6.0 svn < 89746 only)
+        if: ${{ matrix.config.label != 'rchk' && steps.glmbayes_r460_snapshot.outputs.relax_description == 'true' }}
+        run: |
+          Rscript -e "f <- 'DESCRIPTION'; b <- 'DESCRIPTION.rhub-orig'; file.copy(f, b, overwrite = TRUE); x <- readLines(f, warn = FALSE); x <- x[!grepl('^[[:space:]]*Rcpp [(]>= [0-9.]+(-[0-9]+)?[)],$', x, perl = TRUE)]; writeLines(x, f); cat('Rhub DESCRIPTION patched for setup-deps (removed temporary Rcpp entries)\n')"
 
       - uses: r-hub/actions/setup-deps@v1
         with:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
 
-      # - name: Rhub — restore DESCRIPTION after setup-deps [disabled]
-      #   if: ${{ matrix.config.label != 'rchk' }}
-      #   run: |
-      #     Rscript -e "stopifnot(file.exists('DESCRIPTION.rhub-orig')); file.copy('DESCRIPTION.rhub-orig', 'DESCRIPTION', overwrite = TRUE); unlink('DESCRIPTION.rhub-orig'); cat('DESCRIPTION restored to repository version\\n')"
+      - name: Rhub — restore DESCRIPTION after setup-deps (R 4.6.0 svn < 89746 only)
+        if: ${{ matrix.config.label != 'rchk' && steps.glmbayes_r460_snapshot.outputs.relax_description == 'true' }}
+        run: |
+          Rscript -e "stopifnot(file.exists('DESCRIPTION.rhub-orig')); file.copy('DESCRIPTION.rhub-orig', 'DESCRIPTION', overwrite = TRUE); unlink('DESCRIPTION.rhub-orig'); cat('DESCRIPTION restored to repository version\n')"
 
       # c23/noremap/clang16/clang17 can fail loading RcppParallel's TBB (`libtbb.so.2`) due to libc++
       # runtime symbol mismatch. clang21/clang22 can fail on TBB requiring ASan runtime symbols
@@ -623,6 +640,10 @@ jobs:
             job_status = job_status,
             actions_run_url = Sys.getenv("ACTIONS_RUN_URL", "")
           )
+          wr <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND", "false")
+          wn <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE", "")
+          report$rcpp_snapshot_workaround <- if (identical(wr, "true")) "yes" else "no"
+          report$rcpp_snapshot_workaround_note <- if (identical(wr, "true")) wn else ""
           if (identical(plat, "rchk")) {
             report$rchk_check_kind <- "rchk.sh static analysis (not CRAN R CMD check)"
             native_ok <- NA
@@ -757,18 +778,35 @@ jobs:
           token: ${{ secrets.RHUB_TOKEN }}
           job-config: ${{ matrix.config.job-config }}
 
-      # - name: Rhub — relax DESCRIPTION for setup-deps (temporary) [disabled]
-      #   run: |
-      #     Rscript -e "f <- 'DESCRIPTION'; b <- 'DESCRIPTION.rhub-orig'; file.copy(f, b, overwrite = TRUE); x <- readLines(f, warn = FALSE); x <- x[!grepl('^[[:space:]]*Rcpp [(]>= [0-9.]+(-[0-9]+)?[)],$', x, perl = TRUE)]; writeLines(x, f); cat('Rhub DESCRIPTION patched for setup-deps (removed temporary Rcpp entries)\\n')"
+      # Same gate as linux-containers (Rcpp Function.h svn 89746 cutoff).
+      - name: Detect R 4.6.0 low-svn snapshot (DESCRIPTION workaround gate)
+        id: glmbayes_r460_snapshot
+        shell: bash
+        env:
+          MATRIX_LABEL: ${{ matrix.config.label }}
+        run: |
+          set -eu
+          relax="$(Rscript -e "lab <- Sys.getenv(\"MATRIX_LABEL\", \"\"); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[[\"svn.rev\"]])) v[[\"svn.rev\"]] else v[[\"svn rev\"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.integer(rv[1:3]), c(4L, 6L, 0L)); relax <- !identical(lab, \"rchk\") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) \"true\" else \"false\")")"
+          note="$(Rscript -e "lab <- Sys.getenv(\"MATRIX_LABEL\", \"\"); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[[\"svn.rev\"]])) v[[\"svn.rev\"]] else v[[\"svn rev\"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.integer(rv[1:3]), c(4L, 6L, 0L)); relax <- !identical(lab, \"rchk\") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat(\"R 4.6.0 svn\", svn, \"(<89746): DESCRIPTION relax + Ensure Rcpp\") else cat(\"none\")")"
+          echo "relax_description=${relax}" >> "$GITHUB_OUTPUT"
+          echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND=${relax}" >> "$GITHUB_ENV"
+          echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE=${note}" >> "$GITHUB_ENV"
+          echo "glmbayes_r460_snapshot: relax_description=${relax} note=${note}"
+
+      - name: Rhub — relax DESCRIPTION for setup-deps (R 4.6.0 svn < 89746 only)
+        if: ${{ steps.glmbayes_r460_snapshot.outputs.relax_description == 'true' }}
+        run: |
+          Rscript -e "f <- 'DESCRIPTION'; b <- 'DESCRIPTION.rhub-orig'; file.copy(f, b, overwrite = TRUE); x <- readLines(f, warn = FALSE); x <- x[!grepl('^[[:space:]]*Rcpp [(]>= [0-9.]+(-[0-9]+)?[)],$', x, perl = TRUE)]; writeLines(x, f); cat('Rhub DESCRIPTION patched for setup-deps (removed temporary Rcpp entries)\n')"
 
       - uses: r-hub/actions/setup-deps@v1
         with:
           job-config: ${{ matrix.config.job-config }}
           token: ${{ secrets.RHUB_TOKEN }}
 
-      # - name: Rhub — restore DESCRIPTION after setup-deps [disabled]
-      #   run: |
-      #     Rscript -e "stopifnot(file.exists('DESCRIPTION.rhub-orig')); file.copy('DESCRIPTION.rhub-orig', 'DESCRIPTION', overwrite = TRUE); unlink('DESCRIPTION.rhub-orig'); cat('DESCRIPTION restored to repository version\\n')"
+      - name: Rhub — restore DESCRIPTION after setup-deps (R 4.6.0 svn < 89746 only)
+        if: ${{ steps.glmbayes_r460_snapshot.outputs.relax_description == 'true' }}
+        run: |
+          Rscript -e "stopifnot(file.exists('DESCRIPTION.rhub-orig')); file.copy('DESCRIPTION.rhub-orig', 'DESCRIPTION', overwrite = TRUE); unlink('DESCRIPTION.rhub-orig'); cat('DESCRIPTION restored to repository version\n')"
 
       # Same layering as linux-containers (inlined below; no repo script file).
       - name: Ensure Rcpp (CRAN → GitHub fallback, patch if needed)
@@ -1203,6 +1241,10 @@ jobs:
             job_status = job_status,
             actions_run_url = Sys.getenv("ACTIONS_RUN_URL", "")
           )
+          wr <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND", "false")
+          wn <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE", "")
+          report$rcpp_snapshot_workaround <- if (identical(wr, "true")) "yes" else "no"
+          report$rcpp_snapshot_workaround_note <- if (identical(wr, "true")) wn else ""
           if (identical(plat, "rchk")) {
             report$rchk_check_kind <- "rchk.sh static analysis (not CRAN R CMD check)"
             native_ok <- NA
@@ -1400,6 +1442,16 @@ jobs:
             }
             v
           }
+          snapshot_cell <- function(x) {
+            if (!identical(getf(x, "rcpp_snapshot_workaround", "no"), "yes")) {
+              return("—")
+            }
+            n <- getf(x, "rcpp_snapshot_workaround_note", "")
+            if (!nzchar(n)) {
+              return("yes")
+            }
+            gsub("|", "/", n, fixed = TRUE)
+          }
           lines <- character()
           lines <- c(lines, "## Cross-Platform Summary", "")
           run_u <- ""
@@ -1421,19 +1473,20 @@ jobs:
           lines <- c(lines, paste0(
             "_R CMD check_ column is parsed from `check/**/00check.log` (`Status:` line), except **rchk** (see **rchk** subsection). ",
             "_Job_ column is the GitHub Actions job outcome after all steps (e.g. Valgrind grep can fail after `Status: OK`). ",
-            "**R svn rev** is `R.version[[\"svn.rev\"]]` or `R.version[[\"svn rev\"]]` from the matrix job (same session as Rcpp); compare to `R_SVN_REVISION` in Rcpp headers when debugging `Function.h` branches."
+            "**R svn rev** is `R.version[[\"svn.rev\"]]` or `R.version[[\"svn rev\"]]` from the matrix job (same session as Rcpp); compare to `R_SVN_REVISION` in Rcpp headers when debugging `Function.h` branches. ",
+            "**Rcpp snapshot workaround** is `yes` only when **R 4.6.0** and **svn &lt; 89746** (Rcpp `Function.h` cutoff): `DESCRIPTION` was relaxed for `setup-deps`, then restored; **Ensure Rcpp** ran as in the workflow."
           ))
           lines <- c(lines, "")
           if (!length(rows)) {
             lines <- c(lines, "_No platform report artifacts were found._", "")
           } else {
-            lines <- c(lines, "| Platform | R version | R svn rev | Rcpp version | R CMD check (00check) | Job |",
-                       "|---|---:|---:|---:|---|---|")
+            lines <- c(lines, "| Platform | R version | R svn rev | Rcpp version | R CMD check (00check) | Job | Rcpp snapshot workaround |",
+                       "|---|---:|---:|---:|---|---|---|")
             for (x in rows) {
               lines <- c(lines, sprintf(
-                "| %s | %s | %s | %s | %s | %s |",
+                "| %s | %s | %s | %s | %s | %s | %s |",
                 getf(x, "platform"), getf(x, "r_version"), getf(x, "r_svn_rev", "unknown"),
-                rcpp_stat(x), rcmd_stat(x), job_outcome(x)
+                rcpp_stat(x), rcmd_stat(x), job_outcome(x), snapshot_cell(x)
               ))
             }
             lines <- c(lines, "")
@@ -1454,8 +1507,8 @@ jobs:
                 "The table below records whether we saw a completed native install marker `* DONE(<pkg>)` in any `check/**/00install.out`, plus optional paths that look like rchk/bcheck outputs under the workspace."
               ))
               lines <- c(lines, "")
-              lines <- c(lines, "| Platform | R | R svn rev | Rcpp | `* DONE(pkg)*` in 00install.out | Job | install log / artifacts |",
-                         "|---|---:|---:|---:|---|---|---|")
+              lines <- c(lines, "| Platform | R | R svn rev | Rcpp | `* DONE(pkg)*` in 00install.out | Job | Rcpp snapshot workaround | install log / artifacts |",
+                         "|---|---:|---:|---:|---|---|---|---|")
               rkget <- function(x, nm, alt = "") {
                 v <- x[[nm]]
                 if (is.null(v)) return(alt)
@@ -1469,11 +1522,12 @@ jobs:
                 if (nzchar(arts)) cell_parts <- c(cell_parts, arts)
                 cell <- if (length(cell_parts)) paste(cell_parts, collapse = " — ") else "—"
                 lines <- c(lines, sprintf(
-                  "| %s | %s | %s | %s | %s | %s | %s |",
+                  "| %s | %s | %s | %s | %s | %s | %s | %s |",
                   getf(x, "platform"), getf(x, "r_version"), getf(x, "r_svn_rev", "unknown"),
                   getf(x, "rcpp_version"),
                   rkget(x, "rchk_native_install_done", "unknown"),
                   job_outcome(x),
+                  snapshot_cell(x),
                   cell
                 ))
               }
