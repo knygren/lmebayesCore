@@ -78,8 +78,18 @@ jobs:
           MATRIX_LABEL: ${{ matrix.config.label }}
         run: |
           set -eu
-          relax="$(Rscript -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) "true" else "false")')"
-          note="$(Rscript -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat("R 4.6.0 svn", svn, "(<89746): DESCRIPTION relax + Ensure Rcpp") else cat("none")')"
+          RSCRIPT="Rscript"
+          if [ -n "${R_HOME:-}" ]; then
+            if [ -f "$R_HOME/bin/Rscript.exe" ]; then
+              RSCRIPT="$R_HOME/bin/Rscript.exe"
+            elif [ -f "$R_HOME/bin/Rscript" ]; then
+              RSCRIPT="$R_HOME/bin/Rscript"
+            else
+              export PATH="$R_HOME/bin:$PATH"
+            fi
+          fi
+          relax="$("$RSCRIPT" -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) "true" else "false")')"
+          note="$("$RSCRIPT" -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat("R 4.6.0 svn", svn, "(<89746): DESCRIPTION relax + Ensure Rcpp") else cat("none")')"
           echo "relax_description=${relax}" >> "$GITHUB_OUTPUT"
           echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND=${relax}" >> "$GITHUB_ENV"
           echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE=${note}" >> "$GITHUB_ENV"
@@ -261,6 +271,8 @@ jobs:
           dir.create(lib, showWarnings = FALSE, recursive = TRUE)
           if (!lib %in% .libPaths()) .libPaths(c(lib, .libPaths()))
           ge <- Sys.getenv("GITHUB_ENV", "")
+          ensure_path <- ""
+          fh_patch_result <- "n_a"
           rcpp_desc_version <- function() {
             ok <- tryCatch(requireNamespace("Rcpp", quietly = TRUE), error = function(e) FALSE)
             if (!ok) return(NA)
@@ -280,6 +292,15 @@ jobs:
           }
           write_glmbayes_lib <- function() {
             if (nzchar(ge)) cat("GLMBAYES_RCPP_LIB=", lib, "\n", file = ge, sep = "", append = TRUE)
+          }
+          write_rcpp_ensure_meta <- function() {
+            if (!nzchar(ge)) return(invisible())
+            if (nzchar(ensure_path)) {
+              cat("GLMBAYES_RCPP_ENSURE_PATH=", ensure_path, "\n", file = ge, sep = "", append = TRUE)
+            }
+            if (nzchar(fh_patch_result) && !identical(fh_patch_result, "n_a")) {
+              cat("GLMBAYES_RCPP_FUNCTION_H_PATCH=", fh_patch_result, "\n", file = ge, sep = "", append = TRUE)
+            }
           }
           append_summary <- function(lines) {
             gs <- Sys.getenv("GITHUB_STEP_SUMMARY", "")
@@ -349,6 +370,7 @@ jobs:
 
           maybe_patch <- function(ver) {
             if (!ahead || !is.na(ver) && ver >= target_min) {
+              fh_patch_result <<- "skipped"
               step_log <<- c(step_log, paste0("- **Function.h patch**: skipped (ahead=", ahead, ", Rcpp=", if (is.na(ver)) "unknown" else ver, ")"))
               return(invisible())
             }
@@ -357,6 +379,7 @@ jobs:
             if (!nzchar(repo)) repo <- getwd()
             patch <- file.path(repo, "tools", "patch_rcpp_function_h.R")
             if (!file.exists(patch)) {
+              fh_patch_result <<- "skipped_noscript"
               step_log <<- c(step_log, "- **Function.h patch**: skipped (tools/patch_rcpp_function_h.R not found)")
               return(invisible())
             }
@@ -367,13 +390,26 @@ jobs:
             env["GLMBAYES_RCPP_LIB"] <- lib
             out <- system2(rscript, c(patch), env = env, stdout = TRUE, stderr = TRUE)
             st <- attr(out, "status")
+            combined <- out
+            if (is.null(combined)) {
+              combined <- character()
+            }
+            oc <- paste0(combined, collapse = "\n")
             if (!is.null(st) && !identical(as.integer(st), 0L)) {
+              fh_patch_result <<- "error"
               step_log <<- c(step_log, paste("- **Function.h patch**: Rscript exit code", st))
             } else {
-              step_log <<- c(step_log, "- **Function.h patch**: completed (no-op if pattern absent)")
+              if (grepl("patch_rcpp_function_h: patched", oc, fixed = TRUE)) {
+                fh_patch_result <<- "applied"
+                step_log <<- c(step_log, "- **Function.h patch**: Rcpp header patched (see patch_rcpp_function_h log)")
+              } else {
+                fh_patch_result <<- "no_match"
+                step_log <<- c(step_log, "- **Function.h patch**: completed (no matching old pattern; header unchanged)")
+              }
             }
           }
           finish_ok <- function(resolved_line) {
+            write_rcpp_ensure_meta()
             write_glmbayes_lib()
             append_summary(c(step_log, resolved_line))
             if (oldrel && nzchar(ge)) cat("_R_CHECK_FORCE_SUGGESTS_=FALSE\n", file = ge, append = TRUE)
@@ -383,6 +419,7 @@ jobs:
           current_ver <- rcpp_desc_version()
           if (!is.na(current_ver) && current_ver >= runtime_min) {
             message("Keeping preinstalled Rcpp ", current_ver, " (>= ", runtime_min, "); skipping reinstall.")
+            ensure_path <- "preinstalled"
             maybe_patch(current_ver)
             step_log <- c(
               step_log,
@@ -400,6 +437,7 @@ jobs:
           ver <- rcpp_desc_version()
           if (ok1 && !is.na(ver)) {
             message("Using Rcpp ", ver, " (CRAN preferred install path)")
+            ensure_path <- paste0("cran-", preferred)
             maybe_patch(ver)
             step_log <<- c(step_log, paste0("- **", preferred, " verified**: `Rcpp/DESCRIPTION` present in target lib; `Version`=", ver, "."))
             finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ", verified under lib)"))
@@ -413,6 +451,7 @@ jobs:
           ver <- rcpp_desc_version()
           if (ok2 && !is.na(ver)) {
             message("Using Rcpp ", ver, " from CRAN (alternate)")
+            ensure_path <- paste0("cran-", alternate, "-fb")
             maybe_patch(ver)
             rline <- if (identical(as.character(preferred), "1.1.1-1")) {
               paste0(
@@ -439,6 +478,7 @@ jobs:
             stop("Could not install Rcpp after preferred CRAN, alternate CRAN, and GitHub. See Rcpp install summary in the job.")
           }
           message("Using Rcpp ", ver, " from GitHub (fallback)")
+          ensure_path <- "github"
           maybe_patch(ver)
           finish_ok(
             paste0(
@@ -492,6 +532,9 @@ jobs:
           echo "GLMBAYES_RCPP_LIB=${GLMBAYES_RCPP_LIB}" >> "$GITHUB_ENV"
           export GLMBAYES_PATCH_RCPP_FUNCTION_H=1
           Rscript tools/patch_rcpp_function_h.R
+          # Platform report: extra Function.h patch after Ensure Rcpp (rchk skips Ensure; needs its own line).
+          echo "GLMBAYES_RCPP_FH_POST_STEP=1" >> "$GITHUB_ENV"
+          echo "GLMBAYES_RCPP_FH_POST_LABEL=image step ( clang21 / clang22 / rchk, tools/patch_rcpp_function_h.R )" >> "$GITHUB_ENV"
 
       # Valgrind image: lazy-load can fail on RcppArmadillo.so — libflexiblas.so.3 (CRAN binary links FlexiBLAS).
       # Rebuild RcppArmadillo from source against R's BLAS (no FlexiBLAS runtime on image).
@@ -644,6 +687,73 @@ jobs:
           wn <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE", "")
           report$rcpp_snapshot_workaround <- if (identical(wr, "true")) "yes" else "no"
           report$rcpp_snapshot_workaround_note <- if (identical(wr, "true")) wn else ""
+          ens_path <- Sys.getenv("GLMBAYES_RCPP_ENSURE_PATH", "")
+          ens_fh <- Sys.getenv("GLMBAYES_RCPP_FUNCTION_H_PATCH", "")
+          post_s <- Sys.getenv("GLMBAYES_RCPP_FH_POST_STEP", "")
+          post_l <- Sys.getenv("GLMBAYES_RCPP_FH_POST_LABEL", "")
+          report$rcpp_ensure_path <- ens_path
+          report$rcpp_function_h_patch_ensure <- ens_fh
+          report$rcpp_fh_post_step <- if (identical(post_s, "1")) "yes" else "no"
+          report$rcpp_fh_post_label <- post_l
+          format_ensure_path <- function(p) {
+            if (!nzchar(p)) {
+              return("")
+            }
+            if (identical(p, "preinstalled")) {
+              return("Rcpp: preinstalled (kept from setup)")
+            }
+            if (identical(p, "github")) {
+              return("Rcpp: GitHub RcppCore/Rcpp master")
+            }
+            if (grepl("-fb$", p)) {
+              v <- sub("^cran-(.+)-fb$", "\\1", p)
+              return(paste0("Rcpp: CRAN ", v, " (fallback after preferred not adopted)"))
+            }
+            if (grepl("^cran-", p)) {
+              v <- sub("^cran-", "", p)
+              return(paste0("Rcpp: CRAN ", v))
+            }
+            p
+          }
+          format_fh_ensure <- function(f) {
+            if (!nzchar(f) || identical(f, "n_a")) {
+              return("")
+            }
+            switch(
+              f,
+              applied = "Rcpp Function.h: patched (Ensure step)",
+              no_match = "Rcpp Function.h: not patched (no old pattern in header)",
+              error = "Rcpp Function.h: patch error (Ensure step)",
+              skipped = "Rcpp Function.h: not run (R/Rcpp do not need patch here)",
+              skipped_mac = "Rcpp Function.h: skipped (macOS path in workflow)",
+              skipped_noscript = "Rcpp Function.h: tools/patch_rcpp_function_h.R missing",
+              f
+            )
+          }
+          parts_ens <- character()
+          if (nzchar(ens_path)) {
+            parts_ens <- c(parts_ens, format_ensure_path(ens_path))
+          }
+          if (nzchar(ens_fh) && !ens_fh %in% c("n_a", "")) {
+            parts_ens <- c(parts_ens, format_fh_ensure(ens_fh))
+          }
+          if (identical(post_s, "1")) {
+            pl <- if (nzchar(post_l)) {
+              post_l
+            } else {
+              "extra Function.h patch (image step after Ensure)"
+            }
+            parts_ens <- c(parts_ens, paste0("Post: ", pl))
+          }
+          if (!length(parts_ens)) {
+            report$rcpp_ensure_summary <- if (identical(plat, "rchk")) {
+              "n/a (Ensure Rcpp not run; see Post if present)"
+            } else {
+              ""
+            }
+          } else {
+            report$rcpp_ensure_summary <- paste(parts_ens, collapse = " | ")
+          }
           if (identical(plat, "rchk")) {
             report$rchk_check_kind <- "rchk.sh static analysis (not CRAN R CMD check)"
             native_ok <- NA
@@ -786,8 +896,18 @@ jobs:
           MATRIX_LABEL: ${{ matrix.config.label }}
         run: |
           set -eu
-          relax="$(Rscript -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) "true" else "false")')"
-          note="$(Rscript -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat("R 4.6.0 svn", svn, "(<89746): DESCRIPTION relax + Ensure Rcpp") else cat("none")')"
+          RSCRIPT="Rscript"
+          if [ -n "${R_HOME:-}" ]; then
+            if [ -f "$R_HOME/bin/Rscript.exe" ]; then
+              RSCRIPT="$R_HOME/bin/Rscript.exe"
+            elif [ -f "$R_HOME/bin/Rscript" ]; then
+              RSCRIPT="$R_HOME/bin/Rscript"
+            else
+              export PATH="$R_HOME/bin:$PATH"
+            fi
+          fi
+          relax="$("$RSCRIPT" -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; cat(if (relax) "true" else "false")')"
+          note="$("$RSCRIPT" -e 'lab <- Sys.getenv("MATRIX_LABEL", ""); rv <- getRversion(); v <- R.version; raw <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]; svn <- suppressWarnings(as.integer(as.character(raw))); is460 <- identical(as.character(rv), "4.6.0"); relax <- !identical(lab, "rchk") && isTRUE(is460) && length(svn) == 1L && !is.na(svn) && svn < 89746L; if (relax) cat("R 4.6.0 svn", svn, "(<89746): DESCRIPTION relax + Ensure Rcpp") else cat("none")')"
           echo "relax_description=${relax}" >> "$GITHUB_OUTPUT"
           echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND=${relax}" >> "$GITHUB_ENV"
           echo "GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE=${note}" >> "$GITHUB_ENV"
@@ -832,6 +952,8 @@ jobs:
           dir.create(lib, showWarnings = FALSE, recursive = TRUE)
           if (!lib %in% .libPaths()) .libPaths(c(lib, .libPaths()))
           ge <- Sys.getenv("GITHUB_ENV", "")
+          ensure_path <- ""
+          fh_patch_result <- "n_a"
           rcpp_desc_version <- function() {
             ok <- tryCatch(requireNamespace("Rcpp", quietly = TRUE), error = function(e) FALSE)
             if (!ok) return(NA)
@@ -851,6 +973,15 @@ jobs:
           }
           write_glmbayes_lib <- function() {
             if (nzchar(ge)) cat("GLMBAYES_RCPP_LIB=", lib, "\n", file = ge, sep = "", append = TRUE)
+          }
+          write_rcpp_ensure_meta <- function() {
+            if (!nzchar(ge)) return(invisible())
+            if (nzchar(ensure_path)) {
+              cat("GLMBAYES_RCPP_ENSURE_PATH=", ensure_path, "\n", file = ge, sep = "", append = TRUE)
+            }
+            if (nzchar(fh_patch_result) && !identical(fh_patch_result, "n_a")) {
+              cat("GLMBAYES_RCPP_FUNCTION_H_PATCH=", fh_patch_result, "\n", file = ge, sep = "", append = TRUE)
+            }
           }
           append_summary <- function(lines) {
             gs <- Sys.getenv("GITHUB_STEP_SUMMARY", "")
@@ -919,6 +1050,7 @@ jobs:
 
           maybe_patch <- function(ver) {
             if (family == "mac" || !ahead || !is.na(ver) && ver >= target_min) {
+              fh_patch_result <<- if (identical(family, "mac")) "skipped_mac" else "skipped"
               step_log <<- c(step_log, paste0("- **Function.h patch**: skipped (family=", family, ", ahead=", ahead, ", Rcpp=", if (is.na(ver)) "unknown" else ver, ")"))
               return(invisible())
             }
@@ -927,6 +1059,7 @@ jobs:
             if (!nzchar(repo)) repo <- getwd()
             patch <- file.path(repo, "tools", "patch_rcpp_function_h.R")
             if (!file.exists(patch)) {
+              fh_patch_result <<- "skipped_noscript"
               step_log <<- c(step_log, "- **Function.h patch**: skipped (tools/patch_rcpp_function_h.R not found)")
               return(invisible())
             }
@@ -937,13 +1070,26 @@ jobs:
             env["GLMBAYES_RCPP_LIB"] <- lib
             out <- system2(rscript, c(patch), env = env, stdout = TRUE, stderr = TRUE)
             st <- attr(out, "status")
+            combined <- out
+            if (is.null(combined)) {
+              combined <- character()
+            }
+            oc <- paste0(combined, collapse = "\n")
             if (!is.null(st) && !identical(as.integer(st), 0L)) {
+              fh_patch_result <<- "error"
               step_log <<- c(step_log, paste("- **Function.h patch**: Rscript exit code", st))
             } else {
-              step_log <<- c(step_log, "- **Function.h patch**: completed (no-op if pattern absent)")
+              if (grepl("patch_rcpp_function_h: patched", oc, fixed = TRUE)) {
+                fh_patch_result <<- "applied"
+                step_log <<- c(step_log, "- **Function.h patch**: Rcpp header patched (see patch_rcpp_function_h log)")
+              } else {
+                fh_patch_result <<- "no_match"
+                step_log <<- c(step_log, "- **Function.h patch**: completed (no matching old pattern; header unchanged)")
+              }
             }
           }
           finish_ok <- function(resolved_line) {
+            write_rcpp_ensure_meta()
             write_glmbayes_lib()
             append_summary(c(step_log, resolved_line))
             if (oldrel && family != "mac" && nzchar(ge)) cat("_R_CHECK_FORCE_SUGGESTS_=FALSE\n", file = ge, append = TRUE)
@@ -953,6 +1099,7 @@ jobs:
           current_ver <- rcpp_desc_version()
           if (!is.na(current_ver) && current_ver >= runtime_min) {
             message("Keeping preinstalled Rcpp ", current_ver, " (>= ", runtime_min, "); skipping reinstall.")
+            ensure_path <- "preinstalled"
             maybe_patch(current_ver)
             step_log <- c(
               step_log,
@@ -970,6 +1117,7 @@ jobs:
           ver <- rcpp_desc_version()
           if (ok1 && !is.na(ver)) {
             message("Using Rcpp ", ver, " (CRAN preferred install path)")
+            ensure_path <- paste0("cran-", preferred)
             maybe_patch(ver)
             step_log <<- c(step_log, paste0("- **", preferred, " verified**: `Rcpp/DESCRIPTION` present in target lib; `Version`=", ver, "."))
             finish_ok(paste0("- **Resolved**: ", ver, " (CRAN ", preferred, ", verified under lib)"))
@@ -983,6 +1131,7 @@ jobs:
           ver <- rcpp_desc_version()
           if (ok2 && !is.na(ver)) {
             message("Using Rcpp ", ver, " from CRAN (alternate)")
+            ensure_path <- paste0("cran-", alternate, "-fb")
             maybe_patch(ver)
             rline <- if (identical(as.character(preferred), "1.1.1-1")) {
               paste0(
@@ -1009,6 +1158,7 @@ jobs:
             stop("Could not install Rcpp after preferred CRAN, alternate CRAN, and GitHub. See Rcpp install summary in the job.")
           }
           message("Using Rcpp ", ver, " from GitHub (fallback)")
+          ensure_path <- "github"
           maybe_patch(ver)
           finish_ok(
             paste0(
@@ -1245,6 +1395,73 @@ jobs:
           wn <- Sys.getenv("GLMBAYES_RCPP_SNAPSHOT_WORKAROUND_NOTE", "")
           report$rcpp_snapshot_workaround <- if (identical(wr, "true")) "yes" else "no"
           report$rcpp_snapshot_workaround_note <- if (identical(wr, "true")) wn else ""
+          ens_path <- Sys.getenv("GLMBAYES_RCPP_ENSURE_PATH", "")
+          ens_fh <- Sys.getenv("GLMBAYES_RCPP_FUNCTION_H_PATCH", "")
+          post_s <- Sys.getenv("GLMBAYES_RCPP_FH_POST_STEP", "")
+          post_l <- Sys.getenv("GLMBAYES_RCPP_FH_POST_LABEL", "")
+          report$rcpp_ensure_path <- ens_path
+          report$rcpp_function_h_patch_ensure <- ens_fh
+          report$rcpp_fh_post_step <- if (identical(post_s, "1")) "yes" else "no"
+          report$rcpp_fh_post_label <- post_l
+          format_ensure_path <- function(p) {
+            if (!nzchar(p)) {
+              return("")
+            }
+            if (identical(p, "preinstalled")) {
+              return("Rcpp: preinstalled (kept from setup)")
+            }
+            if (identical(p, "github")) {
+              return("Rcpp: GitHub RcppCore/Rcpp master")
+            }
+            if (grepl("-fb$", p)) {
+              v <- sub("^cran-(.+)-fb$", "\\1", p)
+              return(paste0("Rcpp: CRAN ", v, " (fallback after preferred not adopted)"))
+            }
+            if (grepl("^cran-", p)) {
+              v <- sub("^cran-", "", p)
+              return(paste0("Rcpp: CRAN ", v))
+            }
+            p
+          }
+          format_fh_ensure <- function(f) {
+            if (!nzchar(f) || identical(f, "n_a")) {
+              return("")
+            }
+            switch(
+              f,
+              applied = "Rcpp Function.h: patched (Ensure step)",
+              no_match = "Rcpp Function.h: not patched (no old pattern in header)",
+              error = "Rcpp Function.h: patch error (Ensure step)",
+              skipped = "Rcpp Function.h: not run (R/Rcpp do not need patch here)",
+              skipped_mac = "Rcpp Function.h: skipped (macOS path in workflow)",
+              skipped_noscript = "Rcpp Function.h: tools/patch_rcpp_function_h.R missing",
+              f
+            )
+          }
+          parts_ens <- character()
+          if (nzchar(ens_path)) {
+            parts_ens <- c(parts_ens, format_ensure_path(ens_path))
+          }
+          if (nzchar(ens_fh) && !ens_fh %in% c("n_a", "")) {
+            parts_ens <- c(parts_ens, format_fh_ensure(ens_fh))
+          }
+          if (identical(post_s, "1")) {
+            pl <- if (nzchar(post_l)) {
+              post_l
+            } else {
+              "extra Function.h patch (image step after Ensure)"
+            }
+            parts_ens <- c(parts_ens, paste0("Post: ", pl))
+          }
+          if (!length(parts_ens)) {
+            report$rcpp_ensure_summary <- if (identical(plat, "rchk")) {
+              "n/a (Ensure Rcpp not run; see Post if present)"
+            } else {
+              ""
+            }
+          } else {
+            report$rcpp_ensure_summary <- paste(parts_ens, collapse = " | ")
+          }
           if (identical(plat, "rchk")) {
             report$rchk_check_kind <- "rchk.sh static analysis (not CRAN R CMD check)"
             native_ok <- NA
@@ -1452,6 +1669,13 @@ jobs:
             }
             gsub("|", "/", n, fixed = TRUE)
           }
+          ensure_summary_cell <- function(x) {
+            s <- getf(x, "rcpp_ensure_summary", "")
+            if (!nzchar(s)) {
+              return("—")
+            }
+            gsub("|", "/", s, fixed = TRUE)
+          }
           lines <- character()
           lines <- c(lines, "## Cross-Platform Summary", "")
           run_u <- ""
@@ -1474,19 +1698,20 @@ jobs:
             "_R CMD check_ column is parsed from `check/**/00check.log` (`Status:` line), except **rchk** (see **rchk** subsection). ",
             "_Job_ column is the GitHub Actions job outcome after all steps (e.g. Valgrind grep can fail after `Status: OK`). ",
             "**R svn rev** is `R.version[[\"svn.rev\"]]` or `R.version[[\"svn rev\"]]` from the matrix job (same session as Rcpp); compare to `R_SVN_REVISION` in Rcpp headers when debugging `Function.h` branches. ",
-            "**Rcpp snapshot workaround** is `yes` only when **R 4.6.0** and **svn &lt; 89746** (Rcpp `Function.h` cutoff): `DESCRIPTION` was relaxed for `setup-deps`, then restored; **Ensure Rcpp** ran as in the workflow."
+            "**Rcpp snapshot workaround** is `yes` only when **R 4.6.0** and **svn &lt; 89746** (Rcpp `Function.h` cutoff): `DESCRIPTION` was relaxed for `setup-deps`, then restored; **Ensure Rcpp** ran as in the workflow. ",
+            "**Rcpp ensure** summarizes the **Ensure Rcpp** step: whether Rcpp came from preinstall, **CRAN** 1.1.1 / 1.1.1-1, or **GitHub**; and whether `tools/patch_rcpp_function_h.R` **changed** `Rcpp/Function.h` (reported as **Rcpp Function.h: patched**). A separate **Post:** line is the image-only follow-up for **clang21 / clang22 / rchk**."
           ))
           lines <- c(lines, "")
           if (!length(rows)) {
             lines <- c(lines, "_No platform report artifacts were found._", "")
           } else {
-            lines <- c(lines, "| Platform | R version | R svn rev | Rcpp version | R CMD check (00check) | Job | Rcpp snapshot workaround |",
-                       "|---|---:|---:|---:|---|---|---|")
+            lines <- c(lines, "| Platform | R version | R svn rev | Rcpp version | R CMD check (00check) | Job | Rcpp snapshot workaround | Rcpp ensure (source / Function.h) |",
+                       "|---|---:|---:|---:|---|---|---|---|")
             for (x in rows) {
               lines <- c(lines, sprintf(
-                "| %s | %s | %s | %s | %s | %s | %s |",
+                "| %s | %s | %s | %s | %s | %s | %s | %s |",
                 getf(x, "platform"), getf(x, "r_version"), getf(x, "r_svn_rev", "unknown"),
-                rcpp_stat(x), rcmd_stat(x), job_outcome(x), snapshot_cell(x)
+                rcpp_stat(x), rcmd_stat(x), job_outcome(x), snapshot_cell(x), ensure_summary_cell(x)
               ))
             }
             lines <- c(lines, "")
@@ -1507,8 +1732,8 @@ jobs:
                 "The table below records whether we saw a completed native install marker `* DONE(<pkg>)` in any `check/**/00install.out`, plus optional paths that look like rchk/bcheck outputs under the workspace."
               ))
               lines <- c(lines, "")
-              lines <- c(lines, "| Platform | R | R svn rev | Rcpp | `* DONE(pkg)*` in 00install.out | Job | Rcpp snapshot workaround | install log / artifacts |",
-                         "|---|---:|---:|---:|---|---|---|---|")
+              lines <- c(lines, "| Platform | R | R svn rev | Rcpp | `* DONE(pkg)*` in 00install.out | Job | Rcpp snapshot workaround | Rcpp ensure (source / Function.h) | install log / artifacts |",
+                         "|---|---:|---:|---:|---|---|---|---|---|")
               rkget <- function(x, nm, alt = "") {
                 v <- x[[nm]]
                 if (is.null(v)) return(alt)
@@ -1522,12 +1747,13 @@ jobs:
                 if (nzchar(arts)) cell_parts <- c(cell_parts, arts)
                 cell <- if (length(cell_parts)) paste(cell_parts, collapse = " — ") else "—"
                 lines <- c(lines, sprintf(
-                  "| %s | %s | %s | %s | %s | %s | %s | %s |",
+                  "| %s | %s | %s | %s | %s | %s | %s | %s | %s |",
                   getf(x, "platform"), getf(x, "r_version"), getf(x, "r_svn_rev", "unknown"),
                   getf(x, "rcpp_version"),
                   rkget(x, "rchk_native_install_done", "unknown"),
                   job_outcome(x),
                   snapshot_cell(x),
+                  ensure_summary_cell(x),
                   cell
                 ))
               }
