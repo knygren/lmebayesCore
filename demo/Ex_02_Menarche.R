@@ -220,9 +220,9 @@ readline("press any key to continue")
 
 ## Get Original Residuals, their means, and credible bounds
 res_out=residuals(glmb.out1)
-res_mean=colMeans(res_out)
-res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025))
-res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975))
+res_mean=colMeans(res_out, na.rm=TRUE)
+res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025),na.rm=TRUE)
+res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975),na.rm=TRUE)
 
 ## Simulate new data and get residuals for simulated data
 
@@ -518,10 +518,10 @@ readline("press any key to continue")
 
 ## Get Residuals for model, their means, and credible bounds
 res_out=residuals(glmb.out2)
-res_mean=colMeans(res_out)
+res_mean=colMeans(res_out, na.rm=TRUE)
 sqrt(mean(res_mean^2))
-res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025))
-res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975))
+res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025),na.rm=TRUE)
+res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975),na.rm=TRUE)
 
 ## Simulate new data and get residuals for simulated data
 
@@ -582,10 +582,10 @@ readline("press any key to continue")
 
 ## Get Residuals for model, their means, and credible bounds
 res_out=residuals(glmb.out3)
-res_mean=colMeans(res_out)
+res_mean=colMeans(res_out, na.rm=TRUE)
 sqrt(mean(res_mean^2))
-res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025))
-res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975))
+res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025),na.rm=TRUE)
+res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975),na.rm=TRUE)
 
 ## Simulate new data and get residuals for simulated data
 
@@ -645,10 +645,10 @@ readline("press any key to continue")
 
 ## Get Residuals for model, their means, and credible bounds
 res_out=residuals(glmb.out4)
-res_mean=colMeans(res_out)
+res_mean=colMeans(res_out, na.rm=TRUE)
 sqrt(mean(res_mean^2))
-res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025))
-res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975))
+res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025),na.rm=TRUE)
+res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975),na.rm=TRUE)
 
 ## Simulate new data and get residuals for simulated data
 

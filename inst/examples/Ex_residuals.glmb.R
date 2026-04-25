@@ -26,12 +26,12 @@ pred1=predict(glmb.out1,type="response")
 
 ## Get Original Residuals, their means, and credible bounds
 res_out=residuals(glmb.out1)
-colMeans(res_out)
+colMeans(res_out, na.rm=TRUE)
 
 ## Set up to simulate new data and residuals
-res_mean=colMeans(res_out)
-res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025))
-res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975))
+res_mean=colMeans(res_out, na.rm=TRUE)
+res_low1=apply(res_out,2,FUN=quantile,probs=c(0.025),na.rm=TRUE)
+res_high1=apply(res_out,2,FUN=quantile,probs=c(0.975),na.rm=TRUE)
 
 ## Simulate new data and get residuals for simulated data
 
