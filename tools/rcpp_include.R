@@ -1,4 +1,5 @@
-# Invoked by configure / configure.win. Prints a single -I"path" line to stdout (Rcpp include dir).
+# Invoked by configure / configure.win. Stdout: line1 = Rcpp version<TAB>library,
+# line2 = -I"…/Rcpp/include", line3 = Function.h namespace ctor branch (1/2/3) for PKG_CXXFLAGS -D.
 # Messages and warnings go to stderr.
 #
 # GLMBAYES_RCPP_LIB — optional: explicit library directory that contains Rcpp/ (e.g. CI user library).
@@ -113,6 +114,77 @@ rcpp_configure_version_info <- function(lib) {
   invisible()
 }
 
+read_r_svn_revision_h <- function() {
+  rh <- file.path(R.home("include"), "Rversion.h")
+  if (!file.exists(rh)) {
+    return(NA_integer_)
+  }
+  z <- readLines(rh, warn = FALSE, encoding = "UTF-8")
+  m <- grep("^#define[[:space:]]+R_SVN_REVISION[[:space:]]+", z, value = TRUE)
+  if (!length(m)) {
+    return(NA_integer_)
+  }
+  rest <- sub("^#define[[:space:]]+R_SVN_REVISION[[:space:]]+", "", m[1L])
+  rest <- sub("/\\*.*$", "", rest) # strip C comments on same line
+  rest <- gsub("^[[:space:]]+|[[:space:]]+$", "", rest)
+  suppressWarnings(as.integer(rest))
+}
+
+# Mirrors Rcpp/include/Rcpp/Function.h: Function_Impl(const string&, const string& ns) body.
+rcpp_function_h_branch <- function() {
+  rv <- getRversion()
+  svn_h <- read_r_svn_revision_h()
+  v <- R.version
+  s <- if (!is.null(v[["svn.rev"]])) v[["svn.rev"]] else v[["svn rev"]]
+  r_svn_r <- suppressWarnings(as.integer(as.character(s)))
+  if (length(r_svn_r) != 1L || is.na(r_svn_r)) {
+    r_svn_r <- NA_integer_
+  }
+  c1 <- rv < "4.5.0"
+  c2a <- rv < "4.6.0"
+  c2b <- !is.na(svn_h) && svn_h < 89746L
+  c2 <- c2a || c2b
+  if (c1) {
+    b <- 1L
+  } else if (c2) {
+    b <- 2L
+  } else {
+    b <- 3L
+  }
+  name <- c("Rf_findVarInFrame / R_NamespaceRegistry", "R_getVarEx", "R_getRegisteredNamespace")[b]
+  writeLines("configure: Rcpp Function.h - `Function(const string& name, const string& ns)` C preprocessor path:", con = stderr())
+  writeLines(sprintf("configure:   branch %d: %s", b, name), con = stderr())
+  writeLines(sprintf("configure:   (R_VERSION < 4,5,0) => %s", c1), con = stderr())
+  writeLines(
+    sprintf(
+      "configure:   (R_VERSION < 4,6,0 || R_SVN_REVISION < 89746) => %s  [parts: R_VERSION < 4,6,0 = %s; R_SVN_REVISION < 89746 = %s]",
+      c2, c2a, c2b
+    ),
+    con = stderr()
+  )
+  if (is.na(svn_h)) {
+    writeLines("configure:   R_SVN_REVISION: not read from R_HOME/include/Rversion.h (missing or unparsed)", con = stderr())
+  } else {
+    writeLines(sprintf("configure:   R_SVN_REVISION (from Rversion.h) = %d", svn_h), con = stderr())
+  }
+  if (is.na(r_svn_r)) {
+    writeLines("configure:   R session svn.rev: (unavailable)", con = stderr())
+  } else {
+    writeLines(sprintf("configure:   R session svn (R.version) = %d (should match Rversion.h for same R install)", r_svn_r), con = stderr())
+  }
+  if (!is.na(svn_h) && !is.na(r_svn_r) && svn_h != r_svn_r) {
+    writeLines(
+      "configure: WARNING: R_SVN_REVISION in Rversion.h differs from R session svn; compile may not match this R.",
+      con = stderr()
+    )
+  }
+  writeLines(
+    "configure:   (Branch 3 uses R_getRegisteredNamespace: undefined symbol usually means R headers are older than Rcpp expects, or a mismatched R/lib.)",
+    con = stderr()
+  )
+  b
+}
+
 rcpp_configure_warnings <- function(lib) {
   rv <- getRversion()
   r_svn <- tryCatch({
@@ -194,6 +266,7 @@ rcpp_configure_warnings <- function(lib) {
 lib <- pick_lib()
 rcpp_configure_version_info(lib)
 rcpp_configure_warnings(lib)
+fh_branch <- rcpp_function_h_branch()
 
 ver <- tryCatch(as.character(packageVersion("Rcpp", lib.loc = lib)), error = function(e) "unknown")
 # Line 1 for configure / configure.win: version TAB library (no tabs in path assumed).
@@ -206,3 +279,5 @@ inc <- normalizePath(
 p <- gsub("\\\\", "/", inc)
 # Line 2: PKG_CPPFLAGS fragment for Makevars (single line).
 cat(sprintf('-I"%s"\n', p))
+# Line 3: mirror of Function.h branch id for -DGLMBAYES_RCPP_FH_SIM= in Makevars
+cat(fh_branch, "\n", sep = "")

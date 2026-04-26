@@ -27,17 +27,17 @@ code path gracefully — all checks pass on platforms without OpenCL.
 ### Win-builder
 
 - R release 
-    -R version 4.6.0 RC (2026-04-22 r89945 ucrt)
+    -R 4.6.0 RC (2026-04-22 r89945 ucrt)
     -Rcpp 1.1.1-1    
     -0 errors, 0 warnings, 2 notes
 
 - R-devel   
-    -4.6.0 RC (2026-04-20 r89921 ucrt)
+    -R Under development (unstable) (2026-04-24 r89961 ucrt)
     -Rcpp 1.1.1-1    
     -0 errors, 0 warnings, 2 notes
-
+    
 - R-oldrelease 
-    -R version 4.5.3 (2026-03-11 ucrt)
+    -R 4.5.3 (2026-03-11 ucrt)
     -Rcpp 1.1.1    
     -0 errors, 0 warnings, 3 notes
 
@@ -159,7 +159,8 @@ for Rcpp to properly build and install. Updates to R 4.6.0 starting with
 svn r89746 enabled the Rcpp team to introduce a fix starting with Rcpp 1.1.1-1
 that allows the package to properly build and install on the newer version of R.
 This fix uses R_getRegisteredNamespace (which seems to have been added by the R team
-starting with svn r89746).
+starting with svn r89746). See (https://github.com/RcppCore/Rcpp/pull/1469) for detailed
+discussion by thr Rcpp team.
 
 This fix, however, leads to incompatibility with earlier pre-release versions of 
 R 4.6.0 (as noted in the macbuilder section). As a result, CRAN currently list the below 
