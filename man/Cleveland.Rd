@@ -46,6 +46,7 @@ summary(Cleveland)
 
 # OpenCL-accelerated Bayesian logistic regression example
 # This only runs if OpenCL is available
+\donttest{
 if (has_opencl()) {
   ps <- Prior_Setup(
     hd ~ age + sex + cp + trestbps + chol +
@@ -68,7 +69,7 @@ if (has_opencl()) {
   )
   summary(fit)
 }
-
+}
 ###############################################################################
 ## End of Cleveland dataset example
 ###############################################################################

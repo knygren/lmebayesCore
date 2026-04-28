@@ -154,8 +154,9 @@ rate_dg  <- if (!is.null(ps$rate_gamma)) ps$rate_gamma else rate
 ## Two-Block Gibbs sampler for Plant Weight regression model
 set.seed(180)
 
-n_burnin=1000
-n_samples=1000
+## Note: iteration counts reduced for CRAN checks; increase for production use
+n_burnin  <- 200
+n_samples <- 200
 
 ## Initilize dispersion to ML estimate
 dispersion2 <- ps$dispersion
@@ -204,7 +205,7 @@ print(coda::effectiveSize(mcmc_two_block)["dispersion"])
 
 ## Same model using the lmb function
 
-lmb.D9 <- lmb(n= 4000,weight  ~ group,
+lmb.D9 <- lmb(n= 1000,weight  ~ group,
   pfamily = dIndependent_Normal_Gamma(ps$mu, ps$Sigma, shape = ps$shape_ING, rate  = ps$rate))
 
 ## lmb summary
