@@ -16,41 +16,34 @@ README.md and NEWS.md for additional package details.
 
 ### Win-builder
 
-- R release 
-    -R 4.6.0 (2026-04-24 ucrt)
-    -Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
-    -Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
-    -Rcpp 1.1.1-1.1
-    -0 errors, 0 warnings, 1 note (New submission)
+- R release
+    - R 4.6.0 (2026-04-24 ucrt)
+    - Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
+    - Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
+    - Rcpp 1.1.1-1.1
+    - 0 errors, 0 warnings, 1 note (New submission)
 
-    
-- R-oldrelease 
-    -R 4.5.3 (2026-03-11 ucrt)
-    -Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
-    -Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
-    -Rcpp 1.1.1
-    -0 errors, 0 warnings, 2 notes (New submission; long-running non-OpenCL example timing)
-
-  1. New submission (see Notes)
-  2. Long-running non-OpenCL (see Notes - oldrelease only)
+- R-oldrelease
+    - R 4.5.3 (2026-03-11 ucrt)
+    - Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
+    - Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
+    - Rcpp 1.1.1
+    - 0 errors, 0 warnings, 1 note (New submission)
 
 A version of package prior to a change to the Rcpp Include/Suggest setup ran as below
 
 - R-devel   
-    -R Under development (unstable) (2026-04-25 r89962 ucrt)
-    -Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
-    -Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
-    -Rcpp 1.1.1-1.1
-    -0 errors, 0 warnings, 3 notes (New submission, )
-
-where the additional notes were
-
-a) Package listed in more than one of Depends, Imports, Suggests, Enhances
-
-b) Skipping checking math rendering: package 'V8' unavailable
-
-A rerun after removing these currently runs into an ERROR: failed to lock directory 'd:/RCompile/CRANguest/R-devel/lib' for modifying
-(likely due to re-run being too close to the previous one).
+    - R Under development (unstable) (2026-04-25 r89962 ucrt)
+    - Platform: x86_64-w64-mingw32 (Windows Server 2022 x64)
+    - Toolchain: GCC 14.3.0 (C/C++) and GNU Fortran 14.3.0
+    - Rcpp 1.1.1-1.1
+    - 0 errors, 0 warnings, 3 notes (New submission)
+    where the additional notes were
+    a) Package listed in more than one of Depends, Imports, Suggests, Enhances
+    b) Skipping checking math rendering: package 'V8' unavailable
+    A rerun after removing these currently runs into an ERROR: failed to lock directory
+    'd:/RCompile/CRANguest/R-devel/lib' for modifying
+    (likely due to re-run being too close to the previous one).
 
 ### Mac-builder
 
@@ -162,11 +155,9 @@ observed on select systems.
                 user  system elapsed
        rlmb    12.60    0.45   10.61
 
-This appears only on select platforms/machines. On many, this note is never
-triggered as elapsed time falls below the 5-second threshold. Example compares 
-a two-block gibbs sampler (MCMC) to the main lmb implementation (MC). Sufficently long 
-runs and needed to make comparisons valid statistically.
-
+This appears only on select platforms. Iteration counts in this example have been
+reduced for CRAN compliance (n_burnin = 200, n_samples = 200, n = 1000). The example
+compares a two-block Gibbs sampler (MCMC) to the main lmb implementation (MC).
 
 ### Note on rchk
 [rchk checks for PROTECT issues in C code. Describe what rchk flagged,
@@ -254,11 +245,11 @@ own C, say so explicitly.]
        Boston_centered 150.89  16.16  105.20
        Cleveland        42.25   3.00   29.34
 
-`Boston_centered` and `Cleveland` are GPU/OpenCL examples: the heavy path runs only when
-`has_opencl()` is true. On typical CRAN check machines there is no usable OpenCL device, so
-that path is skipped and these timings are **not** what CRAN sees. The numbers above are
-from an OpenCL-capable maintainer machine and are included to document behavior and
-performance validation.
+`Boston_centered` and `Cleveland` are GPU/OpenCL examples wrapped in `\donttest{}`
+for CRAN compliance. The heavy path runs only when `has_opencl()` is true and is
+excluded from routine `R CMD check` example testing. The timings above are from an
+OpenCL-capable maintainer machine and are included to document behavior and
+performance validation. 
 
 **Timing columns:** `elapsed` is wall-clock time (what CRAN’s example-timing checks care about).
 `user` and `system` are CPU time for the R process; on parallel workloads (host threads,
