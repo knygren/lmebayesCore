@@ -18,6 +18,7 @@ glmbayes.Rcheck/
 *.Rproj
 *.tar
 *.tar.gz
+/tarballs/
 # Ignore rendered vignette outputs
 vignettes/*.html
 vignettes/*.pdf

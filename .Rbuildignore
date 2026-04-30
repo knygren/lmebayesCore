@@ -25,6 +25,7 @@
 ^\.RDataTmp$
 ^data-raw$
 ^scripts$
+^tarballs$
 ^cran-comments\.md$
 ^\.github$
 ^\.positai$

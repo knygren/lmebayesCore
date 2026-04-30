@@ -1,3 +1,7 @@
+# glmbayes 0.9.3
+
+* Version bump in response to CRAN resubmission feedback.
+
 # glmbayes 0.9.2
 
 * Version bump in preparation for resubmission incorporating CRAN review feedback.
