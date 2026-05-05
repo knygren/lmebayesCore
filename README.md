@@ -1,5 +1,8 @@
 # glmbayes
 
+![CRAN status](https://www.r-pkg.org/badges/version/glmbayes)
+![CRAN downloads](https://cranlogs.r-pkg.org/badges/grand-total/glmbayes)
+![Monthly downloads](https://cranlogs.r-pkg.org/badges/glmbayes)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/knygren/glmbayes?label=version)
 ![License: GPL-3](https://img.shields.io/badge/license-GPL--3-blue.svg)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/knygren/glmbayes/R-CMD-check.yaml?label=R%20CMD%20Check)
