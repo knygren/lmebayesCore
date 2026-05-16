@@ -2,7 +2,7 @@
 # glmb as in tests/testthat/test-boston.R; only use_opencl = TRUE added
 
 test_that("OpenCL f2_f3_gaussian ING (Ex_Boston_centered)", {
-  skip_if_no_opencl_kernels()
+  skip_if_no_opencl()
 
   data("Boston_centered")
 

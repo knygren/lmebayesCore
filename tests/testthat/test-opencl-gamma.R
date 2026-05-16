@@ -1,7 +1,7 @@
 # inst/examples/Ex_glmb.R (carinsca Gamma block); only use_opencl = TRUE added
 
 test_that("OpenCL f2_f3_gamma (Ex_glmb carinsca)", {
-  skip_if_no_opencl_kernels()
+  skip_if_no_opencl()
 
   data(carinsca)
   carinsca$Merit <- ordered(carinsca$Merit)

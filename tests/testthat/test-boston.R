@@ -1,6 +1,6 @@
 test_that("Bayesian Gaussian regression with Independent Normal-Gamma prior — OpenCL", {
   
-  skip_if_no_opencl_kernels()
+  skip_if_no_opencl()
   skip_on_cran()
   
   library(MASS)
