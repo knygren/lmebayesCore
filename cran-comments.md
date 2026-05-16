@@ -1,19 +1,10 @@
-# CRAN resubmission comments — glmbayes 0.9.3
+# CRAN submission comments — glmbayes 0.9.4
 
-Thank you for the review. This is a resubmission addressing the
-requested DESCRIPTION formatting change.
-
-## Response to reviewer comment
-
-- Single quoted the software name 'OpenCL' in the DESCRIPTION Description
-  field.
-
-- Removed the extra single quotes around lm() and glm() in the DESCRIPTION
-  Description field, leaving function names formatted with parentheses only.
+[For a future CRAN submission only — not used until you are ready to submit.]
 
 ## Test environments
 
-[Checks will be rerun after this DESCRIPTION-only change.]
+[To be filled in before submission.]
 
 ---
 _This file is listed in `.Rbuildignore` and is not included in the

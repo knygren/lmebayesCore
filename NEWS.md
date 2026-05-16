@@ -1,3 +1,8 @@
+# glmbayes 0.9.4 (unreleased)
+
+* In-repository development version after CRAN publication of 0.9.3.
+  Not intended for CRAN until changes are meaningful and stable.
+
 # glmbayes 0.9.3
 
 * Version bump in response to CRAN resubmission feedback.
@@ -12,7 +17,7 @@
 * Reduced iteration counts in rlmb Gibbs sampler example to stay within
   CRAN example time limits on slower check machines.
 
-# glmbayes 0.9.1
+# glmbayes 0.9.0
 
 First CRAN submission. This release is a stable pre-release with a
 near-complete feature set relative to earlier development builds.

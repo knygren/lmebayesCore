@@ -79,9 +79,10 @@ GPU acceleration speeds up \strong{envelope construction and grid evaluation}
 (NVIDIA, AMD, Intel); CPU-only builds remain valid and are often used when
 no OpenCL stack is present.
 
-\strong{Practical setup (summary).} Prebuilt binaries from CRAN or R-Universe
-are typically built \strong{without} OpenCL GPU support; enabling the GPU path
-usually requires installing \pkg{glmbayes} \strong{from source} on a machine
+\strong{Practical setup (summary).} The CRAN release and prebuilt R-Universe
+binaries are built \strong{without} OpenCL GPU support; enabling the GPU path
+usually requires installing the development \pkg{glmbayes} \strong{from source}
+on a machine
 with OpenCL \strong{headers}, a linkable \strong{OpenCL library / ICD loader}, and
 a working \strong{vendor runtime} (GPU driver). You need a normal C/C++
 toolchain (e.g. Rtools on Windows, \code{build-essential} and

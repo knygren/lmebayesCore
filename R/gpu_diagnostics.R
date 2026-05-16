@@ -71,9 +71,10 @@
 #' (NVIDIA, AMD, Intel); CPU-only builds remain valid and are often used when
 #' no OpenCL stack is present.
 #'
-#' **Practical setup (summary).** Prebuilt binaries from CRAN or R-Universe
-#' are typically built **without** OpenCL GPU support; enabling the GPU path
-#' usually requires installing \pkg{glmbayes} **from source** on a machine
+#' **Practical setup (summary).** The CRAN release and prebuilt R-Universe
+#' binaries are built **without** OpenCL GPU support; enabling the GPU path
+#' usually requires installing the development \pkg{glmbayes} **from source**
+#' on a machine
 #' with OpenCL **headers**, a linkable **OpenCL library / ICD loader**, and
 #' a working **vendor runtime** (GPU driver). You need a normal C/C++
 #' toolchain (e.g. Rtools on Windows, \code{build-essential} and

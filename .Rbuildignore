@@ -31,3 +31,4 @@
 ^\.positai$
 ^\.claude$
 ^CRAN-SUBMISSION$
+^rds_check\.txt$

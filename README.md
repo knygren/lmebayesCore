@@ -17,18 +17,31 @@ The package includes a rich set of supporting tools for prior specification, mod
 that mirror those for lm() and glm(). Most functions are extensively documented, and a comprehensive set of vignettes
 are available to guide users through the package's capabilities.
 
-The package is currently available on R-Universe, with plans for a future CRAN submission. For recent updates and planned enhancements, see
-https://github.com/knygren/glmbayes/blob/main/NEWS.md
+The released version is on [CRAN](https://CRAN.R-project.org/package=glmbayes).
+Development builds with the latest changes are on
+[GitHub](https://github.com/knygren/glmbayes) and
+[R-Universe](https://knygren.r-universe.dev/glmbayes).
+For recent updates, see
+[NEWS.md](https://github.com/knygren/glmbayes/blob/main/NEWS.md).
 
 ## Installation
 
-To install the current development version (excluding OpenCL functionality):
+**CRAN (release version)**
 
+```r
+install.packages("glmbayes")
+```
+
+**Development version** (GitHub / R-Universe; may include changes not yet on CRAN):
+
+```r
 install.packages("glmbayes",
                  repos = c("https://cloud.r-project.org",
                            "https://knygren.r-universe.dev"))
+```
 
-To install a version suitable for large models with GPU acceleration, follow the instructions from 
+Prebuilt binaries from CRAN and R-Universe are built without OpenCL GPU support.
+To install a version suitable for large models with GPU acceleration, follow the instructions in 
 
 **Chapter 12 - Large Models: GPU Acceleration using OpenCL**
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html
@@ -314,7 +327,6 @@ details behind the samplers.
 
 ## Future Plans
 
-- Full CRAN submission 
 - Poisson speed (OpenCL and simulation): Precompute the log-factorial term `log(y!)`
   once per observation and reuse it in both OpenCL envelope construction and
   accept-reject simulation, since it depends only on the response, to reduce

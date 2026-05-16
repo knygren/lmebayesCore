@@ -448,3 +448,36 @@ load_kernel_library <- function(subdir, package = "glmbayes", verbose = FALSE) {
   }
   .load_kernel_library_wrapper_cpp(subdir, package, verbose)
 }
+
+#' Load a minimal OpenCL library subset for one kernel
+#'
+#' Reads `@{depends_tag}` from a kernel `.cl` file (for example
+#' `@all_depends_nmath`) and concatenates the listed library stems from
+#' `inst/cl/<library_subdir>/` in the order given by
+#' `kernel_dependency_index.tsv`. Intended for kernel-specific program
+#' assembly (see `f2_f3_opencl` in a future migration step).
+#'
+#' @param kernel_relative_path Path under `inst/cl/` to the kernel file.
+#' @param library_subdir Subdirectory of `inst/cl/` containing library `.cl`
+#'   files and `kernel_dependency_index.tsv`.
+#' @param package R package hosting `inst/cl/` (default `"glmbayes"`).
+#' @param depends_tag Annotation tag name without `@` (default
+#'   `"depends_nmath"`; use `"all_depends_nmath"` for precomputed transitive
+#'   stems on annotated kernels).
+#'
+#' @return A single character string of concatenated OpenCL source, or `""` if
+#'   the kernel has no matching annotation.
+#'
+#' @keywords internal
+#' @export
+load_library_for_kernel <- function(kernel_relative_path,
+                                    library_subdir,
+                                    package = "glmbayes",
+                                    depends_tag = "depends_nmath") {
+  if (!has_opencl()) {
+    stop("OpenCL support is not available in this build of glmbayes.")
+  }
+  .load_library_for_kernel_wrapper_cpp(
+    kernel_relative_path, library_subdir, package, depends_tag
+  )
+}

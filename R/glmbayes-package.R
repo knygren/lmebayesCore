@@ -44,6 +44,7 @@
 #'
 #' Useful links:
 #' \itemize{
+#'   \item CRAN: <https://CRAN.R-project.org/package=glmbayes>
 #'   \item GitHub: <https://github.com/knygren/glmbayes>
 #'   \item R-Universe: <https://knygren.r-universe.dev/glmbayes>
 #' }

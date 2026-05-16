@@ -12,6 +12,8 @@ inst/doc
 /Meta/
 **/autom4te.cache/
 **/autoconf-archive/
+*.Rout
+!tests/*.Rout.save
 *.Rcheck/
 glmbayes.Rcheck/
 .Rproj.user

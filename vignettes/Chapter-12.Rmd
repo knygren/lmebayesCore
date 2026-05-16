@@ -254,9 +254,11 @@ You should see **`Number of platforms` >= 1** and at least one **GPU** device (f
 
 macOS includes the OpenCL headers and the system OpenCL runtime as part of the Xcode Command Line Tools, so no additional installation is required for compilation. However, Apple has deprecated OpenCL, and modern Apple Silicon systems do not provide hardware OpenCL support. As a result, `glmbayes` will compile successfully on macOS, but GPU acceleration is not guaranteed and may fall back to CPU execution.
 
-## **3. Install glmbayes from source via R‑universe**
+## **3. Install glmbayes from source for OpenCL**
 
-Because CRAN and R‑universe do not build packages with OpenCL support, installing from source is required to enable GPU acceleration.
+The release on CRAN and prebuilt binaries on R‑Universe are built without OpenCL GPU support.
+Install from source (from GitHub or R‑Universe) on a machine with OpenCL headers and a working vendor runtime to enable GPU acceleration.
+The CRAN release provides the stable, CPU-only build; development source installs follow the same workflow below.
 
 ```r
 install.packages(

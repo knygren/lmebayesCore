@@ -189,6 +189,7 @@ Main interfaces: \code{\link{glmb}}, \code{\link{lmb}},
 
 Useful links:
 \itemize{
+\item CRAN: \url{https://CRAN.R-project.org/package=glmbayes}
 \item GitHub: \url{https://github.com/knygren/glmbayes}
 \item R-Universe: \url{https://knygren.r-universe.dev/glmbayes}
 }
