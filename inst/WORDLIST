@@ -3,6 +3,9 @@ AMI
 ASTIN
 Agresti
 Amitriptyline
+bayesplot
+bayesplot's
+bayestestR
 Bigg
 Bigl
 Bigr
@@ -70,6 +73,7 @@ OPENCL
 OpenCL
 Orchestrator
 PLSD
+PPCs
 Pfamilies
 Pfamily
 PowerShell
@@ -229,6 +233,8 @@ frst
 gammafn
 ge
 geq
+ggplot
+ggplot2
 glm
 glmb
 glmbdic

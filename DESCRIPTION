@@ -35,6 +35,7 @@ License: GPL-2
 URL: https://CRAN.R-project.org/package=glmbayes, https://github.com/knygren/glmbayes, https://knygren.r-universe.dev/glmbayes
 BugReports: https://github.com/knygren/glmbayes/issues
 Imports:
+    bayesplot,
     stats,
     coda,
     Rcpp (>= 1.1.1),

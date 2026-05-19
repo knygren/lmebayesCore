@@ -1,6 +1,10 @@
 # glmbayes 0.9.6
 
-* _In development. Release notes to be completed before CRAN submission._
+* **Posterior predictive checks:** New S3 method `pp_check.glmb()` integrates
+  with 'bayesplot' (now listed under `Imports`): builds `yrep` via
+  `simulate()` and dispatches through `bayesplot::pp_check()`.
+
+* _Further release notes to be completed before CRAN submission._
 
 # glmbayes 0.9.5
 
