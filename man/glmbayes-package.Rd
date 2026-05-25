@@ -46,6 +46,20 @@ prior derivations for \code{Prior_Setup()} in
 GPU/OpenCL topics in
 \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
 }
+\section{OpenCL startup checks}{
+
+In interactive sessions, attaching the package with \code{library(glmbayes)}
+may emit a short \code{\link{packageStartupMessage}}
+when \code{has_opencl()} is \code{FALSE} (typical for CRAN binaries) but a
+GPU or OpenCL stack appears available on the host. OpenCL modelling paths
+require a source install of \pkg{glmbayes} with OpenCL at compile time;
+\code{has_opencl()} then reports whether that build succeeded. The note
+confirms full CPU use and points to \code{vignette("Chapter-12")}. Machines
+without a detectable GPU stack stay silent.
+Set \code{options(glmbayes.quiet_opencl_startup = TRUE)} to suppress attach
+notes (recommended for CI and \command{R CMD check}).
+}
+
 \examples{
 set.seed(333)
 ## Dobson (1990) Page 93: Randomized Controlled Trial :

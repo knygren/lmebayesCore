@@ -1,6 +1,7 @@
 .Rproj.user
 .Rhistory
 .RData
+Rplots.pdf
 .Ruserdata
 src/*.o
 # Ignore all object files recursively

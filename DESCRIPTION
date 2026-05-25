@@ -40,7 +40,8 @@ Imports:
     coda,
     Rcpp (>= 1.1.1),
     RcppParallel,
-    Rdpack (>= 0.11-0)
+    Rdpack (>= 0.11-0),
+    opencltools (>= 0.8.0)
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 Depends: MASS, R (>= 3.5.0)

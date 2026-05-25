@@ -42,6 +42,18 @@
 #' GPU/OpenCL topics in
 #' \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
 #'
+#' @section OpenCL startup checks:
+#' In interactive sessions, attaching the package with \code{library(glmbayes)}
+#' may emit a short \code{\link{packageStartupMessage}}
+#' when \code{has_opencl()} is \code{FALSE} (typical for CRAN binaries) but a
+#' GPU or OpenCL stack appears available on the host. OpenCL modelling paths
+#' require a source install of \pkg{glmbayes} with OpenCL at compile time;
+#' \code{has_opencl()} then reports whether that build succeeded. The note
+#' confirms full CPU use and points to \code{vignette("Chapter-12")}. Machines
+#' without a detectable GPU stack stay silent.
+#' Set \code{options(glmbayes.quiet_opencl_startup = TRUE)} to suppress attach
+#' notes (recommended for CI and \command{R CMD check}).
+#'
 #' @example inst/examples/Ex_glmbayes-package.R
 #'
 #' @seealso
@@ -67,5 +79,9 @@
 #' @importFrom MASS mvrnorm
 #' @importFrom Rdpack reprompt
 #' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom opencltools detect_environment_and_gpus detect_or_install_gpu_drivers
+#' @importFrom opencltools detect_compute_runtimes gpu_names verify_opencl_runtime
+#' @importFrom opencltools check_runtime_env add_to_path_windows add_to_path_linux
+#' @importFrom opencltools add_to_libpath_linux
 #' @useDynLib glmbayes, .registration = TRUE
 "_PACKAGE"
