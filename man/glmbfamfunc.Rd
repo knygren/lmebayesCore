@@ -42,9 +42,42 @@ set of functions that are used during simulation and summarization of models
 using the \code{\link{glmb}}, and \code{\link{rglmb}} functions.
 }
 \details{
-For simulation, many code paths now pass closed-form objectives into C++ directly; \code{glmbfamfunc}
-remains the canonical R closure bundle for the same likelihood/prior/deviance quantities and for
-post-processing (e.g.\ \code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}}).
+\code{glmbfamfunc} is the canonical R closure bundle for likelihood, posterior, gradient, and
+deviance quantities across all supported family/link combinations.
+
+\strong{Registration requirement.}  A branch must exist inside \code{glmbfamfunc} for every
+family/link combination that is used in the package.  If a combination is missing, the
+closures \code{f1}--\code{f4} will never be assigned and any downstream code that accesses
+them will fail with \emph{"object 'f1' not found"}.  New family/link combinations must
+therefore be explicitly added here before they can produce valid DIC, log-likelihood, or
+directional-tail output.
+
+\strong{Currently implemented family/link combinations:}
+
+\tabular{ll}{
+\strong{Family}                    \tab \strong{Link} \cr
+\code{gaussian}                    \tab \code{identity} \cr
+\code{poisson}, \code{quasipoisson} \tab \code{log} \cr
+\code{poisson}, \code{quasipoisson} \tab \code{identity} \cr
+\code{binomial}, \code{quasibinomial} \tab \code{logit} \cr
+\code{binomial}, \code{quasibinomial} \tab \code{probit} \cr
+\code{binomial}, \code{quasibinomial} \tab \code{cloglog} \cr
+\code{Gamma}                       \tab \code{log} \cr
+}
+
+Any family/link not in this table will fall through all branches silently and produce
+the error above at the point of first use.  The \code{Gamma(link = "identity")} combination
+(used by \code{\link{dGamma_Conjugate}} for the conjugate rate prior) is not yet registered
+here; DIC and log-likelihood are therefore not available for that path until a branch is added.
+
+\strong{Relationship to C++ simulation paths.}  Many simulation procedures in the package have
+been fully or partially migrated to \code{*.cpp} routines, which receive their own
+objective functions directly.  For those paths \code{glmbfamfunc} may not be called at all
+during sampling.  However, the R-side post-processing functions
+(\code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}})
+always use \code{famfunc\$f1}, \code{famfunc\$f4}, and \code{famfunc\$f7} respectively, so a
+registered branch is still required for those outputs even when the sampler itself has moved
+to C++.
 }
 \examples{
 famfunc <- glmbfamfunc(binomial(logit))

@@ -599,9 +599,10 @@ rGamma_Conjugate_reg <- function(
   if (any(wt < 0))
     stop("weights must be nonnegative.")
   
-  b     <- prior_list$beta
-  shape <- prior_list$shape
-  rate  <- prior_list$rate
+  b         <- prior_list$beta
+  shape     <- prior_list$shape
+  rate      <- prior_list$rate
+  lik_shape <- as.numeric(if (!is.null(prior_list$lik_shape)) prior_list$lik_shape else 1)[[1L]]
 
   if (!is.null(prior_list$max_disp_perc)) {
     max_disp_perc <- prior_list$max_disp_perc
@@ -609,13 +610,10 @@ rGamma_Conjugate_reg <- function(
     max_disp_perc <- 0.99
   }
   
-  
-  
-  ## New: extract optional low/upp from prior_list
+  ## Extract optional dispersion bounds from prior_list
   if (!is.null(prior_list$disp_lower))  disp_lower <- prior_list$disp_lower  else disp_lower <- NULL
   if (!is.null(prior_list$disp_upper))  disp_upper <- prior_list$disp_upper  else disp_upper <- NULL
   
-  ## Validation if both are provided
   if (!is.null(disp_lower) && !is.null(disp_upper)) {
     if (!is.numeric(disp_lower) || !is.numeric(disp_upper)) {
       stop("prior_list$disp_lower and prior_list$disp_upper must be numeric.")
@@ -638,9 +636,12 @@ rGamma_Conjugate_reg <- function(
     stop("'family' not recognized")
   }
 
-  ## Scalar conjugate Gamma prior: one-parameter posterior only for intercept-only models
-  ## (Gamma / Poisson / quasi-Poisson). See `.check_gamma_conjugate_scalar_design()`.
-  if (family$family %in% c("Gamma", "poisson", "quasipoisson")) {
+  ## Scalar conjugate guard: intercept-only, zero offset, constant weights required for
+  ## closed-form Gamma–Poisson and Gamma–Gamma(identity) conjugate updates.
+  conjugate_scalar_families <- c("poisson", "quasipoisson")
+  if (family$family == "Gamma" && family$link == "identity")
+    conjugate_scalar_families <- c(conjugate_scalar_families, "Gamma")
+  if (family$family %in% conjugate_scalar_families) {
     .check_gamma_conjugate_scalar_design(
       x,
       prior_list$beta,
@@ -656,10 +657,11 @@ rGamma_Conjugate_reg <- function(
     oklinks <- if (family$family == "gaussian") {
       c("identity")
     } else if (family$family == "Gamma") {
-      ## Gamma branch calls `.rGammaGamma_cpp()`, which parametrizes gamma means via mu = exp(eta).
-      c("log")
+      ## identity: closed-form Gamma-Gamma conjugate (rate as coefficient).
+      ## log: C++ dispersion sampler path.
+      c("identity", "log")
     } else if (family$family %in% c("poisson", "quasipoisson")) {
-      ## Closed-form conjugate below: Gamma prior directly on λ with identity linear predictor η = λ.
+      ## Closed-form conjugate: Gamma prior on λ with identity linear predictor η = λ.
       c("identity")
     }
     if (!(family$link %in% oklinks)) {
@@ -709,18 +711,16 @@ rGamma_Conjugate_reg <- function(
   }
 
   ## ----------------------
-  ## Gamma case (MODIFIED)
+  ## Gamma(log): C++ dispersion sampler (existing path; coefficient fixed at beta)
   ## ----------------------
-  if (family$family == "Gamma") {
+  if (family$family == "Gamma" && family$link == "log") {
     
-    # Call C++ sampler — do NOT hide errors
     sim <- .rGammaGamma_cpp(
       n, y, x, b, wt, alpha, shape, rate,
       max_disp_perc, disp_lower, disp_upper,
       verbose = verbose
     )
     
-    # Validate output
     if (!is.list(sim) || is.null(sim$dispersion) || is.null(sim$draws)) {
       stop("C++ .rGammaGamma_cpp returned an invalid structure.")
     }
@@ -729,6 +729,59 @@ rGamma_Conjugate_reg <- function(
     draws_out <- sim$draws
     coef_out <- matrix(as.numeric(b), nrow = 1L, ncol = length(as.numeric(b)))
 
+  }
+
+  ## ----------------------
+  ## Gamma(identity): closed-form Gamma–Gamma conjugate update (rate as coefficient)
+  ## ----------------------
+  ##
+  ## Sampling model (intercept-only, identity link: η = β = rate of the Gamma responses):
+  ##   Y_i | β ~ Gamma(shape = lik_shape, rate = β),  i = 1,...,n_obs.
+  ## lik_shape k is the *known* Gamma likelihood shape (default 1 = exponential).
+  ##
+  ## Prior on β (R's shape-rate Gamma):
+  ##   β ~ Gamma(shape = alpha0, rate = beta0)
+  ##
+  ## Likelihood kernel in β:
+  ##   prod_i β^k * exp(-β * y_i)  =  β^(n*k) * exp(-β * sum_i y_i)
+  ##
+  ## Conjugate posterior:
+  ##   β | y ~ Gamma(shape = alpha0 + n*k,  rate = beta0 + sum_i y_i).
+  ##
+  ## Note: the posterior *mean of β* = (alpha0 + n*k) / (beta0 + sum_y);
+  ##       the posterior *mean of the Gamma response mean* = k / E[β] (not directly available
+  ##       from β alone without further integration, but the mode of 1/β ≈ k / mode(β)).
+  if (family$family == "Gamma" && family$link == "identity") {
+    if (!isTRUE(all(y > 0))) {
+      stop("`rGamma_Conjugate_reg()`: Gamma(identity) responses must be strictly positive.", call. = FALSE)
+    }
+    shape0     <- as.numeric(shape)[[1L]]
+    rate0      <- as.numeric(rate)[[1L]]
+    sum_y      <- sum(as.numeric(y))
+    sum_w      <- sum(as.numeric(wt))
+    shape_post <- shape0 + sum_w * lik_shape
+    rate_post  <- rate0  + sum_y
+
+    coef_out <- matrix(
+      stats::rgamma(n_draw, shape = shape_post, rate = rate_post),
+      nrow = n_draw,
+      ncol = 1L
+    )
+
+    coef_mode_out <- matrix(
+      if (shape_post > 1) ((shape_post - 1) / rate_post) else NA_real_,
+      nrow = 1L,
+      ncol = 1L
+    )
+
+    ## Dispersion for Gamma GLM = 1/lik_shape; stored as a constant across draws.
+    disp_out  <- rep(1 / lik_shape, n_draw)
+    draws_out <- matrix(1L, nrow = n_draw, ncol = 1L)
+
+    coef_nm <- if (!is.null(colnames(x)) && nzchar(colnames(x)[[1L]])) colnames(x)[[1L]] else "(Intercept)"
+    colnames(coef_out)      <- coef_nm
+    colnames(coef_mode_out) <- coef_nm
+    rownames(coef_mode_out) <- "(Mode)"
   }
 
   ## ----------------------
@@ -801,10 +854,12 @@ rGamma_Conjugate_reg <- function(
     stop("`rGamma_Conjugate_reg()`: incomplete sampler output.", call. = FALSE)
   }
 
-  if (family$family %in% c("poisson", "quasipoisson")) {
+  closed_form_path <- family$family %in% c("poisson", "quasipoisson") ||
+                      (family$family == "Gamma" && family$link == "identity")
+  if (closed_form_path) {
     if (nrow(coef_out) != n_draw || length(disp_out) != n_draw || nrow(draws_out) != n_draw) {
       stop(
-        "`rGamma_Conjugate_reg()`: draw dimension mismatch in Poisson / quasi-Poisson path.",
+        "`rGamma_Conjugate_reg()`: draw dimension mismatch in closed-form conjugate path.",
         call. = FALSE
       )
     }

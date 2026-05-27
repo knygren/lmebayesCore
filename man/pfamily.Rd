@@ -27,6 +27,7 @@ dGamma_Conjugate(
   shape,
   rate,
   beta,
+  lik_shape = 1,
   max_disp_perc = 0.99,
   disp_lower = NULL,
   disp_upper = NULL
@@ -86,6 +87,12 @@ rates, while larger values allow broader dispersion support but may increase env
 \item{disp_lower}{lower bound truncation for dispersion}
 
 \item{disp_upper}{upper bound truncation for dispersion}
+
+\item{lik_shape}{Known shape parameter \eqn{k > 0} of the Gamma likelihood, used only by
+\code{dGamma_Conjugate()} with \code{Gamma(link = "identity")}. The intercept coefficient
+is then the Gamma \emph{rate} \eqn{\beta}, and the conjugate posterior is
+\eqn{\beta \mid y \sim \mathrm{Gamma}(\alpha_0 + n k,\; \beta_0 + \sum y_i)}.
+Defaults to \code{1} (exponential distribution). Ignored for Poisson families.}
 
 \item{Sigma_0}{prior variance-covariance on the precision-weighted coefficient scale for
 \code{dNormal_Gamma()} only (Gaussian). Stored in \code{prior_list$Sigma} for compatibility

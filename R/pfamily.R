@@ -29,7 +29,12 @@
 #' @param beta the regression coefficients to be assumed when it is not given a prior. 
 #' Needs to be provided when the Gamma prior is used for the dispersion. This
 #' specification is typically only used as part of Gibbs sampling where the beta and 
-#' dispersion parameters are updated separately. 
+#' dispersion parameters are updated separately.
+#' @param lik_shape Known shape parameter \eqn{k > 0} of the Gamma likelihood, used only by
+#'   \code{dGamma_Conjugate()} with \code{Gamma(link = "identity")}. The intercept coefficient
+#'   is then the Gamma \emph{rate} \eqn{\beta}, and the conjugate posterior is
+#'   \eqn{\beta \mid y \sim \mathrm{Gamma}(\alpha_0 + n k,\; \beta_0 + \sum y_i)}.
+#'   Defaults to \code{1} (exponential distribution). Ignored for Poisson families.
 #' @param max_disp_perc Specifies the percentile used to truncate the posterior dispersion 
 #' distribution when constructing the envelope for accept-reject sampling. This determines 
 #' the lower and upper bounds for the dispersion (\eqn{\sigma^2}) used in the simulation. A value of 0.99
@@ -301,7 +306,7 @@ dGamma<-function(shape,rate,beta,max_disp_perc = 0.99,disp_lower=NULL,disp_upper
 #' @rdname pfamily
 #' @order 4
 
-dGamma_Conjugate<-function(shape,rate,beta,max_disp_perc = 0.99,disp_lower=NULL,disp_upper=NULL){
+dGamma_Conjugate<-function(shape,rate,beta,lik_shape=1,max_disp_perc = 0.99,disp_lower=NULL,disp_upper=NULL){
 
   if(is.numeric(shape)==FALSE||is.numeric(rate)==FALSE||is.numeric(beta)==FALSE) stop("non-numeric argument to numeric function")
 
@@ -309,6 +314,9 @@ dGamma_Conjugate<-function(shape,rate,beta,max_disp_perc = 0.99,disp_lower=NULL,
   if(length(rate)>1) stop("rate is not of length 1")
   if(shape<=0) stop("shape must be>0")
   if(rate<=0) stop("rate must be>0")
+
+  if (!is.numeric(lik_shape) || length(lik_shape) != 1L || !is.finite(lik_shape) || lik_shape <= 0)
+    stop("lik_shape must be a single positive finite number (the known Gamma likelihood shape parameter; default 1 for exponential)")
 
   beta <- as.matrix(beta, ncol = 1L)
 
@@ -344,6 +352,7 @@ dGamma_Conjugate<-function(shape,rate,beta,max_disp_perc = 0.99,disp_lower=NULL,
     shape = shape,
     rate = rate,
     beta = beta,
+    lik_shape = lik_shape,
     mu = mu,
     Sigma = Sigma,
     max_disp_perc = max_disp_perc,

@@ -52,9 +52,42 @@ NULL
 #'   C++-aligned likelihood/posterior routines and remain commented out in the implementation
 #'   (only \code{f1}, \code{f2}, \code{f3}, \code{f4}, and \code{f7} are assigned in the returned list).
 #' @details
-#'   For simulation, many code paths now pass closed-form objectives into C++ directly; \code{glmbfamfunc}
-#'   remains the canonical R closure bundle for the same likelihood/prior/deviance quantities and for
-#'   post-processing (e.g.\ \code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}}).
+#'   \code{glmbfamfunc} is the canonical R closure bundle for likelihood, posterior, gradient, and
+#'   deviance quantities across all supported family/link combinations.
+#'
+#'   **Registration requirement.**  A branch must exist inside \code{glmbfamfunc} for every
+#'   family/link combination that is used in the package.  If a combination is missing, the
+#'   closures \code{f1}--\code{f4} will never be assigned and any downstream code that accesses
+#'   them will fail with \emph{"object 'f1' not found"}.  New family/link combinations must
+#'   therefore be explicitly added here before they can produce valid DIC, log-likelihood, or
+#'   directional-tail output.
+#'
+#'   **Currently implemented family/link combinations:**
+#'
+#'   \tabular{ll}{
+#'     \strong{Family}                    \tab \strong{Link} \cr
+#'     \code{gaussian}                    \tab \code{identity} \cr
+#'     \code{poisson}, \code{quasipoisson} \tab \code{log} \cr
+#'     \code{poisson}, \code{quasipoisson} \tab \code{identity} \cr
+#'     \code{binomial}, \code{quasibinomial} \tab \code{logit} \cr
+#'     \code{binomial}, \code{quasibinomial} \tab \code{probit} \cr
+#'     \code{binomial}, \code{quasibinomial} \tab \code{cloglog} \cr
+#'     \code{Gamma}                       \tab \code{log} \cr
+#'   }
+#'
+#'   Any family/link not in this table will fall through all branches silently and produce
+#'   the error above at the point of first use.  The \code{Gamma(link = "identity")} combination
+#'   (used by \code{\link{dGamma_Conjugate}} for the conjugate rate prior) is not yet registered
+#'   here; DIC and log-likelihood are therefore not available for that path until a branch is added.
+#'
+#'   **Relationship to C++ simulation paths.**  Many simulation procedures in the package have
+#'   been fully or partially migrated to \code{*.cpp} routines, which receive their own
+#'   objective functions directly.  For those paths \code{glmbfamfunc} may not be called at all
+#'   during sampling.  However, the R-side post-processing functions
+#'   (\code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}})
+#'   always use \code{famfunc\$f1}, \code{famfunc\$f4}, and \code{famfunc\$f7} respectively, so a
+#'   registered branch is still required for those outputs even when the sampler itself has moved
+#'   to C++.
 #' @example inst/examples/Ex_glmbfamfunc.R
 #' @export
 #' @rdname glmbfamfunc
@@ -69,7 +102,7 @@ glmbfamfunc<-function(family){
   # f3-(negative) Gradient for Log-Posterior density 
   # f4-Deviance function (note multiplies the difference in two times log-likelihood by dispersion)
   
-  if(family$family=="gaussian")
+  if(family$family=="gaussian" && family$link=="identity")
   {
     f1<-function(b,y,x,alpha=0,wt=1){
       Xb<-alpha+x%*%b
@@ -132,7 +165,7 @@ glmbfamfunc<-function(family){
   # Check if Poisson weight should be outside or inside function
   
   
-  if(family$family=="poisson"||family$family=="quasipoisson")
+  if((family$family=="poisson"||family$family=="quasipoisson") && family$link=="log")
   {
     f1<-function(b,y,x,alpha=0,wt=1){
       lambda<-t(exp(alpha+x%*%b))
@@ -187,6 +220,44 @@ glmbfamfunc<-function(family){
     
     
     
+  }
+
+  ## Poisson / quasi-Poisson with identity link: lambda = Xb (no exp transformation).
+  ## Used by dGamma_Conjugate + Poisson(identity) for DIC and logLik post-processing.
+  ## Closures differ from the log-link versions in three ways:
+  ##   f1/f2: lambda = alpha + x %*% b  (linear, not exp)
+  ##   f3:    gradient = X'(wt*(1 - y/lambda)) + P(b-mu)
+  ##   f7:    Fisher info = X' diag(wt/lambda) X  (inverted vs log-link wt*lambda)
+  if((family$family=="poisson"||family$family=="quasipoisson") && family$link=="identity")
+  {
+    f1<-function(b,y,x,alpha=0,wt=1){
+      lambda <- as.vector(alpha + x %*% b)
+      -sum(dpois2(y, lambda, log=TRUE) * wt)
+    }
+    f2<-function(b,y,x,mu,P,alpha=0,wt=1){
+      lambda <- as.vector(alpha + x %*% b)
+      -sum(dpois2(y, lambda, log=TRUE) * wt) + 0.5 * t((b-mu)) %*% P %*% (b-mu)
+    }
+    f3<-function(b,y,x,mu,P,alpha=0,wt=1){
+      lambda <- as.vector(alpha + x %*% b)
+      t(x) %*% ((1 - y/lambda) * wt) + P %*% (b-mu)
+    }
+    f4<-function(b,y,x,alpha=0,wt=1,dispersion=1){
+      (2*f1(b,y,x,alpha,wt/dispersion) + 2*sum(dpois2(y, y, log=TRUE) * (wt/dispersion)))
+    }
+    f7<-function(b,y,x,mu,P,alpha=0,wt=1){
+      lambda <- as.vector(alpha + x %*% b)
+      l1 <- length(b)
+      l2 <- length(y)
+      ltemp <- length(wt)
+      wt_vec <- if(ltemp == 1L) rep(wt, l2) else as.vector(wt)
+      Pout <- matrix(0, nrow=l1, ncol=l1)
+      for(i in seq_len(l2)){
+        xi <- x[i, , drop=FALSE]
+        Pout <- Pout + (wt_vec[i] / lambda[i]) * (t(xi) %*% xi)
+      }
+      Pout
+    }
   }
   
   if(family$family %in%  c("binomial","quasibinomial") && family$link=="logit")
