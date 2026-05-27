@@ -156,7 +156,7 @@ single-column design (intercept-only), scalar \code{pwt}, finite positive scalar
 \code{n_prior}, and negligible \code{offset}.  Then a named list with conjugate
 \code{Gamma(shape, rate)} hyperparameters on the Poisson rate, with \eqn{\texttt{shape} =
   n_{\mathrm{prior}}\,\bar{y}_w}, \eqn{\texttt{rate} = n_{\mathrm{prior}}}, and \code{beta}
-centered at the weighted sample mean \eqn{\bar{y}_w}; pass to \code{\link{dGamma_Conjugate}}.
+centered at the weighted sample mean \eqn{\bar{y}_w}; pass to \code{\link{dGamma}} with \code{Inv_Dispersion = FALSE}.
 See Details.}
 }
 \description{
@@ -509,7 +509,7 @@ if (!is.null(ps_p$conj_poisson)) {
 \seealso{
 \code{\link{pfamily}} for prior-family objects and the constructors
 \code{\link{dNormal}}, \code{\link{dNormal_Gamma}}, \code{\link{dGamma}},
-\code{\link{dGamma_Conjugate}}, and \code{\link{dIndependent_Normal_Gamma}}.
+and \code{\link{dIndependent_Normal_Gamma}}.
 
 \code{\link{glmb}}, \code{\link{lmb}} for formula-based fits with a
 \code{pfamily} built from \code{Prior_Setup()} output; \code{\link{rglmb}},

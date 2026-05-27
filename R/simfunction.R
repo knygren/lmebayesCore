@@ -483,7 +483,7 @@ print.rGamma_reg<-function (x, digits = max(3, getOption("digits") - 3), ...)
   if (ncol(xf) != 1L) {
     stop(
       gettextf(
-        "%sdGamma_Conjugate supports only a single linear predictor (intercept-only model; ncol(x) == 1). Got ncol(x) = %d for family %s. Use dNormal() for regression with multiple predictors.",
+        "%sdGamma(Inv_Dispersion=FALSE) supports only a single linear predictor (intercept-only model; ncol(x) == 1). Got ncol(x) = %d for family %s. Use dNormal() for regression with multiple predictors.",
         if (nzchar(ctx)) paste0(ctx, ": ") else "",
         ncol(xf),
         family_label
@@ -495,7 +495,7 @@ print.rGamma_reg<-function (x, digits = max(3, getOption("digits") - 3), ...)
   if (is.null(bb) || nrow(bb) != 1L || ncol(bb) != 1L) {
     stop(
       gettextf(
-        "%sprior_list$beta must be a single fixed coefficient (1x1) matching the intercept-only design for dGamma_Conjugate; use dNormal() for vector beta.",
+        "%sprior_list$beta must be a single fixed coefficient (1x1) matching the intercept-only design for dGamma(Inv_Dispersion=FALSE); use dNormal() for vector beta.",
         if (nzchar(ctx)) paste0(ctx, ": ") else ""
       ),
       domain = NA

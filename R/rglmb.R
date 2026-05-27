@@ -158,8 +158,8 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,
   prior_list=pfamily$prior_list 
   simfun=pfamily$simfun
   
-  ## dGamma_Conjugate + Gamma / Poisson: scalar conjugate requires intercept-only designs
-  if (identical(pf, "dGamma_Conjugate") &&
+  ## dGamma(Inv_Dispersion=FALSE) + Gamma / Poisson: scalar conjugate requires intercept-only designs
+  if (isFALSE(prior_list$Inv_Dispersion) &&
       family$family %in% c("Gamma", "poisson", "quasipoisson")) {
     x_ck <- if (is.matrix(x)) x else as.matrix(x)
     n_ck <- nrow(x_ck)
@@ -170,18 +170,18 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,
     if (is.null(alp)) {
       alp <- rep(0, n_ck)
     } else if (!is.numeric(alp)) {
-      stop("`rglmb()`: offset must be numeric for dGamma_Conjugate models.", call. = FALSE)
+      stop("`rglmb()`: offset must be numeric for dGamma conjugate models.", call. = FALSE)
     } else if (length(alp) == 1L) {
       alp <- rep(alp, n_ck)
     } else if (length(alp) != n_ck) {
-      stop("`rglmb()`: offset must be scalar or length nrow(x) when using dGamma_Conjugate.", call. = FALSE)
+      stop("`rglmb()`: offset must be scalar or length nrow(x) when using dGamma conjugate.", call. = FALSE)
     }
     wg <- weights
     if (!is.numeric(wg))
       stop("`rglmb()`: weights must be numeric.", call. = FALSE)
     if (length(wg) == 1L) wg <- rep(wg, n_ck)
     if (length(wg) != n_ck) {
-      stop("`rglmb()`: weights must be scalar or length nrow(x) when using dGamma_Conjugate.", call. = FALSE)
+      stop("`rglmb()`: weights must be scalar or length nrow(x) when using dGamma conjugate.", call. = FALSE)
     }
     .check_gamma_conjugate_scalar_design(
       x_ck,
@@ -205,10 +205,10 @@ rglmb<-function(n=1,y,x,family=gaussian(),pfamily,offset=NULL,
   
   ## Check that the family is implemented for the pfamily
   ##
-  ## `dGamma(Inv_Dispersion=FALSE)` keeps a narrow `okfamilies` in `pfamily.R` while `plinks()` still
+  ## dGamma(Inv_Dispersion=FALSE) keeps a narrow `okfamilies` while `plinks()` still
   ## advertises conjugate-compatible links for Poisson / quasi-Poisson; allow those families here.
   family_ok <- family$family %in% okfamilies
-  if (identical(pf, "dGamma_Conjugate") &&
+  if (isFALSE(prior_list$Inv_Dispersion) &&
       family$family %in% c("poisson", "quasipoisson")) {
     family_ok <- TRUE
   }

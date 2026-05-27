@@ -4,7 +4,6 @@
 \alias{pfamily}
 \alias{dNormal}
 \alias{dGamma}
-\alias{dGamma_Conjugate}
 \alias{dBeta}
 \alias{print.pfamily}
 \alias{dNormal_Gamma}
@@ -20,16 +19,6 @@ dGamma(
   rate,
   beta,
   Inv_Dispersion = TRUE,
-  lik_shape = 1,
-  max_disp_perc = 0.99,
-  disp_lower = NULL,
-  disp_upper = NULL
-)
-
-dGamma_Conjugate(
-  shape,
-  rate,
-  beta,
   lik_shape = 1,
   max_disp_perc = 0.99,
   disp_lower = NULL,
@@ -151,9 +140,6 @@ Prior family objects provide a convenient way to specify the details of the prio
 used by functions such as \code{\link{glmb}}. See the documentations for \code{\link{lmb}},
 \code{\link{glmb}}, \code{\link{glmb}}, and \code{\link{rglmb}} for the details of how such model fitting
 takes place.
-
-\code{dGamma_Conjugate()} is a deprecated alias for \code{dGamma(..., Inv_Dispersion = FALSE)}.
-Use \code{dGamma()} directly.
 
 Under a Beta(\code{shape1}, \code{shape2}) prior on the binomial probability \eqn{\theta}
 and a Binomial(\eqn{n_i}, \eqn{\theta}) likelihood with identity link (\eqn{\theta = \beta}

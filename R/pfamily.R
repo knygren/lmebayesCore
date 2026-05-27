@@ -368,13 +368,13 @@ dGamma <- function(shape, rate, beta,
       disp_lower     = disp_lower,
       disp_upper     = disp_upper
     )
-    attr(prior_list, "Prior Type") <- "dGamma_Conjugate"
-    outlist <- list(pfamily    = "dGamma_Conjugate",
+    attr(prior_list, "Prior Type") <- "dGamma"
+    outlist <- list(pfamily    = "dGamma",
                     prior_list = prior_list,
                     okfamilies = okfamilies,
                     plinks     = plinks,
                     simfun     = rGamma_Conjugate_reg)
-    attr(outlist, "Prior Type") <- "dGamma_Conjugate"
+    attr(outlist, "Prior Type") <- "dGamma"
   }
 
   class(outlist) <- "pfamily"
@@ -383,31 +383,34 @@ dGamma <- function(shape, rate, beta,
 }
 
 
-#' @description
-#' \code{dGamma_Conjugate()} is a deprecated alias for \code{dGamma(..., Inv_Dispersion = FALSE)}.
-#' Use \code{dGamma()} directly.
-#'
-#' @export
-#' @rdname pfamily
-#' @order 4
-
-dGamma_Conjugate <- function(shape, rate, beta, lik_shape = 1,
-                              max_disp_perc = 0.99,
-                              disp_lower    = NULL,
-                              disp_upper    = NULL) {
-  .Deprecated(
-    new = "dGamma",
-    msg = paste0(
-      "dGamma_Conjugate() is deprecated.\n",
-      "Use dGamma(..., Inv_Dispersion = FALSE) instead."
-    )
-  )
-  dGamma(shape = shape, rate = rate, beta = beta,
-         Inv_Dispersion = FALSE, lik_shape = lik_shape,
-         max_disp_perc  = max_disp_perc,
-         disp_lower     = disp_lower,
-         disp_upper     = disp_upper)
-}
+## dGamma_Conjugate() removed 2026-05-27 — functionality merged into dGamma(Inv_Dispersion = FALSE).
+## Commented out rather than deleted to preserve the implementation history.
+#
+# #' @description
+# #' \code{dGamma_Conjugate()} was a deprecated alias for \code{dGamma(..., Inv_Dispersion = FALSE)}.
+# #' Use \code{dGamma(Inv_Dispersion = FALSE)} directly.
+# #'
+# #' @export
+# #' @rdname pfamily
+# #' @order 4
+#
+# dGamma_Conjugate <- function(shape, rate, beta, lik_shape = 1,
+#                               max_disp_perc = 0.99,
+#                               disp_lower    = NULL,
+#                               disp_upper    = NULL) {
+#   .Deprecated(
+#     new = "dGamma",
+#     msg = paste0(
+#       "dGamma_Conjugate() is deprecated.\n",
+#       "Use dGamma(..., Inv_Dispersion = FALSE) instead."
+#     )
+#   )
+#   dGamma(shape = shape, rate = rate, beta = beta,
+#          Inv_Dispersion = FALSE, lik_shape = lik_shape,
+#          max_disp_perc  = max_disp_perc,
+#          disp_lower     = disp_lower,
+#          disp_upper     = disp_upper)
+# }
 
 
 

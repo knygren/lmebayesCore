@@ -315,24 +315,27 @@ glmb<-function (formula, family = binomial,pfamily=dNormal(mu,Sigma,dispersion=1
   
   
     
-  if (pfamily$pfamily == "dGamma") {
+  if (!is.null(prior_list$Inv_Dispersion) && isTRUE(prior_list$Inv_Dispersion)) {
+    ## dGamma(Inv_Dispersion = TRUE): prior on precision/shape — no mu/Sigma
     Prior <- list(shape = prior_list$shape, rate = prior_list$rate)
-  } else if (identical(pfamily$pfamily, "dGamma_Conjugate")) {
+  } else if (!is.null(prior_list$Inv_Dispersion) && identical(prior_list$Inv_Dispersion, FALSE)) {
+    ## dGamma(Inv_Dispersion = FALSE): conjugate rate prior — has mu/Sigma surrogate
     cn <- colnames(fit$x)
     if (is.null(cn)) cn <- colnames(prior_list$Sigma)
     if (is.null(cn)) cn <- rownames(prior_list$Sigma)
     if (is.null(cn)) cn <- paste0("V", seq_along(as.vector(prior_list$mu)))
     Prior <- list(
-      shape = prior_list$shape,
-      rate = prior_list$rate,
-      mean = stats::setNames(as.vector(prior_list$mu), cn),
+      shape    = prior_list$shape,
+      rate     = prior_list$rate,
+      mean     = stats::setNames(as.vector(prior_list$mu), cn),
       Variance = prior_list$Sigma
     )
     colnames(Prior$Variance) <- cn
     rownames(Prior$Variance) <- cn
   } else {
+    ## dNormal, dNormal_Gamma, dBeta, etc.: mu/Sigma only
     Prior <- list(mean = prior_list$mu, Variance = prior_list$Sigma)
-    names(Prior$mean) <- colnames(fit$x)
+    names(Prior$mean)        <- colnames(fit$x)
     colnames(Prior$Variance) <- colnames(fit$x)
     rownames(Prior$Variance) <- colnames(fit$x)
   }
