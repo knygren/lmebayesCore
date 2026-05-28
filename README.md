@@ -208,8 +208,8 @@ https://knygren.r-universe.dev/articles/glmbayes/Chapter-00.html
 - **Chapter 01 - Getting Started with glmbayes**  
 https://knygren.r-universe.dev/articles/glmbayes/Chapter-01.html
 
-- **Chapter 02 — Simple Bayesian models — conjugate inference for single parameters**  
-https://knygren.r-universe.dev/articles/glmbayes/Chapter-02.html
+- **Chapter 02 — Conjugate inference for single parameters** (S01–S05)  
+  Start with [Chapter 02-S01](https://knygren.r-universe.dev/articles/glmbayes/Chapter-02-S01.html); then S02 (Normal–Normal), S03 (Beta–Binomial), S04 (Gamma–Poisson), S05 (Gamma–Gamma).
 
 ### Part 2: Bayesian regression models
 
