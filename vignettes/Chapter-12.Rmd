@@ -21,14 +21,19 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(glmbayes)
-library(bayesplot)
-suppressPackageStartupMessages(library(ggplot2))
-theme_set(bayesplot::theme_default())
 ```
+
+<!--
+bayesplot setup (not a glmbayes dependency; see legacy_code/). After install.packages("bayesplot"):
+
+    library(bayesplot)
+    suppressPackageStartupMessages(library(ggplot2))
+    theme_set(bayesplot::theme_default())
+-->
 
 ## 1. Purpose
 
-[**bayesplot**](https://mc-stan.org/bayesplot/) provides **ggplot2**-based plotting for Markov chains and Bayesian workflow diagnostics. Package **glmbayes** is built with **bayesplot** as a dependency and supplies an S3 **`pp_check()`** method for **`glmb`** objects (posterior predictive checks using **`simulate.glmb()`** outputs).
+[**bayesplot**](https://mc-stan.org/bayesplot/) provides **ggplot2**-based plotting for Markov chains and Bayesian workflow diagnostics. **glmbayes** does not depend on **bayesplot** (install it from CRAN if you want to run the code below). A former S3 **`pp_check()`** method for **`glmb`** lives in **`legacy_code/pp_check.glmb.R`**.
 
 After fitting models in earlier chapters (**Chapters 07–08** overview; **Chapter 09** binomial illustration), visual summaries help assess mixing, posterior shape, and how well replicated data match the observed responses.
 
@@ -65,16 +70,19 @@ coef_draws <- as.matrix(fit_logit$coefficients)
 
 ## 3. Coefficient trace and density overlays
 
-Because **`glmb()`** returns **i.i.d.** draws, you can think of the coefficient matrix as **one** posterior sample stream. **bayesplot** functions that require **multiple MCMC chains** (for example **`mcmc_dens_overlay()`**) are not appropriate here; **`mcmc_trace()`** and **`mcmc_dens()`** still provide useful **univariate** views of the simulated coefficients.
+Because **`glmb()`** returns **i.i.d.** draws, you can think of the coefficient matrix as **one** posterior sample stream. With **`bayesplot`** installed separately from CRAN, **`mcmc_trace()`** and **`mcmc_dens()`** give univariate views (functions that need **multiple MCMC chains**, such as **`mcmc_dens_overlay()`**, are not appropriate here).
 
-```{r mcmc-views, fig.height = 5}
-bayesplot::mcmc_trace(coef_draws)
-bayesplot::mcmc_dens(coef_draws)
-```
+<!--
+After install.packages("bayesplot"):
+
+    library(bayesplot)
+    bayesplot::mcmc_trace(coef_draws)
+    bayesplot::mcmc_dens(coef_draws)
+-->
 
 ## 4. Posterior predictive checks
 
-For **binomial** models **`glmbayes`** works on **proportions** so **`y`** and **`yrep`** line up (**`?pp_check.glmb`**). In practice you usually call **`bayesplot::pp_check(fit, ...)`**; here we assemble **`y`** and **`yrep`** once so this vignette knits cleanly even alongside older installed builds (**Chapter 05** uses the **`pp_check()`** wrapper directly).
+For **binomial** models **`glmbayes`** works on **proportions** so **`y`** and **`yrep`** line up. The chunk below builds **`y_obs`** and **`y_rep`** for optional **`bayesplot::ppc_*`** plots (or the **`pp_check.glmb`** wrapper in **`legacy_code/`**).
 
 ```{r ppc-setup}
 ## Observed success proportions (aligned with simulate.glmb for binomial)
@@ -93,14 +101,17 @@ y_rep <- stats::simulate(
 stopifnot(nrow(y_rep) == nd, ncol(y_rep) == length(y_obs))
 ```
 
-```{r ppc, fig.height = 4}
-bayesplot::ppc_hist(y = y_obs, yrep = y_rep)
-```
+<!--
+After install.packages("bayesplot"):
 
-Try other **`ppc_*`** helpers via the **`fun`** argument (see **`?bayesplot-helpers`**).
+    library(bayesplot)
+    bayesplot::ppc_hist(y = y_obs, yrep = y_rep)
+-->
+
+Try other **`ppc_*`** helpers via the **`fun`** argument when **bayesplot** is installed (see **`?bayesplot-helpers`**).
 
 
 ## See also
 
 - **Chapter 08** — full **`glmb()`** walk-through and interpretation of printed summaries.  
-- **`?simulate.glmb`**, **`?predict.glmb`**, **`?pp_check.glmb`** — mechanics behind replicated responses.
+- **`?simulate.glmb`**, **`?predict.glmb`** — mechanics behind replicated responses; optional **`pp_check`** wrapper in **`legacy_code/pp_check.glmb.R`**.

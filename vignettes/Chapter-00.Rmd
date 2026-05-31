@@ -25,7 +25,7 @@ library(glmbayes)
 
 # Chapter 00: Introduction
 
-This vignette introduces **glmbayes**, a package for fitting Bayesian generalized linear models via efficient envelope-based sampling. The vignette series is organized into five main parts and a set of technical appendices. You will move from basic installation and first models, through linear and generalized linear models (including **`bayesplot`** and **`bayestestR`** complements), to advanced prior structures, dispersion modeling, and GPU-accelerated computation. The appendices document the underlying simulation methods and implementation details. The envelope sampling methodology builds on the likelihood subgradient framework of [@Nygren2006].
+This vignette introduces **glmbayes**, a package for fitting Bayesian generalized linear models via efficient envelope-based sampling. The vignette series is organized into five main parts and a set of technical appendices. You will move from basic installation and first models, through linear and generalized linear models (with optional **`bayestestR`** summaries and external **`bayesplot`** graphics), to advanced prior structures, dispersion modeling, and GPU-accelerated computation. The appendices document the underlying simulation methods and implementation details. The envelope sampling methodology builds on the likelihood subgradient framework of [@Nygren2006].
 
 ## Part 1: An Introduction
 
@@ -54,7 +54,7 @@ These chapters provide a high-level overview of the package, its design philosop
 
 ## Part 2: Bayesian regression models
 
-This part focuses on Bayesian **linear** regression (Gaussian family, identity link): model fitting with `lmb()`, tailoring priors via `Prior_Setup()`, and tools for predictions, posterior predictive checks (**bayesplot**), deviance residuals, and model comparison.
+This part focuses on Bayesian **linear** regression (Gaussian family, identity link): model fitting with `lmb()`, tailoring priors via `Prior_Setup()`, and tools for predictions, posterior predictive checks (optional **bayesplot**; see **`legacy_code/`**), deviance residuals, and model comparison.
 
 - **Chapter 03 — Estimating Bayesian linear models**  
   Work with the Gaussian identity-link case using `lmb()`. Draw from the multivariate normal posterior, compare Bayesian estimates to classical least squares, and explore shrinkage behavior.  
@@ -64,8 +64,8 @@ This part focuses on Bayesian **linear** regression (Gaussian family, identity l
   Construct multivariate normal priors via `Prior_Setup()`. Specify prior mean vectors and covariance matrices, and study how these hyperparameters influence posterior inference and regularization.  
   <https://knygren.r-universe.dev/articles/glmbayes/Chapter-04.html>
 
-- **Chapter 05 — Model predictions and posterior predictive checks (+ bayesplot `ppc_*`)**  
-  Generate fitted values and posterior predictive draws, and use **bayesplot** posterior predictive checks (`ppc_*` / `pp_check`) for `glmb` fits.  
+- **Chapter 05 — Model predictions and posterior predictive checks**  
+  Generate fitted values and posterior predictive draws; optional **bayesplot** `ppc_*` examples are commented out (see **`legacy_code/pp_check.glmb.R`**).  
   <https://knygren.r-universe.dev/articles/glmbayes/Chapter-05.html>
 
 - **Chapter 06 — Deviance residuals, model statistics and posterior inference (+ bayestestR)**  
@@ -74,7 +74,7 @@ This part focuses on Bayesian **linear** regression (Gaussian family, identity l
 
 ## Part 3: Generalized Linear Models
 
-This part presents Bayesian GLMs across the major likelihood families, including Binomial, quasi-Binomial, Poisson, quasi-Poisson, and Gamma models. It emphasizes link functions, log-concavity, and practical posterior interpretation, then shows how to **visualize** fitted models with **bayesplot** and **summarize** posterior distributions with indices from **bayestestR**.
+This part presents Bayesian GLMs across the major likelihood families, including Binomial, quasi-Binomial, Poisson, quasi-Poisson, and Gamma models. It emphasizes link functions, log-concavity, and practical posterior interpretation, then shows how to **summarize** posterior distributions with **bayestestR** and optionally **visualize** fits with **bayesplot** (install separately; Chapter 12 code is commented out).
 
 - **Chapter 07 — Foundations of GLMs — families, links, and log-concave likelihoods**  
   Review exponential-family GLMs, canonical and non-canonical link functions, and the log-concave likelihood property that enables envelope-based accept-reject sampling.  
@@ -96,8 +96,8 @@ This part presents Bayesian GLMs across the major likelihood families, including
   Model positive continuous outcomes using Gamma regression. Combine regression and dispersion modeling, and interpret overdispersion in applications such as insurance claims or reaction-time data.  
   <https://knygren.r-universe.dev/articles/glmbayes/Chapter-11.html>
 
-- **Chapter 12 — Visualizing posteriors with bayesplot**  
-  Use **bayesplot** with `glmb` fits for trace plots, density overlays, and posterior predictive checks via `bayesplot::pp_check()` and related **ggplot2** diagnostics.  
+- **Chapter 12 — Visualizing posteriors with bayesplot (optional)**  
+  Prepares `glmb` draws and replicated responses; **bayesplot** plotting examples are commented out in the source unless you install **bayesplot** from CRAN and restore those blocks.  
   <https://knygren.r-universe.dev/articles/glmbayes/Chapter-12.html>
 
 - **Chapter 13 — Bayesian inference and decision making with bayestestR**  

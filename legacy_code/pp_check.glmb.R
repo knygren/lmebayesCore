@@ -1,3 +1,6 @@
+# Legacy: pp_check.glmb() — not installed with glmbayes (see legacy_code/README.md).
+# Requires 'bayesplot' from CRAN (not a glmbayes dependency). Source after library(glmbayes).
+
 #' @title Posterior predictive checks (\code{pp_check}) for \code{glmb} fits
 #'
 #' @description
@@ -26,13 +29,18 @@
 #' @return
 #' A \pkg{ggplot2} object (from the \pkg{bayesplot} \code{ppc_*} function used).
 #'
-#' @seealso \code{\link[=simulate.glmb]{simulate.glmb}},
-#' \code{\link[=predict.glmb]{predict.glmb}},
-#' \code{\link[bayesplot:pp_check]{bayesplot::pp_check}}
-#' @importFrom bayesplot pp_check
-#' @method pp_check glmb
-#' @export
+#' @seealso \code{\link[glmbayes:simulate.glmb]{simulate.glmb}},
+#'   \code{\link[glmbayes:predict.glmb]{predict.glmb}},
+#'   \code{\link[bayesplot:pp_check]{bayesplot::pp_check}}
+#' @keywords internal
 pp_check.glmb <- function(object, ndraws = 100L, fun = "dens_overlay", ...) {
+  if (!requireNamespace("bayesplot", quietly = TRUE)) {
+    stop(
+      "Package 'bayesplot' is required. Install it or source legacy_code/pp_check.glmb.R ",
+      "after installing bayesplot.",
+      call. = FALSE
+    )
+  }
   y <- .glmb_pp_y(object)
   pred <- predict(object, type = "response")
   n <- nrow(pred)
@@ -57,9 +65,6 @@ pp_check.glmb <- function(object, ndraws = 100L, fun = "dens_overlay", ...) {
 
 ## Prepare observed outcome on the same scale as simulate.glmb() for posterior
 ## predictive checks.
-## @param object A fitted `glmb` object.
-## @return Numeric vector (length = number of observations).
-## @noRd
 .glmb_pp_y <- function(object) {
   y <- object$y
   fam <- object$family$family

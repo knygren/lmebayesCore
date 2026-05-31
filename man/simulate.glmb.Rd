@@ -31,8 +31,6 @@ fitted \code{glmb} object \insertCite{Gelman2013}{glmbayes}.
 \examples{
 data(menarche,package="MASS")
 
-suppressPackageStartupMessages(library(bayesplot))
-
 ## ----Analysis Setup-----------------------------------------------------------
 ## Number of variables in model
 Age=menarche$Age
@@ -57,9 +55,10 @@ glmb.out1<-glmb(n=1000,cbind(Menarche, Total-Menarche) ~Age2,family=binomial(log
 # Prediction from original model
 pred1=predict(glmb.out1,type="response")
 
-## Posterior predictive check ('bayesplot'): histogram-style plot on proportion scale.
-## For sparse binomial grouped data, "hist" is often easier to read than "dens_overlay".
-print(bayesplot::pp_check(glmb.out1, ndraws = 100L, fun = "hist"))
+## Posterior predictive check (bayesplot): disabled in package examples.
+## Former pp_check.glmb() lives in legacy_code/pp_check.glmb.R — source after
+## install.packages("bayesplot") to restore, then:
+##   bayesplot::pp_check(glmb.out1, ndraws = 100L, fun = "hist")
 
 ## Get Original Residuals, their means, and credible bounds
 res_out=residuals(glmb.out1)

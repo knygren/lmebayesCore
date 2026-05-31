@@ -26,7 +26,7 @@ library(bayestestR)
 
 [**bayestestR**](https://easystats.github.io/bayestestR/) implements a wide range **indices** for posterior description and decision-oriented summaries (probability of direction, ropes, equivalence tests, etc.). Here we treat the **`coefficients`** component of a **`glmb`** fit as stored **i.i.d.** draws and summarize them using **bayestestR**.
 
-This complements **Chapter 12** (**bayesplot** graphics) with tabular summaries you can cite in applied reports.
+This complements **Chapter 12** (optional **bayesplot** graphics, commented out in the vignette) with tabular summaries you can cite in applied reports.
 
 ## 2. Example: logistic regression posterior for coefficients
 
@@ -71,5 +71,5 @@ Tune **`rope(..., range = ...)`** to match substantive “practical equivalence�
 
 ## See also
 
-- **Chapter 12** — **`bayesplot`** visualizations including **`pp_check()`** for **`glmb`**.  
+- **Chapter 12** — optional **`bayesplot`** workflows and **`legacy_code/pp_check.glmb.R`**.  
 - **Chapter 08** — prior-to-posterior workflow and **`summary.glmb()`** defaults.
