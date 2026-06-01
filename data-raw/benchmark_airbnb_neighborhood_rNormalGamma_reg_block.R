@@ -221,6 +221,16 @@ message("Block 1: ", l1, " x rNormalGamma_reg (k x 1 design, column of beta_mat 
 message("Block 2: rNormalGLM_reg_block_update")
 message("Gibbs: n_burn = ", n_burn, ", n_sim = ", n_sim)
 
+# --- Identifiability preflight -----------------------------------------------
+id_check <- block_check_identifiability_xy(
+  x          = X_full,
+  block      = block_full,
+  X_nbhd     = X_nbhd,
+  on_failure = "stop"
+)
+stopifnot(id_check$action == "proceed")
+message("Identifiability check passed — proceeding with full model (", k, " neighborhoods).")
+
 airbnb_dat$eta_proxy <- log(y_full + 1)
 ps_glm <- Prior_Setup(
   eta_proxy ~ rating_c + room_type,

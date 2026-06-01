@@ -139,6 +139,18 @@ neighborhood_names <- levels(block_full)
 block_info <- glmbayes:::normalize_block(block_full, l2)
 stopifnot(block_info$k == k)
 
+# --- Identifiability preflight -----------------------------------------------
+# Intercept-only hyper (X_nbhd = NULL): Level 2 requires at least one
+# full-rank block, which is automatic for any neighbourhood with n >= l1.
+id_check <- block_check_identifiability_xy(
+  x          = X_full,
+  block      = block_full,
+  X_nbhd     = NULL,
+  on_failure = "stop"
+)
+stopifnot(id_check$action == "proceed")
+message("Identifiability check passed — proceeding with full model (", k, " neighborhoods).")
+
 message("airbnb (neighborhood RE): n = ", l2, ", k = ", k, ", l1 = ", l1)
 message("  predictors: ", paste(beta_names, collapse = ", "))
 message("listings per neighborhood: min = ", min(block_info$l2_blocks),

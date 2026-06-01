@@ -2,8 +2,8 @@
 #'
 #' These functions are \code{\link{methods}} for class \code{"mrglmb"} or
 #' \code{"summary.mrglmb"} objects produced by
-#' \code{\link{rindepNormalGamma_reg_multi}}, \code{\link{rNormalGamma_reg_multi}},
-#'   or \code{\link{rNormal_reg_multi}}.
+#' \code{\link{multi_rindepNormalGamma_reg}}, \code{\link{multi_rNormalGamma_reg}},
+#'   \code{\link{multi_rNormal_reg}}, or \code{\link{multi_rlmb}}.
 #'
 #' @aliases
 #' summary.mrglmb
@@ -21,9 +21,10 @@
 #' Mirrors the behavior of \code{\link[stats]{summary.mlm}}: each response
 #' column is summarized independently using \code{\link{summary.rglmb}} and
 #' printed with a \code{"Response <name> :"} header.
-#' @seealso \code{\link{rindepNormalGamma_reg_multi}},
-#'   \code{\link{rNormalGamma_reg_multi}}, \code{\link{rNormal_reg_multi}},
-#'   \code{\link{summary.rglmb}}, \code{\link{print.summary.rglmb}}
+#' @seealso \code{\link{multi_rlmb}}, \code{\link{multi_rNormalGamma_reg}},
+#'   \code{\link{multi_rNormal_reg}}, \code{\link{multi_rindepNormalGamma_reg}},
+#'   \code{\link{summary.rglmb}},
+#'   \code{\link{print.summary.rglmb}}
 #' @export
 #' @method summary mrglmb
 summary.mrglmb <- function(object, ...) {

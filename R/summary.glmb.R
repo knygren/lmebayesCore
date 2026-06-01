@@ -248,7 +248,11 @@ summary.glmb<-function(object,...){
 
 print.summary.glmb<-function(x,digits = max(3, getOption("digits") - 3),...){
   cat("Call\n")
-  print(x$call)
+  if (is.call(x$call)) {
+    cat(paste(deparse(x$call, width.cutoff = 500L), collapse = "\n"), "\n")
+  } else {
+    print(x$call)
+  }
   primary_class <- class(x)[1]
   
   if (primary_class == "lmb") {

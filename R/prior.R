@@ -264,7 +264,10 @@
 #' structure; \code{\link{simfuncs}} for functions that take a \code{prior_list}
 #' assembled from those components (including
 #' \code{\link{rindepNormalGamma_reg}} for
-#' \code{\link{dIndependent_Normal_Gamma}()}). 
+#' \code{\link{dIndependent_Normal_Gamma}()}).
+#' \code{\link{multi_prior_setup}} for a matrix/cbind response with Gaussian;
+#' use with \code{\link{multi_lmb}} or \code{\link{multi_rlmb}}
+#' \code{Prior_Setup} per column. 
 #'
 #' \insertCite{zellner1986gprior}{glmbayes};
 #' \insertCite{Raiffa1961}{glmbayes};
@@ -516,7 +519,33 @@ Prior_Setup <- function(
   
 
   V0 <- vcov(glm_full)
-  
+  ## Saturated Gaussian blocks (n = p, RSS = 0): vcov(glm) is NA; use dispersion * (X'WX)^{-1}.
+  if (anyNA(V0) && family$family %in% c("gaussian", "poisson")) {
+    d_v0 <- if (!is.null(dispersion_input)) {
+      dispersion_input
+    } else if (identical(family$family, "poisson")) {
+      1
+    } else {
+      NULL
+    }
+    if (!is.null(d_v0)) {
+    w_fit <- if (is.null(weights)) rep(1, n_obs) else as.numeric(weights)
+    XtW <- sweep(x, 1, w_fit, `*`)
+    Gm <- crossprod(XtW, x)
+    Ginv <- tryCatch(
+      solve(Gm),
+      error = function(e) {
+        stop(
+          "vcov(glm_full) is NA and (X'WX) is singular; the design is rank-deficient.",
+          call. = FALSE
+        )
+      }
+    )
+    V0 <- d_v0 * Ginv
+    dimnames(V0) <- list(var_names, var_names)
+    }
+  }
+
   glm_summary=summary(glm_full)
   
   ##n_likelihood <- glm_summary$df.residual + glm_summary$df[1]  # residual df + model rank
@@ -591,26 +620,32 @@ if (!is.null(sd)) {
     res <- residuals(glm_full, type = "response")
     w   <- glm_full$prior.weights
     rss_weighted <- sum(w * res^2)
-    if (!is.finite(rss_weighted) || rss_weighted <= 0) {
-      stop("Weighted RSS must be strictly positive for Gaussian dispersion priors.")
-    }
-    if (!is.finite(n_effective) || n_effective <= 0) {
-      stop("n_effective must be strictly positive to compute Gaussian dispersion.")
-    }
-    if (n_effective <= nvar) {
-      stop(
-        "Gaussian dispersion requires n_effective > p (number of coefficients); ",
-        "use denominator n_effective - p. Got n_effective = ", n_effective,
-        ", p = ", nvar, "."
-      )
-    }
-    dispersion <- rss_weighted / (n_effective - nvar)
-    if (!is.finite(dispersion) || dispersion <= 0) {
-      stop("Computed Gaussian dispersion must be strictly positive.")
-    }
     rss_weighted_stored <- rss_weighted
-    dispersion_classical <- dispersion
-    
+    if (!is.null(dispersion_input)) {
+      dispersion <- dispersion_input
+      dispersion_classical <- dispersion_input
+    } else {
+      if (!is.finite(rss_weighted) || rss_weighted <= 0) {
+        stop("Weighted RSS must be strictly positive for Gaussian dispersion priors.")
+      }
+      if (!is.finite(n_effective) || n_effective <= 0) {
+        stop("n_effective must be strictly positive to compute Gaussian dispersion.")
+      }
+      if (n_effective <= nvar) {
+        stop(
+          "Gaussian dispersion requires n_effective > p (number of coefficients); ",
+          "use denominator n_effective - p, or pass a positive scalar `dispersion`. ",
+          "Got n_effective = ", n_effective, ", p = ", nvar, ".",
+          call. = FALSE
+        )
+      }
+      dispersion <- rss_weighted / (n_effective - nvar)
+      if (!is.finite(dispersion) || dispersion <= 0) {
+        stop("Computed Gaussian dispersion must be strictly positive.")
+      }
+      dispersion_classical <- dispersion
+    }
+
   } else if (family$family == "Gamma") {
     
     # MASS::gamma.dispersion() already returns the correct quasi-likelihood
@@ -770,6 +805,7 @@ if (!is.null(sd)) {
   Sigma_pre_nm <- Sigma
   .gauss_helper_preview <- NULL
   if (identical(family$family, "gaussian") &&
+      n_effective > nvar &&
       is.finite(dispersion_classical) && dispersion_classical > 0 &&
       !is.null(n_prior) && length(n_prior) == 1L && is.finite(n_prior) && n_prior > 0 &&
       !is.null(mu) && length(as.numeric(mu)) == nvar && all(is.finite(as.numeric(mu)))) {

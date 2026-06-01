@@ -1,20 +1,19 @@
-#' Conditionally independent block simulation (GLM envelope path)
+#' Conditionally independent block GLM simulation (Gibbs / product likelihood)
 #'
 #' @description
 #' Draw from blockwise full conditionals when the posterior factorizes across
-#' observation blocks. Each block is sampled with a single draw (\code{n = 1})
-#' via \code{.rNormalGLMBlocks_cpp()} (each block calls \code{rNormalGLM}).
-#' Phase-1 R loop via [rNormal_reg()] is retained below as \code{if (FALSE)} for
-#' reference. Intended for block Gibbs and similar workflows;
-#' convergence of the outer chain is the user's responsibility.
+#' observation blocks, via \code{.rNormalGLMBlocks_cpp()} (each block calls
+#' \code{rNormalGLM}). Typical use is **block Gibbs** (\code{n = 1} per outer step);
+#' \code{n > 1} gives iid draws from the product conditional.
 #'
 #' @details
-#' **Output layout:** \code{coefficients} and \code{coef.mode} are matrices
-#' with **rows = blocks** and **columns = regression dimensions** (\code{ncol(x)}).
+#' **BY-style separate fits** (SAS \code{BY}) use \code{\link{block_lmb}} or
+#' \code{\link{block_glmb}}, not this function. **Output layout:** \code{coefficients}
+#' and \code{coef.mode} are matrices with **rows = blocks** and **columns = predictors**.
 #'
-#' Not wired into [rglmb()] or [rlmb()]; see \code{inst/DESIGN_RGLM_BLOCKS.md}.
+#' See \code{inst/DESIGN_RGLM_BLOCKS.md}.
 #'
-#' @param n Number of draws per block; **must be \code{1}** in this implementation.
+#' @param n Number of iid draws per block (\code{n = 1} typical for Gibbs).
 #' @param y Response vector of length \code{nrow(x)}.
 #' @param x Design matrix \code{nrow(x)} by \code{ncol(x)}; same \code{ncol} in every block.
 #' @param block Block partition: \code{factor}/integer length \code{l2}, \code{l2_blocks}
@@ -29,7 +28,7 @@
 #' @param family GLM \code{\link{family}} (not \code{gaussian()}); passed to [rNormal_reg()].
 #' @param Gridtype,use_parallel,use_opencl,verbose,progbar Passed to each block's [rNormal_reg()].
 #' @param n_envopt Passed to each block; defaults to \code{1} when \code{NULL}.
-#' @return A list with class \code{"rNormalGLM_reg_block"} including:
+#' @return A list with class \code{"block_rNormalGLM"} including:
 #'   \describe{
 #'     \item{coefficients}{Matrix \code{k * p}; row \code{b} is the draw for block \code{b}.}
 #'     \item{coef.mode}{Matrix \code{k * p}; posterior mode per block.}
@@ -37,13 +36,14 @@
 #'     \item{block_results}{List of length \code{k} with each block's [rNormal_reg()] output.}
 #'   }
 #' @seealso [rNormal_reg], [simfuncs], \code{inst/DESIGN_RGLM_BLOCKS.md}
-#' @name simfuncs_block
-#' @family simfuncs_block
+#' @name block_simfuncs
+#' @aliases block_rNormalGLM rNormalGLM_reg_block
+#' @family block_simfuncs
 NULL
 
-#' @rdname simfuncs_block
+#' @rdname block_simfuncs
 #' @export
-rNormalGLM_reg_block <- function(n,
+block_rNormalGLM <- function(n,
                                  y,
                                  x,
                                  block,
@@ -60,11 +60,8 @@ rNormalGLM_reg_block <- function(n,
                                  progbar = FALSE) {
   if (length(n) > 1L) n <- length(n)
   n <- as.integer(n[1L])
-  if (n != 1L) {
-    stop(
-      "rNormalGLM_reg_block currently requires n = 1 (one Gibbs draw per block).",
-      call. = FALSE
-    )
+  if (n < 1L) {
+    stop("'n' must be at least 1.", call. = FALSE)
   }
 
   y <- as.numeric(y)
@@ -83,7 +80,7 @@ rNormalGLM_reg_block <- function(n,
 
   if (family$family == "gaussian") {
     stop(
-      "rNormalGLM_reg_block is for the GLM envelope path only; ",
+      "block_rNormalGLM is for the GLM envelope path only; ",
       "use block loops with rNormal_reg() for gaussian() or add a Gaussian block helper later.",
       call. = FALSE
     )
@@ -94,7 +91,7 @@ rNormalGLM_reg_block <- function(n,
   )
   if (!family$family %in% okfamilies) {
     stop(
-      "family \"", family$family, "\" is not supported by rNormalGLM_reg_block.",
+      "family \"", family$family, "\" is not supported by block_rNormalGLM.",
       call. = FALSE
     )
   }
@@ -251,6 +248,10 @@ rNormalGLM_reg_block <- function(n,
     prior_lists = prior_block,
     call = match.call()
   )
-  class(outlist) <- c("rNormalGLM_reg_block", "list")
+  class(outlist) <- c("block_rNormalGLM", "rNormalGLM_reg_block", "list")
   outlist
 }
+
+#' @rdname block_simfuncs
+#' @export
+rNormalGLM_reg_block <- block_rNormalGLM

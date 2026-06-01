@@ -405,34 +405,22 @@ Theory and implementation narrative: \insertCite{Nygren2006}{glmbayes};
 \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 
 glmbayes Simulation Functions
-\code{\link{rNormalGamma_reg_multi}()},
-\code{\link{rNormal_reg_multi}()},
-\code{\link{rindepNormalGamma_reg_multi}()}
+\code{\link{multi_rlmb}()}
 }
 \author{
 The simulation framework was developed by Kjell Nygren as part of the \pkg{glmbayes} package. It builds on the likelihood subgradient approach described in \insertCite{Nygren2006}{glmbayes}, and extends classical Bayesian GLM sampling techniques.

@@ -130,7 +130,8 @@
 #' @family modelfuns
 #' @seealso The classical modeling functions \code{\link[stats]{lm}} and \code{\link[stats]{glm}}.
 #'
-#' \code{\link{glmb}}, \code{\link{rglmb}}, \code{\link{rlmb}} for related Bayesian GLM/linear interfaces;
+#' \code{\link{glmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{multi_lmb}},
+#'   \code{\link{block_lmb}} for related Bayesian GLM/linear interfaces;
 #' \code{\link{EnvelopeBuild}} for envelope construction when accept--reject sampling is used.
 #' 
 #' \code{\link{pfamily}} for documentation of pfamily functions used to specify priors.
@@ -178,8 +179,11 @@ lmb <- function (
 ){
   ret.x <- x
   ret.y <- y
-  cl <- match.call()
-  mf <- match.call(expand.dots = FALSE)
+  cl <- match.call(expand.dots = FALSE)
+  if (length(cl) >= 1L && is.function(cl[[1L]])) {
+    cl[[1L]] <- as.name("lmb")
+  }
+  mf <- cl
   m <- match(c("formula", "data", "subset", "weights", "na.action", "offset"),
              names(mf), 0L)
   mf <- mf[c(1L, m)]
@@ -399,7 +403,7 @@ lmb <- function (
     simfun_args = sim$simfun_args
   )
   
-  outlist$call <- match.call()
+  outlist$call <- cl
   
   if (pfamily$pfamily == "dGamma") {
     class(outlist) <- c("rGamma_reg", outlist$class, "lmb", "glmb", "glm", "lm")

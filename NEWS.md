@@ -2,6 +2,13 @@
 
 ## Highlights
 
+* **Row-block (`block_*`) and multi-response (`multi_*`) APIs:** **`block_prior_setup()`**
+  and **`block_lmb()`** fit separate **`lmb()`** models per observation block
+  (SAS `BY`-style row splits; class **`blmb`**). **`multi_lmb()`** fits several
+  response columns with a shared formula (class **`mlmb`**). Gibbs block samplers
+  are **`block_rNormalGLM()`** / **`block_rNormalGLM_update()`** (aliases
+  **`rNormalGLM_reg_block*`** retained).
+
 * **Conjugate GLM priors (Poisson, binomial, Gamma):** New closed-form IID
   sampling paths for intercept-only models with identity links. **`dBeta()`**
   with **`rBeta_reg()`** supports Beta–Binomial(identity) conjugate updates;

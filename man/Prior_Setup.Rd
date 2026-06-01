@@ -518,6 +518,9 @@ structure; \code{\link{simfuncs}} for functions that take a \code{prior_list}
 assembled from those components (including
 \code{\link{rindepNormalGamma_reg}} for
 \code{\link{dIndependent_Normal_Gamma}()}).
+\code{\link{multi_prior_setup}} for a matrix/cbind response with Gaussian;
+use with \code{\link{multi_lmb}} or \code{\link{multi_rlmb}}
+\code{Prior_Setup} per column.
 
 \insertCite{zellner1986gprior}{glmbayes};
 \insertCite{Raiffa1961}{glmbayes};
@@ -527,6 +530,8 @@ assembled from those components (including
 \insertCite{glmbayesChapterA12}{glmbayes}.
 
 Other prior: 
-\code{\link{Prior_Check}()}
+\code{\link{Prior_Check}()},
+\code{\link{block_prior_setup}()},
+\code{\link{multi_rlmb}()}
 }
 \concept{prior}
