@@ -37,8 +37,11 @@ lmb(
     model to be fitted.  The details of model specification are given
     under \sQuote{Details}.}
 
-\item{pfamily}{a description of the prior distribution and associated constants to be used in the model. This
-should be a pfamily function (see \code{\link{pfamily}} for details of pfamily functions).}
+\item{pfamily}{a description of the prior distribution and associated constants to be used in the model.
+For a single-response formula this should be a single \code{\link{pfamily}} object.
+For a multi-response formula (e.g. \code{cbind(y1, y2) ~ x}) this must be a \code{list} of
+\code{\link{pfamily}} objects with exactly one entry per response column; passing a single
+\code{pfamily} object is an error.}
 
 \item{n}{number of draws to generate. If \code{length(n) > 1}, the length is taken to be the number required.}
 

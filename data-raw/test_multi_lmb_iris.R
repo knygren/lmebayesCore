@@ -21,7 +21,7 @@ pfamily_list <- lapply(ps_multi, function(ps) {
 
 out <- lmb(
   form_multi,
-  pfamily_list = pfamily_list,
+  pfamily = pfamily_list,
   data = iris,
   n = n_draw,
   use_parallel = FALSE

@@ -2,12 +2,16 @@
 
 ## Highlights
 
-* **Row-block (`block_*`) and multi-response (`multi_*`) APIs:** **`block_prior_setup()`**
-  and **`block_lmb()`** fit separate **`lmb()`** models per observation block
-  (SAS `BY`-style row splits; class **`blmb`**). **`multi_lmb()`** fits several
-  response columns with a shared formula (class **`mlmb`**). Gibbs block samplers
-  are **`block_rNormalGLM()`** / **`block_rNormalGLM_update()`** (aliases
-  **`rNormalGLM_reg_block*`** retained).
+* **Multi-response `lmb()`:** **`lmb()`** now handles both univariate and
+  multivariate responses with a single unified interface, mirroring the behaviour
+  of R's **`lm()`**. When the response has a single column the result is an
+  **`lmb`** object (unchanged from prior releases). When the formula specifies
+  multiple response columns (e.g. `cbind(y1, y2) ~ x`), **`lmb()`** fits a
+  separate Bayesian linear model per response column and returns a named list
+  with class **`mlmb`**. For the multi-response case, **`pfamily`** must be a
+  list of **`pfamily`** objects with exactly one entry per response column;
+  passing a single **`pfamily`** object is an error. Summary, print, and
+  coefficient methods for **`mlmb`** objects are included.
 
 * **Conjugate GLM priors (Poisson, binomial, Gamma):** New closed-form IID
   sampling paths for intercept-only models with identity links. **`dBeta()`**

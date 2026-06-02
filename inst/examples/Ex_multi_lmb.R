@@ -19,7 +19,7 @@ pfamily_list <- lapply(ps_multi, function(ps) {
 
 out_lmb <- lmb(
   form_multi,
-  pfamily_list = pfamily_list,
+  pfamily = pfamily_list,
   data = iris,
   n = 150L,
   use_parallel = FALSE

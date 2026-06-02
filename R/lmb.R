@@ -7,8 +7,11 @@
 #' lmb
 #' print.lmb
 #' @param n number of draws to generate. If \code{length(n) > 1}, the length is taken to be the number required.
-#' @param pfamily a description of the prior distribution and associated constants to be used in the model. This
-#' should be a pfamily function (see \code{\link{pfamily}} for details of pfamily functions).
+#' @param pfamily a description of the prior distribution and associated constants to be used in the model.
+#' For a single-response formula this should be a single \code{\link{pfamily}} object.
+#' For a multi-response formula (e.g. \code{cbind(y1, y2) ~ x}) this must be a \code{list} of
+#' \code{\link{pfamily}} objects with exactly one entry per response column; passing a single
+#' \code{pfamily} object is an error.
 #' @param subset an optional vector specifying a subset of observations to be used in the fitting process.
 #' @param na.action a function which indicates what should happen when the data contain \code{NA}s.  The default is set by 
 #' the \code{na.action} setting of \code{\link{options}}, and is \code{\link[stats]{na.fail}} 
@@ -226,6 +229,23 @@ lmb <- function(
     return(fit)
   }
 
+  if (!is.list(pfamily) || inherits(pfamily, "pfamily") ||
+      (!is.null(pfamily$pfamily) && !is.null(pfamily$prior_list))) {
+    stop(
+      "lmb(): 'pfamily' must be a list of ", meta$l1, " pfamily objects ",
+      "(one per response column) when y has multiple columns.\n",
+      "  Provide: pfamily = list(dNormal(...), dNormal(...), ...)",
+      call. = FALSE
+    )
+  }
+  if (length(pfamily) != meta$l1) {
+    stop(
+      "lmb(): length(pfamily) = ", length(pfamily),
+      " but y has ", meta$l1, " columns. ",
+      "Supply one pfamily per response column.",
+      call. = FALSE
+    )
+  }
   pfamily_list <- pfamily
   pfamily_lists <- .mrglmb_normalize_pfamily_lists(
     pfamily_list,
