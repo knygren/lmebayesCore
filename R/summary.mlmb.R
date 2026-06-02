@@ -5,13 +5,13 @@
 #' \code{summary.mlmb} applies \code{\link{summary.glmb}} to each response;
 #' printing follows \code{\link[stats]{summary.mlm}} with per-response sections.
 #'
-#' @param object An object of class \code{"mlmb"} from \code{\link{multi_lmb}}.
+#' @param object An object of class \code{"mlmb"} from \code{\link{lmb}}.
 #' @param x An object of class \code{"summary.mlmb"}.
 #' @param digits Number of significant digits for printing.
 #' @param \ldots Passed to \code{\link{summary.glmb}} or print methods.
 #' @return \code{summary.mlmb} returns a named list of \code{"summary.glmb"}
 #'   objects with class \code{"summary.mlmb"}.
-#' @seealso \code{\link{multi_lmb}}, \code{\link{print.mlmb}},
+#' @seealso \code{\link{lmb}}, \code{\link{print.mlmb}},
 #'   \code{\link{summary.glmb}}, \code{\link[stats]{summary.mlm}}
 #' @name summary.mlmb
 #' @aliases summary.mlmb print.mlmb print.summary.mlmb

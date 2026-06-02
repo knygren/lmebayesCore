@@ -12,7 +12,7 @@ c(
     author   = person("Kjell", "Nygren"),
     year     = year,
     note     = paste("R package version", meta$Version),
-    url      = "https://github.com/knygren/glmbayes"
+    url      = "https://CRAN.R-project.org/package=glmbayes"
   ),
   bibentry(
     bibtype  = "Article",

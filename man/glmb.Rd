@@ -375,8 +375,6 @@ and the methods and generic functions for classes \code{glm} and \code{lm} from 
 
 glmbayes Modeling Functions
 \code{\link{lmb}()},
-\code{\link{multi_lmb}()},
-\code{\link{multi_rlmb}()},
 \code{\link{rglmb}()},
 \code{\link{rlmb}()}
 }

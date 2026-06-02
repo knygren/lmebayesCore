@@ -13,7 +13,7 @@
 \method{print}{summary.mlmb}(x, digits = max(3, getOption("digits") - 3), ...)
 }
 \arguments{
-\item{object}{An object of class \code{"mlmb"} from \code{\link{multi_lmb}}.}
+\item{object}{An object of class \code{"mlmb"} from \code{\link{lmb}}.}
 
 \item{x}{An object of class \code{"summary.mlmb"}.}
 
@@ -31,6 +31,6 @@ Methods for multi-response \code{\link{lmb}} fits (class \code{"mlmb"}).
 printing follows \code{\link[stats]{summary.mlm}} with per-response sections.
 }
 \seealso{
-\code{\link{multi_lmb}}, \code{\link{print.mlmb}},
+\code{\link{lmb}}, \code{\link{print.mlmb}},
 \code{\link{summary.glmb}}, \code{\link[stats]{summary.mlm}}
 }

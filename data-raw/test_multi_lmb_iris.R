@@ -19,7 +19,7 @@ pfamily_list <- lapply(ps_multi, function(ps) {
   )
 })
 
-out <- multi_lmb(
+out <- lmb(
   form_multi,
   pfamily_list = pfamily_list,
   data = iris,
@@ -40,4 +40,4 @@ s <- summary(out)
 stopifnot(inherits(s, "summary.mlmb"), length(s) == 4L)
 print(s)
 
-cat("multi_lmb (iris): OK\n")
+cat("lmb (iris): OK\n")

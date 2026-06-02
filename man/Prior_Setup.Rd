@@ -519,7 +519,7 @@ assembled from those components (including
 \code{\link{rindepNormalGamma_reg}} for
 \code{\link{dIndependent_Normal_Gamma}()}).
 \code{\link{multi_prior_setup}} for a matrix/cbind response with Gaussian;
-use with \code{\link{multi_lmb}} or \code{\link{multi_rlmb}}
+use with \code{\link{lmb}}
 \code{Prior_Setup} per column.
 
 \insertCite{zellner1986gprior}{glmbayes};
@@ -531,6 +531,6 @@ use with \code{\link{multi_lmb}} or \code{\link{multi_rlmb}}
 
 Other prior: 
 \code{\link{Prior_Check}()},
-\code{\link{multi_rlmb}()}
+\code{\link{multi_prior_setup}()}
 }
 \concept{prior}

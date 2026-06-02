@@ -148,6 +148,6 @@ Prior_Check(counts ~ outcome + treatment,family = poisson(),
 
 Other prior: 
 \code{\link{Prior_Setup}()},
-\code{\link{multi_rlmb}()}
+\code{\link{multi_prior_setup}()}
 }
 \concept{prior}
