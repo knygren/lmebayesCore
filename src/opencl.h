@@ -60,6 +60,7 @@
 #include <string>
 #include <vector>
 #include <Rcpp.h>
+#include "package_ns.h"
 
 namespace glmbayes {
 namespace opencl {
@@ -139,7 +140,7 @@ Rcpp::List f2_f3_opencl(
 std::string load_likelihood_subgradient_program(
     const std::string& family,
     const std::string& link,
-    const std::string& package = "glmbayes");
+    const std::string& package = GLMBAYES_R_NS);
 #endif
 
 } // namespace opencl

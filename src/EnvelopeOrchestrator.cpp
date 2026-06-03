@@ -10,6 +10,7 @@
 
 #include "Envelopefuncs.h"
 #include "progress_utils.h"
+#include "package_ns.h"
 
 using namespace glmbayes::env;
 
@@ -164,8 +165,8 @@ int l2 = cbars.nrow();
 Rcpp::NumericVector logP_vec = Env3_raw["logP"];
 Rcpp::NumericMatrix logP_mat(logP_vec.size(), 1, logP_vec.begin());
 
-// Look up EnvelopeSort in the glmbayes namespace
-Rcpp::Environment pkg = Rcpp::Environment::namespace_env("glmbayes");
+// Look up EnvelopeSort in the glmbayesCore namespace
+Rcpp::Environment pkg = Rcpp::Environment::namespace_env(GLMBAYES_R_NS);
 Rcpp::Function EnvelopeSort = pkg["EnvelopeSort"];
 
 

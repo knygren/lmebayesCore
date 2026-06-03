@@ -579,7 +579,7 @@ Rcpp::List glmb_Standardize_Model_cpp_export(
 // [[Rcpp::export]]
 std::string load_kernel_source_wrapper_cpp_export(
     const std::string& relative_path,
-    const std::string& package = "glmbayes"
+    const std::string& package = "glmbayesCore"
 ) {
   return load_kernel_source_wrapper(relative_path, package);
 }
@@ -587,7 +587,7 @@ std::string load_kernel_source_wrapper_cpp_export(
 // [[Rcpp::export]]
 std::string load_kernel_library_wrapper_cpp_export(
     const std::string& subdir,
-    const std::string& package = "glmbayes",
+    const std::string& package = "glmbayesCore",
     bool verbose = false
 ) {
   return load_kernel_library_wrapper(subdir, package, verbose);

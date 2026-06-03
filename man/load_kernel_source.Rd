@@ -5,16 +5,16 @@
 \alias{load_kernel_library}
 \title{Load OpenCL Kernel Source Files}
 \usage{
-load_kernel_source(relative_path, package = "glmbayes")
+load_kernel_source(relative_path, package = "glmbayesCore")
 
-load_kernel_library(subdir, package = "glmbayes", verbose = FALSE)
+load_kernel_library(subdir, package = "glmbayesCore", verbose = FALSE)
 }
 \arguments{
 \item{relative_path}{A file path inside the package's \verb{cl/} directory.
 Used by \code{load_kernel_source()} to load a single \code{.cl} file.}
 
 \item{package}{Name of the package containing the OpenCL sources.
-Defaults to \code{"glmbayes"}.}
+Defaults to \code{"glmbayesCore"}.}
 
 \item{subdir}{A subdirectory inside \verb{cl/} containing a set of \code{.cl} files
 annotated with \code{@provides} and \code{@depends} tags. Used by

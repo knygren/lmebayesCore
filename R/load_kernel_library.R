@@ -423,7 +423,7 @@
 #'   \code{load_kernel_library()} to construct a dependency-resolved kernel
 #'   library.
 #' @param package Name of the package containing the OpenCL sources.
-#'   Defaults to \code{"glmbayes"}.
+#'   Defaults to \code{"glmbayesCore"}.
 #' @param verbose Logical; print diagnostic information during dependency
 #'   resolution (default: \code{FALSE}).
 #'
@@ -433,18 +433,18 @@
 #' @example inst/examples/Ex_load_kernel_source.R
 #'
 #' @export
-load_kernel_source <- function(relative_path, package = "glmbayes") {
+load_kernel_source <- function(relative_path, package = "glmbayesCore") {
   if (!has_opencl()) {
-    stop("OpenCL support is not available in this build of glmbayes.")
+    stop("OpenCL support is not available in this build of glmbayesCore.")
   }
   .load_kernel_source_wrapper_cpp(relative_path, package)
 }
 
 #' @rdname load_kernel_source
 #' @export
-load_kernel_library <- function(subdir, package = "glmbayes", verbose = FALSE) {
+load_kernel_library <- function(subdir, package = "glmbayesCore", verbose = FALSE) {
   if (!has_opencl()) {
-    stop("OpenCL support is not available in this build of glmbayes.")
+    stop("OpenCL support is not available in this build of glmbayesCore.")
   }
   .load_kernel_library_wrapper_cpp(subdir, package, verbose)
 }

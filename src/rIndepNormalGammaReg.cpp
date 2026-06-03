@@ -12,6 +12,7 @@
 #include "Envelopefuncs.h"
 #include "simfuncs.h"
 #include "progress_utils.h"
+#include "package_ns.h"
 
 #include <cmath>         // for std::log or std::exp if used
 #include <math.h>
@@ -1116,7 +1117,7 @@ Rcpp::List rIndepNormalGammaReg(
   // Base R functions (needed for mode optimization below)
   Rcpp::Function optim("optim");
   Rcpp::Function gaussian("gaussian");
-  Rcpp::Environment glmbayes_ns = Rcpp::Environment::namespace_env("glmbayes");
+  Rcpp::Environment glmbayes_ns = Rcpp::Environment::namespace_env(GLMBAYES_R_NS);
   Rcpp::Function glmbfamfunc = glmbayes_ns["glmbfamfunc"];
   Rcpp::List famfunc = glmbfamfunc( gaussian() );
   Rcpp::Function f2 = famfunc["f2"];

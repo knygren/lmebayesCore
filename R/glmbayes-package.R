@@ -1,6 +1,6 @@
-#' @aliases glmbayes
+#' @aliases glmbayesCore
 #'
-#' @title glmbayes: Bayesian Generalized Linear Models with iid Sampling
+#' @title glmbayesCore: Core C++ Sampling Engine for glmbayes
 #'
 #' @description
 #' `glmbayes` provides independent and identically distributed (iid) samples for
@@ -81,5 +81,5 @@
 #' @importFrom Rdpack reprompt
 #' @importFrom RcppParallel RcppParallelLibs
 #' @import opencltools
-#' @useDynLib glmbayes, .registration = TRUE
+#' @useDynLib glmbayesCore, .registration = TRUE
 "_PACKAGE"

@@ -43,6 +43,7 @@
 #include <RcppArmadillo.h>
 #include <string>
 #include <vector>
+#include "package_ns.h"
 
 #ifdef USE_OPENCL
 
@@ -95,12 +96,12 @@ int detect_num_gpus_internal();
 // -------------------------------------------------------------------------
 std::string load_kernel_source_wrapper(
     std::string relative_path,
-    std::string package = "glmbayes"
+    std::string package = GLMBAYES_R_NS
 );
 
 std::string load_kernel_library_wrapper(
     std::string subdir,
-    std::string package = "glmbayes",
+    std::string package = GLMBAYES_R_NS,
     bool verbose = false
 );
 
@@ -126,13 +127,13 @@ int get_opencl_core_count();
 // Load a single .cl kernel file from inst/cl/<relative_path>
 std::string load_kernel_source(
     const std::string& relative_path,
-    const std::string& package = "glmbayes"
+    const std::string& package = GLMBAYES_R_NS
 );
 
 // Load and concatenate all .cl files in a subdirectory (inst/cl/<subdir>/)
 std::string load_kernel_library(
     const std::string& subdir,
-    const std::string& package = "glmbayes",
+    const std::string& package = GLMBAYES_R_NS,
     bool verbose = false
 );
 
