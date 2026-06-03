@@ -10,7 +10,7 @@ directional_tail(fit, mu0 = NULL)
 \method{print}{directional_tail}(x, ...)
 }
 \arguments{
-\item{fit}{A fitted model object of class 'glmb' or 'lmb'}
+\item{fit}{A fitted model object of class \code{rglmb} or \code{rlmb}}
 
 \item{mu0}{An optional argument containing a reference vector relative to which the directional tail is computed. Defaults to the prior mean.}
 
@@ -31,7 +31,7 @@ Computes the directional tail probability based on posterior draws and prior mea
 using whitening transformation and projection onto the direction of disagreement.
 This diagnostic identifies directional disagreement between posterior and prior,
 and is especially useful for visualizing rejection regions in whitened space.
-The whitening uses Mahalanobis distance \insertCite{Mahalanobis1936}{glmbayes} in
+The whitening uses Mahalanobis distance \insertCite{Mahalanobis1936}{glmbayesCore} in
 posterior-precision-scaled coordinates.
 }
 \details{
@@ -39,7 +39,7 @@ Whitening is performed using the posterior precision matrix.
 The direction vector is computed as the mean shift in whitened space.
 Tail probability is the proportion of draws with negative projection onto this direction.
 For theory, interpretation, and relation to t/F statistics, see
-\insertCite{glmbayesChapterA04}{glmbayes}.
+\insertCite{glmbayesChapterA04}{glmbayesCore}.
 }
 \examples{
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
@@ -66,44 +66,26 @@ ps_null <- Prior_Setup(
   effects_source   = "null_effects",
   data = dat2
 )
-mu_null     <- ps_null$mu
-V_null      <- ps_null$Sigma
+mu_null      <- ps_null$mu
+V_null       <- ps_null$Sigma
 disp_ML_null <- ps_null$dispersion
 
-lmb.D9_null <- lmb(
-  weight ~ group,
-  dNormal(mu_null, V_null, dispersion = disp_ML_null),
-  data = dat2,
-  n = 10000
-)
-summary(lmb.D9_null)
-
-glmb.D9_default <- glmb(
-  weight ~ group,
-  family  = gaussian(),
+rlmb.D9_null <- rlmb(
+  n = 1000,
+  y = ps_null$y,
+  x = as.matrix(ps_null$x),
   pfamily = dNormal(mu_null, V_null, dispersion = disp_ML_null),
-  data    = dat2
+  weights = rep(1, length(ps_null$y))
 )
-summary(glmb.D9_default)
+print(rlmb.D9_null)
 
-colMeans(residuals(lmb.D9_null))
-
-glm.D9_default <- glm(weight ~ group, family = gaussian(), data = dat2)
-summary(glm.D9_default)
-disp_D9_default <- summary(glm.D9_default)$dispersion
-
-solve(vcov(lmb.D9_null$lm))
-t(lmb.D9_null$lm$x) \%*\% lmb.D9_null$lm$x / disp_D9_default
-t(lmb.D9_null$lm$x) \%*\% lmb.D9_null$lm$x * (20 / 18)
-
-tailprobs <- directional_tail(lmb.D9_null)
+tailprobs <- directional_tail(rlmb.D9_null)
 tailprobs
 
 summary(lm.D9_null)
 summary(lm.D9_null)$sigma^2
 
-tailprobs$Prec_lik * summary(lm.D9_null)$sigma^2
-t(lmb.D9_null$x) \%*\% lmb.D9_null$x
+t(rlmb.D9_null$x) \%*\% rlmb.D9_null$x
 tailprobs$p_directional
 
 ##########################################
@@ -112,8 +94,6 @@ Z     <- tailprobs$draws$Z
 flag  <- tailprobs$draws$is_tail
 delta <- tailprobs$delta
 w     <- tailprobs$delta
-
-asp <- 1
 
 ## Plot posterior draws in whitened space
 plot(
@@ -127,7 +107,6 @@ plot(
 
 abline(a = 0, b = -w[1] / w[2], col = "darkgreen", lty = 2)
 
-## Add radius boundary centered at posterior mode (delta)
 r <- sqrt(sum(delta^2))
 symbols(
   delta[1], delta[2],
@@ -138,13 +117,9 @@ symbols(
   fg      = "gray"
 )
 
-## Add prior mean at origin
 points(0, 0, pch = 4, col = "black", lwd = 2)
-
-## Add posterior mode at delta
 points(delta[1], delta[2], pch = 3, col = "purple", lwd = 2)
 
-## Add legend
 legend(
   "topright",
   legend = c(
@@ -162,13 +137,13 @@ legend(
 
 B       <- tailprobs$draws$B
 flag    <- tailprobs$draws$is_tail
-mu0     <- as.numeric(lmb.D9_null$Prior$mean)
+mu0     <- as.numeric(rlmb.D9_null$Prior$mean)
 mu_post <- colMeans(B)
-x_range <- range(B[, 1])  # Intercept values
-padding <- diff(x_range) * 0.1  # 10\% margin
+x_range <- range(B[, 1])
+padding <- diff(x_range) * 0.1
 
 oldpar <- par(no.readonly = TRUE)
-par(mar = c(5, 6, 4, 2))  # bottom, left, top, right
+par(mar = c(5, 6, 4, 2))
 
 plot(
   B,
@@ -180,8 +155,8 @@ plot(
   main = "Directional Tail Diagnostic (Raw Space)"
 )
 
-points(mu0[1], mu0[2], pch = 4, col = "black", cex = 1.5)       # Prior mean
-points(mu_post[1], mu_post[2], pch = 3, col = "darkgreen", cex = 1.5)  # Posterior mean
+points(mu0[1], mu0[2], pch = 4, col = "black", cex = 1.5)
+points(mu_post[1], mu_post[2], pch = 3, col = "darkgreen", cex = 1.5)
 
 legend(
   "topright",
@@ -196,7 +171,7 @@ par(oldpar)
 \insertAllCited{}
 }
 \seealso{
-\code{\link{summary.glmb}}, \code{\link{anova.glmb}}
+\code{\link{rglmb}}, \code{\link{rlmb}}, \code{\link{directional_tail}}
 }
 \keyword{Bayesian}
 \keyword{diagnostic}

@@ -1,5 +1,3 @@
-## Examples in ?Boston_centered: roxygen @example inlines inst/examples/Ex_Boston_centered.R
-## into man/Boston_centered.Rd when you run devtools::document().
 #' Boston housing data with mean-centered predictors
 #'
 #' A copy of \code{\link[MASS]{Boston}} where all predictors (every column except
@@ -13,8 +11,6 @@
 #'   and Rubinfeld (1978); see \code{?Boston} in \pkg{MASS}.
 #'
 #' @usage data("Boston_centered")
-#'
-#' @example inst/examples/Ex_Boston_centered.R
 #'
 #' @keywords datasets
 #' @concept Bayesian linear regression

@@ -18,7 +18,7 @@ out_pois <- rNormal_reg(
   family = poisson(link = "log"),
   weights = rep(1, nrow(ps$x))
 )
-summary(out_pois)
+print(out_pois)
 
 
 ## Menarche Binomial Data Example
@@ -41,7 +41,7 @@ out_logit <- rNormal_reg(
   family = binomial(logit),
   weights = menarche$Total
 )
-summary(out_logit)
+print(out_logit)
 
 ## Probit Prior and rNormal_reg call
 ps2 <- Prior_Setup(
@@ -59,7 +59,7 @@ out_probit <- rNormal_reg(
   family = binomial(probit),
   weights = menarche$Total
 )
-summary(out_probit)
+print(out_probit)
 
 ## clog-log Prior and rNormal_reg call
 ps3 <- Prior_Setup(
@@ -77,7 +77,7 @@ out_cloglog <- rNormal_reg(
   family = binomial(cloglog),
   weights = menarche$Total
 )
-summary(out_cloglog)
+print(out_cloglog)
 
 
 ## Gamma regression
@@ -101,5 +101,5 @@ out_gamma <- rNormal_reg(
   family = Gamma(link = "log"),
   weights = carinsca$Claims
 )
-summary(out_gamma)
+print(out_gamma)
 options(oldopt)

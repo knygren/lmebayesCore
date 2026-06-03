@@ -145,7 +145,7 @@ and \code{UB_list} are consumed by the internal standardized samplers
 accept--reject procedure over \eqn{(\beta, \phi)}. Theory for the dispersion
 envelope and bounding arguments is in vignette \code{Chapter-A07}; the
 end-to-end implementation map is in \code{Chapter-A11}. The coefficient-only
-likelihood-subgradient envelope (\insertCite{Nygren2006}{glmbayes}) is
+likelihood-subgradient envelope (\insertCite{Nygren2006}{glmbayesCore}) is
 documented under \code{\link{EnvelopeBuild}} and vignette \code{Chapter-A08}.
 
 The function does \strong{not} perform simulation. Simulation is carried out
@@ -260,7 +260,7 @@ piece is recomputed as \eqn{\mathrm{UB1}} once \eqn{\phi} and
 
 The orchestrator implements the \strong{independent Normal--Gamma} envelope
 pipeline: first a \strong{coefficient} envelope at a \strong{dispersion anchor}
-(\insertCite{Nygren2006}{glmbayes}; vignette \code{Chapter-A08}), then
+(\insertCite{Nygren2006}{glmbayesCore}; vignette \code{Chapter-A08}), then
 \strong{dispersion-aware} refinement (\code{Chapter-A07}), then sorting. Steps 3--8
 repeat the internal logic of \code{\link{EnvelopeBuild}} (same formulas on that
 help page); here the likelihood is \strong{Gaussian} with \strong{identity} link, weights
@@ -320,7 +320,7 @@ coordinate,
    }
 \item \strong{Evaluate negative log-likelihood and gradient at each grid point.}
 Subgradients \eqn{c(\bar{\theta}_j)} and negative log-likelihoods define
-the likelihood-subgradient envelope pieces (\insertCite{Nygren2006}{glmbayes};
+the likelihood-subgradient envelope pieces (\insertCite{Nygren2006}{glmbayesCore};
 \code{Chapter-A08}). CPU: \code{f2_f3_non_opencl}; GPU (optional):
 \code{f2_f3_opencl}.
 \item \strong{Call} \code{EnvelopeSet_Grid_C2_pointwise} \strong{and}
@@ -515,6 +515,6 @@ env_out
 \item \code{\link{rindepNormalGamma_reg}} – full Normal–Gamma workflow (R + C++)
 \item \code{\link{rlmb}}, \code{\link{rglmb}}, \code{\link{simfuncs}} – higher-level sampling entry points
 \item Vignettes \code{Chapter-A07}, \code{Chapter-A08}, \code{Chapter-A11}; cited as
-\insertCite{Nygren2006,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}
+\insertCite{Nygren2006,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayesCore}
 }
 }

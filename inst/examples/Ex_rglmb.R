@@ -19,7 +19,7 @@ rglmb.D93 <- rglmb(
   family = poisson(),
   weights = rep(1, nrow(ps$x))
 )
-summary(rglmb.D93)
+print(rglmb.D93)
 
 
 ## Menarche model with informative prior. See \code{\link{glmb}} and \code{\link{Prior_Setup}}
@@ -62,7 +62,7 @@ out <- rglmb(
   n = 1000, y = y, x = x, pfamily = dNormal(mu = mu, Sigma = V1), weights = wt,
   family = binomial(logit)
 )
-summary(out)
+print(out)
 
 ## rglmb with dGamma prior (dispersion-only; coefficients fixed)
 ctl <- c(4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14)
@@ -76,4 +76,4 @@ out_dGamma <- rglmb(
   pfamily = dGamma(shape = ps_dg$shape, rate = rate_dg, beta = ps_dg$coefficients),
   weights = rep(1, length(ps_dg$y)), family = gaussian()
 )
-summary(out_dGamma)
+print(out_dGamma)

@@ -17,4 +17,4 @@ prior_list <- list(mu = mu, Sigma = ps$Sigma_0, shape = shape, rate = rate)
 ngamma.D9 <- rNormalGamma_reg(n = 1000, y = y, x = x,
   prior_list = prior_list)
 
-summary(ngamma.D9)
+print(ngamma.D9)

@@ -80,11 +80,10 @@ and \code{f7} use the correct parameterization (coefficient = Gamma rate \eqn{\b
 \strong{Relationship to C++ simulation paths.}  Many simulation procedures in the package have
 been fully or partially migrated to \code{*.cpp} routines, which receive their own
 objective functions directly.  For those paths \code{glmbfamfunc} may not be called at all
-during sampling.  However, the R-side post-processing functions
-(\code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}})
-always use \code{famfunc\$f1}, \code{famfunc\$f4}, and \code{famfunc\$f7} respectively, so a
-registered branch is still required for those outputs even when the sampler itself has moved
-to C++.
+during sampling.  However, R-side post-processing (e.g.
+\code{\link{directional_tail}}) may still use \code{famfunc\$f1},
+\code{famfunc\$f4}, and \code{famfunc\$f7}, so a registered branch is still
+required for those outputs even when the sampler itself has moved to C++.
 }
 \examples{
 famfunc <- glmbfamfunc(binomial(logit))

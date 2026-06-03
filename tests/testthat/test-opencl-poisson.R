@@ -1,8 +1,8 @@
-# inst/examples/Ex_glmb.R (Dobson Poisson block); only use_opencl = TRUE added
+# inst/examples/Ex_rglmb.R (Dobson Poisson block); only use_opencl = TRUE added
 
-test_that("OpenCL f2_f3_poisson (Ex_glmb Dobson RCT)", {
+test_that("OpenCL f2_f3_poisson (Dobson RCT)", {
   skip_if_no_opencl()
-  skip_on_cran() # OpenCL: avoids R CMD check NOTE on CPU vs elapsed time
+  skip_on_cran()
 
   set.seed(333)
   counts <- c(18, 17, 15, 20, 10, 20, 25, 13, 12)
@@ -10,16 +10,17 @@ test_that("OpenCL f2_f3_poisson (Ex_glmb Dobson RCT)", {
   treatment <- gl(3, 3)
   d.AD <- data.frame(treatment, outcome, counts)
 
-  ps <- Prior_Setup(counts ~ outcome + treatment, family = poisson())
-  mu <- ps$mu
-  V <- ps$Sigma
+  ps <- Prior_Setup(counts ~ outcome + treatment, family = poisson(), data = d.AD)
 
-  glmb.D93 <- glmb(
-    counts ~ outcome + treatment,
+  fit <- rglmb(
+    n = 1000,
+    y = ps$y,
+    x = as.matrix(ps$x),
+    pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma),
     family = poisson(),
-    pfamily = dNormal(mu = mu, Sigma = V),
+    weights = rep(1, nrow(ps$x)),
     use_opencl = TRUE
   )
 
-  expect_s3_class(glmb.D93, "glmb")
+  expect_s3_class(fit, "rglmb")
 })

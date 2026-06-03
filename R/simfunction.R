@@ -129,31 +129,31 @@
 #' - **\code{rNormal_reg()}**: Produces iid draws for regression coefficients in models with
 #'   multivariate normal priors and log-concave likelihood functions. For Gaussian likelihoods,
 #'   these are conjugate priors and standard simulation procedures for multivariate normal
-#'   distributions are utilized \insertCite{LindleySmith1972,DiaconisYlvisaker1979}{glmbayes}.
+#'   distributions are utilized \insertCite{LindleySmith1972,DiaconisYlvisaker1979}{glmbayesCore}.
 #'   For all other families/link functions, the likelihood subgradient approach of
-#'   \insertCite{Nygren2006}{glmbayes} is used to generate iid samples.
+#'   \insertCite{Nygren2006}{glmbayesCore} is used to generate iid samples.
 #'
 #' - **\code{rNormalGamma_reg()}**: Produces iid draws for regression coefficients and the
 #'   dispersion parameter in models with Normal-Gamma priors and Gaussian likelihoods, where
 #'   this is a conjugate prior distribution. Standard simulation procedures for gamma and
 #'   multivariate normal distributions are utilized
-#'   \insertCite{Raiffa1961,LindleySmith1972}{glmbayes}.
+#'   \insertCite{Raiffa1961,LindleySmith1972}{glmbayesCore}.
 #'
 #' - **\code{rindepNormalGamma_reg()}**: Produces iid draws for regression coefficients
 #'   and the dispersion parameter in models with independent Normal and truncated Gamma priors.
 #'   This is a non-conjugate specification but can still be sampled using accept-reject procedures
 #'   based on an enveloping approach (see vignette
-#'   \insertCite{glmbayesIndNormGammaVignette}{glmbayes}).
+#'   \insertCite{glmbayesIndNormGammaVignette}{glmbayesCore}).
 #'
 #' - **\code{rGamma_reg()}**: Simulates dispersion parameters for Gaussian and Gamma families
 #'   using either standard gamma sampling or accept-reject methods based on likelihood
-#'   subgradients \insertCite{Chen1979,glmbayesGammaVignette}{glmbayes}.
+#'   subgradients \insertCite{Chen1979,glmbayesGammaVignette}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
 #' 
 #' @author
-#' The simulation framework was developed by Kjell Nygren as part of the \pkg{glmbayes} package. It builds on the likelihood subgradient approach described in \insertCite{Nygren2006}{glmbayes}, and extends classical Bayesian GLM sampling techniques.
+#' The simulation framework was developed by Kjell Nygren as part of the \pkg{glmbayes} package. It builds on the likelihood subgradient approach described in \insertCite{Nygren2006}{glmbayesCore}, and extends classical Bayesian GLM sampling techniques.
 #'
 #' @seealso
 #' \code{\link{pfamily}}, \code{\link{glmb}}, \code{\link{lmb}}, \code{\link{rglmb}}, \code{\link{rlmb}}
@@ -164,8 +164,8 @@
 #' \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSize}} for envelope construction
 #' and grid evaluation used in likelihood-subgradient sampling.
 #'
-#' Theory and implementation narrative: \insertCite{Nygren2006}{glmbayes};
-#' \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
+#' Theory and implementation narrative: \insertCite{Nygren2006}{glmbayesCore};
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore}.
 #'
 #' @usage simfunction(object, ...)
 #' @export

@@ -4,7 +4,7 @@
 #' A detailed overview of the low-level simulation pipeline used by
 #' \code{rglmb()} and related functions. These routines implement the
 #' optimization -> standardization -> envelope sizing -> envelope construction ->
-#' sampling -> back-transformation workflow described in \insertCite{Nygren2006}{glmbayes}.
+#' sampling -> back-transformation workflow described in \insertCite{Nygren2006}{glmbayesCore}.
 #'
 #' @details
 #' (summaries of each step)
@@ -89,11 +89,10 @@ NULL
 #'   **Relationship to C++ simulation paths.**  Many simulation procedures in the package have
 #'   been fully or partially migrated to \code{*.cpp} routines, which receive their own
 #'   objective functions directly.  For those paths \code{glmbfamfunc} may not be called at all
-#'   during sampling.  However, the R-side post-processing functions
-#'   (\code{\link{logLik.glmb}}, \code{\link{summary.rglmb}}, \code{\link{directional_tail}})
-#'   always use \code{famfunc\$f1}, \code{famfunc\$f4}, and \code{famfunc\$f7} respectively, so a
-#'   registered branch is still required for those outputs even when the sampler itself has moved
-#'   to C++.
+#'   during sampling.  However, R-side post-processing (e.g.
+#'   \code{\link{directional_tail}}) may still use \code{famfunc\$f1},
+#'   \code{famfunc\$f4}, and \code{famfunc\$f7}, so a registered branch is still
+#'   required for those outputs even when the sampler itself has moved to C++.
 #' @example inst/examples/Ex_glmbfamfunc.R
 #' @export
 #' @rdname glmbfamfunc
@@ -647,7 +646,7 @@ print.glmbfamfunc<-function(x,...)
 #' identity matrix and that the data precision A (at the posterior mode) is a diagonal matrix. Hence the variables
 #' in the standardized model are approximately independent at the posterior mode.
 #' 
-#' The steps here are based on the procedure described in \insertCite{Nygren2006}{glmbayes}.
+#' The steps here are based on the procedure described in \insertCite{Nygren2006}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -671,8 +670,8 @@ glmb_Standardize_Model<-function(y, x, P, bstar, A1){
 #'
 #' These functions implement the grid sizing logic used in envelope construction
 #' for rejection sampling. They make use of the theory described in
-#' \insertCite{Nygren2006}{glmbayes} and the general implementation outlined in
-#' \insertCite{glmbayesSimmethods}{glmbayes}. 
+#' \insertCite{Nygren2006}{glmbayesCore} and the general implementation outlined in
+#' \insertCite{glmbayesSimmethods}{glmbayesCore}. 
 #' 
 #' @param a Numeric vector of diagonal precisions for the log-likelihood
 #'   (posterior precision is \eqn{1 + a_i}).
@@ -698,7 +697,7 @@ glmb_Standardize_Model<-function(y, x, P, bstar, A1){
 #'
 #' @section Gridtype Logic and Candidates per Draw:
 #'
-#' The envelope sizing logic follows the analysis of \insertCite{Nygren2006}{glmbayes}.
+#' The envelope sizing logic follows the analysis of \insertCite{Nygren2006}{glmbayesCore}.
 #'
 #' \describe{
 #'
@@ -730,14 +729,14 @@ glmb_Standardize_Model<-function(y, x, P, bstar, A1){
 #'     Expected candidates per draw:
 #'     \deqn{\left(\tfrac{2}{\sqrt{\pi}}\right)^k}
 #'     for \eqn{k} dimensions, as shown in Theorem 3 of
-#'     \insertCite{Nygren2006}{glmbayes}.
+#'     \insertCite{Nygren2006}{glmbayesCore}.
 #'   }
 #'
 #'   \item{Gridtype 4: Always Single-Point}{
 #'     Every dimension uses a single tangent at the posterior mode.  
 #'     Expected candidates per draw:
 #'     \deqn{\prod_{i=1}^k \sqrt{1 + a_i}}
-#'     (Example 1 in \insertCite{Nygren2006}{glmbayes}).
+#'     (Example 1 in \insertCite{Nygren2006}{glmbayesCore}).
 #'   }
 #'
 #' }
@@ -761,7 +760,7 @@ glmb_Standardize_Model<-function(y, x, P, bstar, A1){
 #'
 #' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}};
 #' \code{\link{rNormal_reg}}, \code{\link{rglmb}} for user-facing sampling that uses these grids.
-#' Vignettes: \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayes}.
+#' Vignettes: \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -838,7 +837,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' Constructs an enveloping function for posterior simulation using a grid of
 #' tangency points. The envelope is used in accept-reject sampling to guarantee
 #' iid draws from the posterior distribution. The implementation follows
-#' \insertCite{Nygren2006}{glmbayes}, with extensions for GPU acceleration
+#' \insertCite{Nygren2006}{glmbayesCore}, with extensions for GPU acceleration
 #' (via OpenCL), dynamic grid optimization, and parallelized evaluation.
 #'
 #' The envelope is typically built around the posterior mode \eqn{\theta^\star} for a model in standard 
@@ -853,8 +852,8 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Models in standard form:
 #'
 #' The standard-form restriction and its closed-form truncated-normal integrals
-#' follow \insertCite{Nygren2006}{glmbayes}. See
-#' \insertCite{glmbayesChapterA08}{glmbayes} for the full theoretical details (standard form restriction,
+#' follow \insertCite{Nygren2006}{glmbayesCore}. See
+#' \insertCite{glmbayesChapterA08}{glmbayesCore} for the full theoretical details (standard form restriction,
 #' closed-form truncated-normal integrals, and the resulting log-scale tractability).
 #'
 #' In the implementation, these standard-form quantities determine the grid-based
@@ -864,7 +863,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Construction of restricted subgradient densities:
 #'
 #' For the full restricted density construction and the resulting envelope
-#' constants, see \insertCite{glmbayesChapterA08}{glmbayes}.
+#' constants, see \insertCite{glmbayesChapterA08}{glmbayesCore}.
 #'
 #' In the implementation, these theory objects become the precomputed
 #' region log-constants (via closed-form CDF pieces) that are used to normalize
@@ -873,13 +872,13 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Mixture construction and tractable probabilities:
 #'
 #' The mixture construction and its tractable region probabilities are derived
-#' in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these theory objects become the
+#' in \insertCite{glmbayesChapterA08}{glmbayesCore}. In the implementation, these theory objects become the
 #' precomputed region log-constants and the mixture weights (`PLSD`) used by
 #' the envelope-based accept-reject sampler.
 #' @section Log-scale properties of the envelope function:
 #'
 #' The log-scale form of the envelope factor and the subgradient inequality that
-#' imply envelope dominance are given in \insertCite{glmbayesChapterA08}{glmbayes}. In the implementation, these
+#' imply envelope dominance are given in \insertCite{glmbayesChapterA08}{glmbayesCore}. In the implementation, these
 #' properties allow pointwise evaluation in the log-domain and provide the
 #' theoretical basis for the rejection test inside the sampler.
 #' @section Use of the envelope during sampling:
@@ -966,7 +965,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Algorithmic steps (linked to theory):
 #'
 #' The implementation of \code{EnvelopeBuild} follows the envelope construction
-#' in \insertCite{Nygren2006}{glmbayes} for models in standard form (see Section 3--3.3 there). 
+#' in \insertCite{Nygren2006}{glmbayesCore} for models in standard form (see Section 3--3.3 there). 
 #' Each computational step corresponds to a theoretical guarantee:
 #'
 #' 1. **Compute width parameters \eqn{\omega_i} from the diagonal precision matrix.**  In particular,
@@ -1035,7 +1034,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #'    likelihood subgradient densities and to facilitate accept rejection sampling**  
 #'      
 #'    The subgradients \eqn{c(\bar{\theta})} enter the likelihood-subgradient density construction
-#'    (\insertCite{Nygren2006}{glmbayes}; see also \insertCite{glmbayesChapterA08}{glmbayes}), and both subgradients and
+#'    (\insertCite{Nygren2006}{glmbayesCore}; see also \insertCite{glmbayesChapterA08}{glmbayesCore}), and both subgradients and
 #'    negative log-likelihoods (through \eqn{h_{\bar{\theta}}(\cdot)}) are used in the accept-reject procedure. 
 #'    CPU and GPU routines compute these values efficiently.
 #'    - On CPU: via \code{f2_f3_non_opencl}.
@@ -1043,7 +1042,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #'    
 #' 6. **Call \code{EnvelopeSet_Grid_C2_pointwise} to evaluate restricted multivariate normal log-densities.**  
 #'    Each restricted density corresponds to a subset of the partition, normalized
-#'    as in Remark 5 of \insertCite{Nygren2006}{glmbayes}.
+#'    as in Remark 5 of \insertCite{Nygren2006}{glmbayesCore}.
 #'
 #' 7. **Call \code{EnvelopeSet_LogP_C2} to compute component log-probabilities and constants.**  
 #'    The constants \eqn{\tilde{a}} and mixture weights \eqn{\tilde{p}_i} are computed
@@ -1057,7 +1056,7 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #' @section Theory reference (JASA paper and vignette):
 #' Definitions, claims, theorems, remarks, and examples through Remark 16
 #' (including standard form, the \eqn{3^p} partition, and sampling remarks) are in
-#' \insertCite{Nygren2006}{glmbayes}. An expanded narrative is in
+#' \insertCite{Nygren2006}{glmbayesCore}. An expanded narrative is in
 #' \code{vignette("Chapter-A08", package = "glmbayes")}.
 #'
 #' @section Subgradient density formulation:
@@ -1199,8 +1198,8 @@ EnvelopeOpt<-function(a1,n,core_cnt=1L){
 #'
 #' @seealso \code{\link{EnvelopeSize}}, \code{\link{EnvelopeEval}}, \code{\link{EnvelopeSort}},
 #' \code{\link{glmb_Standardize_Model}}; \code{\link{rNormal_reg}}, \code{\link{rglmb}}, \code{\link{glmb}}.
-#' Theory and vignettes: \insertCite{Nygren2006}{glmbayes};
-#' \insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+#' Theory and vignettes: \insertCite{Nygren2006}{glmbayesCore};
+#' \insertCite{glmbayesChapterA08,glmbayesSimmethods,glmbayesChapterA10,glmbayesChapter12}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -1290,8 +1289,8 @@ EnvelopeSetLogP <- function(logP, NegLL, cbars, G3) {
 #'
 #' These functions implement the grid evaluation logic used in envelope
 #' construction for rejection sampling. They make use of the theory described
-#' in \insertCite{Nygren2006}{glmbayes} and the general implementation outlined
-#' in \insertCite{glmbayesSimmethods}{glmbayes}.
+#' in \insertCite{Nygren2006}{glmbayesCore} and the general implementation outlined
+#' in \insertCite{glmbayesSimmethods}{glmbayesCore}.
 #'
 #' @param G4 Numeric matrix of parameter values (parameters * grid points).
 #' @param y Numeric response vector.
@@ -1409,7 +1408,7 @@ EnvelopeSetLogP <- function(logP, NegLL, cbars, G3) {
 #'
 #' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeSize}}, \code{\link{EnvelopeSort}};
 #' \code{\link{rNormal_reg}}, \code{\link{rglmb}}. Vignettes:
-#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesChapterA10,glmbayesChapter12}{glmbayes}.
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesChapterA10,glmbayesChapter12}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -1602,8 +1601,8 @@ EnvelopeEval <- function(G4, y, x, mu, P, alpha, wt,
 #'
 #' The dispersion anchor point is chosen as the log-scale center of the credible interval,
 #' and the Gamma proposal is tilted to match the envelope slope at this point.
-#' Theory and narrative: \insertCite{Nygren2006}{glmbayes}; vignettes
-#' \code{Chapter-A07}, \code{Chapter-A11}; \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
+#' Theory and narrative: \insertCite{Nygren2006}{glmbayesCore}; vignettes
+#' \code{Chapter-A07}, \code{Chapter-A11}; \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayesCore}.
 #' @section Use in accept/reject procedure:
 #'
 #' The accept/reject sampler relies on a decomposition of the log-posterior into
@@ -1705,7 +1704,7 @@ EnvelopeDispersionBuild <- function(Env, Shape, Rate, P, y, x, alpha, n_obs, RSS
 #' with \code{sort_ok = FALSE}; the sampler remains valid but may have poorer acceptance.
 #'
 #' Used after \code{\link{EnvelopeBuild}} and (for Normal--Gamma models)
-#' \code{\link{EnvelopeDispersionBuild}}; see \insertCite{Nygren2006,glmbayesChapterA08}{glmbayes}.
+#' \code{\link{EnvelopeDispersionBuild}}; see \insertCite{Nygren2006,glmbayesChapterA08}{glmbayesCore}.
 #' @seealso \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}},
 #'   \code{\link{EnvelopeDispersionBuild}}, \code{\link{rNormal_reg}}, \code{\link{rglmb}}.
 #' @references

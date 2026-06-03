@@ -1,5 +1,5 @@
 ## summary.rGamma_reg: dGamma prior (dispersion-only; coefficients fixed)
-## All five functions (rGamma_reg, rglmb, rlmb, glmb, lmb) use summary.rGamma_reg when
+## All three functions (rGamma_reg, rglmb, rlmb) use summary.rGamma_reg when
 ## prior is dGamma.
 ##
 ## This example uses the Boston data: Prior_Setup() for hyperparameters and
@@ -45,12 +45,3 @@ out3 <- rlmb(n = 1000, y = y, x = x,
   weights = wt)
 summary(out3)
 
-## 4. glmb
-out4 <- glmb(form, data = Boston_centered, family = gaussian(),
-  pfamily = dGamma(shape = ps.boston$shape, rate = rate_dg, beta = ps.boston$coefficients))
-summary(out4)
-
-## 5. lmb
-out5 <- lmb(form, data = Boston_centered,
-  pfamily = dGamma(shape = ps.boston$shape, rate = rate_dg, beta = ps.boston$coefficients))
-summary(out5)

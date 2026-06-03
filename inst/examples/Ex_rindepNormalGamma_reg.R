@@ -29,7 +29,7 @@ prior_list <- list(
 set.seed(360)
 
 sim2 <- rindepNormalGamma_reg(n = 1000, y, x, prior_list = prior_list)
-summary(sim2)
+print(sim2)
  
  
  

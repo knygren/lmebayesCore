@@ -1,6 +1,4 @@
-# inst/examples/Ex_glmb.R (carinsca Gamma block); only use_opencl = TRUE added
-
-test_that("OpenCL f2_f3_gamma (Ex_glmb carinsca)", {
+test_that("OpenCL f2_f3_gamma (carinsca)", {
   skip_if_no_opencl()
   skip_on_cran()
 
@@ -10,33 +8,30 @@ test_that("OpenCL f2_f3_gamma (Ex_glmb carinsca)", {
   oldopt <- options(contrasts = c("contr.treatment", "contr.treatment"))
   on.exit(options(oldopt), add = TRUE)
 
-  Claims <- carinsca$Claims
-  Merit <- carinsca$Merit
-  Class <- carinsca$Class
-  Cost <- carinsca$Cost
-
   out <- glm(
     Cost / Claims ~ Merit + Class,
     family = Gamma(link = "log"),
-    weights = Claims,
+    data = carinsca,
+    weights = carinsca$Claims,
     x = TRUE
   )
   disp <- gamma.dispersion(out)
   ps <- Prior_Setup(
     Cost / Claims ~ Merit + Class,
     family = Gamma(link = "log"),
-    weights = Claims
+    data = carinsca,
+    weights = carinsca$Claims
   )
-  mu <- ps$mu
-  V <- ps$Sigma
 
-  out3 <- glmb(
-    Cost / Claims ~ Merit + Class,
+  fit <- rglmb(
+    n = 1000,
+    y = ps$y,
+    x = as.matrix(ps$x),
+    pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma, dispersion = disp),
     family = Gamma(link = "log"),
-    pfamily = dNormal(mu = mu, Sigma = V, dispersion = disp),
-    weights = Claims,
+    weights = carinsca$Claims,
     use_opencl = TRUE
   )
 
-  expect_s3_class(out3, "glmb")
+  expect_s3_class(fit, "rglmb")
 })

@@ -39,9 +39,6 @@ Prior_Check(
     third option is supported.  (See \code{\link[stats]{family}} for details of
     family functions.)}
 
-\item{pfamily}{a description of the prior distribution and associated constants to be used in the model. This
-should be a pfamily function (see \code{\link{pfamily}} for details of pfamily functions).}
-
 \item{level}{the confidence level at which the Prior-data conflict should be checked.}
 
 \item{data}{an optional data frame, list or environment (or object
@@ -53,13 +50,17 @@ should be a pfamily function (see \code{\link{pfamily}} for details of pfamily f
 \item{weights}{an optional vector of \sQuote{prior weights} to be used
     in the fitting process.  Should be \code{NULL} or a numeric vector.}
 
-\item{subset}{an optional vector specifying a subset of observations to be used in the fitting process.}
+\item{subset}{an optional vector specifying a subset of observations
+    to be used in the fitting process.  (See additional details about how
+    this argument interacts with data-dependent bases in the
+    \sQuote{Details} below.)}
 
-\item{na.action}{a function which indicates what should happen when the data contain \code{NA}s.  The default is set by
-the \code{na.action} setting of \code{\link{options}}, and is \code{\link[stats]{na.fail}}
-if that is unset.  The \sQuote{factory-fresh} default is \code{stats{na.omit}}.
-Another possible value is \code{NULL}, no action.  Value \code{stats{na.exclude}}
-can be useful.}
+\item{na.action}{a function which indicates what should happen
+    when the data contain \code{NA}s.  The default is set by
+    the \code{na.action} setting of \code{\link{options}}, and is
+    \code{\link[stats]{na.fail}} if that is unset.  The \sQuote{factory-fresh}
+    default is \code{\link[stats]{na.omit}}.  Another possible value is
+    \code{NULL}, no action.  Value \code{\link[stats]{na.exclude}} can be useful.}
 
 \item{start}{starting values for the parameters in the linear predictor.}
 
@@ -67,11 +68,12 @@ can be useful.}
 
 \item{mustart}{starting values for the vector of means.}
 
-\item{offset}{this can be used to specify an \emph{a priori} known component to be included in the linear
-predictor during fitting. This should be \code{NULL} or a numeric vector of length equal to the number of
-cases.  One or more \code{\link[stats]{offset}} terms can be included in the formula instead or as well, and
-if more than one is specified their sum is used.  See documentation for \code{model.offset} at
-\code{\link[stats]{model.extract}}.}
+\item{offset}{this can be used to specify an \emph{a priori} known
+    component to be included in the linear predictor during fitting.
+    This should be \code{NULL} or a numeric vector of length equal to
+    the number of cases.  One or more \code{\link[stats]{offset}} terms can be
+    included in the formula instead or as well, and if more than one is
+    specified their sum is used.  See \code{\link[stats]{model.offset}}.}
 
 \item{control}{a list of parameters for controlling the fitting
     process.  For \code{glm.fit} this is passed to
@@ -119,7 +121,7 @@ prior and maximum likelihood estimate divided by the length of the sum of half o
 \description{
 Checks if the credible intervals for the prior overlap with the implied confidence intervals
 from the classical model (obtained via \code{\link[stats]{glm}}). The approach relates to
-prior-data conflict checks \insertCite{EvansMoshonov2006}{glmbayes}.
+prior-data conflict checks \insertCite{EvansMoshonov2006}{glmbayesCore}.
 }
 \examples{
 ## Dobson (1990) Page 93: Randomized Controlled Trial :
@@ -143,8 +145,8 @@ Prior_Check(counts ~ outcome + treatment,family = poisson(),
 \insertAllCited{}
 }
 \seealso{
-\code{\link{Prior_Setup}}, \code{\link{glmb}}; see \insertCite{glmbayesChapter03}{glmbayes} for prior tailoring;
-\insertCite{glmbayesChapterA12}{glmbayes} for full derivations.
+\code{\link{Prior_Setup}}, \code{\link{rglmb}}; see \insertCite{glmbayesChapter03}{glmbayesCore} for prior tailoring;
+\insertCite{glmbayesChapterA12}{glmbayesCore} for full derivations.
 
 Other prior: 
 \code{\link{Prior_Setup}()},

@@ -6,216 +6,47 @@
 \alias{glmbayesCore}
 \title{glmbayesCore: Core C++ Sampling Engine for glmbayes}
 \description{
-\code{glmbayes} provides independent and identically distributed (iid) samples for
-Bayesian generalized linear models (GLMs), serving as a Bayesian analogue to
-the base \code{glm()} function. Supported likelihood families include Gaussian,
-Poisson, Binomial, and Gamma models with log-concave likelihoods.
+Core C++ engine for envelope-based iid samplers, Gibbs building blocks, and
+optional OpenCL acceleration. Developer backend for \pkg{glmbayes},
+\pkg{lmebayes}, and related extensions. End users should install
+\pkg{glmbayes} for formula-based modelling and S3 methods.
 }
 \details{
-The main user-facing interface is \code{glmb()}, which mirrors the structure of
-\code{glm()} and supports prior specification through \code{pfamily} objects. Lower-level
-functions such as \code{rglmb()} and \code{rGamma_reg()} provide direct access to the
-underlying samplers and can be used in block Gibbs sampling or hierarchical
-model implementations.
-
-For an introduction to the package, examples, and a complete set of vignettes,
-see:
-\itemize{
-\item README: \url{https://github.com/knygren/glmbayes#readme}
-\item All vignettes: \code{browseVignettes("glmbayes")}
-}
-
-The package includes extensive documentation on model fitting, prior
-construction, diagnostics, and optional GPU acceleration using OpenCL.
-
-\strong{Releases:} This source tree is \strong{0.9.6} (in development). The current
-\strong{CRAN} release is \strong{0.9.5} (\code{install.packages("glmbayes")}).
-Source is available from GitHub; R-Universe (\url{https://knygren.r-universe.dev/glmbayes})
-also builds binaries from that source.
-Prebuilt CRAN and R-Universe binaries do not include OpenCL; GPU support
-requires a source install once the host OpenCL environment is ready
-(see \code{vignette("Chapter-16", "glmbayes")} for the three-step process).
-
-IID posterior simulation for non-Gaussian GLMs and several non-conjugate
-linear-model setups uses the likelihood-subgradient envelope method of
-\insertCite{Nygren2006}{glmbayes}. Introductory material and worked
-examples are in \insertCite{glmbayesChapter00,glmbayesChapterA01}{glmbayes};
-estimation and simulation background in
-\insertCite{glmbayesChapterA02,glmbayesSimmethods,glmbayesChapterA08}{glmbayes};
-prior derivations for \code{Prior_Setup()} in
-\insertCite{glmbayesChapterA12}{glmbayes};
-GPU/OpenCL topics in
-\insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayes}.
+Low-level entry points include envelope construction
+(\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}}),
+registered simulation pipelines (\code{\link{rNormalGLM_std}},
+\code{\link{rIndepNormalGammaReg_std}}), matrix-input samplers
+(\code{\link{rglmb}}, \code{\link{rlmb}}), and OpenCL kernel loaders.
+Formula interfaces \code{glmb} and \code{lmb} live in \pkg{glmbayes};
+\pkg{glmbayesCore} supplies the sampling engine.
 }
 \section{OpenCL startup checks}{
 
-In interactive sessions, attaching the package with \code{library(glmbayes)}
-may emit a short \code{\link{packageStartupMessage}}
-when \code{has_opencl()} is \code{FALSE} (typical for CRAN binaries) but a
-GPU or OpenCL stack appears available on the host. OpenCL modelling paths
-require a source install of \pkg{glmbayes} with OpenCL at compile time;
-\code{has_opencl()} then reports whether that build succeeded. The note
-confirms full CPU use and points to \code{vignette("Chapter-16")}. Machines
-without a detectable GPU stack stay silent.
+In interactive sessions, attaching the package with \code{library(glmbayesCore)}
+may emit a short \code{\link{packageStartupMessage}} when \code{has_opencl()}
+is \code{FALSE} but a GPU or OpenCL stack appears available on the host.
 Set \code{options(glmbayes.quiet_opencl_startup = TRUE)} to suppress attach
 notes (recommended for CI and \command{R CMD check}).
 }
 
-\examples{
-set.seed(333)
-## Dobson (1990) Page 93: Randomized Controlled Trial :
-counts <- c(18,17,15,20,10,20,25,13,12)
-outcome <- gl(3,1,9)
-treatment <- gl(3,3)
-print(d.AD <- data.frame(treatment, outcome, counts))
-
-## Call to glm
-glm.D93 <- glm(counts ~ outcome + treatment, 
-               family = poisson())
-
-## Using glmb
-## Step 1: Set up Prior
-ps=Prior_Setup(counts ~ outcome + treatment,family = poisson())
-mu=ps$mu
-V=ps$Sigma
-
-# Step 2: Call the glmb function
-glmb.D93<-glmb(counts ~ outcome + treatment, family=poisson(), 
-               pfamily=dNormal(mu=mu,Sigma=V))
-
-summary(glmb.D93)
-
-## ----Printed_Views------------------------------------------------------------
-## Printed view of the output from the glm function 
-print(glm.D93)
-## Printed view of the output from the glmb function 
-print(glmb.D93)
-
-## ----Methods---------------------------------------------------------------
-## Methods for class "lm"
-methods(class="lm")
-
-## Methods for class "glm"
-methods(class="glm")
-
-## Methods for class "glmb"
-methods(class="glmb")
-
-## ----summary--------------------------------------------------------------
-## summary output for the "glm" class
-summary(glm.D93)
-
-## summary output for the "glm" class
-summary(glmb.D93)
-
-## ----fitted outputs-------------------------------------------------------
-## fitted outputs for the glm function
-fitted(glm.D93)
-
-## ----glmb fitted outputs------------------------------------------------------
-## mean of fitted outputs for the glm function
-colMeans(fitted(glmb.D93))
-
-## ----predictions----------------------------------------------------------
-## predictions for the glm function
-predict(glm.D93)
-
-## predictions for the glmb function
-colMeans(predict(glmb.D93)) 
-
-## ----residuals------------------------------------------------------------
-## residuals for the glm function
-residuals(glm.D93)
-
-## residuals for the glmb function
-colMeans(residuals(glmb.D93))
-
-## ----vcov-----------------------------------------------------------------
-## vcov for the glm function
-vcov(glm.D93)
-
-## vcov for the glm function
-vcov(glmb.D93)
-
-## ----confint--------------------------------------------------------------
-## confint for the glm function
-confint(glm.D93)
-
-## confint for the glm function
-confint(glmb.D93)
-
-## ----AIC/DIC------------------------------------------------------------------
-## AIC for the glm function (equivalent degrees of freedom and the AIC)
-extractAIC(glm.D93)
-
-## DIC for the glmb function (estimated effective number of parameters and the DIC)
-extractAIC(glmb.D93)
-
-## ----Deviance-------------------------------------------------------------
-## Deviance for the glm function
-deviance(glm.D93)
-
-## Deviance for the glmb function
-mean(deviance(glmb.D93))
-
-## ----logLik---------------------------------------------------------------
-## Deviance for the glm function
-logLik(glm.D93)
-
-## Deviance for the glmb function
-mean(logLik(glmb.D93))
-
-## ----Model Frame----------------------------------------------------------
-## Model Frame for the glm function
-model.frame(glm.D93)
-
-## Model Frame for the glmb function
-model.frame(glmb.D93$glm)
-
-## ----formula--------------------------------------------------------------
-## formula for the glm function
-formula(glm.D93)
-
-## ----formula-------------------------------------------------------------
-## formula for the glmb function
-formula(glmb.D93)
-
-## ----family--------------------------------------------------------------
-## family for the glm function
-family(glm.D93)
-
-## family for the glmb function
-family(glmb.D93$glm)
-
-## ----nobs-----------------------------------------------------------------
-## nobs for the glm function
-nobs(glm.D93)
-
-## nobs for the glmb function
-nobs(glmb.D93)
-
-## ----show-----------------------------------------------------------------
-## show for the glm function
-show(glm.D93)
-
-## show for the glmb function
-show(glmb.D93)
-}
 \references{
 \insertAllCited{}
 }
 \seealso{
-Main interfaces: \code{\link{glmb}}, \code{\link{lmb}},
-\code{\link{rglmb}}, \code{\link{rlmb}}; low-level simulation API
-\code{\link{simfuncs}}; envelope construction \code{\link{EnvelopeBuild}}.
-
-Useful links:
-\itemize{
-\item CRAN: \url{https://CRAN.R-project.org/package=glmbayes}
-\item GitHub: \url{https://github.com/knygren/glmbayes}
-\item R-Universe: \url{https://knygren.r-universe.dev/glmbayes}
-}
+\pkg{glmbayes} for the end-user modelling package.
 }
 \author{
-Kjell Nygren
+\strong{Maintainer}: Kjell Nygren \email{kjell.a.nygren@gmail.com}
+
+Other contributors:
+\itemize{
+  \item The R Core Team (R Mathlib sources, R stats modeling code, and derived/adapted routines) [contributor, copyright holder]
+  \item The R Foundation (Portions of R Mathlib and R source code) [copyright holder]
+  \item Ross Ihaka (R Mathlib and original R modeling infrastructure) [contributor, copyright holder]
+  \item Robert Gentleman (Portions of R Mathlib) [contributor, copyright holder]
+  \item Simon Davies (Original R glm implementation) [contributor]
+  \item Morten Welinder (Portions of R Mathlib) [contributor, copyright holder]
+  \item Martin Maechler (Portions of R Mathlib) [contributor]
+}
+
 }

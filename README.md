@@ -165,26 +165,8 @@ and subgradient‑based accept–reject algorithms, especially for models lackin
 
 Use `example()` and `demo()` to explore built-in examples and demos for supported families and links:
 
-    ## Bayesian linear regression
-    example("lmb")
-
-    ## Bayesian generalized linear models
-    example("glmb")
-
-    ## Beta-Binomial conjugacy: dBeta() prior; Bechdel test (requires bayesrules)
-    ## See also: vignette("Chapter-02-S03", package = "glmbayes")
-    demo("Ex_12_BetaBinomial")
-
-    ## Gamma-Poisson conjugacy: dGamma(Inv_Dispersion=FALSE); bike counts + heart
-    ## transplant mortality (requires bayesrules; Appendix A requires LearnBayes)
-    ## See also: vignette("Chapter-02-S04", package = "glmbayes")
-    demo("Ex_13_GammaPoisson")
-
-    ## Predictions for fitted glmb objects (newdata, type, etc.)
-    example("predict.glmb")
-
-    ## Deviance residuals and simulate() for posterior predictive checks (menarche)
-    example("residuals.glmb")
+    ## Matrix-input GLM example with an informative prior
+    example("rglmb")
 
     ## Two-block Gibbs sampler compared with iid sampling (linear model)
     example("rlmb")
@@ -192,18 +174,9 @@ Use `example()` and `demo()` to explore built-in examples and demos for supporte
     ## Default prior specification using Prior_Setup
     example("Prior_Setup")
 
-    ## Matrix-input GLM example with an informative prior
-    example("rglmb")
-
     ## Two-step Boston example: estimates and summarizes models with unknown
-    ## dispersion using dGamma priors via rGamma_reg, rglmb, rlmb, glmb, and lmb
+    ## dispersion using dGamma priors via rGamma_reg, rglmb, and rlmb
     example("summary.rGamma_reg")
-
-    ## High-dimensional Gaussian model (14 predictors) with GPU acceleration (requires OpenCL)
-    example("Boston_centered")
-
-    ## High-dimensional binomial model (14 predictors) with GPU acceleration (requires OpenCL)
-    example("Cleveland")
 
     ## Hierarchical linear model (Rubin/Gelman 8-schools) via rlmb
     demo("Ex_07_Schools")

@@ -15,13 +15,14 @@
 #' should be a pfamily function (see \code{\link{pfamily}} for details of pfamily functions.)
 #' @param digits the number of significant digits to use when printing.
 #' @param progbar Logical. Whether to display a progress base during simulation.
-#' @inheritParams lmb
-#' @inheritParams glmb
-#' @return \code{rlmb} returns a object of class \code{"rlmb"}.  The function \code{summary} 
-#' (i.e., \code{\link{summary.rglmb}}) can be used to obtain or print a summary of the results.
-#' The generic accessor functions \code{\link{coefficients}}, \code{\link{fitted.values}},
-#' \code{\link{residuals}}, and \code{\link{extractAIC}} can be used to extract
-#' various useful features of the value returned by \code{\link{rlmb}}.
+#' @param Gridtype an optional argument specifying tangent points for envelope construction.
+#' @param n_envopt Effective sample size passed to EnvelopeOpt for grid construction.
+#' @param use_parallel Logical. Whether to use parallel processing during simulation.
+#' @param use_opencl Logical. Whether to use OpenCL acceleration during Envelope construction.
+#' @param verbose Logical. Whether to print progress messages.
+#' @return \code{rlmb} returns a object of class \code{"rlmb"}.
+#' The generic accessor functions \code{\link{coefficients}} and \code{\link{fitted.values}}
+#' can be used to extract useful features of the value returned by \code{\link{rlmb}}.
 #' An object of class \code{"rlmb"} is a list containing at least the following components:
 #' \item{coefficients}{a matrix of dimension \code{n} by \code{length(mu)} with one sample in each row}
 #' \item{coef.mode}{a vector of \code{length(mu)} with the estimated posterior mode coefficients}
@@ -48,9 +49,9 @@
 #' Internally, \code{rlmb} generates independent draws from the posterior distribution using multivariate 
 #' normal simulation when conjugate priors are specified.
 #'
-#' The modeling framework follows \insertCite{WilkinsonRogers1973}{glmbayes}, and the prior structure builds on the S system 
-#' \insertCite{Chambers1992}{glmbayes}, Zellner's g-prior \insertCite{zellner1986gprior}{glmbayes}, and 
-#' the conjugate prior formulation of Raiffa and Schlaifer \insertCite{Raiffa1961}{glmbayes}.
+#' The modeling framework follows \insertCite{WilkinsonRogers1973}{glmbayesCore}, and the prior structure builds on the S system 
+#' \insertCite{Chambers1992}{glmbayesCore}, Zellner's g-prior \insertCite{zellner1986gprior}{glmbayesCore}, and 
+#' the conjugate prior formulation of Raiffa and Schlaifer \insertCite{Raiffa1961}{glmbayesCore}.
 #'
 #' Prior specification is handled via the \code{\link{pfamily}} argument, which defines the prior mean, 
 #' covariance, and dispersion. The design of the \code{pfamily} family of functions was created by Kjell Nygren 
@@ -60,27 +61,24 @@
 #' \code{dIndependent_Normal_Gamma} priors. The last of these allows for more flexible prior structures 
 #' including independent priors on variance components.
 #'
-#' Posterior draws are generated using standard simulation procedures for conjugate priors \insertCite{Raiffa1961}{glmbayes}. 
+#' Posterior draws are generated using standard simulation procedures for conjugate priors \insertCite{Raiffa1961}{glmbayesCore}. 
 #' For non-conjugate setups, the function uses envelope-based accept-reject sampling via the 
-#' likelihood-subgradient method \insertCite{Nygren2006}{glmbayes}. The \code{Gridtype} parameter controls 
+#' likelihood-subgradient method \insertCite{Nygren2006}{glmbayesCore}. The \code{Gridtype} parameter controls 
 #' how many tangent points are used to construct the envelope-trading off tightness against computational cost-
 #' and the \code{iters} component reports the number of candidate samples generated before acceptance.
 #'
 #' The output includes posterior samples, prior specifications, dispersion estimates, and envelope diagnostics. 
 #' While \code{rlmb} does not return a full model object or support generic methods like \code{predict} or 
 #' \code{summary}, it is designed for efficient posterior simulation in Gaussian models where full model 
-#' reconstruction is unnecessary.
-#'
-#' The \code{\link{rlmb}} function called from within \code{\link{lmb}}. 
-#' It is intended for simulation-heavy workflows such as Gibbs sampling or posterior 
+#' reconstruction is unnecessary. It is intended for simulation-heavy workflows such as Gibbs sampling or posterior
 #' predictive checks where minimal overhead is preferred.
 #'  
 #' 
 #' @family modelfuns
 #' @seealso The classical modeling functions \code{\link[stats]{lm}} and \code{\link[stats]{glm}}.
 #'
-#' \code{\link{lmb}}, \code{\link{glmb}}, \code{\link{rglmb}}
-#'   for related interfaces;
+#' \code{\link{rglmb}}
+#'   for the GLM sampler;
 #' \code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}} for envelope stages
 #' used in non-conjugate Gaussian sampling.
 #' 
@@ -88,13 +86,9 @@
 #' 
 #' \code{\link{Prior_Setup}}, \code{\link{Prior_Check}} for functions used to initialize and to check priors,  
 #'
-#' Further reading: \insertCite{Nygren2006}{glmbayes};
-#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayes}.
-#'
-#' \code{\link{summary.glmb}}, \code{\link{predict.glmb}}, \code{\link{simulate.glmb}}, 
-#' \code{\link{extractAIC.glmb}}, \code{\link{dummy.coef.glmb}} and methods(class="glmb") for methods 
-#' inherited from class \code{glmb} and the methods and generic functions for classes \code{glm} and 
-#' \code{lm} from which class \code{lmb} also inherits.
+#' Further reading: \insertCite{Nygren2006}{glmbayesCore};
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayesCore}.
+#' User-facing S3 methods for fitted models are provided by \pkg{glmbayes}.
 #'
 #' @references
 #' \insertAllCited{}

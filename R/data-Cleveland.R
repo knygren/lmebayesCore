@@ -1,5 +1,3 @@
-## Examples in ?Cleveland: roxygen @example inlines inst/examples/Ex_Cleveland.R
-## into man/Cleveland.Rd when you run devtools::document() (not a live link).
 #' Cleveland Heart Disease Dataset
 #'
 #' A cleaned version of the Cleveland heart disease dataset from the UCI Machine
@@ -30,8 +28,6 @@
 #' \url{https://archive.ics.uci.edu/dataset/45/heart+disease}
 #'
 #' @usage data("Cleveland")
-#'
-#' @example inst/examples/Ex_Cleveland.R
 #'
 #' @keywords datasets
 #' @concept Bayesian Binomial Regression

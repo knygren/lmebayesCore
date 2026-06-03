@@ -25,7 +25,7 @@ V1[2,2]=(3*mu[2,1]/2)^2  # Allows slope to be up to 3 times as large as point es
 
 out<-rglmb(n = 1000, y=y, x=x, pfamily=dNormal(mu=mu,Sigma=V1), weights = wt, 
            family = binomial(logit)) 
-summary(out)
+print(out)
 
 alpha<-matrix(rep(0,length(y)),ncol=1)
 wtin<-wt   ## From glm call (  )

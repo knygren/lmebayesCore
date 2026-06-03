@@ -117,7 +117,7 @@
 #' \strong{Gaussian Normal–Gamma calibration and \eqn{S_{\mathrm{marg}}}}
 #'
 #' For \code{family = gaussian()}, the function performs the Normal–Gamma
-#' calibration described in \insertCite{glmbayesChapterA12}{glmbayes}. Let:
+#' calibration described in \insertCite{glmbayesChapterA12}{glmbayesCore}. Let:
 #' * \eqn{p = \texttt{ncol}(x)},
 #' * \eqn{n_{\mathrm{effective}} = \sum_i w_i},
 #' * \eqn{\hat\beta} the weighted least-squares estimator,
@@ -200,7 +200,7 @@
 #' posterior covariance is available in closed form; the posterior must be
 #' obtained by numerical integration or sampling (e.g.,
 #' \code{rindepNormalGamma_reg()}). Theorem 3 in
-#' \insertCite{glmbayesChapterA12}{glmbayes} shows that the ING posterior has
+#' \insertCite{glmbayesChapterA12}{glmbayesCore} shows that the ING posterior has
 #' the same weak-prior limit as the conjugate Normal–Gamma posterior:
 #' \deqn{
 #'   E[\beta \mid y] \to \hat\beta,\qquad
@@ -258,7 +258,7 @@
 #' \code{\link{dNormal}}, \code{\link{dNormal_Gamma}}, \code{\link{dGamma}},
 #' and \code{\link{dIndependent_Normal_Gamma}}.
 #'
-#' \code{\link{glmb}}, \code{\link{lmb}} for formula-based fits with a
+#' \code{\link{rglmb}}, \code{\link{rlmb}} for matrix-input fits with a
 #' \code{pfamily} built from \code{Prior_Setup()} output; \code{\link{rglmb}},
 #' \code{\link{rlmb}} for matrix-based sampling that consumes the same prior
 #' structure; \code{\link{simfuncs}} for functions that take a \code{prior_list}
@@ -266,15 +266,15 @@
 #' \code{\link{rindepNormalGamma_reg}} for
 #' \code{\link{dIndependent_Normal_Gamma}()}).
 #' \code{\link{multi_prior_setup}} for a matrix/cbind response with Gaussian;
-#' use with \code{\link{lmb}}
+#' use with \code{\link{rlmb}}
 #' \code{Prior_Setup} per column. 
 #'
-#' \insertCite{zellner1986gprior}{glmbayes};
-#' \insertCite{Raiffa1961}{glmbayes};
-#' \insertCite{Gelman2013}{glmbayes};
-#' \insertCite{McCullagh1989}{glmbayes};
-#' \insertCite{glmbayesChapter03}{glmbayes};
-#' \insertCite{glmbayesChapterA12}{glmbayes}.
+#' \insertCite{zellner1986gprior}{glmbayesCore};
+#' \insertCite{Raiffa1961}{glmbayesCore};
+#' \insertCite{Gelman2013}{glmbayesCore};
+#' \insertCite{McCullagh1989}{glmbayesCore};
+#' \insertCite{glmbayesChapter03}{glmbayesCore};
+#' \insertCite{glmbayesChapterA12}{glmbayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -1279,15 +1279,15 @@ print.PriorSetup <- function(x, ...) {
 #'
 #' Checks if the credible intervals for the prior overlap with the implied confidence intervals
 #' from the classical model (obtained via \code{\link[stats]{glm}}). The approach relates to
-#' prior-data conflict checks \insertCite{EvansMoshonov2006}{glmbayes}.
+#' prior-data conflict checks \insertCite{EvansMoshonov2006}{glmbayesCore}.
 #'
 #' @param level the confidence level at which the Prior-data conflict should be checked.
-#' @inheritParams glmb
+#' @inheritParams stats::glm
 #' @return A vector where each item provided the ratio of the absolue value for the difference between the 
 #' prior and maximum likelihood estimate divided by the length of the sum of half of the two intervals 
 #' (where normality is assumed)
-#' @seealso \code{\link{Prior_Setup}}, \code{\link{glmb}}; see \insertCite{glmbayesChapter03}{glmbayes} for prior tailoring;
-#' \insertCite{glmbayesChapterA12}{glmbayes} for full derivations.
+#' @seealso \code{\link{Prior_Setup}}, \code{\link{rglmb}}; see \insertCite{glmbayesChapter03}{glmbayesCore} for prior tailoring;
+#' \insertCite{glmbayesChapterA12}{glmbayesCore} for full derivations.
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

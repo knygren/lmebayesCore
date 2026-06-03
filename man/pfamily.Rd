@@ -43,7 +43,7 @@ dIndependent_Normal_Gamma(
 }
 \arguments{
 \item{object}{the function \code{pfamily} accesses the \code{pfamily} objects which
-are stored within objects created by modelling functions (e.g., \code{glmb}).}
+are stored within objects created by modelling functions (e.g., \code{rglmb}).}
 
 \item{mu}{a prior mean vector for the the modeling coefficients used in several pfamilies}
 
@@ -143,8 +143,8 @@ for standard use these produce i.i.d.\ posterior samples for the implemented set
 }
 \description{
 Prior family objects provide a convenient way to specify the details of the priors
-used by functions such as \code{\link{glmb}}. See the documentations for \code{\link{lmb}},
-\code{\link{glmb}}, \code{\link{glmb}}, and \code{\link{rglmb}} for the details of how such model fitting
+used by matrix-input samplers such as \code{\link{rglmb}} and \code{\link{rlmb}}. See the documentation for
+\code{\link{rglmb}} and \code{\link{rlmb}} for the details of how such model fitting
 takes place.
 
 Under a Beta(\code{shape1}, \code{shape2}) prior on the binomial probability \eqn{\theta}
@@ -154,8 +154,8 @@ directly), the posterior is:
   \texttt{shape2} + \sum n_i (1 - y_i)).}
 }
 \details{
-\code{pfamily} is a generic with methods for fitted objects such as \code{\link{glmb}} and
-\code{\link{lmb}}. The \code{dNormal()} prior is supported for all response families.
+\code{pfamily} is a generic with methods for fitted objects such as \code{\link{rglmb}} and
+\code{\link{rlmb}}. The \code{dNormal()} prior is supported for all response families.
 The \code{gaussian()} family additionally supports \code{dNormal_Gamma()},
 \code{dIndependent_Normal_Gamma()}, and \code{dGamma()} (precision prior).
 Intercept-only models with an identity link support two closed-form conjugate priors:
@@ -168,7 +168,7 @@ Each constructor function (e.g., \code{dNormal()}, \code{dGamma()}, \code{dNorma
 class \code{"pfamily"} containing the prior parameters, supported likelihood families, compatible link functions,
 and a simulation function for posterior sampling.
 
-These priors are designed to integrate seamlessly with modeling functions such as \code{glmb()} and \code{rlmb()} in the
+These priors are designed to integrate seamlessly with modeling functions such as \code{rglmb()} and \code{rlmb()} in the
 \pkg{glmbayes} package, which consume the \code{pfamily} object to define the prior distribution over model parameters.
 The \code{pfamily()} generic retrieves the embedded prior from a fitted model object, while \code{print.pfamily()} displays its structure.
 
@@ -196,7 +196,7 @@ sampling and analytical tractability. The returned \code{prior_list} includes \c
 \code{dispersion} was supplied explicitly (including \code{1}).
 
 For models with log-concave likelihood functions-such as Poisson, Binomial, and Gamma families-
-posterior sampling under a \code{dNormal} prior is performed using a \insertCite{Nygren2006}{glmbayes}
+posterior sampling under a \code{dNormal} prior is performed using a \insertCite{Nygren2006}{glmbayesCore}
 likelihood subgradient approach. This method constructs tight enveloping functions around the posterior
 using subgradients of the log-likelihood, enabling efficient accept-reject sampling even in high dimensions.
 
@@ -205,14 +205,14 @@ area under the enveloping function is bounded above by a constant factor-approxi
 in the univariate case, and \eqn{(2 / \sqrt{\pi})^k} in \eqn{k}-dimensional models. These bounds ensure that
 the rejection rate remains manageable and that the sampler remains computationally efficient.
 
-The concept of conjugate priors was first formalized by \insertCite{Raiffa1961}{glmbayes}, and further
-developed for regression models using g-prior structures by \insertCite{zellner1986gprior}{glmbayes}.
+The concept of conjugate priors was first formalized by \insertCite{Raiffa1961}{glmbayesCore}, and further
+developed for regression models using g-prior structures by \insertCite{zellner1986gprior}{glmbayesCore}.
 \item \strong{\code{dGamma()}}: A Gamma prior with two distinct roles controlled by \code{Inv_Dispersion}:
 \itemize{
 \item \code{Inv_Dispersion = TRUE} (default): prior on the inverse dispersion (precision
 \eqn{1/\phi} or shape \eqn{k}). Used for dispersion estimation in Gaussian and
 Gamma(log) models, typically in a Gibbs step with \code{beta} held fixed
-\insertCite{Gelman2013,Dobson1990,McCullagh1989}{glmbayes}.
+\insertCite{Gelman2013,Dobson1990,McCullagh1989}{glmbayesCore}.
 With Gaussian \code{\link{Prior_Setup}} output, prefer \code{rate_gamma} for \code{rate}
 (see Details above).
 \item \code{Inv_Dispersion = FALSE}: conjugate Gamma prior on the rate parameter
@@ -232,7 +232,7 @@ and \code{shape2} are the prior pseudo-success and pseudo-failure counts.
 forming a conjugate structure for Gaussian models with unknown variance. The second argument is \code{Sigma_0}
 (precision-weighted scale); it is aliased internally to \code{Sigma} in \code{prior_list}.
 This formulation parallels classical Normal-Gamma models and is compatible with hierarchical extensions
-\insertCite{Gelman2013,Raiffa1961}{glmbayes}.
+\insertCite{Gelman2013,Raiffa1961}{glmbayesCore}.
 \item \strong{\code{dIndependent_Normal_Gamma()}}: Similar to \code{dNormal_Gamma()}, but assumes independence between the
 coefficient and precision priors. This structure is useful for models where prior independence is desired
 or analytically convenient. With \code{\link{Prior_Setup}} on a Gaussian model, pass \code{shape_ING} as
@@ -260,15 +260,17 @@ print(d.AD <- data.frame(treatment, outcome, counts))
 ps <- Prior_Setup(counts ~ outcome + treatment, family = poisson())
 ps
 
-## Normal prior for glmb
-glmb.D93 <- glmb(
-  counts ~ outcome + treatment,
-  family  = poisson(),
-  pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma)
+## Normal prior for rglmb
+rglmb.D93 <- rglmb(
+  n = 1000,
+  y = ps$y,
+  x = as.matrix(ps$x),
+  pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma),
+  family = poisson(),
+  weights = rep(1, nrow(ps$x))
 )
 
-## Extract pfamily and pfamily settings for call to glmb
-pfamily(glmb.D93)
+pfamily(rglmb.D93)
 
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
@@ -281,54 +283,67 @@ weight <- c(ctl, trt)
 ps2 <- Prior_Setup(weight ~ group, family = gaussian())
 ps2
 
+y <- ps2$y
+x <- as.matrix(ps2$x)
+wt <- rep(1, length(y))
+
 ## Conjugate Normal Prior (fixed dispersion)
-lmb.D9 <- lmb(
-  weight ~ group,
-  pfamily = dNormal(mu = ps2$mu, ps2$Sigma, dispersion = ps2$dispersion)
+rlmb.D9 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dNormal(mu = ps2$mu, ps2$Sigma, dispersion = ps2$dispersion),
+  weights = wt
 )
-pfamily(lmb.D9)
+pfamily(rlmb.D9)
 
 ## Conjugate Normal_Gamma Prior
-lmb.D9_v2 <- lmb(
-  weight ~ group,
+rlmb.D9_v2 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
   pfamily = dNormal_Gamma(
     ps2$mu,
     Sigma_0 = ps2$Sigma_0,
     shape = ps2$shape,
-    rate  = ps2$rate
-  )
+    rate = ps2$rate
+  ),
+  weights = wt
 )
-pfamily(lmb.D9_v2)
+pfamily(rlmb.D9_v2)
 
 ## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
-  weight ~ group,
-  dIndependent_Normal_Gamma(
+rlmb.D9_v3 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dIndependent_Normal_Gamma(
     ps2$mu,
     ps2$Sigma,
     shape = ps2$shape_ING,
-    rate  = ps2$rate
-  )
+    rate = ps2$rate
+  ),
+  weights = wt
 )
-pfamily(lmb.D9_v3)
+pfamily(rlmb.D9_v3)
 }
 \references{
 \insertAllCited{}
 }
 \seealso{
-\code{\link{glmb}}, \code{\link{rlmb}}, \code{\link{lmb}}, \code{\link{rglmb}} for modeling functions that consume \code{pfamily} objects.
+\code{\link{rglmb}}, \code{\link{rlmb}} for modeling functions that consume \code{pfamily} objects.
 
 \code{\link{rNormal_reg}}, \code{\link{rNormalGamma_reg}}, \code{\link{rGamma_reg}}, \code{\link{rGamma_Conjugate_reg}}, \code{\link{rindepNormalGamma_reg}} for lower-level sampling functions used by \code{pfamily} constructors.
 
 \code{\link{Prior_Setup}}, \code{\link{Prior_Check}} for initializing and validating prior specifications.
 
-\code{\link{EnvelopeBuild}} for envelope construction methods used in likelihood subgradient sampling \insertCite{Nygren2006}{glmbayes}.
+\code{\link{EnvelopeBuild}} for envelope construction methods used in likelihood subgradient sampling \insertCite{Nygren2006}{glmbayesCore}.
 
-See also \insertCite{Hastie1992}{glmbayes} for the original S modeling framework that inspired the design of \code{pfamily}.
+See also \insertCite{Hastie1992}{glmbayesCore} for the original S modeling framework that inspired the design of \code{pfamily}.
 }
 \author{
 The design of the \code{pfamily} set of functions was developed by Kjell Nygren and was
-inspired by the family used by the \code{\link{glmb}} function to specify the likelihood
+inspired by the family used by \code{\link{rglmb}} to specify the likelihood
 function. That design in turn was inspired by S functions of the same names from
 the statistical modeling literature.
 }

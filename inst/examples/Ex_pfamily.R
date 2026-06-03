@@ -8,15 +8,17 @@ print(d.AD <- data.frame(treatment, outcome, counts))
 ps <- Prior_Setup(counts ~ outcome + treatment, family = poisson())
 ps
 
-## Normal prior for glmb
-glmb.D93 <- glmb(
-  counts ~ outcome + treatment,
-  family  = poisson(),
-  pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma)
+## Normal prior for rglmb
+rglmb.D93 <- rglmb(
+  n = 1000,
+  y = ps$y,
+  x = as.matrix(ps$x),
+  pfamily = dNormal(mu = ps$mu, Sigma = ps$Sigma),
+  family = poisson(),
+  weights = rep(1, nrow(ps$x))
 )
 
-## Extract pfamily and pfamily settings for call to glmb
-pfamily(glmb.D93)
+pfamily(rglmb.D93)
 
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
@@ -29,33 +31,46 @@ weight <- c(ctl, trt)
 ps2 <- Prior_Setup(weight ~ group, family = gaussian())
 ps2
 
+y <- ps2$y
+x <- as.matrix(ps2$x)
+wt <- rep(1, length(y))
+
 ## Conjugate Normal Prior (fixed dispersion)
-lmb.D9 <- lmb(
-  weight ~ group,
-  pfamily = dNormal(mu = ps2$mu, ps2$Sigma, dispersion = ps2$dispersion)
+rlmb.D9 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dNormal(mu = ps2$mu, ps2$Sigma, dispersion = ps2$dispersion),
+  weights = wt
 )
-pfamily(lmb.D9)
+pfamily(rlmb.D9)
 
 ## Conjugate Normal_Gamma Prior
-lmb.D9_v2 <- lmb(
-  weight ~ group,
+rlmb.D9_v2 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
   pfamily = dNormal_Gamma(
     ps2$mu,
     Sigma_0 = ps2$Sigma_0,
     shape = ps2$shape,
-    rate  = ps2$rate
-  )
+    rate = ps2$rate
+  ),
+  weights = wt
 )
-pfamily(lmb.D9_v2)
+pfamily(rlmb.D9_v2)
 
 ## Independent_Normal_Gamma_Prior
-lmb.D9_v3 <- lmb(
-  weight ~ group,
-  dIndependent_Normal_Gamma(
+rlmb.D9_v3 <- rlmb(
+  n = 1000,
+  y = y,
+  x = x,
+  pfamily = dIndependent_Normal_Gamma(
     ps2$mu,
     ps2$Sigma,
     shape = ps2$shape_ING,
-    rate  = ps2$rate
-  )
+    rate = ps2$rate
+  ),
+  weights = wt
 )
-pfamily(lmb.D9_v3)
+pfamily(rlmb.D9_v3)

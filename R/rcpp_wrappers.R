@@ -54,8 +54,7 @@
     link = "identity",
     Gridtype = 2
 ) {
-  .Call(
-    "_glmbayesCore_rNormalReg_cpp_export",
+  .Call(`_glmbayesCore_rNormalReg_cpp_export`,
     n, y, x, mu, P, offset, wt, dispersion,
     f2, f3, start,
     family, link, Gridtype
@@ -190,8 +189,7 @@
     verbose = FALSE,
     use_parallel = TRUE
 ) {
-  .Call(
-    "_glmbayesCore_EnvelopeDispersionBuild_cpp_export",
+  .Call(`_glmbayesCore_EnvelopeDispersionBuild_cpp_export`,
     Env,
     Shape,
     Rate,
@@ -266,19 +264,19 @@
 #' @noRd
 #' @keywords internal
 .has_opencl_cpp <- function() {
-  .Call("_glmbayesCore_has_opencl_cpp_export")
+  .Call(`_glmbayesCore_has_opencl_cpp_export`)
 }
 
 #' @noRd
 #' @keywords internal
 .get_opencl_core_count_cpp <- function() {
-  .Call("_glmbayesCore_get_opencl_core_count_cpp_export")
+  .Call(`_glmbayesCore_get_opencl_core_count_cpp_export`)
 }
 
 #' @noRd
 #' @keywords internal
 .gpu_names_cpp <- function() {
-  .Call("_glmbayesCore_gpu_names_cpp_export")
+  .Call(`_glmbayesCore_gpu_names_cpp_export`)
 }
 
 
