@@ -39,12 +39,16 @@ LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 Depends: MASS, R (>= 3.5.0)
 Suggests:
     glmbayes,
+    coda,
     ggplot2,
     bayesrules,
     bayestestR,
     LearnBayes,
     testthat (>= 3.0.0),
-    spelling
+    spelling,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
 SystemRequirements: Optional OpenCL support. If available, GPU acceleration will be used; otherwise, computation runs on CPU. 
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
