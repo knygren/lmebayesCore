@@ -153,7 +153,7 @@ class(outlist) <- c(outlist$class, "rglmb", "glmb", "glm", "lm")
 ## Step 4 — `R/simulationpipeline.R`: add a `glmbfamfunc` branch
 
 `glmbfamfunc` must have a branch for every family/link that a simulation
-function uses — without it, DIC, `logLik()`, and `directional_tail()` will
+function uses — without it, DIC-style summaries and `logLik()` (in **glmbayes**) will
 fail with *"object 'f1' not found"*.
 
 Add the new branch just before `out = list(f1=f1, ...)` at the bottom of the

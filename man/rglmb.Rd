@@ -216,7 +216,8 @@ for envelope construction and grid evaluation used in non-conjugate sampling.
 Further reading: \insertCite{Nygren2006}{glmbayesCore};
 \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore};
 OpenCL/GPU: \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayesCore}.
-User-facing S3 methods for fitted models are provided by \pkg{glmbayes}.
+\code{\link{summary.rglmb}} and \code{\link{residuals.rglmb}} provide posterior summaries for
+matrix-input fits; additional formula-based methods are in \pkg{glmbayes}.
 
 glmbayes Modeling Functions
 \code{\link{rlmb}()}

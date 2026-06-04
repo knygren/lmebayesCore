@@ -1,0 +1,25 @@
+data(menarche, package = "MASS")
+
+summary(menarche)
+
+Age2 <- menarche$Age - 13
+
+x <- matrix(as.numeric(1.0), nrow = length(Age2), ncol = 2)
+x[, 2] <- Age2
+
+y <- menarche$Menarche / menarche$Total
+wt <- menarche$Total
+
+mu <- matrix(as.numeric(0.0), nrow = 2, ncol = 1)
+mu[2, 1] <- (log(0.9 / 0.1) - log(0.5 / 0.5)) / 3
+
+V1 <- 1 * diag(as.numeric(2.0))
+
+V1[1, 1] <- ((log(0.9 / 0.1) - log(0.5 / 0.5)) / 2)^2
+V1[2, 2] <- (3 * mu[2, 1] / 2)^2
+
+out <- rglmb(
+  n = 1000, y = y, x = x, pfamily = dNormal(mu = mu, Sigma = V1),
+  weights = wt, family = binomial(logit)
+)
+summary(out)

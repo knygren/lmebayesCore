@@ -35,7 +35,7 @@ are stable: they mean the same roles across families (only the internal formulas
 saturated model, with a \code{dispersion} argument for quasi-families); used in DIC-style summaries.}
 \item{\code{f7}}{Family-specific matrix: weighted sum of outer products of predictor rows,
 i.e.\ a curvature / expected negative Hessian of the log-likelihood w.r.t.\ \code{b}
-at the supplied \code{b} (used e.g.\ by \code{\link{directional_tail}} for \code{glmb} fits).}
+at the supplied \code{b} (used e.g.\ for multivariate prior--posterior diagnostics in \pkg{glmbayes}).}
 }
 Slots \code{f5} and \code{f6} are \strong{not} returned: they were reserved for alternate or
 C++-aligned likelihood/posterior routines and remain commented out in the implementation
@@ -54,8 +54,7 @@ deviance quantities across all supported family/link combinations.
 family/link combination that is used in the package.  If a combination is missing, the
 closures \code{f1}--\code{f4} will never be assigned and any downstream code that accesses
 them will fail with \emph{"object 'f1' not found"}.  New family/link combinations must
-therefore be explicitly added here before they can produce valid DIC, log-likelihood, or
-directional-tail output.
+therefore be explicitly added here before they can produce valid DIC or log-likelihood output.
 
 \strong{Currently implemented family/link combinations:}
 
@@ -80,10 +79,9 @@ and \code{f7} use the correct parameterization (coefficient = Gamma rate \eqn{\b
 \strong{Relationship to C++ simulation paths.}  Many simulation procedures in the package have
 been fully or partially migrated to \code{*.cpp} routines, which receive their own
 objective functions directly.  For those paths \code{glmbfamfunc} may not be called at all
-during sampling.  However, R-side post-processing (e.g.
-\code{\link{directional_tail}}) may still use \code{famfunc\$f1},
-\code{famfunc\$f4}, and \code{famfunc\$f7}, so a registered branch is still
-required for those outputs even when the sampler itself has moved to C++.
+during sampling.  However, R-side post-processing (e.g.\ \code{\link{summary.rglmb}})
+may still use \code{famfunc\$f1} and \code{famfunc\$f4}, so a registered branch is
+still required for those outputs even when the sampler itself has moved to C++.
 }
 \examples{
 famfunc <- glmbfamfunc(binomial(logit))

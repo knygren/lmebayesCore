@@ -107,10 +107,9 @@ how many tangent points are used to construct the envelope-trading off tightness
 and the \code{iters} component reports the number of candidate samples generated before acceptance.
 
 The output includes posterior samples, prior specifications, dispersion estimates, and envelope diagnostics.
-While \code{rlmb} does not return a full model object or support generic methods like \code{predict} or
-\code{summary}, it is designed for efficient posterior simulation in Gaussian models where full model
-reconstruction is unnecessary. It is intended for simulation-heavy workflows such as Gibbs sampling or posterior
-predictive checks where minimal overhead is preferred.
+Use \code{\link{summary.rlmb}} (same implementation as \code{\link{summary.rglmb}}) for posterior
+summaries and DIC-style output. Formula-based \code{predict} methods are provided by \pkg{glmbayes}
+when that package is installed.
 }
 \examples{
 ## Main Example based on Dobson Plant Weight Data 
