@@ -34,5 +34,6 @@
 #' @importFrom MASS mvrnorm
 #' @importFrom RcppParallel RcppParallelLibs
 #' @import opencltools
+#' @import nmathopencl
 #' @useDynLib glmbayesCore, .registration = TRUE
 "_PACKAGE"
