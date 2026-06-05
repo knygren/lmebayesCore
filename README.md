@@ -153,6 +153,54 @@ rGamma_reg(y, x, prior_list, family, ...)
 
 ---
 
+## Architecture: How `rglmb()` Orchestrates a Draw
+
+`rglmb()` is the canonical matrix-input orchestrator for GLM posterior draws. It does not sample directly; instead it validates the `family × pfamily` combination and delegates all sampling work to the simulation function that the `pfamily` object carries. In the **glmbayes** package, `glmb()` and `lmb()` wrap `rglmb()` with formula parsing and model-frame construction; downstream packages can build similar orchestrators on the same pattern.
+
+The sequence for a single `rglmb()` call is:
+
+```
+rglmb(y, x, family = poisson(), pfamily = dNormal(mu, Sigma), n = 1000)
+  │
+  ├─ 1. Resolve family
+  │       normalise string / function → family object
+  │       special case: Poisson + dGamma(Inv_Dispersion=TRUE) → coerce to conjugate rate prior
+  │
+  ├─ 2. Unpack pfamily
+  │       okfamilies  ← which family$family values are allowed
+  │       plinks      ← function: family → allowed link strings
+  │       prior_list  ← hyperparameters (mu, Sigma, shape/rate, …)
+  │       simfun      ← pointer to the backend sampler (e.g. rNormal_reg)
+  │
+  ├─ 3. Validate the combination
+  │       family$family ∈ okfamilies?   → error if not
+  │       family$link   ∈ plinks(family)?  → error if not
+  │       (extra geometry checks for scalar-only conjugate priors)
+  │
+  ├─ 4. Call the sampler
+  │       outlist ← simfun(n, y, x, prior_list, family, offset, weights,
+  │                         Gridtype, n_envopt, use_parallel, use_opencl, …)
+  │
+  └─ 5. Post-process and return
+          overwrite call slot with match.call()
+          re-attach pfamily and simfun_args (for traceability)
+          set coefficient and coef.mode names from colnames(x)
+          return object of class c("rglmb", "glmb", "glm", "lm")
+```
+
+The key design point is step 4: **`rglmb()` contains no `switch` on prior type**. The right sampler was bound to `simfun` at the moment the user called `dNormal()` / `dGamma()` / etc., so `rglmb()` simply calls whatever function is sitting there. Adding a new prior family therefore requires no changes to `rglmb()` itself — only a new pfamily constructor and a new simulation function.
+
+The interaction with the two architecture sections above is:
+
+- **pfamily routing table** — determines which `simfun` is embedded (step 2).
+- **Simulation function → C++ routing** — what happens inside `simfun(...)` (step 4).
+
+`rlmb()` follows the same pattern but restricts `okfamilies` to `"gaussian"` and skips the `glmbfamfunc` step, since the Gaussian posterior is always conjugate or near-conjugate.
+
+**Extensibility note.** The orchestrator pattern is intentionally generic: validate a model specification, unpack a routing object, call the embedded function, post-process. A mixed-effects package such as `lmebayes` could implement a richer orchestrator (e.g. cycling over fixed-effects, random-effects, and variance-component blocks in a Gibbs loop) while reusing the same glmbayesCore simulation functions at each step. The only requirement is that each block presents a compatible `prior_list` to the relevant `simfun`.
+
+---
+
 ## Developer Interface Levels
 
 Downstream packages and developers can interface with glmbayesCore at several levels:
