@@ -403,6 +403,30 @@ and grid evaluation used in likelihood-subgradient sampling.
 
 Theory and implementation narrative: \insertCite{Nygren2006}{glmbayesCore};
 \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore}.
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg}()}
 }
 \author{
 The simulation framework was developed by Kjell Nygren as part of the \pkg{glmbayes} package. It builds on the likelihood subgradient approach described in \insertCite{Nygren2006}{glmbayesCore}, and extends classical Bayesian GLM sampling techniques.
