@@ -1,9 +1,12 @@
-#' Two-block Gaussian Gibbs sampler for hierarchical regression
+#' Two-block Gibbs sampler for hierarchical regression
 #'
-#' Runs the coupled Block~1 / Block~2 Gibbs sampler for two-block mixed models:
-#' Block~1 draws group-level random effects
-#' \eqn{b_j} via \code{\link{block_rNormalReg}}; Block~2 updates hyper means
-#' \eqn{\gamma_k} via \code{\link{multi_rNormal_reg}}.
+#' Runs the coupled Block~1 / Block~2 Gibbs sampler for two-block mixed models.
+#' Block~1 draws group-level random effects \eqn{b_j}; Block~2 updates hyper
+#' means \eqn{\gamma_k} via \code{\link{multi_rNormal_reg}} (always Gaussian).
+#'
+#' Block~1 follows the same path as \code{\link{rNormal_reg}}:
+#' \code{\link{block_rNormalReg}} when \code{family = gaussian()}, otherwise
+#' \code{\link{block_rNormalGLM}} for the GLM envelope path.
 #'
 #' @param n Number of stored draws.
 #' @param y Response vector of length \code{nrow(x)}.
@@ -12,7 +15,8 @@
 #' @param x_hyper Named list of group-level design matrices \code{X_k}
 #'   (\code{J x q_k}), one per column of \code{x}.
 #' @param prior_list_block1 Prior for Block~1: \code{P} or \code{Sigma},
-#'   \code{dispersion}, optional \code{ddef}.  \code{mu} is updated internally.
+#'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
+#'   \code{mu} is updated internally.
 #' @param prior_list_block2 Named list of Block~2 prior lists passed to
 #'   \code{\link{multi_rNormal_reg}}.
 #' @param fixef_start Named list of hyper-parameter vectors at which each inner
@@ -22,12 +26,18 @@
 #' @param group_name Name for the grouping column in \code{coefficients}.
 #' @param m_convergence Number of inner Gibbs steps per stored draw.
 #' @param sampling Sampling scheme; only \code{"replicate"} is implemented.
+#' @param family Response \code{\link[stats]{family}} for Block~1 (default
+#'   \code{gaussian()}). Block~2 always uses \code{gaussian()}.
+#' @param offset,weights Passed to Block~1 (length \code{l2} or recycled).
+#' @param Gridtype,n_envopt,use_parallel,use_opencl,verbose Passed to Block~1
+#'   when \code{family} is not Gaussian.
 #' @param seed Optional RNG seed.
 #' @param progbar Logical; show a text progress bar.
 #' @return Object of class \code{"two_block_rNormal_reg"}.
 #' @family simfuncs
-#' @seealso \code{\link{build_mu_all}},
-#'   \code{\link{block_rNormalReg}}, \code{\link{multi_rNormal_reg}}
+#' @seealso \code{\link{build_mu_all}}, \code{\link{two_block_rNormal_reg_v2}},
+#'   \code{\link{block_rNormalReg}}, \code{\link{block_rNormalGLM}},
+#'   \code{\link{multi_rNormal_reg}}, \code{\link{rNormal_reg}}
 #' @export
 two_block_rNormal_reg <- function(
     n,
@@ -43,6 +53,14 @@ two_block_rNormal_reg <- function(
     group_name = NULL,
     m_convergence = 10L,
     sampling = c("replicate", "chain"),
+    family = gaussian(),
+    offset = NULL,
+    weights = 1,
+    Gridtype = 2L,
+    n_envopt = NULL,
+    use_parallel = TRUE,
+    use_opencl = FALSE,
+    verbose = FALSE,
     seed = NULL,
     progbar = TRUE) {
 
@@ -51,6 +69,9 @@ two_block_rNormal_reg <- function(
   if (!identical(sampling, "replicate")) {
     stop("Only sampling = \"replicate\" is implemented.", call. = FALSE)
   }
+
+  family <- .two_block_normalize_family(family)
+  is_gaussian <- identical(family$family, "gaussian")
 
   n <- as.integer(n[1L])
   if (n < 1L) {
@@ -123,22 +144,10 @@ two_block_rNormal_reg <- function(
   }
   fixef_start <- fixef_start[re_names]
 
-  if (!is.list(prior_list_block1)) {
-    stop("'prior_list_block1' must be a list.", call. = FALSE)
-  }
-  P <- prior_list_block1$P
-  if (is.null(P)) {
-    Sigma_b <- prior_list_block1$Sigma
-    if (is.null(Sigma_b)) {
-      stop("prior_list_block1 must contain 'P' or 'Sigma'.", call. = FALSE)
-    }
-    P <- solve(Sigma_b)
-  }
-  dispersion <- prior_list_block1$dispersion
-  if (is.null(dispersion)) {
-    stop("prior_list_block1 must contain 'dispersion'.", call. = FALSE)
-  }
-  ddef <- if (is.null(prior_list_block1$ddef)) FALSE else prior_list_block1$ddef
+  block1_prior_meta <- .two_block_validate_block1_prior(
+    prior_list_block1,
+    family = family
+  )
 
   if (!is.null(seed)) {
     set.seed(seed)
@@ -146,17 +155,34 @@ two_block_rNormal_reg <- function(
 
   fixef <- fixef_start
   mu_all <- .two_block_mu_all(fixef, x_hyper, re_names, group_levels)
-  block1_args <- list(
-    n          = 1L,
-    y          = y,
-    x          = x,
-    block      = block,
-    prior_list = list(
-      mu         = mu_all,
-      P          = P,
-      dispersion = dispersion,
-      ddef       = ddef
-    )
+
+  block1_fn <- if (is_gaussian) block_rNormalReg else block_rNormalGLM
+  block1_args <- c(
+    list(
+      n          = 1L,
+      y          = y,
+      x          = x,
+      block      = block,
+      prior_list = .two_block_block1_prior_list(
+        prior_list_block1,
+        mu_all,
+        block1_prior_meta
+      ),
+      offset     = offset,
+      weights    = weights
+    ),
+    if (!is_gaussian) {
+      list(
+        family       = family,
+        Gridtype     = Gridtype,
+        n_envopt     = n_envopt,
+        use_parallel = use_parallel,
+        use_opencl   = use_opencl,
+        verbose      = verbose
+      )
+    } else {
+      list()
+    }
   )
 
   coef_cols <- c("draw", group_name, re_names)
@@ -188,8 +214,12 @@ two_block_rNormal_reg <- function(
     for (m in seq_len(m_convergence)) {
 
       mu_all <- .two_block_mu_all(fixef, x_hyper, re_names, group_levels)
-      block1_args$prior_list$mu <- mu_all
-      block_i <- do.call(block_rNormalReg, block1_args)
+      block1_args$prior_list <- .two_block_block1_prior_list(
+        prior_list_block1,
+        mu_all,
+        block1_prior_meta
+      )
+      block_i <- do.call(block1_fn, block1_args)
       b_i <- block_i$coefficients
       if (is.null(rownames(b_i))) {
         rownames(b_i) <- block_i$block_info$ids
@@ -201,6 +231,7 @@ two_block_rNormal_reg <- function(
         y          = b_i,
         x          = x_hyper,
         prior_list = prior_list_block2,
+        family     = gaussian(),
         progbar    = FALSE
       )
       fixef <- stats::setNames(
@@ -236,6 +267,7 @@ two_block_rNormal_reg <- function(
       fixef_last    = fixef,
       b_last        = b_i,
       mu_all_last   = mu_all,
+      family        = family,
       n             = n,
       m_convergence = m_convergence,
       sampling      = sampling,
@@ -247,6 +279,111 @@ two_block_rNormal_reg <- function(
     ),
     class = "two_block_rNormal_reg"
   )
+}
+
+#' @noRd
+.two_block_normalize_family <- function(family) {
+  if (is.character(family)) {
+    family <- get(family, mode = "function", envir = parent.frame())
+  }
+  if (is.function(family)) {
+    family <- family()
+  }
+  if (is.null(family$family)) {
+    stop("'family' not recognized.", call. = FALSE)
+  }
+
+  okfamilies <- c(
+    "gaussian", "poisson", "binomial",
+    "quasipoisson", "quasibinomial", "Gamma"
+  )
+  if (!family$family %in% okfamilies) {
+    stop(
+      "family \"", family$family, "\" is not supported by two_block_rNormal_reg.",
+      call. = FALSE
+    )
+  }
+
+  oklinks <- switch(
+    family$family,
+    gaussian = "identity",
+    poisson = "log",
+    quasipoisson = "log",
+    binomial = c("logit", "probit", "cloglog"),
+    quasibinomial = c("logit", "probit", "cloglog"),
+    Gamma = "log",
+    character(0)
+  )
+  if (!family$link %in% oklinks) {
+    stop(
+      "link \"", family$link, "\" not available for family \"",
+      family$family, "\".",
+      call. = FALSE
+    )
+  }
+
+  family
+}
+
+#' @noRd
+.two_block_validate_block1_prior <- function(prior_list_block1, family) {
+  if (!is.list(prior_list_block1)) {
+    stop("'prior_list_block1' must be a list.", call. = FALSE)
+  }
+  if (is.null(prior_list_block1$P) && is.null(prior_list_block1$Sigma)) {
+    stop("prior_list_block1 must contain 'P' or 'Sigma'.", call. = FALSE)
+  }
+
+  ddef <- if ("ddef" %in% names(prior_list_block1)) {
+    prior_list_block1$ddef
+  } else {
+    is.null(prior_list_block1$dispersion)
+  }
+
+  dispersion <- prior_list_block1$dispersion
+
+  if (identical(family$family, "gaussian")) {
+    if (is.null(dispersion)) {
+      stop(
+        "prior_list_block1 must contain 'dispersion' for gaussian() Block~1.",
+        call. = FALSE
+      )
+    }
+    if (isTRUE(ddef)) {
+      stop(
+        "For gaussian() Block~1, dNormal() requires an explicit dispersion.",
+        call. = FALSE
+      )
+    }
+  }
+
+  if (family$family %in% c("gaussian", "Gamma") && isTRUE(ddef)) {
+    stop(
+      "For gaussian() and Gamma() models, dNormal() requires an explicit dispersion.",
+      call. = FALSE
+    )
+  }
+
+  list(ddef = ddef, dispersion = dispersion)
+}
+
+#' @noRd
+.two_block_block1_prior_list <- function(prior_list_block1, mu_all, meta) {
+  out <- list(
+    mu         = mu_all,
+    dispersion = meta$dispersion,
+    ddef       = meta$ddef
+  )
+  if (!is.null(prior_list_block1$P)) {
+    out$P <- prior_list_block1$P
+  }
+  if (!is.null(prior_list_block1$Sigma)) {
+    out$Sigma <- prior_list_block1$Sigma
+  }
+  if (is.null(out$P) && is.null(out$Sigma)) {
+    stop("prior_list_block1 must contain 'P' or 'Sigma'.", call. = FALSE)
+  }
+  out
 }
 
 #' @noRd

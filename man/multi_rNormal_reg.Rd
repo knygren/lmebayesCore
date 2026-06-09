@@ -66,6 +66,7 @@ Block 2 of \code{\link{two_block_rNormal_reg}}.
 
 glmbayes Simulation Functions
 \code{\link{simfuncs}},
-\code{\link{two_block_rNormal_reg}()}
+\code{\link{two_block_rNormal_reg}()},
+\code{\link{two_block_rNormal_reg_v2}()}
 }
 \concept{simfuncs}
