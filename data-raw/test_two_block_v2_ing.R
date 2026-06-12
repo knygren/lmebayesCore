@@ -61,17 +61,22 @@ prior_b1 <- list(Sigma = diag(tau2_plug, 2L), dispersion = sigma2, ddef = FALSE)
 ## lmebayes::pfamily_list() on a Prior_Setup_lmebayes object:
 ##   n_prior  = J * pwt_disp / (1 - pwt_disp)
 ##   shape    = (n_prior + 1) / 2 + p_k / 2
-##   rate     = d_k * n_prior / 2          (d_k = dispersion guess tau2_k)
+##   rate     = d_k * (n_prior + p_k - 1) / 2   (d_k = dispersion guess tau2_k;
+##              = d_k * (shape - 1), so the inv-Gamma prior mean is exactly d_k)
 ##   disp_lower = 1 / qgamma(0.99, shape, rate)   (0.01 quantile of inv-Gamma)
+##   disp_upper = 1 / qgamma(0.01, shape, rate)   (0.99 quantile of inv-Gamma)
+## Both bounds are required for sampling: the tau2_k truncation window is
+## then the central 98% prior-mass interval, fixed across Gibbs sweeps.
 ## Hand-picked shape/rate are never used for sampling.
 ing_pfamily <- function(d_k, pwt_disp, J, mu = 0, Sigma = diag(100, 1L)) {
   n_prior <- J * pwt_disp / (1 - pwt_disp)
   p_k <- length(mu)
   shape <- (n_prior + 1) / 2 + p_k / 2
-  rate  <- d_k * (n_prior / 2)
+  rate  <- d_k * (n_prior + p_k - 1) / 2
   dIndependent_Normal_Gamma(
     mu = mu, Sigma = Sigma, shape = shape, rate = rate,
-    disp_lower = 1 / stats::qgamma(0.99, shape = shape, rate = rate)
+    disp_lower = 1 / stats::qgamma(0.99, shape = shape, rate = rate),
+    disp_upper = 1 / stats::qgamma(0.01, shape = shape, rate = rate)
   )
 }
 
@@ -88,9 +93,6 @@ pfam_ing <- list(
   "(Intercept)" = ing_pfamily(tau2_plug[1L], pwt_disp, n_schools),
   "X1"          = ing_pfamily(tau2_plug[2L], pwt_disp, n_schools)
 )
-dl_int <- pfam_ing[["(Intercept)"]]$prior_list$disp_lower
-dl_slp <- pfam_ing[["X1"]]$prior_list$disp_lower
-
 set.seed(101)
 fit_ing <- two_block_rNormal_reg_v2(
   n = n_draw, y = y, x = x, block = school,
@@ -108,8 +110,15 @@ dd <- fit_ing$dispersion_fixef_draws
 stopifnot(is.matrix(dd), nrow(dd) == n_draw, ncol(dd) == 2L)
 stopifnot(identical(colnames(dd), re_names))
 stopifnot(all(is.finite(dd)), all(dd > 0))
-stopifnot(all(dd[, 1L] >= dl_int))
-stopifnot(all(dd[, 2L] >= dl_slp))
+## Both bounds are supplied, so every tau2 draw must lie inside the fixed
+## truncation window [disp_lower, disp_upper] (renormalized inverse-CDF).
+for (j in seq_along(re_names)) {
+  pr_j <- pfam_ing[[re_names[j]]]$prior_list
+  stopifnot(
+    all(dd[, j] >= pr_j$disp_lower),
+    all(dd[, j] <= pr_j$disp_upper)
+  )
+}
 stopifnot(stats::sd(dd[, 1L]) > 0, stats::sd(dd[, 2L]) > 0)
 stopifnot(all(is.finite(as.matrix(fit_ing$coefficients[, re_names]))))
 for (k in re_names) {
@@ -129,12 +138,15 @@ cat("2. posterior location sane: gamma_int mean = ",
     format(g_int, digits = 4), "\n", sep = "")
 
 ## ---------------------------------------------------------------------------
-## 3. Tight-ING vs dNormal equivalence: pwt_disp -> 1 concentrates the
-##    inverse-Gamma at d_k = tau2*, so the run must reproduce the
-##    dNormal(dispersion = tau2*) posterior
+## 3. Prior-vs-data guard: pwt_disp > 0.5 implies n_prior > J, which the
+##    dispersion envelope cannot support (log-tilt capped at n_w/2 = J/2;
+##    Remark 4.1.3 of the ING vignette).  Such calls must be rejected up
+##    front.  [Historical note: pwt_disp = 0.999 at small J used to produce
+##    biased gamma draws because the binding cap silently degraded the
+##    envelope -- the guard makes that regime unreachable.]
 ## ---------------------------------------------------------------------------
 tau2_star <- 0.16
-pwt_disp_tight <- 0.999  # n_prior = 2997: prior dominates, tau2 pinned at d_k
+pwt_disp_tight <- 0.999  # n_prior = 999 * J >> J: prior-dominated, illegal
 
 pfam_tight <- list(
   "(Intercept)" = ing_pfamily(tau2_star, pwt_disp_tight, n_schools),
@@ -149,55 +161,24 @@ pfam_norm <- list(
 prior_b1_t <- list(Sigma = diag(tau2_star, 2L), dispersion = sigma2,
                    ddef = FALSE)
 
-## Start near the posterior (school means of b_true) and use enough inner
-## steps that both chains forget the start: replicate draws then come from
-## the same stationary distribution and the means must agree within MC error.
-fixef_start_t <- list(
-  "(Intercept)" = stats::setNames(mean(b_true[, 1L]), "(Intercept)"),
-  "X1"          = stats::setNames(mean(b_true[, 2L]), "(Intercept)")
+err_t <- tryCatch(
+  two_block_rNormal_reg_v2(
+    n = 5L, y = y, x = x, block = school,
+    x_hyper = x_hyper,
+    prior_list_block1 = prior_b1_t,
+    pfamily_list = pfam_tight,
+    fixef_start = fixef_start,
+    m_convergence = 2L,
+    family = gaussian(),
+    progbar = FALSE
+  ),
+  error = function(e) conditionMessage(e)
 )
-m_conv_t <- 8L
+stopifnot(is.character(err_t), grepl("n_prior <= J", err_t, fixed = TRUE))
 
-n_draw_t <- 200L
-set.seed(202)
-fit_t_ing <- two_block_rNormal_reg_v2(
-  n = n_draw_t, y = y, x = x, block = school,
-  x_hyper = x_hyper,
-  prior_list_block1 = prior_b1_t,
-  pfamily_list = pfam_tight,
-  fixef_start = fixef_start_t,
-  m_convergence = m_conv_t,
-  family = gaussian(),
-  progbar = FALSE
-)
-set.seed(202)
-fit_t_nrm <- two_block_rNormal_reg_v2(
-  n = n_draw_t, y = y, x = x, block = school,
-  x_hyper = x_hyper,
-  prior_list_block1 = prior_b1_t,
-  pfamily_list = pfam_norm,
-  fixef_start = fixef_start_t,
-  m_convergence = m_conv_t,
-  family = gaussian(),
-  progbar = FALSE
-)
-
-## tau2 draws pinned near tau2* by the tight prior
-dd_t <- fit_t_ing$dispersion_fixef_draws
-stopifnot(all(abs(dd_t - tau2_star) < 0.05))
-
-for (k in re_names) {
-  diff <- abs(colMeans(fit_t_ing$fixef_draws[[k]]) -
-              colMeans(fit_t_nrm$fixef_draws[[k]]))
-  if (any(!is.finite(diff)) || any(diff > 0.25)) {
-    stop("tight-ING vs dNormal fixef means differ [", k,
-         "]: max = ", max(diff))
-  }
-}
-d_b <- abs(colMeans(as.matrix(fit_t_ing$coefficients[, re_names])) -
-           colMeans(as.matrix(fit_t_nrm$coefficients[, re_names])))
-stopifnot(all(d_b < 0.25))
-cat("3. tight-ING vs dNormal: posterior means agree (max fixef diff < 0.25)\n")
+## Boundary case pwt_disp = 0.5 (n_prior = J) must remain legal: already
+## exercised by sections 1-2 above (pfam_ing uses pwt_disp = 0.5).
+cat("3. prior-vs-data guard: pwt_disp = 0.999 rejected (n_prior > J)\n")
 
 ## ---------------------------------------------------------------------------
 ## 4. Mixed priors: ING intercept + dNormal slope
@@ -235,5 +216,40 @@ stopifnot(is.finite(r_ing$lambda_star),
           r_ing$lambda_star >= 0, r_ing$lambda_star < 1)
 cat("5. two_block_rate_v2 (ING plug-in): lambda* = ",
     format(r_ing$lambda_star, digits = 6), "\n", sep = "")
+
+## ---------------------------------------------------------------------------
+## 6. One-sided ING (disp_lower only) is rejected for sampling: without
+##    disp_upper the envelope would fall back to a per-sweep surrogate
+##    posterior window, making the truncation state-dependent.  The
+##    calibration-only path (two_block_rate_v2) still accepts it.
+## ---------------------------------------------------------------------------
+pr1 <- pfam_ing[["(Intercept)"]]$prior_list
+pf_onesided <- pfam_ing
+pf_onesided[["(Intercept)"]] <- dIndependent_Normal_Gamma(
+  mu = pr1$mu, Sigma = pr1$Sigma, shape = pr1$shape, rate = pr1$rate,
+  disp_lower = as.numeric(pr1$disp_lower)
+)
+err_os <- tryCatch(
+  two_block_rNormal_reg_v2(
+    n = 5L, y = y, x = x, block = school,
+    x_hyper = x_hyper,
+    prior_list_block1 = prior_b1,
+    pfamily_list = pf_onesided,
+    fixef_start = fixef_start,
+    m_convergence = 2L,
+    family = gaussian(),
+    progbar = FALSE
+  ),
+  error = function(e) conditionMessage(e)
+)
+stopifnot(is.character(err_os), grepl("disp_upper", err_os, fixed = TRUE))
+r_os <- two_block_rate_v2(
+  x = x, block = school, x_hyper = x_hyper,
+  prior_list_block1 = prior_b1,
+  pfamily_list = pf_onesided,
+  family = gaussian()
+)
+stopifnot(isTRUE(all.equal(r_os$lambda_star, r_ing$lambda_star)))
+cat("6. one-sided ING rejected for sampling, accepted for calibration: OK\n")
 
 cat("\nAll v2 ING tests passed.\n")

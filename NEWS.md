@@ -17,6 +17,14 @@
   Gamma and coefficient parts share a common `n_prior`, so the two are not
   fully independent.
 
+* **Same guard in the two-block v2 sampler:**
+  **`two_block_rNormal_reg_v2()`** enforces `n_prior <= J` per
+  `dIndependent_Normal_Gamma` component (with `J = length(group_levels)`,
+  the Block 2 hyper-regression observation count and `q_k = length(mu)`:
+  `2*shape - 1 - q_k <= J`, i.e. `pwt_disp <= 0.5`).  Calibration-only
+  paths (`two_block_rate_v2()`) are exempt since they use the `disp_lower`
+  plug-in without sampling.
+
 * **`pfamily_list()` generic:** New S3 generic for building a named list of
   pfamily objects from a prior-specification container.  Downstream
   packages provide methods (e.g. `lmebayes` for `Prior_Setup_lmebayes()`

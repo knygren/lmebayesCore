@@ -92,7 +92,12 @@ identical to v1) or a \code{\link{dIndependent_Normal_Gamma}} prior, in
 which case Block~2 makes a joint (gamma_k, tau^2_k) draw via the
 likelihood-subgradient envelope sampler (the same path as \code{rglmb}
 with an ING pfamily) and the sampled tau^2_k is fed back into the
-Block~1 prior precision on the next inner step.
+Block~1 prior precision on the next inner step.  ING components must
+supply both \code{disp_lower} and \code{disp_upper}: every tau^2_k draw
+is hard-truncated to that window, and requiring both bounds keeps the
+window fixed across sweeps (one-sided specifications would fall back to
+a per-sweep surrogate-posterior window inside the envelope code, making
+the truncation state-dependent).
 }
 \details{
 With \code{dNormal} priors throughout, this function produces draws that

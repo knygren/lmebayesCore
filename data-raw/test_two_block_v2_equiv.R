@@ -162,17 +162,20 @@ cat("3. poisson v1 vs v2: average coefficients OK\n")
 ##    data-raw/test_two_block_v2_ing.R).  ING hyperparameters are always
 ##    calibrated from a pwt_disp choice (pfamily_list() formulas), never
 ##    hand-picked: n_prior = J*pwt/(1-pwt), shape = (n_prior+1)/2 + p_k/2,
-##    rate = d_k*n_prior/2, disp_lower = 1/qgamma(0.99, shape, rate).
+##    rate = d_k*(n_prior+p_k-1)/2 (= d_k*(shape-1), mean-matched),
+##    disp_lower/disp_upper = central 98% prior-mass window
+##    1/qgamma(0.99|0.01, shape, rate) (both required for sampling).
 ## ---------------------------------------------------------------------------
 pwt_disp_s <- 0.5
 n_prior_s <- J * pwt_disp_s / (1 - pwt_disp_s)
 shape_s <- (n_prior_s + 1) / 2 + 1 / 2
-rate_s  <- 0.16 * (n_prior_s / 2)   # d_k = 0.16 (the dNormal dispersion)
+rate_s  <- 0.16 * (shape_s - 1)   # d_k = 0.16 (the dNormal dispersion); b_0 = d_k*(shape-1)
 dl_s    <- 1 / stats::qgamma(0.99, shape = shape_s, rate = rate_s)
+du_s    <- 1 / stats::qgamma(0.01, shape = shape_s, rate = rate_s)
 pfam_ing <- pfam_list
 pfam_ing$slope <- dIndependent_Normal_Gamma(
   mu = 0, Sigma = diag(4, 1L), shape = shape_s, rate = rate_s,
-  disp_lower = dl_s
+  disp_lower = dl_s, disp_upper = du_s
 )
 fit_ing <- two_block_rNormal_reg_v2(
   n = 5L, y = y_gauss, x = x_re, block = grp,
@@ -187,7 +190,8 @@ fit_ing <- two_block_rNormal_reg_v2(
 dd_ing <- fit_ing$dispersion_fixef_draws
 stopifnot(all(is.finite(dd_ing)), all(dd_ing > 0))
 stopifnot(all(dd_ing[, "(Intercept)"] == 0.16))  # dNormal: fixed
-stopifnot(all(dd_ing[, "slope"] >= dl_s))        # ING: >= disp_lower
+stopifnot(all(dd_ing[, "slope"] >= dl_s))        # ING: within fixed window
+stopifnot(all(dd_ing[, "slope"] <= du_s))
 cat("4. mixed dNormal + ING smoke run: OK\n")
 
 ## Validation: ING without disp_lower is rejected up front

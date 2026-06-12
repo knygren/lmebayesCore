@@ -8,7 +8,12 @@
 #' which case Block~2 makes a joint (gamma_k, tau^2_k) draw via the
 #' likelihood-subgradient envelope sampler (the same path as \code{rglmb}
 #' with an ING pfamily) and the sampled tau^2_k is fed back into the
-#' Block~1 prior precision on the next inner step.
+#' Block~1 prior precision on the next inner step.  ING components must
+#' supply both \code{disp_lower} and \code{disp_upper}: every tau^2_k draw
+#' is hard-truncated to that window, and requiring both bounds keeps the
+#' window fixed across sweeps (one-sided specifications would fall back to
+#' a per-sweep surrogate-posterior window inside the envelope code, making
+#' the truncation state-dependent).
 #'
 #' With \code{dNormal} priors throughout, this function produces draws that
 #' are identical to \code{\link{two_block_rNormal_reg}} under the same seed;
@@ -137,7 +142,10 @@ two_block_rNormal_reg_v2 <- function(
     x_hyper <- x_hyper[re_names]
   }
 
-  pfamily_list <- .two_block_validate_pfamily_list(pfamily_list, re_names)
+  pfamily_list <- .two_block_validate_pfamily_list(
+    pfamily_list, re_names,
+    J = length(group_levels)
+  )
 
   if (!is.list(fixef_start) || is.null(names(fixef_start))) {
     stop("'fixef_start' must be a named list.", call. = FALSE)
@@ -273,12 +281,25 @@ two_block_rNormal_reg_v2 <- function(
 #'
 #' Checks that each component is a supported \code{pfamily} object and that
 #' the type-specific hyperparameters needed by the v2 driver are present.
+#' When \code{J} is supplied (sampling context), ING components must carry
+#' \emph{both} truncation bounds (\code{disp_lower}, \code{disp_upper}) so
+#' the tau^2_k window is fixed across all inner Gibbs sweeps, and must also
+#' satisfy the prior-vs-data balance guard \code{n_prior <= J}: the Block 2
+#' hyper-regression has \code{J} group-level observations, and the ING
+#' dispersion envelope caps its log-tilt at the data contribution
+#' \code{n_w/2 = J/2} (Remark 4.1.3 of the ING vignette), which presumes a
+#' likelihood-dominated prior.  Under the calibration
+#' \code{shape = (n_prior + 1 + q_k)/2} this is
+#' \code{2*shape - 1 - q_k <= J} (equivalently \code{pwt_disp <= 0.5}).
 #'
 #' @param pfamily_list Named list of \code{pfamily} objects.
 #' @param re_names Character vector of RE component names (defines order).
+#' @param J Number of groups in the Block 2 hyper-regression, or \code{NULL}
+#'   to skip the sampling-specific prior-vs-data guard (calibration-only
+#'   contexts such as \code{two_block_rate_v2}).
 #' @return The validated list, reordered to match \code{re_names}.
 #' @noRd
-.two_block_validate_pfamily_list <- function(pfamily_list, re_names) {
+.two_block_validate_pfamily_list <- function(pfamily_list, re_names, J = NULL) {
   if (!is.list(pfamily_list)) {
     stop("'pfamily_list' must be a named list of pfamily objects.",
          call. = FALSE)
@@ -332,6 +353,40 @@ two_block_rNormal_reg_v2 <- function(
           "a positive 'disp_lower' (initial/calibration tau^2_k plug-in).",
           call. = FALSE
         )
+      }
+      if (!is.null(J)) {
+        ## Sampling context: both truncation bounds are required so the
+        ## tau^2_k window is fixed across all inner Gibbs sweeps (with
+        ## either bound missing the envelope would re-derive a surrogate
+        ## posterior window per sweep, making the truncation
+        ## state-dependent and the disp_lower-based rate bound only
+        ## approximate).
+        if (is.null(pl$disp_upper) || !is.numeric(pl$disp_upper) ||
+            !is.finite(pl$disp_upper[1L]) ||
+            pl$disp_upper[1L] <= pl$disp_lower[1L]) {
+          stop(
+            "pfamily_list[[\"", k, "\"]]: dIndependent_Normal_Gamma() ",
+            "sampling requires a finite 'disp_upper' > 'disp_lower' so the ",
+            "tau^2_k truncation window is fixed across Gibbs sweeps ",
+            "(e.g. the 0.99 prior dispersion quantile ",
+            "1/qgamma(0.01, shape, rate)).",
+            call. = FALSE
+          )
+        }
+        q_k <- length(pl$mu)
+        n_prior_implied <- 2 * pl$shape[1L] - 1 - q_k
+        if (n_prior_implied > J) {
+          stop(
+            "pfamily_list[[\"", k, "\"]]: dIndependent_Normal_Gamma prior ",
+            "implies n_prior = ", signif(n_prior_implied, 4),
+            " effective prior observations for the dispersion, but the ",
+            "Block 2 hyper-regression has only J = ", J, " groups. The ",
+            "dispersion envelope requires n_prior <= J ",
+            "(prior weight pwt_disp <= 0.5); weaken the dispersion prior ",
+            "(smaller shape / pwt_disp) or supply more groups.",
+            call. = FALSE
+          )
+        }
       }
     }
   }
