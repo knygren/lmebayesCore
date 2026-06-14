@@ -264,6 +264,41 @@ Rcpp::List two_block_rNormal_reg_v2_cpp_export(
     bool progbar
 );
 
+/// Staged v2 driver (twoBlockGibbsStaged.cpp): pilot replicate chains,
+/// Hotelling chi-squared vs fixef_start, then main replicate chains.
+/// Pilot eigenvalue upper bounds are computed in the R wrapper (Phase 2b).
+Rcpp::List two_block_rNormal_reg_staged_cpp_export(
+    int n_main,
+    int m_convergence_main,
+    int n_pilot,
+    int m_convergence_pilot,
+    const NumericVector& y,
+    const NumericMatrix& x,
+    const Rcpp::RObject& block,
+    const List& x_hyper,
+    const List& prior_list_block1,
+    const Rcpp::RObject& dispersion_block1,
+    const Rcpp::RObject& ddef_block1,
+    const List& pfamily_list,
+    const List& fixef_start,
+    const CharacterVector& group_levels,
+    const std::string& family,
+    const std::string& link,
+    const Function& f2,
+    const Function& f3,
+    const Function& f2_gauss,
+    const Function& f3_gauss,
+    const NumericVector& offset,
+    const NumericVector& wt,
+    int Gridtype,
+    int n_envopt,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose,
+    bool progbar_main,
+    bool progbar_pilot
+);
+
 Rcpp::List rNormalGLM_optim_poisson_log(
     const NumericVector& parin,
     const NumericVector& y,
