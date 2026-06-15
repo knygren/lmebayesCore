@@ -96,7 +96,7 @@ for (i in seq_along(re_names)) {
   }
 }
 stopifnot(is.null(staged0$pilot))
-stopifnot(staged0$m_convergence_used == m_main)
+stopifnot(staged0$m_convergence == m_main)
 
 ## With pilot: chi-squared structure present (UB deferred to Phase 2b R wrapper).
 set.seed(919)
@@ -125,7 +125,7 @@ stopifnot(!is.null(staged_p$pilot))
 stopifnot(!is.null(staged_p$pilot_chisq))
 stopifnot(is.finite(staged_p$pilot_chisq$Q))
 stopifnot(staged_p$pilot_chisq$df == sum(vapply(fixef_start, length, integer(1L))))
-stopifnot(staged_p$m_convergence_used == m_main)
+stopifnot(staged_p$m_convergence == m_main)
 stopifnot(is.list(staged_p$fixef_main_start))
 stopifnot(!is.null(staged_p$pilot$b_draws))
 

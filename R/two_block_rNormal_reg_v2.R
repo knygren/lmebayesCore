@@ -60,7 +60,8 @@
 #'   \code{m_convergence}; divide by \code{m_convergence} for the average
 #'   number of candidates per accepted draw).
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{dNormal}},
+#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM}},
+#'   \code{\link{dNormal}},
 #'   \code{\link{dIndependent_Normal_Gamma}}
 #' @export
 two_block_rNormal_reg_v2 <- function(
@@ -223,6 +224,36 @@ two_block_rNormal_reg_v2 <- function(
     progbar           = isTRUE(progbar)
   )
 
+  .two_block_format_v2_cpp_out(
+    cpp_out         = cpp_out,
+    n               = n,
+    re_names        = re_names,
+    fixef_start     = fixef_start,
+    group_levels    = group_levels,
+    group_name      = group_name,
+    pfamily_list    = pfamily_list,
+    family          = family,
+    m_convergence   = m_convergence,
+    sampling        = sampling,
+    cl              = cl
+  )
+}
+
+#' Format raw v2 C++ output into a two_block_rNormal_reg_v2 object
+#' @noRd
+.two_block_format_v2_cpp_out <- function(
+    cpp_out,
+    n,
+    re_names,
+    fixef_start,
+    group_levels,
+    group_name,
+    pfamily_list,
+    family,
+    m_convergence,
+    sampling,
+    cl
+) {
   J <- length(group_levels)
   p_re <- length(re_names)
   group_ids <- as.character(cpp_out$group_ids)
