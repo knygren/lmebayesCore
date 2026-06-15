@@ -39,5 +39,10 @@ void progress_bar(double x, double N)
   
 }
 
+void progress_bar_finish()
+{
+  Rcpp::Rcout << std::endl;
+}
+
 }
 }

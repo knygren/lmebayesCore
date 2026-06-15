@@ -125,6 +125,9 @@ inline std::string format_int_with_commas(long long value) {
 
 void progress_bar(double x, double N);
 
+// Finalize an in-progress bar (prints a newline so the next stage can log cleanly).
+void progress_bar_finish();
+
 } // namespace progress
 } // namespace glmbayes
 

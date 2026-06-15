@@ -405,6 +405,10 @@ List two_block_rNormal_reg_cpp_export(
     }
   }
 
+  if (progbar) {
+    glmbayes::progress::progress_bar_finish();
+  }
+
   List fixef_last(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_last[j] = fixef[j];
@@ -842,6 +846,10 @@ List two_block_rNormal_reg_v2_cpp_export(
       }
       disp_draws(i, j) = tau2[j];
     }
+  }
+
+  if (progbar) {
+    glmbayes::progress::progress_bar_finish();
   }
 
   List fixef_last(p_re);
