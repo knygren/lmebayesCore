@@ -29,7 +29,9 @@ rGLMM(
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE,
-  progbar = FALSE
+  progbar = FALSE,
+  stage_verbose = FALSE,
+  rate_calibration = NULL
 )
 }
 \arguments{
@@ -79,6 +81,14 @@ post-pilot eigenvalue upper-bound calibration before the main stage.}
 Block~1 when \code{family} is not Gaussian. \code{n_envopt} defaults to
 \code{n}. \code{progbar} controls progress bars for both pilot and main
 stages when a pilot runs.}
+
+\item{stage_verbose}{When \code{TRUE}, print pilot chi-squared and
+post-pilot eigenvalue upper-bound diagnostics between the pilot and main
+sampling stages (UB calibration path).}
+
+\item{rate_calibration}{Optional list with \code{lambda_star},
+\code{eigenvalues}, and \code{m_min} at the ICM mode; required for the
+post-pilot bounds line when \code{stage_verbose} is \code{TRUE}.}
 }
 \value{
 Object of class \code{c("rGLMM", "two_block_rNormal_reg_v2",
@@ -118,6 +128,7 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg_v3}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}

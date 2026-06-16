@@ -33,6 +33,7 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom MASS mvrnorm
 #' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom utils flush.console
 #' @import opencltools
 #' @import nmathopencl
 #' @useDynLib glmbayesCore, .registration = TRUE

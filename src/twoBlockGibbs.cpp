@@ -591,6 +591,12 @@ Block2PriorV2 block2_prior_prep_v2(const List& pf, int j1 /*1-based*/, int p) {
   return out;
 }
 
+void v3_reseed_r(int seed_val) {
+  Rcpp::Environment base("package:base");
+  Rcpp::Function set_seed = base["set.seed"];
+  set_seed(seed_val);
+}
+
 } // anonymous namespace
 
 List two_block_rNormal_reg_v2_cpp_export(
@@ -849,6 +855,277 @@ List two_block_rNormal_reg_v2_cpp_export(
   }
 
   if (progbar) {
+    glmbayes::progress::progress_bar_finish();
+  }
+
+  List fixef_last(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_last[j] = fixef[j];
+  }
+
+  return List::create(
+    Rcpp::Named("fixef_draws") = fixef_draws,
+    Rcpp::Named("b_draws") = b_arr,
+    Rcpp::Named("fixef_last") = fixef_last,
+    Rcpp::Named("b_last") = b_i,
+    Rcpp::Named("mu_all_last") = mu_all,
+    Rcpp::Named("group_ids") = group_ids,
+    Rcpp::Named("dispersion_fixef_draws") = disp_draws,
+    Rcpp::Named("iters_fixef_draws") = iters_draws,
+    Rcpp::Named("any_ing") = any_ing
+  );
+}
+
+List two_block_rNormal_reg_v3_cpp_export(
+    int n,
+    int m_convergence,
+    const NumericVector& y,
+    const NumericMatrix& x,
+    SEXP block,
+    const List& x_hyper,
+    const List& prior_list_block1,
+    SEXP dispersion_block1,
+    SEXP ddef_block1,
+    const List& pfamily_list,
+    const List& fixef_start,
+    const CharacterVector& group_levels,
+    const std::string& family,
+    const std::string& link,
+    const Function& f2,
+    const Function& f3,
+    const Function& f2_gauss,
+    const Function& f3_gauss,
+    const NumericVector& offset,
+    const NumericVector& wt,
+    int Gridtype,
+    int n_envopt,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose,
+    Rcpp::Nullable<int> seed,
+    int seed_offset,
+    bool progbar
+) {
+  if (n < 1) {
+    Rcpp::stop("'n' must be at least 1.");
+  }
+  if (m_convergence < 1) {
+    Rcpp::stop("'m_convergence' must be at least 1.");
+  }
+  const int p_re = x.ncol();
+  const int J = group_levels.size();
+  if (x_hyper.size() != p_re) {
+    Rcpp::stop("length(x_hyper) must equal ncol(x) = %d.", p_re);
+  }
+  if (pfamily_list.size() != p_re) {
+    Rcpp::stop("length(pfamily_list) must equal ncol(x) = %d.", p_re);
+  }
+  if (fixef_start.size() != p_re) {
+    Rcpp::stop("length(fixef_start) must equal ncol(x) = %d.", p_re);
+  }
+
+  const bool is_gaussian = (family == "gaussian");
+
+  MuAllBuilder mu_builder(x_hyper, group_levels);
+
+  std::vector<Block2PriorV2> pr2(p_re);
+  bool any_ing = false;
+  for (int j = 0; j < p_re; ++j) {
+    const NumericMatrix& X_j = mu_builder.X[j];
+    pr2[j] = block2_prior_prep_v2(List(pfamily_list[j]), j + 1, X_j.ncol());
+    if (pr2[j].is_ing) any_ing = true;
+  }
+
+  // Deep snapshot: each chain resets from this copy (same as a fresh n = 1
+  // v2 call after set.seed(seed + seed_offset + chain_index)).
+  std::vector<NumericVector> fixef_start_v(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_start_v[j] =
+      Rcpp::clone(Rcpp::as<NumericVector>(fixef_start[j]));
+  }
+  std::vector<NumericVector> fixef(p_re);
+
+  std::vector<double> tau2_start(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    tau2_start[j] = pr2[j].dispersion;
+  }
+  std::vector<double> tau2 = tau2_start;
+
+  NumericMatrix base_P1;
+  if (any_ing) {
+    if (has_non_null(prior_list_block1, "P")) {
+      base_P1 = Rcpp::as<NumericMatrix>(prior_list_block1["P"]);
+    } else if (has_non_null(prior_list_block1, "Sigma")) {
+      NumericMatrix S1 = Rcpp::as<NumericMatrix>(prior_list_block1["Sigma"]);
+      arma::mat S1a(const_cast<double*>(S1.begin()),
+                    S1.nrow(), S1.ncol(), false);
+      arma::mat P1inv = arma::inv_sympd(S1a);
+      base_P1 = NumericMatrix(Rcpp::wrap(0.5 * (P1inv + P1inv.t())));
+    } else {
+      Rcpp::stop("prior_list_block1 must contain 'P' or 'Sigma'.");
+    }
+    if (base_P1.nrow() != p_re || base_P1.ncol() != p_re) {
+      Rcpp::stop(
+        "prior_list_block1 P/Sigma must be %d x %d.", p_re, p_re
+      );
+    }
+  }
+
+  List fixef_draws(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_draws[j] = NumericMatrix(n, fixef_start_v[j].size());
+  }
+  NumericVector b_arr(Rcpp::Dimension(J, p_re, n));
+  NumericMatrix disp_draws(n, p_re);
+  NumericMatrix iters_draws(n, p_re);
+
+  NumericMatrix mu_all;
+  NumericMatrix b_i;
+  CharacterVector group_ids;
+  bool have_ids = false;
+
+  const bool have_seed = seed.isNotNull();
+  // Match run_short_chains_v2: R chain bar when n > 1, inner bar when n == 1.
+  const bool chain_progbar = progbar && n > 1;
+  const bool inner_progbar = progbar && n == 1;
+
+  for (int i = 0; i < n; ++i) {
+    Rcpp::checkUserInterrupt();
+
+    if (have_seed) {
+      v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
+    }
+
+    if (chain_progbar || inner_progbar) {
+      glmbayes::progress::progress_bar(
+        static_cast<double>(i + 1), static_cast<double>(n)
+      );
+    }
+
+    for (int j = 0; j < p_re; ++j) {
+      fixef[j] = Rcpp::clone(fixef_start_v[j]);
+    }
+    tau2 = tau2_start;
+
+    for (int m = 0; m < m_convergence; ++m) {
+
+      mu_all = mu_builder.build(fixef);
+      List pl1;
+      if (any_ing) {
+        NumericMatrix P1 = Rcpp::clone(base_P1);
+        for (int j = 0; j < p_re; ++j) {
+          if (!pr2[j].is_ing) continue;
+          for (int c = 0; c < p_re; ++c) {
+            P1(j, c) = 0.0;
+            P1(c, j) = 0.0;
+          }
+          P1(j, j) = 1.0 / tau2[j];
+        }
+        List pl1_base = List::create(
+          Rcpp::Named("P") = P1
+        );
+        pl1 = block1_prior_list(
+          mu_all, pl1_base, dispersion_block1, ddef_block1
+        );
+      } else {
+        pl1 = block1_prior_list(
+          mu_all, prior_list_block1, dispersion_block1, ddef_block1
+        );
+      }
+
+      List block_i;
+      if (is_gaussian) {
+        block_i = block_rNormalReg_cpp_export(
+          1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
+        );
+      } else {
+        block_i = block_rNormalGLM_cpp_export(
+          1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
+          family, link, Gridtype, n_envopt,
+          use_parallel, use_opencl, verbose
+        );
+      }
+
+      b_i = Rcpp::as<NumericMatrix>(block_i["coefficients"]);
+      if (b_i.nrow() != J || b_i.ncol() != p_re) {
+        Rcpp::stop(
+          "Block 1 returned a %d x %d coefficient matrix; expected %d x %d.",
+          b_i.nrow(), b_i.ncol(), J, p_re
+        );
+      }
+      if (!have_ids) {
+        List bi_info = block_i["block_info"];
+        group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
+        have_ids = true;
+      }
+
+      for (int j = 0; j < p_re; ++j) {
+        const NumericMatrix& X_j = mu_builder.X[j];
+        if (X_j.nrow() != b_i.nrow()) {
+          Rcpp::stop(
+            "nrow(x_hyper[[%d]]) (%d) must equal nrow(y) (%d).",
+            j + 1, X_j.nrow(), b_i.nrow()
+          );
+        }
+        NumericVector y_j = b_i(Rcpp::_, j);
+        NumericVector offset_j(X_j.nrow(), 0.0);
+        NumericVector wt_j(X_j.nrow(), 1.0);
+
+        if (!pr2[j].is_ing) {
+          List out_j = rNormalReg(
+            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
+            pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
+            "gaussian", "identity", 2
+          );
+          NumericMatrix coef_j =
+            Rcpp::as<NumericMatrix>(out_j["coefficients"]);
+          fixef[j] = NumericVector(coef_j(0, Rcpp::_));
+          iters_draws(i, j) += 1.0;
+        } else {
+          List out_j = rIndepNormalGammaReg(
+            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
+            pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
+            Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
+            Rcpp::Nullable<NumericVector>(pr2[j].disp_upper),
+            2 /*Gridtype*/, 1 /*n_envopt*/,
+            false /*use_parallel: n = 1 is serial anyway*/,
+            false /*use_opencl*/, false /*verbose*/, false /*progbar*/
+          );
+          NumericMatrix coef_j = Rcpp::as<NumericMatrix>(out_j["out"]);
+          NumericVector gamma_j(coef_j.nrow());
+          for (int c = 0; c < coef_j.nrow(); ++c) {
+            gamma_j[c] = coef_j(c, 0);
+          }
+          fixef[j] = gamma_j;
+          NumericVector disp_j = Rcpp::as<NumericVector>(out_j["disp_out"]);
+          tau2[j] = disp_j[0];
+          NumericVector iters_j =
+            Rcpp::as<NumericVector>(out_j["iters_out"]);
+          iters_draws(i, j) += iters_j[0];
+        }
+      }
+    }
+
+    for (int j = 0; j < p_re; ++j) {
+      NumericMatrix fd = fixef_draws[j];
+      const NumericVector& fj = fixef[j];
+      if (fj.size() != fd.ncol()) {
+        Rcpp::stop(
+          "Block 2 draw for component %d has length %d; expected %d.",
+          j + 1, fj.size(), fd.ncol()
+        );
+      }
+      fd(i, Rcpp::_) = fj;
+    }
+    for (int j = 0; j < p_re; ++j) {
+      for (int g = 0; g < J; ++g) {
+        b_arr[g + J * (j + p_re * i)] = b_i(g, j);
+      }
+      disp_draws(i, j) = tau2[j];
+    }
+  }
+
+  if (chain_progbar || inner_progbar) {
     glmbayes::progress::progress_bar_finish();
   }
 

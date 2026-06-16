@@ -43,6 +43,12 @@
 #'   Block~1 when \code{family} is not Gaussian. \code{n_envopt} defaults to
 #'   \code{n}. \code{progbar} controls progress bars for both pilot and main
 #'   stages when a pilot runs.
+#' @param stage_verbose When \code{TRUE}, print pilot chi-squared and
+#'   post-pilot eigenvalue upper-bound diagnostics between the pilot and main
+#'   sampling stages (UB calibration path).
+#' @param rate_calibration Optional list with \code{lambda_star},
+#'   \code{eigenvalues}, and \code{m_min} at the ICM mode; required for the
+#'   post-pilot bounds line when \code{stage_verbose} is \code{TRUE}.
 #' @return Object of class \code{c("rGLMM", "two_block_rNormal_reg_v2",
 #'   "two_block_rNormal_reg")}.  Main-stage Block~2 fields use the
 #'   \code{fixef.*} namespace (\code{fixef}, \code{fixef.last}, \code{fixef.mu},
@@ -80,7 +86,9 @@ rGLMM <- function(
     use_parallel        = TRUE,
     use_opencl          = FALSE,
     verbose             = FALSE,
-    progbar             = FALSE) {
+    progbar             = FALSE,
+    stage_verbose       = FALSE,
+    rate_calibration    = NULL) {
 
   cl <- match.call()
 
@@ -339,6 +347,10 @@ rGLMM <- function(
         cpp_common
       )
     )
+    if (progbar_flag) {
+      cat("\n")
+      flush.console()
+    }
     pilot_res <- .two_block_format_v2_cpp_out(
       cpp_out         = pilot_cpp,
       n               = n_pilot,
@@ -379,6 +391,16 @@ rGLMM <- function(
     )
     if (pilot_ub$m_min_upper > m_convergence_used) {
       m_convergence_used <- pilot_ub$m_min_upper
+    }
+    if (isTRUE(stage_verbose)) {
+      .rGLMM_print_pilot_stage_diagnostics(
+        n_pilot            = n_pilot,
+        n_main             = n,
+        pilot_chisq        = pilot_chisq,
+        pilot_ub           = pilot_ub,
+        rate_calibration   = rate_calibration,
+        m_convergence_used = m_convergence_used
+      )
     }
     main_cpp <- do.call(
       .two_block_rNormal_reg_v2_cpp,
@@ -436,6 +458,46 @@ rGLMM <- function(
     "two_block_rNormal_reg"
   )
   main_res
+}
+
+#' Print pilot-stage diagnostics between pilot and main sampling (UB path)
+#' @noRd
+.rGLMM_print_pilot_stage_diagnostics <- function(
+    n_pilot,
+    n_main,
+    pilot_chisq,
+    pilot_ub,
+    rate_calibration,
+    m_convergence_used) {
+
+  if (!is.null(pilot_chisq)) {
+    cat(sprintf(
+      "--- glmerb: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
+      pilot_chisq$p_value, pilot_chisq$df, pilot_chisq$n_pilot
+    ))
+  }
+
+  if (!is.null(pilot_ub) && !is.null(rate_calibration)) {
+    .fmt_eigs <- function(ev) paste(sprintf("%.4f", ev), collapse = ", ")
+    cat(sprintf(
+      "--- glmerb: post-pilot convergence bounds (%d pilot draws) ---\n    ML estimate (local-Gaussian at mode):    lambda* = %.4f, m_min = %d, eigenvalues = [%s]\n    Pilot upper bound (per-eig max, #%d/%d): lambda* = %.4f, m_min = %d, eigenvalues = [%s]\n    => using m_convergence = %d ---\n\n",
+      n_pilot,
+      rate_calibration$lambda_star,
+      rate_calibration$m_min,
+      .fmt_eigs(rate_calibration$eigenvalues),
+      pilot_ub$i_max_rate, n_pilot,
+      pilot_ub$rate_upper$lambda_star,
+      pilot_ub$m_min_upper,
+      .fmt_eigs(pilot_ub$max_eigenvalues),
+      m_convergence_used
+    ))
+  }
+
+  cat(sprintf(
+    "--- glmerb: pilot complete; main stage (%d independent chains from pilot mean; m_convergence = %d) ---\n\n",
+    n_main, m_convergence_used
+  ))
+  flush.console()
 }
 
 #' Rename v2 result fields to the rGLMM \code{fixef.*} namespace
