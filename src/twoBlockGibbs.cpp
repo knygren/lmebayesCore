@@ -906,6 +906,32 @@ List two_block_rNormal_reg_v3_cpp_export(
     int seed_offset,
     bool progbar
 ) {
+  // Two-block Gibbs sampler (v3): independent short chains in C++.
+  //
+  // Indexing:
+  //   p_re  = ncol(x) = number of random-effect *columns* in Z (e.g. intercept,
+  //           slope RE terms), not the number of hyperparameters.
+  //   J     = number of grouping-factor *levels* (rows of b_i).
+  //   n     = number of independent chains (stored draws / replicates).
+  //   m     = inner Gibbs sweeps per chain (m_convergence); only the state
+  //           after the last sweep is stored for each chain.
+  //
+  // Loop hierarchy (outer -> inner):
+  //   for i in 0..n-1     independent chains (each re-seeded; own RNG stream)
+  //     for m in 0..m_convergence-1   one full two-block sweep
+  //       Block 1 once    joint draw of all group-level b (J x p_re matrix)
+  //       for j in 0..p_re-1   Block 2 per RE column (hyperparameter gamma_k)
+  //
+  // Block 1 (level-1 / observation model): given hyperparameters fixef, draw
+  //   random effects b_{g,k} for every group g and RE column k from the
+  //   conditional of y | b (Gaussian reg or GLM blocked by the factor).
+  //   block_rNormalReg / block_rNormalGLM handle grouping internally; there
+  //   is no explicit loop over factor levels here.
+  //
+  // Block 2 (level-2 / hyperparameter model): given Block-1 draws b[,k] as
+  //   pseudo-response (length J), draw hyperparameters gamma_k via regression
+  //   on x_hyper[[k]] (one pfamily component per RE column j).
+
   if (n < 1) {
     Rcpp::stop("'n' must be at least 1.");
   }
@@ -928,6 +954,7 @@ List two_block_rNormal_reg_v3_cpp_export(
 
   MuAllBuilder mu_builder(x_hyper, group_levels);
 
+  // Setup (no RNG): parse Block 2 pfamily priors, one entry per RE column j.
   std::vector<Block2PriorV2> pr2(p_re);
   bool any_ing = false;
   for (int j = 0; j < p_re; ++j) {
@@ -945,12 +972,17 @@ List two_block_rNormal_reg_v3_cpp_export(
   }
   std::vector<NumericVector> fixef(p_re);
 
+  // Working state for Block 2 hyperparameters (gamma_k) and ING dispersions.
+  // fixef[j] = hyperparameter vector for RE column j; tau2[j] = Block 2
+  // dispersion for that component (fixed for dNormal, updated for ING).
   std::vector<double> tau2_start(p_re);
   for (int j = 0; j < p_re; ++j) {
     tau2_start[j] = pr2[j].dispersion;
   }
   std::vector<double> tau2 = tau2_start;
 
+  // Block 1 prior template for ING: p_re x p_re precision; ING rows refreshed
+  // each sweep from current tau2 (see inner loop over j below).
   NumericMatrix base_P1;
   if (any_ing) {
     if (has_non_null(prior_list_block1, "P")) {
@@ -971,6 +1003,10 @@ List two_block_rNormal_reg_v3_cpp_export(
     }
   }
 
+  // Output buffers:
+  //   fixef_draws[[j]]     n x q_k  Block 2 hyperparameters per chain
+  //   b_arr                J x p_re x n  Block 1 random effects per chain
+  //   disp_draws, iters_draws   n x p_re  Block 2 tau^2 and sampler counts
   List fixef_draws(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_draws[j] = NumericMatrix(n, fixef_start_v[j].size());
@@ -989,9 +1025,11 @@ List two_block_rNormal_reg_v3_cpp_export(
   const bool chain_progbar = progbar && n > 1;
   const bool inner_progbar = progbar && n == 1;
 
+  // ---- Outer loop: n independent short chains (stored draws) ----
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
 
+    // Per-chain RNG: seed + seed_offset + (i + 1) [1-based chain index].
     if (have_seed) {
       v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
     }
@@ -1002,16 +1040,24 @@ List two_block_rNormal_reg_v3_cpp_export(
       );
     }
 
+    // Reset working state to fixef_start at the beginning of each chain
+    // (same as a fresh two_block_rNormal_reg_v2(n = 1) call).
     for (int j = 0; j < p_re; ++j) {
       fixef[j] = Rcpp::clone(fixef_start_v[j]);
     }
     tau2 = tau2_start;
 
+    // ---- Inner loop: m_convergence full two-block Gibbs sweeps ----
+    // Each sweep: Block 1 (all b) then Block 2 (each RE column j).  Only the
+    // final sweep's state is retained and packed after this loop completes.
     for (int m = 0; m < m_convergence; ++m) {
 
+      // Build group-level means mu_{k,g} from current fixef (Block 2 -> Block 1).
       mu_all = mu_builder.build(fixef);
       List pl1;
       if (any_ing) {
+        // Refresh Block 1 prior precision from ING tau2_k (loop over RE cols,
+        // not factor levels).
         NumericMatrix P1 = Rcpp::clone(base_P1);
         for (int j = 0; j < p_re; ++j) {
           if (!pr2[j].is_ing) continue;
@@ -1033,6 +1079,9 @@ List two_block_rNormal_reg_v3_cpp_export(
         );
       }
 
+      // ---- Block 1: one joint draw of b (J groups x p_re RE columns) ----
+      // Conditions on observation-level y, design Z, and current hyperprior pl1.
+      // Grouping factor levels are handled inside the block_* export.
       List block_i;
       if (is_gaussian) {
         block_i = block_rNormalReg_cpp_export(
@@ -1059,6 +1108,9 @@ List two_block_rNormal_reg_v3_cpp_export(
         have_ids = true;
       }
 
+      // ---- Block 2: one hyperparameter draw per RE column j ----
+      // Pseudo-response y_j = b_i[, j] (length J, one value per group level).
+      // x_hyper[[j]] is the level-2 design for RE column j.
       for (int j = 0; j < p_re; ++j) {
         const NumericMatrix& X_j = mu_builder.X[j];
         if (X_j.nrow() != b_i.nrow()) {
@@ -1072,6 +1124,7 @@ List two_block_rNormal_reg_v3_cpp_export(
         NumericVector wt_j(X_j.nrow(), 1.0);
 
         if (!pr2[j].is_ing) {
+          // dNormal Block 2: conjugate draw of gamma_k at fixed tau2[j].
           List out_j = rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
@@ -1082,6 +1135,8 @@ List two_block_rNormal_reg_v3_cpp_export(
           fixef[j] = NumericVector(coef_j(0, Rcpp::_));
           iters_draws(i, j) += 1.0;
         } else {
+          // ING Block 2: joint draw of (gamma_k, tau2_k); tau2[j] feeds next
+          // sweep's Block 1 prior row via the P1 refresh above.
           List out_j = rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
@@ -1106,6 +1161,8 @@ List two_block_rNormal_reg_v3_cpp_export(
       }
     }
 
+    // Pack chain i: store Block 2 hyperparameters and Block 1 b after the
+    // final inner sweep (m = m_convergence - 1).
     for (int j = 0; j < p_re; ++j) {
       NumericMatrix fd = fixef_draws[j];
       const NumericVector& fj = fixef[j];
@@ -1119,6 +1176,7 @@ List two_block_rNormal_reg_v3_cpp_export(
     }
     for (int j = 0; j < p_re; ++j) {
       for (int g = 0; g < J; ++g) {
+        // b_arr[g, j, i]: random effect for group level g, RE column j, chain i.
         b_arr[g + J * (j + p_re * i)] = b_i(g, j);
       }
       disp_draws(i, j) = tau2[j];
