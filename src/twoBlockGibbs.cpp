@@ -22,6 +22,8 @@
 #include "simfuncs.h"
 #include "progress_utils.h"
 
+#include <iomanip>
+
 #include <string>
 #include <vector>
 
@@ -595,6 +597,94 @@ void v3_reseed_r(int seed_val) {
   Rcpp::Environment base("package:base");
   Rcpp::Function set_seed = base["set.seed"];
   set_seed(seed_val);
+}
+
+// Per-chain canonical state (v4).  Working fixef/tau2/b are restored from
+// chain_state[i] at each sweep start and committed after each sweep so the
+// driver can swap to sweep-outer (m then i) without changing sweep body code.
+struct ChainSweepState {
+  std::vector<Rcpp::NumericVector> fixef;
+  std::vector<double> tau2;
+  Rcpp::NumericMatrix b;
+};
+
+ChainSweepState chain_state_init(
+    const std::vector<Rcpp::NumericVector>& fixef_start_v,
+    const std::vector<double>& tau2_start,
+    int J,
+    int p_re
+) {
+  ChainSweepState s;
+  s.fixef.resize(static_cast<size_t>(p_re));
+  for (int j = 0; j < p_re; ++j) {
+    s.fixef[static_cast<size_t>(j)] = Rcpp::clone(fixef_start_v[j]);
+  }
+  s.tau2 = tau2_start;
+  s.b = Rcpp::NumericMatrix(J, p_re);
+  return s;
+}
+
+void v4_verbose_print_fixef(
+    int m,
+    int i,
+    const char* tag,
+    const std::vector<Rcpp::NumericVector>& fixef,
+    int p_re
+) {
+  Rcpp::Rcout << "v4 sweep m=" << (m + 1) << " chain i=" << (i + 1)
+              << " " << tag << " fixef:";
+  for (int j = 0; j < p_re; ++j) {
+    Rcpp::Rcout << "  col" << (j + 1) << "=[";
+    const Rcpp::NumericVector& fj = fixef[static_cast<size_t>(j)];
+    for (int k = 0; k < fj.size(); ++k) {
+      if (k > 0) Rcpp::Rcout << ", ";
+      Rcpp::Rcout << std::fixed << std::setprecision(4) << fj[k];
+    }
+    Rcpp::Rcout << "]";
+  }
+  Rcpp::Rcout << "\n";
+}
+
+void chain_state_reset_start(
+    ChainSweepState& cs,
+    const std::vector<Rcpp::NumericVector>& fixef_start_v,
+    const std::vector<double>& tau2_start,
+    int p_re
+) {
+  for (int j = 0; j < p_re; ++j) {
+    cs.fixef[static_cast<size_t>(j)] = Rcpp::clone(fixef_start_v[j]);
+  }
+  cs.tau2 = tau2_start;
+}
+
+void chain_state_restore(
+    const ChainSweepState& cs,
+    std::vector<Rcpp::NumericVector>& fixef,
+    std::vector<double>& tau2,
+    Rcpp::NumericMatrix& b,
+    int p_re
+) {
+  for (int j = 0; j < p_re; ++j) {
+    fixef[static_cast<size_t>(j)] =
+      Rcpp::clone(cs.fixef[static_cast<size_t>(j)]);
+  }
+  tau2 = cs.tau2;
+  b = Rcpp::clone(cs.b);
+}
+
+void chain_state_commit(
+    ChainSweepState& dst,
+    const std::vector<Rcpp::NumericVector>& fixef,
+    const std::vector<double>& tau2,
+    const Rcpp::NumericMatrix& b,
+    int p_re
+) {
+  for (int j = 0; j < p_re; ++j) {
+    dst.fixef[static_cast<size_t>(j)] =
+      Rcpp::clone(fixef[static_cast<size_t>(j)]);
+  }
+  dst.tau2 = tau2;
+  dst.b = Rcpp::clone(b);
 }
 
 } // anonymous namespace
@@ -1190,6 +1280,316 @@ List two_block_rNormal_reg_v3_cpp_export(
   List fixef_last(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_last[j] = fixef[j];
+  }
+
+  return List::create(
+    Rcpp::Named("fixef_draws") = fixef_draws,
+    Rcpp::Named("b_draws") = b_arr,
+    Rcpp::Named("fixef_last") = fixef_last,
+    Rcpp::Named("b_last") = b_i,
+    Rcpp::Named("mu_all_last") = mu_all,
+    Rcpp::Named("group_ids") = group_ids,
+    Rcpp::Named("dispersion_fixef_draws") = disp_draws,
+    Rcpp::Named("iters_fixef_draws") = iters_draws,
+    Rcpp::Named("any_ing") = any_ing
+  );
+}
+
+List two_block_rNormal_reg_v4_cpp_export(
+    int n,
+    int m_convergence,
+    const NumericVector& y,
+    const NumericMatrix& x,
+    SEXP block,
+    const List& x_hyper,
+    const List& prior_list_block1,
+    SEXP dispersion_block1,
+    SEXP ddef_block1,
+    const List& pfamily_list,
+    const List& fixef_start,
+    const CharacterVector& group_levels,
+    const std::string& family,
+    const std::string& link,
+    const Function& f2,
+    const Function& f3,
+    const Function& f2_gauss,
+    const Function& f3_gauss,
+    const NumericVector& offset,
+    const NumericVector& wt,
+    int Gridtype,
+    int n_envopt,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose,
+    bool progbar
+) {
+  // Two-block Gibbs sampler (v4): chain-outer / sweep-inner (same as v3).
+  // Canonical state lives in chain_state[i]; working fixef/tau2/b are restored
+  // from chain_state[i] at each sweep start and committed after each sweep.
+  // To flip to sweep-outer: nest the chain loop inside the sweep loop and
+  // keep restore/commit around the sweep body unchanged.
+
+  if (n < 1) {
+    Rcpp::stop("'n' must be at least 1.");
+  }
+  if (m_convergence < 1) {
+    Rcpp::stop("'m_convergence' must be at least 1.");
+  }
+  const int p_re = x.ncol();
+  const int J = group_levels.size();
+  if (x_hyper.size() != p_re) {
+    Rcpp::stop("length(x_hyper) must equal ncol(x) = %d.", p_re);
+  }
+  if (pfamily_list.size() != p_re) {
+    Rcpp::stop("length(pfamily_list) must equal ncol(x) = %d.", p_re);
+  }
+  if (fixef_start.size() != p_re) {
+    Rcpp::stop("length(fixef_start) must equal ncol(x) = %d.", p_re);
+  }
+
+  const bool is_gaussian = (family == "gaussian");
+
+  MuAllBuilder mu_builder(x_hyper, group_levels);
+
+  std::vector<Block2PriorV2> pr2(p_re);
+  bool any_ing = false;
+  for (int j = 0; j < p_re; ++j) {
+    const NumericMatrix& X_j = mu_builder.X[j];
+    pr2[j] = block2_prior_prep_v2(List(pfamily_list[j]), j + 1, X_j.ncol());
+    if (pr2[j].is_ing) any_ing = true;
+  }
+
+  std::vector<NumericVector> fixef_start_v(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_start_v[j] =
+      Rcpp::clone(Rcpp::as<NumericVector>(fixef_start[j]));
+  }
+
+  std::vector<double> tau2_start(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    tau2_start[j] = pr2[j].dispersion;
+  }
+
+  NumericMatrix base_P1;
+  if (any_ing) {
+    if (has_non_null(prior_list_block1, "P")) {
+      base_P1 = Rcpp::as<NumericMatrix>(prior_list_block1["P"]);
+    } else if (has_non_null(prior_list_block1, "Sigma")) {
+      NumericMatrix S1 = Rcpp::as<NumericMatrix>(prior_list_block1["Sigma"]);
+      arma::mat S1a(const_cast<double*>(S1.begin()),
+                    S1.nrow(), S1.ncol(), false);
+      arma::mat P1inv = arma::inv_sympd(S1a);
+      base_P1 = NumericMatrix(Rcpp::wrap(0.5 * (P1inv + P1inv.t())));
+    } else {
+      Rcpp::stop("prior_list_block1 must contain 'P' or 'Sigma'.");
+    }
+    if (base_P1.nrow() != p_re || base_P1.ncol() != p_re) {
+      Rcpp::stop(
+        "prior_list_block1 P/Sigma must be %d x %d.", p_re, p_re
+      );
+    }
+  }
+
+  // Pre-allocate per-chain state (scaffolding; v3 uses working vectors only).
+  std::vector<ChainSweepState> chain_state(static_cast<size_t>(n));
+  for (int i = 0; i < n; ++i) {
+    chain_state[static_cast<size_t>(i)] =
+      chain_state_init(fixef_start_v, tau2_start, J, p_re);
+  }
+
+  List fixef_draws(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_draws[j] = NumericMatrix(n, fixef_start_v[j].size());
+  }
+  NumericVector b_arr(Rcpp::Dimension(J, p_re, n));
+  NumericMatrix disp_draws(n, p_re);
+  NumericMatrix iters_draws(n, p_re);
+
+  NumericMatrix mu_all;
+  NumericMatrix b_i;
+  CharacterVector group_ids;
+  bool have_ids = false;
+
+  // Shared working vectors (not aliases of chain_state); restored per sweep.
+  std::vector<NumericVector> fixef(static_cast<size_t>(p_re));
+  std::vector<double> tau2(static_cast<size_t>(p_re));
+
+  const bool chain_progbar = progbar && n > 1;
+  const bool inner_progbar = progbar && n == 1;
+
+  
+
+  
+  //////////// Initialize loop through chains
+  
+  for (int i = 0; i < n; ++i) {
+    Rcpp::checkUserInterrupt();
+
+    if (chain_progbar || inner_progbar) {
+      glmbayes::progress::progress_bar(
+        static_cast<double>(i + 1), static_cast<double>(n)
+      );
+    }
+
+    
+    /// Intialize loop though sweeps
+    
+    
+    for (int m = 0; m < m_convergence; ++m) {
+
+      
+      // Point cs at chain state for chain i
+    
+      ChainSweepState& cs = chain_state[static_cast<size_t>(i)];
+      
+      // If first sweep, we set to starting values
+      
+      if (m == 0) chain_state_reset_start(cs, fixef_start_v, tau2_start, p_re);
+      
+      // restore (matters if m>0)
+      
+      chain_state_restore(cs, fixef, tau2, b_i, p_re);
+      
+      
+
+      if (verbose) {
+        v4_verbose_print_fixef(m, i, "start", fixef, p_re);
+      }
+
+      mu_all = mu_builder.build(fixef);
+      List pl1;
+      if (any_ing) {
+        NumericMatrix P1 = Rcpp::clone(base_P1);
+        for (int j = 0; j < p_re; ++j) {
+          if (!pr2[j].is_ing) continue;
+          for (int c = 0; c < p_re; ++c) {
+            P1(j, c) = 0.0;
+            P1(c, j) = 0.0;
+          }
+          P1(j, j) = 1.0 / tau2[j];
+        }
+        List pl1_base = List::create(
+          Rcpp::Named("P") = P1
+        );
+        pl1 = block1_prior_list(
+          mu_all, pl1_base, dispersion_block1, ddef_block1
+        );
+      } else {
+        pl1 = block1_prior_list(
+          mu_all, prior_list_block1, dispersion_block1, ddef_block1
+        );
+      }
+
+      List block_i;
+      if (is_gaussian) {
+        block_i = block_rNormalReg_cpp_export(
+          1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
+        );
+      } else {
+        block_i = block_rNormalGLM_cpp_export(
+          1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
+          family, link, Gridtype, n_envopt,
+          use_parallel, use_opencl, verbose
+        );
+      }
+
+      b_i = Rcpp::as<NumericMatrix>(block_i["coefficients"]);
+      if (b_i.nrow() != J || b_i.ncol() != p_re) {
+        Rcpp::stop(
+          "Block 1 returned a %d x %d coefficient matrix; expected %d x %d.",
+          b_i.nrow(), b_i.ncol(), J, p_re
+        );
+      }
+      if (!have_ids) {
+        List bi_info = block_i["block_info"];
+        group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
+        have_ids = true;
+      }
+
+      for (int j = 0; j < p_re; ++j) {
+        const NumericMatrix& X_j = mu_builder.X[j];
+        if (X_j.nrow() != b_i.nrow()) {
+          Rcpp::stop(
+            "nrow(x_hyper[[%d]]) (%d) must equal nrow(y) (%d).",
+            j + 1, X_j.nrow(), b_i.nrow()
+          );
+        }
+        NumericVector y_j = b_i(Rcpp::_, j);
+        NumericVector offset_j(X_j.nrow(), 0.0);
+        NumericVector wt_j(X_j.nrow(), 1.0);
+
+        if (!pr2[j].is_ing) {
+          List out_j = rNormalReg(
+            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
+            pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
+            "gaussian", "identity", 2
+          );
+          NumericMatrix coef_j =
+            Rcpp::as<NumericMatrix>(out_j["coefficients"]);
+          fixef[j] = NumericVector(coef_j(0, Rcpp::_));
+          iters_draws(i, j) += 1.0;
+        } else {
+          List out_j = rIndepNormalGammaReg(
+            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
+            pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
+            Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
+            Rcpp::Nullable<NumericVector>(pr2[j].disp_upper),
+            2 /*Gridtype*/, 1 /*n_envopt*/,
+            false /*use_parallel: n = 1 is serial anyway*/,
+            false /*use_opencl*/, false /*verbose*/, false /*progbar*/
+          );
+          NumericMatrix coef_j = Rcpp::as<NumericMatrix>(out_j["out"]);
+          NumericVector gamma_j(coef_j.nrow());
+          for (int c = 0; c < coef_j.nrow(); ++c) {
+            gamma_j[c] = coef_j(c, 0);
+          }
+          fixef[j] = gamma_j;
+          NumericVector disp_j = Rcpp::as<NumericVector>(out_j["disp_out"]);
+          tau2[j] = disp_j[0];
+          NumericVector iters_j =
+            Rcpp::as<NumericVector>(out_j["iters_out"]);
+          iters_draws(i, j) += iters_j[0];
+        }
+      }
+
+      chain_state_commit(cs, fixef, tau2, b_i, p_re);
+
+      if (verbose) {
+        v4_verbose_print_fixef(m, i, "end  ", cs.fixef, p_re);
+      }
+
+      if (m == m_convergence - 1) {
+        for (int j = 0; j < p_re; ++j) {
+          NumericMatrix fd = fixef_draws[j];
+          const NumericVector& fj = cs.fixef[static_cast<size_t>(j)];
+          if (fj.size() != fd.ncol()) {
+            Rcpp::stop(
+              "Block 2 draw for component %d has length %d; expected %d.",
+              j + 1, fj.size(), fd.ncol()
+            );
+          }
+          fd(i, Rcpp::_) = fj;
+          fixef_draws[j] = fd;
+        }
+        for (int j = 0; j < p_re; ++j) {
+          for (int g = 0; g < J; ++g) {
+            b_arr[g + J * (j + p_re * i)] = cs.b(g, j);
+          }
+          disp_draws(i, j) = cs.tau2[static_cast<size_t>(j)];
+        }
+      }
+    }
+  }
+
+  if (chain_progbar || inner_progbar) {
+    glmbayes::progress::progress_bar_finish();
+  }
+
+  List fixef_last(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    fixef_last[j] = chain_state[static_cast<size_t>(n - 1)].fixef[
+      static_cast<size_t>(j)
+    ];
   }
 
   return List::create(

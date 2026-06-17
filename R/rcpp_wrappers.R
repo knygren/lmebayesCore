@@ -153,6 +153,29 @@
 
 #' @noRd
 #' @keywords internal
+.two_block_rNormal_reg_v4_cpp <- function(
+    n, m_convergence, y, x, block, x_hyper,
+    prior_list_block1, dispersion_block1, ddef_block1,
+    pfamily_list, fixef_start, group_levels,
+    family, link, f2, f3, f2_gauss, f3_gauss,
+    offset, wt,
+    Gridtype = 2L, n_envopt = 1L,
+    use_parallel = TRUE, use_opencl = FALSE,
+    verbose = FALSE,
+    progbar = TRUE
+) {
+  .Call(`_glmbayesCore_two_block_rNormal_reg_v4_cpp_export`,
+    n, m_convergence, y, x, block, x_hyper,
+    prior_list_block1, dispersion_block1, ddef_block1,
+    pfamily_list, fixef_start, group_levels,
+    family, link, f2, f3, f2_gauss, f3_gauss,
+    offset, wt, Gridtype, n_envopt,
+    use_parallel, use_opencl, verbose, progbar
+  )
+}
+
+#' @noRd
+#' @keywords internal
 .two_block_rNormal_reg_staged_cpp <- function(
     n_main, m_convergence_main,
     n_pilot, m_convergence_pilot,

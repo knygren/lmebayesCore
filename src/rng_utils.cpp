@@ -7,6 +7,7 @@
 //#include "nmath_local.h"
 //#include "dpq_local.h"
 #include "rng_utils.h"
+#include <sstream>
 
 // Thread-local RNG and distribution
 thread_local std::mt19937 safe_rng_engine(std::random_device{}());
@@ -129,7 +130,6 @@ namespace rng {
 double runif_safe() {
   return safe_rng_dist(safe_rng_engine);
 }
-
 
 // 
 // // Declaration (e.g. in a header if needed)
