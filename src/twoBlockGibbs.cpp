@@ -1295,6 +1295,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   );
 }
 
+
 List two_block_rNormal_reg_v4_cpp_export(
     int n,
     int m_convergence,
@@ -1323,12 +1324,32 @@ List two_block_rNormal_reg_v4_cpp_export(
     bool verbose,
     bool progbar
 ) {
-  // Two-block Gibbs sampler (v4): chain-outer / sweep-inner (same as v3).
-  // Canonical state lives in chain_state[i]; working fixef/tau2/b are restored
-  // from chain_state[i] at each sweep start and committed after each sweep.
-  // To flip to sweep-outer: nest the chain loop inside the sweep loop and
-  // keep restore/commit around the sweep body unchanged.
-
+  // Two-block Gibbs sampler (v4): independent short chains in C++.
+  //
+  // Indexing:
+  //   p_re  = ncol(x) = number of random-effect *columns* in Z (e.g. intercept,
+  //           slope RE terms), not the number of hyperparameters.
+  //   J     = number of grouping-factor *levels* (rows of b_i).
+  //   n     = number of independent chains (stored draws / replicates).
+  //   m     = inner Gibbs sweeps per chain (m_convergence); only the state
+  //           after the last sweep is stored for each chain.
+  //
+  // Loop hierarchy (outer -> inner):
+  //   for i in 0..n-1     independent chains (sequential draws from R RNG)
+  //     for m in 0..m_convergence-1   one full two-block sweep
+  //       Block 1 once    joint draw of all group-level b (J x p_re matrix)
+  //       for j in 0..p_re-1   Block 2 per RE column (hyperparameter gamma_k)
+  //
+  // Block 1 (level-1 / observation model): given hyperparameters fixef, draw
+  //   random effects b_{g,k} for every group g and RE column k from the
+  //   conditional of y | b (Gaussian reg or GLM blocked by the factor).
+  //   block_rNormalReg / block_rNormalGLM handle grouping internally; there
+  //   is no explicit loop over factor levels here.
+  //
+  // Block 2 (level-2 / hyperparameter model): given Block-1 draws b[,k] as
+  //   pseudo-response (length J), draw hyperparameters gamma_k via regression
+  //   on x_hyper[[k]] (one pfamily component per RE column j).
+  
   if (n < 1) {
     Rcpp::stop("'n' must be at least 1.");
   }
@@ -1346,11 +1367,12 @@ List two_block_rNormal_reg_v4_cpp_export(
   if (fixef_start.size() != p_re) {
     Rcpp::stop("length(fixef_start) must equal ncol(x) = %d.", p_re);
   }
-
+  
   const bool is_gaussian = (family == "gaussian");
-
+  
   MuAllBuilder mu_builder(x_hyper, group_levels);
-
+  
+  // Setup (no RNG): parse Block 2 pfamily priors, one entry per RE column j.
   std::vector<Block2PriorV2> pr2(p_re);
   bool any_ing = false;
   for (int j = 0; j < p_re; ++j) {
@@ -1358,18 +1380,27 @@ List two_block_rNormal_reg_v4_cpp_export(
     pr2[j] = block2_prior_prep_v2(List(pfamily_list[j]), j + 1, X_j.ncol());
     if (pr2[j].is_ing) any_ing = true;
   }
-
+  
+  // Deep snapshot: each chain resets from this copy (same as a fresh n = 1
+  // v2 call with the current R RNG stream).
   std::vector<NumericVector> fixef_start_v(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_start_v[j] =
       Rcpp::clone(Rcpp::as<NumericVector>(fixef_start[j]));
   }
-
+  std::vector<NumericVector> fixef(p_re);
+  
+  // Working state for Block 2 hyperparameters (gamma_k) and ING dispersions.
+  // fixef[j] = hyperparameter vector for RE column j; tau2[j] = Block 2
+  // dispersion for that component (fixed for dNormal, updated for ING).
   std::vector<double> tau2_start(p_re);
   for (int j = 0; j < p_re; ++j) {
     tau2_start[j] = pr2[j].dispersion;
   }
-
+  std::vector<double> tau2 = tau2_start;
+  
+  // Block 1 prior template for ING: p_re x p_re precision; ING rows refreshed
+  // each sweep from current tau2 (see inner loop over j below).
   NumericMatrix base_P1;
   if (any_ing) {
     if (has_non_null(prior_list_block1, "P")) {
@@ -1389,14 +1420,11 @@ List two_block_rNormal_reg_v4_cpp_export(
       );
     }
   }
-
-  // Pre-allocate per-chain state (scaffolding; v3 uses working vectors only).
-  std::vector<ChainSweepState> chain_state(static_cast<size_t>(n));
-  for (int i = 0; i < n; ++i) {
-    chain_state[static_cast<size_t>(i)] =
-      chain_state_init(fixef_start_v, tau2_start, J, p_re);
-  }
-
+  
+  // Output buffers:
+  //   fixef_draws[[j]]     n x q_k  Block 2 hyperparameters per chain
+  //   b_arr                J x p_re x n  Block 1 random effects per chain
+  //   disp_draws, iters_draws   n x p_re  Block 2 tau^2 and sampler counts
   List fixef_draws(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_draws[j] = NumericMatrix(n, fixef_start_v[j].size());
@@ -1404,61 +1432,73 @@ List two_block_rNormal_reg_v4_cpp_export(
   NumericVector b_arr(Rcpp::Dimension(J, p_re, n));
   NumericMatrix disp_draws(n, p_re);
   NumericMatrix iters_draws(n, p_re);
-
+  
   NumericMatrix mu_all;
   NumericMatrix b_i;
   CharacterVector group_ids;
   bool have_ids = false;
-
-  // Shared working vectors (not aliases of chain_state); restored per sweep.
-  std::vector<NumericVector> fixef(static_cast<size_t>(p_re));
-  std::vector<double> tau2(static_cast<size_t>(p_re));
-
+  
+  // Match run_short_chains_v2: R chain bar when n > 1, inner bar when n == 1.
   const bool chain_progbar = progbar && n > 1;
   const bool inner_progbar = progbar && n == 1;
-
   
-
   
-  //////////// Initialize loop through chains
+  int p_dim = 0;
+  for (int j = 0; j < p_re; ++j) {
+    p_dim += fixef_start_v[j].size();
+  }
+  
+  NumericMatrix fixef_temp=NumericMatrix(n,p_dim);
+  
   
   for (int i = 0; i < n; ++i) {
+    int col0 = 0;
+    for (int j = 0; j < p_re; ++j) {
+      const NumericVector& fj = fixef_start_v[j];
+      for (int c = 0; c < fj.size(); ++c) {
+        fixef_temp(i, col0 + c) = fj[c];
+      }
+      col0 += fj.size();
+    }
+  }
+  
+  // ---- Outer loop: n independent short chains (stored draws) ----
+  for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
-
+    
     if (chain_progbar || inner_progbar) {
       glmbayes::progress::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
-
     
-    /// Intialize loop though sweeps
+    // Reset working state to fixef_start at the beginning of each chain
+    // (same as a fresh two_block_rNormal_reg_v2(n = 1) call).
+    for (int j = 0; j < p_re; ++j) {
+      fixef[j] = Rcpp::clone(fixef_start_v[j]);
+    }
+    tau2 = tau2_start;
     
-    
+    // ---- Inner loop: m_convergence full two-block Gibbs sweeps ----
+    // Each sweep: Block 1 (all b) then Block 2 (each RE column j).  Only the
+    // final sweep's state is retained and packed after this loop completes.
     for (int m = 0; m < m_convergence; ++m) {
-
       
-      // Point cs at chain state for chain i
-    
-      ChainSweepState& cs = chain_state[static_cast<size_t>(i)];
-      
-      // If first sweep, we set to starting values
-      
-      if (m == 0) chain_state_reset_start(cs, fixef_start_v, tau2_start, p_re);
-      
-      // restore (matters if m>0)
-      
-      chain_state_restore(cs, fixef, tau2, b_i, p_re);
-      
-      
-
-      if (verbose) {
-        v4_verbose_print_fixef(m, i, "start", fixef, p_re);
-      }
-
+      int col0 = 0;
+      for (int j = 0; j < p_re; ++j) {
+        NumericVector& fj = fixef[j];
+        for (int c = 0; c < fj.size(); ++c) {
+          fj[c] = fixef_temp(i, col0 + c);
+        }
+        col0 += fj.size();
+      }      
+            
+      // Build group-level means mu_{k,g} from current fixef (Block 2 -> Block 1).
       mu_all = mu_builder.build(fixef);
       List pl1;
       if (any_ing) {
+        // Refresh Block 1 prior precision from ING tau2_k (loop over RE cols,
+        // not factor levels).
         NumericMatrix P1 = Rcpp::clone(base_P1);
         for (int j = 0; j < p_re; ++j) {
           if (!pr2[j].is_ing) continue;
@@ -1479,7 +1519,10 @@ List two_block_rNormal_reg_v4_cpp_export(
           mu_all, prior_list_block1, dispersion_block1, ddef_block1
         );
       }
-
+      
+      // ---- Block 1: one joint draw of b (J groups x p_re RE columns) ----
+      // Conditions on observation-level y, design Z, and current hyperprior pl1.
+      // Grouping factor levels are handled inside the block_* export.
       List block_i;
       if (is_gaussian) {
         block_i = block_rNormalReg_cpp_export(
@@ -1492,7 +1535,7 @@ List two_block_rNormal_reg_v4_cpp_export(
           use_parallel, use_opencl, verbose
         );
       }
-
+      
       b_i = Rcpp::as<NumericMatrix>(block_i["coefficients"]);
       if (b_i.nrow() != J || b_i.ncol() != p_re) {
         Rcpp::stop(
@@ -1505,7 +1548,10 @@ List two_block_rNormal_reg_v4_cpp_export(
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
-
+      
+      // ---- Block 2: one hyperparameter draw per RE column j ----
+      // Pseudo-response y_j = b_i[, j] (length J, one value per group level).
+      // x_hyper[[j]] is the level-2 design for RE column j.
       for (int j = 0; j < p_re; ++j) {
         const NumericMatrix& X_j = mu_builder.X[j];
         if (X_j.nrow() != b_i.nrow()) {
@@ -1517,8 +1563,9 @@ List two_block_rNormal_reg_v4_cpp_export(
         NumericVector y_j = b_i(Rcpp::_, j);
         NumericVector offset_j(X_j.nrow(), 0.0);
         NumericVector wt_j(X_j.nrow(), 1.0);
-
+        
         if (!pr2[j].is_ing) {
+          // dNormal Block 2: conjugate draw of gamma_k at fixed tau2[j].
           List out_j = rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
@@ -1529,6 +1576,8 @@ List two_block_rNormal_reg_v4_cpp_export(
           fixef[j] = NumericVector(coef_j(0, Rcpp::_));
           iters_draws(i, j) += 1.0;
         } else {
+          // ING Block 2: joint draw of (gamma_k, tau2_k); tau2[j] feeds next
+          // sweep's Block 1 prior row via the P1 refresh above.
           List out_j = rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
@@ -1551,47 +1600,66 @@ List two_block_rNormal_reg_v4_cpp_export(
           iters_draws(i, j) += iters_j[0];
         }
       }
-
-      chain_state_commit(cs, fixef, tau2, b_i, p_re);
-
-      if (verbose) {
-        v4_verbose_print_fixef(m, i, "end  ", cs.fixef, p_re);
-      }
-
-      if (m == m_convergence - 1) {
-        for (int j = 0; j < p_re; ++j) {
-          NumericMatrix fd = fixef_draws[j];
-          const NumericVector& fj = cs.fixef[static_cast<size_t>(j)];
-          if (fj.size() != fd.ncol()) {
-            Rcpp::stop(
-              "Block 2 draw for component %d has length %d; expected %d.",
-              j + 1, fj.size(), fd.ncol()
-            );
-          }
-          fd(i, Rcpp::_) = fj;
-          fixef_draws[j] = fd;
+      
+      
+      col0 = 0;
+      for (int j = 0; j < p_re; ++j) {
+        const NumericVector& fj = fixef[j];
+        for (int c = 0; c < fj.size(); ++c) {
+          fixef_temp(i, col0 + c) = fj[c];
         }
-        for (int j = 0; j < p_re; ++j) {
-          for (int g = 0; g < J; ++g) {
-            b_arr[g + J * (j + p_re * i)] = cs.b(g, j);
-          }
-          disp_draws(i, j) = cs.tau2[static_cast<size_t>(j)];
-        }
+        col0 += fj.size();
       }
+      
+      
+    }
+    
+    
+    
+    ///////////////////////////////////////////////////
+    
+    
+    
+    
+    
+    
+    
+    
+    ///////////////////////////////////////////////////////////
+    
+    
+    
+    // Pack chain i: store Block 2 hyperparameters and Block 1 b after the
+    // final inner sweep (m = m_convergence - 1).
+    for (int j = 0; j < p_re; ++j) {
+      NumericMatrix fd = fixef_draws[j];
+      const NumericVector& fj = fixef[j];
+      if (fj.size() != fd.ncol()) {
+        Rcpp::stop(
+          "Block 2 draw for component %d has length %d; expected %d.",
+          j + 1, fj.size(), fd.ncol()
+        );
+      }
+      fd(i, Rcpp::_) = fj;
+    }
+    for (int j = 0; j < p_re; ++j) {
+      for (int g = 0; g < J; ++g) {
+        // b_arr[g, j, i]: random effect for group level g, RE column j, chain i.
+        b_arr[g + J * (j + p_re * i)] = b_i(g, j);
+      }
+      disp_draws(i, j) = tau2[j];
     }
   }
-
+  
   if (chain_progbar || inner_progbar) {
     glmbayes::progress::progress_bar_finish();
   }
-
+  
   List fixef_last(p_re);
   for (int j = 0; j < p_re; ++j) {
-    fixef_last[j] = chain_state[static_cast<size_t>(n - 1)].fixef[
-      static_cast<size_t>(j)
-    ];
+    fixef_last[j] = fixef[j];
   }
-
+  
   return List::create(
     Rcpp::Named("fixef_draws") = fixef_draws,
     Rcpp::Named("b_draws") = b_arr,
@@ -1604,6 +1672,8 @@ List two_block_rNormal_reg_v4_cpp_export(
     Rcpp::Named("any_ing") = any_ing
   );
 }
+
+
 
 } // namespace sim
 } // namespace glmbayes
