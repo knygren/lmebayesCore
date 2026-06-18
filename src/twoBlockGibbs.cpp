@@ -626,7 +626,37 @@ void two_block_driver_banner_v4(
               << " seed_offset=" << seed_offset
               << (have_seed ? " seeded" : " unseeded")
               << "; fixef_temp " << p_dim << "-col load/store ON"
-              << ", tau2_temp OFF ---\n";
+              << ", tau2_temp load/store ON ---\n";
+}
+
+void pack_two_block_chain_draw(
+    int i,
+    int p_re,
+    int J,
+    const std::vector<Rcpp::NumericVector>& fixef,
+    const std::vector<double>& tau2,
+    const Rcpp::NumericMatrix& b_i,
+    Rcpp::List& fixef_draws,
+    Rcpp::NumericVector& b_arr,
+    Rcpp::NumericMatrix& disp_draws
+) {
+  for (int j = 0; j < p_re; ++j) {
+    Rcpp::NumericMatrix fd = fixef_draws[j];
+    const Rcpp::NumericVector& fj = fixef[static_cast<size_t>(j)];
+    if (fj.size() != fd.ncol()) {
+      Rcpp::stop(
+        "Block 2 draw for component %d has length %d; expected %d.",
+        j + 1, fj.size(), fd.ncol()
+      );
+    }
+    fd(i, Rcpp::_) = fj;
+  }
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      b_arr[g + J * (j + p_re * i)] = b_i(g, j);
+    }
+    disp_draws(i, j) = tau2[static_cast<size_t>(j)];
+  }
 }
 
 // Per-chain canonical state (v4).  Working fixef/tau2/b are restored from
@@ -1482,7 +1512,7 @@ List two_block_rNormal_reg_v4_cpp_export(
   }
   
   NumericMatrix fixef_temp=NumericMatrix(n,p_dim);
-  // NumericMatrix tau2_temp = NumericMatrix(n, p_re);
+  NumericMatrix tau2_temp = NumericMatrix(n, p_re);
   
   
   for (int i = 0; i < n; ++i) {
@@ -1494,9 +1524,9 @@ List two_block_rNormal_reg_v4_cpp_export(
       }
       col0 += fj.size();
     }
-    // for (int j = 0; j < p_re; ++j) {
-    //   tau2_temp(i, j) = tau2_start[j];
-    // }
+    for (int j = 0; j < p_re; ++j) {
+      tau2_temp(i, j) = tau2_start[j];
+    }
   }
 
   two_block_driver_banner_v4(n, m_convergence, seed_offset, have_seed, p_dim);
@@ -1535,9 +1565,9 @@ List two_block_rNormal_reg_v4_cpp_export(
         }
         col0 += fj.size();
       }
-      // for (int j = 0; j < p_re; ++j) {
-      //   tau2[j] = tau2_temp(i, j);
-      // }
+      for (int j = 0; j < p_re; ++j) {
+        tau2[j] = tau2_temp(i, j);
+      }
       
       // Build group-level means mu_{k,g} from current fixef (Block 2 -> Block 1).
       mu_all = mu_builder.build(fixef);
@@ -1656,49 +1686,18 @@ List two_block_rNormal_reg_v4_cpp_export(
         }
         col0 += fj.size();
       }
-      // for (int j = 0; j < p_re; ++j) {
-      //   tau2_temp(i, j) = tau2[j];
-      // }
-      
-      
-    }
-    
-    
-    
-    ///////////////////////////////////////////////////
-    
-    
-    
-    
-    
-    
-    
-    
-    ///////////////////////////////////////////////////////////
-    
-    
-    
-    // Pack chain i: store Block 2 hyperparameters and Block 1 b after the
-    // final inner sweep (m = m_convergence - 1).
-    for (int j = 0; j < p_re; ++j) {
-      NumericMatrix fd = fixef_draws[j];
-      const NumericVector& fj = fixef[j];
-      if (fj.size() != fd.ncol()) {
-        Rcpp::stop(
-          "Block 2 draw for component %d has length %d; expected %d.",
-          j + 1, fj.size(), fd.ncol()
+      for (int j = 0; j < p_re; ++j) {
+        tau2_temp(i, j) = tau2[j];
+      }
+
+      if (m == m_convergence - 1) {
+        pack_two_block_chain_draw(
+          i, p_re, J, fixef, tau2, b_i,
+          fixef_draws, b_arr, disp_draws
         );
       }
-      fd(i, Rcpp::_) = fj;
-    }
-    for (int j = 0; j < p_re; ++j) {
-      for (int g = 0; g < J; ++g) {
-        // b_arr[g, j, i]: random effect for group level g, RE column j, chain i.
-        b_arr[g + J * (j + p_re * i)] = b_i(g, j);
-      }
-      disp_draws(i, j) = tau2[j];
-    }
-  }
+    } // Enf of sweep loop
+  }  /// End of chain loop
   
   if (chain_progbar || inner_progbar) {
     glmbayes::progress::progress_bar_finish();
