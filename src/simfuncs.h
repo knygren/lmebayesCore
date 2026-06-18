@@ -264,9 +264,8 @@ Rcpp::List two_block_rNormal_reg_v2_cpp_export(
     bool progbar
 );
 
-/// v3 short-chain driver (twoBlockGibbs.cpp): same Gibbs body as v2, but each
-/// stored draw re-seeds R's RNG with seed + seed_offset + chain (1-based).
-/// Does not call two_block_rNormal_reg_v2_cpp_export.
+/// v3 short-chain driver (twoBlockGibbs.cpp): same Gibbs body as v2; chain
+/// loop in C++.  Does not call two_block_rNormal_reg_v2_cpp_export.
 Rcpp::List two_block_rNormal_reg_v3_cpp_export(
     int n,
     int m_convergence,
@@ -328,6 +327,8 @@ Rcpp::List two_block_rNormal_reg_v4_cpp_export(
     bool use_parallel,
     bool use_opencl,
     bool verbose,
+    Rcpp::Nullable<int> seed,
+    int seed_offset,
     bool progbar
 );
 

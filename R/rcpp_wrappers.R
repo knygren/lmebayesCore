@@ -138,7 +138,8 @@
     Gridtype = 2L, n_envopt = 1L,
     use_parallel = TRUE, use_opencl = FALSE,
     verbose = FALSE,
-    seed = NULL, seed_offset = 0L,
+    seed = NULL,
+    seed_offset = 0L,
     progbar = TRUE
 ) {
   .Call(`_glmbayesCore_two_block_rNormal_reg_v3_cpp_export`,
@@ -162,6 +163,8 @@
     Gridtype = 2L, n_envopt = 1L,
     use_parallel = TRUE, use_opencl = FALSE,
     verbose = FALSE,
+    seed = NULL,
+    seed_offset = 0L,
     progbar = TRUE
 ) {
   .Call(`_glmbayesCore_two_block_rNormal_reg_v4_cpp_export`,
@@ -170,7 +173,7 @@
     pfamily_list, fixef_start, group_levels,
     family, link, f2, f3, f2_gauss, f3_gauss,
     offset, wt, Gridtype, n_envopt,
-    use_parallel, use_opencl, verbose, progbar
+    use_parallel, use_opencl, verbose, seed, seed_offset, progbar
   )
 }
 

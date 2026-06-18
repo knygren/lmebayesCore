@@ -1,14 +1,10 @@
 #' Two-block Gibbs sampler via independent short chains (development v3)
 #'
-#' Algorithmically identical to repeated
-#' \code{\link{two_block_rNormal_reg_v2}(n = 1L)} calls with
-#' \code{set.seed(seed + seed_offset + i)} per chain.  The only difference is
-#' that the chain loop lives in C++ (\code{.two_block_rNormal_reg_v3_cpp})
+#' Same short-chain Gibbs semantics as \code{\link{two_block_rNormal_reg_v2}},
+#' with the chain loop in C++ (\code{.two_block_rNormal_reg_v3_cpp})
 #' instead of R; there is no call to the v2 sampler export.
 #'
 #' @inheritParams two_block_rNormal_reg_v2
-#' @param seed_offset Integer added to \code{seed} for chain \code{i}
-#'   (\code{seed + seed_offset + i}).  Default \code{0L}.
 #' @param collect_block1 Logical. If \code{TRUE}, row-bind Block~1
 #'   (\code{coefficients}) draws from every chain.  Default \code{TRUE}.
 #' @return Object of class \code{c("two_block_rNormal_reg_v3",
@@ -61,7 +57,6 @@ two_block_rNormal_reg_v3 <- function(
   if (m_convergence < 1L) {
     stop("'m_convergence' must be at least 1.", call. = FALSE)
   }
-  seed_offset <- as.integer(seed_offset[1L])
 
   y <- as.vector(y)
   x <- as.matrix(x)
@@ -145,7 +140,6 @@ two_block_rNormal_reg_v3 <- function(
   famfunc_gauss <- glmbfamfunc(gaussian())
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
 
-  seed_cpp <- if (is.null(seed)) NULL else as.integer(seed[1L])
   x_hyper_mats <- lapply(x_hyper, as.matrix)
 
   cpp_out <- .two_block_rNormal_reg_v3_cpp(
@@ -174,8 +168,8 @@ two_block_rNormal_reg_v3 <- function(
     use_parallel      = use_parallel,
     use_opencl        = use_opencl,
     verbose           = verbose,
-    seed              = seed_cpp,
-    seed_offset       = seed_offset,
+    seed              = seed,
+    seed_offset       = as.integer(seed_offset),
     progbar           = isTRUE(progbar)
   )
 

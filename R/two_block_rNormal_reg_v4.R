@@ -36,6 +36,8 @@ two_block_rNormal_reg_v4 <- function(
     use_parallel = TRUE,
     use_opencl = FALSE,
     verbose = FALSE,
+    seed = NULL,
+    seed_offset = 0L,
     collect_block1 = TRUE,
     progbar = FALSE) {
 
@@ -167,6 +169,8 @@ two_block_rNormal_reg_v4 <- function(
     use_parallel      = use_parallel,
     use_opencl        = use_opencl,
     verbose           = verbose,
+    seed              = seed,
+    seed_offset       = as.integer(seed_offset),
     progbar           = isTRUE(progbar)
   )
 

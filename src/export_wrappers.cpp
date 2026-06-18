@@ -305,6 +305,8 @@ Rcpp::List two_block_rNormal_reg_v4_cpp_export(
     bool use_parallel = true,
     bool use_opencl = false,
     bool verbose = false,
+    Rcpp::Nullable<int> seed = R_NilValue,
+    int seed_offset = 0,
     bool progbar = true
 ) {
   return glmbayes::sim::two_block_rNormal_reg_v4_cpp_export(
@@ -313,7 +315,7 @@ Rcpp::List two_block_rNormal_reg_v4_cpp_export(
     pfamily_list, fixef_start, group_levels,
     family, link, f2, f3, f2_gauss, f3_gauss,
     offset, wt, Gridtype, n_envopt,
-    use_parallel, use_opencl, verbose, progbar
+    use_parallel, use_opencl, verbose, seed, seed_offset, progbar
   );
 }
 

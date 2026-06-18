@@ -599,6 +599,36 @@ void v3_reseed_r(int seed_val) {
   set_seed(seed_val);
 }
 
+void two_block_driver_banner_v3(
+    int n,
+    int m_convergence,
+    int seed_offset,
+    bool have_seed
+) {
+  Rcpp::Rcout << "--- glmbayesCore two_block_rNormal_reg_v3 (C++ driver)"
+              << ": n=" << n
+              << " m_convergence=" << m_convergence
+              << " seed_offset=" << seed_offset
+              << (have_seed ? " seeded" : " unseeded")
+              << " ---\n";
+}
+
+void two_block_driver_banner_v4(
+    int n,
+    int m_convergence,
+    int seed_offset,
+    bool have_seed,
+    int p_dim
+) {
+  Rcpp::Rcout << "--- glmbayesCore two_block_rNormal_reg_v4 (C++ driver)"
+              << ": n=" << n
+              << " m_convergence=" << m_convergence
+              << " seed_offset=" << seed_offset
+              << (have_seed ? " seeded" : " unseeded")
+              << "; fixef_temp " << p_dim << "-col load/store ON"
+              << ", tau2_temp OFF ---\n";
+}
+
 // Per-chain canonical state (v4).  Working fixef/tau2/b are restored from
 // chain_state[i] at each sweep start and committed after each sweep so the
 // driver can swap to sweep-outer (m then i) without changing sweep body code.
@@ -1007,7 +1037,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   //           after the last sweep is stored for each chain.
   //
   // Loop hierarchy (outer -> inner):
-  //   for i in 0..n-1     independent chains (each re-seeded; own RNG stream)
+  //   for i in 0..n-1     independent chains (sequential draws from R RNG)
   //     for m in 0..m_convergence-1   one full two-block sweep
   //       Block 1 once    joint draw of all group-level b (J x p_re matrix)
   //       for j in 0..p_re-1   Block 2 per RE column (hyperparameter gamma_k)
@@ -1054,7 +1084,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   }
 
   // Deep snapshot: each chain resets from this copy (same as a fresh n = 1
-  // v2 call after set.seed(seed + seed_offset + chain_index)).
+  // v2 call with the current R RNG stream).
   std::vector<NumericVector> fixef_start_v(p_re);
   for (int j = 0; j < p_re; ++j) {
     fixef_start_v[j] =
@@ -1111,6 +1141,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   bool have_ids = false;
 
   const bool have_seed = seed.isNotNull();
+  two_block_driver_banner_v3(n, m_convergence, seed_offset, have_seed);
   // Match run_short_chains_v2: R chain bar when n > 1, inner bar when n == 1.
   const bool chain_progbar = progbar && n > 1;
   const bool inner_progbar = progbar && n == 1;
@@ -1119,7 +1150,6 @@ List two_block_rNormal_reg_v3_cpp_export(
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
 
-    // Per-chain RNG: seed + seed_offset + (i + 1) [1-based chain index].
     if (have_seed) {
       v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
     }
@@ -1322,6 +1352,8 @@ List two_block_rNormal_reg_v4_cpp_export(
     bool use_parallel,
     bool use_opencl,
     bool verbose,
+    Rcpp::Nullable<int> seed,
+    int seed_offset,
     bool progbar
 ) {
   // Two-block Gibbs sampler (v4): independent short chains in C++.
@@ -1438,6 +1470,7 @@ List two_block_rNormal_reg_v4_cpp_export(
   CharacterVector group_ids;
   bool have_ids = false;
   
+  const bool have_seed = seed.isNotNull();
   // Match run_short_chains_v2: R chain bar when n > 1, inner bar when n == 1.
   const bool chain_progbar = progbar && n > 1;
   const bool inner_progbar = progbar && n == 1;
@@ -1449,6 +1482,7 @@ List two_block_rNormal_reg_v4_cpp_export(
   }
   
   NumericMatrix fixef_temp=NumericMatrix(n,p_dim);
+  // NumericMatrix tau2_temp = NumericMatrix(n, p_re);
   
   
   for (int i = 0; i < n; ++i) {
@@ -1460,11 +1494,20 @@ List two_block_rNormal_reg_v4_cpp_export(
       }
       col0 += fj.size();
     }
+    // for (int j = 0; j < p_re; ++j) {
+    //   tau2_temp(i, j) = tau2_start[j];
+    // }
   }
+
+  two_block_driver_banner_v4(n, m_convergence, seed_offset, have_seed, p_dim);
   
   // ---- Outer loop: n independent short chains (stored draws) ----
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
+
+    if (have_seed) {
+      v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
+    }
     
     if (chain_progbar || inner_progbar) {
       glmbayes::progress::progress_bar(
@@ -1491,8 +1534,11 @@ List two_block_rNormal_reg_v4_cpp_export(
           fj[c] = fixef_temp(i, col0 + c);
         }
         col0 += fj.size();
-      }      
-            
+      }
+      // for (int j = 0; j < p_re; ++j) {
+      //   tau2[j] = tau2_temp(i, j);
+      // }
+      
       // Build group-level means mu_{k,g} from current fixef (Block 2 -> Block 1).
       mu_all = mu_builder.build(fixef);
       List pl1;
@@ -1610,6 +1656,9 @@ List two_block_rNormal_reg_v4_cpp_export(
         }
         col0 += fj.size();
       }
+      // for (int j = 0; j < p_re; ++j) {
+      //   tau2_temp(i, j) = tau2[j];
+      // }
       
       
     }
