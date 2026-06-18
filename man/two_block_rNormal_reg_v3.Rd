@@ -76,7 +76,7 @@ when \code{family} is not Gaussian.}
 \item{seed}{Optional RNG seed.}
 
 \item{seed_offset}{Integer added to \code{seed} for chain \code{i}
-(\code{seed + seed_offset + i}).  Default \code{0L}.}
+(\code{seed + seed_offset + i + 1} in C++). Default \code{0L}.}
 
 \item{collect_block1}{Logical. If \code{TRUE}, row-bind Block~1
 (\code{coefficients}) draws from every chain.  Default \code{TRUE}.}
@@ -89,10 +89,8 @@ Object of class \code{c("two_block_rNormal_reg_v3",
 \code{\link{two_block_rNormal_reg_v2}}.
 }
 \description{
-Algorithmically identical to repeated
-\code{\link{two_block_rNormal_reg_v2}(n = 1L)} calls with
-\code{set.seed(seed + seed_offset + i)} per chain.  The only difference is
-that the chain loop lives in C++ (\code{.two_block_rNormal_reg_v3_cpp})
+Same short-chain Gibbs semantics as \code{\link{two_block_rNormal_reg_v2}},
+with the chain loop in C++ (\code{.two_block_rNormal_reg_v3_cpp})
 instead of R; there is no call to the v2 sampler export.
 }
 \seealso{

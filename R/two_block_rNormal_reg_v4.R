@@ -6,6 +6,8 @@
 #' (chain-outer, sweep-inner).  Does not call the v3 export.
 #'
 #' @inheritParams two_block_rNormal_reg_v2
+#' @param seed_offset Integer added to \code{seed} for chain \code{i}
+#'   (\code{seed + seed_offset + i + 1} in C++). Default \code{0L}.
 #' @param collect_block1 Logical. If \code{TRUE}, row-bind Block~1
 #'   (\code{coefficients}) draws from every chain.  Default \code{TRUE}.
 #' @return Object of class \code{c("two_block_rNormal_reg_v4",

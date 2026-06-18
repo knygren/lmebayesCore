@@ -40,3 +40,5 @@ stamp-h1
 
 # Editor / autoconf backup files
 *~
+
+_install_test/

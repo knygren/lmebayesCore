@@ -38,3 +38,4 @@
 ^inst/DESIGN_RGLM_BLOCKS\.md$
 ^inst/DESIGN_RNORMALREG_BLOCKS\.md$
 ^vignettes/
+^_install_test$

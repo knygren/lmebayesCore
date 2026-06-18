@@ -1535,28 +1535,27 @@ List two_block_rNormal_reg_v4_cpp_export(
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
 
-    if (have_seed) {
-      v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
-    }
-    
     if (chain_progbar || inner_progbar) {
       glmbayes::progress::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
-    
-    // Reset working state to fixef_start at the beginning of each chain
-    // (same as a fresh two_block_rNormal_reg_v2(n = 1) call).
-    for (int j = 0; j < p_re; ++j) {
-      fixef[j] = Rcpp::clone(fixef_start_v[j]);
-    }
-    tau2 = tau2_start;
-    
+
     // ---- Inner loop: m_convergence full two-block Gibbs sweeps ----
     // Each sweep: Block 1 (all b) then Block 2 (each RE column j).  Only the
     // final sweep's state is retained and packed after this loop completes.
     for (int m = 0; m < m_convergence; ++m) {
-      
+
+      if (m == 0) {
+        if (have_seed) {
+          v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + i + 1);
+        }
+        for (int j = 0; j < p_re; ++j) {
+          fixef[j] = Rcpp::clone(fixef_start_v[j]);
+        }
+        tau2 = tau2_start;
+      }
+
       int col0 = 0;
       for (int j = 0; j < p_re; ++j) {
         NumericVector& fj = fixef[j];

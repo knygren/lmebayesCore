@@ -26,6 +26,8 @@ two_block_rNormal_reg_v4(
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE,
+  seed = NULL,
+  seed_offset = 0L,
   collect_block1 = TRUE,
   progbar = FALSE
 )
@@ -70,6 +72,11 @@ chain is initialised.}
 
 \item{Gridtype, n_envopt, use_parallel, use_opencl, verbose}{Passed to Block~1
 when \code{family} is not Gaussian.}
+
+\item{seed}{Optional RNG seed.}
+
+\item{seed_offset}{Integer added to \code{seed} for chain \code{i}
+(\code{seed + seed_offset + i + 1} in C++). Default \code{0L}.}
 
 \item{collect_block1}{Logical. If \code{TRUE}, row-bind Block~1
 (\code{coefficients}) draws from every chain.  Default \code{TRUE}.}
