@@ -1,22 +1,22 @@
-#' Two-block Gibbs sampler via independent short chains (development v4)
+#' Two-block Gibbs sampler via independent short chains (development v5)
 #'
-#' Same short-chain Gibbs semantics as \code{\link{two_block_rNormal_reg_v3}},
+#' Same short-chain Gibbs semantics as \code{\link{two_block_rNormal_reg_v4}},
 #' with per-chain state buffers pre-allocated in C++ via
-#' \code{.two_block_rNormal_reg_v4_cpp}.  Loop order matches v3
-#' (chain-outer, sweep-inner).  Does not call the v3 export.
+#' \code{.two_block_rNormal_reg_v5_cpp}.  Loop order is sweep-outer
+#' (\code{m} then \code{i}) with per-sweep logging and chain progress bars.
 #'
 #' @inheritParams two_block_rNormal_reg_v2
 #' @param seed_offset Integer added to \code{seed} for chain \code{i}
 #'   (\code{seed + seed_offset + i + 1} in C++). Default \code{0L}.
 #' @param collect_block1 Logical. If \code{TRUE}, row-bind Block~1
 #'   (\code{coefficients}) draws from every chain.  Default \code{TRUE}.
-#' @return Object of class \code{c("two_block_rNormal_reg_v4",
+#' @return Object of class \code{c("two_block_rNormal_reg_v5",
 #'   "two_block_rNormal_reg_v2", "two_block_rNormal_reg")}.  Same fields as
 #'   \code{\link{two_block_rNormal_reg_v2}}.
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg_v3}}, \code{\link{rGLMM}}
+#' @seealso \code{\link{two_block_rNormal_reg_v4}}, \code{\link{rGLMM}}
 #' @export
-two_block_rNormal_reg_v4 <- function(
+two_block_rNormal_reg_v5 <- function(
     n,
     y,
     x,
@@ -45,7 +45,8 @@ two_block_rNormal_reg_v4 <- function(
     stage_label = "",
     diag_sweeps = FALSE,
     fixef_mode = NULL,
-    b_mode = NULL) {
+    b_mode = NULL
+) {
 
   cl <- match.call()
   sampling <- match.arg(sampling)
@@ -149,7 +150,7 @@ two_block_rNormal_reg_v4 <- function(
 
   x_hyper_mats <- lapply(x_hyper, as.matrix)
 
-  cpp_out <- .two_block_rNormal_reg_v4_cpp(
+  cpp_out <- .two_block_rNormal_reg_v5_cpp(
     n                 = n,
     m_convergence     = m_convergence,
     y                 = y,
@@ -184,7 +185,7 @@ two_block_rNormal_reg_v4 <- function(
     b_mode            = b_mode
   )
 
-  res <- .two_block_format_v4_cpp_out(
+  res <- .two_block_format_v5_cpp_out(
     cpp_out         = cpp_out,
     n               = n,
     re_names        = re_names,
@@ -204,13 +205,13 @@ two_block_rNormal_reg_v4 <- function(
 
   structure(
     res,
-    class = c("two_block_rNormal_reg_v4", class(res))
+    class = c("two_block_rNormal_reg_v5", class(res))
   )
 }
 
-#' Format raw v4 C++ output into a two_block_rNormal_reg object
+#' Format raw v5 C++ output into a two_block_rNormal_reg object
 #' @noRd
-.two_block_format_v4_cpp_out <- function(
+.two_block_format_v5_cpp_out <- function(
     cpp_out,
     n,
     re_names,
