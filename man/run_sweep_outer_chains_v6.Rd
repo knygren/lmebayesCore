@@ -57,7 +57,8 @@ Default \code{FALSE}.}
 \item{stage_label}{Character label for sweep diagnostics (e.g.
 \code{"pilot"}).}
 
-\item{diag_sweeps}{If \code{TRUE}, print per-block means after each sweep.}
+\item{diag_sweeps}{If \code{TRUE}, print per-sweep fixef tables after Block~2
+and stage-end sweep history tables (means and SDs by sweep).}
 
 \item{fixef_mode}{ICM mode reference for fixef diagnostics.}
 
