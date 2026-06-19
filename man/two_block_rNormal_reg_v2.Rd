@@ -114,12 +114,14 @@ that equivalence is the regression gate for the v2 development track.
 }
 \seealso{
 \code{\link{two_block_rNormal_reg}}, \code{\link{run_sweep_outer_chains_v6}},
+\code{\link{rGLMM}}
 \code{\link{dNormal}},
 \code{\link{dIndependent_Normal_Gamma}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
+\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},

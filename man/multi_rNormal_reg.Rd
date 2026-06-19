@@ -66,6 +66,7 @@ Block 2 of \code{\link{two_block_rNormal_reg}}.
 
 glmbayes Simulation Functions
 \code{\link{multi_rlmb}()},
+\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},

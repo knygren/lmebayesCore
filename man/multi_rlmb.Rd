@@ -210,6 +210,7 @@ glmbayes Modeling Functions
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
+\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},
@@ -225,6 +226,7 @@ glmbayes Simulation Functions
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
+\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},

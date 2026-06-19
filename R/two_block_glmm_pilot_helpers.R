@@ -182,3 +182,85 @@
     max_eigenvalues   = max_eigenvalues
   )
 }
+
+#' Post-pilot eigenvalue upper bounds from v6 stacked \code{coefficients}
+#' @noRd
+.two_block_pilot_ub_from_coefficients <- function(
+    pilot_coefficients,
+    n_pilot,
+    re_names,
+    group_levels,
+    group_name,
+    x,
+    block,
+    x_hyper,
+    prior_list,
+    pfamily_list,
+    family,
+    tv_tol
+) {
+  n_grp        <- length(group_levels)
+  re_col_names <- re_names
+  grp_col_name <- group_name
+
+  lambda_star_vec  <- numeric(n_pilot)
+  max_eigenvalues  <- NULL
+  rate_upper       <- NULL
+  lambda_star_best <- -Inf
+  i_max_rate       <- NA_integer_
+
+  for (i in seq_len(n_pilot)) {
+    rows_i   <- ((i - 1L) * n_grp + 1L):(i * n_grp)
+    block_df <- pilot_coefficients[rows_i, , drop = FALSE]
+    if (!is.null(grp_col_name) && grp_col_name %in% colnames(block_df)) {
+      ord <- match(group_levels, block_df[[grp_col_name]])
+      b_i <- as.matrix(block_df[ord, re_col_names, drop = FALSE])
+    } else {
+      b_i <- as.matrix(block_df[, re_col_names, drop = FALSE])
+    }
+    rownames(b_i) <- group_levels
+    mode_w_i <- two_block_mode_weights(
+      x            = x,
+      block        = block,
+      b_mode       = b_i,
+      family       = family,
+      group_levels = group_levels
+    )
+    rate_i <- two_block_rate_v2(
+      x                 = x,
+      block             = block,
+      x_hyper           = x_hyper,
+      prior_list_block1 = prior_list,
+      pfamily_list      = pfamily_list,
+      weights           = mode_w_i$weights,
+      family            = family,
+      group_levels      = group_levels
+    )
+    if (is.null(max_eigenvalues)) {
+      max_eigenvalues <- rep(-Inf, length(rate_i$eigenvalues))
+    }
+    lambda_star_vec[i] <- rate_i$lambda_star
+    max_eigenvalues    <- pmax(max_eigenvalues, rate_i$eigenvalues)
+    if (rate_i$lambda_star > lambda_star_best) {
+      lambda_star_best <- rate_i$lambda_star
+      rate_upper       <- rate_i
+      i_max_rate       <- i
+    }
+  }
+
+  rate_upper_eig             <- rate_upper
+  rate_upper_eig$eigenvalues <- max_eigenvalues
+  rate_upper_eig$lambda_star <- max_eigenvalues[1L]
+
+  m_min_upper <- two_block_l_for_tv(
+    rate_upper_eig, tv_tol, method = "theorem3"
+  ) + 1L
+
+  list(
+    rate_upper      = rate_upper_eig,
+    m_min_upper     = m_min_upper,
+    lambda_star_vec = lambda_star_vec,
+    i_max_rate      = i_max_rate,
+    max_eigenvalues = max_eigenvalues
+  )
+}

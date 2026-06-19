@@ -1,10 +1,11 @@
 # glmbayesCore (development version)
 
-* **Removed `rGLMM()`:** The R orchestrator for pilot/main GLMM replicate
-  chains has moved to **`lmebayes::rGLMM_temp()`** (called from
-  **`rglmerb()`**). Pilot-stage helpers
-  (`.two_block_pilot_chisq_test()`, `.two_block_as_staged_names()`, etc.)
-  remain in glmbayesCore as internal utilities.
+* **Restored `rGLMM()`:** matrix-level GLMM replicate-chain orchestration
+  (TV calibration, pilot chi-squared, post-pilot eigenvalue upper bound,
+  main-stage sampling via **`run_sweep_outer_chains_v6`**) is exported again
+  as **`rGLMM()`**. Replaces the earlier C++-staged implementation; returns
+  the `fixef.*` namespace. Formula-level fitting remains in **lmebayes**
+  (`rglmerb()` / `glmerb()`).
 
 * **Candidate counts surfaced by the two-block v2 sampler:**
   **`two_block_rNormal_reg_v2()`** now returns `iters_fixef_draws`, an

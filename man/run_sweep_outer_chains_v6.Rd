@@ -84,11 +84,12 @@ then all chains run Block~2. Each chain stores exactly one draw
 (for large enough \code{inner_sweeps}).
 }
 \seealso{
-\code{\link{two_block_rNormal_reg_v5}}
+\code{\link{two_block_rNormal_reg_v5}}, \code{\link{rGLMM}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
+\code{\link{rGLMM}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
