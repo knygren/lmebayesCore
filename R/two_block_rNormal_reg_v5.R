@@ -23,7 +23,7 @@
 #'   "two_block_rNormal_reg_v2", "two_block_rNormal_reg")}.  Same fields as
 #'   \code{\link{two_block_rNormal_reg_v2}}.
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg_v4}}, \code{\link{rGLMM}}
+#' @seealso \code{\link{two_block_rNormal_reg_v4}}, \code{\link{run_sweep_outer_chains_v6}}
 #' @export
 two_block_rNormal_reg_v5 <- function(
     n,

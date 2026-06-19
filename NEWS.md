@@ -1,5 +1,11 @@
 # glmbayesCore (development version)
 
+* **Removed `rGLMM()`:** The R orchestrator for pilot/main GLMM replicate
+  chains has moved to **`lmebayes::rGLMM_temp()`** (called from
+  **`rglmerb()`**). Pilot-stage helpers
+  (`.two_block_pilot_chisq_test()`, `.two_block_as_staged_names()`, etc.)
+  remain in glmbayesCore as internal utilities.
+
 * **Candidate counts surfaced by the two-block v2 sampler:**
   **`two_block_rNormal_reg_v2()`** now returns `iters_fixef_draws`, an
   `n x p_re` matrix of the total number of Block 2 candidates generated per

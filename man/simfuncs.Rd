@@ -407,7 +407,6 @@ Theory and implementation narrative: \insertCite{Nygren2006}{glmbayesCore};
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
@@ -423,7 +422,6 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
@@ -439,7 +437,6 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
@@ -455,7 +452,6 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
@@ -471,7 +467,6 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},
@@ -487,7 +482,6 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},

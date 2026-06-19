@@ -39,7 +39,7 @@
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{coefficients}, and \code{mu_all_last}.
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg_v5}}, \code{\link{rGLMM}}
+#' @seealso \code{\link{two_block_rNormal_reg_v5}}
 #' @export
 run_sweep_outer_chains_v6 <- function(
     n_chains,
