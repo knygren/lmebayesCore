@@ -123,6 +123,7 @@ main stage is rerun with the updated \code{m_convergence}.
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
+\code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},

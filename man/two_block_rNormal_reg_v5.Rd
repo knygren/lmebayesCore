@@ -29,7 +29,11 @@ two_block_rNormal_reg_v5(
   seed = NULL,
   seed_offset = 0L,
   collect_block1 = TRUE,
-  progbar = FALSE
+  progbar = FALSE,
+  stage_label = "",
+  diag_sweeps = FALSE,
+  fixef_mode = NULL,
+  b_mode = NULL
 )
 }
 \arguments{
@@ -82,6 +86,19 @@ when \code{family} is not Gaussian.}
 (\code{coefficients}) draws from every chain.  Default \code{TRUE}.}
 
 \item{progbar}{Logical; show a text progress bar.}
+
+\item{stage_label}{Character label for sweep diagnostics (e.g.
+\code{"pilot"}). Passed to the C++ driver for timestamped log lines.}
+
+\item{diag_sweeps}{If \code{TRUE}, print per-sweep block diagnostics
+(chain colMeans vs \code{fixef_mode} / \code{b_mode}). Default
+\code{FALSE}.}
+
+\item{fixef_mode}{Named list of Block~2 hyper-parameter vectors at the ICM
+mode; used only when \code{diag_sweeps = TRUE}.}
+
+\item{b_mode}{\code{J x p_re} matrix of random effects at the ICM mode;
+used only when \code{diag_sweeps = TRUE}.}
 }
 \value{
 Object of class \code{c("two_block_rNormal_reg_v5",
@@ -101,6 +118,7 @@ glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
+\code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},
 \code{\link{two_block_mode_weights}()},

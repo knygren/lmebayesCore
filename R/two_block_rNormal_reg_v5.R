@@ -10,6 +10,15 @@
 #'   (\code{seed + seed_offset + i + 1} in C++). Default \code{0L}.
 #' @param collect_block1 Logical. If \code{TRUE}, row-bind Block~1
 #'   (\code{coefficients}) draws from every chain.  Default \code{TRUE}.
+#' @param stage_label Character label for sweep diagnostics (e.g.
+#'   \code{"pilot"}). Passed to the C++ driver for timestamped log lines.
+#' @param diag_sweeps If \code{TRUE}, print per-sweep block diagnostics
+#'   (chain colMeans vs \code{fixef_mode} / \code{b_mode}). Default
+#'   \code{FALSE}.
+#' @param fixef_mode Named list of Block~2 hyper-parameter vectors at the ICM
+#'   mode; used only when \code{diag_sweeps = TRUE}.
+#' @param b_mode \code{J x p_re} matrix of random effects at the ICM mode;
+#'   used only when \code{diag_sweeps = TRUE}.
 #' @return Object of class \code{c("two_block_rNormal_reg_v5",
 #'   "two_block_rNormal_reg_v2", "two_block_rNormal_reg")}.  Same fields as
 #'   \code{\link{two_block_rNormal_reg_v2}}.
