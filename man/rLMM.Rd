@@ -12,7 +12,9 @@ rLMM(
   x_hyper,
   prior_list,
   pfamily_list,
-  start,
+  start = NULL,
+  icm_tol = 1e-10,
+  icm_maxit = 200L,
   m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
@@ -43,7 +45,12 @@ taken to be the number required.}
 \item{pfamily_list}{Named list of \code{pfamily} objects for Block~2.}
 
 \item{start}{Named list of Block~2 hyper-parameter vectors at which each
-replicate chain is initialised (typically the ICM posterior mean).}
+replicate chain is initialised (typically the ICM posterior mean). When
+\code{NULL} (default), the ICM posterior mean is computed internally via
+\code{\link{lmerb_posterior_mean}}.}
+
+\item{icm_tol, icm_maxit}{Convergence controls passed to
+\code{lmerb_posterior_mean()} when \code{start = NULL}.}
 
 \item{m_convergence}{Inner Gibbs steps per stored draw. When \code{NULL},
 derived from Theorem~3 at \code{start} using \code{tv_tol}.}
@@ -69,8 +76,8 @@ when Block~2 uses \code{dIndependent_Normal_Gamma} components.}
 \value{
 Object of class \code{c("rLMM", "list")} with Block~2 fields in
 the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
-plus \code{convergence_info}, \code{m_convergence}, and
-\code{draw_engine}.
+plus \code{convergence_info}, \code{m_convergence}, \code{draw_engine},
+and (when ICM is run) \code{ranef.mode} and \code{icm_info}.
 }
 \description{
 Low-level matrix-level LMM replicate-chain sampler using

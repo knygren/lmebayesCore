@@ -16,7 +16,11 @@
 #'   \code{dispersion} (required for Gaussian), optional \code{ddef}.
 #' @param pfamily_list Named list of \code{pfamily} objects for Block~2.
 #' @param start Named list of Block~2 hyper-parameter vectors at which each
-#'   replicate chain is initialised (typically the ICM posterior mean).
+#'   replicate chain is initialised (typically the ICM posterior mean). When
+#'   \code{NULL} (default), the ICM posterior mean is computed internally via
+#'   \code{\link{lmerb_posterior_mean}}.
+#' @param icm_tol,icm_maxit Convergence controls passed to
+#'   \code{lmerb_posterior_mean()} when \code{start = NULL}.
 #' @param m_convergence Inner Gibbs steps per stored draw. When \code{NULL},
 #'   derived from Theorem~3 at \code{start} using \code{tv_tol}.
 #' @param tv_tol Total variation tolerance in \code{(0, 1)} for convergence
@@ -31,8 +35,8 @@
 #'   when Block~2 uses \code{dIndependent_Normal_Gamma} components.
 #' @return Object of class \code{c("rLMM", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
-#'   plus \code{convergence_info}, \code{m_convergence}, and
-#'   \code{draw_engine}.
+#'   plus \code{convergence_info}, \code{m_convergence}, \code{draw_engine},
+#'   and (when ICM is run) \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM}}, \code{\link{two_block_rNormal_reg_v2}}
 #' @export
@@ -44,7 +48,9 @@ rLMM <- function(
     x_hyper,
     prior_list,
     pfamily_list,
-    start,
+    start           = NULL,
+    icm_tol         = 1e-10,
+    icm_maxit       = 200L,
     m_convergence = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
@@ -125,18 +131,49 @@ rLMM <- function(
     pfamily_list, re_names, J = length(group_levels)
   )
 
-  if (!is.list(start) || is.null(names(start))) {
-    stop("'start' must be a named list.", call. = FALSE)
-  }
-  if (!setequal(names(start), re_names)) {
-    stop("names(start) must match re_coef_names.", call. = FALSE)
-  }
-  start <- start[re_names]
-  fixef_mode <- start
-
   .two_block_validate_block1_prior(
     prior_list, family = gaussian()
   )
+
+  icm_info   <- NULL
+  ranef_mode <- NULL
+  if (is.null(start)) {
+    design_icm <- list(
+      y             = y,
+      Z             = x,
+      groups        = factor(block, levels = group_levels),
+      X_hyper       = x_hyper,
+      re_coef_names = re_names,
+      group_name    = group_name
+    )
+    icm <- .two_block_icm_at_start(
+      design       = design_icm,
+      prior_list   = prior_list,
+      pfamily_list = pfamily_list,
+      re_names     = re_names,
+      family       = gaussian(),
+      tol          = icm_tol,
+      maxit        = icm_maxit
+    )
+    start      <- icm$start
+    ranef_mode <- icm$b_start
+    icm_info   <- icm$icm
+    if (isTRUE(verbose)) {
+      cat(sprintf(
+        "  rLMM: ICM posterior mean (converged: %s, %d iter, delta = %.2e)\n\n",
+        icm_info$converged, icm_info$iterations, icm_info$delta
+      ))
+    }
+  } else {
+    if (!is.list(start) || is.null(names(start))) {
+      stop("'start' must be a named list or NULL.", call. = FALSE)
+    }
+    if (!setequal(names(start), re_names)) {
+      stop("names(start) must match re_coef_names.", call. = FALSE)
+    }
+    start <- start[re_names]
+  }
+  fixef_mode <- start
 
   rate <- two_block_rate_v2(
     x                 = x,
@@ -220,6 +257,8 @@ rLMM <- function(
   staged$pfamily_list     <- pfamily_list
   staged$prior_list       <- prior_list
   staged$family           <- gaussian()
+  staged$ranef.mode       <- ranef_mode
+  staged$icm_info         <- icm_info
 
   class(staged) <- c("rLMM", "list")
   staged

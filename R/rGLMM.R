@@ -17,12 +17,23 @@
 #' @param pfamily_list Named list of \code{pfamily} objects for Block~2.
 #' @param start Named list of Block~2 hyper-parameter vectors at which each
 #'   inner chain is initialised (pilot stage uses \code{start}; main stage uses
-#'   the pilot mean when \code{n_pilot > 0}).
+#'   the pilot mean when \code{n_pilot > 0}). When \code{NULL} (default), the
+#'   ICM posterior mode is computed internally via
+#'   \code{\link{glmerb_posterior_mode}} (or \code{\link{lmerb_posterior_mean}}
+#'   when \code{family = gaussian()}).
+#' @param icm_tol,icm_maxit Convergence controls passed to ICM when
+#'   \code{start = NULL}.
 #' @param offset,weights,family Passed to Block~1 (length \code{l2} or recycled).
 #' @param re_coef_names Character vector naming columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
-#' @param n_pilot Number of pilot replicate chains (\code{0L} skips the pilot).
+#' @param n_pilot Number of pilot replicate chains. When \code{NULL} (default),
+#'   derived from \code{gap_tol} for non-Gaussian families; \code{0L} skips the
+#'   pilot. Ignored for \code{gaussian()}.
+#' @param gap_tol Tolerated mode--mean gap in posterior SD units used to derive
+#'   \code{n_pilot} when \code{n_pilot} is \code{NULL} and the family is
+#'   non-Gaussian (default \code{0.0196}). Set \code{NULL} to skip the pilot
+#'   unless \code{n_pilot} is supplied explicitly.
 #' @param m_convergence_pilot Inner Gibbs steps per pilot stored draw. Defaults
 #'   to \code{m_convergence} when \code{n_pilot > 0} and \code{tv_tol} is
 #'   \code{NULL}.
@@ -42,7 +53,8 @@
 #'   when \code{NULL} and \code{tv_tol} is \code{NULL}, defaults to \code{10L}.
 #' @param b_start Optional \code{J x p_re} Block~1 mode matrix for
 #'   \code{two_block_mode_weights} and v6 batch init.  Required for
-#'   non-Gaussian families.
+#'   non-Gaussian families when \code{start} is supplied; computed by ICM when
+#'   \code{start = NULL}.
 #' @param collect_block1 Logical. Collect Block~1 \code{coefficients} from each
 #'   chain (needed for post-pilot eigenvalue upper bounds).
 #' @param any_ing Logical. Label convergence calibration as ING-conservative.
@@ -50,8 +62,9 @@
 #'   Block~2 fields in the \code{fixef.*} namespace (\code{fixef},
 #'   \code{fixef.mode}, \code{fixef.init}, \code{fixef.dispersion},
 #'   \code{fixef.iters}, \code{fixef.mu}), Block~1 draws in \code{coefficients},
-#'   plus \code{draw_engine}, \code{convergence_info}, and optional \code{pilot},
-#'   \code{pilot_chisq}, \code{pilot_ub}.
+#'   plus \code{draw_engine}, \code{convergence_info}, optional \code{pilot},
+#'   \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
+#'   \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
 #' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
 #'   \code{\link{rLMM}}
@@ -64,7 +77,9 @@ rGLMM <- function(
     x_hyper,
     prior_list,
     pfamily_list,
-    start,
+    start               = NULL,
+    icm_tol             = 1e-10,
+    icm_maxit           = 200L,
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
@@ -72,9 +87,10 @@ rGLMM <- function(
     re_coef_names       = colnames(x),
     group_levels        = levels(block),
     group_name          = NULL,
-    n_pilot             = 0L,
+    n_pilot             = NULL,
+    gap_tol             = 0.0196,
     m_convergence_pilot = NULL,
-    tv_tol              = NULL,
+    tv_tol              = 0.01,
     mode_gap_max        = 1.0,
     Gridtype            = 2,
     n_envopt            = NULL,
@@ -97,8 +113,8 @@ rGLMM <- function(
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
-  n_pilot <- as.integer(n_pilot[1L])
-  if (n_pilot < 0L) stop("'n_pilot' must be non-negative.", call. = FALSE)
+  n_pilot <- .two_block_resolve_n_pilot(family, n_pilot, gap_tol)
+  gap_tol <- .two_block_validate_gap_tol(gap_tol)
 
   if (!is.null(m_convergence)) {
     m_convergence <- as.integer(m_convergence[1L])
@@ -191,22 +207,57 @@ rGLMM <- function(
     pfamily_list, re_names, J = length(group_levels)
   )
 
-  if (!is.list(start) || is.null(names(start))) {
-    stop("'start' must be a named list.", call. = FALSE)
-  }
-  if (!setequal(names(start), re_names)) {
-    stop("names(start) must match re_coef_names.", call. = FALSE)
-  }
-  start <- start[re_names]
-  fixef_mode <- start
-
-  if (!is_gaussian && is.null(b_start)) {
-    stop("'b_start' is required for non-Gaussian families.", call. = FALSE)
-  }
-
   .two_block_validate_block1_prior(
     prior_list, family = family
   )
+
+  icm_info   <- NULL
+  ranef_mode <- b_start
+  if (is.null(start)) {
+    design_icm <- list(
+      y             = y,
+      Z             = x,
+      groups        = factor(block, levels = group_levels),
+      X_hyper       = x_hyper,
+      re_coef_names = re_names,
+      group_name    = group_name
+    )
+    icm <- .two_block_icm_at_start(
+      design       = design_icm,
+      prior_list   = prior_list,
+      pfamily_list = pfamily_list,
+      re_names     = re_names,
+      family       = family,
+      tol          = icm_tol,
+      maxit        = icm_maxit
+    )
+    start      <- icm$start
+    ranef_mode <- icm$b_start
+    b_start    <- icm$b_start
+    icm_info   <- icm$icm
+    if (isTRUE(verbose)) {
+      icm_label <- if (is_gaussian) "mean" else "mode"
+      cat(sprintf(
+        "  rGLMM: ICM posterior %s (converged: %s, %d iter, delta = %.2e)\n\n",
+        icm_label, icm_info$converged, icm_info$iterations, icm_info$delta
+      ))
+    }
+  } else {
+    if (!is.list(start) || is.null(names(start))) {
+      stop("'start' must be a named list or NULL.", call. = FALSE)
+    }
+    if (!setequal(names(start), re_names)) {
+      stop("names(start) must match re_coef_names.", call. = FALSE)
+    }
+    start <- start[re_names]
+    if (!is_gaussian && is.null(b_start)) {
+      stop(
+        "'b_start' is required for non-Gaussian families when 'start' is supplied.",
+        call. = FALSE
+      )
+    }
+  }
+  fixef_mode <- start
 
   ptypes <- vapply(pfamily_list, function(pf) pf$pfamily, character(1))
   names(ptypes) <- re_names
@@ -214,7 +265,7 @@ rGLMM <- function(
   design <- list(
     y             = y,
     Z             = x,
-    groups        = block,
+    groups        = factor(block, levels = group_levels),
     X_hyper       = x_hyper,
     re_coef_names = re_names,
     group_name    = group_name
@@ -306,6 +357,8 @@ rGLMM <- function(
   convergence_info <- list(
     method              = method_label,
     tv_tol              = tv_tol,
+    gap_tol             = gap_tol,
+    n_pilot             = n_pilot,
     lambda_star         = rate$lambda_star,
     eigenvalues         = rate$eigenvalues,
     m_min               = m_min,
@@ -472,6 +525,7 @@ rGLMM <- function(
 
   main_res$call                <- cl
   main_res$n_pilot             <- n_pilot
+  main_res$gap_tol             <- gap_tol
   main_res$m_convergence       <- m_convergence_used
   main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
   main_res$convergence_info    <- convergence_info
@@ -481,6 +535,8 @@ rGLMM <- function(
   main_res$pfamily_list        <- pfamily_list
   main_res$family              <- family
   main_res$prior_list          <- prior_list
+  main_res$ranef.mode          <- ranef_mode
+  main_res$icm_info            <- icm_info
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res

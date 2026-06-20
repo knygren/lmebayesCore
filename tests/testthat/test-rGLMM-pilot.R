@@ -1,0 +1,129 @@
+library(glmbayesCore)
+
+# Minimal random-intercept fixture for matrix-level rGLMM tests
+.mini_rGLMM_inputs <- function(family = gaussian()) {
+  set.seed(1L)
+  J <- 4L
+  n_per <- 5L
+  g <- factor(rep(seq_len(J), each = n_per))
+  n <- length(g)
+  re_nm <- "(Intercept)"
+  if (identical(family$family, "gaussian")) {
+    y <- stats::rnorm(n)
+  } else {
+    y <- stats::rpois(n, lambda = 2)
+  }
+  x <- matrix(1, nrow = n, ncol = 1L, dimnames = list(NULL, re_nm))
+  gl <- as.character(seq_len(J))
+  x_hyper <- stats::setNames(
+    list(matrix(1, J, 1L, dimnames = list(gl, re_nm))),
+    re_nm
+  )
+  pf <- dNormal(mu = c(`(Intercept)` = 0), Sigma = matrix(1), dispersion = 1)
+  pfamily_list <- stats::setNames(list(pf), re_nm)
+  if (identical(family$family, "gaussian")) {
+    prior_list <- list(P = matrix(1), dispersion = 1)
+  } else {
+    prior_list <- list(P = matrix(1))
+  }
+  list(
+    y = y, x = x, block = g, x_hyper = x_hyper,
+    prior_list = prior_list,
+    pfamily_list = pfamily_list,
+    re_names = re_nm,
+    group_levels = gl,
+    family = family
+  )
+}
+
+test_that("rGLMM: Gaussian skips pilot even with default gap_tol", {
+  inp <- .mini_rGLMM_inputs(gaussian())
+  out <- rGLMM(
+    n = 2L,
+    y = inp$y,
+    x = inp$x,
+    block = inp$block,
+    x_hyper = inp$x_hyper,
+    prior_list = inp$prior_list,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    n_pilot = NULL,
+    gap_tol = 0.0196,
+    verbose = FALSE,
+    progbar = FALSE
+  )
+  expect_equal(out$n_pilot, 0L)
+  expect_null(out$pilot)
+  expect_false(is.null(out$fixef))
+})
+
+test_that("rGLMM: Poisson runs pilot when n_pilot is explicit", {
+  inp <- .mini_rGLMM_inputs(poisson())
+  out <- rGLMM(
+    n = 2L,
+    y = inp$y,
+    x = inp$x,
+    block = inp$block,
+    x_hyper = inp$x_hyper,
+    prior_list = inp$prior_list,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    n_pilot = 2L,
+    gap_tol = 0.0196,
+    verbose = FALSE,
+    progbar = FALSE
+  )
+  expect_equal(out$n_pilot, 2L)
+  expect_false(is.null(out$pilot))
+  expect_false(is.null(out$pilot_chisq))
+  expect_false(is.null(out$fixef))
+})
+
+test_that("rGLMM: Poisson skips pilot when n_pilot = 0L", {
+  inp <- .mini_rGLMM_inputs(poisson())
+  out <- rGLMM(
+    n = 2L,
+    y = inp$y,
+    x = inp$x,
+    block = inp$block,
+    x_hyper = inp$x_hyper,
+    prior_list = inp$prior_list,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    n_pilot = 0L,
+    gap_tol = 0.0196,
+    verbose = FALSE,
+    progbar = FALSE
+  )
+  expect_equal(out$n_pilot, 0L)
+  expect_null(out$pilot)
+})
+
+test_that("rGLMM: Poisson skips pilot when gap_tol is NULL", {
+  inp <- .mini_rGLMM_inputs(poisson())
+  out <- rGLMM(
+    n = 2L,
+    y = inp$y,
+    x = inp$x,
+    block = inp$block,
+    x_hyper = inp$x_hyper,
+    prior_list = inp$prior_list,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    n_pilot = NULL,
+    gap_tol = NULL,
+    verbose = FALSE,
+    progbar = FALSE
+  )
+  expect_equal(out$n_pilot, 0L)
+  expect_null(out$pilot)
+})
+
+test_that("rGLMM: Poisson derives n_pilot from default gap_tol", {
+  inp <- .mini_rGLMM_inputs(poisson())
+  expected <- as.integer(ceiling((stats::qnorm(0.975) / 0.0196)^2))
+  resolved <- glmbayesCore:::.two_block_resolve_n_pilot(
+    poisson(), NULL, 0.0196
+  )
+  expect_equal(resolved, expected)
+})

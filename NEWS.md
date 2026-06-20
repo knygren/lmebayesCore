@@ -1,5 +1,19 @@
 # glmbayesCore (development version)
 
+* **`rGLMM()` pilot defaults:** non-Gaussian models now run pilot + main by
+  default. New argument **`gap_tol`** (default `0.0196`) derives **`n_pilot`**
+  when **`n_pilot = NULL`**; **`n_pilot = 0L`** or **`gap_tol = NULL`** skips
+  the pilot. Gaussian models never run a pilot. **`tv_tol`** now defaults to
+  **`0.01`**. Helper **`.two_block_resolve_n_pilot()`** centralises the policy.
+
+* **`rLMM()` / `rGLMM()` ICM:** when `start = NULL` (default), both engines
+  now compute the Block~2 posterior mean/mode internally via
+  **`lmerb_posterior_mean()`** / **`glmerb_posterior_mode()`**, using a new
+  helper **`.two_block_measurement_prior_list()`** to assemble the
+  measurement prior from matrix-level `prior_list` + `pfamily_list`. Outputs
+  include **`ranef.mode`** and **`icm_info`**. Non-Gaussian **`rGLMM()`**
+  still requires **`b_start`** when **`start`** is user-supplied.
+
 * **Added `rLMM()`:** matrix-level LMM replicate-chain orchestration
   (exact Gaussian TV calibration via Theorem~3, main-stage sampling via
   **`two_block_rNormal_reg_v2`**) parallel to **`rGLMM()`**. Returns the
