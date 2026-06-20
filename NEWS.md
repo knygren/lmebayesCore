@@ -1,5 +1,11 @@
 # glmbayesCore (development version)
 
+* **Added `rLMM()`:** matrix-level LMM replicate-chain orchestration
+  (exact Gaussian TV calibration via Theorem~3, main-stage sampling via
+  **`two_block_rNormal_reg_v2`**) parallel to **`rGLMM()`**. Returns the
+  `fixef.*` namespace. Formula-level fitting remains in **lmebayes**
+  (`rlmerb()` / `lmerb()`).
+
 * **Restored `rGLMM()`:** matrix-level GLMM replicate-chain orchestration
   (TV calibration, pilot chi-squared, post-pilot eigenvalue upper bound,
   main-stage sampling via **`run_sweep_outer_chains_v6`**) is exported again

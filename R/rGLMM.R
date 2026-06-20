@@ -53,7 +53,8 @@
 #'   plus \code{draw_engine}, \code{convergence_info}, and optional \code{pilot},
 #'   \code{pilot_chisq}, \code{pilot_ub}.
 #' @family simfuncs
-#' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}}
+#' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
+#'   \code{\link{rLMM}}
 #' @export
 rGLMM <- function(
     n,
