@@ -57,13 +57,13 @@
 #'   \code{start = NULL}.
 #' @param collect_block1 Logical. Collect Block~1 \code{coefficients} from each
 #'   chain (needed for post-pilot eigenvalue upper bounds).
-#' @param any_ing Logical. Label convergence calibration as ING-conservative.
 #' @return Object of class \code{c("rGLMM", "list")} with main-stage
 #'   Block~2 fields in the \code{fixef.*} namespace (\code{fixef},
 #'   \code{fixef.mode}, \code{fixef.init}, \code{fixef.dispersion},
 #'   \code{fixef.iters}, \code{fixef.mu}), Block~1 draws in \code{coefficients},
-#'   plus \code{draw_engine}, \code{convergence_info}, optional \code{pilot},
-#'   \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
+#'   plus \code{draw_engine}, \code{convergence_info}, \code{ptypes},
+#'   \code{any_non_normal}, optional
+#'   \code{pilot}, \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
 #'   \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
 #' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
@@ -101,8 +101,7 @@ rGLMM <- function(
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
     b_start             = NULL,
-    collect_block1      = TRUE,
-    any_ing             = FALSE
+    collect_block1      = TRUE
 ) {
   cl <- match.call()
 
@@ -206,6 +205,9 @@ rGLMM <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, re_names, J = length(group_levels)
   )
+  pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
+  ptypes <- pf_summary$ptypes
+  any_non_normal <- pf_summary$any_non_normal
 
   .two_block_validate_block1_prior(
     prior_list, family = family
@@ -258,9 +260,6 @@ rGLMM <- function(
     }
   }
   fixef_mode <- start
-
-  ptypes <- vapply(pfamily_list, function(pf) pf$pfamily, character(1))
-  names(ptypes) <- re_names
 
   design <- list(
     y             = y,
@@ -334,8 +333,11 @@ rGLMM <- function(
   } else {
     sprintf("approximate (local-Gaussian at mode, %s)", family$family)
   }
-  if (isTRUE(any_ing)) {
-    calib_label <- paste0(calib_label, "; conservative: ING tau^2_k = disp_lower")
+  if (isTRUE(any_non_normal)) {
+    calib_label <- paste0(
+      calib_label,
+      "; conservative: non-dNormal RE dispersion (disp_lower plug-in)"
+    )
   }
 
   if (isTRUE(verbose) && !is.null(tv_tol)) {
@@ -352,7 +354,9 @@ rGLMM <- function(
   }
 
   method_label <- if (is_gaussian) "exact" else "local_gaussian_mode"
-  if (isTRUE(any_ing)) method_label <- paste0(method_label, "+disp_lower_bound")
+  if (isTRUE(any_non_normal)) {
+    method_label <- paste0(method_label, "+disp_lower_bound")
+  }
 
   convergence_info <- list(
     method              = method_label,
@@ -537,6 +541,8 @@ rGLMM <- function(
   main_res$prior_list          <- prior_list
   main_res$ranef.mode          <- ranef_mode
   main_res$icm_info            <- icm_info
+  main_res$ptypes         <- pf_summary$ptypes
+  main_res$any_non_normal <- pf_summary$any_non_normal
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res

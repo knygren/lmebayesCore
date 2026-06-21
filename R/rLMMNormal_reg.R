@@ -291,7 +291,7 @@
     group_levels,
     m_convergence,
     tv_tol,
-    any_ing,
+    any_non_normal,
     engine_label,
     verbose
 ) {
@@ -316,8 +316,8 @@
     )
     m_convergence <- m_min
   }
-  calib_label <- if (isTRUE(any_ing)) {
-    "conservative: ING tau^2_k = disp_lower"
+  calib_label <- if (isTRUE(any_non_normal)) {
+    "conservative: non-dNormal RE dispersion (disp_lower plug-in)"
   } else {
     "exact"
   }
@@ -333,7 +333,7 @@
   list(
     m_convergence     = m_convergence,
     convergence_info  = list(
-      method        = if (isTRUE(any_ing)) "disp_lower_bound" else "exact",
+      method        = if (isTRUE(any_non_normal)) "disp_lower_bound" else "exact",
       tv_tol        = tv_tol,
       lambda_star   = rate$lambda_star,
       eigenvalues   = rate$eigenvalues,
@@ -341,138 +341,6 @@
       m_convergence = m_convergence
     )
   )
-}
-
-#' @noRd
-#' Run ICM -> m calibration -> two_block_rNormal_reg_v2 -> format output.
-.rLMM_run_v2_sampler <- function(
-    cl,
-    n,
-    y,
-    x,
-    block,
-    x_hyper,
-    prior_list_block1,
-    pfamily_list,
-    start,
-    icm_tol,
-    icm_maxit,
-    m_convergence,
-    tv_tol,
-    re_names,
-    group_levels,
-    group_name,
-    seed,
-    progbar,
-    verbose,
-    any_ing,
-    engine_label,
-    result_class
-) {
-  ## Shared v2 sampling pipeline used by rLMMNormal_reg (and rLMMNormal_reg
-  ## with n = 1 inside rLMMindepNormalGamma_reg's outer loop).
-
-  icm_info   <- NULL
-  ranef_mode <- NULL
-
-  ## Step 5a. Block~2 chain start (fixef_start for each replicate chain).
-  ## When start = NULL, compute the ICM posterior mean of the Block~2
-  ## hyperparameters (and the matching b_start matrix for diagnostics).
-  if (is.null(start)) {
-    icm <- .rLMM_icm_at_start(
-      y                 = y,
-      x                 = x,
-      block             = block,
-      x_hyper           = x_hyper,
-      prior_list_block1 = prior_list_block1,
-      pfamily_list      = pfamily_list,
-      re_names          = re_names,
-      group_levels      = group_levels,
-      group_name        = group_name,
-      icm_tol           = icm_tol,
-      icm_maxit         = icm_maxit,
-      verbose           = verbose,
-      engine_label      = engine_label
-    )
-    start      <- icm$start
-    ranef_mode <- icm$b_start
-    icm_info   <- icm$icm
-  } else {
-    if (!is.list(start) || is.null(names(start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
-    }
-    if (!setequal(names(start), re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
-    }
-    start <- start[re_names]
-  }
-  fixef_mode <- start  ## reference mode for fixef.mode on output
-
-  ## Step 5b. Inner-sweep count m_convergence: derive m_min from the
-  ## two-block convergence rate (Theorem 3) at tv_tol, then use the user
-  ## value or bump up to m_min with a warning.
-  calib <- .rLMM_calibrate_m_convergence(
-    x                 = x,
-    block             = block,
-    x_hyper           = x_hyper,
-    prior_list_block1 = prior_list_block1,
-    pfamily_list      = pfamily_list,
-    group_levels      = group_levels,
-    m_convergence     = m_convergence,
-    tv_tol            = tv_tol,
-    any_ing           = any_ing,
-    engine_label      = engine_label,
-    verbose           = verbose
-  )
-  m_convergence    <- calib$m_convergence
-  convergence_info <- calib$convergence_info
-  convergence_info$draw_engine <- "two_block_rNormal_reg_v2"
-
-  ## Step 5c. Draw n independent replicate chains. Each chain: reset to
-  ## fixef_start, run m_convergence Block~1/Block~2 Gibbs sweeps, store
-  ## the final (gamma, b, tau^2) state. Block~1 is Gaussian with fixed
-  ## sigma^2; Block~2 dispatches on pfamily_list (dNormal vs ING).
-  out <- two_block_rNormal_reg_v2(
-    n                 = n,
-    y                 = y,
-    x                 = x,
-    block             = block,
-    x_hyper           = x_hyper,
-    prior_list_block1 = prior_list_block1,
-    pfamily_list      = pfamily_list,
-    fixef_start       = start,
-    re_coef_names     = re_names,
-    group_levels      = group_levels,
-    group_name        = group_name,
-    family            = gaussian(),
-    m_convergence     = m_convergence,
-    seed              = seed,
-    progbar           = progbar
-  )
-
-  ## Step 5d. Rename v2 fields to lmerb-style names (fixef, fixef.dispersion,
-  ## fixef.iters, fixef.mode, coefficients, ...) and attach metadata.
-  staged <- .rLMM_format_v2_out(
-    v2_out       = out,
-    n            = n,
-    re_names     = re_names,
-    group_levels = group_levels,
-    fixef_mode   = fixef_mode,
-    fixef_init   = fixef_mode
-  )
-
-  staged$call             <- cl
-  staged$m_convergence    <- m_convergence
-  staged$convergence_info <- convergence_info
-  staged$draw_engine      <- "two_block_rNormal_reg_v2"
-  staged$pfamily_list     <- pfamily_list
-  staged$prior_list       <- prior_list_block1
-  staged$family           <- gaussian()
-  staged$ranef.mode       <- ranef_mode
-  staged$icm_info         <- icm_info
-
-  class(staged) <- c(result_class, "list")
-  staged
 }
 
 #' Replicate-chain Gibbs sampling for Bayesian LMMs with fixed observation dispersion
@@ -489,12 +357,17 @@
 #'   \item Validate Block~1 quantities: RE prior precision \code{P} and fixed
 #'     observation dispersion \code{prior_list$dispersion}.
 #'   \item Validate Block~2 \code{pfamily_list} (one \code{dNormal} or
-#'     \code{dIndependent_Normal_Gamma} per RE column).
+#'     \code{dIndependent_Normal_Gamma} per RE column) and classify whether
+#'     any use a non-\code{dNormal} pfamily (\code{any_non_normal}).
 #'   \item Assemble Block~1 prior \code{list(P, dispersion, ddef = FALSE)}.
-#'   \item Delegate to \code{.rLMM_run_v2_sampler}: ICM start (if
-#'     \code{start = NULL}), Theorem~3 calibration of \code{m_convergence},
-#'     \code{n} replicate short chains via \code{two_block_rNormal_reg_v2},
-#'     then format draws as \code{fixef.*}, \code{coefficients}, etc.
+#'   \item ICM start for Block~2 chains when \code{start = NULL}
+#'     (\code{\link{lmerb_posterior_mean}} logic via \code{.rLMM_icm_at_start}).
+#'   \item Calibrate \code{m_convergence} from Theorem~3 at \code{tv_tol}
+#'     (\code{.rLMM_calibrate_m_convergence}).
+#'   \item Draw \code{n} replicate short chains via
+#'     \code{\link{two_block_rNormal_reg_v2}}.
+#'   \item Format draws as \code{fixef.*}, \code{coefficients}, etc.
+#'     (\code{.rLMM_format_v2_out}).
 #' }
 #'
 #' Each stored draw runs \code{m_convergence} inner Gibbs sweeps of the
@@ -529,9 +402,10 @@
 #' @param seed Optional RNG seed passed to the sampler.
 #' @param progbar Logical; show a text progress bar during sampling.
 #' @param verbose Print the convergence calibration line.
-#' @param any_ing Logical. Label convergence calibration as ING-conservative
-#'   when Block~2 uses \code{dIndependent_Normal_Gamma} components.
-#' @return Object of class \code{c("rLMMNormal_reg", "list")}.
+#' @return Object of class \code{c("rLMMNormal_reg", "list")}.  Includes
+#'   \code{ptypes} (Block~2 pfamily name per RE column) and
+#'   \code{any_non_normal} (\code{TRUE} when any component is not
+#'   \code{dNormal}, so at least one RE-scale dispersion may be sampled).
 #' @family simfuncs
 #' @seealso \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{rGLMM}}
 #' @export
@@ -554,8 +428,7 @@ rLMMNormal_reg <- function(
     group_name      = NULL,
     seed            = NULL,
     progbar         = TRUE,
-    verbose         = FALSE,
-    any_ing         = FALSE
+    verbose         = FALSE
 ) {
   cl <- match.call()
 
@@ -575,6 +448,10 @@ rLMMNormal_reg <- function(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
 
+  ## Block~2 pfamily classification: all dNormal => fixed RE-scale dispersion
+  ## per component; any ING => at least one tau^2_k is sampled each sweep.
+  pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
+
   ## Step 4. Block~1 prior list consumed by two_block_rNormal_reg_v2:
   ## mu is filled in internally from the current mu_all each sweep.
   prior_list_block1 <- list(
@@ -584,31 +461,109 @@ rLMMNormal_reg <- function(
   )
   .two_block_validate_block1_prior(prior_list_block1, family = gaussian())
 
-  ## Steps 5a--5d: ICM start, m calibration, v2 replicate chains, format output.
-  .rLMM_run_v2_sampler(
-    cl                  = cl,
-    n                   = inp$n,
-    y                   = inp$y,
-    x                   = inp$x,
-    block               = block,
-    x_hyper             = inp$x_hyper,
-    prior_list_block1   = prior_list_block1,
-    pfamily_list        = pfamily_list,
-    start               = start,
-    icm_tol             = icm_tol,
-    icm_maxit           = icm_maxit,
-    m_convergence       = inp$m_convergence,
-    tv_tol              = inp$tv_tol,
-    re_names            = inp$re_names,
-    group_levels        = inp$group_levels,
-    group_name          = inp$group_name,
-    seed                = seed,
-    progbar             = progbar,
-    verbose             = verbose,
-    any_ing             = any_ing,
-    engine_label        = "rLMMNormal_reg",
-    result_class        = "rLMMNormal_reg"
+  icm_info   <- NULL
+  ranef_mode <- NULL
+
+  ## Step 5. Block~2 chain start (fixef_start for each replicate chain).
+  ## When start = NULL, compute the ICM posterior mean of the Block~2
+  ## hyperparameters (and the matching b_start matrix for diagnostics).
+  if (is.null(start)) {
+    icm <- .rLMM_icm_at_start(
+      y                 = inp$y,
+      x                 = inp$x,
+      block             = block,
+      x_hyper           = inp$x_hyper,
+      prior_list_block1 = prior_list_block1,
+      pfamily_list      = pfamily_list,
+      re_names          = inp$re_names,
+      group_levels      = inp$group_levels,
+      group_name        = inp$group_name,
+      icm_tol           = icm_tol,
+      icm_maxit         = icm_maxit,
+      verbose           = verbose,
+      engine_label      = "rLMMNormal_reg"
+    )
+    start      <- icm$start
+    ranef_mode <- icm$b_start
+    icm_info   <- icm$icm
+  } else {
+    if (!is.list(start) || is.null(names(start))) {
+      stop("'start' must be a named list or NULL.", call. = FALSE)
+    }
+    if (!setequal(names(start), inp$re_names)) {
+      stop("names(start) must match re_coef_names.", call. = FALSE)
+    }
+    start <- start[inp$re_names]
+  }
+  fixef_mode <- start
+
+  ## Step 6. Inner-sweep count m_convergence: derive m_min from the
+  ## two-block convergence rate (Theorem 3) at tv_tol, then use the user
+  ## value or bump up to m_min with a warning.
+  calib <- .rLMM_calibrate_m_convergence(
+    x                 = inp$x,
+    block             = block,
+    x_hyper           = inp$x_hyper,
+    prior_list_block1 = prior_list_block1,
+    pfamily_list      = pfamily_list,
+    group_levels      = inp$group_levels,
+    m_convergence     = inp$m_convergence,
+    tv_tol            = inp$tv_tol,
+    any_non_normal    = pf_summary$any_non_normal,
+    engine_label      = "rLMMNormal_reg",
+    verbose           = verbose
   )
+  m_convergence    <- calib$m_convergence
+  convergence_info <- calib$convergence_info
+  convergence_info$draw_engine <- "two_block_rNormal_reg_v2"
+
+  ## Step 7. Draw n independent replicate chains. Each chain: reset to
+  ## fixef_start, run m_convergence Block~1/Block~2 Gibbs sweeps, store
+  ## the final (gamma, b, tau^2) state. Block~1 is Gaussian with fixed
+  ## sigma^2; Block~2 dispatches on pfamily_list (dNormal vs ING).
+  out <- two_block_rNormal_reg_v2(
+    n                 = inp$n,
+    y                 = inp$y,
+    x                 = inp$x,
+    block             = block,
+    x_hyper           = inp$x_hyper,
+    prior_list_block1 = prior_list_block1,
+    pfamily_list      = pfamily_list,
+    fixef_start       = start,
+    re_coef_names     = inp$re_names,
+    group_levels      = inp$group_levels,
+    group_name        = inp$group_name,
+    family            = gaussian(),
+    m_convergence     = m_convergence,
+    seed              = seed,
+    progbar           = progbar
+  )
+
+  ## Step 8. Rename v2 fields to lmerb-style names (fixef, fixef.dispersion,
+  ## fixef.iters, fixef.mode, coefficients, ...) and attach metadata.
+  staged <- .rLMM_format_v2_out(
+    v2_out       = out,
+    n            = inp$n,
+    re_names     = inp$re_names,
+    group_levels = inp$group_levels,
+    fixef_mode   = fixef_mode,
+    fixef_init   = fixef_mode
+  )
+
+  staged$call             <- cl
+  staged$m_convergence    <- m_convergence
+  staged$convergence_info <- convergence_info
+  staged$draw_engine      <- "two_block_rNormal_reg_v2"
+  staged$pfamily_list           <- pfamily_list
+  staged$prior_list             <- prior_list_block1
+  staged$family                 <- gaussian()
+  staged$ranef.mode             <- ranef_mode
+  staged$icm_info               <- icm_info
+  staged$ptypes         <- pf_summary$ptypes
+  staged$any_non_normal <- pf_summary$any_non_normal
+
+  class(staged) <- c("rLMMNormal_reg", "list")
+  staged
 }
 
 #' Replicate-chain Gibbs sampling for Bayesian LMMs with dGamma observation dispersion
@@ -647,8 +602,7 @@ rLMMindepNormalGamma_reg <- function(
     group_name      = NULL,
     seed            = NULL,
     progbar         = TRUE,
-    verbose         = FALSE,
-    any_ing         = FALSE
+    verbose         = FALSE
 ) {
   cl <- match.call()
   inp <- .rLMM_validate_matrix_inputs(
@@ -671,6 +625,7 @@ rLMMindepNormalGamma_reg <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
 
   prior_list_block1_cal <- list(
     P          = P,
@@ -720,7 +675,7 @@ rLMMindepNormalGamma_reg <- function(
     group_levels      = inp$group_levels,
     m_convergence     = inp$m_convergence,
     tv_tol            = inp$tv_tol,
-    any_ing           = any_ing,
+    any_non_normal    = pf_summary$any_non_normal,
     engine_label      = "rLMMindepNormalGamma_reg",
     verbose           = verbose
   )
@@ -801,8 +756,7 @@ rLMMindepNormalGamma_reg <- function(
       group_name      = inp$group_name,
       seed            = if (!is.null(seed)) seed + i - 1L else NULL,
       progbar         = FALSE,
-      verbose         = FALSE,
-      any_ing         = any_ing
+      verbose         = FALSE
     )
 
     for (k in re_names) {
@@ -873,6 +827,8 @@ rLMMindepNormalGamma_reg <- function(
   staged$icm_info              <- icm_info
   staged$P                     <- P
   staged$dispersion_fix          <- dispersion_fix
+  staged$ptypes         <- pf_summary$ptypes
+  staged$any_non_normal <- pf_summary$any_non_normal
 
   class(staged) <- c("rLMMindepNormalGamma_reg", "list")
   staged

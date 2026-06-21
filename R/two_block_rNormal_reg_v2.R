@@ -437,6 +437,32 @@ two_block_rNormal_reg_v2 <- function(
   pfamily_list
 }
 
+#' Summarize Block~2 \code{pfamily} types for fixed vs estimated RE dispersion
+#'
+#' When every component is \code{dNormal}, each RE-scale dispersion
+#' \eqn{\tau^2_k} is fixed and the random-effects covariance structure
+#' (via \code{P}) is treated as known up to the hyper means \eqn{\gamma_k}.
+#' When any component is \code{dIndependent_Normal_Gamma}, at least one
+#' \eqn{\tau^2_k} is sampled and fed back into Block~1 each inner sweep.
+#'
+#' @param pfamily_list Named list of validated \code{pfamily} objects.
+#' @return List with \code{ptypes}, \code{any_non_normal}, and \code{all_dNormal}.
+#' @noRd
+.two_block_summarize_pfamily_list <- function(pfamily_list) {
+  ptypes <- vapply(
+    pfamily_list,
+    function(pf) pf$pfamily,
+    character(1)
+  )
+  names(ptypes) <- names(pfamily_list)
+  any_non_normal <- any(ptypes != "dNormal")
+  list(
+    ptypes         = ptypes,
+    any_non_normal = any_non_normal,
+    all_dNormal    = !any_non_normal
+  )
+}
+
 #' Convergence rate for the v2 (pfamily) two-block sampler
 #'
 #' Thin wrapper around \code{\link{two_block_rate}} that accepts the Block~2
