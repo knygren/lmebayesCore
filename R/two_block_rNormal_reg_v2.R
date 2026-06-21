@@ -61,7 +61,7 @@
 #'   number of candidates per accepted draw).
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{run_sweep_outer_chains_v6}},
-#'   \code{\link{rGLMM}}, \code{\link{rLMM}}
+#'   \code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}}
 #'   \code{\link{dNormal}},
 #'   \code{\link{dIndependent_Normal_Gamma}}
 #' @export

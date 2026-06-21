@@ -67,7 +67,7 @@
 #'   \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
 #' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
-#'   \code{\link{rLMM}}
+#'   \code{\link{rLMMNormal_reg}}
 #' @export
 rGLMM <- function(
     n,

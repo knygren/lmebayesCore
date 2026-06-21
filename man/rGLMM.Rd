@@ -138,12 +138,13 @@ Block~2). For formula-level fitting with ICM mode and priors, see
 }
 \seealso{
 \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
-\code{\link{rLMM}}
+\code{\link{rLMMNormal_reg}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rLMM}()},
+\code{\link{rLMMNormal_reg}()},
+\code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},

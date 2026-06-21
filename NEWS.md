@@ -1,5 +1,11 @@
 # glmbayesCore (development version)
 
+* **LMM engine split:** **`rLMMNormal_reg()`** samples with fixed observation
+  dispersion (\code{prior_list = list(dispersion = sigma2)}); **`P`** is a
+  separate argument. **`rLMMindepNormalGamma_reg()`** implements an outer
+  two-block Gibbs sampler (dispersion via **`rGamma_reg()`**, fixed effects and
+  random effects via full **`rLMMNormal_reg()`** runs).
+
 * **`rGLMM()` pilot defaults:** non-Gaussian models now run pilot + main by
   default. New argument **`gap_tol`** (default `0.0196`) derives **`n_pilot`**
   when **`n_pilot = NULL`**; **`n_pilot = 0L`** or **`gap_tol = NULL`** skips
