@@ -415,9 +415,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
@@ -433,9 +430,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
@@ -451,9 +445,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
@@ -469,9 +460,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
@@ -487,9 +475,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
@@ -505,9 +490,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v3}()},
-\code{\link{two_block_rNormal_reg_v4}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}

@@ -211,128 +211,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_rNormal_reg_v3_cpp_export
-Rcpp::List two_block_rNormal_reg_v3_cpp_export(int n, int m_convergence, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, SEXP block, const Rcpp::List& x_hyper, const Rcpp::List& prior_list_block1, SEXP dispersion_block1, SEXP ddef_block1, const Rcpp::List& pfamily_list, const Rcpp::List& fixef_start, const Rcpp::CharacterVector& group_levels, const std::string& family, const std::string& link, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, int Gridtype, int n_envopt, bool use_parallel, bool use_opencl, bool verbose, Rcpp::Nullable<int> seed, int seed_offset, bool progbar);
-RcppExport SEXP _glmbayesCore_two_block_rNormal_reg_v3_cpp_export(SEXP nSEXP, SEXP m_convergenceSEXP, SEXP ySEXP, SEXP xSEXP, SEXP blockSEXP, SEXP x_hyperSEXP, SEXP prior_list_block1SEXP, SEXP dispersion_block1SEXP, SEXP ddef_block1SEXP, SEXP pfamily_listSEXP, SEXP fixef_startSEXP, SEXP group_levelsSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP, SEXP seedSEXP, SEXP seed_offsetSEXP, SEXP progbarSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type m_convergence(m_convergenceSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type block(blockSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_hyper(x_hyperSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type prior_list_block1(prior_list_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type dispersion_block1(dispersion_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type ddef_block1(ddef_block1SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type pfamily_list(pfamily_listSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef_start(fixef_startSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type family(familySEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type link(linkSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2(f2SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3(f3SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2_gauss(f2_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3_gauss(f3_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
-    Rcpp::traits::input_parameter< int >::type Gridtype(GridtypeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_envopt(n_envoptSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_parallel(use_parallelSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_opencl(use_openclSEXP);
-    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< int >::type seed_offset(seed_offsetSEXP);
-    Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_rNormal_reg_v3_cpp_export(n, m_convergence, y, x, block, x_hyper, prior_list_block1, dispersion_block1, ddef_block1, pfamily_list, fixef_start, group_levels, family, link, f2, f3, f2_gauss, f3_gauss, offset, wt, Gridtype, n_envopt, use_parallel, use_opencl, verbose, seed, seed_offset, progbar));
-    return rcpp_result_gen;
-END_RCPP
-}
-// two_block_rNormal_reg_v4_cpp_export
-Rcpp::List two_block_rNormal_reg_v4_cpp_export(int n, int m_convergence, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, SEXP block, const Rcpp::List& x_hyper, const Rcpp::List& prior_list_block1, SEXP dispersion_block1, SEXP ddef_block1, const Rcpp::List& pfamily_list, const Rcpp::List& fixef_start, const Rcpp::CharacterVector& group_levels, const std::string& family, const std::string& link, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, int Gridtype, int n_envopt, bool use_parallel, bool use_opencl, bool verbose, Rcpp::Nullable<int> seed, int seed_offset, bool progbar, std::string stage_label, bool diag_sweeps, SEXP fixef_mode, SEXP b_mode);
-RcppExport SEXP _glmbayesCore_two_block_rNormal_reg_v4_cpp_export(SEXP nSEXP, SEXP m_convergenceSEXP, SEXP ySEXP, SEXP xSEXP, SEXP blockSEXP, SEXP x_hyperSEXP, SEXP prior_list_block1SEXP, SEXP dispersion_block1SEXP, SEXP ddef_block1SEXP, SEXP pfamily_listSEXP, SEXP fixef_startSEXP, SEXP group_levelsSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP, SEXP seedSEXP, SEXP seed_offsetSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP diag_sweepsSEXP, SEXP fixef_modeSEXP, SEXP b_modeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type m_convergence(m_convergenceSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type block(blockSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_hyper(x_hyperSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type prior_list_block1(prior_list_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type dispersion_block1(dispersion_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type ddef_block1(ddef_block1SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type pfamily_list(pfamily_listSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef_start(fixef_startSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type family(familySEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type link(linkSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2(f2SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3(f3SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2_gauss(f2_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3_gauss(f3_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
-    Rcpp::traits::input_parameter< int >::type Gridtype(GridtypeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_envopt(n_envoptSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_parallel(use_parallelSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_opencl(use_openclSEXP);
-    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< int >::type seed_offset(seed_offsetSEXP);
-    Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
-    Rcpp::traits::input_parameter< std::string >::type stage_label(stage_labelSEXP);
-    Rcpp::traits::input_parameter< bool >::type diag_sweeps(diag_sweepsSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type fixef_mode(fixef_modeSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type b_mode(b_modeSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_rNormal_reg_v4_cpp_export(n, m_convergence, y, x, block, x_hyper, prior_list_block1, dispersion_block1, ddef_block1, pfamily_list, fixef_start, group_levels, family, link, f2, f3, f2_gauss, f3_gauss, offset, wt, Gridtype, n_envopt, use_parallel, use_opencl, verbose, seed, seed_offset, progbar, stage_label, diag_sweeps, fixef_mode, b_mode));
-    return rcpp_result_gen;
-END_RCPP
-}
-// two_block_rNormal_reg_v5_cpp_export
-Rcpp::List two_block_rNormal_reg_v5_cpp_export(int n, int m_convergence, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, SEXP block, const Rcpp::List& x_hyper, const Rcpp::List& prior_list_block1, SEXP dispersion_block1, SEXP ddef_block1, const Rcpp::List& pfamily_list, const Rcpp::List& fixef_start, const Rcpp::CharacterVector& group_levels, const std::string& family, const std::string& link, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, int Gridtype, int n_envopt, bool use_parallel, bool use_opencl, bool verbose, Rcpp::Nullable<int> seed, int seed_offset, bool progbar, std::string stage_label, bool diag_sweeps, SEXP fixef_mode, SEXP b_mode);
-RcppExport SEXP _glmbayesCore_two_block_rNormal_reg_v5_cpp_export(SEXP nSEXP, SEXP m_convergenceSEXP, SEXP ySEXP, SEXP xSEXP, SEXP blockSEXP, SEXP x_hyperSEXP, SEXP prior_list_block1SEXP, SEXP dispersion_block1SEXP, SEXP ddef_block1SEXP, SEXP pfamily_listSEXP, SEXP fixef_startSEXP, SEXP group_levelsSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP, SEXP seedSEXP, SEXP seed_offsetSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP diag_sweepsSEXP, SEXP fixef_modeSEXP, SEXP b_modeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    Rcpp::traits::input_parameter< int >::type m_convergence(m_convergenceSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type block(blockSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_hyper(x_hyperSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type prior_list_block1(prior_list_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type dispersion_block1(dispersion_block1SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type ddef_block1(ddef_block1SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type pfamily_list(pfamily_listSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef_start(fixef_startSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type family(familySEXP);
-    Rcpp::traits::input_parameter< const std::string& >::type link(linkSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2(f2SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3(f3SEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2_gauss(f2_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3_gauss(f3_gaussSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type offset(offsetSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
-    Rcpp::traits::input_parameter< int >::type Gridtype(GridtypeSEXP);
-    Rcpp::traits::input_parameter< int >::type n_envopt(n_envoptSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_parallel(use_parallelSEXP);
-    Rcpp::traits::input_parameter< bool >::type use_opencl(use_openclSEXP);
-    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type seed(seedSEXP);
-    Rcpp::traits::input_parameter< int >::type seed_offset(seed_offsetSEXP);
-    Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
-    Rcpp::traits::input_parameter< std::string >::type stage_label(stage_labelSEXP);
-    Rcpp::traits::input_parameter< bool >::type diag_sweeps(diag_sweepsSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type fixef_mode(fixef_modeSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type b_mode(b_modeSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_rNormal_reg_v5_cpp_export(n, m_convergence, y, x, block, x_hyper, prior_list_block1, dispersion_block1, ddef_block1, pfamily_list, fixef_start, group_levels, family, link, f2, f3, f2_gauss, f3_gauss, offset, wt, Gridtype, n_envopt, use_parallel, use_opencl, verbose, seed, seed_offset, progbar, stage_label, diag_sweeps, fixef_mode, b_mode));
-    return rcpp_result_gen;
-END_RCPP
-}
 // two_block_rNormal_reg_staged_cpp_export
 Rcpp::List two_block_rNormal_reg_staged_cpp_export(int n_main, int m_convergence_main, int n_pilot, int m_convergence_pilot, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::RObject& block, const Rcpp::List& x_hyper, const Rcpp::List& prior_list_block1, const Rcpp::RObject& dispersion_block1, const Rcpp::RObject& ddef_block1, const Rcpp::List& pfamily_list, const Rcpp::List& fixef_start, const Rcpp::CharacterVector& group_levels, const std::string& family, const std::string& link, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, int Gridtype, int n_envopt, bool use_parallel, bool use_opencl, bool verbose, bool progbar_main, bool progbar_pilot);
 RcppExport SEXP _glmbayesCore_two_block_rNormal_reg_staged_cpp_export(SEXP n_mainSEXP, SEXP m_convergence_mainSEXP, SEXP n_pilotSEXP, SEXP m_convergence_pilotSEXP, SEXP ySEXP, SEXP xSEXP, SEXP blockSEXP, SEXP x_hyperSEXP, SEXP prior_list_block1SEXP, SEXP dispersion_block1SEXP, SEXP ddef_block1SEXP, SEXP pfamily_listSEXP, SEXP fixef_startSEXP, SEXP group_levelsSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP, SEXP progbar_mainSEXP, SEXP progbar_pilotSEXP) {
@@ -802,9 +680,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_block_rNormalGLM_cpp_export", (DL_FUNC) &_glmbayesCore_block_rNormalGLM_cpp_export, 17},
     {"_glmbayesCore_two_block_rNormal_reg_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_cpp_export, 26},
     {"_glmbayesCore_two_block_rNormal_reg_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v2_cpp_export, 26},
-    {"_glmbayesCore_two_block_rNormal_reg_v3_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v3_cpp_export, 28},
-    {"_glmbayesCore_two_block_rNormal_reg_v4_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v4_cpp_export, 32},
-    {"_glmbayesCore_two_block_rNormal_reg_v5_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v5_cpp_export, 32},
     {"_glmbayesCore_two_block_rNormal_reg_staged_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_staged_cpp_export, 29},
     {"_glmbayesCore_rNormalReg_cpp_export", (DL_FUNC) &_glmbayesCore_rNormalReg_cpp_export, 14},
     {"_glmbayesCore_rIndepNormalGammaReg_cpp_export", (DL_FUNC) &_glmbayesCore_rIndepNormalGammaReg_cpp_export, 18},

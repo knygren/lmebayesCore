@@ -229,6 +229,9 @@
 }
 
 #' ICM start for matrix-level LMM engines
+#'
+#' Iterated conditional modes for Block~2 hyperparameters at fixed Block~1
+#' dispersion; used when \code{start = NULL} in \code{rLMMNormal_reg}.
 #' @noRd
 .rLMM_icm_at_start <- function(
     y,
@@ -275,6 +278,9 @@
 }
 
 #' Calibrate inner Gibbs sweeps for matrix-level LMM engines
+#'
+#' Computes the two-block convergence rate at the chain start, then sets
+#' \code{m_convergence} to at least \code{l_for_tv(tv_tol) + 1} (Theorem 3).
 #' @noRd
 .rLMM_calibrate_m_convergence <- function(
     x,
@@ -338,6 +344,7 @@
 }
 
 #' @noRd
+#' Run ICM -> m calibration -> two_block_rNormal_reg_v2 -> format output.
 .rLMM_run_v2_sampler <- function(
     cl,
     n,
@@ -362,8 +369,15 @@
     engine_label,
     result_class
 ) {
+  ## Shared v2 sampling pipeline used by rLMMNormal_reg (and rLMMNormal_reg
+  ## with n = 1 inside rLMMindepNormalGamma_reg's outer loop).
+
   icm_info   <- NULL
   ranef_mode <- NULL
+
+  ## Step 5a. Block~2 chain start (fixef_start for each replicate chain).
+  ## When start = NULL, compute the ICM posterior mean of the Block~2
+  ## hyperparameters (and the matching b_start matrix for diagnostics).
   if (is.null(start)) {
     icm <- .rLMM_icm_at_start(
       y                 = y,
@@ -392,8 +406,11 @@
     }
     start <- start[re_names]
   }
-  fixef_mode <- start
+  fixef_mode <- start  ## reference mode for fixef.mode on output
 
+  ## Step 5b. Inner-sweep count m_convergence: derive m_min from the
+  ## two-block convergence rate (Theorem 3) at tv_tol, then use the user
+  ## value or bump up to m_min with a warning.
   calib <- .rLMM_calibrate_m_convergence(
     x                 = x,
     block             = block,
@@ -411,6 +428,10 @@
   convergence_info <- calib$convergence_info
   convergence_info$draw_engine <- "two_block_rNormal_reg_v2"
 
+  ## Step 5c. Draw n independent replicate chains. Each chain: reset to
+  ## fixef_start, run m_convergence Block~1/Block~2 Gibbs sweeps, store
+  ## the final (gamma, b, tau^2) state. Block~1 is Gaussian with fixed
+  ## sigma^2; Block~2 dispatches on pfamily_list (dNormal vs ING).
   out <- two_block_rNormal_reg_v2(
     n                 = n,
     y                 = y,
@@ -429,6 +450,8 @@
     progbar           = progbar
   )
 
+  ## Step 5d. Rename v2 fields to lmerb-style names (fixef, fixef.dispersion,
+  ## fixef.iters, fixef.mode, coefficients, ...) and attach metadata.
   staged <- .rLMM_format_v2_out(
     v2_out       = out,
     n            = n,
@@ -457,6 +480,27 @@
 #' Matrix-level LMM sampler with fixed observation-level \eqn{\sigma^2} and
 #' random-effect prior precision \code{P}.  Uses
 #' \code{\link{two_block_rNormal_reg_v2}}.
+#'
+#' @details
+#' Pipeline (see inline comments in the function body):
+#' \enumerate{
+#'   \item Validate matrix inputs (\code{y}, \code{x}, \code{x_hyper}, \code{n},
+#'     \code{tv_tol}, \code{m_convergence}).
+#'   \item Validate Block~1 quantities: RE prior precision \code{P} and fixed
+#'     observation dispersion \code{prior_list$dispersion}.
+#'   \item Validate Block~2 \code{pfamily_list} (one \code{dNormal} or
+#'     \code{dIndependent_Normal_Gamma} per RE column).
+#'   \item Assemble Block~1 prior \code{list(P, dispersion, ddef = FALSE)}.
+#'   \item Delegate to \code{.rLMM_run_v2_sampler}: ICM start (if
+#'     \code{start = NULL}), Theorem~3 calibration of \code{m_convergence},
+#'     \code{n} replicate short chains via \code{two_block_rNormal_reg_v2},
+#'     then format draws as \code{fixef.*}, \code{coefficients}, etc.
+#' }
+#'
+#' Each stored draw runs \code{m_convergence} inner Gibbs sweeps of the
+#' two-block sampler: Block~1 updates group random effects \eqn{b} given
+#' Block~2 hyperparameters \eqn{\gamma}; Block~2 updates \eqn{\gamma} (and
+#' optional ING \eqn{\tau^2_k}) given \eqn{b}.
 #'
 #' @param n Number of stored draws. If \code{length(n) > 1}, the length is
 #'   taken to be the number required.
@@ -514,17 +558,25 @@ rLMMNormal_reg <- function(
     any_ing         = FALSE
 ) {
   cl <- match.call()
+
+  ## Step 1. Dimensions, names, and scalar controls (n, tv_tol, m_convergence).
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol, m_convergence,
     re_coef_names, group_levels, group_name, block
   )
+
+  ## Step 2. Block~1 prior pieces supplied separately at this API layer:
+  ## P (RE precision) and fixed observation-level sigma^2.
   P <- .rLMM_validate_P(P, length(inp$re_names))
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(prior_list)
 
+  ## Step 3. Block~2 priors as pfamily objects (one per column of x).
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
 
+  ## Step 4. Block~1 prior list consumed by two_block_rNormal_reg_v2:
+  ## mu is filled in internally from the current mu_all each sweep.
   prior_list_block1 <- list(
     P          = P,
     dispersion = dispersion,
@@ -532,6 +584,7 @@ rLMMNormal_reg <- function(
   )
   .two_block_validate_block1_prior(prior_list_block1, family = gaussian())
 
+  ## Steps 5a--5d: ICM start, m calibration, v2 replicate chains, format output.
   .rLMM_run_v2_sampler(
     cl                  = cl,
     n                   = inp$n,
