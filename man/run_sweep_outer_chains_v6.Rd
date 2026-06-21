@@ -91,6 +91,8 @@ glmbayes Simulation Functions
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
 \code{\link{rLMMNormal_reg}()},
+\code{\link{rLMMNormal_reg_estimated_vcov}()},
+\code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_l_for_tv}()},

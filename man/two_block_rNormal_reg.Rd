@@ -97,6 +97,8 @@ glmbayes Simulation Functions
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
 \code{\link{rLMMNormal_reg}()},
+\code{\link{rLMMNormal_reg_estimated_vcov}()},
+\code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},

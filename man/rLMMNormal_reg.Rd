@@ -73,36 +73,21 @@ calibration.}
 \item{verbose}{Print the convergence calibration line.}
 }
 \value{
-Object of class \code{c("rLMMNormal_reg", "list")}.  Includes
-\code{ptypes} (Block~2 pfamily name per RE column) and
-\code{any_non_normal} (\code{TRUE} when any component is not
-\code{dNormal}, so at least one RE-scale dispersion may be sampled).
+Object of class \code{c("rLMMNormal_reg", "list")} (plus a route-specific
+prefix class).  Includes \code{ptypes} and \code{any_non_normal}.
 }
 \description{
 Matrix-level LMM sampler with fixed observation-level \eqn{\sigma^2} and
-random-effect prior precision \code{P}.  Uses
-\code{\link{two_block_rNormal_reg_v2}}.
+random-effect prior precision \code{P}.  Validates inputs and dispatches to
+\code{\link{rLMMNormal_reg_known_vcov}} or
+\code{\link{rLMMNormal_reg_estimated_vcov}} according to Block~2
+\code{pfamily_list}.
 }
 \details{
-Pipeline (see inline comments in the function body):
-\enumerate{
-\item Validate matrix inputs (\code{y}, \code{x}, \code{x_hyper}, \code{n},
-\code{tv_tol}, \code{m_convergence}).
-\item Validate Block~1 quantities: RE prior precision \code{P} and fixed
-observation dispersion \code{prior_list$dispersion}.
-\item Validate Block~2 \code{pfamily_list} (one \code{dNormal} or
-\code{dIndependent_Normal_Gamma} per RE column) and classify whether
-any use a non-\code{dNormal} pfamily (\code{any_non_normal}).
-\item Assemble Block~1 prior \code{list(P, dispersion, ddef = FALSE)}.
-\item ICM start for Block~2 chains when \code{start = NULL}
-(\code{\link{lmerb_posterior_mean}} logic via \code{.rLMM_icm_at_start}).
-\item Calibrate \code{m_convergence} from Theorem~3 at \code{tv_tol}
-(\code{.rLMM_calibrate_m_convergence}).
-\item Draw \code{n} replicate short chains via
-\code{\link{two_block_rNormal_reg_v2}}.
-\item Format draws as \code{fixef.*}, \code{coefficients}, etc.
-(\code{.rLMM_format_v2_out}).
-}
+Steps 1--3 (validation and Block~2 classification) run here; sampling runs
+in the route-specific functions. See their documentation for the full
+pipeline (ICM start, convergence calibration, \code{two_block_rNormal_reg_v2},
+output formatting).
 
 Each stored draw runs \code{m_convergence} inner Gibbs sweeps of the
 two-block sampler: Block~1 updates group random effects \eqn{b} given
@@ -110,12 +95,16 @@ Block~2 hyperparameters \eqn{\gamma}; Block~2 updates \eqn{\gamma} (and
 optional ING \eqn{\tau^2_k}) given \eqn{b}.
 }
 \seealso{
+\code{\link{rLMMNormal_reg_known_vcov}},
+\code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{rGLMM}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
+\code{\link{rLMMNormal_reg_estimated_vcov}()},
+\code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
