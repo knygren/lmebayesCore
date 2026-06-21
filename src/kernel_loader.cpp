@@ -255,28 +255,31 @@ KernelDepIndex read_tsv_index(const std::string& tsv_path)
   return idx;
 }
 
-std::string load_library_for_kernel(
+std::string load_library_for_kernel_cross_package(
     const std::string& kernel_relative_path,
+    const std::string& kernel_package,
     const std::string& library_subdir,
-    const std::string& package,
+    const std::string& library_package,
     const std::string& depends_tag)
 {
   std::string kernel_path = Rcpp::as<std::string>(
       Rcpp::Function("system.file")(
           "cl", kernel_relative_path,
-          Rcpp::Named("package") = package));
+          Rcpp::Named("package") = kernel_package));
   if (kernel_path.empty()) {
     throw std::runtime_error(
-        "Kernel file not found via system.file: " + kernel_relative_path);
+        "Kernel file not found via system.file: " + kernel_relative_path +
+        " (package=" + kernel_package + ")");
   }
 
   std::string lib_dir = Rcpp::as<std::string>(
       Rcpp::Function("system.file")(
           "cl", library_subdir,
-          Rcpp::Named("package") = package));
+          Rcpp::Named("package") = library_package));
   if (lib_dir.empty()) {
     throw std::runtime_error(
-        "Library directory not found via system.file: " + library_subdir);
+        "Library directory not found via system.file: " + library_subdir +
+        " (package=" + library_package + ")");
   }
 
   std::ifstream kf(kernel_path);
@@ -319,6 +322,20 @@ std::string load_library_for_kernel(
   }
 
   return combined;
+}
+
+std::string load_library_for_kernel(
+    const std::string& kernel_relative_path,
+    const std::string& library_subdir,
+    const std::string& package,
+    const std::string& depends_tag)
+{
+  return load_library_for_kernel_cross_package(
+      kernel_relative_path,
+      package,
+      library_subdir,
+      package,
+      depends_tag);
 }
 
 std::string resolve_kernel_path(
@@ -385,6 +402,48 @@ std::string load_likelihood_subgradient_program(
   std::string nmath_source = load_library_for_kernel(
       kernel_file, "nmath", package, "all_depends_nmath");
   std::string ksrc = openclPort::load_kernel_source(kernel_file, package);
+
+  return opencl_source +
+    "\n" + libr_shims_source +
+    "\n" + r_ext_types_source +
+    "\n" + r_shims_source +
+    "\n" + r_ext_runtime_source +
+    "\n" + r_ext_internals_source +
+    "\n" + system_source +
+    "\n" + nmath_source +
+    "\n" + ksrc;
+}
+
+std::string load_likelihood_subgradient_program_v2(
+    const std::string& family,
+    const std::string& link,
+    const std::string& app_package,
+    const std::string& nmath_package)
+{
+  const std::string kernel_file = resolve_kernel_path(family, link);
+
+  std::string opencl_source =
+      openclPort::load_kernel_source("OPENCL.cl", nmath_package);
+  std::string libr_shims_source =
+      openclPort::load_kernel_library("libR_shims", nmath_package, false);
+  std::string r_ext_types_source =
+      openclPort::load_kernel_library("R_ext_types", nmath_package, false);
+  std::string r_shims_source =
+      openclPort::load_kernel_library("R_shims", nmath_package, false);
+  std::string r_ext_runtime_source =
+      openclPort::load_kernel_library("R_ext_runtime", nmath_package, false);
+  std::string r_ext_internals_source =
+      openclPort::load_kernel_library("R_ext_internals", nmath_package, false);
+  std::string system_source =
+      openclPort::load_kernel_library("System", nmath_package, false);
+  std::string nmath_source = load_library_for_kernel_cross_package(
+      kernel_file,
+      app_package,
+      "nmath",
+      nmath_package,
+      "all_depends_nmath");
+  std::string ksrc =
+      openclPort::load_kernel_source(kernel_file, app_package);
 
   return opencl_source +
     "\n" + libr_shims_source +

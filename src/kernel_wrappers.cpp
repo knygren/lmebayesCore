@@ -103,7 +103,8 @@ Rcpp::List f2_f3_opencl(
     Rcpp::stop("Unsupported family: " + family);
   }
 
-  all_src = load_likelihood_subgradient_program(family, link, GLMBAYES_R_NS);
+  // all_src = load_likelihood_subgradient_program(family, link, GLMBAYES_R_NS);
+  all_src = load_likelihood_subgradient_program_v2(family, link, GLMBAYES_R_NS);
 
   // Legacy glmbayes program assembly (replaced by load_likelihood_subgradient_program above)
   // std::string OPENCL_source     = load_kernel_source("OPENCL.cl");
