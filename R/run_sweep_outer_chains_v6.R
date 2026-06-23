@@ -110,13 +110,14 @@ run_sweep_outer_chains_v6 <- function(
     #   boundary     = "enter"
     # )
     batch <- .two_block_block1_all_chains(
-      batch          = batch,
-      design         = design,
-      block1_prior   = block1_prior,
-      family         = family,
-      ptypes         = ptypes,
-      progbar        = progbar_use,
-      progbar_prefix = prefix_b1
+      batch                  = batch,
+      design                 = design,
+      block1_prior           = block1_prior,
+      family                 = family,
+      ptypes                 = ptypes,
+      progbar                = progbar_use,
+      progbar_prefix         = prefix_b1,
+      progbar_finish_newline = FALSE
     )
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,
@@ -148,12 +149,13 @@ run_sweep_outer_chains_v6 <- function(
     #   boundary     = "enter"
     # )
     batch <- .two_block_block2_all_chains(
-      batch          = batch,
-      design         = design,
-      pfamily_list   = pfamily_list,
-      ptypes         = ptypes,
-      progbar        = progbar_use,
-      progbar_prefix = prefix_b2
+      batch                  = batch,
+      design                 = design,
+      pfamily_list           = pfamily_list,
+      ptypes                 = ptypes,
+      progbar                = progbar_use,
+      progbar_prefix         = prefix_b2,
+      progbar_finish_newline = (m == inner_sweeps)
     )
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,
@@ -176,11 +178,14 @@ run_sweep_outer_chains_v6 <- function(
       #   group_levels = group_levels
       # )
     }
-    if (progbar_use) {
-      if (n_chains <= 1L) {
-        .two_block_progress_bar(m, inner_sweeps, prefix = prefix_b2)
+    if (progbar_use && n_chains <= 1L) {
+      prefix_sweep <- if (nzchar(stage_label)) {
+        sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
+      } else {
+        sprintf("sweep %d/%d: ", m, inner_sweeps)
       }
-      .two_block_progress_bar_finish()
+      .two_block_progress_bar(m, inner_sweeps, prefix = prefix_sweep)
+      .two_block_progress_bar_finish(newline = (m == inner_sweeps))
     }
   }
 

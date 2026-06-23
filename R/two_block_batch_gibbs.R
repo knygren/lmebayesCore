@@ -52,9 +52,13 @@
 }
 
 #' Finish a progress bar started by \code{.two_block_progress_bar}
+#' @param newline If \code{FALSE}, leave the completed bar on the current
+#'   line so the next bar can overwrite it with \code{\r}.
 #' @noRd
-.two_block_progress_bar_finish <- function() {
-  cat("\n")
+.two_block_progress_bar_finish <- function(newline = TRUE) {
+  if (isTRUE(newline)) {
+    cat("\n")
+  }
 }
 
 #' Print Block 1 prep/draw sub-phase boundary with wall-clock timestamp
@@ -140,7 +144,7 @@
   out
 }
 
-#' Print stage-end tables: fixef mode + per-sweep means; then per-sweep SDs
+#' Print stage-end table: fixef mode + per-sweep chain mean/sd (long format)
 #' @noRd
 .two_block_print_sweep_history_tables <- function(
     stage_label,
@@ -166,59 +170,35 @@
     }
   }
 
-  sweep_hdr <- paste(
-    vapply(seq_len(n_sweep), function(m) {
-      sprintf("%12s", paste0("sweep ", m))
-    }, character(1)),
-    collapse = "  "
-  )
-
   cat(sprintf(
-    "\n--- two-block [%s stage summary: fixef means by sweep (%d sweeps)] ---\n",
+    "\n--- two-block [%s stage summary: fixef by sweep (%d sweeps)] ---\n",
     stage_label, n_sweep
   ))
-  cat("  Block 2 fixed effects (chain colMeans after each sweep):\n")
-  hdr_mean <- sprintf(
-    "  %-18s  %-30s  %12s  %s",
-    "Random effect", "Covariate", "mode", sweep_hdr
+  cat("  Block 2 fixed effects (mode and chain stats after each sweep):\n")
+  hdr <- sprintf(
+    "  %-18s  %-30s  %12s  %12s  %12s",
+    "Random effect", "Covariate", "mode/sweep", "mean", "sd"
   )
-  cat(hdr_mean, "\n")
-  cat(paste0("  ", strrep("-", nchar(hdr_mean) - 2L)), "\n")
+  sep <- paste0("  ", strrep("-", nchar(hdr) - 2L))
+  cat(hdr, "\n")
+  cat(sep, "\n")
 
   for (row in row_keys) {
-    k  <- row$re
-    nm <- row$cov
+    k      <- row$re
+    nm     <- row$cov
     mode_v <- .two_block_fixef_mode_at(fixef_mode, k, nm, row$cn)
-    mean_cols <- vapply(seq_len(n_sweep), function(m) {
-      sweep_stats[[m]][[k]]$mean[[nm]]
-    }, numeric(1))
-    mean_fmt <- paste(sprintf("%12.4f", mean_cols), collapse = "  ")
     cat(sprintf(
-      "  %-18s  %-30s  %12.4f  %s\n",
-      k, nm, mode_v, mean_fmt
+      "  %-18s  %-30s  %12s  %12.4f  %12s\n",
+      k, nm, "mode", mode_v, ""
     ))
-  }
-
-  cat(sprintf(
-    "\n--- two-block [%s stage summary: fixef sd by sweep (%d sweeps)] ---\n",
-    stage_label, n_sweep
-  ))
-  cat("  Block 2 fixed effects (chain SD after each sweep):\n")
-  hdr_sd <- sprintf(
-    "  %-18s  %-30s  %s",
-    "Random effect", "Covariate", sweep_hdr
-  )
-  cat(hdr_sd, "\n")
-  cat(paste0("  ", strrep("-", nchar(hdr_sd) - 2L)), "\n")
-
-  for (row in row_keys) {
-    k  <- row$re
-    nm <- row$cov
-    sd_cols <- vapply(seq_len(n_sweep), function(m) {
-      sweep_stats[[m]][[k]]$sd[[nm]]
-    }, numeric(1))
-    sd_fmt <- paste(sprintf("%12.4f", sd_cols), collapse = "  ")
-    cat(sprintf("  %-18s  %-30s  %s\n", k, nm, sd_fmt))
+    for (m in seq_len(n_sweep)) {
+      mean_v <- sweep_stats[[m]][[k]]$mean[[nm]]
+      sd_v   <- sweep_stats[[m]][[k]]$sd[[nm]]
+      cat(sprintf(
+        "  %-18s  %-30s  %12s  %12.4f  %12.4f\n",
+        k, nm, paste0("sweep ", m), mean_v, sd_v
+      ))
+    }
   }
   cat("\n")
   invisible(NULL)
@@ -422,7 +402,8 @@
     block1_prior,
     ptypes,
     n_cores = NULL,
-    progbar = FALSE
+    progbar = FALSE,
+    progbar_finish_newline = TRUE
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L &&
@@ -440,7 +421,7 @@
   }
 
   prep_list <- .two_block_lapply_chains(n, prep_i, n_cores = n_cores)
-  if (show_bar) .two_block_progress_bar_finish()
+  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
 
   structure(
     list(
@@ -503,7 +484,8 @@
     family,
     n_cores = NULL,
     progbar = FALSE,
-    progbar_prefix = ""
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE
 ) {
   is_gaussian <- identical(family$family, "gaussian")
   n <- batch$n
@@ -526,7 +508,7 @@
   }
 
   b_draws <- .two_block_lapply_chains(n, draw_i, n_cores = n_cores)
-  if (show_bar) .two_block_progress_bar_finish()
+  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
 
   for (i in seq_len(n)) {
     batch$b[, , i] <- b_draws[[i]]
@@ -661,7 +643,8 @@
     ptypes,
     n_cores = NULL,
     progbar = FALSE,
-    progbar_prefix = ""
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE
 ) {
   n <- batch$n
   # .two_block_print_block1_phase("prep", "enter", n)
@@ -676,13 +659,14 @@
   # .two_block_print_block1_phase("prep", "exit", n)
   # .two_block_print_block1_phase("draw", "enter", n)
   batch <- .two_block_block1_draw_all_chains(
-    batch          = batch,
-    prep           = prep,
-    design         = design,
-    family         = family,
-    n_cores        = n_cores,
-    progbar        = progbar,
-    progbar_prefix = progbar_prefix
+    batch                   = batch,
+    prep                    = prep,
+    design                  = design,
+    family                  = family,
+    n_cores                 = n_cores,
+    progbar                 = progbar,
+    progbar_prefix          = progbar_prefix,
+    progbar_finish_newline  = progbar_finish_newline
   )
   # .two_block_print_block1_phase("draw", "exit", n)
   batch
@@ -696,7 +680,8 @@
     pfamily_list,
     ptypes,
     progbar = FALSE,
-    progbar_prefix = ""
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L
@@ -711,7 +696,7 @@
       ptypes       = ptypes
     )
   }
-  if (show_bar) .two_block_progress_bar_finish()
+  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
   batch
 }
 

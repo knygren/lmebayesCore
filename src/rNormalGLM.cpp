@@ -131,11 +131,13 @@ Rcpp::List glmb_Standardize_Model(
           "  kappa(H) = " << kappa_H << "\n"
           "  Expect sensitivity to rounding and potential instability.\n";
       }
-      else if (kappa_H > 1e4) {
-        Rcpp::Rcout <<
-          "[glmb_Standardize_Model][NOTE] Posterior Hessian is moderately ill-conditioned.\n"
-          "  kappa(H) = " << kappa_H << "\n";
-      }
+      // NOTE (kappa_H > 1e4) suppressed: fires on every envelope draw during
+      // glmerb Block 2 updates when curvature is mildly uneven but stable.
+      // else if (kappa_H > 1e4) {
+      //   Rcpp::Rcout <<
+      //     "[glmb_Standardize_Model][NOTE] Posterior Hessian is moderately ill-conditioned.\n"
+      //     "  kappa(H) = " << kappa_H << "\n";
+      // }
       
       
 ////////////////////////////////////////////////////////////      
