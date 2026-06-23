@@ -99,7 +99,7 @@ test_that("rGLMM: Poisson skips pilot when n_pilot = 0L", {
   expect_null(out$pilot)
 })
 
-test_that("rGLMM: Poisson skips pilot when gap_tol is NULL", {
+test_that("rGLMM: Poisson skips pilot when tv_tol and gap_tol are NULL", {
   inp <- .mini_rGLMM_inputs(poisson())
   out <- rGLMM(
     n = 2L,
@@ -112,6 +112,7 @@ test_that("rGLMM: Poisson skips pilot when gap_tol is NULL", {
     family = inp$family,
     n_pilot = NULL,
     gap_tol = NULL,
+    tv_tol = NULL,
     verbose = FALSE,
     progbar = FALSE
   )
@@ -119,11 +120,25 @@ test_that("rGLMM: Poisson skips pilot when gap_tol is NULL", {
   expect_null(out$pilot)
 })
 
-test_that("rGLMM: Poisson derives n_pilot from default gap_tol", {
+test_that("rGLMM: Poisson derives n_pilot from cost optimization when tv_tol set", {
   inp <- .mini_rGLMM_inputs(poisson())
-  expected <- as.integer(ceiling((stats::qnorm(0.975) / 0.0196)^2))
-  resolved <- glmbayesCore:::.two_block_resolve_n_pilot(
-    poisson(), NULL, 0.0196
+  out <- rGLMM(
+    n = 100L,
+    y = inp$y,
+    x = inp$x,
+    block = inp$block,
+    x_hyper = inp$x_hyper,
+    prior_list = inp$prior_list,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    n_pilot = NULL,
+    gap_tol = 0.0196,
+    verbose = FALSE,
+    progbar = FALSE
   )
-  expect_equal(resolved, expected)
+  expect_true(out$n_pilot > 0L)
+  expect_true(out$n_pilot < 10000L)
+  expect_equal(out$convergence$n_pilot_source, "cost")
+  expect_equal(out$n_pilot, out$convergence$pilot_cost_opt$n_pilot_opt)
+  expect_equal(out$m_convergence, out$convergence$pilot_cost_opt$m_convergence_opt)
 })

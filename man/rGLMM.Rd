@@ -70,8 +70,10 @@ when \code{family = gaussian()}).}
 \item{offset, weights, family}{Passed to Block~1 (length \code{l2} or recycled).}
 
 \item{m_convergence}{Inner Gibbs steps per main-stage stored draw. When
-\code{NULL} and \code{tv_tol} is set, derived from Theorem~3 at \code{start};
-when \code{NULL} and \code{tv_tol} is \code{NULL}, defaults to \code{10L}.}
+\code{NULL} and a pilot stage runs with \code{tv_tol}, derived from the
+cost-optimal or pilot-start certificate; without a pilot, from Theorem~3 at
+the mode (\code{D_0 = 0}). When \code{NULL} and \code{tv_tol} is \code{NULL},
+defaults to \code{10L}.}
 
 \item{re_coef_names}{Character vector naming columns of \code{x}.}
 
@@ -79,14 +81,16 @@ when \code{NULL} and \code{tv_tol} is \code{NULL}, defaults to \code{10L}.}
 
 \item{group_name}{Name for the grouping column in \code{coefficients}.}
 
-\item{n_pilot}{Number of pilot replicate chains. When \code{NULL} (default),
-derived from \code{gap_tol} for non-Gaussian families; \code{0L} skips the
-pilot. Ignored for \code{gaussian()}.}
+\item{n_pilot}{Number of pilot replicate chains. When \code{NULL} (default)
+and \code{tv_tol} is set, derived from \code{\link{two_block_optimize_pilot_cost}}
+for non-Gaussian families; when \code{NULL} and \code{tv_tol} is \code{NULL},
+falls back to \code{gap_tol} (legacy). \code{0L} skips the pilot. Ignored
+for \code{gaussian()}.}
 
-\item{gap_tol}{Tolerated mode--mean gap in posterior SD units used to derive
-\code{n_pilot} when \code{n_pilot} is \code{NULL} and the family is
-non-Gaussian (default \code{0.0196}). Set \code{NULL} to skip the pilot
-unless \code{n_pilot} is supplied explicitly.}
+\item{gap_tol}{Legacy mode--mean gap tolerance used to derive \code{n_pilot}
+only when \code{n_pilot} is \code{NULL} and \code{tv_tol} is \code{NULL}.
+Default \code{0.0196} gives \code{n_pilot = 10000}. Set \code{NULL} to skip
+the pilot unless \code{n_pilot} is supplied explicitly or \code{tv_tol} is set.}
 
 \item{m_convergence_pilot}{Inner Gibbs steps per pilot stored draw. Defaults
 to \code{m_convergence} when \code{n_pilot > 0} and \code{tv_tol} is
@@ -103,7 +107,9 @@ path (not yet forwarded to v6).}
 
 \item{verbose}{Print stage headers and convergence calibration lines.}
 
-\item{progbar}{Progress bars during pilot and main sampling.}
+\item{progbar}{Progress bars during pilot and main sampling. When
+\code{verbose} or \code{stage_verbose} is \code{TRUE}, progress bars are
+shown automatically even if \code{progbar = FALSE}.}
 
 \item{stage_verbose}{Print pilot chi-squared and post-pilot UB diagnostics.}
 
@@ -147,8 +153,12 @@ glmbayes Simulation Functions
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
+\code{\link{two_block_d0_pilot_start}()},
 \code{\link{two_block_l_for_tv}()},
+\code{\link{two_block_m_convergence_for_pilot_start}()},
 \code{\link{two_block_mode_weights}()},
+\code{\link{two_block_optimize_pilot_cost}()},
+\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
 \code{\link{two_block_rate}()},

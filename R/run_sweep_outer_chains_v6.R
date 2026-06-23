@@ -23,13 +23,14 @@
 #' @param group_levels Character vector of group levels.
 #' @param collect_block1 Logical. If \code{TRUE}, collect and rbind Block~1
 #'   (\code{coefficients}) draws from every chain. Default \code{TRUE}.
-#' @param progbar Logical. When \code{TRUE} and \code{n_chains > 1}, show a
-#'   text progress bar over chains during Block~1 draw and Block~2.
+#' @param progbar Logical. When \code{TRUE} (or when \code{diag_sweeps} is
+#'   \code{TRUE}), show text progress bars over chains during each inner sweep.
 #'   Default \code{FALSE}.
 #' @param stage_label Character label for sweep diagnostics (e.g.
 #'   \code{"pilot"}).
-#' @param diag_sweeps If \code{TRUE}, print per-sweep fixef tables after Block~2
-#'   and stage-end sweep history tables (means and SDs by sweep).
+#' @param diag_sweeps If \code{TRUE}, print stage-end sweep history tables
+#'   (fixef means and SDs by sweep) after the inner loop completes. Per-sweep
+#'   boundary and fixef tables are suppressed by default.
 #' @param fixef_mode ICM mode reference for fixef diagnostics.
 #' @param b_mode ICM mode reference for random-effect diagnostics.
 #' @param b_start Initial random-effect matrix for all chains (\code{J x p_re}).
@@ -83,7 +84,7 @@ run_sweep_outer_chains_v6 <- function(
   )
 
   verbose_block_diag <- isTRUE(diag_sweeps)
-  progbar_use <- isTRUE(progbar) && !verbose_block_diag
+  progbar_use <- isTRUE(progbar) || verbose_block_diag
   sweep_stats <- if (verbose_block_diag) {
     vector("list", inner_sweeps)
   } else {
@@ -91,28 +92,39 @@ run_sweep_outer_chains_v6 <- function(
   }
 
   for (m in seq_len(inner_sweeps)) {
-    .two_block_print_sweep_boundary(
-      stage_label  = stage_label,
-      sweep        = m,
-      inner_sweeps = inner_sweeps,
-      phase        = "Block1",
-      boundary     = "enter"
-    )
+    prefix_b1 <- if (progbar_use) {
+      .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block1")
+    } else {
+      ""
+    }
+    prefix_b2 <- if (progbar_use) {
+      .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block2")
+    } else {
+      ""
+    }
+    # .two_block_print_sweep_boundary(
+    #   stage_label  = stage_label,
+    #   sweep        = m,
+    #   inner_sweeps = inner_sweeps,
+    #   phase        = "Block1",
+    #   boundary     = "enter"
+    # )
     batch <- .two_block_block1_all_chains(
-      batch        = batch,
-      design       = design,
-      block1_prior = block1_prior,
-      family       = family,
-      ptypes       = ptypes,
-      progbar      = progbar_use
+      batch          = batch,
+      design         = design,
+      block1_prior   = block1_prior,
+      family         = family,
+      ptypes         = ptypes,
+      progbar        = progbar_use,
+      progbar_prefix = prefix_b1
     )
-    .two_block_print_sweep_boundary(
-      stage_label  = stage_label,
-      sweep        = m,
-      inner_sweeps = inner_sweeps,
-      phase        = "Block1",
-      boundary     = "exit"
-    )
+    # .two_block_print_sweep_boundary(
+    #   stage_label  = stage_label,
+    #   sweep        = m,
+    #   inner_sweeps = inner_sweeps,
+    #   phase        = "Block1",
+    #   boundary     = "exit"
+    # )
     # Fixef table only after Block 2 (gamma updated); skip after Block 1.
     # if (verbose_block_diag) {
     #   .two_block_print_block_diag(
@@ -128,40 +140,47 @@ run_sweep_outer_chains_v6 <- function(
     #   )
     # }
 
-    .two_block_print_sweep_boundary(
-      stage_label  = stage_label,
-      sweep        = m,
-      inner_sweeps = inner_sweeps,
-      phase        = "Block2",
-      boundary     = "enter"
-    )
+    # .two_block_print_sweep_boundary(
+    #   stage_label  = stage_label,
+    #   sweep        = m,
+    #   inner_sweeps = inner_sweeps,
+    #   phase        = "Block2",
+    #   boundary     = "enter"
+    # )
     batch <- .two_block_block2_all_chains(
-      batch        = batch,
-      design       = design,
-      pfamily_list = pfamily_list,
-      ptypes       = ptypes,
-      progbar      = progbar_use
+      batch          = batch,
+      design         = design,
+      pfamily_list   = pfamily_list,
+      ptypes         = ptypes,
+      progbar        = progbar_use,
+      progbar_prefix = prefix_b2
     )
-    .two_block_print_sweep_boundary(
-      stage_label  = stage_label,
-      sweep        = m,
-      inner_sweeps = inner_sweeps,
-      phase        = "Block2",
-      boundary     = "exit"
-    )
+    # .two_block_print_sweep_boundary(
+    #   stage_label  = stage_label,
+    #   sweep        = m,
+    #   inner_sweeps = inner_sweeps,
+    #   phase        = "Block2",
+    #   boundary     = "exit"
+    # )
     if (verbose_block_diag) {
       sweep_stats[[m]] <- .two_block_snapshot_fixef_stats(batch, re_names)
-      .two_block_print_block_diag(
-        stage_label  = stage_label,
-        sweep        = m,
-        inner_sweeps = inner_sweeps,
-        phase        = "Block2",
-        batch        = batch,
-        fixef_mode   = fixef_mode,
-        b_mode       = b_mode,
-        re_names     = re_names,
-        group_levels = group_levels
-      )
+      # .two_block_print_block_diag(
+      #   stage_label  = stage_label,
+      #   sweep        = m,
+      #   inner_sweeps = inner_sweeps,
+      #   phase        = "Block2",
+      #   batch        = batch,
+      #   fixef_mode   = fixef_mode,
+      #   b_mode       = b_mode,
+      #   re_names     = re_names,
+      #   group_levels = group_levels
+      # )
+    }
+    if (progbar_use) {
+      if (n_chains <= 1L) {
+        .two_block_progress_bar(m, inner_sweeps, prefix = prefix_b2)
+      }
+      .two_block_progress_bar_finish()
     }
   }
 

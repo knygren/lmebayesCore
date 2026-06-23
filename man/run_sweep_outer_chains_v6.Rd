@@ -50,15 +50,16 @@ RE component).}
 \item{collect_block1}{Logical. If \code{TRUE}, collect and rbind Block~1
 (\code{coefficients}) draws from every chain. Default \code{TRUE}.}
 
-\item{progbar}{Logical. When \code{TRUE} and \code{n_chains > 1}, show a
-text progress bar over chains during Block~1 draw and Block~2.
+\item{progbar}{Logical. When \code{TRUE} (or when \code{diag_sweeps} is
+\code{TRUE}), show text progress bars over chains during each inner sweep.
 Default \code{FALSE}.}
 
 \item{stage_label}{Character label for sweep diagnostics (e.g.
 \code{"pilot"}).}
 
-\item{diag_sweeps}{If \code{TRUE}, print per-sweep fixef tables after Block~2
-and stage-end sweep history tables (means and SDs by sweep).}
+\item{diag_sweeps}{If \code{TRUE}, print stage-end sweep history tables
+(fixef means and SDs by sweep) after the inner loop completes. Per-sweep
+boundary and fixef tables are suppressed by default.}
 
 \item{fixef_mode}{ICM mode reference for fixef diagnostics.}
 
@@ -95,8 +96,12 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{simfuncs}},
+\code{\link{two_block_d0_pilot_start}()},
 \code{\link{two_block_l_for_tv}()},
+\code{\link{two_block_m_convergence_for_pilot_start}()},
 \code{\link{two_block_mode_weights}()},
+\code{\link{two_block_optimize_pilot_cost}()},
+\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
 \code{\link{two_block_rate}()},

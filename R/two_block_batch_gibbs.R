@@ -12,18 +12,38 @@
 # parallel over chains (optional n_cores on Unix/macOS).
 
 
+#' Build a progress-bar prefix for sweep-outer Gibbs stages
+#' @noRd
+.two_block_progbar_prefix <- function(stage_label, sweep, inner_sweeps, phase) {
+  phase_label <- if (identical(phase, "Block1")) {
+    "RE"
+  } else {
+    "fixef"
+  }
+  stage_label <- as.character(stage_label)[1L]
+  if (nzchar(stage_label)) {
+    sprintf("[%s] sweep %d/%d %s: ", stage_label, sweep, inner_sweeps, phase_label)
+  } else {
+    sprintf("sweep %d/%d %s: ", sweep, inner_sweeps, phase_label)
+  }
+}
+
 #' Text progress bar matching glmbayesCore C++ style
 #' @param current Completed step (1-based, up to \code{total}).
 #' @param total Total number of steps.
+#' @param prefix Optional label printed before the bar (not cleared by \code{\r}).
 #' @noRd
-.two_block_progress_bar <- function(current, total) {
+.two_block_progress_bar <- function(current, total, prefix = "") {
   if (total <= 0L) {
     return(invisible())
   }
   totaldotz <- 40L
   fraction  <- current / total
   dotz      <- round(fraction * totaldotz)
-  cat("\r", strrep(" ", 80L), "\r", sep = "")
+  cat("\r", strrep(" ", 100L), "\r", sep = "")
+  if (nzchar(prefix)) {
+    cat(prefix)
+  }
   cat(sprintf("%3.0f%% [", fraction * 100), sep = "")
   cat(paste0(rep("=", dotz), collapse = ""))
   cat(paste0(rep(" ", totaldotz - dotz), collapse = ""))
@@ -482,7 +502,8 @@
     design,
     family,
     n_cores = NULL,
-    progbar = FALSE
+    progbar = FALSE,
+    progbar_prefix = ""
 ) {
   is_gaussian <- identical(family$family, "gaussian")
   n <- batch$n
@@ -494,7 +515,7 @@
   }
 
   draw_i <- function(i) {
-    if (show_bar) .two_block_progress_bar(i, n)
+    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
     .two_block_block1_draw_one_chain(
       prior_list   = prior_lists[[i]],
       design       = design,
@@ -639,10 +660,11 @@
     family,
     ptypes,
     n_cores = NULL,
-    progbar = FALSE
+    progbar = FALSE,
+    progbar_prefix = ""
 ) {
   n <- batch$n
-  .two_block_print_block1_phase("prep", "enter", n)
+  # .two_block_print_block1_phase("prep", "enter", n)
   prep <- .two_block_block1_prep_all_chains(
     batch        = batch,
     design       = design,
@@ -651,17 +673,18 @@
     n_cores      = n_cores,
     progbar      = FALSE
   )
-  .two_block_print_block1_phase("prep", "exit", n)
-  .two_block_print_block1_phase("draw", "enter", n)
+  # .two_block_print_block1_phase("prep", "exit", n)
+  # .two_block_print_block1_phase("draw", "enter", n)
   batch <- .two_block_block1_draw_all_chains(
-    batch   = batch,
-    prep    = prep,
-    design  = design,
-    family  = family,
-    n_cores = n_cores,
-    progbar = progbar
+    batch          = batch,
+    prep           = prep,
+    design         = design,
+    family         = family,
+    n_cores        = n_cores,
+    progbar        = progbar,
+    progbar_prefix = progbar_prefix
   )
-  .two_block_print_block1_phase("draw", "exit", n)
+  # .two_block_print_block1_phase("draw", "exit", n)
   batch
 }
 
@@ -672,13 +695,14 @@
     design,
     pfamily_list,
     ptypes,
-    progbar = FALSE
+    progbar = FALSE,
+    progbar_prefix = ""
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L
 
   for (i in seq_len(n)) {
-    if (show_bar) .two_block_progress_bar(i, n)
+    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
     batch <- .two_block_block2_one_chain(
       batch        = batch,
       i            = i,

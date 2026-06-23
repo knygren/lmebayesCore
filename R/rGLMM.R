@@ -27,13 +27,15 @@
 #' @param re_coef_names Character vector naming columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
-#' @param n_pilot Number of pilot replicate chains. When \code{NULL} (default),
-#'   derived from \code{gap_tol} for non-Gaussian families; \code{0L} skips the
-#'   pilot. Ignored for \code{gaussian()}.
-#' @param gap_tol Tolerated mode--mean gap in posterior SD units used to derive
-#'   \code{n_pilot} when \code{n_pilot} is \code{NULL} and the family is
-#'   non-Gaussian (default \code{0.0196}). Set \code{NULL} to skip the pilot
-#'   unless \code{n_pilot} is supplied explicitly.
+#' @param n_pilot Number of pilot replicate chains. When \code{NULL} (default)
+#'   and \code{tv_tol} is set, derived from \code{\link{two_block_optimize_pilot_cost}}
+#'   for non-Gaussian families; when \code{NULL} and \code{tv_tol} is \code{NULL},
+#'   falls back to \code{gap_tol} (legacy). \code{0L} skips the pilot. Ignored
+#'   for \code{gaussian()}.
+#' @param gap_tol Legacy mode--mean gap tolerance used to derive \code{n_pilot}
+#'   only when \code{n_pilot} is \code{NULL} and \code{tv_tol} is \code{NULL}.
+#'   Default \code{0.0196} gives \code{n_pilot = 10000}. Set \code{NULL} to skip
+#'   the pilot unless \code{n_pilot} is supplied explicitly or \code{tv_tol} is set.
 #' @param m_convergence_pilot Inner Gibbs steps per pilot stored draw. Defaults
 #'   to \code{m_convergence} when \code{n_pilot > 0} and \code{tv_tol} is
 #'   \code{NULL}.
@@ -44,13 +46,17 @@
 #' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved for Block~1 GLM
 #'   path (not yet forwarded to v6).
 #' @param verbose Print stage headers and convergence calibration lines.
-#' @param progbar Progress bars during pilot and main sampling.
+#' @param progbar Progress bars during pilot and main sampling. When
+#'   \code{verbose} or \code{stage_verbose} is \code{TRUE}, progress bars are
+#'   shown automatically even if \code{progbar = FALSE}.
 #' @param stage_verbose Print pilot chi-squared and post-pilot UB diagnostics.
 #' @param rate_calibration Optional list with \code{lambda_star},
 #'   \code{eigenvalues}, and \code{m_min} at the mode for \code{stage_verbose}.
 #' @param m_convergence Inner Gibbs steps per main-stage stored draw. When
-#'   \code{NULL} and \code{tv_tol} is set, derived from Theorem~3 at \code{start};
-#'   when \code{NULL} and \code{tv_tol} is \code{NULL}, defaults to \code{10L}.
+#'   \code{NULL} and a pilot stage runs with \code{tv_tol}, derived from the
+#'   cost-optimal or pilot-start certificate; without a pilot, from Theorem~3 at
+#'   the mode (\code{D_0 = 0}). When \code{NULL} and \code{tv_tol} is \code{NULL},
+#'   defaults to \code{10L}.
 #' @param b_start Optional \code{J x p_re} Block~1 mode matrix for
 #'   \code{two_block_mode_weights} and v6 batch init.  Required for
 #'   non-Gaussian families when \code{start} is supplied; computed by ICM when
@@ -112,11 +118,15 @@ rGLMM <- function(
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
-  n_pilot <- .two_block_resolve_n_pilot(family, n_pilot, gap_tol)
-  gap_tol <- .two_block_validate_gap_tol(gap_tol)
+  n_pilot_arg         <- n_pilot
+  m_convergence_user  <- m_convergence
+  gap_tol             <- .two_block_validate_gap_tol(gap_tol)
+  will_pilot          <- .two_block_pilot_will_run(
+    is_gaussian, n_pilot_arg, gap_tol, tv_tol
+  )
 
-  if (!is.null(m_convergence)) {
-    m_convergence <- as.integer(m_convergence[1L])
+  if (!is.null(m_convergence_user)) {
+    m_convergence <- as.integer(m_convergence_user[1L])
     if (m_convergence < 1L) {
       stop("'m_convergence' must be at least 1.", call. = FALSE)
     }
@@ -130,8 +140,8 @@ rGLMM <- function(
     }
   }
 
-  run_pilot <- n_pilot > 0L
-  run_ub    <- run_pilot && !is.null(tv_tol)
+  run_pilot <- will_pilot
+  run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (!is.null(tv_tol)) {
     if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
@@ -141,8 +151,8 @@ rGLMM <- function(
   }
 
   if (run_pilot && is.null(m_convergence_pilot)) {
-    m_convergence_pilot <- if (!is.null(m_convergence)) {
-      m_convergence
+    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
+      m_convergence_user
     } else if (!is.null(tv_tol)) {
       NULL
     } else {
@@ -273,7 +283,7 @@ rGLMM <- function(
   fixef_mode_ref <- fixef_mode
   b_mode_ref     <- b_start
   diag_sweeps    <- isTRUE(verbose) || isTRUE(stage_verbose)
-  progbar_use    <- isTRUE(progbar) && !diag_sweeps
+  progbar_use    <- isTRUE(progbar) || diag_sweeps
 
   rate <- .rGLMM_rate_at_mode(
     design       = design,
@@ -290,19 +300,6 @@ rGLMM <- function(
     m_min <- two_block_l_for_tv(
       rate, tv_tol, method = "theorem3"
     ) + 1L
-    if (is.null(m_convergence)) {
-      m_convergence <- m_min
-    } else if (m_convergence < m_min) {
-      warning(
-        "rGLMM: m_convergence = ", m_convergence, " is below the derived ",
-        "minimum m_min = ", m_min, " for tv_tol = ", tv_tol,
-        "; using m_min instead.",
-        call. = FALSE
-      )
-      m_convergence <- m_min
-    }
-  } else if (is.null(m_convergence)) {
-    m_convergence <- 10L
   }
 
   p_dim            <- sum(vapply(fixef_mode, length, integer(1L)))
@@ -318,6 +315,28 @@ rGLMM <- function(
       as.integer(ceiling(log(D_max / c_tol) / log(1 / rate$lambda_star)))
     }
     m_convergence_pilot <- max(m_min, m_pilot_from_gap)
+  }
+
+  pilot_plan <- .two_block_resolve_pilot_plan(
+    is_gaussian         = is_gaussian,
+    n                   = n,
+    n_pilot_arg         = n_pilot_arg,
+    gap_tol             = gap_tol,
+    tv_tol              = tv_tol,
+    m_convergence_user  = m_convergence_user,
+    m_convergence_pilot = m_convergence_pilot,
+    rate                = rate,
+    p_dim               = p_dim,
+    m_min               = m_min
+  )
+  n_pilot          <- pilot_plan$n_pilot
+  m_convergence    <- pilot_plan$m_convergence
+  pilot_cost_opt   <- pilot_plan$pilot_cost_opt
+  run_pilot        <- n_pilot > 0L
+  run_ub           <- run_pilot && !is.null(tv_tol)
+
+  if (is.null(m_min) && is.null(m_convergence_user) && !run_pilot) {
+    m_convergence <- 10L
   }
 
   if (is.null(rate_calibration) && !is.null(tv_tol)) {
@@ -342,7 +361,7 @@ rGLMM <- function(
 
   if (isTRUE(verbose) && !is.null(tv_tol)) {
     cat(sprintf(
-      "--- rGLMM: convergence calibration [%s]:\n    lambda* = %.4f, tv_tol = %g => m_min = %d, using m_convergence = %d ---\n\n",
+      "--- rGLMM: convergence calibration [%s]:\n    lambda* = %.4f, tv_tol = %g => m_min = %d (mode start), main m_convergence = %d ---\n\n",
       calib_label, rate$lambda_star, tv_tol, m_min, m_convergence
     ))
     if (run_pilot && !is.null(mode_gap_max) && !is.null(m_pilot_from_gap)) {
@@ -350,6 +369,17 @@ rGLMM <- function(
         "--- rGLMM: pilot sweep calibration [mode_gap_max = %g SD/dim, p = %d, D_max = %.4f]:\n    m_min = %d, lambda* = %.4f => m_convergence_pilot = %d ---\n\n",
         mode_gap_max, p_dim, D_max, m_min, rate$lambda_star, m_convergence_pilot
       ))
+    }
+    if (run_pilot) {
+      .two_block_print_pilot_plan(
+        pilot_plan          = pilot_plan,
+        n                   = n,
+        m_convergence_pilot = m_convergence_pilot,
+        rate                = rate,
+        tv_tol              = tv_tol,
+        p                   = p_dim,
+        verbose             = verbose
+      )
     }
   }
 
@@ -363,13 +393,17 @@ rGLMM <- function(
     tv_tol              = tv_tol,
     gap_tol             = gap_tol,
     n_pilot             = n_pilot,
+    n_pilot_source      = pilot_plan$n_pilot_source,
+    n_pilot_gap_tol     = pilot_plan$n_pilot_gap_tol,
     lambda_star         = rate$lambda_star,
     eigenvalues         = rate$eigenvalues,
     m_min               = m_min,
+    m_certificate       = pilot_plan$m_certificate,
     m_convergence       = m_convergence,
     m_convergence_pilot = if (run_pilot) m_convergence_pilot else NULL,
     mode_gap_max        = if (run_pilot) mode_gap_max else NULL,
     m_pilot_from_gap    = if (run_pilot) m_pilot_from_gap else NULL,
+    pilot_cost_opt      = pilot_cost_opt,
     draw_engine         = "run_sweep_outer_chains_v6"
   )
 
