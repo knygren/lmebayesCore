@@ -144,66 +144,6 @@
   out
 }
 
-#' Print stage-end table: fixef mode + per-sweep chain mean/sd (long format)
-#' @noRd
-.two_block_print_sweep_history_tables <- function(
-    stage_label,
-    sweep_stats,
-    fixef_mode,
-    re_names
-) {
-  stage_label <- as.character(stage_label)[1L]
-  if (!nzchar(stage_label)) stage_label <- "stage"
-  n_sweep <- length(sweep_stats)
-  if (n_sweep < 1L) {
-    return(invisible(NULL))
-  }
-
-  row_keys <- list()
-  for (k in re_names) {
-    cn <- names(sweep_stats[[1L]][[k]]$mean)
-    if (is.null(cn)) {
-      cn <- names(sweep_stats[[1L]][[k]]$sd)
-    }
-    for (nm in cn) {
-      row_keys[[length(row_keys) + 1L]] <- list(re = k, cov = nm, cn = cn)
-    }
-  }
-
-  cat(sprintf(
-    "\n--- two-block [%s stage summary: fixef by sweep (%d sweeps)] ---\n",
-    stage_label, n_sweep
-  ))
-  cat("  Block 2 fixed effects (mode and chain stats after each sweep):\n")
-  hdr <- sprintf(
-    "  %-18s  %-30s  %12s  %12s  %12s",
-    "Random effect", "Covariate", "mode/sweep", "mean", "sd"
-  )
-  sep <- paste0("  ", strrep("-", nchar(hdr) - 2L))
-  cat(hdr, "\n")
-  cat(sep, "\n")
-
-  for (row in row_keys) {
-    k      <- row$re
-    nm     <- row$cov
-    mode_v <- .two_block_fixef_mode_at(fixef_mode, k, nm, row$cn)
-    cat(sprintf(
-      "  %-18s  %-30s  %12s  %12.4f  %12s\n",
-      k, nm, "mode", mode_v, ""
-    ))
-    for (m in seq_len(n_sweep)) {
-      mean_v <- sweep_stats[[m]][[k]]$mean[[nm]]
-      sd_v   <- sweep_stats[[m]][[k]]$sd[[nm]]
-      cat(sprintf(
-        "  %-18s  %-30s  %12s  %12.4f  %12.4f\n",
-        k, nm, paste0("sweep ", m), mean_v, sd_v
-      ))
-    }
-  }
-  cat("\n")
-  invisible(NULL)
-}
-
 #' Print per-sweep block diagnostics (fixef table across chains; b vs mode optional)
 #' @noRd
 .two_block_print_block_diag <- function(

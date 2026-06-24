@@ -282,8 +282,7 @@ rGLMM <- function(
 
   fixef_mode_ref <- fixef_mode
   b_mode_ref     <- b_start
-  diag_sweeps    <- isTRUE(verbose) || isTRUE(stage_verbose)
-  progbar_use    <- isTRUE(progbar) || diag_sweeps
+  progbar_use    <- isTRUE(progbar) || isTRUE(verbose) || isTRUE(stage_verbose)
 
   rate <- .rGLMM_rate_at_mode(
     design       = design,
@@ -427,7 +426,6 @@ rGLMM <- function(
       collect_block1 = collect_block1,
       progbar        = progbar_use,
       stage_label    = stage_label,
-      diag_sweeps    = diag_sweeps,
       fixef_mode     = fixef_mode_ref,
       b_mode         = b_mode_ref,
       b_start        = b_mode_ref,
@@ -498,7 +496,6 @@ rGLMM <- function(
       .two_block_print_pilot_stage_diagnostics(
         n_pilot            = n_pilot,
         n_main             = n,
-        pilot_chisq        = pilot_chisq,
         pilot_ub           = pilot_ub,
         rate_calibration   = rate_calibration,
         m_convergence_used = m_convergence_used
@@ -545,7 +542,6 @@ rGLMM <- function(
     collect_block1 = collect_block1,
     progbar        = progbar_use,
     stage_label    = "main",
-    diag_sweeps    = diag_sweeps,
     fixef_mode     = fixef_mode_ref,
     b_mode         = b_mode_ref,
     b_start        = b_mode_ref,
@@ -649,6 +645,7 @@ rGLMM <- function(
     dispersion_fixef_draws = v6_out$dispersion_fixef_draws,
     iters_fixef_draws      = v6_out$iters_fixef_draws,
     mu_all_last            = v6_out$mu_all_last,
+    sweep_history          = v6_out$sweep_history,
     re_coef_names          = re_names,
     group_levels           = group_levels,
     n                      = n

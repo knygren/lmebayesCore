@@ -77,6 +77,8 @@ test_that("rGLMM: Poisson runs pilot when n_pilot is explicit", {
   expect_false(is.null(out$pilot))
   expect_false(is.null(out$pilot_chisq))
   expect_false(is.null(out$fixef))
+  expect_s3_class(out$sweep_history, "two_block_sweep_history")
+  expect_s3_class(out$pilot$sweep_history, "two_block_sweep_history")
 })
 
 test_that("rGLMM: Poisson skips pilot when n_pilot = 0L", {

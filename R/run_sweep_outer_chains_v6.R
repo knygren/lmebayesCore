@@ -26,19 +26,20 @@
 #' @param progbar Logical. When \code{TRUE} (or when \code{diag_sweeps} is
 #'   \code{TRUE}), show text progress bars over chains during each inner sweep.
 #'   Default \code{FALSE}.
-#' @param stage_label Character label for sweep diagnostics (e.g.
-#'   \code{"pilot"}).
-#' @param diag_sweeps If \code{TRUE}, print stage-end sweep history tables
-#'   (fixef means and SDs by sweep) after the inner loop completes. Per-sweep
-#'   boundary and fixef tables are suppressed by default.
-#' @param fixef_mode ICM mode reference for fixef diagnostics.
+#' @param stage_label Character label stored on \code{$sweep_history} (e.g.
+#'   \code{"pilot"} or \code{"main"}).
+#' @param diag_sweeps Legacy flag: when \code{TRUE}, enables progress bars as
+#'   for \code{progbar = TRUE}. Sweep history is always collected; use
+#'   \code{print()} on \code{$sweep_history} to display tables.
+#' @param fixef_mode ICM mode reference stored on \code{$sweep_history}.
 #' @param b_mode ICM mode reference for random-effect diagnostics.
 #' @param b_start Initial random-effect matrix for all chains (\code{J x p_re}).
 #'   Defaults to \code{b_mode} when \code{NULL}.
 #' @param ptypes Per-component pfamily names (optional; derived from
 #'   \code{pfamily_list} when \code{NULL}).
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
-#'   \code{iters_fixef_draws}, \code{coefficients}, and \code{mu_all_last}.
+#'   \code{iters_fixef_draws}, \code{coefficients}, \code{mu_all_last}, and
+#'   \code{sweep_history} (class \code{"two_block_sweep_history"}).
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rNormal_reg_v2}}, \code{\link{rGLMM}}
 #' @export
@@ -83,13 +84,8 @@ run_sweep_outer_chains_v6 <- function(
     group_levels = group_levels
   )
 
-  verbose_block_diag <- isTRUE(diag_sweeps)
-  progbar_use <- isTRUE(progbar) || verbose_block_diag
-  sweep_stats <- if (verbose_block_diag) {
-    vector("list", inner_sweeps)
-  } else {
-    NULL
-  }
+  progbar_use <- isTRUE(progbar) || isTRUE(diag_sweeps)
+  sweep_stats <- vector("list", inner_sweeps)
 
   for (m in seq_len(inner_sweeps)) {
     prefix_b1 <- if (progbar_use) {
@@ -164,20 +160,7 @@ run_sweep_outer_chains_v6 <- function(
     #   phase        = "Block2",
     #   boundary     = "exit"
     # )
-    if (verbose_block_diag) {
-      sweep_stats[[m]] <- .two_block_snapshot_fixef_stats(batch, re_names)
-      # .two_block_print_block_diag(
-      #   stage_label  = stage_label,
-      #   sweep        = m,
-      #   inner_sweeps = inner_sweeps,
-      #   phase        = "Block2",
-      #   batch        = batch,
-      #   fixef_mode   = fixef_mode,
-      #   b_mode       = b_mode,
-      #   re_names     = re_names,
-      #   group_levels = group_levels
-      # )
-    }
+    sweep_stats[[m]] <- .two_block_snapshot_fixef_stats(batch, re_names)
     if (progbar_use && n_chains <= 1L) {
       prefix_sweep <- if (nzchar(stage_label)) {
         sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
@@ -189,18 +172,16 @@ run_sweep_outer_chains_v6 <- function(
     }
   }
 
-  if (verbose_block_diag) {
-    .two_block_print_sweep_history_tables(
-      stage_label = stage_label,
-      sweep_stats = sweep_stats,
-      fixef_mode  = fixef_mode,
-      re_names    = re_names
-    )
-  }
-
-  .two_block_pack_batch_draws(
+  out <- .two_block_pack_batch_draws(
     batch          = batch,
     design         = design,
     collect_block1 = collect_block1
   )
+  out$sweep_history <- .two_block_build_sweep_history(
+    stage_label = stage_label,
+    sweep_stats = sweep_stats,
+    fixef_mode  = fixef_mode,
+    re_names    = re_names
+  )
+  out
 }

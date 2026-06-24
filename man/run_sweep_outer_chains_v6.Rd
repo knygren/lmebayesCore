@@ -54,14 +54,14 @@ RE component).}
 \code{TRUE}), show text progress bars over chains during each inner sweep.
 Default \code{FALSE}.}
 
-\item{stage_label}{Character label for sweep diagnostics (e.g.
-\code{"pilot"}).}
+\item{stage_label}{Character label stored on \code{$sweep_history} (e.g.
+\code{"pilot"} or \code{"main"}).}
 
-\item{diag_sweeps}{If \code{TRUE}, print stage-end sweep history tables
-(fixef means and SDs by sweep) after the inner loop completes. Per-sweep
-boundary and fixef tables are suppressed by default.}
+\item{diag_sweeps}{Legacy flag: when \code{TRUE}, enables progress bars as
+for \code{progbar = TRUE}. Sweep history is always collected; use
+\code{print()} on \code{$sweep_history} to display tables.}
 
-\item{fixef_mode}{ICM mode reference for fixef diagnostics.}
+\item{fixef_mode}{ICM mode reference stored on \code{$sweep_history}.}
 
 \item{b_mode}{ICM mode reference for random-effect diagnostics.}
 
@@ -73,7 +73,8 @@ Defaults to \code{b_mode} when \code{NULL}.}
 }
 \value{
 A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
-\code{iters_fixef_draws}, \code{coefficients}, and \code{mu_all_last}.
+\code{iters_fixef_draws}, \code{coefficients}, \code{mu_all_last}, and
+\code{sweep_history} (class \code{"two_block_sweep_history"}).
 }
 \description{
 Executes \code{n_chains} independent two-block Gibbs chains, each

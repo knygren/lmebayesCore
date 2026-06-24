@@ -411,33 +411,14 @@ two_block_optimize_pilot_cost <- function(n,
     p                   = p,
     pilot_start_tol     = pilot_start_tol
   )$total_cost
-  legacy_line <- if (!is.null(pilot_plan$n_pilot_gap_tol) &&
-                    pilot_plan$n_pilot_gap_tol != pilot_plan$n_pilot) {
-    legacy_cost <- two_block_pilot_sampling_cost(
-      n                   = n,
-      n_pilot             = pilot_plan$n_pilot_gap_tol,
-      rate                = rate,
-      tv_tol              = tv_tol,
-      m_convergence_pilot = m_convergence_pilot,
-      p                   = p,
-      pilot_start_tol     = pilot_start_tol
-    )$total_cost
-    sprintf(
-      "    legacy gap_tol n_pilot = %d (total inner sweeps = %d)\n",
-      pilot_plan$n_pilot_gap_tol, legacy_cost
-    )
-  } else {
-    ""
-  }
   cat(sprintf(
     paste0(
       "--- rGLMM: pilot / main plan [source = %s; n = %d, m_pilot = %d]:\n",
       "    n_pilot = %d => m_convergence = %d ",
-      "(total inner sweeps = %d)\n%s"
+      "(total inner sweeps = %d)\n"
     ),
     pilot_plan$n_pilot_source, n, m_convergence_pilot,
-    pilot_plan$n_pilot, pilot_plan$m_convergence, total_cost,
-    legacy_line
+    pilot_plan$n_pilot, pilot_plan$m_convergence, total_cost
   ))
   flush.console()
   invisible(NULL)

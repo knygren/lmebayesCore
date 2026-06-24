@@ -3,17 +3,9 @@
 .two_block_print_pilot_stage_diagnostics <- function(
     n_pilot,
     n_main,
-    pilot_chisq,
     pilot_ub,
     rate_calibration,
     m_convergence_used) {
-
-  if (!is.null(pilot_chisq)) {
-    cat(sprintf(
-      "--- glmerb: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
-      pilot_chisq$p_value, pilot_chisq$df, pilot_chisq$n_pilot
-    ))
-  }
 
   if (!is.null(pilot_ub) && !is.null(rate_calibration)) {
     .fmt_eigs <- function(ev) paste(sprintf("%.4f", ev), collapse = ", ")
