@@ -73,8 +73,9 @@ Defaults to \code{b_mode} when \code{NULL}.}
 }
 \value{
 A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
-\code{iters_fixef_draws}, \code{coefficients}, \code{mu_all_last}, and
-\code{sweep_history} (class \code{"two_block_sweep_history"}).
+\code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
+\code{mu_all_last}, and \code{sweep_history} (class
+\code{"two_block_sweep_history"}).
 }
 \description{
 Executes \code{n_chains} independent two-block Gibbs chains, each

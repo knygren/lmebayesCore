@@ -644,6 +644,7 @@ rGLMM <- function(
     coefficients           = v6_out$coefficients,
     dispersion_fixef_draws = v6_out$dispersion_fixef_draws,
     iters_fixef_draws      = v6_out$iters_fixef_draws,
+    iters_ranef_draws      = v6_out$iters_ranef_draws,
     mu_all_last            = v6_out$mu_all_last,
     sweep_history          = v6_out$sweep_history,
     re_coef_names          = re_names,

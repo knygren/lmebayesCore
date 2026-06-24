@@ -40,6 +40,7 @@
     mu_all_last            = "fixef.mu",
     dispersion_fixef_draws = "fixef.dispersion",
     iters_fixef_draws      = "fixef.iters",
+    iters_ranef_draws      = "ranef.iters",
     re_coef_names          = "coef.names"
   )
   for (old_nm in names(renames)) {

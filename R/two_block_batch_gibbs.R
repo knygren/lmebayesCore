@@ -258,12 +258,15 @@
   iters <- matrix(0, nrow = n_chains, ncol = p_re)
   colnames(iters) <- re_names
 
+  iters_ranef <- numeric(n_chains)
+
   list(
     n     = n_chains,
     fixef = fixef,
     tau2  = tau2,
     b     = b,
     iters = iters,
+    iters_ranef = iters_ranef,
     re_names     = re_names,
     group_levels = group_levels
   )
@@ -372,6 +375,26 @@
   )
 }
 
+#' Mean envelope candidates per group from a Block~1 draw
+#' @noRd
+.two_block_block1_iters_mean <- function(block_out) {
+  br <- block_out$block_results
+  if (is.null(br) || !length(br)) {
+    return(1)
+  }
+  vals <- vapply(br, function(b) {
+    if (is.null(b$iters)) {
+      return(1)
+    }
+    it <- b$iters
+    if (is.matrix(it)) {
+      return(as.numeric(it[1, 1]))
+    }
+    as.numeric(it[1])
+  }, numeric(1))
+  mean(vals)
+}
+
 #' One-chain Block 1 draw given a prepared prior_list
 #' @noRd
 .two_block_block1_draw_one_chain <- function(
@@ -412,7 +435,10 @@
     }
     b_draw <- b_draw[ord, , drop = FALSE]
   }
-  b_draw
+  list(
+    b          = b_draw,
+    iters_mean = .two_block_block1_iters_mean(block_out)
+  )
 }
 
 #' All-chain Block 1 draw from prepared prior_lists
@@ -451,7 +477,8 @@
   if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
 
   for (i in seq_len(n)) {
-    batch$b[, , i] <- b_draws[[i]]
+    batch$b[, , i] <- b_draws[[i]]$b
+    batch$iters_ranef[i] <- batch$iters_ranef[i] + b_draws[[i]]$iters_mean
   }
   batch
 }
@@ -705,6 +732,7 @@
     fixef_draws            = fixef_draws,
     dispersion_fixef_draws = batch$tau2,
     iters_fixef_draws      = batch$iters,
+    iters_ranef_draws      = batch$iters_ranef,
     coefficients           = coefficients,
     mu_all_last            = mu_all_last
   )

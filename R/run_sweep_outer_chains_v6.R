@@ -38,8 +38,9 @@
 #' @param ptypes Per-component pfamily names (optional; derived from
 #'   \code{pfamily_list} when \code{NULL}).
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
-#'   \code{iters_fixef_draws}, \code{coefficients}, \code{mu_all_last}, and
-#'   \code{sweep_history} (class \code{"two_block_sweep_history"}).
+#'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
+#'   \code{mu_all_last}, and \code{sweep_history} (class
+#'   \code{"two_block_sweep_history"}).
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rNormal_reg_v2}}, \code{\link{rGLMM}}
 #' @export
