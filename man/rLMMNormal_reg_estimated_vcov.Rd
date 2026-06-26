@@ -22,7 +22,11 @@ rLMMNormal_reg_estimated_vcov(
   group_levels = levels(block),
   group_name = NULL,
   progbar = TRUE,
-  verbose = FALSE
+  verbose = FALSE,
+  gap_tol = 0.0196,
+  mode_gap_max = 1,
+  diag_sweeps = FALSE,
+  stage_verbose = FALSE
 )
 }
 \arguments{
@@ -68,10 +72,27 @@ calibration.}
 \item{progbar}{Logical; show a text progress bar during sampling.}
 
 \item{verbose}{Print the convergence calibration line.}
+
+\item{gap_tol}{Legacy mode--mean gap tolerance used to derive the pilot
+chain count when \code{tv_tol} is \code{NULL}. Default \code{0.0196}.
+Set \code{NULL} to skip the pilot unless \code{tv_tol} is set.}
+
+\item{mode_gap_max}{When the pilot runs and \code{tv_tol} is set, used to
+derive pilot inner sweeps from the mode--mean gap bound.}
+
+\item{diag_sweeps}{When \code{TRUE}, print one combined Block~2 chain-mean
+table per stage when that stage finishes. Sweep history is always stored
+on \code{$sweep_history} (and \code{$pilot$sweep_history} when a pilot
+runs).}
+
+\item{stage_verbose}{Print pilot chi-squared and post-pilot UB diagnostics
+between stages (in addition to \code{verbose} stage headers).}
 }
 \value{
 Object of class
 \code{c("rLMMNormal_reg_estimated_vcov", "rLMMNormal_reg", "list")}.
+Includes optional \code{pilot}, \code{pilot_chisq}, and
+\code{sweep_history} when a pilot stage runs (sweep-outer engine).
 }
 \description{
 Block~2 route used when at least one \code{pfamily_list} component is not
@@ -81,7 +102,8 @@ covariance is estimated.  Convergence calibration uses a conservative
 \code{disp_lower} plug-in rate bound.
 }
 \seealso{
-\code{\link{rLMMNormal_reg}}, \code{\link{rLMMNormal_reg_known_vcov}}
+\code{\link{rLMMNormal_reg}}, \code{\link{rLMMNormal_reg_known_vcov}},
+\code{\link{run_sweep_outer_chains_v6}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},

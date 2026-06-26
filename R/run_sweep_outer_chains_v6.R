@@ -41,7 +41,7 @@
 #' @param tau2_start Optional named numeric vector of plug-in
 #'   \eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
 #'   When \code{NULL}, derived from \code{pfamily_list} prior fields
-#'   (\code{dNormal} dispersion or ING \code{rate/(shape-1)}).
+#'   (\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class

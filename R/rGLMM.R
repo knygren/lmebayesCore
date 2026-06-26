@@ -486,8 +486,9 @@ rGLMM <- function(
     )
 
     if (isTRUE(any_non_normal)) {
-      tau2_start_main <- colMeans(pilot_raw$dispersion_fixef_draws)
-      names(tau2_start_main) <- re_names
+      tau2_start_main <- .two_block_tau2_start_from_dispersion_draws(
+        pilot_raw$dispersion_fixef_draws, re_names
+      )
     }
 
     if (run_ub) {

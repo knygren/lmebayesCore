@@ -643,11 +643,25 @@ rLMMNormal_reg_known_vcov <- function(
 #' covariance is estimated.  Convergence calibration uses a conservative
 #' \code{disp_lower} plug-in rate bound.
 #'
+#' @param gap_tol Legacy mode--mean gap tolerance used to derive the pilot
+#'   chain count when \code{tv_tol} is \code{NULL}. Default \code{0.0196}.
+#'   Set \code{NULL} to skip the pilot unless \code{tv_tol} is set.
+#' @param mode_gap_max When the pilot runs and \code{tv_tol} is set, used to
+#'   derive pilot inner sweeps from the mode--mean gap bound.
+#' @param diag_sweeps When \code{TRUE}, print one combined Block~2 chain-mean
+#'   table per stage when that stage finishes. Sweep history is always stored
+#'   on \code{$sweep_history} (and \code{$pilot$sweep_history} when a pilot
+#'   runs).
+#' @param stage_verbose Print pilot chi-squared and post-pilot UB diagnostics
+#'   between stages (in addition to \code{verbose} stage headers).
 #' @inheritParams rLMMNormal_reg
 #' @return Object of class
 #'   \code{c("rLMMNormal_reg_estimated_vcov", "rLMMNormal_reg", "list")}.
+#'   Includes optional \code{pilot}, \code{pilot_chisq}, and
+#'   \code{sweep_history} when a pilot stage runs (sweep-outer engine).
 #' @family simfuncs
-#' @seealso \code{\link{rLMMNormal_reg}}, \code{\link{rLMMNormal_reg_known_vcov}}
+#' @seealso \code{\link{rLMMNormal_reg}}, \code{\link{rLMMNormal_reg_known_vcov}},
+#'   \code{\link{run_sweep_outer_chains_v6}}
 #' @export
 rLMMNormal_reg_estimated_vcov <- function(
     n,
@@ -667,7 +681,11 @@ rLMMNormal_reg_estimated_vcov <- function(
     group_levels    = levels(block),
     group_name      = NULL,
     progbar         = TRUE,
-    verbose         = FALSE
+    verbose         = FALSE,
+    gap_tol         = 0.0196,
+    mode_gap_max    = 1.0,
+    diag_sweeps     = FALSE,
+    stage_verbose   = FALSE
 ) {
   cl <- match.call()
   fn_name <- "rLMMNormal_reg_estimated_vcov"
@@ -692,23 +710,25 @@ rLMMNormal_reg_estimated_vcov <- function(
     )
   }
 
-  .rLMMNormal_reg_run(
-    inp              = inp,
-    block            = block,
-    P                = P,
-    dispersion       = dispersion,
-    pfamily_list     = pfamily_list,
-    pf_summary       = pf_summary,
-    start            = start,
-    icm_tol          = icm_tol,
-    icm_maxit        = icm_maxit,
-    progbar          = progbar,
-    verbose          = verbose,
-    engine_label     = fn_name,
-    any_non_normal   = TRUE,
-    draw_engine      = "two_block_rNormal_reg_v2_estimated_vcov",
-    result_class     = "rLMMNormal_reg_estimated_vcov",
-    cl               = cl
+  .rLMMNormal_reg_run_with_pilot(
+    inp            = inp,
+    block          = block,
+    P              = P,
+    dispersion     = dispersion,
+    pfamily_list   = pfamily_list,
+    pf_summary     = pf_summary,
+    start          = start,
+    icm_tol        = icm_tol,
+    icm_maxit      = icm_maxit,
+    progbar        = progbar,
+    verbose        = verbose,
+    stage_verbose  = stage_verbose,
+    gap_tol        = gap_tol,
+    mode_gap_max   = mode_gap_max,
+    diag_sweeps    = diag_sweeps,
+    engine_label   = fn_name,
+    result_class   = "rLMMNormal_reg_estimated_vcov",
+    cl             = cl
   )
 }
 

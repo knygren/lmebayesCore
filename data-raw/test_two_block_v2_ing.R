@@ -62,7 +62,7 @@ prior_b1 <- list(Sigma = diag(tau2_plug, 2L), dispersion = sigma2, ddef = FALSE)
 ##   n_prior  = J * pwt_disp / (1 - pwt_disp)
 ##   shape    = (n_prior + 1) / 2 + p_k / 2
 ##   rate     = d_k * (n_prior + p_k - 1) / 2   (d_k = dispersion guess tau2_k;
-##              = d_k * (shape - 1), so the inv-Gamma prior mean is exactly d_k)
+##              = d_k * (shape - 1), so E[tau2] = d_k; plug-in tau2 = rate/shape)
 ##   disp_lower = 1 / qgamma(0.99, shape, rate)   (0.01 quantile of inv-Gamma)
 ##   disp_upper = 1 / qgamma(0.01, shape, rate)   (0.99 quantile of inv-Gamma)
 ## Both bounds are required for sampling: the tau2_k truncation window is

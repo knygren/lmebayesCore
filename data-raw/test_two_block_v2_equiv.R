@@ -169,7 +169,7 @@ cat("3. poisson v1 vs v2: average coefficients OK\n")
 ##    data-raw/test_two_block_v2_ing.R).  ING hyperparameters are always
 ##    calibrated from a pwt_disp choice (pfamily_list() formulas), never
 ##    hand-picked: n_prior = J*pwt/(1-pwt), shape = (n_prior+1)/2 + p_k/2,
-##    rate = d_k*(n_prior+p_k-1)/2 (= d_k*(shape-1), mean-matched),
+##    rate = d_k*(n_prior+p_k-1)/2 (= d_k*(shape-1), E[tau2]=d_k; plug-in rate/shape),
 ##    disp_lower/disp_upper = central 98% prior-mass window
 ##    1/qgamma(0.99|0.01, shape, rate) (both required for sampling).
 ## ---------------------------------------------------------------------------

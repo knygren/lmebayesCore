@@ -76,7 +76,7 @@ Defaults to \code{b_mode} when \code{NULL}.}
 \item{tau2_start}{Optional named numeric vector of plug-in
 \eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
 When \code{NULL}, derived from \code{pfamily_list} prior fields
-(\code{dNormal} dispersion or ING \code{rate/(shape-1)}).}
+(\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).}
 }
 \value{
 A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},

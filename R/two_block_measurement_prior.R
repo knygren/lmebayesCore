@@ -99,7 +99,7 @@
         !is.finite(d_k) || d_k <= 0) {
       stop(
         "pfamily_list[[\"", k, "\"]] must supply a positive plug-in tau^2 ",
-        "(dNormal dispersion or ING rate/(shape-1) from the prior spec).",
+        "(dNormal dispersion or ING rate/shape = 1/E[1/tau^2] from the prior spec).",
         call. = FALSE
       )
     }
