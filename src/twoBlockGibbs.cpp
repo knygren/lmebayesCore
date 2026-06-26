@@ -919,6 +919,65 @@ void two_block_print_sweep_diagnostic(
   (void)p_dim;
 }
 
+// Prefix for sweep-outer progress bars (matches R .two_block_progbar_prefix).
+std::string two_block_progbar_prefix(
+    const std::string& stage_label,
+    int sweep,
+    int inner_sweeps,
+    const char* phase
+) {
+  const char* phase_label =
+    (std::string(phase) == "Block1") ? "RE" : "fixef";
+  if (!stage_label.empty()) {
+    return "[" + stage_label + "] sweep " + std::to_string(sweep) + "/" +
+           std::to_string(inner_sweeps) + " " + phase_label + ": ";
+  }
+  return "sweep " + std::to_string(sweep) + "/" +
+         std::to_string(inner_sweeps) + " " + phase_label + ": ";
+}
+
+std::string two_block_sweep_only_prefix(
+    const std::string& stage_label,
+    int sweep,
+    int inner_sweeps
+) {
+  if (!stage_label.empty()) {
+    return "[" + stage_label + "] sweep " + std::to_string(sweep) + "/" +
+           std::to_string(inner_sweeps) + ": ";
+  }
+  return "sweep " + std::to_string(sweep) + "/" +
+         std::to_string(inner_sweeps) + ": ";
+}
+
+void store_b_chain(
+    Rcpp::NumericVector& b_store,
+    int i,
+    int J,
+    int p_re,
+    const Rcpp::NumericMatrix& b_i
+) {
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      b_store[g + J * (j + p_re * i)] = b_i(g, j);
+    }
+  }
+}
+
+void load_b_chain(
+    const Rcpp::NumericVector& b_store,
+    int i,
+    int J,
+    int p_re,
+    Rcpp::NumericMatrix& b_i
+) {
+  b_i = Rcpp::NumericMatrix(J, p_re);
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      b_i(g, j) = b_store[g + J * (j + p_re * i)];
+    }
+  }
+}
+
 void pack_two_block_chain_draw(
     int i,
     int p_re,
@@ -2238,18 +2297,14 @@ List two_block_rNormal_reg_v5_cpp_export(
     }
   }
 
-  if (diag_sweeps) {
-    Rcpp::Rcout << "[" << stage_label << " at entry, n=" << n
-                << ", fixef_start loaded into fixef_temp]\n";
-    two_block_print_fixef_line(
-      "  fixef_start (ICM mode):",
-      fixef_mode_v, p_re, re_names
-    );
-  }
+  // Live sweep diagnostics disabled; use progbar only (lmerb / v6 style).
+  // if (diag_sweeps) { ... entry fixef_start print ... }
 
   two_block_driver_banner_v5(n, m_convergence, seed_offset, have_seed, p_dim);
-  
-  const bool sweep_chain_progbar = progbar && n > 1;
+
+  const bool chain_progbar = progbar && n > 1;
+  const bool sweep_progbar = progbar && n <= 1;
+  NumericVector b_work(Rcpp::Dimension(J, p_re, n));
 
   // Option B: one reseed before the sweep loop; no per-chain reseed afterward.
   if (have_seed) {
@@ -2260,34 +2315,21 @@ List two_block_rNormal_reg_v5_cpp_export(
   for (int m = 0; m < m_convergence; ++m) {
     Rcpp::checkUserInterrupt();
 
-    Rcpp::Rcout << "--- glmbayesCore v5 sweep m=" << (m + 1)
-                << " / " << m_convergence << " ---\n";
+    const int sweep1 = m + 1;
+    const std::string prefix_re =
+      two_block_progbar_prefix(stage_label, sweep1, m_convergence, "Block1");
+    const std::string prefix_fe =
+      two_block_progbar_prefix(stage_label, sweep1, m_convergence, "Block2");
+    const std::string prefix_sweep =
+      two_block_sweep_only_prefix(stage_label, sweep1, m_convergence);
 
-    if (diag_sweeps) {
-      Rcpp::Rcout << "[" << stage_label << " sweep " << (m + 1)
-                  << " / " << m_convergence << " BEFORE load, n=" << n << "]\n";
-      std::vector<Rcpp::NumericVector> fixef_before =
-        two_block_mean_fixef_components(
-          fixef_temp, n, p_re, q_k, fixef_start_v
-        );
-      two_block_print_fixef_line(
-        "  fixef load avg (before sweep):",
-        fixef_before, p_re, re_names
-      );
-    }
-
-    if (diag_sweeps) {
-      std::fill(fixef_sum.begin(), fixef_sum.end(), 0.0);
-      std::fill(b_sum.begin(), b_sum.end(), 0.0);
-    }
-
-    // ---- Inner loop: n independent short chains (stored draws) ----
+    // ---- Block 1 (RE): all chains ----
     for (int i = 0; i < n; ++i) {
       Rcpp::checkUserInterrupt();
 
-      if (sweep_chain_progbar) {
+      if (chain_progbar) {
         glmbayes::progress::progress_bar(
-          static_cast<double>(i + 1), static_cast<double>(n)
+          static_cast<double>(i + 1), static_cast<double>(n), prefix_re
         );
       }
 
@@ -2304,13 +2346,10 @@ List two_block_rNormal_reg_v5_cpp_export(
       for (int j = 0; j < p_re; ++j) {
         tau2[j] = tau2_temp(i, j);
       }
-      
-      // Build group-level means mu_{k,g} from current fixef (Block 2 -> Block 1).
+
       mu_all = mu_builder.build(fixef);
       List pl1;
       if (any_ing) {
-        // Refresh Block 1 prior precision from ING tau2_k (loop over RE cols,
-        // not factor levels).
         NumericMatrix P1 = Rcpp::clone(base_P1);
         for (int j = 0; j < p_re; ++j) {
           if (!pr2[j].is_ing) continue;
@@ -2320,9 +2359,7 @@ List two_block_rNormal_reg_v5_cpp_export(
           }
           P1(j, j) = 1.0 / tau2[j];
         }
-        List pl1_base = List::create(
-          Rcpp::Named("P") = P1
-        );
+        List pl1_base = List::create(Rcpp::Named("P") = P1);
         pl1 = block1_prior_list(
           mu_all, pl1_base, dispersion_block1, ddef_block1
         );
@@ -2331,10 +2368,7 @@ List two_block_rNormal_reg_v5_cpp_export(
           mu_all, prior_list_block1, dispersion_block1, ddef_block1
         );
       }
-      
-      // ---- Block 1: one joint draw of b (J groups x p_re RE columns) ----
-      // Conditions on observation-level y, design Z, and current hyperprior pl1.
-      // Grouping factor levels are handled inside the block_* export.
+
       List block_i;
       if (is_gaussian) {
         block_i = block_rNormalReg_cpp_export(
@@ -2347,7 +2381,7 @@ List two_block_rNormal_reg_v5_cpp_export(
           use_parallel, use_opencl, verbose
         );
       }
-      
+
       b_i = Rcpp::as<NumericMatrix>(block_i["coefficients"]);
       if (b_i.nrow() != J || b_i.ncol() != p_re) {
         Rcpp::stop(
@@ -2360,10 +2394,31 @@ List two_block_rNormal_reg_v5_cpp_export(
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
-      
-      // ---- Block 2: one hyperparameter draw per RE column j ----
-      // Pseudo-response y_j = b_i[, j] (length J, one value per group level).
-      // x_hyper[[j]] is the level-2 design for RE column j.
+      store_b_chain(b_work, i, J, p_re, b_i);
+    }
+
+    if (chain_progbar) {
+      glmbayes::progress::progress_bar_finish(false);
+    }
+
+    // ---- Block 2 (fixef): all chains ----
+    for (int i = 0; i < n; ++i) {
+      Rcpp::checkUserInterrupt();
+
+      if (chain_progbar) {
+        glmbayes::progress::progress_bar(
+          static_cast<double>(i + 1), static_cast<double>(n), prefix_fe
+        );
+      }
+
+      two_block_unpack_fixef_row(
+        fixef_temp, i, p_re, q_k, fixef, fixef_start_v
+      );
+      for (int j = 0; j < p_re; ++j) {
+        tau2[j] = tau2_temp(i, j);
+      }
+      load_b_chain(b_work, i, J, p_re, b_i);
+
       for (int j = 0; j < p_re; ++j) {
         const NumericMatrix& X_j = mu_builder.X[j];
         if (X_j.nrow() != b_i.nrow()) {
@@ -2375,9 +2430,8 @@ List two_block_rNormal_reg_v5_cpp_export(
         NumericVector y_j = b_i(Rcpp::_, j);
         NumericVector offset_j(X_j.nrow(), 0.0);
         NumericVector wt_j(X_j.nrow(), 1.0);
-        
+
         if (!pr2[j].is_ing) {
-          // dNormal Block 2: conjugate draw of gamma_k at fixed tau2[j].
           List out_j = rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
@@ -2390,16 +2444,13 @@ List two_block_rNormal_reg_v5_cpp_export(
           );
           iters_draws(i, j) += 1.0;
         } else {
-          // ING Block 2: joint draw of (gamma_k, tau2_k); tau2[j] feeds next
-          // sweep's Block 1 prior row via the P1 refresh above.
           List out_j = rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
             Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
             Rcpp::Nullable<NumericVector>(pr2[j].disp_upper),
-            2 /*Gridtype*/, 1 /*n_envopt*/,
-            false /*use_parallel: n = 1 is serial anyway*/,
-            false /*use_opencl*/, false /*verbose*/, false /*progbar*/
+            2, 1,
+            false, false, false, false
           );
           NumericMatrix coef_j = Rcpp::as<NumericMatrix>(out_j["out"]);
           NumericVector gamma_j(coef_j.nrow());
@@ -2416,20 +2467,10 @@ List two_block_rNormal_reg_v5_cpp_export(
           iters_draws(i, j) += iters_j[0];
         }
       }
-      
-      
+
       two_block_pack_fixef_row(fixef_temp, i, p_re, q_k, fixef);
       for (int j = 0; j < p_re; ++j) {
         tau2_temp(i, j) = tau2[j];
-      }
-
-      if (diag_sweeps) {
-        two_block_accumulate_fixef_sum(fixef_sum, p_re, q_k, fixef);
-        for (int g = 0; g < J; ++g) {
-          for (int j = 0; j < p_re; ++j) {
-            b_sum(g, j) += b_i(g, j);
-          }
-        }
       }
 
       if (m == m_convergence - 1) {
@@ -2438,19 +2479,22 @@ List two_block_rNormal_reg_v5_cpp_export(
           fixef_draws, b_arr, disp_draws
         );
       }
-    } // End of chain loop
-
-    if (sweep_chain_progbar) {
-      glmbayes::progress::progress_bar_finish();
     }
 
-    if (diag_sweeps) {
-      two_block_print_sweep_diagnostic(
-        stage_label, m, m_convergence, n, p_re, p_dim, J,
-        fixef_sum, b_sum, fixef_mode_v, b_mode_mat, have_b_mode,
-        fixef_mode_list_for_print, re_names, group_levels
+    if (chain_progbar) {
+      glmbayes::progress::progress_bar_finish(m == m_convergence - 1);
+    }
+
+    if (sweep_progbar) {
+      glmbayes::progress::progress_bar(
+        static_cast<double>(sweep1), static_cast<double>(m_convergence),
+        prefix_sweep
       );
+      glmbayes::progress::progress_bar_finish(m == m_convergence - 1);
     }
+
+    // Live per-sweep diagnostics disabled (defer to future sweep_history).
+    // if (diag_sweeps) { two_block_print_sweep_diagnostic(...); }
   } // End of sweep loop
   
   List fixef_last(p_re);
