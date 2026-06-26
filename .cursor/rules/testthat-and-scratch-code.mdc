@@ -1,0 +1,39 @@
+---
+description: Do not treat tests/testthat or R/ as scratch space for experiments
+alwaysApply: true
+---
+
+# Tests and R/ — not a dumping ground
+
+Do **not** use `tests/testthat/` or `R/` for throwaway experiments, one-off debugging, or “we’ll clean up later” code.
+
+## testthat policy
+
+**Ask the user before:**
+
+- Adding a **new** file under `tests/testthat/`
+- Adding a **new** `helper-*.R` under `tests/testthat/`
+- Large new test blocks that are not tied to a user-requested, shipped feature
+
+**Prefer instead:**
+
+- Extend an **existing** test file when the behavior belongs with current coverage (e.g. ING checks → `test-lmb-non-zellner.R`, sweep printing → `test-two_block-sweep-history.R`)
+- One focused test per production invariant; avoid duplicate paths that only differ by fixture boilerplate
+
+**Do not:**
+
+- Commit dev-only helpers (`ing_pfamily_calibrated`, ad hoc fixtures) unless the user wants them kept
+- Park integration spikes in testthat when they are not stable regression tests
+- Add tests for temporary approaches that are not merged into production code
+
+## R/ policy
+
+- Production code only in `R/` (exported or `@noRd` helpers tied to the package).
+- Scratch scripts, checks, and benchmarks → `data-raw/` (or local untracked files), **not** `R/` or `tests/testthat/`.
+- Unapproved or experimental tests → `tests/cursor_tests/` (not run by `test_check`); do **not** add to `tests/testthat/` without user approval.
+
+## Before adding or heavily editing tests
+
+1. Confirm the production behavior is intentional and merged.
+2. Confirm with the user if a **new** test file is warranted.
+3. After edits, run the relevant `testthat` files — do not assume the user will run checks unless they said so.

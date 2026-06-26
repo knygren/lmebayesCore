@@ -1,0 +1,41 @@
+---
+description: Require user approval before changing any user-facing R API
+alwaysApply: true
+---
+
+# Public API — ask before changing
+
+Do **not** add, remove, or rename arguments on user-facing functions without **explicit user approval** in the current task.
+
+## What counts as user-facing
+
+- Any symbol in `NAMESPACE` (`export`, `S3method`, `exportPattern`)
+- Any roxygen `@export` function or S3 method in `R/`
+- Any function documented in `man/` with a `\usage` block callers rely on
+- Any function that exists in **glmbayes** and is also exported from **glmbayesCore** — signatures must stay aligned with glmbayes unless the user explicitly requests a deliberate divergence
+
+## Allowed without a separate API discussion
+
+- Internal helpers: names starting with `.`, or roxygen `@noRd`
+- Bug fixes that preserve the **exact** formal argument list and return structure
+- Whitespace / roxygen wording that does not change `\usage` argument names or defaults
+
+## Before editing user-facing code
+
+1. State which functions/signatures would change and why.
+2. If the user did not ask for an API change, implement the fix internally (helpers, call-site changes) or **ask first**.
+3. After approved API edits, run `devtools::document()` and note any `\usage` / NAMESPACE updates.
+
+## Examples (this repo)
+
+```r
+# BAD — silent new argument on a glmbayes-shared export
+rglmb <- function(..., progbar = FALSE) { ... }
+
+# BAD — remove seed= without user sign-off when callers may still pass it
+two_block_rNormal_reg_v2 <- function(..., progbar = TRUE) { ... }
+
+# OK — new @noRd helper; public signature unchanged
+# OK — internal engine state; pfamily stays prior-spec only
+run_sweep_outer_chains_v6(..., tau2_start = pilot_colMeans)
+```

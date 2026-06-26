@@ -23,20 +23,25 @@
 #' @param group_levels Character vector of group levels.
 #' @param collect_block1 Logical. If \code{TRUE}, collect and rbind Block~1
 #'   (\code{coefficients}) draws from every chain. Default \code{TRUE}.
-#' @param progbar Logical. When \code{TRUE} (or when \code{diag_sweeps} is
-#'   \code{TRUE}), show text progress bars over chains during each inner sweep.
-#'   Default \code{FALSE}.
+#' @param progbar Logical. When \code{TRUE}, show text progress bars over chains
+#'   during each inner sweep. Default \code{FALSE}.
 #' @param stage_label Character label stored on \code{$sweep_history} (e.g.
 #'   \code{"pilot"} or \code{"main"}).
-#' @param diag_sweeps Legacy flag: when \code{TRUE}, enables progress bars as
-#'   for \code{progbar = TRUE}. Sweep history is always collected; use
-#'   \code{print()} on \code{$sweep_history} to display tables.
+#' @param diag_sweeps When \code{TRUE}, print one combined Block~2 fixef
+#'   chain-mean table for the stage when the inner-sweep loop finishes (same
+#'   layout as \code{print()} on \code{$sweep_history} with all sweeps).
+#'   Sweep history is always collected; use \code{print()} on
+#'   \code{$sweep_history} to display tables later.
 #' @param fixef_mode ICM mode reference stored on \code{$sweep_history}.
 #' @param b_mode ICM mode reference for random-effect diagnostics.
 #' @param b_start Initial random-effect matrix for all chains (\code{J x p_re}).
 #'   Defaults to \code{b_mode} when \code{NULL}.
 #' @param ptypes Per-component pfamily names (optional; derived from
 #'   \code{pfamily_list} when \code{NULL}).
+#' @param tau2_start Optional named numeric vector of plug-in
+#'   \eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
+#'   When \code{NULL}, derived from \code{pfamily_list} prior fields
+#'   (\code{dNormal} dispersion or ING \code{rate/(shape-1)}).
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -61,14 +66,24 @@ run_sweep_outer_chains_v6 <- function(
     fixef_mode     = NULL,
     b_mode         = NULL,
     b_start        = NULL,
-    ptypes         = NULL
+    ptypes         = NULL,
+    tau2_start     = NULL
 ) {
   if (is.null(ptypes)) {
     ptypes <- vapply(pfamily_list, function(pf) pf$pfamily, character(1))
     names(ptypes) <- re_names
   }
 
-  tau2_start <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
+  if (is.null(tau2_start)) {
+    tau2_start <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
+  } else {
+    if (is.null(names(tau2_start)) || !setequal(names(tau2_start), re_names)) {
+      stop("'tau2_start' must be a named vector with names(re_names).",
+           call. = FALSE)
+    }
+    tau2_start <- as.numeric(tau2_start[re_names])
+    names(tau2_start) <- re_names
+  }
   if (is.null(b_start)) {
     if (is.null(b_mode)) {
       stop("'b_start' or 'b_mode' required for batch init.", call. = FALSE)
@@ -85,7 +100,7 @@ run_sweep_outer_chains_v6 <- function(
     group_levels = group_levels
   )
 
-  progbar_use <- isTRUE(progbar) || isTRUE(diag_sweeps)
+  progbar_use <- isTRUE(progbar)
   sweep_stats <- vector("list", inner_sweeps)
 
   for (m in seq_len(inner_sweeps)) {
@@ -184,5 +199,8 @@ run_sweep_outer_chains_v6 <- function(
     fixef_mode  = fixef_mode,
     re_names    = re_names
   )
-  out
+  if (isTRUE(diag_sweeps)) {
+    print(out$sweep_history)
+  }
+  invisible(out)
 }

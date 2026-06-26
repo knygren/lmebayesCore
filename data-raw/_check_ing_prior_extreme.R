@@ -40,7 +40,6 @@ pf_bad <- glmbayesCore::dIndependent_Normal_Gamma(
   disp_lower = pl_wrong$disp_lower,
   disp_upper = pl_wrong$disp_upper
 )
-pf_bad$prior_list$tau2_ref <- ps$prior_list[["(Intercept)"]]$dispersion_fixef
 cat("\n=== wrong shape (NG not ING): shape=", shape_wrong, " vs correct=", pl_wrong$shape, "===\n")
 b <- rnorm(nrow(X_k), 100, 10)
 tryCatch(

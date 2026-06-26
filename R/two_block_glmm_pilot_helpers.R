@@ -190,7 +190,8 @@
     prior_list,
     pfamily_list,
     family,
-    tv_tol
+    tv_tol,
+    dispersion = NULL
 ) {
   n_grp        <- length(group_levels)
   re_col_names <- re_names
@@ -217,6 +218,7 @@
       block        = block,
       b_mode       = b_i,
       family       = family,
+      dispersion   = dispersion,
       group_levels = group_levels
     )
     rate_i <- two_block_rate_v2(

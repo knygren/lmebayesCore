@@ -30,11 +30,10 @@ for (k in names(pf)) {
   cat(k, " (p_k =", p_k, ")\n")
   cat("  shape =", pl$shape, " rate =", pl$rate, "\n")
   cat("  dispersion_fixef =", ps$prior_list[[k]]$dispersion_fixef, "\n")
-  cat("  tau2_ref =", pl$tau2_ref, "\n")
+  cat("  prior mean tau2 = rate/(shape-1) =", pl$rate / (pl$shape - 1), "\n")
   cat("  disp_lower =", pl$disp_lower, " disp_upper =", pl$disp_upper, "\n")
   cat("  n_prior_disp =", ps$n_prior_dispersion[[k]], "\n")
-  cat("  implied n_prior = 2*shape - 1 - p =", 2 * pl$shape - 1 - p_k, "\n")
-  cat("  prior mean tau2 = rate/(shape-1) =", pl$rate / (pl$shape - 1), "\n\n")
+  cat("  implied n_prior = 2*shape - 1 - p =", 2 * pl$shape - 1 - p_k, "\n\n")
 }
 
 ## One Block-2 hyper-regression draw (school random intercepts as y)

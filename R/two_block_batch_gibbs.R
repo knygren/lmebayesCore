@@ -34,11 +34,20 @@
 #' @param prefix Optional label printed before the bar (not cleared by \code{\r}).
 #' @noRd
 .two_block_progress_bar <- function(current, total, prefix = "") {
-  if (total <= 0L) {
+  total <- as.integer(total[1L])
+  current <- as.integer(current[1L])
+  if (!is.finite(total) || total <= 0L) {
     return(invisible())
   }
+  if (!is.finite(current)) {
+    current <- 0L
+  }
+  current <- max(0L, min(current, total))
   totaldotz <- 40L
   fraction  <- current / total
+  if (!is.finite(fraction)) {
+    return(invisible())
+  }
   dotz      <- round(fraction * totaldotz)
   cat("\r", strrep(" ", 100L), "\r", sep = "")
   if (nzchar(prefix)) {
@@ -124,6 +133,19 @@
     return(unname(mode_k[j]))
   }
   NA_real_
+}
+
+#' Envelope candidate count from a single-draw \code{rglmb} fit (\code{n = 1})
+#' @noRd
+.two_block_rglmb_iter_count <- function(fit_k) {
+  if (is.null(fit_k$iters)) {
+    return(1L)
+  }
+  it <- fit_k$iters
+  if (is.matrix(it)) {
+    return(as.integer(it[1L, 1L]))
+  }
+  as.integer(as.numeric(it)[1L])
 }
 
 #' Snapshot chain colMeans and SDs of Block 2 fixef after one sweep
@@ -573,12 +595,13 @@
     pf  <- pfamily_list[[k]]
 
     fit_k <- rglmb(
-      n       = 1L,
-      y       = y_k,
-      x       = X_k,
-      family  = stats::gaussian(),
-      pfamily = pf,
-      verbose = FALSE
+      n            = 1L,
+      y            = y_k,
+      x            = X_k,
+      family       = stats::gaussian(),
+      pfamily      = pf,
+      verbose      = FALSE,
+      use_parallel = FALSE
     )
 
     cn <- colnames(batch$fixef[[k]])
@@ -591,7 +614,7 @@
 
     if (ptypes[[k]] == "dIndependent_Normal_Gamma") {
       batch$tau2[i, k] <- fit_k$dispersion[1L]
-      it_k <- if (!is.null(fit_k$iters)) fit_k$iters[1L, 1L] else 1L
+      it_k <- .two_block_rglmb_iter_count(fit_k)
       batch$iters[i, k] <- batch$iters[i, k] + it_k
     } else {
       batch$iters[i, k] <- batch$iters[i, k] + 1L
@@ -667,19 +690,11 @@
   batch
 }
 
-#' Starting tau2 vector from pfamily_list (plug-in dispersions)
+#' Starting tau2 vector from pfamily prior fields (plug-in dispersions)
 #' @noRd
 .two_block_tau2_start_from_pfamily <- function(pfamily_list, re_names) {
   vapply(re_names, function(k) {
-    pl <- pfamily_list[[k]]$prior_list
-    pf <- pfamily_list[[k]]$pfamily
-    if (pf == "dNormal") {
-      pl$dispersion
-    } else if (pf == "dIndependent_Normal_Gamma") {
-      pl$disp_lower
-    } else {
-      stop("Unsupported pfamily: ", pf, call. = FALSE)
-    }
+    .two_block_tau2_ref_from_pfamily(pfamily_list[[k]])
   }, numeric(1))
 }
 

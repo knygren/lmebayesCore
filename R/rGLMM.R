@@ -118,12 +118,9 @@ rGLMM <- function(
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
-  n_pilot_arg         <- n_pilot
-  m_convergence_user  <- m_convergence
-  gap_tol             <- .two_block_validate_gap_tol(gap_tol)
-  will_pilot          <- .two_block_pilot_will_run(
-    is_gaussian, n_pilot_arg, gap_tol, tv_tol
-  )
+  n_pilot_arg        <- n_pilot
+  m_convergence_user <- m_convergence
+  gap_tol            <- .two_block_validate_gap_tol(gap_tol)
 
   if (!is.null(m_convergence_user)) {
     m_convergence <- as.integer(m_convergence_user[1L])
@@ -136,32 +133,6 @@ rGLMM <- function(
     if (!is.numeric(mode_gap_max) || length(mode_gap_max) != 1L ||
         !is.finite(mode_gap_max) || mode_gap_max <= 0) {
       stop("'mode_gap_max' must be a single positive finite number.",
-           call. = FALSE)
-    }
-  }
-
-  run_pilot <- will_pilot
-  run_ub    <- will_pilot && !is.null(tv_tol)
-
-  if (!is.null(tv_tol)) {
-    if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
-        !is.finite(tv_tol) || tv_tol <= 0 || tv_tol >= 1) {
-      stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
-    }
-  }
-
-  if (run_pilot && is.null(m_convergence_pilot)) {
-    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
-      m_convergence_user
-    } else if (!is.null(tv_tol)) {
-      NULL
-    } else {
-      10L
-    }
-  } else if (run_pilot) {
-    m_convergence_pilot <- as.integer(m_convergence_pilot[1L])
-    if (m_convergence_pilot < 1L) {
-      stop("'m_convergence_pilot' must be at least 1 when n_pilot > 0.",
            call. = FALSE)
     }
   }
@@ -219,6 +190,36 @@ rGLMM <- function(
   ptypes <- pf_summary$ptypes
   any_non_normal <- pf_summary$any_non_normal
 
+  will_pilot <- .two_block_pilot_will_run(
+    is_gaussian, n_pilot_arg, gap_tol, tv_tol,
+    any_non_normal = any_non_normal
+  )
+  run_pilot <- will_pilot
+  run_ub    <- will_pilot && !is.null(tv_tol)
+
+  if (!is.null(tv_tol)) {
+    if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
+        !is.finite(tv_tol) || tv_tol <= 0 || tv_tol >= 1) {
+      stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
+    }
+  }
+
+  if (run_pilot && is.null(m_convergence_pilot)) {
+    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
+      m_convergence_user
+    } else if (!is.null(tv_tol)) {
+      NULL
+    } else {
+      10L
+    }
+  } else if (run_pilot) {
+    m_convergence_pilot <- as.integer(m_convergence_pilot[1L])
+    if (m_convergence_pilot < 1L) {
+      stop("'m_convergence_pilot' must be at least 1 when n_pilot > 0.",
+           call. = FALSE)
+    }
+  }
+
   .two_block_validate_block1_prior(
     prior_list, family = family
   )
@@ -248,10 +249,19 @@ rGLMM <- function(
     b_start    <- icm$b_start
     icm_info   <- icm$icm
     if (isTRUE(verbose)) {
-      icm_label <- if (is_gaussian) "mean" else "mode"
+      if (isTRUE(any_non_normal)) {
+        icm_what <- "Block 2 start at lmer tau^2 plug-in"
+      } else if (is_gaussian) {
+        icm_what <- "ICM posterior mean"
+      } else {
+        icm_what <- "ICM posterior mode"
+      }
       cat(sprintf(
-        "  rGLMM: ICM posterior %s (converged: %s, %d iter, delta = %.2e)\n\n",
-        icm_label, icm_info$converged, icm_info$iterations, icm_info$delta
+        "  rGLMM: %s (converged: %s, %d iter, delta = %.2e)\n\n",
+        icm_what,
+        icm_info$converged,
+        icm_info$iterations,
+        icm_info$delta
       ))
     }
   } else {
@@ -326,7 +336,8 @@ rGLMM <- function(
     m_convergence_pilot = m_convergence_pilot,
     rate                = rate,
     p_dim               = p_dim,
-    m_min               = m_min
+    m_min               = m_min,
+    any_non_normal      = any_non_normal
   )
   n_pilot          <- pilot_plan$n_pilot
   m_convergence    <- pilot_plan$m_convergence
@@ -411,8 +422,15 @@ rGLMM <- function(
   pilot_res          <- NULL
   pilot_chisq        <- NULL
   pilot_ub           <- NULL
+  tau2_start_main    <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
 
-  run_sweep_stage <- function(n_chains, start_fixef, inner_sweeps, stage_label) {
+  run_sweep_stage <- function(
+      n_chains,
+      start_fixef,
+      inner_sweeps,
+      stage_label,
+      tau2_start = NULL
+  ) {
     run_sweep_outer_chains_v6(
       n_chains       = n_chains,
       start_fixef    = start_fixef,
@@ -429,7 +447,8 @@ rGLMM <- function(
       fixef_mode     = fixef_mode_ref,
       b_mode         = b_mode_ref,
       b_start        = b_mode_ref,
-      ptypes         = ptypes
+      ptypes         = ptypes,
+      tau2_start     = tau2_start
     )
   }
 
@@ -465,6 +484,11 @@ rGLMM <- function(
     fixef_init <- .two_block_fixef_colmeans(
       pilot_raw$fixef_draws, re_names, fixef_mode
     )
+
+    if (isTRUE(any_non_normal)) {
+      tau2_start_main <- colMeans(pilot_raw$dispersion_fixef_draws)
+      names(tau2_start_main) <- re_names
+    }
 
     if (run_ub) {
       pilot_ub <- .two_block_pilot_ub_from_coefficients(
@@ -526,7 +550,8 @@ rGLMM <- function(
     n_chains     = n,
     start_fixef  = fixef_init,
     inner_sweeps = m_convergence_used,
-    stage_label  = "main"
+    stage_label  = "main",
+    tau2_start   = tau2_start_main
   )
 
   draw_engine_args <- list(
@@ -545,7 +570,8 @@ rGLMM <- function(
     fixef_mode     = fixef_mode_ref,
     b_mode         = b_mode_ref,
     b_start        = b_mode_ref,
-    ptypes         = ptypes
+    ptypes         = ptypes,
+    tau2_start     = tau2_start_main
   )
 
   main_res <- .rGLMM_format_v6_out(

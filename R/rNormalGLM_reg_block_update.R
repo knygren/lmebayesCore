@@ -15,7 +15,6 @@
 #'   \code{prior_list} is supplied.
 #' @param sigma_theta_sq Shared prior variance for scalar blocks when building
 #'   \code{prior_lists} from \code{mu_all}.
-#' @param seed Optional; passed to \code{\link{set.seed}} before sampling.
 #' @param theta_coef_col Column index of \code{coefficients} to return as
 #'   \code{theta} (default \code{1} for scalar intercept blocks).
 #' @return A list with:
@@ -44,12 +43,7 @@ block_rNormalGLM_update <- function(mu_all,
                                     use_opencl = FALSE,
                                     verbose = FALSE,
                                     progbar = FALSE,
-                                    seed = NULL,
                                     theta_coef_col = 1L) {
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-
   if (is.null(prior_lists) && is.null(prior_list)) {
     if (missing(mu_all)) {
       stop("Provide 'mu_all' (with 'sigma_theta_sq'), 'prior_lists', or 'prior_list'.",

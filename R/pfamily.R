@@ -592,7 +592,8 @@ dNormal_Gamma <- function(mu, Sigma_0, shape, rate) {
 #' @rdname pfamily
 #' @order 8
 
-dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.99,disp_lower=NULL,disp_upper=NULL) {
+dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.99,
+                                      disp_lower = NULL, disp_upper = NULL) {
 
   ##############################################################
   
@@ -640,8 +641,11 @@ dIndependent_Normal_Gamma <- function(mu, Sigma, shape, rate, max_disp_perc = 0.
   }
   
   
-  prior_list <- list(mu = mu, Sigma = Sigma, shape = shape, rate = rate, max_disp_perc = max_disp_perc,
-                     disp_lower=disp_lower,disp_upper=disp_upper)
+  prior_list <- list(
+    mu = mu, Sigma = Sigma, shape = shape, rate = rate,
+    max_disp_perc = max_disp_perc,
+    disp_lower = disp_lower, disp_upper = disp_upper
+  )
   attr(prior_list,"Prior Type")="dIndependent_Normal_Gamma"  
   outlist=list(pfamily="dIndependent_Normal_Gamma",prior_list=prior_list,
                okfamilies=okfamilies,plinks=plinks,simfun=rindepNormalGamma_reg)

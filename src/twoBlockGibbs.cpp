@@ -577,11 +577,9 @@ Block2PriorV2 block2_prior_prep_v2(const List& pf, int j1 /*1-based*/, int p) {
     if (has_non_null(pl, "disp_upper")) {
       out.disp_upper = pl["disp_upper"];
     }
-    // Initial tau2_k at the start of each replicate chain: lmer reference
-    // (tau2_ref), not disp_lower (which is only for lambda* calibration).
-    if (has_non_null(pl, "tau2_ref")) {
-      out.dispersion = Rcpp::as<NumericVector>(pl["tau2_ref"])[0];
-    } else if (out.shape > 1.0) {
+    // Initial tau2_k at the start of each replicate chain: ING prior mean
+    // rate/(shape-1); disp_lower is only for lambda* calibration.
+    if (out.shape > 1.0) {
       out.dispersion = out.rate / (out.shape - 1.0);
     } else if (has_non_null(pl, "disp_lower")) {
       out.dispersion = Rcpp::as<NumericVector>(pl["disp_lower"])[0];

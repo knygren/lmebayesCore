@@ -21,7 +21,8 @@ run_sweep_outer_chains_v6(
   fixef_mode = NULL,
   b_mode = NULL,
   b_start = NULL,
-  ptypes = NULL
+  ptypes = NULL,
+  tau2_start = NULL
 )
 }
 \arguments{
@@ -71,6 +72,11 @@ Defaults to \code{b_mode} when \code{NULL}.}
 
 \item{ptypes}{Per-component pfamily names (optional; derived from
 \code{pfamily_list} when \code{NULL}).}
+
+\item{tau2_start}{Optional named numeric vector of plug-in
+\eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
+When \code{NULL}, derived from \code{pfamily_list} prior fields
+(\code{dNormal} dispersion or ING \code{rate/(shape-1)}).}
 }
 \value{
 A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},

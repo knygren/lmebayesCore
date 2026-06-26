@@ -355,7 +355,6 @@
     start,
     icm_tol,
     icm_maxit,
-    seed,
     progbar,
     verbose,
     engine_label,
@@ -435,7 +434,6 @@
     group_name        = inp$group_name,
     family            = gaussian(),
     m_convergence     = m_convergence,
-    seed              = seed,
     progbar           = progbar
   )
 
@@ -507,7 +505,6 @@
 #' @param re_coef_names Character vector naming columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
-#' @param seed Optional RNG seed passed to the sampler.
 #' @param progbar Logical; show a text progress bar during sampling.
 #' @param verbose Print the convergence calibration line.
 #' @return Object of class \code{c("rLMMNormal_reg", "list")} (plus a route-specific
@@ -534,7 +531,6 @@ rLMMNormal_reg <- function(
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
     group_name      = NULL,
-    seed            = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
@@ -593,7 +589,6 @@ rLMMNormal_reg_known_vcov <- function(
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
     group_name      = NULL,
-    seed            = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
@@ -630,7 +625,6 @@ rLMMNormal_reg_known_vcov <- function(
     start            = start,
     icm_tol          = icm_tol,
     icm_maxit        = icm_maxit,
-    seed             = seed,
     progbar          = progbar,
     verbose          = verbose,
     engine_label     = fn_name,
@@ -672,7 +666,6 @@ rLMMNormal_reg_estimated_vcov <- function(
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
     group_name      = NULL,
-    seed            = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
@@ -709,7 +702,6 @@ rLMMNormal_reg_estimated_vcov <- function(
     start            = start,
     icm_tol          = icm_tol,
     icm_maxit        = icm_maxit,
-    seed             = seed,
     progbar          = progbar,
     verbose          = verbose,
     engine_label     = fn_name,
@@ -754,7 +746,6 @@ rLMMindepNormalGamma_reg <- function(
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
     group_name      = NULL,
-    seed            = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
@@ -908,7 +899,6 @@ rLMMindepNormalGamma_reg <- function(
       re_coef_names   = re_names,
       group_levels    = inp$group_levels,
       group_name      = inp$group_name,
-      seed            = if (!is.null(seed)) seed + i - 1L else NULL,
       progbar         = FALSE,
       verbose         = FALSE
     )

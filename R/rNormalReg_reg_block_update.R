@@ -26,7 +26,6 @@
 #' @param prior_lists List of length \code{k} (or 1) of per-block prior specifications.
 #' @param offset Optional numeric vector (length \code{1} or \code{length(y)}).
 #' @param weights Optional weights vector.
-#' @param seed Optional; passed to \code{\link{set.seed}} before sampling.
 #' @param coef_cols Column indices of \code{coefficients} to return as
 #'   \code{b_draws} (default \code{NULL} returns all columns).
 #' @return A list with:
@@ -50,10 +49,7 @@ block_rNormalReg_update <- function(mu_all,
                                     offset  = NULL,
                                     weights = 1,
                                     Gridtype = 2L,
-                                    seed = NULL,
                                     coef_cols = NULL) {
-  if (!is.null(seed)) set.seed(seed)
-
   if (is.null(prior_lists) && is.null(prior_list)) {
     if (missing(mu_all)) {
       stop(
