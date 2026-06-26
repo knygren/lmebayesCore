@@ -30,6 +30,22 @@ test_that("rlmb: Independent Normal-Gamma with scaled diagonal Sigma (non-Zellne
   expect_equal(ncol(fit$coefficients), nrow(ps$mu))
 })
 
+test_that("rindepNormalGamma_reg rejects ING priors with n_prior > n_w", {
+  err <- tryCatch(
+    rindepNormalGamma_reg(
+      n = 1L,
+      y = stats::rnorm(4L),
+      x = matrix(1, 4L, 1L),
+      prior_list = list(mu = 0, Sigma = matrix(1), shape = 10, rate = 1),
+      progbar = FALSE,
+      verbose = FALSE,
+      use_parallel = FALSE
+    ),
+    error = function(e) conditionMessage(e)
+  )
+  expect_match(err, "n_prior <= n_w")
+})
+
 test_that("Prior_Setup Gaussian calibration: shape from n_prior, E[sigma^2|y] = dispersion", {
   ctl <- c(4.17, 5.58)
   trt <- c(4.81, 4.17)

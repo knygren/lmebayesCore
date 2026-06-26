@@ -21,7 +21,6 @@ rLMMNormal_reg_estimated_vcov(
   re_coef_names = colnames(x),
   group_levels = levels(block),
   group_name = NULL,
-  seed = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -65,8 +64,6 @@ calibration.}
 \item{group_levels}{Character vector defining row order of Block~1 draws.}
 
 \item{group_name}{Name for the grouping column in \code{coefficients}.}
-
-\item{seed}{Optional RNG seed passed to the sampler.}
 
 \item{progbar}{Logical; show a text progress bar during sampling.}
 

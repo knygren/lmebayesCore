@@ -4,7 +4,16 @@
 \alias{print.two_block_sweep_history}
 \title{Print two-block sweep history (fixef mode + per-sweep chain stats)}
 \usage{
-\method{print}{two_block_sweep_history}(x, max_sweeps = Inf, sweeps = NULL, components = NULL, digits = 4L, ...)
+\method{print}{two_block_sweep_history}(
+  x,
+  max_sweeps = Inf,
+  sweeps = NULL,
+  components = NULL,
+  covariate = NULL,
+  by_sweep = FALSE,
+  digits = 4L,
+  ...
+)
 }
 \arguments{
 \item{x}{Object of class \code{"two_block_sweep_history"}.}
@@ -16,6 +25,14 @@ the last \code{max_sweeps} inner sweeps.}
 rows are always retained).}
 
 \item{components}{Optional character vector of RE components to include.}
+
+\item{covariate}{Optional character vector of covariate names to include
+(use with \code{components} to trace one coefficient at a time).}
+
+\item{by_sweep}{When \code{TRUE}, print a separate table for each inner
+sweep (mode row plus that sweep only), matching live \code{glmerb} /
+\code{diag_sweeps} output. When \code{FALSE} (default), all selected
+sweeps appear in one table per coefficient.}
 
 \item{digits}{Number of decimal places for numeric columns.}
 

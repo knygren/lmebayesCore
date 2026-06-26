@@ -93,13 +93,13 @@
     d_k <- if (identical(pf$pfamily, "dNormal")) {
       pl$dispersion
     } else {
-      pl$disp_lower
+      .two_block_tau2_ref_from_pfamily(pf)
     }
     if (is.null(d_k) || !is.numeric(d_k) || length(d_k) != 1L ||
         !is.finite(d_k) || d_k <= 0) {
       stop(
-        "pfamily_list[[\"", k, "\"]] must supply a positive dispersion ",
-        "(dNormal) or disp_lower (dIndependent_Normal_Gamma) for ICM.",
+        "pfamily_list[[\"", k, "\"]] must supply a positive reference tau^2 ",
+        "(dNormal dispersion or ING prior mean / engine reference tau^2).",
         call. = FALSE
       )
     }

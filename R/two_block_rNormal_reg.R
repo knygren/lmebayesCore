@@ -31,7 +31,6 @@
 #' @param offset,weights Passed to Block~1 (length \code{l2} or recycled).
 #' @param Gridtype,n_envopt,use_parallel,use_opencl,verbose Passed to Block~1
 #'   when \code{family} is not Gaussian.
-#' @param seed Optional RNG seed.
 #' @param progbar Logical; show a text progress bar.
 #' @return Object of class \code{"two_block_rNormal_reg"}.
 #' @family simfuncs
@@ -61,7 +60,6 @@ two_block_rNormal_reg <- function(
     use_parallel = TRUE,
     use_opencl = FALSE,
     verbose = FALSE,
-    seed = NULL,
     progbar = TRUE) {
 
   cl <- match.call()
@@ -173,10 +171,6 @@ two_block_rNormal_reg <- function(
   famfunc_block1 <- glmbfamfunc(if (is_gaussian) gaussian() else family)
   famfunc_gauss <- glmbfamfunc(gaussian())
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
-
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
 
   x_hyper_mats <- lapply(x_hyper, as.matrix)
 

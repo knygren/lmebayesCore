@@ -119,3 +119,89 @@ test_that("print.two_block_sweep_history respects max_sweeps", {
   expect_false(any(grepl("sweep 1", short, fixed = TRUE)))
   expect_true(any(grepl("sweep 5", short, fixed = TRUE)))
 })
+
+test_that("run_sweep_outer_chains_v6 diag_sweeps prints one table per stage", {
+  inp <- .mini_v6_inputs(inner_sweeps = 3L)
+  out <- capture.output(
+    run_sweep_outer_chains_v6(
+      n_chains = inp$n_chains,
+      start_fixef = inp$start_fixef,
+      inner_sweeps = inp$inner_sweeps,
+      design = inp$design,
+      block1_prior = inp$block1_prior,
+      pfamily_list = inp$pfamily_list,
+      family = inp$family,
+      re_names = inp$re_names,
+      group_levels = inp$group_levels,
+      fixef_mode = inp$fixef_mode,
+      b_mode = matrix(0, length(inp$group_levels), 1L),
+      progbar = FALSE,
+      diag_sweeps = TRUE,
+      stage_label = "pilot"
+    )
+  )
+  expect_equal(
+    sum(grepl("fixef by sweep \\(3 sweeps\\)", out)),
+    1L
+  )
+  expect_true(any(grepl("sweep 1", out, fixed = TRUE)))
+  expect_true(any(grepl("sweep 2", out, fixed = TRUE)))
+  expect_true(any(grepl("sweep 3", out, fixed = TRUE)))
+})
+
+test_that("print.two_block_sweep_history by_sweep prints one table per sweep", {
+  inp <- .mini_v6_inputs(inner_sweeps = 3L)
+  out <- run_sweep_outer_chains_v6(
+    n_chains = inp$n_chains,
+    start_fixef = inp$start_fixef,
+    inner_sweeps = inp$inner_sweeps,
+    design = inp$design,
+    block1_prior = inp$block1_prior,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    re_names = inp$re_names,
+    group_levels = inp$group_levels,
+    fixef_mode = inp$fixef_mode,
+    b_mode = matrix(0, length(inp$group_levels), 1L),
+    progbar = FALSE,
+    stage_label = "main"
+  )
+  by_sweep <- capture.output(print(out$sweep_history, by_sweep = TRUE))
+  expect_equal(
+    sum(grepl("fixef by sweep \\(1 sweeps\\)", by_sweep)),
+    1L
+  )
+  expect_equal(
+    sum(grepl("fixef by sweep \\(2 sweeps\\)", by_sweep)),
+    1L
+  )
+  expect_equal(
+    sum(grepl("fixef by sweep \\(3 sweeps\\)", by_sweep)),
+    1L
+  )
+  expect_false(any(grepl("sweep 2", by_sweep[grepl("1 sweeps", by_sweep, fixed = TRUE)], fixed = TRUE)))
+})
+
+test_that("print.two_block_sweep_history single sweep uses sweep index in header", {
+  inp <- .mini_v6_inputs(inner_sweeps = 5L)
+  out <- run_sweep_outer_chains_v6(
+    n_chains = inp$n_chains,
+    start_fixef = inp$start_fixef,
+    inner_sweeps = inp$inner_sweeps,
+    design = inp$design,
+    block1_prior = inp$block1_prior,
+    pfamily_list = inp$pfamily_list,
+    family = inp$family,
+    re_names = inp$re_names,
+    group_levels = inp$group_levels,
+    fixef_mode = inp$fixef_mode,
+    b_mode = matrix(0, length(inp$group_levels), 1L),
+    progbar = FALSE,
+    stage_label = "main"
+  )
+  one <- capture.output(print(out$sweep_history, sweeps = 2L))
+  expect_true(any(grepl("fixef by sweep \\(2 sweeps\\)", one)))
+  expect_false(any(grepl("sweep 1", one, fixed = TRUE)))
+  expect_true(any(grepl("sweep 2", one, fixed = TRUE)))
+  expect_false(any(grepl("sweep 3", one, fixed = TRUE)))
+})

@@ -577,12 +577,17 @@ Block2PriorV2 block2_prior_prep_v2(const List& pf, int j1 /*1-based*/, int p) {
     if (has_non_null(pl, "disp_upper")) {
       out.disp_upper = pl["disp_upper"];
     }
-    // Initial tau2_k for the first Block 1 sweep of each replicate chain:
-    // the conservative disp_lower plug-in (consistent with the lmebayes
-    // calibration); refined by the joint Block 2 draw within the sweep.
-    out.dispersion = has_non_null(pl, "disp_lower")
-      ? Rcpp::as<NumericVector>(pl["disp_lower"])[0]
-      : NA_REAL;
+    // Initial tau2_k at the start of each replicate chain: lmer reference
+    // (tau2_ref), not disp_lower (which is only for lambda* calibration).
+    if (has_non_null(pl, "tau2_ref")) {
+      out.dispersion = Rcpp::as<NumericVector>(pl["tau2_ref"])[0];
+    } else if (out.shape > 1.0) {
+      out.dispersion = out.rate / (out.shape - 1.0);
+    } else if (has_non_null(pl, "disp_lower")) {
+      out.dispersion = Rcpp::as<NumericVector>(pl["disp_lower"])[0];
+    } else {
+      out.dispersion = NA_REAL;
+    }
   } else {
     Rcpp::stop(
       "pfamily_list[[%d]]: unsupported pfamily '%s' (allowed: dNormal, "

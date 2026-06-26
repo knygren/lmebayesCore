@@ -246,9 +246,17 @@ two_block_optimize_pilot_cost <- function(n,
 }
 
 #' Whether a pilot stage will run from family and pilot arguments
+#' @param any_non_normal When \code{TRUE} with \code{is_gaussian}, a pilot may
+#'   still run (Gaussian LMM with ING Block~2 components).
 #' @noRd
-.two_block_pilot_will_run <- function(is_gaussian, n_pilot_arg, gap_tol, tv_tol) {
-  if (isTRUE(is_gaussian)) {
+.two_block_pilot_will_run <- function(
+    is_gaussian,
+    n_pilot_arg,
+    gap_tol,
+    tv_tol,
+    any_non_normal = FALSE
+) {
+  if (isTRUE(is_gaussian) && !isTRUE(any_non_normal)) {
     return(FALSE)
   }
   if (!is.null(n_pilot_arg)) {
@@ -278,7 +286,8 @@ two_block_optimize_pilot_cost <- function(n,
     p_dim,
     m_min = NULL,
     pilot_start_tol = 0.95,
-    n_pilot_max = NULL) {
+    n_pilot_max = NULL,
+    any_non_normal = FALSE) {
   gap_tol_validated <- .two_block_validate_gap_tol(gap_tol)
   n_pilot_gap_tol <- if (!is.null(gap_tol_validated)) {
     as.integer(ceiling((stats::qnorm(0.975) / gap_tol_validated)^2))
@@ -286,7 +295,7 @@ two_block_optimize_pilot_cost <- function(n,
     NULL
   }
 
-  if (isTRUE(is_gaussian)) {
+  if (isTRUE(is_gaussian) && !isTRUE(any_non_normal)) {
     m_conv <- if (!is.null(m_convergence_user)) {
       as.integer(m_convergence_user[1L])
     } else if (!is.null(m_min)) {

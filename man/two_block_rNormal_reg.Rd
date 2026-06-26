@@ -26,7 +26,6 @@ two_block_rNormal_reg(
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE,
-  seed = NULL,
   progbar = TRUE
 )
 }
@@ -69,8 +68,6 @@ chain is initialised.}
 
 \item{Gridtype, n_envopt, use_parallel, use_opencl, verbose}{Passed to Block~1
 when \code{family} is not Gaussian.}
-
-\item{seed}{Optional RNG seed.}
 
 \item{progbar}{Logical; show a text progress bar.}
 }

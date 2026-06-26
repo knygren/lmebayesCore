@@ -98,8 +98,7 @@ run_once <- function(seed) {
     fixef_start = fixef_start,
     m_convergence = 1L,
     family = gaussian(),
-    progbar = FALSE,
-    seed = NULL
+    progbar = FALSE
   )
 }
 

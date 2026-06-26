@@ -16,7 +16,8 @@
 #' the truncation state-dependent).
 #'
 #' With \code{dNormal} priors throughout, this function produces draws that
-#' are identical to \code{\link{two_block_rNormal_reg}} under the same seed;
+#' are identical to \code{\link{two_block_rNormal_reg}} when both are run under
+#' the same \code{\link{set.seed}} state for the conjugate-Gaussian blocks;
 #' that equivalence is the regression gate for the v2 development track.
 #'
 #' @param n Number of stored draws.
@@ -43,7 +44,6 @@
 #' @param offset,weights Passed to Block~1 (length \code{l2} or recycled).
 #' @param Gridtype,n_envopt,use_parallel,use_opencl,verbose Passed to Block~1
 #'   when \code{family} is not Gaussian.
-#' @param seed Optional RNG seed.
 #' @param progbar Logical; show a text progress bar.
 #' @return Object of class \code{c("two_block_rNormal_reg_v2",
 #'   "two_block_rNormal_reg")}.  Same fields as
@@ -87,7 +87,6 @@ two_block_rNormal_reg_v2 <- function(
     use_parallel = TRUE,
     use_opencl = FALSE,
     verbose = FALSE,
-    seed = NULL,
     progbar = TRUE) {
 
   cl <- match.call()
@@ -189,10 +188,6 @@ two_block_rNormal_reg_v2 <- function(
   famfunc_block1 <- glmbfamfunc(if (is_gaussian) gaussian() else family)
   famfunc_gauss <- glmbfamfunc(gaussian())
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
-
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
 
   x_hyper_mats <- lapply(x_hyper, as.matrix)
 
@@ -418,19 +413,16 @@ two_block_rNormal_reg_v2 <- function(
           )
         }
         q_k <- length(pl$mu)
-        n_prior_implied <- 2 * pl$shape[1L] - 1 - q_k
-        if (n_prior_implied > J) {
-          stop(
-            "pfamily_list[[\"", k, "\"]]: dIndependent_Normal_Gamma prior ",
-            "implies n_prior = ", signif(n_prior_implied, 4),
-            " effective prior observations for the dispersion, but the ",
-            "Block 2 hyper-regression has only J = ", J, " groups. The ",
-            "dispersion envelope requires n_prior <= J ",
-            "(prior weight pwt_disp <= 0.5); weaken the dispersion prior ",
-            "(smaller shape / pwt_disp) or supply more groups.",
-            call. = FALSE
-          )
-        }
+        .ing_stop_if_prior_exceeds_data(
+          shape       = pl$shape[1L],
+          p           = q_k,
+          n_w         = J,
+          detail      = paste0(
+            "the Block 2 hyper-regression has only J = ", J, " groups"
+          ),
+          limit_label = "J",
+          prefix      = paste0("pfamily_list[[\"", k, "\"]]: ")
+        )
       }
     }
   }

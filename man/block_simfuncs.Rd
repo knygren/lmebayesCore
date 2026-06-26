@@ -26,7 +26,6 @@ block_rNormalGLM_update(
   use_opencl = FALSE,
   verbose = FALSE,
   progbar = FALSE,
-  seed = NULL,
   theta_coef_col = 1L
 )
 
@@ -42,7 +41,6 @@ block_rNormalReg_update(
   offset = NULL,
   weights = 1,
   Gridtype = 2L,
-  seed = NULL,
   coef_cols = NULL
 )
 
@@ -110,8 +108,6 @@ partitioned across blocks like \code{y}.}
 \item{n_envopt}{Passed to each block; defaults to \code{1} when \code{NULL}.}
 
 \item{use_parallel, use_opencl, verbose, progbar}{Passed to each block's GLM sampler.}
-
-\item{seed}{Optional; passed to \code{\link{set.seed}} before sampling.}
 
 \item{theta_coef_col}{Column index of \code{coefficients} to return as
 \code{theta} (default \code{1} for scalar intercept blocks).}

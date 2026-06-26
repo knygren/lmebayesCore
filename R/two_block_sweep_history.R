@@ -84,7 +84,8 @@
     table,
     max_sweeps = Inf,
     sweeps = NULL,
-    components = NULL
+    components = NULL,
+    covariate = NULL
 ) {
   if (!nrow(table)) {
     return(table)
@@ -93,6 +94,10 @@
   if (!is.null(components)) {
     components <- as.character(components)
     out <- out[out$re_component %in% components, , drop = FALSE]
+  }
+  if (!is.null(covariate)) {
+    covariate <- as.character(covariate)
+    out <- out[out$covariate %in% covariate, , drop = FALSE]
   }
   if (!is.null(sweeps)) {
     sweeps <- as.integer(sweeps)
@@ -106,44 +111,41 @@
   out
 }
 
-#' Print two-block sweep history (fixef mode + per-sweep chain stats)
-#'
-#' @param x Object of class \code{"two_block_sweep_history"}.
-#' @param max_sweeps When \code{sweeps} is \code{NULL}, show mode rows plus
-#'   the last \code{max_sweeps} inner sweeps.
-#' @param sweeps Optional integer vector of sweep indices to include (mode
-#'   rows are always retained).
-#' @param components Optional character vector of RE components to include.
-#' @param digits Number of decimal places for numeric columns.
-#' @param ... Ignored.
-#' @return \code{x} invisibly.
-#' @export
-print.two_block_sweep_history <- function(
+#' Sweep count shown in the print header
+#' @noRd
+.two_block_sweep_history_header_n <- function(x, sweeps = NULL, tab = NULL) {
+  if (!is.null(sweeps) && length(sweeps) == 1L) {
+    return(as.integer(sweeps[1L]))
+  }
+  if (!is.null(tab) && nrow(tab)) {
+    sweep_rows <- tab$sweep[tab$sweep > 0L]
+    if (length(sweep_rows)) {
+      return(max(sweep_rows, na.rm = TRUE))
+    }
+  }
+  x$n_sweeps
+}
+
+#' Print one Block~2 sweep-history table (mode + optional sweep rows)
+#' @noRd
+.two_block_print_sweep_history_body <- function(
     x,
-    max_sweeps = Inf,
+    tab,
     sweeps = NULL,
-    components = NULL,
-    digits = 4L,
-    ...
+    digits = 4L
 ) {
-  tab <- .two_block_filter_sweep_history_table(
-    x$table,
-    max_sweeps = max_sweeps,
-    sweeps = sweeps,
-    components = components
-  )
   if (!nrow(tab)) {
     cat(sprintf(
       "\n--- two-block [%s stage summary: fixef by sweep (0 sweeps)] ---\n\n",
       x$stage
     ))
-    return(invisible(x))
+    return(invisible(NULL))
   }
 
-  n_sweep <- x$n_sweeps
+  n_hdr <- .two_block_sweep_history_header_n(x, sweeps = sweeps, tab = tab)
   cat(sprintf(
     "\n--- two-block [%s stage summary: fixef by sweep (%d sweeps)] ---\n",
-    x$stage, n_sweep
+    x$stage, n_hdr
   ))
   cat("  Block 2 fixed effects (mode and chain stats after each sweep):\n")
   hdr <- sprintf(
@@ -178,6 +180,68 @@ print.two_block_sweep_history <- function(
     }
   }
   cat("\n")
+  invisible(NULL)
+}
+
+#' Print two-block sweep history (fixef mode + per-sweep chain stats)
+#'
+#' @param x Object of class \code{"two_block_sweep_history"}.
+#' @param max_sweeps When \code{sweeps} is \code{NULL}, show mode rows plus
+#'   the last \code{max_sweeps} inner sweeps.
+#' @param sweeps Optional integer vector of sweep indices to include (mode
+#'   rows are always retained).
+#' @param components Optional character vector of RE components to include.
+#' @param covariate Optional character vector of covariate names to include
+#'   (use with \code{components} to trace one coefficient at a time).
+#' @param by_sweep When \code{TRUE}, print a separate table for each inner
+#'   sweep (mode row plus that sweep only), matching live \code{glmerb} /
+#'   \code{diag_sweeps} output. When \code{FALSE} (default), all selected
+#'   sweeps appear in one table per coefficient.
+#' @param digits Number of decimal places for numeric columns.
+#' @param ... Ignored.
+#' @importFrom utils tail
+#' @return \code{x} invisibly.
+#' @export
+print.two_block_sweep_history <- function(
+    x,
+    max_sweeps = Inf,
+    sweeps = NULL,
+    components = NULL,
+    covariate = NULL,
+    by_sweep = FALSE,
+    digits = 4L,
+    ...
+) {
+  if (isTRUE(by_sweep)) {
+    all_sweeps <- seq_len(x$n_sweeps)
+    if (!is.null(sweeps)) {
+      use <- as.integer(sweeps)
+    } else if (is.finite(max_sweeps)) {
+      use <- tail(all_sweeps, as.integer(max_sweeps))
+    } else {
+      use <- all_sweeps
+    }
+    use <- use[use >= 1L & use <= x$n_sweeps]
+    for (m in use) {
+      tab_m <- .two_block_filter_sweep_history_table(
+        x$table,
+        sweeps = m,
+        components = components,
+        covariate = covariate
+      )
+      .two_block_print_sweep_history_body(x, tab_m, sweeps = m, digits = digits)
+    }
+    return(invisible(x))
+  }
+
+  tab <- .two_block_filter_sweep_history_table(
+    x$table,
+    max_sweeps = max_sweeps,
+    sweeps = sweeps,
+    components = components,
+    covariate = covariate
+  )
+  .two_block_print_sweep_history_body(x, tab, sweeps = sweeps, digits = digits)
   invisible(x)
 }
 

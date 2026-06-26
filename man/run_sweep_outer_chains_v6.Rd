@@ -50,16 +50,17 @@ RE component).}
 \item{collect_block1}{Logical. If \code{TRUE}, collect and rbind Block~1
 (\code{coefficients}) draws from every chain. Default \code{TRUE}.}
 
-\item{progbar}{Logical. When \code{TRUE} (or when \code{diag_sweeps} is
-\code{TRUE}), show text progress bars over chains during each inner sweep.
-Default \code{FALSE}.}
+\item{progbar}{Logical. When \code{TRUE}, show text progress bars over chains
+during each inner sweep. Default \code{FALSE}.}
 
 \item{stage_label}{Character label stored on \code{$sweep_history} (e.g.
 \code{"pilot"} or \code{"main"}).}
 
-\item{diag_sweeps}{Legacy flag: when \code{TRUE}, enables progress bars as
-for \code{progbar = TRUE}. Sweep history is always collected; use
-\code{print()} on \code{$sweep_history} to display tables.}
+\item{diag_sweeps}{When \code{TRUE}, print one combined Block~2 fixef
+chain-mean table for the stage when the inner-sweep loop finishes (same
+layout as \code{print()} on \code{$sweep_history} with all sweeps).
+Sweep history is always collected; use \code{print()} on
+\code{$sweep_history} to display tables later.}
 
 \item{fixef_mode}{ICM mode reference stored on \code{$sweep_history}.}
 

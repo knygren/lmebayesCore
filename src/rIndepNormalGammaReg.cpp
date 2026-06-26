@@ -551,7 +551,7 @@ Rcpp::List  rIndepNormalGammaReg_std(int n,NumericVector y,NumericMatrix x,
 
     Rcpp::checkUserInterrupt();
     
-   if(progbar==1){
+   if(progbar==1 && n > 1){
      // progress_bar3(i, n-1);
      progress_bar(i, n-1);
      
@@ -1059,13 +1059,22 @@ Rcpp::List rIndepNormalGammaReg(
     bool verbose,
     bool progbar
 ){
-  
-  
-  // int disp_grid_type=2;
-  // 
-  // if(use_parallel) disp_grid_type=2;
-  
-  
+  const int p = x.ncol();
+  double n_w = 0.0;
+  for (int i = 0; i < wt.size(); ++i) {
+    n_w += wt[i];
+  }
+  const double n_prior_implied = 2.0 * shape - 1.0 - static_cast<double>(p);
+  if (n_prior_implied > n_w) {
+    Rcpp::stop(
+      "dIndependent_Normal_Gamma prior implies n_prior = %g effective prior "
+      "observations, but the data supply only n_w = sum(weights) = %g. The "
+      "dispersion envelope requires n_prior <= n_w (prior weight pwt <= 0.5); "
+      "weaken the prior (smaller shape) or supply more data.",
+      n_prior_implied, n_w
+    );
+  }
+
   // --- EnvelopeCentering: returns dispersion and RSS_post for downstream ---
   Rcpp::List centering_out = glmbayes::env::EnvelopeCentering(
     y, x, mu, P, offset, wt,

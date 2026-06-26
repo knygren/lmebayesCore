@@ -1,5 +1,5 @@
 test_that("Bayesian Gaussian regression with Independent Normal-Gamma prior — OpenCL", {
-  skip_if_no_opencl()
+  skip_if(!glmbayesCore_has_opencl(), "OpenCL not enabled in this build of glmbayesCore")
   skip_on_cran()
 
   library(MASS)

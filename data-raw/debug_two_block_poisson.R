@@ -73,7 +73,7 @@ fit_cpp <- two_block_rNormal_reg(
   n = n_rep, y = y_pois, x = x_re, block = grp, x_hyper = x_hyper,
   prior_list_block1 = pl1_pois, prior_list_block2 = prior_list_block2,
   fixef_start = fixef_start, m_convergence = 1L, family = fam,
-  use_parallel = FALSE, seed = 3L, progbar = FALSE
+  use_parallel = FALSE, progbar = FALSE
 )
 
 set.seed(4)

@@ -26,7 +26,6 @@ two_block_rNormal_reg_v2(
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE,
-  seed = NULL,
   progbar = TRUE
 )
 }
@@ -71,8 +70,6 @@ chain is initialised.}
 \item{Gridtype, n_envopt, use_parallel, use_opencl, verbose}{Passed to Block~1
 when \code{family} is not Gaussian.}
 
-\item{seed}{Optional RNG seed.}
-
 \item{progbar}{Logical; show a text progress bar.}
 }
 \value{
@@ -109,7 +106,8 @@ the truncation state-dependent).
 }
 \details{
 With \code{dNormal} priors throughout, this function produces draws that
-are identical to \code{\link{two_block_rNormal_reg}} under the same seed;
+are identical to \code{\link{two_block_rNormal_reg}} when both are run under
+the same \code{\link{set.seed}} state for the conjugate-Gaussian blocks;
 that equivalence is the regression gate for the v2 development track.
 }
 \seealso{
