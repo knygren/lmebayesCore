@@ -264,6 +264,43 @@ Rcpp::List two_block_rNormal_reg_v2_cpp_export(
     bool progbar
 );
 
+/// v5 short-chain driver (twoBlockGibbs.cpp): sweep-outer loop order
+/// (m then i) with per-sweep chain progress bars.
+Rcpp::List two_block_rNormal_reg_v5_cpp_export(
+    int n,
+    int m_convergence,
+    const NumericVector& y,
+    const NumericMatrix& x,
+    SEXP block,
+    const List& x_hyper,
+    const List& prior_list_block1,
+    SEXP dispersion_block1,
+    SEXP ddef_block1,
+    const List& pfamily_list,
+    const List& fixef_start,
+    const CharacterVector& group_levels,
+    const std::string& family,
+    const std::string& link,
+    const Function& f2,
+    const Function& f3,
+    const Function& f2_gauss,
+    const Function& f3_gauss,
+    const NumericVector& offset,
+    const NumericVector& wt,
+    int Gridtype,
+    int n_envopt,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose,
+    Rcpp::Nullable<int> seed,
+    int seed_offset,
+    bool progbar,
+    std::string stage_label,
+    bool diag_sweeps,
+    SEXP fixef_mode,
+    SEXP b_mode
+);
+
 /// Staged v2 driver (twoBlockGibbsStaged.cpp): pilot replicate chains,
 /// Hotelling chi-squared vs fixef_start, then main replicate chains.
 /// Pilot eigenvalue upper bounds are computed in the R wrapper (Phase 2b).
