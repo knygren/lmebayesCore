@@ -303,6 +303,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_reorder_b_to_group_levels_cpp_export
+Rcpp::NumericMatrix two_block_reorder_b_to_group_levels_cpp_export(Rcpp::NumericMatrix b_draw, SEXP block_ids, Rcpp::CharacterVector group_levels);
+RcppExport SEXP _glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export(SEXP b_drawSEXP, SEXP block_idsSEXP, SEXP group_levelsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type b_draw(b_drawSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type block_ids(block_idsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type group_levels(group_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_reorder_b_to_group_levels_cpp_export(b_draw, block_ids, group_levels));
+    return rcpp_result_gen;
+END_RCPP
+}
 // two_block_align_b_to_xhyper_cpp_export
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp_export(Rcpp::NumericVector b_vec, Rcpp::NumericMatrix X_k, Rcpp::CharacterVector group_levels);
 RcppExport SEXP _glmbayesCore_two_block_align_b_to_xhyper_cpp_export(SEXP b_vecSEXP, SEXP X_kSEXP, SEXP group_levelsSEXP) {
@@ -768,6 +781,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_rNormal_reg_v5_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v5_cpp_export, 32},
     {"_glmbayesCore_two_block_rNormal_reg_staged_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_staged_cpp_export, 29},
     {"_glmbayesCore_two_block_block1_iters_mean_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_iters_mean_cpp_export, 1},
+    {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},
     {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},
     {"_glmbayesCore_two_block_block2_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block2_one_chain_cpp_export, 9},
     {"_glmbayesCore_rNormalReg_cpp_export", (DL_FUNC) &_glmbayesCore_rNormalReg_cpp_export, 14},

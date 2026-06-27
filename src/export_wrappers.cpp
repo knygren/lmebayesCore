@@ -332,6 +332,17 @@ double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out) {
 }
 
 // [[Rcpp::export]]
+Rcpp::NumericMatrix two_block_reorder_b_to_group_levels_cpp_export(
+    Rcpp::NumericMatrix b_draw,
+    SEXP block_ids,
+    Rcpp::CharacterVector group_levels
+) {
+  return glmbayes::sim::two_block_reorder_b_to_group_levels(
+    b_draw, block_ids, group_levels
+  );
+}
+
+// [[Rcpp::export]]
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp_export(
     Rcpp::NumericVector b_vec,
     Rcpp::NumericMatrix X_k,

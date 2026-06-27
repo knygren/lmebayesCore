@@ -1381,43 +1381,9 @@ void two_block_reorder_b_to_group_levels(
     const Rcpp::CharacterVector& block_ids,
     const Rcpp::CharacterVector& group_levels
 ) {
-  const int J = group_levels.size();
-  if (b_i.nrow() != J || block_ids.size() != J) {
-    Rcpp::stop("Block 1 group dimension mismatch during reorder.");
-  }
-  bool aligned = true;
-  for (int g = 0; g < J; ++g) {
-    if (Rcpp::CharacterVector::is_na(block_ids[g]) ||
-        Rcpp::CharacterVector::is_na(group_levels[g]) ||
-        Rcpp::as<std::string>(block_ids[g]) !=
-          Rcpp::as<std::string>(group_levels[g])) {
-      aligned = false;
-      break;
-    }
-  }
-  if (aligned) {
-    return;
-  }
-
-  Rcpp::NumericMatrix out(J, b_i.ncol());
-  for (int g = 0; g < J; ++g) {
-    const std::string lev = Rcpp::as<std::string>(group_levels[g]);
-    int src = -1;
-    for (int r = 0; r < J; ++r) {
-      if (!Rcpp::CharacterVector::is_na(block_ids[r]) &&
-          Rcpp::as<std::string>(block_ids[r]) == lev) {
-        src = r;
-        break;
-      }
-    }
-    if (src < 0) {
-      Rcpp::stop(
-        "Block 1 group id \"%s\" not found in block ids.", lev.c_str()
-      );
-    }
-    out(g, Rcpp::_) = b_i(src, Rcpp::_);
-  }
-  b_i = out;
+  b_i = glmbayes::sim::two_block_reorder_b_to_group_levels(
+    b_i, block_ids, group_levels
+  );
 }
 
 void store_b_chain(

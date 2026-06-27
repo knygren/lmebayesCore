@@ -428,6 +428,40 @@
   .two_block_block1_iters_mean_r(block_out)
 }
 
+#' Reorder Block~1 \code{b} rows to \code{group_levels} (R reference)
+#' @noRd
+.two_block_block1_reorder_b_r <- function(b_draw, group_levels) {
+  rn <- rownames(b_draw)
+  if (is.null(rn)) {
+    return(b_draw)
+  }
+  ord <- match(group_levels, rn)
+  if (any(is.na(ord))) {
+    stop("Block 1 group ids do not match group_levels.", call. = FALSE)
+  }
+  b_draw[ord, , drop = FALSE]
+}
+
+#' Reorder Block~1 \code{b} rows to \code{group_levels}
+#' @param b_draw Coefficient matrix from a Block~1 draw.
+#' @param group_levels Target row order.
+#' @param block_ids Row ids for \code{b_draw}; defaults to \code{rownames(b_draw)}.
+#' @param use_cpp If \code{TRUE} (default), use the C++ implementation.
+#' @noRd
+.two_block_block1_reorder_b <- function(
+    b_draw,
+    group_levels,
+    block_ids = rownames(b_draw),
+    use_cpp = TRUE
+) {
+  if (isTRUE(use_cpp) && !is.null(block_ids)) {
+    return(two_block_reorder_b_to_group_levels_cpp_export(
+      b_draw, block_ids, group_levels
+    ))
+  }
+  .two_block_block1_reorder_b_r(b_draw, group_levels)
+}
+
 #' One-chain Block 1 draw given a prepared prior_list
 #' @noRd
 .two_block_block1_draw_one_chain <- function(
@@ -435,7 +469,9 @@
     design,
     family,
     is_gaussian,
-    group_levels
+    group_levels,
+    use_cpp_reorder = TRUE,
+    use_cpp_iters = TRUE
 ) {
   if (is_gaussian) {
     block_out <- block_rNormalReg(
@@ -460,17 +496,14 @@
   }
 
   b_draw <- block_out$coefficients
-  rn <- rownames(b_draw)
-  if (!is.null(rn)) {
-    ord <- match(group_levels, rn)
-    if (any(is.na(ord))) {
-      stop("Block 1 group ids do not match group_levels.", call. = FALSE)
-    }
-    b_draw <- b_draw[ord, , drop = FALSE]
-  }
+  b_draw <- .two_block_block1_reorder_b(
+    b_draw        = b_draw,
+    group_levels  = group_levels,
+    use_cpp       = use_cpp_reorder
+  )
   list(
     b          = b_draw,
-    iters_mean = .two_block_block1_iters_mean(block_out)
+    iters_mean = .two_block_block1_iters_mean(block_out, use_cpp = use_cpp_iters)
   )
 }
 
@@ -484,7 +517,9 @@
     n_cores = NULL,
     progbar = FALSE,
     progbar_prefix = "",
-    progbar_finish_newline = TRUE
+    progbar_finish_newline = TRUE,
+    use_cpp_reorder = TRUE,
+    use_cpp_iters = TRUE
 ) {
   is_gaussian <- identical(family$family, "gaussian")
   n <- batch$n
@@ -498,11 +533,13 @@
   draw_i <- function(i) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
     .two_block_block1_draw_one_chain(
-      prior_list   = prior_lists[[i]],
-      design       = design,
-      family       = family,
-      is_gaussian  = is_gaussian,
-      group_levels = batch$group_levels
+      prior_list       = prior_lists[[i]],
+      design           = design,
+      family           = family,
+      is_gaussian      = is_gaussian,
+      group_levels     = batch$group_levels,
+      use_cpp_reorder  = use_cpp_reorder,
+      use_cpp_iters    = use_cpp_iters
     )
   }
 
@@ -724,7 +761,9 @@ two_block_block2_one_chain_cpp <- function(
     n_cores = NULL,
     progbar = FALSE,
     progbar_prefix = "",
-    progbar_finish_newline = TRUE
+    progbar_finish_newline = TRUE,
+    use_cpp_reorder = TRUE,
+    use_cpp_iters = TRUE
 ) {
   n <- batch$n
   # .two_block_print_block1_phase("prep", "enter", n)
@@ -746,7 +785,9 @@ two_block_block2_one_chain_cpp <- function(
     n_cores                 = n_cores,
     progbar                 = progbar,
     progbar_prefix          = progbar_prefix,
-    progbar_finish_newline  = progbar_finish_newline
+    progbar_finish_newline  = progbar_finish_newline,
+    use_cpp_reorder         = use_cpp_reorder,
+    use_cpp_iters           = use_cpp_iters
   )
   # .two_block_print_block1_phase("draw", "exit", n)
   batch

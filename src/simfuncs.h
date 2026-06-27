@@ -339,6 +339,13 @@ Rcpp::List two_block_rNormal_reg_staged_cpp_export(
 /// Block~1: mean envelope iters across groups (two_block_block1.cpp).
 double two_block_block1_iters_mean(const Rcpp::List& block_out);
 
+/// Block~1: reorder coefficient rows to group_levels (two_block_block1.cpp).
+Rcpp::NumericMatrix two_block_reorder_b_to_group_levels(
+    Rcpp::NumericMatrix b_draw,
+    SEXP block_ids,
+    const Rcpp::CharacterVector& group_levels
+);
+
 /// Block~2 align (twoBlockGibbs.cpp): port of R two_block_align_b_to_xhyper().
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp(
     Rcpp::NumericVector b_vec,

@@ -41,6 +41,10 @@ two_block_block1_iters_mean_cpp_export <- function(block_out) {
     .Call(`_glmbayesCore_two_block_block1_iters_mean_cpp_export`, block_out)
 }
 
+two_block_reorder_b_to_group_levels_cpp_export <- function(b_draw, block_ids, group_levels) {
+    .Call(`_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export`, b_draw, block_ids, group_levels)
+}
+
 two_block_align_b_to_xhyper_cpp_export <- function(b_vec, X_k, group_levels) {
     .Call(`_glmbayesCore_two_block_align_b_to_xhyper_cpp_export`, b_vec, X_k, group_levels)
 }
