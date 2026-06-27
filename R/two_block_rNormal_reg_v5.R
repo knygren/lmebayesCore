@@ -211,6 +211,16 @@ two_block_rNormal_reg_v5 <- function(
     res$coefficients <- NULL
   }
 
+  if (!is.null(cpp_out$sweep_stats) && length(cpp_out$sweep_stats) > 0L) {
+    mode_ref <- if (!is.null(fixef_mode)) fixef_mode else fixef_start
+    res$sweep_history <- .two_block_build_sweep_history(
+      stage_label = as.character(stage_label)[1L],
+      sweep_stats = cpp_out$sweep_stats,
+      fixef_mode  = mode_ref,
+      re_names    = re_names
+    )
+  }
+
   structure(
     res,
     class = c("two_block_rNormal_reg_v5", class(res))
@@ -256,6 +266,8 @@ two_block_rNormal_reg_v5 <- function(
   iters_fixef_draws <- cpp_out$iters_fixef_draws
   dimnames(iters_fixef_draws) <- list(NULL, re_names)
 
+  iters_ranef_draws <- as.numeric(cpp_out$iters_ranef_draws)
+
   coef_cols <- c("draw", group_name, re_names)
   draw_rows <- vector("list", n)
   for (i in seq_len(n)) {
@@ -283,6 +295,7 @@ two_block_rNormal_reg_v5 <- function(
       mu_all_last            = mu_all,
       dispersion_fixef_draws = dispersion_fixef_draws,
       iters_fixef_draws      = iters_fixef_draws,
+      iters_ranef_draws      = iters_ranef_draws,
       pfamily_list           = pfamily_list,
       family                 = family,
       n                      = n,

@@ -771,6 +771,94 @@ std::vector<Rcpp::NumericVector> two_block_mean_fixef_components(
   return avg;
 }
 
+std::vector<Rcpp::NumericVector> two_block_sd_fixef_components(
+    const Rcpp::NumericMatrix& fixef_temp,
+    int n,
+    int p_re,
+    const std::vector<int>& q_k,
+    const std::vector<Rcpp::NumericVector>& templates
+) {
+  std::vector<Rcpp::NumericVector> sd(static_cast<size_t>(p_re));
+  for (int j = 0; j < p_re; ++j) {
+    sd[static_cast<size_t>(j)] =
+      Rcpp::NumericVector(q_k[static_cast<size_t>(j)], NA_REAL);
+    if (templates[static_cast<size_t>(j)].hasAttribute("names")) {
+      sd[static_cast<size_t>(j)].attr("names") =
+        templates[static_cast<size_t>(j)].attr("names");
+    }
+    const int col0 = fixef_col_offset(q_k, j);
+    const int qj = q_k[static_cast<size_t>(j)];
+    if (n <= 1) {
+      continue;
+    }
+    const double inv_nm1 = 1.0 / static_cast<double>(n - 1);
+    for (int c = 0; c < qj; ++c) {
+      double sum = 0.0;
+      for (int i = 0; i < n; ++i) {
+        sum += fixef_temp(i, col0 + c);
+      }
+      const double mean = sum / static_cast<double>(n);
+      double ss = 0.0;
+      for (int i = 0; i < n; ++i) {
+        const double d = fixef_temp(i, col0 + c) - mean;
+        ss += d * d;
+      }
+      sd[static_cast<size_t>(j)][c] = std::sqrt(ss * inv_nm1);
+    }
+  }
+  return sd;
+}
+
+Rcpp::List two_block_snapshot_fixef_stats_cpp(
+    const Rcpp::NumericMatrix& fixef_temp,
+    int n,
+    int p_re,
+    const std::vector<int>& q_k,
+    const std::vector<Rcpp::NumericVector>& templates,
+    const Rcpp::CharacterVector& re_names
+) {
+  const std::vector<Rcpp::NumericVector> means =
+    two_block_mean_fixef_components(fixef_temp, n, p_re, q_k, templates);
+  const std::vector<Rcpp::NumericVector> sds =
+    two_block_sd_fixef_components(fixef_temp, n, p_re, q_k, templates);
+  Rcpp::List snap(p_re);
+  for (int j = 0; j < p_re; ++j) {
+    snap[j] = Rcpp::List::create(
+      Rcpp::Named("mean") = means[static_cast<size_t>(j)],
+      Rcpp::Named("sd") = sds[static_cast<size_t>(j)]
+    );
+  }
+  snap.attr("names") = re_names;
+  return snap;
+}
+
+double two_block_block1_iters_mean(const Rcpp::List& block_out) {
+  if (!block_out.containsElementNamed("block_results")) {
+    return 1.0;
+  }
+  Rcpp::List br = Rcpp::as<Rcpp::List>(block_out["block_results"]);
+  if (br.size() == 0) {
+    return 1.0;
+  }
+  double sum = 0.0;
+  for (int b = 0; b < br.size(); ++b) {
+    Rcpp::List out_b = Rcpp::as<Rcpp::List>(br[b]);
+    if (!out_b.containsElementNamed("iters") || Rf_isNull(out_b["iters"])) {
+      sum += 1.0;
+      continue;
+    }
+    SEXP it = out_b["iters"];
+    if (Rf_isMatrix(it)) {
+      Rcpp::NumericMatrix im(it);
+      sum += im(0, 0);
+    } else {
+      Rcpp::NumericVector iv(it);
+      sum += iv[0];
+    }
+  }
+  return sum / static_cast<double>(br.size());
+}
+
 void two_block_accumulate_fixef_sum(
     Rcpp::NumericVector& fixef_sum,
     int p_re,
@@ -2259,6 +2347,9 @@ List two_block_rNormal_reg_v5_cpp_export(
   NumericVector b_arr(Rcpp::Dimension(J, p_re, n));
   NumericMatrix disp_draws(n, p_re);
   NumericMatrix iters_draws(n, p_re);
+  NumericVector iters_ranef(n);
+  std::fill(iters_ranef.begin(), iters_ranef.end(), 0.0);
+  List sweep_stats(m_convergence);
   
   NumericMatrix mu_all;
   NumericMatrix b_i;
@@ -2394,6 +2485,7 @@ List two_block_rNormal_reg_v5_cpp_export(
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
+      iters_ranef[i] += two_block_block1_iters_mean(block_i);
       store_b_chain(b_work, i, J, p_re, b_i);
     }
 
@@ -2493,6 +2585,10 @@ List two_block_rNormal_reg_v5_cpp_export(
       glmbayes::progress::progress_bar_finish(m == m_convergence - 1);
     }
 
+    sweep_stats[m] = two_block_snapshot_fixef_stats_cpp(
+      fixef_temp, n, p_re, q_k, fixef_start_v, re_names
+    );
+
     // Live per-sweep diagnostics disabled (defer to future sweep_history).
     // if (diag_sweeps) { two_block_print_sweep_diagnostic(...); }
   } // End of sweep loop
@@ -2511,6 +2607,8 @@ List two_block_rNormal_reg_v5_cpp_export(
     Rcpp::Named("group_ids") = group_ids,
     Rcpp::Named("dispersion_fixef_draws") = disp_draws,
     Rcpp::Named("iters_fixef_draws") = iters_draws,
+    Rcpp::Named("iters_ranef_draws") = iters_ranef,
+    Rcpp::Named("sweep_stats") = sweep_stats,
     Rcpp::Named("any_ing") = any_ing
   );
 }
