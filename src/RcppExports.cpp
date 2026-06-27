@@ -292,6 +292,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_block1_iters_mean_cpp_export
+double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out);
+RcppExport SEXP _glmbayesCore_two_block_block1_iters_mean_cpp_export(SEXP block_outSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type block_out(block_outSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_block1_iters_mean_cpp_export(block_out));
+    return rcpp_result_gen;
+END_RCPP
+}
 // two_block_align_b_to_xhyper_cpp_export
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp_export(Rcpp::NumericVector b_vec, Rcpp::NumericMatrix X_k, Rcpp::CharacterVector group_levels);
 RcppExport SEXP _glmbayesCore_two_block_align_b_to_xhyper_cpp_export(SEXP b_vecSEXP, SEXP X_kSEXP, SEXP group_levelsSEXP) {
@@ -756,6 +767,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_rNormal_reg_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v2_cpp_export, 26},
     {"_glmbayesCore_two_block_rNormal_reg_v5_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v5_cpp_export, 32},
     {"_glmbayesCore_two_block_rNormal_reg_staged_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_staged_cpp_export, 29},
+    {"_glmbayesCore_two_block_block1_iters_mean_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_iters_mean_cpp_export, 1},
     {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},
     {"_glmbayesCore_two_block_block2_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block2_one_chain_cpp_export, 9},
     {"_glmbayesCore_rNormalReg_cpp_export", (DL_FUNC) &_glmbayesCore_rNormalReg_cpp_export, 14},

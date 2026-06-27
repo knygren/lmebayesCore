@@ -327,6 +327,11 @@ Rcpp::List two_block_rNormal_reg_staged_cpp_export(
 }
 
 // [[Rcpp::export]]
+double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out) {
+  return glmbayes::sim::two_block_block1_iters_mean(block_out);
+}
+
+// [[Rcpp::export]]
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp_export(
     Rcpp::NumericVector b_vec,
     Rcpp::NumericMatrix X_k,

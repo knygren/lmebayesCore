@@ -397,9 +397,9 @@
   )
 }
 
-#' Mean envelope candidates per group from a Block~1 draw
+#' Mean envelope candidates per group from a Block~1 draw (R reference)
 #' @noRd
-.two_block_block1_iters_mean <- function(block_out) {
+.two_block_block1_iters_mean_r <- function(block_out) {
   br <- block_out$block_results
   if (is.null(br) || !length(br)) {
     return(1)
@@ -415,6 +415,17 @@
     as.numeric(it[1])
   }, numeric(1))
   mean(vals)
+}
+
+#' Mean envelope candidates per group from a Block~1 draw
+#' @param block_out Output from \code{block_rNormalGLM} or \code{block_rNormalReg}.
+#' @param use_cpp If \code{TRUE} (default), use the C++ implementation.
+#' @noRd
+.two_block_block1_iters_mean <- function(block_out, use_cpp = TRUE) {
+  if (isTRUE(use_cpp)) {
+    return(as.numeric(two_block_block1_iters_mean_cpp_export(block_out)))
+  }
+  .two_block_block1_iters_mean_r(block_out)
 }
 
 #' One-chain Block 1 draw given a prepared prior_list

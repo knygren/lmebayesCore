@@ -160,15 +160,59 @@ Helpers already in C++ include `two_block_align_b_col_to_x_rows` and
 
 ---
 
-## Planned incremental C++ (not yet default)
+## Planned Block 1 C++ migration (random-effects `b`, all-chains)
 
-1. Export and document **`two_block_block2_one_chain`** (R reference).
-2. Add **`two_block_block2_one_chain_cpp`** with **native align** (port of
-   `.two_block_align_b_to_xhyper`).
-3. Swap inside `.two_block_block2_all_chains` for A/B testing (flag or comment swap).
+**Block 1** updates random effects **`b`** (prep: `build_mu_all` + prior; draw:
+`block_rNormalGLM` for Poisson/binomial GLMM, or `block_rNormalReg` on the Gaussian v6 path).
+There is **no `use_cpp_block1` flag** today — unlike Block 2, the heavy draw already runs
+mostly in C++ once `block_rNormalGLM()` reaches `.block_rNormalGLM_cpp`, but the **R chain
+loop** and **`glmbfamfunc` per chain** remain.
 
-Test align alone first: same `b_vec`, `X_k`, `group_levels` → R vs C++ `y_k` should match
-exactly. Then compare fixef chain colMeans with `inner_sweeps = 1` and large `n`.
+**Full plan:** [`inst/PLAN_block1_cpp_migration.md`](PLAN_block1_cpp_migration.md)
+
+Summary:
+
+| Phase | Deliverable | Eliminates |
+|-------|-------------|------------|
+| 0 | Fix ING `P` refresh in `.two_block_block1_prior_with_tau2` (`ddef = TRUE` bug) | — |
+| 1 | `two_block_block1_all_chains_cpp_export` (reuse `MuAllBuilder`, v5 ING refresh) | R prep/draw chain loops |
+| 2 | Fuse prep + draw inside C++ chain loop | Intermediate `prior_lists` SEXP |
+| 3 | Native fam dispatch (no R `f2`/`f3`) | **`glmbfamfunc`** per chain |
+| 4 | C++ posterior mode in `rNormalGLM` | R **`optim()`** per group |
+| 5 | Optional: conjugate Gaussian Block 1 on v6 | **`lm.fit`** in `rNormalReg` |
+
+Legacy v5 already runs Block 1 inside one C++ sweep (`block_rNormalGLM_cpp_export` with
+`f2`/`f3` passed once). v6 migration **extracts that body** into an all-chains export wired
+from `.two_block_block1_all_chains`.
+
+Fix Phase 0 (ING τ² ↔ `P`) before trusting parity on Ex_22 binomial ING.
+
+---
+
+## Planned Block 2 C++ migration (hyperparameters `γ`, all-chains, zero R callbacks)
+
+**Status:** Phase 0 partial — `two_block_block2_one_chain_cpp` has native align but still
+calls **`rglmb()`** per RE component; R **`for (i in 1:n)`** over chains remains.
+
+**Full plan:** [`inst/PLAN_block2_cpp_migration.md`](PLAN_block2_cpp_migration.md)
+
+Summary:
+
+| Phase | Deliverable | Eliminates |
+|-------|-------------|------------|
+| 0 | One-chain parity gate | — |
+| 1 | `two_block_block2_all_chains_cpp_export` | R chain loop + per-chain `.Call` |
+| 2 | Direct `rNormalReg` / `rIndepNormalGammaReg` C++ (reuse `block2_prior_prep_v2`) | **`rglmb()`**, **`stats::gaussian()`** |
+| 3 | `two_block_block2_dNormal_draw` (Armadillo conjugate) | **`lm.fit`** in dNormal Block 2 |
+| 4 | ING draw path without **`optim()`** | R optimizer in ING Block 2 |
+| 5 | Docs, static grep CI, remove A/B flags | — |
+
+Legacy v5 already calls simfuncs directly (no `rglmb`) but skips align and still hits
+`lm.fit` / `optim`. The v6 native path must **align like R** and reach **zero R callbacks**
+on the Block 2 hot path.
+
+Test align first (R vs C++ `y_k` exact), then fixef colMeans at large `n` with
+`inner_sweeps = 1`.
 
 ---
 

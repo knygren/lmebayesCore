@@ -336,6 +336,9 @@ Rcpp::List two_block_rNormal_reg_staged_cpp_export(
     bool progbar_pilot
 );
 
+/// Block~1: mean envelope iters across groups (two_block_block1.cpp).
+double two_block_block1_iters_mean(const Rcpp::List& block_out);
+
 /// Block~2 align (twoBlockGibbs.cpp): port of R two_block_align_b_to_xhyper().
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp(
     Rcpp::NumericVector b_vec,

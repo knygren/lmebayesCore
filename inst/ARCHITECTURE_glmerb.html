@@ -691,22 +691,69 @@ align semantics and using <code>rglmb</code> / <code>coef.mode</code>
 <code>.two_block_align_b_to_xhyper</code> + <code>rglmb</code>).</p>
 <hr />
 </div>
-<div id="planned-incremental-c-not-yet-default" class="section level2">
-<h2>Planned incremental C++ (not yet default)</h2>
-<ol style="list-style-type: decimal">
-<li>Export and document
-<strong><code>two_block_block2_one_chain</code></strong> (R
-reference).</li>
-<li>Add <strong><code>two_block_block2_one_chain_cpp</code></strong>
-with <strong>native align</strong> (port of
-<code>.two_block_align_b_to_xhyper</code>).</li>
-<li>Swap inside <code>.two_block_block2_all_chains</code> for A/B
-testing (flag or comment swap).</li>
-</ol>
-<p>Test align alone first: same <code>b_vec</code>, <code>X_k</code>,
-<code>group_levels</code> → R vs C++ <code>y_k</code> should match
-exactly. Then compare fixef chain colMeans with
-<code>inner_sweeps = 1</code> and large <code>n</code>.</p>
+<div id="planned-block-2-c-migration-all-chains-zero-r-callbacks" class="section level2">
+<h2>Planned Block 2 C++ migration (all-chains, zero R callbacks)</h2>
+<p><strong>Status:</strong> Phase 0 partial —
+<code>two_block_block2_one_chain_cpp</code> has native align but still
+calls <strong><code>rglmb()</code></strong> per RE component; R
+<strong><code>for (i in 1:n)</code></strong> over chains remains.</p>
+<p><strong>Full plan:</strong> <a href="PLAN_block2_cpp_migration.md"><code>inst/PLAN_block2_cpp_migration.md</code></a></p>
+<p>Summary:</p>
+<table>
+<colgroup>
+<col width="21%" />
+<col width="40%" />
+<col width="37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Phase</th>
+<th>Deliverable</th>
+<th>Eliminates</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>One-chain parity gate</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td><code>two_block_block2_all_chains_cpp_export</code></td>
+<td>R chain loop + per-chain <code>.Call</code></td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Direct <code>rNormalReg</code> / <code>rIndepNormalGammaReg</code>
+C++ (reuse <code>block2_prior_prep_v2</code>)</td>
+<td><strong><code>rglmb()</code></strong>,
+<strong><code>stats::gaussian()</code></strong></td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td><code>two_block_block2_dNormal_draw</code> (Armadillo
+conjugate)</td>
+<td><strong><code>lm.fit</code></strong> in dNormal Block 2</td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>ING draw path without <strong><code>optim()</code></strong></td>
+<td>R optimizer in ING Block 2</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Docs, static grep CI, remove A/B flags</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Legacy v5 already calls simfuncs directly (no <code>rglmb</code>) but
+skips align and still hits <code>lm.fit</code> / <code>optim</code>. The
+v6 native path must <strong>align like R</strong> and reach <strong>zero
+R callbacks</strong> on the Block 2 hot path.</p>
+<p>Test align first (R vs C++ <code>y_k</code> exact), then fixef
+colMeans at large <code>n</code> with <code>inner_sweeps = 1</code>.</p>
 <hr />
 </div>
 <div id="what-one-sweep-stores" class="section level2">
