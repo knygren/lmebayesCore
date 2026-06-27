@@ -42,6 +42,9 @@
 #'   \eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
 #'   When \code{NULL}, derived from \code{pfamily_list} prior fields
 #'   (\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).
+#' @param use_cpp_block2 When \code{TRUE}, Block~2 uses
+#'   \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})
+#'   instead of the pure-R reference.
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -67,7 +70,8 @@ run_sweep_outer_chains_v6 <- function(
     b_mode         = NULL,
     b_start        = NULL,
     ptypes         = NULL,
-    tau2_start     = NULL
+    tau2_start     = NULL,
+    use_cpp_block2 = TRUE
 ) {
   if (is.null(ptypes)) {
     ptypes <- vapply(pfamily_list, function(pf) pf$pfamily, character(1))
@@ -165,10 +169,21 @@ run_sweep_outer_chains_v6 <- function(
       design                 = design,
       pfamily_list           = pfamily_list,
       ptypes                 = ptypes,
+      use_cpp_block2         = use_cpp_block2,
       progbar                = progbar_use,
       progbar_prefix         = prefix_b2,
       progbar_finish_newline = (m == inner_sweeps)
     )
+    if (m == 1L) {
+      cat("--- sweep 1 chain means (R batch) ---\n")
+      for (k in re_names) {
+        cat(sprintf("  fixef %s:", k), colMeans(batch$fixef[[k]]), "\n")
+      }
+      for (k in re_names) {
+        cat(sprintf("  ranef %s:", k), mean(batch$b[, k, ]), "\n")
+      }
+      cat("\n")
+    }
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,
     #   sweep        = m,

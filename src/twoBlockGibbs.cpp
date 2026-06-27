@@ -771,6 +771,46 @@ std::vector<Rcpp::NumericVector> two_block_mean_fixef_components(
   return avg;
 }
 
+void two_block_print_sweep_chain_means(
+    const std::string& stage_label,
+    int sweep1,
+    int n,
+    int J,
+    int p_re,
+    const std::vector<int>& q_k,
+    const Rcpp::NumericMatrix& fixef_temp,
+    const Rcpp::NumericVector& b_work,
+    const std::vector<Rcpp::NumericVector>& templates,
+    const Rcpp::CharacterVector& re_names
+) {
+  if (!stage_label.empty()) {
+    Rcpp::Rcout << "[" << stage_label << "] ";
+  }
+  Rcpp::Rcout << "sweep " << sweep1 << " chain means (C++): n=" << n << "\n";
+
+  const std::vector<Rcpp::NumericVector> fe_mean =
+    two_block_mean_fixef_components(fixef_temp, n, p_re, q_k, templates);
+  two_block_print_fixef_line("  fixef:", fe_mean, p_re, re_names);
+
+  Rcpp::Rcout << "  ranef:";
+  Rcpp::Rcout << std::fixed << std::setprecision(4);
+  const double inv_nJ = 1.0 / static_cast<double>(n) / static_cast<double>(J);
+  for (int j = 0; j < p_re; ++j) {
+    double sum = 0.0;
+    for (int i = 0; i < n; ++i) {
+      for (int g = 0; g < J; ++g) {
+        sum += b_work[g + J * (j + p_re * i)];
+      }
+    }
+    const std::string re_lab =
+      (re_names.size() == p_re && !Rcpp::CharacterVector::is_na(re_names[j]))
+        ? Rcpp::as<std::string>(re_names[j])
+        : ("RE" + std::to_string(j + 1));
+    Rcpp::Rcout << "  " << re_lab << "=" << sum * inv_nJ;
+  }
+  Rcpp::Rcout << "\n\n";
+}
+
 std::vector<Rcpp::NumericVector> two_block_sd_fixef_components(
     const Rcpp::NumericMatrix& fixef_temp,
     int n,
@@ -1035,6 +1075,376 @@ std::string two_block_sweep_only_prefix(
   }
   return "sweep " + std::to_string(sweep) + "/" +
          std::to_string(inner_sweeps) + ": ";
+}
+
+// R batch Block 2 uses rglmb()$coef.mode (conditional mean), not coefficients.
+NumericVector two_block_coef_mode_from_rNormalReg(const Rcpp::List& out_j) {
+  SEXP cm = out_j["coef.mode"];
+  if (Rf_isNull(cm)) {
+    Rcpp::stop("rNormalReg result missing coef.mode.");
+  }
+  if (Rcpp::is<Rcpp::NumericMatrix>(cm)) {
+    Rcpp::NumericMatrix M(cm);
+    if (M.nrow() == 1) {
+      return Rcpp::NumericVector(M(0, Rcpp::_));
+    }
+    if (M.ncol() == 1) {
+      Rcpp::NumericVector v(M.nrow());
+      for (int r = 0; r < M.nrow(); ++r) {
+        v[r] = M(r, 0);
+      }
+      return v;
+    }
+  }
+  return Rcpp::as<Rcpp::NumericVector>(cm);
+}
+
+namespace {
+
+bool charvec_contains_name(
+    const Rcpp::CharacterVector& names,
+    const std::string& target
+) {
+  for (int i = 0; i < names.size(); ++i) {
+    if (Rcpp::CharacterVector::is_na(names[i])) {
+      continue;
+    }
+    if (Rcpp::as<std::string>(names[i]) == target) {
+      return true;
+    }
+  }
+  return false;
+}
+
+double charvec_named_value(
+    const Rcpp::NumericVector& values,
+    const Rcpp::CharacterVector& names,
+    const std::string& target
+) {
+  for (int i = 0; i < names.size(); ++i) {
+    if (Rcpp::CharacterVector::is_na(names[i])) {
+      continue;
+    }
+    if (Rcpp::as<std::string>(names[i]) == target) {
+      return values[i];
+    }
+  }
+  Rcpp::stop("Group level \"%s\" missing from b.", target.c_str());
+  return NA_REAL;
+}
+
+Rcpp::CharacterVector matrix_rownames(const Rcpp::NumericMatrix& X_k) {
+  if (!X_k.hasAttribute("dimnames")) {
+    return Rcpp::CharacterVector();
+  }
+  Rcpp::List dn(X_k.attr("dimnames"));
+  if (Rf_isNull(dn[0])) {
+    return Rcpp::CharacterVector();
+  }
+  return Rcpp::as<Rcpp::CharacterVector>(dn[0]);
+}
+
+void two_block_update_fixef_row(
+    Rcpp::NumericVector& row,
+    const Rcpp::NumericVector& coef_k
+) {
+  if (coef_k.hasAttribute("names") && !Rf_isNull(coef_k.attr("names"))) {
+    Rcpp::CharacterVector row_names = row.attr("names");
+    Rcpp::CharacterVector coef_names = coef_k.attr("names");
+    for (int i = 0; i < coef_names.size(); ++i) {
+      const std::string nm = Rcpp::as<std::string>(coef_names[i]);
+      for (int c = 0; c < row_names.size(); ++c) {
+        if (Rcpp::CharacterVector::is_na(row_names[c])) {
+          continue;
+        }
+        if (Rcpp::as<std::string>(row_names[c]) == nm) {
+          row[c] = coef_k[i];
+          break;
+        }
+      }
+    }
+    return;
+  }
+  const int ncopy = std::min(row.size(), coef_k.size());
+  for (int c = 0; c < ncopy; ++c) {
+    row[c] = coef_k[c];
+  }
+}
+
+} // namespace
+
+} // anonymous namespace (Block~2 exports below need glmbayes::sim linkage)
+
+// Port of R two_block_align_b_to_xhyper().
+Rcpp::NumericVector two_block_align_b_to_xhyper_cpp(
+    Rcpp::NumericVector b_vec,
+    Rcpp::NumericMatrix X_k,
+    Rcpp::CharacterVector group_levels
+) {
+  const Rcpp::CharacterVector rn = matrix_rownames(X_k);
+  if (rn.size() == 0 || Rf_isNull(rn)) {
+    if (b_vec.size() != X_k.nrow()) {
+      Rcpp::stop(
+        "length(b) (%d) must equal nrow(X_hyper) (%d) when X_hyper has no rownames.",
+        b_vec.size(), X_k.nrow()
+      );
+    }
+    return b_vec;
+  }
+
+  if (b_vec.hasAttribute("names") && !Rf_isNull(b_vec.attr("names"))) {
+    Rcpp::CharacterVector bnames = b_vec.attr("names");
+    std::string miss;
+    for (int r = 0; r < rn.size(); ++r) {
+      if (Rcpp::CharacterVector::is_na(rn[r])) {
+        continue;
+      }
+      const std::string lev = Rcpp::as<std::string>(rn[r]);
+      if (!charvec_contains_name(bnames, lev)) {
+        if (!miss.empty()) {
+          miss += ", ";
+        }
+        miss += lev;
+      }
+    }
+    if (!miss.empty()) {
+      Rcpp::stop("Group level(s) missing from b: %s", miss.c_str());
+    }
+    Rcpp::NumericVector out(rn.size());
+    for (int r = 0; r < rn.size(); ++r) {
+      if (Rcpp::CharacterVector::is_na(rn[r])) {
+        out[r] = NA_REAL;
+        continue;
+      }
+      out[r] = charvec_named_value(
+        b_vec, bnames, Rcpp::as<std::string>(rn[r])
+      );
+    }
+    return out;
+  }
+
+  if (b_vec.size() != group_levels.size() || b_vec.size() != X_k.nrow()) {
+    Rcpp::stop(
+      "b and X_hyper row counts disagree (b: %d, X_hyper: %d, group_levels: %d).",
+      b_vec.size(), X_k.nrow(), group_levels.size()
+    );
+  }
+
+  std::string miss;
+  for (int r = 0; r < rn.size(); ++r) {
+    if (Rcpp::CharacterVector::is_na(rn[r])) {
+      continue;
+    }
+    const std::string lev = Rcpp::as<std::string>(rn[r]);
+    if (!charvec_contains_name(group_levels, lev)) {
+      if (!miss.empty()) {
+        miss += ", ";
+      }
+      miss += lev;
+    }
+  }
+  if (!miss.empty()) {
+    Rcpp::stop(
+      "X_hyper rownames do not match group_levels; missing in groups: %s",
+      miss.c_str()
+    );
+  }
+
+  Rcpp::NumericVector out(rn.size());
+  for (int r = 0; r < rn.size(); ++r) {
+    if (Rcpp::CharacterVector::is_na(rn[r])) {
+      out[r] = NA_REAL;
+      continue;
+    }
+    const std::string lev = Rcpp::as<std::string>(rn[r]);
+    out[r] = charvec_named_value(b_vec, group_levels, lev);
+  }
+  return out;
+}
+
+// Lazy stats::gaussian() for rglmb Block~2 calls (matches R batch driver).
+Rcpp::List two_block_gaussian_family_r() {
+  Rcpp::Environment stats = Rcpp::Environment::namespace_env("stats");
+  Rcpp::Function gaussian = stats["gaussian"];
+  return Rcpp::as<Rcpp::List>(gaussian());
+}
+
+// .two_block_rglmb_iter_count() — envelope candidates from one rglmb draw.
+int two_block_rglmb_iter_count_r(const Rcpp::List& fit_k) {
+  if (!fit_k.containsElementNamed("iters") || Rf_isNull(fit_k["iters"])) {
+    return 1;
+  }
+  SEXP it = fit_k["iters"];
+  if (Rcpp::is<Rcpp::NumericMatrix>(it)) {
+    Rcpp::NumericMatrix M(it);
+    return static_cast<int>(M(0, 0));
+  }
+  Rcpp::NumericVector v(it);
+  return static_cast<int>(v[0]);
+}
+
+// Block~2 via rglmb(..., pfamily = pf) — same path as .two_block_block2_one_chain.
+Rcpp::NumericVector two_block_block2_rglmb_gamma(
+    const Rcpp::NumericMatrix& b_i,
+    int col_j,
+    const Rcpp::NumericMatrix& X_j,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::List& pfamily_j,
+    bool is_ing,
+    double& tau2_j,
+    double& iters_add
+) {
+  Rcpp::Environment pkg = Rcpp::Environment::namespace_env("glmbayesCore");
+  Rcpp::Function rglmb = pkg["rglmb"];
+
+  const int J = group_levels.size();
+  Rcpp::NumericVector b_col(J);
+  for (int g = 0; g < J; ++g) {
+    b_col[g] = b_i(g, col_j);
+  }
+  b_col.attr("names") = group_levels;
+
+  Rcpp::NumericVector y_j = two_block_align_b_to_xhyper_cpp(
+    b_col, X_j, group_levels
+  );
+
+  Rcpp::List fit_k = rglmb(
+    Rcpp::Named("n") = 1,
+    Rcpp::Named("y") = y_j,
+    Rcpp::Named("x") = X_j,
+    Rcpp::Named("family") = two_block_gaussian_family_r(),
+    Rcpp::Named("pfamily") = pfamily_j,
+    Rcpp::Named("verbose") = false,
+    Rcpp::Named("use_parallel") = false
+  );
+
+  if (is_ing) {
+    Rcpp::NumericVector disp_j =
+      Rcpp::as<Rcpp::NumericVector>(fit_k["dispersion"]);
+    tau2_j = disp_j[0];
+    iters_add = static_cast<double>(two_block_rglmb_iter_count_r(fit_k));
+  } else {
+    iters_add = 1.0;
+  }
+
+  return two_block_coef_mode_from_rNormalReg(fit_k);
+}
+
+// Port of R two_block_block2_one_chain() for one replicate chain.
+Rcpp::List two_block_block2_one_chain_cpp_export(
+    const Rcpp::NumericMatrix& b_i,
+    const Rcpp::List& fixef_rows,
+    const Rcpp::NumericVector& tau2_i,
+    const Rcpp::NumericVector& iters_i,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::List& pfamily_list,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names
+) {
+  const int p_re = re_names.size();
+  Rcpp::List fixef_out = Rcpp::clone(fixef_rows);
+  Rcpp::NumericVector tau2_out = Rcpp::clone(tau2_i);
+  Rcpp::NumericVector iters_out = Rcpp::clone(iters_i);
+
+  for (int k = 0; k < p_re; ++k) {
+    const std::string re_k = Rcpp::as<std::string>(re_names[k]);
+    Rcpp::NumericMatrix X_k = Rcpp::as<Rcpp::NumericMatrix>(x_hyper[re_k]);
+    Rcpp::List pfamily_k = Rcpp::as<Rcpp::List>(pfamily_list[re_k]);
+    const std::string ptype_k = Rcpp::as<std::string>(ptypes[k]);
+    const bool is_ing = (ptype_k == "dIndependent_Normal_Gamma");
+
+    double tau2_k = tau2_out[k];
+    double it_add = 0.0;
+    Rcpp::NumericVector gamma_k = two_block_block2_rglmb_gamma(
+      b_i,
+      k,
+      X_k,
+      group_levels,
+      pfamily_k,
+      is_ing,
+      tau2_k,
+      it_add
+    );
+
+    Rcpp::NumericVector row_k = Rcpp::as<Rcpp::NumericVector>(fixef_out[k]);
+    two_block_update_fixef_row(row_k, gamma_k);
+    fixef_out[k] = row_k;
+    if (is_ing) {
+      tau2_out[k] = tau2_k;
+      iters_out[k] = iters_out[k] + it_add;
+    } else {
+      iters_out[k] = iters_out[k] + 1.0;
+    }
+  }
+
+  return Rcpp::List::create(
+    Rcpp::Named("fixef") = fixef_out,
+    Rcpp::Named("tau2") = tau2_out,
+    Rcpp::Named("iters") = iters_out
+  );
+}
+
+namespace {
+
+// Map b_i[, j] indexed by group_levels[g] to X_hyper row order (R:
+// .two_block_align_b_to_xhyper).
+Rcpp::NumericVector two_block_align_b_col_to_x_rows(
+    const Rcpp::NumericMatrix& b_i,
+    int col_j,
+    const std::vector<int>& row_idx_j
+) {
+  const int J = static_cast<int>(row_idx_j.size());
+  Rcpp::NumericVector y_j(J);
+  for (int g = 0; g < J; ++g) {
+    y_j[row_idx_j[g]] = b_i(g, col_j);
+  }
+  return y_j;
+}
+
+// Ensure Block 1 rows follow group_levels (R: match(group_levels, rownames(b))).
+void two_block_reorder_b_to_group_levels(
+    Rcpp::NumericMatrix& b_i,
+    const Rcpp::CharacterVector& block_ids,
+    const Rcpp::CharacterVector& group_levels
+) {
+  const int J = group_levels.size();
+  if (b_i.nrow() != J || block_ids.size() != J) {
+    Rcpp::stop("Block 1 group dimension mismatch during reorder.");
+  }
+  bool aligned = true;
+  for (int g = 0; g < J; ++g) {
+    if (Rcpp::CharacterVector::is_na(block_ids[g]) ||
+        Rcpp::CharacterVector::is_na(group_levels[g]) ||
+        Rcpp::as<std::string>(block_ids[g]) !=
+          Rcpp::as<std::string>(group_levels[g])) {
+      aligned = false;
+      break;
+    }
+  }
+  if (aligned) {
+    return;
+  }
+
+  Rcpp::NumericMatrix out(J, b_i.ncol());
+  for (int g = 0; g < J; ++g) {
+    const std::string lev = Rcpp::as<std::string>(group_levels[g]);
+    int src = -1;
+    for (int r = 0; r < J; ++r) {
+      if (!Rcpp::CharacterVector::is_na(block_ids[r]) &&
+          Rcpp::as<std::string>(block_ids[r]) == lev) {
+        src = r;
+        break;
+      }
+    }
+    if (src < 0) {
+      Rcpp::stop(
+        "Block 1 group id \"%s\" not found in block ids.", lev.c_str()
+      );
+    }
+    out(g, Rcpp::_) = b_i(src, Rcpp::_);
+  }
+  b_i = out;
 }
 
 void store_b_chain(
@@ -2397,11 +2807,6 @@ List two_block_rNormal_reg_v5_cpp_export(
   const bool sweep_progbar = progbar && n <= 1;
   NumericVector b_work(Rcpp::Dimension(J, p_re, n));
 
-  // Option B: one reseed before the sweep loop; no per-chain reseed afterward.
-  if (have_seed) {
-    v3_reseed_r(Rcpp::as<int>(seed.get()) + seed_offset + 1);
-  }
-
   // ---- Outer loop: m_convergence full two-block Gibbs sweeps ----
   for (int m = 0; m < m_convergence; ++m) {
     Rcpp::checkUserInterrupt();
@@ -2422,13 +2827,6 @@ List two_block_rNormal_reg_v5_cpp_export(
         glmbayes::progress::progress_bar(
           static_cast<double>(i + 1), static_cast<double>(n), prefix_re
         );
-      }
-
-      if (m == 0) {
-        for (int j = 0; j < p_re; ++j) {
-          fixef[j] = Rcpp::clone(fixef_start_v[j]);
-        }
-        tau2 = tau2_start;
       }
 
       two_block_unpack_fixef_row(
@@ -2480,10 +2878,15 @@ List two_block_rNormal_reg_v5_cpp_export(
           b_i.nrow(), b_i.ncol(), J, p_re
         );
       }
-      if (!have_ids) {
+      {
         List bi_info = block_i["block_info"];
-        group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
-        have_ids = true;
+        CharacterVector block_ids =
+          Rcpp::as<CharacterVector>(bi_info["ids"]);
+        if (!have_ids) {
+          group_ids = block_ids;
+          have_ids = true;
+        }
+        two_block_reorder_b_to_group_levels(b_i, block_ids, group_levels);
       }
       iters_ranef[i] += two_block_block1_iters_mean(block_i);
       store_b_chain(b_work, i, J, p_re, b_i);
@@ -2519,45 +2922,21 @@ List two_block_rNormal_reg_v5_cpp_export(
             j + 1, X_j.nrow(), b_i.nrow()
           );
         }
-        NumericVector y_j = b_i(Rcpp::_, j);
-        NumericVector offset_j(X_j.nrow(), 0.0);
-        NumericVector wt_j(X_j.nrow(), 1.0);
-
-        if (!pr2[j].is_ing) {
-          List out_j = rNormalReg(
-            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
-            pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
-            "gaussian", "identity", 2
-          );
-          NumericMatrix coef_j =
-            Rcpp::as<NumericMatrix>(out_j["coefficients"]);
-          two_block_assign_fixef_component(
-            fixef, j, NumericVector(coef_j(0, Rcpp::_)), fixef_start_v[j]
-          );
-          iters_draws(i, j) += 1.0;
-        } else {
-          List out_j = rIndepNormalGammaReg(
-            1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
-            pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
-            Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
-            Rcpp::Nullable<NumericVector>(pr2[j].disp_upper),
-            2, 1,
-            false, false, false, false
-          );
-          NumericMatrix coef_j = Rcpp::as<NumericMatrix>(out_j["out"]);
-          NumericVector gamma_j(coef_j.nrow());
-          for (int c = 0; c < coef_j.nrow(); ++c) {
-            gamma_j[c] = coef_j(c, 0);
-          }
-          two_block_assign_fixef_component(
-            fixef, j, gamma_j, fixef_start_v[j]
-          );
-          NumericVector disp_j = Rcpp::as<NumericVector>(out_j["disp_out"]);
-          tau2[j] = disp_j[0];
-          NumericVector iters_j =
-            Rcpp::as<NumericVector>(out_j["iters_out"]);
-          iters_draws(i, j) += iters_j[0];
-        }
+        double it_j = 0.0;
+        NumericVector gamma_j = two_block_block2_rglmb_gamma(
+          b_i,
+          j,
+          X_j,
+          group_levels,
+          List(pfamily_list[j]),
+          pr2[j].is_ing,
+          tau2[j],
+          it_j
+        );
+        two_block_assign_fixef_component(
+          fixef, j, gamma_j, fixef_start_v[j]
+        );
+        iters_draws(i, j) += it_j;
       }
 
       two_block_pack_fixef_row(fixef_temp, i, p_re, q_k, fixef);
@@ -2588,6 +2967,13 @@ List two_block_rNormal_reg_v5_cpp_export(
     sweep_stats[m] = two_block_snapshot_fixef_stats_cpp(
       fixef_temp, n, p_re, q_k, fixef_start_v, re_names
     );
+
+    if (m == 0) {
+      two_block_print_sweep_chain_means(
+        stage_label, sweep1, n, J, p_re, q_k,
+        fixef_temp, b_work, fixef_start_v, re_names
+      );
+    }
 
     // Live per-sweep diagnostics disabled (defer to future sweep_history).
     // if (diag_sweeps) { two_block_print_sweep_diagnostic(...); }

@@ -37,6 +37,14 @@ two_block_rNormal_reg_staged_cpp_export <- function(n_main, m_convergence_main, 
     .Call(`_glmbayesCore_two_block_rNormal_reg_staged_cpp_export`, n_main, m_convergence_main, n_pilot, m_convergence_pilot, y, x, block, x_hyper, prior_list_block1, dispersion_block1, ddef_block1, pfamily_list, fixef_start, group_levels, family, link, f2, f3, f2_gauss, f3_gauss, offset, wt, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar_main, progbar_pilot)
 }
 
+two_block_align_b_to_xhyper_cpp_export <- function(b_vec, X_k, group_levels) {
+    .Call(`_glmbayesCore_two_block_align_b_to_xhyper_cpp_export`, b_vec, X_k, group_levels)
+}
+
+two_block_block2_one_chain_cpp_export <- function(b_i, fixef_rows, tau2_i, iters_i, x_hyper, group_levels, pfamily_list, ptypes, re_names) {
+    .Call(`_glmbayesCore_two_block_block2_one_chain_cpp_export`, b_i, fixef_rows, tau2_i, iters_i, x_hyper, group_levels, pfamily_list, ptypes, re_names)
+}
+
 rNormalReg_cpp_export <- function(n, y, x, mu, P, offset, wt, dispersion, f2, f3, start, family = "gaussian", link = "identity", Gridtype = 2L) {
     .Call(`_glmbayesCore_rNormalReg_cpp_export`, n, y, x, mu, P, offset, wt, dispersion, f2, f3, start, family, link, Gridtype)
 }

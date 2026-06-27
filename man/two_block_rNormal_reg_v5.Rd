@@ -26,6 +26,7 @@ two_block_rNormal_reg_v5(
   use_parallel = TRUE,
   use_opencl = FALSE,
   verbose = FALSE,
+  seed = NULL,
   seed_offset = 0L,
   collect_block1 = TRUE,
   progbar = FALSE,
@@ -76,7 +77,10 @@ chain is initialised.}
 \item{Gridtype, n_envopt, use_parallel, use_opencl, verbose}{Passed to Block~1
 when \code{family} is not Gaussian.}
 
-\item{seed_offset}{Integer recorded in C++ driver diagnostics. Default
+\item{seed}{Optional integer base seed for the C++ driver. When \code{NULL},
+one draw is taken from the current R RNG (respects \code{set.seed}).}
+
+\item{seed_offset}{Integer added per chain at sweep start. Default
 \code{0L}.}
 
 \item{collect_block1}{Logical. If \code{TRUE}, row-bind Block~1

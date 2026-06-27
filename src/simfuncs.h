@@ -336,6 +336,26 @@ Rcpp::List two_block_rNormal_reg_staged_cpp_export(
     bool progbar_pilot
 );
 
+/// Block~2 align (twoBlockGibbs.cpp): port of R two_block_align_b_to_xhyper().
+Rcpp::NumericVector two_block_align_b_to_xhyper_cpp(
+    Rcpp::NumericVector b_vec,
+    Rcpp::NumericMatrix X_k,
+    Rcpp::CharacterVector group_levels
+);
+
+/// Block~2 one-chain update (twoBlockGibbs.cpp): native align + rglmb per RE.
+Rcpp::List two_block_block2_one_chain_cpp_export(
+    const Rcpp::NumericMatrix& b_i,
+    const Rcpp::List& fixef_rows,
+    const Rcpp::NumericVector& tau2_i,
+    const Rcpp::NumericVector& iters_i,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::List& pfamily_list,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names
+);
+
 Rcpp::List rNormalGLM_optim_poisson_log(
     const NumericVector& parin,
     const NumericVector& y,

@@ -6,7 +6,9 @@
 #' (\code{m} then \code{i}) with per-sweep logging and chain progress bars.
 #'
 #' @inheritParams two_block_rNormal_reg_v2
-#' @param seed_offset Integer recorded in C++ driver diagnostics. Default
+#' @param seed Optional integer base seed for the C++ driver. When \code{NULL},
+#'   one draw is taken from the current R RNG (respects \code{set.seed}).
+#' @param seed_offset Integer added per chain at sweep start. Default
 #'   \code{0L}.
 #' @param collect_block1 Logical. If \code{TRUE}, row-bind Block~1
 #'   (\code{coefficients}) draws from every chain.  Default \code{TRUE}.
@@ -48,6 +50,7 @@ two_block_rNormal_reg_v5 <- function(
     use_parallel = TRUE,
     use_opencl = FALSE,
     verbose = FALSE,
+    seed = NULL,
     seed_offset = 0L,
     collect_block1 = TRUE,
     progbar = FALSE,
@@ -157,6 +160,10 @@ two_block_rNormal_reg_v5 <- function(
   famfunc_gauss <- glmbfamfunc(gaussian())
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
 
+  if (!is.null(seed)) {
+    seed <- as.integer(seed[1L])
+  }
+
   x_hyper_mats <- lapply(x_hyper, as.matrix)
 
   cpp_out <- .two_block_rNormal_reg_v5_cpp(
@@ -185,6 +192,7 @@ two_block_rNormal_reg_v5 <- function(
     use_parallel      = use_parallel,
     use_opencl        = use_opencl,
     verbose           = verbose,
+    seed              = seed,
     seed_offset       = as.integer(seed_offset),
     progbar           = isTRUE(progbar),
     stage_label       = as.character(stage_label)[1L],

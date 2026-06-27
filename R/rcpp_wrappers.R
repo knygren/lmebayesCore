@@ -138,6 +138,7 @@
     Gridtype = 2L, n_envopt = 1L,
     use_parallel = TRUE, use_opencl = FALSE,
     verbose = FALSE,
+    seed = NULL,
     seed_offset = 0L,
     progbar = TRUE,
     stage_label = "",
@@ -151,7 +152,7 @@
     pfamily_list, fixef_start, group_levels,
     family, link, f2, f3, f2_gauss, f3_gauss,
     offset, wt, Gridtype, n_envopt,
-    use_parallel, use_opencl, verbose, NULL, seed_offset, progbar,
+    use_parallel, use_opencl, verbose, seed, seed_offset, progbar,
     stage_label, diag_sweeps, fixef_mode, b_mode
   )
 }

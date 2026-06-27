@@ -528,9 +528,19 @@
   parallel::mclapply(idx, FUN, mc.cores = n_cores)
 }
 
-#' Align b vector to X_hyper row order (group levels)
-#' @noRd
-.two_block_align_b_to_xhyper <- function(b_vec, X_k, group_levels) {
+#' Align random-effect vector to \code{X_hyper} row order
+#'
+#' Maps one column of Block~1 random effects (\code{b}, in \code{group_levels}
+#' order) to the row order of \code{X_hyper[[k]]} for Block~2 pseudo-response
+#' \code{y}. See \code{inst/ARCHITECTURE_glmerb.md}.
+#'
+#' @param b_vec Length-\code{J} vector for one RE component (named by
+#'   \code{group_levels} or positional).
+#' @param X_k Group-level design matrix (\code{J x q_k}).
+#' @param group_levels Character vector defining Block~1 row order of \code{b}.
+#' @return Numeric vector of length \code{nrow(X_k)} in \code{X_hyper} row order.
+#' @export
+two_block_align_b_to_xhyper <- function(b_vec, X_k, group_levels) {
   rn <- rownames(X_k)
   if (is.null(rn)) {
     if (length(b_vec) != nrow(X_k)) {
@@ -572,9 +582,32 @@
   b_vec[rn]
 }
 
-#' One-chain Block 2 update (writes batch$fixef, batch$tau2, batch$iters)
-#' @noRd
-.two_block_block2_one_chain <- function(
+#' @rdname two_block_align_b_to_xhyper
+#' @export
+two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
+  two_block_align_b_to_xhyper_cpp_export(b_vec, X_k, group_levels)
+}
+
+#' @keywords internal
+#' @export
+.two_block_align_b_to_xhyper <- two_block_align_b_to_xhyper
+
+#' One-chain Block 2 update (writes \code{batch$fixef}, \code{batch$tau2},
+#' \code{batch$iters})
+#'
+#' Given current random effects for replicate chain \code{i}, update fixed
+#' effects (and ING dispersion) via one \code{rglmb()} call per RE component.
+#'
+#' @param batch Batch list from \code{.two_block_batch_init()}.
+#' @param i Chain index (\code{1..batch$n}).
+#' @param design Model design list (\code{X_hyper}, etc.).
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
+#' @param ptypes Named character vector of \code{pfamily} types.
+#' @return Updated \code{batch}.
+#' @seealso \code{\link{two_block_block2_one_chain_cpp}},
+#'   \code{\link{run_sweep_outer_chains_v6}}
+#' @export
+two_block_block2_one_chain <- function(
     batch,
     i,
     design,
@@ -620,6 +653,52 @@
       batch$iters[i, k] <- batch$iters[i, k] + 1L
     }
   }
+  batch
+}
+
+#' @keywords internal
+#' @export
+.two_block_block2_one_chain <- two_block_block2_one_chain
+
+#' Block 2 one-chain update via C++ (native align + \code{rglmb})
+#'
+#' Same semantics as \code{\link{two_block_block2_one_chain}}; \code{b} is
+#' aligned to \code{X_hyper} rows in C++ before each \code{rglmb()} call.
+#'
+#' @inheritParams two_block_block2_one_chain
+#' @return Updated \code{batch}.
+#' @export
+two_block_block2_one_chain_cpp <- function(
+    batch,
+    i,
+    design,
+    pfamily_list,
+    ptypes
+) {
+  b_i <- batch$b[, , i, drop = FALSE]
+  b_i <- matrix(
+    b_i, nrow = nrow(b_i), ncol = ncol(b_i),
+    dimnames = dimnames(b_i)[1:2]
+  )
+  fixef_rows <- lapply(batch$re_names, function(k) batch$fixef[[k]][i, ])
+  names(fixef_rows) <- batch$re_names
+  x_hyper <- lapply(design$X_hyper, as.matrix)
+  out <- two_block_block2_one_chain_cpp_export(
+    b_i            = b_i,
+    fixef_rows     = fixef_rows,
+    tau2_i         = batch$tau2[i, ],
+    iters_i        = batch$iters[i, ],
+    x_hyper        = x_hyper,
+    group_levels   = batch$group_levels,
+    pfamily_list   = pfamily_list,
+    ptypes         = ptypes,
+    re_names       = batch$re_names
+  )
+  for (k in batch$re_names) {
+    batch$fixef[[k]][i, ] <- out$fixef[[k]]
+  }
+  batch$tau2[i, ] <- out$tau2
+  batch$iters[i, ] <- out$iters
   batch
 }
 
@@ -669,16 +748,22 @@
     design,
     pfamily_list,
     ptypes,
+    use_cpp_block2 = TRUE,
     progbar = FALSE,
     progbar_prefix = "",
     progbar_finish_newline = TRUE
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L
+  block2_fn <- if (isTRUE(use_cpp_block2)) {
+    two_block_block2_one_chain_cpp
+  } else {
+    two_block_block2_one_chain
+  }
 
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    batch <- .two_block_block2_one_chain(
+    batch <- block2_fn(
       batch        = batch,
       i            = i,
       design       = design,

@@ -296,6 +296,10 @@ The file `inst/ADDING_PFAMILY.md` contains a step-by-step guide. In summary:
 
 `inst/BLOCK_GIBBS_ERGODICITY.md` documents the theoretical requirements for ergodicity when combining glmbayesCore simulation functions in a block Gibbs sampler — relevant for packages like `lmebayes` that cycle between coefficient and variance-component updates.
 
+### glmerb / two-block GLMM architecture
+
+`inst/ARCHITECTURE_glmerb.md` maps the sweep-outer R driver (`run_sweep_outer_chains_v6`), Block 1 / Block 2 call chains, staging wrappers in `lmebayes`, and the legacy C++ v5 path — for maintainers working on `glmerb` parity or incremental C++ Block 2 ports.
+
 ---
 
 ## Key References

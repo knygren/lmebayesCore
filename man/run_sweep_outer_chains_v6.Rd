@@ -22,7 +22,8 @@ run_sweep_outer_chains_v6(
   b_mode = NULL,
   b_start = NULL,
   ptypes = NULL,
-  tau2_start = NULL
+  tau2_start = NULL,
+  use_cpp_block2 = TRUE
 )
 }
 \arguments{
@@ -77,6 +78,10 @@ Defaults to \code{b_mode} when \code{NULL}.}
 \eqn{\tau^2_k} values for chain initialisation (one per \code{re_names}).
 When \code{NULL}, derived from \code{pfamily_list} prior fields
 (\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).}
+
+\item{use_cpp_block2}{When \code{TRUE}, Block~2 uses
+\code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})
+instead of the pure-R reference.}
 }
 \value{
 A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},

@@ -292,6 +292,38 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_align_b_to_xhyper_cpp_export
+Rcpp::NumericVector two_block_align_b_to_xhyper_cpp_export(Rcpp::NumericVector b_vec, Rcpp::NumericMatrix X_k, Rcpp::CharacterVector group_levels);
+RcppExport SEXP _glmbayesCore_two_block_align_b_to_xhyper_cpp_export(SEXP b_vecSEXP, SEXP X_kSEXP, SEXP group_levelsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type b_vec(b_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type X_k(X_kSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type group_levels(group_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_align_b_to_xhyper_cpp_export(b_vec, X_k, group_levels));
+    return rcpp_result_gen;
+END_RCPP
+}
+// two_block_block2_one_chain_cpp_export
+Rcpp::List two_block_block2_one_chain_cpp_export(const Rcpp::NumericMatrix& b_i, const Rcpp::List& fixef_rows, const Rcpp::NumericVector& tau2_i, const Rcpp::NumericVector& iters_i, const Rcpp::List& x_hyper, const Rcpp::CharacterVector& group_levels, const Rcpp::List& pfamily_list, const Rcpp::CharacterVector& ptypes, const Rcpp::CharacterVector& re_names);
+RcppExport SEXP _glmbayesCore_two_block_block2_one_chain_cpp_export(SEXP b_iSEXP, SEXP fixef_rowsSEXP, SEXP tau2_iSEXP, SEXP iters_iSEXP, SEXP x_hyperSEXP, SEXP group_levelsSEXP, SEXP pfamily_listSEXP, SEXP ptypesSEXP, SEXP re_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type b_i(b_iSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef_rows(fixef_rowsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type tau2_i(tau2_iSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type iters_i(iters_iSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_hyper(x_hyperSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type pfamily_list(pfamily_listSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type ptypes(ptypesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type re_names(re_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_block2_one_chain_cpp_export(b_i, fixef_rows, tau2_i, iters_i, x_hyper, group_levels, pfamily_list, ptypes, re_names));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rNormalReg_cpp_export
 Rcpp::List rNormalReg_cpp_export(int n, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::NumericVector& mu, const Rcpp::NumericMatrix& P, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, double dispersion, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::NumericVector& start, const std::string& family, const std::string& link, int Gridtype);
 RcppExport SEXP _glmbayesCore_rNormalReg_cpp_export(SEXP nSEXP, SEXP ySEXP, SEXP xSEXP, SEXP muSEXP, SEXP PSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP dispersionSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP startSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP GridtypeSEXP) {
@@ -724,6 +756,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_rNormal_reg_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v2_cpp_export, 26},
     {"_glmbayesCore_two_block_rNormal_reg_v5_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v5_cpp_export, 32},
     {"_glmbayesCore_two_block_rNormal_reg_staged_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_staged_cpp_export, 29},
+    {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},
+    {"_glmbayesCore_two_block_block2_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block2_one_chain_cpp_export, 9},
     {"_glmbayesCore_rNormalReg_cpp_export", (DL_FUNC) &_glmbayesCore_rNormalReg_cpp_export, 14},
     {"_glmbayesCore_rIndepNormalGammaReg_cpp_export", (DL_FUNC) &_glmbayesCore_rIndepNormalGammaReg_cpp_export, 18},
     {"_glmbayesCore_rNormalGammaReg_cpp_export", (DL_FUNC) &_glmbayesCore_rNormalGammaReg_cpp_export, 13},
