@@ -332,6 +332,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_batch_tau2_chain_row_cpp_export
+Rcpp::NumericVector two_block_batch_tau2_chain_row_cpp_export(const Rcpp::NumericMatrix& batch_tau2, int chain_i);
+RcppExport SEXP _glmbayesCore_two_block_batch_tau2_chain_row_cpp_export(SEXP batch_tau2SEXP, SEXP chain_iSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type batch_tau2(batch_tau2SEXP);
+    Rcpp::traits::input_parameter< int >::type chain_i(chain_iSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_batch_tau2_chain_row_cpp_export(batch_tau2, chain_i));
+    return rcpp_result_gen;
+END_RCPP
+}
+// two_block_batch_b_assign_slice_cpp_export
+Rcpp::NumericVector two_block_batch_b_assign_slice_cpp_export(Rcpp::NumericVector b_store, int chain_i, Rcpp::NumericMatrix b_draw);
+RcppExport SEXP _glmbayesCore_two_block_batch_b_assign_slice_cpp_export(SEXP b_storeSEXP, SEXP chain_iSEXP, SEXP b_drawSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type b_store(b_storeSEXP);
+    Rcpp::traits::input_parameter< int >::type chain_i(chain_iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type b_draw(b_drawSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_batch_b_assign_slice_cpp_export(b_store, chain_i, b_draw));
+    return rcpp_result_gen;
+END_RCPP
+}
 // two_block_block1_one_chain_cpp_export
 Rcpp::List two_block_block1_one_chain_cpp_export(int chain_i, const Rcpp::List& batch_fixef, const Rcpp::NumericVector& tau2_i, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& Z, SEXP groups, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, const Rcpp::List& x_hyper, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::CharacterVector& ptypes, const Rcpp::List& block1_prior, bool is_gaussian, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const std::string& family, const std::string& link, int Gridtype, int n_envopt);
 RcppExport SEXP _glmbayesCore_two_block_block1_one_chain_cpp_export(SEXP chain_iSEXP, SEXP batch_fixefSEXP, SEXP tau2_iSEXP, SEXP ySEXP, SEXP ZSEXP, SEXP groupsSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP x_hyperSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP ptypesSEXP, SEXP block1_priorSEXP, SEXP is_gaussianSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP) {
@@ -880,6 +905,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_build_mu_all_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_build_mu_all_cpp_export, 4},
     {"_glmbayesCore_two_block_block1_prior_with_tau2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_prior_with_tau2_cpp_export, 5},
     {"_glmbayesCore_two_block_block1_iters_mean_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_iters_mean_cpp_export, 1},
+    {"_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export, 2},
+    {"_glmbayesCore_two_block_batch_b_assign_slice_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_b_assign_slice_cpp_export, 3},
     {"_glmbayesCore_two_block_block1_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_cpp_export, 22},
     {"_glmbayesCore_two_block_block1_all_chains_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_cpp_export, 26},
     {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},

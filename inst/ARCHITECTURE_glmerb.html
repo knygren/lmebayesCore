@@ -703,12 +703,10 @@ all-chains)</h2>
 <strong><code>b</code></strong> (prep: <code>build_mu_all</code> +
 prior; draw: <code>block_rNormalGLM</code> for Poisson/binomial GLMM, or
 <code>block_rNormalReg</code> on the Gaussian v6 path). There is
-<strong>no <code>use_cpp_block1</code> flag</strong> today — unlike
-Block 2, the heavy draw already runs mostly in C++ once
-<code>block_rNormalGLM()</code> reaches
-<code>.block_rNormalGLM_cpp</code>, but the <strong>R chain
-loop</strong> and <strong><code>glmbfamfunc</code> per chain</strong>
-remain.</p>
+<strong><code>use_cpp_block1</code></strong> on
+<code>run_sweep_outer_chains_v6</code> (default <code>TRUE</code>). Set
+<code>use_cpp_block1 = FALSE</code> for the R prep/draw loop oracle with
+piecewise C++ helpers.</p>
 <p><strong>Full plan:</strong> <a href="PLAN_block1_cpp_migration.md"><code>inst/PLAN_block1_cpp_migration.md</code></a></p>
 <p>Summary:</p>
 <table>

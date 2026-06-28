@@ -100,20 +100,6 @@ Rcpp::List fixef_list_from_batch_chain(
   return out;
 }
 
-void store_b_chain(
-    Rcpp::NumericVector& b_store,
-    int i,
-    int J,
-    int p_re,
-    const Rcpp::NumericMatrix& b_i
-) {
-  for (int j = 0; j < p_re; ++j) {
-    for (int g = 0; g < J; ++g) {
-      b_store[g + J * (j + p_re * i)] = b_i(g, j);
-    }
-  }
-}
-
 /// Mirror \code{block_rNormalGLM()} / \code{block_rNormalReg()} dimnames on
 /// \code{coefficients} (\code{colnames(x)}, \code{rownames} from
 /// \code{block_info$ids}).
@@ -166,6 +152,68 @@ SEXP matrix_rownames_sexp(const Rcpp::NumericMatrix& M) {
 }
 
 } // namespace
+
+/// All-chains step A: mirror \code{batch$tau2[i, ]} (1-based \code{chain_i};
+/// preserve matrix \code{colnames} as vector \code{names}).
+Rcpp::NumericVector batch_tau2_chain_row(
+    const Rcpp::NumericMatrix& batch_tau2,
+    int chain_i
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  const int row_i = chain_i - 1;
+  if (row_i >= batch_tau2.nrow()) {
+    Rcpp::stop(
+      "chain index %d exceeds nrow(batch_tau2) (%d).",
+      chain_i, batch_tau2.nrow()
+    );
+  }
+  Rcpp::NumericVector tau2_i = batch_tau2(row_i, Rcpp::_);
+  SEXP dn = batch_tau2.attr("dimnames");
+  if (!Rf_isNull(dn)) {
+    Rcpp::List dnl(dn);
+    if (dnl.size() >= 2 && !Rf_isNull(dnl[1])) {
+      tau2_i.attr("names") = dnl[1];
+    }
+  }
+  return tau2_i;
+}
+
+/// All-chains step C: mirror \code{batch$b[, , chain_i] <- b_draw}.
+/// \code{b_store} must have \code{dim = c(J, p_re, n)} (R column-major).
+/// Assignment is positional: \code{b_draw(g, j)} → \code{b[g, j, chain_i]}.
+void batch_b_assign_slice(
+    Rcpp::NumericVector& b_store,
+    int chain_i,
+    const Rcpp::NumericMatrix& b_draw
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  Rcpp::IntegerVector b_dim = b_store.attr("dim");
+  if (b_dim.size() != 3) {
+    Rcpp::stop("'b_store' must be a 3-dimensional array (J x p_re x n).");
+  }
+  const int J = b_dim[0];
+  const int p_re = b_dim[1];
+  const int n = b_dim[2];
+  if (chain_i > n) {
+    Rcpp::stop("'chain_i' exceeds third dimension of b_store (%d).", n);
+  }
+  const int chain0 = chain_i - 1;
+  if (b_draw.nrow() != J || b_draw.ncol() != p_re) {
+    Rcpp::stop(
+      "Block 1 slice for chain %d is %d x %d; expected %d x %d.",
+      chain_i, b_draw.nrow(), b_draw.ncol(), J, p_re
+    );
+  }
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      b_store[g + J * (j + p_re * chain0)] = b_draw(g, j);
+    }
+  }
+}
 
 MuAllBuilder::MuAllBuilder(
     const Rcpp::List& x_hyper,
@@ -500,6 +548,8 @@ Rcpp::List two_block_block1_one_chain_impl(
 }
 
 /// Block~1 prep + draw for all replicate chains (v6 batch driver).
+/// Mirrors the R loop in \code{.two_block_block1_all_chains(use_cpp_block1 = TRUE)}:
+/// \code{for (i in seq_len(n)) two_block_block1_one_chain_cpp(batch, i, ...)}.
 Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::NumericVector b_store,
     Rcpp::NumericVector iters_ranef,
@@ -545,30 +595,40 @@ Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::stop("length(re_names) must equal p_re.");
   }
 
+  // In-place on clones (same as R mutating batch$b / batch$iters_ranef).
   Rcpp::NumericVector b_out = Rcpp::clone(b_store);
   Rcpp::NumericVector iters_out = Rcpp::clone(iters_ranef);
   const bool show_bar = progbar && n > 1;
 
-  for (int i = 0; i < n; ++i) {
+  // R: for (i in seq_len(n)) { ... two_block_block1_one_chain_cpp(batch, i, ...) }
+  for (int chain_i = 1; chain_i <= n; ++chain_i) {
     Rcpp::checkUserInterrupt();
     if (show_bar) {
       glmbayes::progress::progress_bar(
-        static_cast<double>(i + 1),
+        static_cast<double>(chain_i),
         static_cast<double>(n),
         progbar_prefix
       );
     }
 
-    Rcpp::NumericVector tau2_i = batch_tau2(i, Rcpp::_);
+    // R: tau2_i <- batch$tau2[i, ]  (args$batch_tau2 dropped in one_chain wrapper)
+    Rcpp::NumericVector tau2_i = batch_tau2_chain_row(batch_tau2, chain_i);
+
+    // R: do.call(two_block_block1_one_chain_cpp_export,
+    //            c(list(chain_i = i, tau2_i = batch$tau2[i, ]), args))
     Rcpp::List one = two_block_block1_one_chain_impl(
-      i + 1, batch_fixef, tau2_i, y, Z, groups, offset, wt,
+      chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt,
       x_hyper, re_names, group_levels, ptypes, block1_prior,
       is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link,
       Gridtype, n_envopt
     );
+
+    // R: batch$b[, , i] <- out$b
     Rcpp::NumericMatrix b_i = Rcpp::as<Rcpp::NumericMatrix>(one["b"]);
-    store_b_chain(b_out, i, J, p_re, b_i);
-    iters_out[i] += Rcpp::as<double>(one["iters_mean"]);
+    batch_b_assign_slice(b_out, chain_i, b_i);
+
+    // R: batch$iters_ranef[i] <- batch$iters_ranef[i] + out$iters_mean
+    iters_out[chain_i - 1] += Rcpp::as<double>(one["iters_mean"]);
   }
 
   if (show_bar) {

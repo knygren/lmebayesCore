@@ -4,7 +4,16 @@
 \alias{two_block_block1_one_chain_cpp}
 \title{Block 1 one-chain prep + draw via C++ (native piecewise helpers)}
 \usage{
-two_block_block1_one_chain_cpp(batch, i, design, block1_prior, family, ptypes)
+two_block_block1_one_chain_cpp(
+  batch,
+  i,
+  design,
+  block1_prior,
+  family,
+  ptypes,
+  use_cpp_tau2_row = NULL,
+  use_cpp_b_slice = NULL
+)
 }
 \arguments{
 \item{batch}{Batch state from \code{.two_block_batch_init}.}
@@ -18,6 +27,14 @@ two_block_block1_one_chain_cpp(batch, i, design, block1_prior, family, ptypes)
 \item{family}{Response \code{family} object.}
 
 \item{ptypes}{Named \code{pfamily} type vector.}
+
+\item{use_cpp_tau2_row}{Step A (\code{batch$tau2[i, ]}): \code{NULL} uses option
+\code{glmbayesCore.use_cpp_tau2_row} (default \code{TRUE} = C++ export).
+Pass \code{FALSE} for pure R row extract.}
+
+\item{use_cpp_b_slice}{Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
+\code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)}. Default \code{FALSE}
+until slice parity is verified.}
 }
 \value{
 Updated \code{batch} (invisibly).

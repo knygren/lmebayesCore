@@ -374,6 +374,19 @@ Rcpp::List two_block_block1_prior_with_tau2(
 /// Block~1: mean envelope iters across groups (two_block_block1.cpp).
 double two_block_block1_iters_mean(const Rcpp::List& block_out);
 
+/// All-chains step A: \code{batch$tau2[chain_i, ]} (two_block_block1.cpp).
+Rcpp::NumericVector batch_tau2_chain_row(
+    const Rcpp::NumericMatrix& batch_tau2,
+    int chain_i
+);
+
+/// All-chains step C: \code{batch$b[, , chain_i] <- b_draw} (two_block_block1.cpp).
+void batch_b_assign_slice(
+    Rcpp::NumericVector& b_store,
+    int chain_i,
+    const Rcpp::NumericMatrix& b_draw
+);
+
 /// Block~1: reorder coefficient rows to group_levels (two_block_block1.cpp).
 Rcpp::NumericMatrix two_block_reorder_b_to_group_levels(
     Rcpp::NumericMatrix b_draw,

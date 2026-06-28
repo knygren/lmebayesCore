@@ -49,6 +49,14 @@ two_block_block1_iters_mean_cpp_export <- function(block_out) {
     .Call(`_glmbayesCore_two_block_block1_iters_mean_cpp_export`, block_out)
 }
 
+two_block_batch_tau2_chain_row_cpp_export <- function(batch_tau2, chain_i) {
+    .Call(`_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export`, batch_tau2, chain_i)
+}
+
+two_block_batch_b_assign_slice_cpp_export <- function(b_store, chain_i, b_draw) {
+    .Call(`_glmbayesCore_two_block_batch_b_assign_slice_cpp_export`, b_store, chain_i, b_draw)
+}
+
 two_block_block1_one_chain_cpp_export <- function(chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt) {
     .Call(`_glmbayesCore_two_block_block1_one_chain_cpp_export`, chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt)
 }

@@ -1,4 +1,4 @@
-## Smoke: use_cpp_block1 = TRUE runs R loop + one-chain C++ export per chain.
+## Smoke: use_cpp_block1_all_chains = TRUE -> one .Call (all-chains C++ loop).
 
 pkg_root <- if (file.exists("DESCRIPTION")) "." else if (file.exists("../DESCRIPTION")) ".."
 if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
@@ -7,7 +7,7 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists("two_block_block1_one_chain_cpp_export", mode = "function"))
+stopifnot(exists("two_block_block1_all_chains_cpp_export", mode = "function"))
 
 J <- 4L
 n_chains <- 2L
@@ -42,7 +42,8 @@ iters_before <- batch$iters_ranef
 
 batch2 <- glmbayesCore:::.two_block_block1_all_chains(
   batch, design, block1_prior, stats::binomial(), ptypes,
-  use_cpp_block1 = TRUE
+  use_cpp_block1 = TRUE,
+  use_cpp_block1_all_chains = TRUE
 )
 stopifnot(identical(dim(batch2$b), dim(batch$b)))
 stopifnot(all(is.finite(batch2$b)))

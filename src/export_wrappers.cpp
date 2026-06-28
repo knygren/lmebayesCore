@@ -357,6 +357,25 @@ double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out) {
 }
 
 // [[Rcpp::export]]
+Rcpp::NumericVector two_block_batch_tau2_chain_row_cpp_export(
+    const Rcpp::NumericMatrix& batch_tau2,
+    int chain_i
+) {
+  return glmbayes::sim::batch_tau2_chain_row(batch_tau2, chain_i);
+}
+
+// [[Rcpp::export]]
+Rcpp::NumericVector two_block_batch_b_assign_slice_cpp_export(
+    Rcpp::NumericVector b_store,
+    int chain_i,
+    Rcpp::NumericMatrix b_draw
+) {
+  Rcpp::NumericVector out = Rcpp::clone(b_store);
+  glmbayes::sim::batch_b_assign_slice(out, chain_i, b_draw);
+  return out;
+}
+
+// [[Rcpp::export]]
 Rcpp::List two_block_block1_one_chain_cpp_export(
     int chain_i,
     const Rcpp::List& batch_fixef,

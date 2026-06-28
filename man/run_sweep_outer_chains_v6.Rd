@@ -24,6 +24,9 @@ run_sweep_outer_chains_v6(
   ptypes = NULL,
   tau2_start = NULL,
   use_cpp_block1 = TRUE,
+  use_cpp_block1_all_chains = FALSE,
+  use_cpp_tau2_row = NULL,
+  use_cpp_b_slice = NULL,
   use_cpp_block2 = TRUE
 )
 }
@@ -80,10 +83,21 @@ Defaults to \code{b_mode} when \code{NULL}.}
 When \code{NULL}, derived from \code{pfamily_list} prior fields
 (\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).}
 
-\item{use_cpp_block1}{When \code{TRUE}, Block~1 uses
-\code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call} per
-chain) inside an R loop instead of the R prep/draw loops. Default
-\code{TRUE}.}
+\item{use_cpp_block1}{When \code{TRUE} (default), Block~1 uses an R loop over
+\code{two_block_block1_one_chain_cpp} (one \code{.Call} per chain). Set
+\code{use_cpp_block1_all_chains = TRUE} for a single all-chains \code{.Call}.
+When \code{use_cpp_block1 = FALSE}, use the R prep/draw loops (reference oracle).}
+
+\item{use_cpp_block1_all_chains}{When \code{TRUE}, Block~1 uses
+\code{two_block_block1_all_chains_cpp_export} instead of the R chain loop.
+Default \code{FALSE}.}
+
+\item{use_cpp_tau2_row}{Step A (\code{batch$tau2[i, ]}): \code{NULL} uses
+\code{getOption("glmbayesCore.use_cpp_tau2_row", TRUE)} (C++ export).
+Pass \code{FALSE} or set the option to \code{FALSE} for pure R row extract.}
+
+\item{use_cpp_b_slice}{Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
+\code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)} (pure R default).}
 
 \item{use_cpp_block2}{When \code{TRUE}, Block~2 uses
 \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})

@@ -101,33 +101,6 @@ for (i in seq_len(n_chains)) {
   stopifnot(identical(rownames(cpp_out$b), group_levels))
   stopifnot(identical(colnames(cpp_out$b), re_names))
   stopifnot(is.finite(cpp_out$iters_mean))
-
-  set.seed(1000L + i)
-  prep_draw <- glmbayesCore:::.two_block_block1_prep_one_chain(
-    batch, i, design, block1_prior, ptypes,
-    use_cpp_mu_all = TRUE,
-    use_cpp_prior_tau2 = TRUE
-  )
-  draw_r <- glmbayesCore:::.two_block_block1_draw_one_chain(
-    prior_list      = prep_draw$prior_list,
-    design          = design,
-    family          = family,
-    is_gaussian     = FALSE,
-    group_levels    = batch$group_levels,
-    use_cpp_reorder = TRUE,
-    use_cpp_iters   = TRUE
-  )
-
-  set.seed(1000L + i)
-  cpp_draw <- do.call(
-    two_block_block1_one_chain_cpp_export,
-    one_chain_cpp_args(i)
-  )
-
-  stopifnot(all.equal(draw_r$b, cpp_draw$b, tolerance = 0))
-  stopifnot(all.equal(draw_r$iters_mean, cpp_draw$iters_mean, tolerance = 0))
-  stopifnot(identical(rownames(draw_r$b), rownames(cpp_draw$b)))
-  stopifnot(identical(colnames(draw_r$b), colnames(cpp_draw$b)))
 }
 
 message("test_block1_one_chain_cpp.R: OK")

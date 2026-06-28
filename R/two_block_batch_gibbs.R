@@ -808,6 +808,79 @@ two_block_block2_one_chain_cpp <- function(
   c(prep, draw)
 }
 
+#' Extract chain-i tau2 row from batch state (R reference)
+#' @noRd
+.two_block_batch_tau2_chain_row_r <- function(batch_tau2, chain_i) {
+  batch_tau2[chain_i, , drop = TRUE]
+}
+
+#' Extract chain-i tau2 row from batch state (all-chains step A)
+#'
+#' Default uses \code{two_block_batch_tau2_chain_row_cpp_export}. Set
+#' \code{use_cpp_tau2_row = FALSE} or \code{options(glmbayesCore.use_cpp_tau2_row = FALSE)}
+#' to revert to \code{batch$tau2[i, ]} R indexing.
+#'
+#' @param batch_tau2 \code{n x p_re} matrix (\code{batch$tau2}).
+#' @param chain_i Chain index (\code{1..n}).
+#' @param use_cpp_tau2_row When \code{NULL} (default), read
+#'   \code{getOption("glmbayesCore.use_cpp_tau2_row", TRUE)}. When \code{FALSE},
+#'   use the R reference row extract.
+#' @noRd
+.two_block_batch_tau2_chain_row <- function(
+    batch_tau2,
+    chain_i,
+    use_cpp_tau2_row = NULL
+) {
+  if (is.null(use_cpp_tau2_row)) {
+    use_cpp_tau2_row <- isTRUE(getOption("glmbayesCore.use_cpp_tau2_row", TRUE))
+  }
+  if (isTRUE(use_cpp_tau2_row)) {
+    return(two_block_batch_tau2_chain_row_cpp_export(
+      batch_tau2,
+      as.integer(chain_i)
+    ))
+  }
+  .two_block_batch_tau2_chain_row_r(batch_tau2, chain_i)
+}
+
+#' Assign one chain slice of \code{batch$b} (R reference; all-chains step C)
+#' @noRd
+.two_block_batch_b_assign_slice_r <- function(b_store, chain_i, b_draw) {
+  b_store[, , chain_i] <- b_draw
+  b_store
+}
+
+#' Assign \code{batch$b[, , chain_i] <- b_draw} (all-chains step C)
+#'
+#' Default \code{FALSE} (pure R subassignment). Set
+#' \code{use_cpp_b_slice = TRUE} or \code{options(glmbayesCore.use_cpp_b_slice = TRUE)}
+#' after \code{data-raw/test_block1_b_assign_slice_cpp.R} passes.
+#'
+#' @param b_store 3-D array \code{batch$b} (\code{dim = c(J, p_re, n)}).
+#' @param chain_i Chain index (\code{1..n}).
+#' @param b_draw \code{J x p_re} matrix (\code{out$b} from one-chain export).
+#' @param use_cpp_b_slice When \code{NULL}, read
+#'   \code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)}.
+#' @noRd
+.two_block_batch_b_assign_slice <- function(
+    b_store,
+    chain_i,
+    b_draw,
+    use_cpp_b_slice = NULL
+) {
+  if (is.null(use_cpp_b_slice)) {
+    use_cpp_b_slice <- isTRUE(getOption("glmbayesCore.use_cpp_b_slice", FALSE))
+  }
+  if (isTRUE(use_cpp_b_slice)) {
+    return(two_block_batch_b_assign_slice_cpp_export(
+      b_store,
+      as.integer(chain_i),
+      b_draw
+    ))
+  }
+  .two_block_batch_b_assign_slice_r(b_store, chain_i, b_draw)
+}
+
 #' Shared \code{.Call} arguments for Block~1 C++ one-chain / all-chains exports
 #' @noRd
 .two_block_block1_cpp_call_args <- function(
@@ -874,6 +947,12 @@ two_block_block2_one_chain_cpp <- function(
 #' @param block1_prior Block~1 prior list.
 #' @param family Response \code{family} object.
 #' @param ptypes Named \code{pfamily} type vector.
+#' @param use_cpp_tau2_row Step A (\code{batch$tau2[i, ]}): \code{NULL} uses option
+#'   \code{glmbayesCore.use_cpp_tau2_row} (default \code{TRUE} = C++ export).
+#'   Pass \code{FALSE} for pure R row extract.
+#' @param use_cpp_b_slice Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
+#'   \code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)}. Default \code{FALSE}
+#'   until slice parity is verified.
 #' @return Updated \code{batch} (invisibly).
 #' @keywords internal
 #' @export
@@ -883,27 +962,40 @@ two_block_block1_one_chain_cpp <- function(
     design,
     block1_prior,
     family,
-    ptypes
+    ptypes,
+    use_cpp_tau2_row = NULL,
+    use_cpp_b_slice = NULL
 ) {
   args <- .two_block_block1_cpp_call_args(
     batch, design, block1_prior, family, ptypes
   )
   args$batch_tau2 <- NULL
+  tau2_i <- .two_block_batch_tau2_chain_row(
+    batch$tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
+  )
   out <- do.call(two_block_block1_one_chain_cpp_export, c(
-    list(chain_i = as.integer(i), tau2_i = batch$tau2[i, ]),
+    list(chain_i = as.integer(i), tau2_i = tau2_i),
     args
   ))
 
-  batch$b[, , i] <- out$b
+  batch$b <- .two_block_batch_b_assign_slice(
+    batch$b, i, out$b, use_cpp_b_slice = use_cpp_b_slice
+  )
   batch$iters_ranef[i] <- batch$iters_ranef[i] + out$iters_mean
   batch
 }
 
 #' Block 1 batch: update random effects for all chains
-#' @param use_cpp_block1 When \code{TRUE}, an R loop calls
-#'   \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call} per
-#'   chain). When \code{FALSE}, use the R prep/draw loops with optional
-#'   piecewise C++ helpers (\code{use_cpp_mu_all}, etc.). Default \code{TRUE}.
+#' @param use_cpp_block1 When \code{TRUE} (default), Block~1 uses the validated
+#'   R loop over \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call}
+#'   per chain). When \code{FALSE}, use the R prep/draw loops (reference oracle).
+#' @param use_cpp_block1_all_chains When \code{TRUE}, replace the R chain loop with
+#'   a single \code{two_block_block1_all_chains_cpp_export} \code{.Call}
+#'   (experimental; default \code{FALSE}).
+#' @param use_cpp_tau2_row Passed to \code{two_block_block1_one_chain_cpp} (step A).
+#'   \code{NULL} uses \code{getOption("glmbayesCore.use_cpp_tau2_row", TRUE)}.
+#' @param use_cpp_b_slice Passed to \code{two_block_block1_one_chain_cpp} (step C).
+#'   \code{NULL} uses \code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)}.
 #' @noRd
 .two_block_block1_all_chains <- function(
     batch,
@@ -916,6 +1008,9 @@ two_block_block1_one_chain_cpp <- function(
     progbar_prefix = "",
     progbar_finish_newline = TRUE,
     use_cpp_block1 = TRUE,
+    use_cpp_block1_all_chains = FALSE,
+    use_cpp_tau2_row = NULL,
+    use_cpp_b_slice = NULL,
     use_cpp_reorder = TRUE,
     use_cpp_iters = TRUE,
     use_cpp_mu_all = TRUE,
@@ -924,8 +1019,37 @@ two_block_block1_one_chain_cpp <- function(
   n <- batch$n
 
   if (isTRUE(use_cpp_block1)) {
+    if (!is.null(n_cores) && as.integer(n_cores[1L]) >= 2L) {
+      warning(
+        "Chain-parallel Block 1 (n_cores > 1) is not supported when ",
+        "use_cpp_block1 = TRUE; running sequential loop.",
+        call. = FALSE
+      )
+    }
     show_bar <- isTRUE(progbar) && n > 1L &&
       (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
+
+    if (isTRUE(use_cpp_block1_all_chains)) {
+      args <- .two_block_block1_cpp_call_args(
+        batch, design, block1_prior, family, ptypes
+      )
+      args$batch_tau2 <- NULL
+      out <- do.call(two_block_block1_all_chains_cpp_export, c(
+        list(
+          b_store                 = batch$b,
+          iters_ranef             = batch$iters_ranef,
+          batch_tau2              = batch$tau2,
+          progbar                 = show_bar,
+          progbar_prefix          = progbar_prefix,
+          progbar_finish_newline  = progbar_finish_newline
+        ),
+        args
+      ))
+      batch$b <- out$b
+      batch$iters_ranef <- out$iters_ranef
+      return(batch)
+    }
+
     for (i in seq_len(n)) {
       if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
       batch <- two_block_block1_one_chain_cpp(
@@ -934,10 +1058,14 @@ two_block_block1_one_chain_cpp <- function(
         design       = design,
         block1_prior = block1_prior,
         family       = family,
-        ptypes       = ptypes
+        ptypes       = ptypes,
+        use_cpp_tau2_row = use_cpp_tau2_row,
+        use_cpp_b_slice  = use_cpp_b_slice
       )
     }
-    if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
+    if (show_bar) {
+      .two_block_progress_bar_finish(newline = progbar_finish_newline)
+    }
     return(batch)
   }
 

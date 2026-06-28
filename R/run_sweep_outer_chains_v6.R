@@ -45,10 +45,18 @@
 #' @param use_cpp_block2 When \code{TRUE}, Block~2 uses
 #'   \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})
 #'   instead of the pure-R reference.
-#' @param use_cpp_block1 When \code{TRUE}, Block~1 uses
-#'   \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call} per
-#'   chain) inside an R loop instead of the R prep/draw loops. Default
-#'   \code{TRUE}.
+#' @param use_cpp_block1 When \code{TRUE} (default), Block~1 uses an R loop over
+#'   \code{two_block_block1_one_chain_cpp} (one \code{.Call} per chain). Set
+#'   \code{use_cpp_block1_all_chains = TRUE} for a single all-chains \code{.Call}.
+#'   When \code{use_cpp_block1 = FALSE}, use the R prep/draw loops (reference oracle).
+#' @param use_cpp_block1_all_chains When \code{TRUE}, Block~1 uses
+#'   \code{two_block_block1_all_chains_cpp_export} instead of the R chain loop.
+#'   Default \code{FALSE}.
+#' @param use_cpp_tau2_row Step A (\code{batch$tau2[i, ]}): \code{NULL} uses
+#'   \code{getOption("glmbayesCore.use_cpp_tau2_row", TRUE)} (C++ export).
+#'   Pass \code{FALSE} or set the option to \code{FALSE} for pure R row extract.
+#' @param use_cpp_b_slice Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
+#'   \code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)} (pure R default).
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -76,6 +84,9 @@ run_sweep_outer_chains_v6 <- function(
     ptypes         = NULL,
     tau2_start     = NULL,
     use_cpp_block1 = TRUE,
+    use_cpp_block1_all_chains = FALSE,
+    use_cpp_tau2_row = NULL,
+    use_cpp_b_slice = NULL,
     use_cpp_block2 = TRUE
 ) {
   if (is.null(ptypes)) {
@@ -139,7 +150,10 @@ run_sweep_outer_chains_v6 <- function(
       progbar                = progbar_use,
       progbar_prefix         = prefix_b1,
       progbar_finish_newline = FALSE,
-      use_cpp_block1         = use_cpp_block1
+      use_cpp_block1         = use_cpp_block1,
+      use_cpp_block1_all_chains = use_cpp_block1_all_chains,
+      use_cpp_tau2_row       = use_cpp_tau2_row,
+      use_cpp_b_slice        = use_cpp_b_slice
     )
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,
