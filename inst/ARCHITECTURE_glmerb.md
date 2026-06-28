@@ -108,7 +108,8 @@ run_sweep_outer_chains_v6
 |------|----------|------|
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_all_chains` | Prep + draw all chains |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_prep_one_chain` | fixef → `mu_all` → Block 1 `prior_list` |
-| `glmbayesCore/R/build_mu_all.R` | `build_mu_all` | Hyperparameter mean matrix for Block 1 |
+| `glmbayesCore/R/build_mu_all.R` | `build_mu_all` | Hyperparameter mean matrix for Block 1 (C++ default) |
+| `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_prior_with_tau2` | ING τ² → Block 1 `P` refresh (C++ default) |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_draw_one_chain` | One Block 1 draw |
 | `glmbayesCore/R/simfunction_block.R` | `block_rNormalGLM`, `block_rNormalReg` | Grouped RE draw (C++ under `.block_rNormalGLM_cpp`) |
 
@@ -174,7 +175,7 @@ Summary:
 
 | Phase | Deliverable | Eliminates |
 |-------|-------------|------------|
-| 0 | Fix ING `P` refresh in `.two_block_block1_prior_with_tau2` (`ddef = TRUE` bug) | — |
+| 0 | Fix ING `P` refresh in `.two_block_block1_prior_with_tau2` + C++ export | — ✅ |
 | 1 | `two_block_block1_all_chains_cpp_export` (reuse `MuAllBuilder`, v5 ING refresh) | R prep/draw chain loops |
 | 2 | Fuse prep + draw inside C++ chain loop | Intermediate `prior_lists` SEXP |
 | 3 | Native fam dispatch (no R `f2`/`f3`) | **`glmbfamfunc`** per chain |

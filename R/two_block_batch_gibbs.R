@@ -303,9 +303,9 @@
   })
 }
 
-#' Refresh Block 1 prior precision for ING components (mirrors C++ twoBlockGibbs)
+#' Refresh Block 1 prior precision for ING components (R reference; v5 any_ing)
 #' @noRd
-.two_block_block1_prior_with_tau2 <- function(
+.two_block_block1_prior_with_tau2_r <- function(
     base_prior,
     tau2_vec,
     ptypes,
@@ -317,11 +317,6 @@
     dispersion = base_prior$dispersion,
     ddef       = base_prior$ddef
   )
-
-  if (isTRUE(base_prior$ddef)) {
-    out$P <- base_prior$P
-    return(out)
-  }
 
   if (!any(ptypes == "dIndependent_Normal_Gamma")) {
     out$P <- base_prior$P
@@ -339,6 +334,31 @@
   out
 }
 
+#' Refresh Block 1 prior precision for ING components (mirrors C++ twoBlockGibbs)
+#' @param use_cpp If \code{TRUE} (default), use the C++ implementation.
+#' @noRd
+.two_block_block1_prior_with_tau2 <- function(
+    base_prior,
+    tau2_vec,
+    ptypes,
+    re_names,
+    mu_all,
+    use_cpp = TRUE
+) {
+  if (isTRUE(use_cpp)) {
+    return(two_block_block1_prior_with_tau2_cpp_export(
+      base_prior = base_prior,
+      tau2_vec   = tau2_vec,
+      ptypes     = ptypes,
+      re_names   = re_names,
+      mu_all     = mu_all
+    ))
+  }
+  .two_block_block1_prior_with_tau2_r(
+    base_prior, tau2_vec, ptypes, re_names, mu_all
+  )
+}
+
 #' One-chain Block 1 prep: fixef -> mu_all -> prior_list (no sampling)
 #' @noRd
 .two_block_block1_prep_one_chain <- function(
@@ -347,7 +367,8 @@
     design,
     block1_prior,
     ptypes,
-    use_cpp_mu_all = TRUE
+    use_cpp_mu_all = TRUE,
+    use_cpp_prior_tau2 = TRUE
 ) {
   fixef_i <- .two_block_batch_fixef_chain(batch, i)
   mu_all  <- as.matrix(build_mu_all(
@@ -355,7 +376,8 @@
   )$mu_all)
   tau2_i  <- batch$tau2[i, ]
   prior_list <- .two_block_block1_prior_with_tau2(
-    block1_prior, tau2_i, ptypes, batch$re_names, mu_all
+    block1_prior, tau2_i, ptypes, batch$re_names, mu_all,
+    use_cpp = use_cpp_prior_tau2
   )
   list(mu_all = mu_all, prior_list = prior_list)
 }
@@ -370,7 +392,8 @@
     n_cores = NULL,
     progbar = FALSE,
     progbar_finish_newline = TRUE,
-    use_cpp_mu_all = TRUE
+    use_cpp_mu_all = TRUE,
+    use_cpp_prior_tau2 = TRUE
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L &&
@@ -379,12 +402,13 @@
   prep_i <- function(i) {
     if (show_bar) .two_block_progress_bar(i, n)
     .two_block_block1_prep_one_chain(
-      batch           = batch,
-      i               = i,
-      design          = design,
-      block1_prior    = block1_prior,
-      ptypes          = ptypes,
-      use_cpp_mu_all  = use_cpp_mu_all
+      batch              = batch,
+      i                  = i,
+      design             = design,
+      block1_prior       = block1_prior,
+      ptypes             = ptypes,
+      use_cpp_mu_all     = use_cpp_mu_all,
+      use_cpp_prior_tau2 = use_cpp_prior_tau2
     )
   }
 
@@ -767,7 +791,8 @@ two_block_block2_one_chain_cpp <- function(
     progbar_finish_newline = TRUE,
     use_cpp_reorder = TRUE,
     use_cpp_iters = TRUE,
-    use_cpp_mu_all = TRUE
+    use_cpp_mu_all = TRUE,
+    use_cpp_prior_tau2 = TRUE
 ) {
   n <- batch$n
   # .two_block_print_block1_phase("prep", "enter", n)
@@ -778,7 +803,8 @@ two_block_block2_one_chain_cpp <- function(
     ptypes               = ptypes,
     n_cores              = n_cores,
     progbar              = FALSE,
-    use_cpp_mu_all       = use_cpp_mu_all
+    use_cpp_mu_all       = use_cpp_mu_all,
+    use_cpp_prior_tau2   = use_cpp_prior_tau2
   )
   # .two_block_print_block1_phase("prep", "exit", n)
   # .two_block_print_block1_phase("draw", "enter", n)

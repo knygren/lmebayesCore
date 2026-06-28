@@ -339,6 +339,19 @@ Rcpp::NumericMatrix two_block_build_mu_all_cpp_export(
 }
 
 // [[Rcpp::export]]
+Rcpp::List two_block_block1_prior_with_tau2_cpp_export(
+    const Rcpp::List& base_prior,
+    const Rcpp::NumericVector& tau2_vec,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::NumericMatrix& mu_all
+) {
+  return glmbayes::sim::two_block_block1_prior_with_tau2(
+    base_prior, tau2_vec, ptypes, re_names, mu_all
+  );
+}
+
+// [[Rcpp::export]]
 double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out) {
   return glmbayes::sim::two_block_block1_iters_mean(block_out);
 }

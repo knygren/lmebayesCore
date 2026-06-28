@@ -49,8 +49,8 @@ run_sweep_outer_chains_v6
   ├── .two_block_block1_prep_all_chains     # lapply / mclapply over chains
   │     └── .two_block_block1_prep_one_chain
   │           ├── .two_block_batch_fixef_chain
-  │           ├── build_mu_all              # pure R
-  │           └── .two_block_block1_prior_with_tau2
+  │           ├── build_mu_all              # C++ default (use_cpp_mu_all)
+  │           └── .two_block_block1_prior_with_tau2  # C++ default (use_cpp_prior_tau2)
   └── .two_block_block1_draw_all_chains     # lapply / mclapply over chains
         └── .two_block_block1_draw_one_chain
               └── block_rNormalGLM / block_rNormalReg
@@ -60,11 +60,23 @@ run_sweep_outer_chains_v6
 | Layer | Location | Already C++? | R callbacks? |
 |-------|----------|--------------|--------------|
 | Chain loop | R `lapply` / `mclapply` in prep + draw | No | R loop every sweep |
-| `build_mu_all` | `R/build_mu_all.R` | **Yes** — `MuAllBuilder` in `twoBlockGibbs.cpp` (v5 only) | R in v6 path |
-| ING `P` refresh | `.two_block_block1_prior_with_tau2` | **Yes** — v5 `any_ing` block (~1642) | R in v6; **bug** when `ddef=TRUE` |
+| `build_mu_all` | `R/build_mu_all.R` | **Yes** — `two_block_build_mu_all_cpp_export` | Optional R via `use_cpp_mu_all = FALSE` |
+| ING `P` refresh | `.two_block_block1_prior_with_tau2` | **Yes** — `two_block_block1_prior_with_tau2_cpp_export` (v5 `any_ing`) | Optional R via `use_cpp_prior_tau2 = FALSE` |
 | GLMM draw | `block_rNormalGLM()` | **Partial** — `block_rNormalGLM_cpp_export` | **`glmbfamfunc`** per chain; **`optim()`** per group inside `rNormalGLM.cpp` |
 | Gaussian draw | `block_rNormalReg()` | **Partial** — `block_rNormalReg_cpp_export` | **`lm.fit`** / mode path in `rNormalReg.cpp` |
-| `b` reorder | `match(group_levels, rownames)` | No | R only |
+| `b` reorder | `match(group_levels, rownames)` | **Yes** — `two_block_reorder_b_to_group_levels_cpp_export` | Optional R via `use_cpp_reorder = FALSE` |
+| `iters_ranef` mean | `.two_block_block1_iters_mean` | **Yes** — `two_block_block1_iters_mean_cpp_export` | Optional R via `use_cpp_iters = FALSE` |
+
+### Incremental v6 exports (piece-by-piece)
+
+| # | Piece | v5 C++ | v6 export | Done? | Notes |
+|---|-------|--------|-----------|-------|-------|
+| 1 | fixef extract | — | R only | No | `.two_block_batch_fixef_chain` |
+| 2 | `build_mu_all` | `MuAllBuilder` | `two_block_build_mu_all_cpp_export` | **Yes** | `use_cpp_mu_all = TRUE` default |
+| 3 | `prior_with_tau2` | inline ING loop | `two_block_block1_prior_with_tau2_cpp_export` | **Yes** | R `ddef` bug fixed; v5 `any_ing` semantics |
+| 4 | Block 1 draw | `block_rNormalGLM_cpp_export` | via R wrappers | Partial | `glmbfamfunc` per chain remains |
+| 5 | reorder `b` | v5 `block_info$ids` | `two_block_reorder_b_to_group_levels_cpp_export` | **Yes** | v6 `group_levels` semantics |
+| 6 | `iters_mean` | inline in v5 | `two_block_block1_iters_mean_cpp_export` | **Yes** | `use_cpp_iters = TRUE` default |
 
 There is **no `use_cpp_block1` flag** today (unlike `use_cpp_block2`).
 
@@ -87,8 +99,9 @@ The v6 refactor **lifts this per-chain body** into an all-chains export wired fr
 ### ING prior precision coupling
 
 Poisson/binomial glmerb uses `.lmebayes_block1_prior_list(..., dispersion_ranef = NULL)`
-→ `ddef = TRUE`. R `.two_block_block1_prior_with_tau2` returns early and **never**
-refreshes `P[k,k] = 1/tau2_k` for ING components. C++ v5 refreshes whenever `any_ing`.
+→ `ddef = TRUE`. R `.two_block_block1_prior_with_tau2` **used to** return early and skip
+ING refresh; fixed to mirror v5 `any_ing` (refresh ING diagonal entries regardless of
+`ddef`; still forward `ddef` for the envelope sampler dispersion convention).
 
 **Fix in R first** (mirror v5): refresh ING diagonal entries regardless of `ddef`;
 still forward `ddef` for the envelope sampler dispersion convention.
@@ -103,8 +116,8 @@ still forward `ddef` for the envelope sampler dispersion convention.
 | Callback | Where | Needed? | Remove how |
 |----------|-------|---------|------------|
 | R `lapply` / `mclapply` over chains | prep + draw | No | Phase 1: all-chains export |
-| `build_mu_all()` | prep | No | Phase 1: `MuAllBuilder` (exists) |
-| `.two_block_block1_prior_with_tau2` | prep | No | Phase 1: port ING refresh (fix `ddef` bug) |
+| `build_mu_all()` | prep | No | Done — `two_block_build_mu_all_cpp_export` |
+| `.two_block_block1_prior_with_tau2` | prep | No | Done — `two_block_block1_prior_with_tau2_cpp_export` |
 | `block_rNormalGLM()` R wrapper | draw | No | Phase 1: direct `.Call(block_rNormalGLM_cpp_export)` |
 | `glmbfamfunc(family)` | inside `block_rNormalGLM()` | No | Phase 1: once per sweep; Phase 3: native `fam` |
 | `f2` / `f3` R `Function` | `rNormalGLM` envelope | No | Phase 3: C++ fam dispatch |
@@ -153,11 +166,13 @@ Keep `.two_block_block1_all_chains` R path as **reference oracle** for parity te
 
 ## Phased work
 
-### Phase 0 — ING `P` refresh fix (R)
+### Phase 0 — ING `P` refresh fix (R) ✅
 
-**Work:** Fix `.two_block_block1_prior_with_tau2` to match v5 `any_ing` logic.
+**Work:** Fix `.two_block_block1_prior_with_tau2` to match v5 `any_ing` logic; add
+`two_block_block1_prior_with_tau2_cpp_export` with `use_cpp_prior_tau2` flag.
 
-**Acceptance:** Ex_22 smoke; τ² from Block 2 changes Block 1 `P` on next sweep.
+**Acceptance:** Ex_22 smoke; τ² from Block 2 changes Block 1 `P` on next sweep;
+`data-raw/test_block1_prior_with_tau2_cpp.R` passes.
 
 ### Phase 1 — All-chains C++ loop (eliminate R chain loop)
 

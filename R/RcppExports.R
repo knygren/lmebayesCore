@@ -41,6 +41,10 @@ two_block_build_mu_all_cpp_export <- function(x_hyper, fixef, re_names, group_le
     .Call(`_glmbayesCore_two_block_build_mu_all_cpp_export`, x_hyper, fixef, re_names, group_levels)
 }
 
+two_block_block1_prior_with_tau2_cpp_export <- function(base_prior, tau2_vec, ptypes, re_names, mu_all) {
+    .Call(`_glmbayesCore_two_block_block1_prior_with_tau2_cpp_export`, base_prior, tau2_vec, ptypes, re_names, mu_all)
+}
+
 two_block_block1_iters_mean_cpp_export <- function(block_out) {
     .Call(`_glmbayesCore_two_block_block1_iters_mean_cpp_export`, block_out)
 }

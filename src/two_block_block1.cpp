@@ -51,6 +51,11 @@ std::vector<Rcpp::NumericVector> fixef_vec_from_list(
   return out;
 }
 
+/// Forward optional list element (mirror R \code{$} on absent name → \code{NULL}).
+SEXP optional_list_elt(const Rcpp::List& pl, const char* name) {
+  return pl.containsElementNamed(name) ? pl[name] : R_NilValue;
+}
+
 } // namespace
 
 MuAllBuilder::MuAllBuilder(
@@ -147,6 +152,66 @@ Rcpp::NumericMatrix two_block_build_mu_all(
   Rcpp::NumericMatrix mu_all = builder.build(fixef_v);
   set_matrix_dimnames(mu_all, re_names, group_levels);
   return mu_all;
+}
+
+/// Refresh Block~1 prior precision for ING components from chain \code{tau2}
+/// (port of \code{.two_block_block1_prior_with_tau2}; v5 \code{any_ing} semantics).
+Rcpp::List two_block_block1_prior_with_tau2(
+    const Rcpp::List& base_prior,
+    const Rcpp::NumericVector& tau2_vec,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::NumericMatrix& mu_all
+) {
+  const int p_re = re_names.size();
+  if (tau2_vec.size() != p_re) {
+    Rcpp::stop("length(tau2_vec) must equal length(re_names).");
+  }
+  if (ptypes.size() != p_re) {
+    Rcpp::stop("length(ptypes) must equal length(re_names).");
+  }
+
+  Rcpp::List out = Rcpp::List::create(
+    Rcpp::Named("mu") = mu_all,
+    Rcpp::Named("dispersion") = optional_list_elt(base_prior, "dispersion"),
+    Rcpp::Named("ddef") = optional_list_elt(base_prior, "ddef")
+  );
+
+  bool any_ing = false;
+  for (int k = 0; k < p_re; ++k) {
+    if (Rcpp::as<std::string>(ptypes[k]) == "dIndependent_Normal_Gamma") {
+      any_ing = true;
+      break;
+    }
+  }
+
+  if (!any_ing) {
+    out["P"] = base_prior["P"];
+    return out;
+  }
+
+  if (!base_prior.containsElementNamed("P")) {
+    Rcpp::stop("base_prior must contain 'P' when refreshing ING precision.");
+  }
+
+  Rcpp::NumericMatrix P1 =
+    Rcpp::clone(Rcpp::as<Rcpp::NumericMatrix>(base_prior["P"]));
+  if (P1.nrow() != p_re || P1.ncol() != p_re) {
+    Rcpp::stop("dim(base_prior$P) must be p_re x p_re.");
+  }
+
+  for (int k = 0; k < p_re; ++k) {
+    if (Rcpp::as<std::string>(ptypes[k]) != "dIndependent_Normal_Gamma") {
+      continue;
+    }
+    for (int c = 0; c < p_re; ++c) {
+      P1(k, c) = 0.0;
+      P1(c, k) = 0.0;
+    }
+    P1(k, k) = 1.0 / tau2_vec[k];
+  }
+  out["P"] = P1;
+  return out;
 }
 
 /// Mean envelope candidate count across groups from one Block 1 draw

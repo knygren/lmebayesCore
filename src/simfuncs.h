@@ -362,6 +362,15 @@ Rcpp::NumericMatrix two_block_build_mu_all(
     const Rcpp::CharacterVector& group_levels
 );
 
+/// Block~1: ING \code{P} refresh from \code{tau2} (two_block_block1.cpp).
+Rcpp::List two_block_block1_prior_with_tau2(
+    const Rcpp::List& base_prior,
+    const Rcpp::NumericVector& tau2_vec,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::NumericMatrix& mu_all
+);
+
 /// Block~1: mean envelope iters across groups (two_block_block1.cpp).
 double two_block_block1_iters_mean(const Rcpp::List& block_out);
 
