@@ -545,14 +545,19 @@ skipped.</p>
 <tr class="odd">
 <td><code>glmbayesCore/R/build_mu_all.R</code></td>
 <td><code>build_mu_all</code></td>
-<td>Hyperparameter mean matrix for Block 1</td>
+<td>Hyperparameter mean matrix for Block 1 (C++ default)</td>
 </tr>
 <tr class="even">
+<td><code>glmbayesCore/R/two_block_batch_gibbs.R</code></td>
+<td><code>.two_block_block1_prior_with_tau2</code></td>
+<td>ING τ² → Block 1 <code>P</code> refresh (C++ default)</td>
+</tr>
+<tr class="odd">
 <td><code>glmbayesCore/R/two_block_batch_gibbs.R</code></td>
 <td><code>.two_block_block1_draw_one_chain</code></td>
 <td>One Block 1 draw</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>glmbayesCore/R/simfunction_block.R</code></td>
 <td><code>block_rNormalGLM</code>, <code>block_rNormalReg</code></td>
 <td>Grouped RE draw (C++ under <code>.block_rNormalGLM_cpp</code>)</td>
@@ -691,8 +696,81 @@ align semantics and using <code>rglmb</code> / <code>coef.mode</code>
 <code>.two_block_align_b_to_xhyper</code> + <code>rglmb</code>).</p>
 <hr />
 </div>
-<div id="planned-block-2-c-migration-all-chains-zero-r-callbacks" class="section level2">
-<h2>Planned Block 2 C++ migration (all-chains, zero R callbacks)</h2>
+<div id="planned-block-1-c-migration-random-effects-b-all-chains" class="section level2">
+<h2>Planned Block 1 C++ migration (random-effects <code>b</code>,
+all-chains)</h2>
+<p><strong>Block 1</strong> updates random effects
+<strong><code>b</code></strong> (prep: <code>build_mu_all</code> +
+prior; draw: <code>block_rNormalGLM</code> for Poisson/binomial GLMM, or
+<code>block_rNormalReg</code> on the Gaussian v6 path). There is
+<strong>no <code>use_cpp_block1</code> flag</strong> today — unlike
+Block 2, the heavy draw already runs mostly in C++ once
+<code>block_rNormalGLM()</code> reaches
+<code>.block_rNormalGLM_cpp</code>, but the <strong>R chain
+loop</strong> and <strong><code>glmbfamfunc</code> per chain</strong>
+remain.</p>
+<p><strong>Full plan:</strong> <a href="PLAN_block1_cpp_migration.md"><code>inst/PLAN_block1_cpp_migration.md</code></a></p>
+<p>Summary:</p>
+<table>
+<colgroup>
+<col width="21%" />
+<col width="40%" />
+<col width="37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Phase</th>
+<th>Deliverable</th>
+<th>Eliminates</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>Fix ING <code>P</code> refresh in
+<code>.two_block_block1_prior_with_tau2</code> + C++ export</td>
+<td>— ✅</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td><code>two_block_block1_all_chains_cpp_export</code> (reuse
+<code>MuAllBuilder</code>, v5 ING refresh)</td>
+<td>R prep/draw chain loops</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Fuse prep + draw inside C++ chain loop</td>
+<td>Intermediate <code>prior_lists</code> SEXP</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Native fam dispatch (no R <code>f2</code>/<code>f3</code>)</td>
+<td><strong><code>glmbfamfunc</code></strong> per chain</td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>C++ posterior mode in <code>rNormalGLM</code></td>
+<td>R <strong><code>optim()</code></strong> per group</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Optional: conjugate Gaussian Block 1 on v6</td>
+<td><strong><code>lm.fit</code></strong> in <code>rNormalReg</code></td>
+</tr>
+</tbody>
+</table>
+<p>Legacy v5 already runs Block 1 inside one C++ sweep
+(<code>block_rNormalGLM_cpp_export</code> with
+<code>f2</code>/<code>f3</code> passed once). v6 migration
+<strong>extracts that body</strong> into an all-chains export wired from
+<code>.two_block_block1_all_chains</code>.</p>
+<p>Fix Phase 0 (ING τ² ↔︎ <code>P</code>) before trusting parity on Ex_22
+binomial ING.</p>
+<hr />
+</div>
+<div id="planned-block-2-c-migration-hyperparameters-γ-all-chains-zero-r-callbacks" class="section level2">
+<h2>Planned Block 2 C++ migration (hyperparameters <code>γ</code>,
+all-chains, zero R callbacks)</h2>
 <p><strong>Status:</strong> Phase 0 partial —
 <code>two_block_block2_one_chain_cpp</code> has native align but still
 calls <strong><code>rglmb()</code></strong> per RE component; R

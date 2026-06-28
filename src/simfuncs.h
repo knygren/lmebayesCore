@@ -381,6 +381,62 @@ Rcpp::NumericMatrix two_block_reorder_b_to_group_levels(
     const Rcpp::CharacterVector& group_levels
 );
 
+/// Block~1 prep + draw for one chain (two_block_block1.cpp).
+Rcpp::List two_block_block1_one_chain_impl(
+    int chain_i,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericVector& tau2_i,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& Z,
+    SEXP groups,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::List& block1_prior,
+    bool is_gaussian,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    const std::string& family,
+    const std::string& link,
+    int Gridtype,
+    int n_envopt
+);
+
+/// Block~1 prep + draw for all chains (two_block_block1.cpp).
+Rcpp::List two_block_block1_all_chains_impl(
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericMatrix& batch_tau2,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& Z,
+    SEXP groups,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::List& block1_prior,
+    bool is_gaussian,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    const std::string& family,
+    const std::string& link,
+    int Gridtype,
+    int n_envopt,
+    bool progbar,
+    const std::string& progbar_prefix,
+    bool progbar_finish_newline
+);
+
 /// Block~2 align (twoBlockGibbs.cpp): port of R two_block_align_b_to_xhyper().
 Rcpp::NumericVector two_block_align_b_to_xhyper_cpp(
     Rcpp::NumericVector b_vec,

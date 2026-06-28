@@ -45,6 +45,10 @@
 #' @param use_cpp_block2 When \code{TRUE}, Block~2 uses
 #'   \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})
 #'   instead of the pure-R reference.
+#' @param use_cpp_block1 When \code{TRUE}, Block~1 uses
+#'   \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call} per
+#'   chain) inside an R loop instead of the R prep/draw loops. Default
+#'   \code{TRUE}.
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -71,6 +75,7 @@ run_sweep_outer_chains_v6 <- function(
     b_start        = NULL,
     ptypes         = NULL,
     tau2_start     = NULL,
+    use_cpp_block1 = TRUE,
     use_cpp_block2 = TRUE
 ) {
   if (is.null(ptypes)) {
@@ -133,7 +138,8 @@ run_sweep_outer_chains_v6 <- function(
       ptypes                 = ptypes,
       progbar                = progbar_use,
       progbar_prefix         = prefix_b1,
-      progbar_finish_newline = FALSE
+      progbar_finish_newline = FALSE,
+      use_cpp_block1         = use_cpp_block1
     )
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,

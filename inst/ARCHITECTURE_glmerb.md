@@ -165,9 +165,8 @@ Helpers already in C++ include `two_block_align_b_col_to_x_rows` and
 
 **Block 1** updates random effects **`b`** (prep: `build_mu_all` + prior; draw:
 `block_rNormalGLM` for Poisson/binomial GLMM, or `block_rNormalReg` on the Gaussian v6 path).
-There is **no `use_cpp_block1` flag** today — unlike Block 2, the heavy draw already runs
-mostly in C++ once `block_rNormalGLM()` reaches `.block_rNormalGLM_cpp`, but the **R chain
-loop** and **`glmbfamfunc` per chain** remain.
+There is **`use_cpp_block1`** on `run_sweep_outer_chains_v6` (default `TRUE`). Set
+`use_cpp_block1 = FALSE` for the R prep/draw loop oracle with piecewise C++ helpers.
 
 **Full plan:** [`inst/PLAN_block1_cpp_migration.md`](PLAN_block1_cpp_migration.md)
 

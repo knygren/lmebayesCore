@@ -77,8 +77,10 @@ run_sweep_outer_chains_v6
 | 4 | Block 1 draw | `block_rNormalGLM_cpp_export` | via R wrappers | Partial | `glmbfamfunc` per chain remains |
 | 5 | reorder `b` | v5 `block_info$ids` | `two_block_reorder_b_to_group_levels_cpp_export` | **Yes** | v6 `group_levels` semantics |
 | 6 | `iters_mean` | inline in v5 | `two_block_block1_iters_mean_cpp_export` | **Yes** | `use_cpp_iters = TRUE` default |
+| 7 | one-chain composite | prep + draw in R | `two_block_block1_one_chain_cpp_export` | **Yes** | `two_block_block1_one_chain_cpp()` |
+| 8 | all-chains composite | R double loop | `two_block_block1_all_chains_cpp_export` | **Yes** | `use_cpp_block1` on `run_sweep_outer_chains_v6` (default `TRUE`) |
 
-There is **no `use_cpp_block1` flag** today (unlike `use_cpp_block2`).
+There is **`use_cpp_block1`** on `run_sweep_outer_chains_v6` (default `TRUE`; set `FALSE` for R prep/draw loops).
 
 Legacy v5 (`twoBlockGibbs.cpp` inner sweep) already runs Block 1 in C++:
 

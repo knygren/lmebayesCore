@@ -777,7 +777,133 @@ two_block_block2_one_chain_cpp <- function(
   batch
 }
 
+#' Block 1 one-chain prep + draw (R reference; all piece flags FALSE)
+#' @noRd
+.two_block_block1_one_chain_r <- function(
+    batch,
+    i,
+    design,
+    block1_prior,
+    family,
+    ptypes
+) {
+  prep <- .two_block_block1_prep_one_chain(
+    batch           = batch,
+    i               = i,
+    design          = design,
+    block1_prior    = block1_prior,
+    ptypes          = ptypes,
+    use_cpp_mu_all  = FALSE,
+    use_cpp_prior_tau2 = FALSE
+  )
+  draw <- .two_block_block1_draw_one_chain(
+    prior_list      = prep$prior_list,
+    design          = design,
+    family          = family,
+    is_gaussian     = identical(family$family, "gaussian"),
+    group_levels    = batch$group_levels,
+    use_cpp_reorder = FALSE,
+    use_cpp_iters   = FALSE
+  )
+  c(prep, draw)
+}
+
+#' Shared \code{.Call} arguments for Block~1 C++ one-chain / all-chains exports
+#' @noRd
+.two_block_block1_cpp_call_args <- function(
+    batch,
+    design,
+    block1_prior,
+    family,
+    ptypes
+) {
+  l2 <- length(design$y)
+  offset <- design$offset
+  if (is.null(offset)) {
+    offset <- rep(0, l2)
+  } else {
+    offset <- as.numeric(offset)
+    if (length(offset) == 1L) offset <- rep(offset, l2)
+  }
+  wt <- design$weights
+  if (is.null(wt)) {
+    wt <- rep(1, l2)
+  } else {
+    wt <- as.numeric(wt)
+    if (length(wt) == 1L) wt <- rep(wt, l2)
+  }
+  is_gaussian <- identical(family$family, "gaussian")
+  fam <- glmbfamfunc(family)
+  fam_g <- glmbfamfunc(stats::gaussian())
+  list(
+    batch_fixef  = batch$fixef,
+    batch_tau2   = batch$tau2,
+    y            = as.numeric(design$y),
+    Z            = as.matrix(design$Z),
+    groups       = design$groups,
+    offset       = offset,
+    wt           = wt,
+    x_hyper      = lapply(design$X_hyper, as.matrix),
+    re_names     = batch$re_names,
+    group_levels = batch$group_levels,
+    ptypes       = ptypes,
+    block1_prior = block1_prior,
+    is_gaussian  = is_gaussian,
+    f2           = fam$f2,
+    f3           = fam$f3,
+    f2_gauss     = fam_g$f2,
+    f3_gauss     = fam_g$f3,
+    family       = family$family,
+    link         = family$link,
+    Gridtype     = 2L,
+    n_envopt     = 1L
+  )
+}
+
+#' Block 1 one-chain prep + draw via C++ (native piecewise helpers)
+#'
+#' Same semantics as \code{.two_block_block1_prep_one_chain} followed by
+#' \code{.two_block_block1_draw_one_chain} with all piecewise C++ flags
+#' \code{TRUE} (\code{use_cpp_mu_all}, \code{use_cpp_prior_tau2},
+#' \code{use_cpp_reorder}, \code{use_cpp_iters}).
+#' Updates \code{batch$b[,, i]} and \code{batch$iters_ranef[i]}.
+#'
+#' @param batch Batch state from \code{.two_block_batch_init}.
+#' @param i Chain index (\code{1..batch$n}).
+#' @param design Model design list.
+#' @param block1_prior Block~1 prior list.
+#' @param family Response \code{family} object.
+#' @param ptypes Named \code{pfamily} type vector.
+#' @return Updated \code{batch} (invisibly).
+#' @keywords internal
+#' @export
+two_block_block1_one_chain_cpp <- function(
+    batch,
+    i,
+    design,
+    block1_prior,
+    family,
+    ptypes
+) {
+  args <- .two_block_block1_cpp_call_args(
+    batch, design, block1_prior, family, ptypes
+  )
+  args$batch_tau2 <- NULL
+  out <- do.call(two_block_block1_one_chain_cpp_export, c(
+    list(chain_i = as.integer(i), tau2_i = batch$tau2[i, ]),
+    args
+  ))
+
+  batch$b[, , i] <- out$b
+  batch$iters_ranef[i] <- batch$iters_ranef[i] + out$iters_mean
+  batch
+}
+
 #' Block 1 batch: update random effects for all chains
+#' @param use_cpp_block1 When \code{TRUE}, an R loop calls
+#'   \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call} per
+#'   chain). When \code{FALSE}, use the R prep/draw loops with optional
+#'   piecewise C++ helpers (\code{use_cpp_mu_all}, etc.). Default \code{TRUE}.
 #' @noRd
 .two_block_block1_all_chains <- function(
     batch,
@@ -789,12 +915,32 @@ two_block_block2_one_chain_cpp <- function(
     progbar = FALSE,
     progbar_prefix = "",
     progbar_finish_newline = TRUE,
+    use_cpp_block1 = TRUE,
     use_cpp_reorder = TRUE,
     use_cpp_iters = TRUE,
     use_cpp_mu_all = TRUE,
     use_cpp_prior_tau2 = TRUE
 ) {
   n <- batch$n
+
+  if (isTRUE(use_cpp_block1)) {
+    show_bar <- isTRUE(progbar) && n > 1L &&
+      (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
+    for (i in seq_len(n)) {
+      if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
+      batch <- two_block_block1_one_chain_cpp(
+        batch        = batch,
+        i            = i,
+        design       = design,
+        block1_prior = block1_prior,
+        family       = family,
+        ptypes       = ptypes
+      )
+    }
+    if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
+    return(batch)
+  }
+
   # .two_block_print_block1_phase("prep", "enter", n)
   prep <- .two_block_block1_prep_all_chains(
     batch                = batch,

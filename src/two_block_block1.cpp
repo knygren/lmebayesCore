@@ -3,6 +3,7 @@
 // Migrated incrementally from the R driver in R/two_block_batch_gibbs.R.
 
 #include "simfuncs.h"
+#include "progress_utils.h"
 
 #include <string>
 #include <vector>
@@ -54,6 +55,114 @@ std::vector<Rcpp::NumericVector> fixef_vec_from_list(
 /// Forward optional list element (mirror R \code{$} on absent name → \code{NULL}).
 SEXP optional_list_elt(const Rcpp::List& pl, const char* name) {
   return pl.containsElementNamed(name) ? pl[name] : R_NilValue;
+}
+
+/// Port of \code{.two_block_batch_fixef_chain(batch, i)}.
+Rcpp::List fixef_list_from_batch_chain(
+    const Rcpp::List& batch_fixef,
+    int chain_i,
+    const Rcpp::CharacterVector& re_names
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  const int row_i = chain_i - 1;
+  const int p_re = re_names.size();
+  Rcpp::List out(p_re);
+  out.attr("names") = re_names;
+  for (int k = 0; k < p_re; ++k) {
+    const std::string nm = Rcpp::as<std::string>(re_names[k]);
+    if (!batch_fixef.containsElementNamed(nm.c_str())) {
+      Rcpp::stop("batch_fixef must contain element '%s'.", nm.c_str());
+    }
+    Rcpp::NumericMatrix mat =
+      Rcpp::as<Rcpp::NumericMatrix>(batch_fixef[nm.c_str()]);
+    if (row_i >= mat.nrow()) {
+      Rcpp::stop(
+        "chain index %d exceeds nrow(batch_fixef[['%s']]) (%d).",
+        chain_i, nm.c_str(), mat.nrow()
+      );
+    }
+    Rcpp::NumericVector row = mat(row_i, Rcpp::_);
+    SEXP col_dn = R_NilValue;
+    SEXP mat_dn = mat.attr("dimnames");
+    if (!Rf_isNull(mat_dn)) {
+      Rcpp::List mat_dnl(mat_dn);
+      if (mat_dnl.size() >= 2 && !Rf_isNull(mat_dnl[1])) {
+        col_dn = mat_dnl[1];
+      }
+    }
+    if (!Rf_isNull(col_dn)) {
+      row.attr("names") = col_dn;
+    }
+    out[k] = row;
+  }
+  return out;
+}
+
+void store_b_chain(
+    Rcpp::NumericVector& b_store,
+    int i,
+    int J,
+    int p_re,
+    const Rcpp::NumericMatrix& b_i
+) {
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      b_store[g + J * (j + p_re * i)] = b_i(g, j);
+    }
+  }
+}
+
+/// Mirror \code{block_rNormalGLM()} / \code{block_rNormalReg()} dimnames on
+/// \code{coefficients} (\code{colnames(x)}, \code{rownames} from
+/// \code{block_info$ids}).
+void set_block_draw_coefficient_dimnames(
+    Rcpp::NumericMatrix& coef_draw,
+    const Rcpp::NumericMatrix& x,
+    const Rcpp::List& block_info
+) {
+  Rcpp::List dn(2);
+  SEXP old_dn = coef_draw.attr("dimnames");
+  if (!Rf_isNull(old_dn)) {
+    Rcpp::List old_dnl(old_dn);
+    if (old_dnl.size() >= 1 && !Rf_isNull(old_dnl[0])) {
+      dn[0] = old_dnl[0];
+    }
+    if (old_dnl.size() >= 2 && !Rf_isNull(old_dnl[1])) {
+      dn[1] = old_dnl[1];
+    }
+  }
+
+  SEXP x_dn = x.attr("dimnames");
+  if (!Rf_isNull(x_dn)) {
+    Rcpp::List x_dnl(x_dn);
+    if (x_dnl.size() >= 2 && !Rf_isNull(x_dnl[1])) {
+      dn[1] = x_dnl[1];
+    }
+  }
+  if (block_info.containsElementNamed("ids")) {
+    SEXP ids = block_info["ids"];
+    if (!Rf_isNull(ids)) {
+      dn[0] = ids;
+    }
+  }
+  if (!Rf_isNull(dn[0]) || !Rf_isNull(dn[1])) {
+    coef_draw.attr("dimnames") = dn;
+  }
+}
+
+/// Row ids for reorder (default \code{block_ids = rownames(b_draw)} in R).
+SEXP matrix_rownames_sexp(const Rcpp::NumericMatrix& M) {
+  SEXP dn = M.attr("dimnames");
+  if (Rf_isNull(dn)) {
+    return R_NilValue;
+  }
+  Rcpp::List dnl(dn);
+  if (dnl.size() < 1 || Rf_isNull(dnl[0])) {
+    return R_NilValue;
+  }
+  return dnl[0];
 }
 
 } // namespace
@@ -307,6 +416,169 @@ Rcpp::NumericMatrix two_block_reorder_b_to_group_levels(
   }
   set_matrix_dimnames(out, group_levels, col_dn);
   return out;
+}
+
+/// Block~1 prep + draw for one replicate chain.
+/// Mirrors \code{.two_block_block1_prep_one_chain} then
+/// \code{.two_block_block1_draw_one_chain} with all piecewise C++ flags
+/// \code{TRUE} (\code{use_cpp_mu_all}, \code{use_cpp_prior_tau2},
+/// \code{use_cpp_reorder}, \code{use_cpp_iters}).
+Rcpp::List two_block_block1_one_chain_impl(
+    int chain_i,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericVector& tau2_i,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& Z,
+    SEXP groups,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::List& block1_prior,
+    bool is_gaussian,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    const std::string& family,
+    const std::string& link,
+    int Gridtype,
+    int n_envopt
+) {
+  // ---- prep (.two_block_block1_prep_one_chain; piecewise C++ flags TRUE) ----
+  Rcpp::List fixef_i = fixef_list_from_batch_chain(
+    batch_fixef, chain_i, re_names
+  );
+  Rcpp::NumericMatrix mu_all = two_block_build_mu_all(
+    x_hyper, fixef_i, re_names, group_levels
+  );
+  Rcpp::List prior_list = two_block_block1_prior_with_tau2(
+    block1_prior, tau2_i, ptypes, re_names, mu_all
+  );
+
+  // ---- draw (.two_block_block1_draw_one_chain; piecewise C++ flags TRUE) ----
+  Rcpp::List block_out;
+  if (is_gaussian) {
+    block_out = block_rNormalReg_cpp_export(
+      1, y, Z, groups, prior_list, R_NilValue, offset, wt,
+      f2_gauss, f3_gauss, Gridtype
+    );
+  } else {
+    block_out = block_rNormalGLM_cpp_export(
+      1, y, Z, groups, prior_list, R_NilValue, offset, wt,
+      f2, f3, family, link, Gridtype, n_envopt,
+      false, false, false
+    );
+  }
+
+  Rcpp::List block_info = Rcpp::as<Rcpp::List>(block_out["block_info"]);
+  Rcpp::NumericMatrix b_draw =
+    Rcpp::as<Rcpp::NumericMatrix>(block_out["coefficients"]);
+  const int J = group_levels.size();
+  const int p_re = re_names.size();
+  if (b_draw.nrow() != J || b_draw.ncol() != p_re) {
+    Rcpp::stop(
+      "Block 1 returned a %d x %d coefficient matrix; expected %d x %d.",
+      b_draw.nrow(), b_draw.ncol(), J, p_re
+    );
+  }
+
+  set_block_draw_coefficient_dimnames(b_draw, Z, block_info);
+  b_draw = two_block_reorder_b_to_group_levels(
+    b_draw, matrix_rownames_sexp(b_draw), group_levels
+  );
+  const double iters_mean = two_block_block1_iters_mean(block_out);
+
+  return Rcpp::List::create(
+    Rcpp::Named("mu_all") = mu_all,
+    Rcpp::Named("prior_list") = prior_list,
+    Rcpp::Named("b") = b_draw,
+    Rcpp::Named("iters_mean") = iters_mean
+  );
+}
+
+/// Block~1 prep + draw for all replicate chains (v6 batch driver).
+Rcpp::List two_block_block1_all_chains_impl(
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericMatrix& batch_tau2,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& Z,
+    SEXP groups,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    const Rcpp::List& x_hyper,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::List& block1_prior,
+    bool is_gaussian,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    const std::string& family,
+    const std::string& link,
+    int Gridtype,
+    int n_envopt,
+    bool progbar,
+    const std::string& progbar_prefix,
+    bool progbar_finish_newline
+) {
+  Rcpp::IntegerVector b_dim = b_store.attr("dim");
+  if (b_dim.size() != 3) {
+    Rcpp::stop("'b_store' must be a 3-dimensional array (J x p_re x n).");
+  }
+  const int J = b_dim[0];
+  const int p_re = b_dim[1];
+  const int n = b_dim[2];
+  if (batch_tau2.nrow() != n || batch_tau2.ncol() != p_re) {
+    Rcpp::stop("dim(batch_tau2) must be c(n, p_re).");
+  }
+  if (iters_ranef.size() != n) {
+    Rcpp::stop("length(iters_ranef) must equal n.");
+  }
+  if (re_names.size() != p_re) {
+    Rcpp::stop("length(re_names) must equal p_re.");
+  }
+
+  Rcpp::NumericVector b_out = Rcpp::clone(b_store);
+  Rcpp::NumericVector iters_out = Rcpp::clone(iters_ranef);
+  const bool show_bar = progbar && n > 1;
+
+  for (int i = 0; i < n; ++i) {
+    Rcpp::checkUserInterrupt();
+    if (show_bar) {
+      glmbayes::progress::progress_bar(
+        static_cast<double>(i + 1),
+        static_cast<double>(n),
+        progbar_prefix
+      );
+    }
+
+    Rcpp::NumericVector tau2_i = batch_tau2(i, Rcpp::_);
+    Rcpp::List one = two_block_block1_one_chain_impl(
+      i + 1, batch_fixef, tau2_i, y, Z, groups, offset, wt,
+      x_hyper, re_names, group_levels, ptypes, block1_prior,
+      is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link,
+      Gridtype, n_envopt
+    );
+    Rcpp::NumericMatrix b_i = Rcpp::as<Rcpp::NumericMatrix>(one["b"]);
+    store_b_chain(b_out, i, J, p_re, b_i);
+    iters_out[i] += Rcpp::as<double>(one["iters_mean"]);
+  }
+
+  if (show_bar) {
+    glmbayes::progress::progress_bar_finish(progbar_finish_newline);
+  }
+
+  return Rcpp::List::create(
+    Rcpp::Named("b") = b_out,
+    Rcpp::Named("iters_ranef") = iters_out
+  );
 }
 
 } // namespace sim
