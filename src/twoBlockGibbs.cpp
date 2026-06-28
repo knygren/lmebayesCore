@@ -63,91 +63,6 @@ inline void check_pd(const NumericMatrix& M, const char* label) {
   }
 }
 
-// Port of .two_block_mu_all(): mu_all[i, j] = sum(X_k[row_j, ] * gamma_k),
-// where row_j is the positional row j when X_k has no rownames, or the row
-// named group_levels[j] otherwise.  Row lookups are resolved once up front
-// (x_hyper and group_levels are constant across iterations).
-struct MuAllBuilder {
-  int p_re;
-  int J;
-  std::vector<NumericMatrix> X;          // per-component J x q_k design
-  std::vector<std::vector<int>> row_idx; // per-component 0-based row for group j
-
-  MuAllBuilder(const List& x_hyper, const CharacterVector& group_levels) {
-    p_re = x_hyper.size();
-    J = group_levels.size();
-    X.reserve(p_re);
-    row_idx.resize(p_re);
-    for (int i = 0; i < p_re; ++i) {
-      NumericMatrix X_k = Rcpp::as<NumericMatrix>(x_hyper[i]);
-      X.push_back(X_k);
-
-      CharacterVector rn;
-      SEXP dn = X_k.attr("dimnames");
-      if (!Rf_isNull(dn)) {
-        List dnl(dn);
-        if (dnl.size() >= 1 && !Rf_isNull(dnl[0])) {
-          rn = CharacterVector(dnl[0]);
-        }
-      }
-
-      std::vector<int>& idx = row_idx[i];
-      idx.resize(J);
-      if (rn.size() == 0) {
-        if (X_k.nrow() != J) {
-          Rcpp::stop(
-            "nrow(x_hyper[[%d]]) must equal length(group_levels).", i + 1
-          );
-        }
-        for (int j = 0; j < J; ++j) idx[j] = j;
-      } else {
-        for (int j = 0; j < J; ++j) {
-          const std::string lev = Rcpp::as<std::string>(group_levels[j]);
-          int found = -1;
-          for (int r = 0; r < rn.size(); ++r) {
-            if (!CharacterVector::is_na(rn[r]) &&
-                Rcpp::as<std::string>(rn[r]) == lev) {
-              found = r;
-              break;
-            }
-          }
-          if (found < 0) {
-            Rcpp::stop(
-              "x_hyper[[%d]] has no row named \"%s\" (group_levels[%d]).",
-              i + 1, lev.c_str(), j + 1
-            );
-          }
-          idx[j] = found;
-        }
-      }
-    }
-  }
-
-  NumericMatrix build(const std::vector<NumericVector>& fixef) const {
-    NumericMatrix mu_all(p_re, J);
-    for (int i = 0; i < p_re; ++i) {
-      const NumericMatrix& X_k = X[i];
-      const NumericVector& gamma_k = fixef[i];
-      if (gamma_k.size() != X_k.ncol()) {
-        Rcpp::stop(
-          "length(fixef[[%d]]) (%d) must equal ncol(x_hyper[[%d]]) (%d).",
-          i + 1, gamma_k.size(), i + 1, X_k.ncol()
-        );
-      }
-      const std::vector<int>& idx = row_idx[i];
-      for (int j = 0; j < J; ++j) {
-        const int r = idx[j];
-        double s = 0.0;
-        for (int c = 0; c < X_k.ncol(); ++c) {
-          s += X_k(r, c) * gamma_k[c];
-        }
-        mu_all(i, j) = s;
-      }
-    }
-    return mu_all;
-  }
-};
-
 // Port of .two_block_block1_prior_list(): list(mu, dispersion, ddef, P/Sigma).
 // dispersion/ddef are forwarded as-is (possibly NULL); the block exports
 // treat present-but-NULL as absent, matching R semantics.
@@ -1360,22 +1275,6 @@ Rcpp::List two_block_block2_one_chain_cpp_export(
 
 namespace {
 
-// Map b_i[, j] indexed by group_levels[g] to X_hyper row order (R:
-// .two_block_align_b_to_xhyper).
-Rcpp::NumericVector two_block_align_b_col_to_x_rows(
-    const Rcpp::NumericMatrix& b_i,
-    int col_j,
-    const std::vector<int>& row_idx_j
-) {
-  const int J = static_cast<int>(row_idx_j.size());
-  Rcpp::NumericVector y_j(J);
-  for (int g = 0; g < J; ++g) {
-    y_j[row_idx_j[g]] = b_i(g, col_j);
-  }
-  return y_j;
-}
-
-// Ensure Block 1 rows follow group_levels (R: match(group_levels, rownames(b))).
 void two_block_reorder_b_to_group_levels(
     Rcpp::NumericMatrix& b_i,
     const Rcpp::CharacterVector& block_ids,

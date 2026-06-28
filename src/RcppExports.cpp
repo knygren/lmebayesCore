@@ -292,6 +292,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_build_mu_all_cpp_export
+Rcpp::NumericMatrix two_block_build_mu_all_cpp_export(const Rcpp::List& x_hyper, const Rcpp::List& fixef, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels);
+RcppExport SEXP _glmbayesCore_two_block_build_mu_all_cpp_export(SEXP x_hyperSEXP, SEXP fixefSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type x_hyper(x_hyperSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type re_names(re_namesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_build_mu_all_cpp_export(x_hyper, fixef, re_names, group_levels));
+    return rcpp_result_gen;
+END_RCPP
+}
 // two_block_block1_iters_mean_cpp_export
 double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out);
 RcppExport SEXP _glmbayesCore_two_block_block1_iters_mean_cpp_export(SEXP block_outSEXP) {
@@ -780,6 +794,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_rNormal_reg_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v2_cpp_export, 26},
     {"_glmbayesCore_two_block_rNormal_reg_v5_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_v5_cpp_export, 32},
     {"_glmbayesCore_two_block_rNormal_reg_staged_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_rNormal_reg_staged_cpp_export, 29},
+    {"_glmbayesCore_two_block_build_mu_all_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_build_mu_all_cpp_export, 4},
     {"_glmbayesCore_two_block_block1_iters_mean_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_iters_mean_cpp_export, 1},
     {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},
     {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},

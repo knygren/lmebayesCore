@@ -37,6 +37,10 @@ two_block_rNormal_reg_staged_cpp_export <- function(n_main, m_convergence_main, 
     .Call(`_glmbayesCore_two_block_rNormal_reg_staged_cpp_export`, n_main, m_convergence_main, n_pilot, m_convergence_pilot, y, x, block, x_hyper, prior_list_block1, dispersion_block1, ddef_block1, pfamily_list, fixef_start, group_levels, family, link, f2, f3, f2_gauss, f3_gauss, offset, wt, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar_main, progbar_pilot)
 }
 
+two_block_build_mu_all_cpp_export <- function(x_hyper, fixef, re_names, group_levels) {
+    .Call(`_glmbayesCore_two_block_build_mu_all_cpp_export`, x_hyper, fixef, re_names, group_levels)
+}
+
 two_block_block1_iters_mean_cpp_export <- function(block_out) {
     .Call(`_glmbayesCore_two_block_block1_iters_mean_cpp_export`, block_out)
 }

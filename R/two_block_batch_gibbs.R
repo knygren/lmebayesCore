@@ -346,11 +346,12 @@
     i,
     design,
     block1_prior,
-    ptypes
+    ptypes,
+    use_cpp_mu_all = TRUE
 ) {
   fixef_i <- .two_block_batch_fixef_chain(batch, i)
   mu_all  <- as.matrix(build_mu_all(
-    design, fixef_i, batch$group_levels
+    design, fixef_i, batch$group_levels, use_cpp = use_cpp_mu_all
   )$mu_all)
   tau2_i  <- batch$tau2[i, ]
   prior_list <- .two_block_block1_prior_with_tau2(
@@ -368,7 +369,8 @@
     ptypes,
     n_cores = NULL,
     progbar = FALSE,
-    progbar_finish_newline = TRUE
+    progbar_finish_newline = TRUE,
+    use_cpp_mu_all = TRUE
 ) {
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L &&
@@ -377,11 +379,12 @@
   prep_i <- function(i) {
     if (show_bar) .two_block_progress_bar(i, n)
     .two_block_block1_prep_one_chain(
-      batch        = batch,
-      i            = i,
-      design       = design,
-      block1_prior = block1_prior,
-      ptypes       = ptypes
+      batch           = batch,
+      i               = i,
+      design          = design,
+      block1_prior    = block1_prior,
+      ptypes          = ptypes,
+      use_cpp_mu_all  = use_cpp_mu_all
     )
   }
 
@@ -763,17 +766,19 @@ two_block_block2_one_chain_cpp <- function(
     progbar_prefix = "",
     progbar_finish_newline = TRUE,
     use_cpp_reorder = TRUE,
-    use_cpp_iters = TRUE
+    use_cpp_iters = TRUE,
+    use_cpp_mu_all = TRUE
 ) {
   n <- batch$n
   # .two_block_print_block1_phase("prep", "enter", n)
   prep <- .two_block_block1_prep_all_chains(
-    batch        = batch,
-    design       = design,
-    block1_prior = block1_prior,
-    ptypes       = ptypes,
-    n_cores      = n_cores,
-    progbar      = FALSE
+    batch                = batch,
+    design               = design,
+    block1_prior         = block1_prior,
+    ptypes               = ptypes,
+    n_cores              = n_cores,
+    progbar              = FALSE,
+    use_cpp_mu_all       = use_cpp_mu_all
   )
   # .two_block_print_block1_phase("prep", "exit", n)
   # .two_block_print_block1_phase("draw", "enter", n)

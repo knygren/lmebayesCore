@@ -21,6 +21,9 @@
 #'   two-block mixed models and consistent with \code{lmer} and
 #'   \code{\link{block_rNormalReg}} (which preserves the input factor's level
 #'   order).
+#' @param use_cpp Logical; if \code{TRUE} (default), compute \code{mu_all} in
+#'   C++ via \code{two_block_build_mu_all_cpp_export}; if \code{FALSE}, use
+#'   the R reference implementation \code{build_mu_all_r()}.
 #' @return A list with:
 #'   \describe{
 #'     \item{\code{mu_all}}{Numeric matrix \code{p_re x J} (\code{p_re} =
@@ -34,7 +37,33 @@
 #'   \code{\link{two_block_rNormal_reg}},
 #'   \code{\link{block_rNormalReg_update}}
 #' @export
-build_mu_all <- function(design, fixef, group_levels = NULL) {
+build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
+  if (isTRUE(use_cpp)) {
+    .lmerb_validate_design(design)
+    if (is.null(group_levels)) {
+      group_levels <- levels(design$groups)
+    } else {
+      group_levels <- as.character(group_levels)
+    }
+    x_hyper <- lapply(design$X_hyper, as.matrix)
+    mu_all <- two_block_build_mu_all_cpp_export(
+      x_hyper      = x_hyper,
+      fixef        = fixef,
+      re_names     = design$re_coef_names,
+      group_levels = group_levels
+    )
+    return(list(
+      mu_all        = mu_all,
+      re_coef_names = design$re_coef_names,
+      group_levels  = group_levels
+    ))
+  }
+  build_mu_all_r(design, fixef, group_levels)
+}
+
+#' Build per-group random-effect prior means (R reference implementation)
+#' @noRd
+build_mu_all_r <- function(design, fixef, group_levels = NULL) {
 
   .lmerb_validate_design(design)
 

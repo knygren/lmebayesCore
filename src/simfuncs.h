@@ -48,6 +48,8 @@
 // we only include RcppArmadillo.h which pulls Rcpp.h in for us
 #include "RcppArmadillo.h"
 
+#include <vector>
+
 using namespace Rcpp;
 
 
@@ -334,6 +336,30 @@ Rcpp::List two_block_rNormal_reg_staged_cpp_export(
     bool verbose,
     bool progbar_main,
     bool progbar_pilot
+);
+
+/// Cached \code{X_hyper} row lookups for \code{build_mu_all} (two_block_block1.cpp).
+struct MuAllBuilder {
+  int p_re;
+  int J;
+  std::vector<Rcpp::NumericMatrix> X;
+  std::vector<std::vector<int>> row_idx;
+
+  MuAllBuilder(
+      const Rcpp::List& x_hyper,
+      const Rcpp::CharacterVector& group_levels
+  );
+  Rcpp::NumericMatrix build(
+      const std::vector<Rcpp::NumericVector>& fixef
+  ) const;
+};
+
+/// Block~1: \code{mu_all} matrix (port of \code{build_mu_all()}).
+Rcpp::NumericMatrix two_block_build_mu_all(
+    const Rcpp::List& x_hyper,
+    const Rcpp::List& fixef,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels
 );
 
 /// Block~1: mean envelope iters across groups (two_block_block1.cpp).

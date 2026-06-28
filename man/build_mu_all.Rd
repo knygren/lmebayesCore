@@ -4,7 +4,7 @@
 \alias{build_mu_all}
 \title{Build per-group random-effect prior means for Block 1 sampling}
 \usage{
-build_mu_all(design, fixef, group_levels = NULL)
+build_mu_all(design, fixef, group_levels = NULL, use_cpp = TRUE)
 }
 \arguments{
 \item{design}{List with components \code{X_hyper}, \code{re_coef_names},
@@ -22,6 +22,10 @@ with names matching \code{colnames(X_hyper[[k]])}.}
 two-block mixed models and consistent with \code{lmer} and
 \code{\link{block_rNormalReg}} (which preserves the input factor's level
 order).}
+
+\item{use_cpp}{Logical; if \code{TRUE} (default), compute \code{mu_all} in
+C++ via \code{two_block_build_mu_all_cpp_export}; if \code{FALSE}, use
+the R reference implementation \code{build_mu_all_r()}.}
 }
 \value{
 A list with:
