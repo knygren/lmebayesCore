@@ -11,8 +11,8 @@ two_block_block1_one_chain_cpp(
   block1_prior,
   family,
   ptypes,
-  use_cpp_tau2_row = NULL,
-  use_cpp_b_slice = NULL
+  use_cpp_tau2_row = TRUE,
+  use_cpp_b_slice = TRUE
 )
 }
 \arguments{
@@ -28,13 +28,11 @@ two_block_block1_one_chain_cpp(
 
 \item{ptypes}{Named \code{pfamily} type vector.}
 
-\item{use_cpp_tau2_row}{Step A (\code{batch$tau2[i, ]}): \code{NULL} uses option
-\code{glmbayesCore.use_cpp_tau2_row} (default \code{TRUE} = C++ export).
-Pass \code{FALSE} for pure R row extract.}
+\item{use_cpp_tau2_row}{Step A (\code{batch$tau2[i, ]}): default \code{TRUE}
+on \code{\link{run_sweep_outer_chains_v6}}; pass \code{FALSE} for R row extract.}
 
-\item{use_cpp_b_slice}{Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
-\code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)}. Default \code{FALSE}
-until slice parity is verified.}
+\item{use_cpp_b_slice}{Step C (\code{batch$b[, , i] <- out$b}): default \code{TRUE}
+on \code{\link{run_sweep_outer_chains_v6}}; pass \code{FALSE} for R subassignment.}
 }
 \value{
 Updated \code{batch} (invisibly).

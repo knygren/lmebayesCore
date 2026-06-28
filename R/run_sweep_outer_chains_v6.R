@@ -52,11 +52,12 @@
 #' @param use_cpp_block1_all_chains When \code{TRUE}, Block~1 uses
 #'   \code{two_block_block1_all_chains_cpp_export} instead of the R chain loop.
 #'   Default \code{FALSE}.
-#' @param use_cpp_tau2_row Step A (\code{batch$tau2[i, ]}): \code{NULL} uses
-#'   \code{getOption("glmbayesCore.use_cpp_tau2_row", TRUE)} (C++ export).
-#'   Pass \code{FALSE} or set the option to \code{FALSE} for pure R row extract.
-#' @param use_cpp_b_slice Step C (\code{batch$b[, , i] <- out$b}): \code{NULL} uses
-#'   \code{getOption("glmbayesCore.use_cpp_b_slice", FALSE)} (pure R default).
+#' @param use_cpp_tau2_row Block~1 step A (\code{batch$tau2[i, ]}): when \code{TRUE}
+#'   (default), use \code{two_block_batch_tau2_chain_row_cpp_export}; \code{FALSE}
+#'   uses pure R row extract (reference oracle during migration).
+#' @param use_cpp_b_slice Block~1 step C (\code{batch$b[, , i] <- out$b}): when
+#'   \code{TRUE} (default), use \code{two_block_batch_b_assign_slice_cpp_export};
+#'   \code{FALSE} uses pure R subassignment.
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -85,8 +86,8 @@ run_sweep_outer_chains_v6 <- function(
     tau2_start     = NULL,
     use_cpp_block1 = TRUE,
     use_cpp_block1_all_chains = FALSE,
-    use_cpp_tau2_row = NULL,
-    use_cpp_b_slice = NULL,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
     use_cpp_block2 = TRUE
 ) {
   if (is.null(ptypes)) {
