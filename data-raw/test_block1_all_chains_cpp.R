@@ -1,4 +1,4 @@
-## Smoke: use_cpp_block1_all_chains = TRUE -> one .Call (all-chains C++ loop).
+## Smoke: .two_block_block1_all_chains_cpp (bulk C++ loop; not production path).
 
 pkg_root <- if (file.exists("DESCRIPTION")) "." else if (file.exists("../DESCRIPTION")) ".."
 if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
@@ -7,7 +7,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists("two_block_block1_all_chains_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_block1_all_chains_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 J <- 4L
 n_chains <- 2L
@@ -40,11 +41,46 @@ batch <- glmbayesCore:::.two_block_batch_init(
 )
 iters_before <- batch$iters_ranef
 
-batch2 <- glmbayesCore:::.two_block_block1_all_chains(
-  batch, design, block1_prior, stats::binomial(), ptypes,
-  use_cpp_block1 = TRUE,
-  use_cpp_block1_all_chains = TRUE
+family <- stats::binomial()
+l2 <- length(design$y)
+offset <- rep(0, l2)
+wt <- rep(1, l2)
+is_gaussian <- identical(family$family, "gaussian")
+fam <- glmbayesCore::glmbfamfunc(family)
+fam_g <- glmbayesCore::glmbfamfunc(stats::gaussian())
+
+out <- glmbayesCore:::.two_block_block1_all_chains_cpp(
+  b_store                 = batch$b,
+  iters_ranef             = batch$iters_ranef,
+  batch_fixef             = batch$fixef,
+  batch_tau2              = batch$tau2,
+  y                       = as.numeric(design$y),
+  Z                       = as.matrix(design$Z),
+  groups                  = design$groups,
+  offset                  = offset,
+  wt                      = wt,
+  x_hyper                 = lapply(design$X_hyper, as.matrix),
+  re_names                = batch$re_names,
+  group_levels            = batch$group_levels,
+  ptypes                  = ptypes,
+  block1_prior            = block1_prior,
+  is_gaussian             = is_gaussian,
+  f2                      = fam$f2,
+  f3                      = fam$f3,
+  f2_gauss                = fam_g$f2,
+  f3_gauss                = fam_g$f3,
+  family                  = family$family,
+  link                    = family$link,
+  Gridtype                = 2L,
+  n_envopt                = 1L,
+  progbar                 = FALSE,
+  progbar_prefix          = "",
+  progbar_finish_newline  = TRUE
 )
+batch2 <- batch
+batch2$b <- out$b
+batch2$iters_ranef <- out$iters_ranef
+
 stopifnot(identical(dim(batch2$b), dim(batch$b)))
 stopifnot(all(is.finite(batch2$b)))
 stopifnot(length(batch2$iters_ranef) == n_chains)

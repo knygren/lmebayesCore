@@ -23,10 +23,9 @@ run_sweep_outer_chains_v6(
   b_start = NULL,
   ptypes = NULL,
   tau2_start = NULL,
-  use_cpp_block1 = TRUE,
-  use_cpp_block1_all_chains = FALSE,
   use_cpp_tau2_row = TRUE,
   use_cpp_b_slice = TRUE,
+  use_cpp_iters_ranef_add = TRUE,
   use_cpp_block2 = TRUE
 )
 }
@@ -83,22 +82,18 @@ Defaults to \code{b_mode} when \code{NULL}.}
 When \code{NULL}, derived from \code{pfamily_list} prior fields
 (\code{dNormal} dispersion or ING \code{rate/shape} = \eqn{1/E[1/\tau^2]}).}
 
-\item{use_cpp_block1}{When \code{TRUE} (default), Block~1 uses an R loop over
-\code{two_block_block1_one_chain_cpp} (one \code{.Call} per chain). Set
-\code{use_cpp_block1_all_chains = TRUE} for a single all-chains \code{.Call}.
-When \code{use_cpp_block1 = FALSE}, use the R prep/draw loops (reference oracle).}
-
-\item{use_cpp_block1_all_chains}{When \code{TRUE}, Block~1 uses
-\code{two_block_block1_all_chains_cpp_export} instead of the R chain loop.
-Default \code{FALSE}.}
-
 \item{use_cpp_tau2_row}{Block~1 step A (\code{batch$tau2[i, ]}): when \code{TRUE}
-(default), use \code{two_block_batch_tau2_chain_row_cpp_export}; \code{FALSE}
+(default), use \code{.two_block_batch_tau2_chain_row_cpp}; \code{FALSE}
 uses pure R row extract (reference oracle during migration).}
 
 \item{use_cpp_b_slice}{Block~1 step C (\code{batch$b[, , i] <- out$b}): when
-\code{TRUE} (default), use \code{two_block_batch_b_assign_slice_cpp_export};
+\code{TRUE} (default), use \code{.two_block_batch_b_assign_slice_cpp};
 \code{FALSE} uses pure R subassignment.}
+
+\item{use_cpp_iters_ranef_add}{Block~1 step D
+(\code{batch$iters_ranef[i] += out$iters_mean}): when \code{TRUE} (default),
+use \code{.two_block_batch_iters_ranef_add_cpp}; \code{FALSE} uses pure R
+accumulation.}
 
 \item{use_cpp_block2}{When \code{TRUE}, Block~2 uses
 \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})

@@ -357,6 +357,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// two_block_batch_iters_ranef_add_cpp_export
+Rcpp::NumericVector two_block_batch_iters_ranef_add_cpp_export(Rcpp::NumericVector iters_ranef, int chain_i, double iters_mean);
+RcppExport SEXP _glmbayesCore_two_block_batch_iters_ranef_add_cpp_export(SEXP iters_ranefSEXP, SEXP chain_iSEXP, SEXP iters_meanSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type iters_ranef(iters_ranefSEXP);
+    Rcpp::traits::input_parameter< int >::type chain_i(chain_iSEXP);
+    Rcpp::traits::input_parameter< double >::type iters_mean(iters_meanSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_batch_iters_ranef_add_cpp_export(iters_ranef, chain_i, iters_mean));
+    return rcpp_result_gen;
+END_RCPP
+}
 // two_block_block1_one_chain_cpp_export
 Rcpp::List two_block_block1_one_chain_cpp_export(int chain_i, const Rcpp::List& batch_fixef, const Rcpp::NumericVector& tau2_i, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& Z, SEXP groups, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, const Rcpp::List& x_hyper, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::CharacterVector& ptypes, const Rcpp::List& block1_prior, bool is_gaussian, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, const std::string& family, const std::string& link, int Gridtype, int n_envopt);
 RcppExport SEXP _glmbayesCore_two_block_block1_one_chain_cpp_export(SEXP chain_iSEXP, SEXP batch_fixefSEXP, SEXP tau2_iSEXP, SEXP ySEXP, SEXP ZSEXP, SEXP groupsSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP x_hyperSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP ptypesSEXP, SEXP block1_priorSEXP, SEXP is_gaussianSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP) {
@@ -907,6 +920,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_block1_iters_mean_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_iters_mean_cpp_export, 1},
     {"_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export, 2},
     {"_glmbayesCore_two_block_batch_b_assign_slice_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_b_assign_slice_cpp_export, 3},
+    {"_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export, 3},
     {"_glmbayesCore_two_block_block1_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_cpp_export, 22},
     {"_glmbayesCore_two_block_block1_all_chains_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_cpp_export, 26},
     {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},

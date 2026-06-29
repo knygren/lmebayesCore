@@ -184,6 +184,117 @@
   )
 }
 
+# =============================================================================
+#  Tier 1b: Two-block v6 batch (Block 1 / Block 2 piecewise; run_sweep_outer_chains_v6)
+#  Callers: two_block_batch_gibbs.R, build_mu_all.R
+# =============================================================================
+
+#' @noRd
+#' @keywords internal
+.two_block_build_mu_all_cpp <- function(x_hyper, fixef, re_names, group_levels) {
+  .Call(`_glmbayesCore_two_block_build_mu_all_cpp_export`,
+    x_hyper, fixef, re_names, group_levels
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block1_prior_with_tau2_cpp <- function(
+    base_prior, tau2_vec, ptypes, re_names, mu_all
+) {
+  .Call(`_glmbayesCore_two_block_block1_prior_with_tau2_cpp_export`,
+    base_prior, tau2_vec, ptypes, re_names, mu_all
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block1_iters_mean_cpp <- function(block_out) {
+  .Call(`_glmbayesCore_two_block_block1_iters_mean_cpp_export`, block_out)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_batch_tau2_chain_row_cpp <- function(batch_tau2, chain_i) {
+  .Call(`_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export`,
+    batch_tau2, chain_i
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_batch_b_assign_slice_cpp <- function(b_store, chain_i, b_draw) {
+  .Call(`_glmbayesCore_two_block_batch_b_assign_slice_cpp_export`,
+    b_store, chain_i, b_draw
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_batch_iters_ranef_add_cpp <- function(iters_ranef, chain_i, iters_mean) {
+  .Call(`_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export`,
+    iters_ranef, chain_i, iters_mean
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block1_one_chain_cpp <- function(
+    chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper,
+    re_names, group_levels, ptypes, block1_prior, is_gaussian,
+    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt
+) {
+  .Call(`_glmbayesCore_two_block_block1_one_chain_cpp_export`,
+    chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper,
+    re_names, group_levels, ptypes, block1_prior, is_gaussian,
+    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block1_all_chains_cpp <- function(
+    b_store, iters_ranef, batch_fixef, batch_tau2, y, Z, groups, offset, wt,
+    x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian,
+    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt,
+    progbar, progbar_prefix, progbar_finish_newline
+) {
+  .Call(`_glmbayesCore_two_block_block1_all_chains_cpp_export`,
+    b_store, iters_ranef, batch_fixef, batch_tau2, y, Z, groups, offset, wt,
+    x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian,
+    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt,
+    progbar, progbar_prefix, progbar_finish_newline
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_reorder_b_to_group_levels_cpp <- function(b_draw, block_ids, group_levels) {
+  .Call(`_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export`,
+    b_draw, block_ids, group_levels
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
+  .Call(`_glmbayesCore_two_block_align_b_to_xhyper_cpp_export`,
+    b_vec, X_k, group_levels
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block2_one_chain_cpp <- function(
+    b_i, fixef_rows, tau2_i, iters_i, x_hyper, group_levels,
+    pfamily_list, ptypes, re_names
+) {
+  .Call(`_glmbayesCore_two_block_block2_one_chain_cpp_export`,
+    b_i, fixef_rows, tau2_i, iters_i, x_hyper, group_levels,
+    pfamily_list, ptypes, re_names
+  )
+}
+
 #' @noRd
 #' @keywords internal
 .rNormalReg_cpp <- function(

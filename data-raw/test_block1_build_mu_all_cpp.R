@@ -8,7 +8,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
 }
 
 stopifnot(exists("build_mu_all_r", mode = "function", where = asNamespace("glmbayesCore")))
-stopifnot(exists("two_block_build_mu_all_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_build_mu_all_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 compare_mu_all <- function(design, fixef, group_levels = NULL) {
   r_out <- build_mu_all_r(design, fixef, group_levels)
@@ -49,11 +50,8 @@ compare_mu_all(design, fixef, group_levels)
 ## Direct export vs R reference (same inputs as build_mu_all C++ path)
 x_hyper <- lapply(design$X_hyper, as.matrix)
 mu_r <- build_mu_all_r(design, fixef, group_levels)$mu_all
-mu_cpp <- two_block_build_mu_all_cpp_export(
-  x_hyper = x_hyper,
-  fixef = fixef,
-  re_names = design$re_coef_names,
-  group_levels = group_levels
+mu_cpp <- glmbayesCore:::.two_block_build_mu_all_cpp(
+  x_hyper, fixef, design$re_coef_names, group_levels
 )
 stopifnot(identical(dimnames(mu_r), dimnames(mu_cpp)))
 stopifnot(all.equal(mu_r, mu_cpp, tolerance = 0))

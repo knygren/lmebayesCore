@@ -9,19 +9,20 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
 }
 
 stopifnot(exists(".two_block_block1_iters_mean_r", mode = "function", where = asNamespace("glmbayesCore")))
-stopifnot(exists("two_block_block1_iters_mean_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_block1_iters_mean_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 ## Synthetic block_out shapes (no sampler required)
 empty_br <- list(block_results = list())
 stopifnot(identical(
   glmbayesCore:::.two_block_block1_iters_mean_r(empty_br),
-  as.numeric(two_block_block1_iters_mean_cpp_export(empty_br))
+  as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(empty_br))
 ))
 
 br_one <- list(block_results = list(list(iters = matrix(3, 1, 1))))
 stopifnot(identical(
   glmbayesCore:::.two_block_block1_iters_mean_r(br_one),
-  as.numeric(two_block_block1_iters_mean_cpp_export(br_one))
+  as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(br_one))
 ))
 
 br_mix <- list(block_results = list(
@@ -30,7 +31,7 @@ br_mix <- list(block_results = list(
   list(iters = 4)
 ))
 r_val <- glmbayesCore:::.two_block_block1_iters_mean_r(br_mix)
-cpp_val <- as.numeric(two_block_block1_iters_mean_cpp_export(br_mix))
+cpp_val <- as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(br_mix))
 stopifnot(identical(r_val, cpp_val))
 
 ## Real Block 1 draw (binomial GLMM block path) if lmebayes available
@@ -63,7 +64,7 @@ if (requireNamespace("lmebayes", quietly = TRUE)) {
     progbar = FALSE
   )
   r_live <- glmbayesCore:::.two_block_block1_iters_mean_r(block_out)
-  cpp_live <- as.numeric(two_block_block1_iters_mean_cpp_export(block_out))
+  cpp_live <- as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(block_out))
   if (!identical(r_live, cpp_live)) {
     stop(
       "Block 1 iters_mean mismatch on live draw: R=", r_live, " C++=", cpp_live,

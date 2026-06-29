@@ -22,7 +22,7 @@
 #'   \code{\link{block_rNormalReg}} (which preserves the input factor's level
 #'   order).
 #' @param use_cpp Logical; if \code{TRUE} (default), compute \code{mu_all} in
-#'   C++ via \code{two_block_build_mu_all_cpp_export}; if \code{FALSE}, use
+#'   C++ via \code{.two_block_build_mu_all_cpp}; if \code{FALSE}, use
 #'   the R reference implementation \code{build_mu_all_r()}.
 #' @return A list with:
 #'   \describe{
@@ -46,11 +46,8 @@ build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
       group_levels <- as.character(group_levels)
     }
     x_hyper <- lapply(design$X_hyper, as.matrix)
-    mu_all <- two_block_build_mu_all_cpp_export(
-      x_hyper      = x_hyper,
-      fixef        = fixef,
-      re_names     = design$re_coef_names,
-      group_levels = group_levels
+    mu_all <- .two_block_build_mu_all_cpp(
+      x_hyper, fixef, design$re_coef_names, group_levels
     )
     return(list(
       mu_all        = mu_all,

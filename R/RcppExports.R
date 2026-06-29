@@ -57,6 +57,10 @@ two_block_batch_b_assign_slice_cpp_export <- function(b_store, chain_i, b_draw) 
     .Call(`_glmbayesCore_two_block_batch_b_assign_slice_cpp_export`, b_store, chain_i, b_draw)
 }
 
+two_block_batch_iters_ranef_add_cpp_export <- function(iters_ranef, chain_i, iters_mean) {
+    .Call(`_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export`, iters_ranef, chain_i, iters_mean)
+}
+
 two_block_block1_one_chain_cpp_export <- function(chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt) {
     .Call(`_glmbayesCore_two_block_block1_one_chain_cpp_export`, chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt)
 }

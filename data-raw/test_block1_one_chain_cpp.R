@@ -7,7 +7,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists("two_block_block1_one_chain_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_block1_one_chain_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 compare_prep <- function(prep_r, cpp_out) {
   stopifnot(all.equal(prep_r$mu_all, cpp_out$mu_all, tolerance = 0))
@@ -91,9 +92,30 @@ for (i in seq_len(n_chains)) {
     use_cpp_mu_all = TRUE,
     use_cpp_prior_tau2 = TRUE
   )
-  cpp_out <- do.call(
-    two_block_block1_one_chain_cpp_export,
-    one_chain_cpp_args(i)
+  a <- one_chain_cpp_args(i)
+  cpp_out <- glmbayesCore:::.two_block_block1_one_chain_cpp(
+    chain_i      = as.integer(i),
+    tau2_i       = a$tau2_i,
+    batch_fixef  = a$batch_fixef,
+    y            = a$y,
+    Z            = a$Z,
+    groups       = a$groups,
+    offset       = a$offset,
+    wt           = a$wt,
+    x_hyper      = a$x_hyper,
+    re_names     = a$re_names,
+    group_levels = a$group_levels,
+    ptypes       = a$ptypes,
+    block1_prior = a$block1_prior,
+    is_gaussian  = a$is_gaussian,
+    f2           = a$f2,
+    f3           = a$f3,
+    f2_gauss     = a$f2_gauss,
+    f3_gauss     = a$f3_gauss,
+    family       = a$family,
+    link         = a$link,
+    Gridtype     = a$Gridtype,
+    n_envopt     = a$n_envopt
   )
   compare_prep(prep_r, cpp_out)
   stopifnot(identical(dim(prep_r$mu_all), dim(cpp_out$mu_all)))

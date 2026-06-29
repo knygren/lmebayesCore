@@ -376,6 +376,17 @@ Rcpp::NumericVector two_block_batch_b_assign_slice_cpp_export(
 }
 
 // [[Rcpp::export]]
+Rcpp::NumericVector two_block_batch_iters_ranef_add_cpp_export(
+    Rcpp::NumericVector iters_ranef,
+    int chain_i,
+    double iters_mean
+) {
+  Rcpp::NumericVector out = Rcpp::clone(iters_ranef);
+  glmbayes::sim::batch_iters_ranef_add(out, chain_i, iters_mean);
+  return out;
+}
+
+// [[Rcpp::export]]
 Rcpp::List two_block_block1_one_chain_cpp_export(
     int chain_i,
     const Rcpp::List& batch_fixef,

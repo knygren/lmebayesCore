@@ -346,12 +346,8 @@
     use_cpp = TRUE
 ) {
   if (isTRUE(use_cpp)) {
-    return(two_block_block1_prior_with_tau2_cpp_export(
-      base_prior = base_prior,
-      tau2_vec   = tau2_vec,
-      ptypes     = ptypes,
-      re_names   = re_names,
-      mu_all     = mu_all
+    return(.two_block_block1_prior_with_tau2_cpp(
+      base_prior, tau2_vec, ptypes, re_names, mu_all
     ))
   }
   .two_block_block1_prior_with_tau2_r(
@@ -450,7 +446,7 @@
 #' @noRd
 .two_block_block1_iters_mean <- function(block_out, use_cpp = TRUE) {
   if (isTRUE(use_cpp)) {
-    return(as.numeric(two_block_block1_iters_mean_cpp_export(block_out)))
+    return(as.numeric(.two_block_block1_iters_mean_cpp(block_out)))
   }
   .two_block_block1_iters_mean_r(block_out)
 }
@@ -482,7 +478,7 @@
     use_cpp = TRUE
 ) {
   if (isTRUE(use_cpp) && !is.null(block_ids)) {
-    return(two_block_reorder_b_to_group_levels_cpp_export(
+    return(.two_block_reorder_b_to_group_levels_cpp(
       b_draw, block_ids, group_levels
     ))
   }
@@ -660,45 +656,59 @@ two_block_align_b_to_xhyper <- function(b_vec, X_k, group_levels) {
 #' @rdname two_block_align_b_to_xhyper
 #' @export
 two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
-  two_block_align_b_to_xhyper_cpp_export(b_vec, X_k, group_levels)
+  .two_block_align_b_to_xhyper_cpp(b_vec, X_k, group_levels)
 }
 
 #' @keywords internal
 #' @export
 .two_block_align_b_to_xhyper <- two_block_align_b_to_xhyper
 
-#' One-chain Block 2 update (writes \code{batch$fixef}, \code{batch$tau2},
-#' \code{batch$iters})
+#' One-chain Block 2 update (fixed effects, \eqn{\tau^2}, iteration counts)
 #'
 #' Given current random effects for replicate chain \code{i}, update fixed
 #' effects (and ING dispersion) via one \code{rglmb()} call per RE component.
 #'
-#' @param batch Batch list from \code{.two_block_batch_init()}.
-#' @param i Chain index (\code{1..batch$n}).
+#' @param i Chain index (\code{1..n}).
+#' @param b \code{J x p_re x n} array of random effects (read-only).
+#' @param fixef Named list of fixed-effect matrices (\code{n x p_k} per RE block).
+#' @param tau2 \code{n x p_re} matrix of random-effect variances.
+#' @param iters \code{n x p_re} matrix of Block~2 iteration counts.
+#' @param re_names Character vector of random-effect block names.
+#' @param group_levels Character vector of group level labels.
 #' @param design Model design list (\code{X_hyper}, etc.).
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
 #' @param ptypes Named character vector of \code{pfamily} types.
-#' @return Updated \code{batch}.
+#' @return List with \code{fixef}, \code{tau2}, and \code{iters} (each fully
+#'   updated for chain \code{i}).
 #' @seealso \code{\link{two_block_block2_one_chain_cpp}},
 #'   \code{\link{run_sweep_outer_chains_v6}}
 #' @export
 two_block_block2_one_chain <- function(
-    batch,
     i,
+    b,
+    fixef,
+    tau2,
+    iters,
+    re_names,
+    group_levels,
     design,
     pfamily_list,
     ptypes
 ) {
-  b_i <- batch$b[, , i, drop = FALSE]
+  b_i <- b[, , i, drop = FALSE]
   b_i <- matrix(b_i, nrow = nrow(b_i), ncol = ncol(b_i),
                 dimnames = dimnames(b_i)[1:2])
 
-  for (k in batch$re_names) {
+  fixef_out <- fixef
+  tau2_out <- tau2
+  iters_out <- iters
+
+  for (k in re_names) {
     X_k <- as.matrix(design$X_hyper[[k]])
     y_k <- .two_block_align_b_to_xhyper(
       b_vec        = b_i[, k],
       X_k          = X_k,
-      group_levels = batch$group_levels
+      group_levels = group_levels
     )
     pf  <- pfamily_list[[k]]
 
@@ -712,23 +722,27 @@ two_block_block2_one_chain <- function(
       use_parallel = FALSE
     )
 
-    cn <- colnames(batch$fixef[[k]])
     coef_k <- fit_k$coef.mode
     if (!is.null(names(coef_k))) {
-      batch$fixef[[k]][i, names(coef_k)] <- coef_k
+      fixef_out[[k]][i, names(coef_k)] <- coef_k
     } else {
-      batch$fixef[[k]][i, ] <- coef_k
+      fixef_out[[k]][i, ] <- coef_k
     }
 
     if (ptypes[[k]] == "dIndependent_Normal_Gamma") {
-      batch$tau2[i, k] <- fit_k$dispersion[1L]
+      tau2_out[i, k] <- fit_k$dispersion[1L]
       it_k <- .two_block_rglmb_iter_count(fit_k)
-      batch$iters[i, k] <- batch$iters[i, k] + it_k
+      iters_out[i, k] <- iters_out[i, k] + it_k
     } else {
-      batch$iters[i, k] <- batch$iters[i, k] + 1L
+      iters_out[i, k] <- iters_out[i, k] + 1L
     }
   }
-  batch
+
+  list(
+    fixef = fixef_out,
+    tau2  = tau2_out,
+    iters = iters_out
+  )
 }
 
 #' @keywords internal
@@ -741,40 +755,54 @@ two_block_block2_one_chain <- function(
 #' aligned to \code{X_hyper} rows in C++ before each \code{rglmb()} call.
 #'
 #' @inheritParams two_block_block2_one_chain
-#' @return Updated \code{batch}.
+#' @return List with \code{fixef}, \code{tau2}, and \code{iters}.
 #' @export
 two_block_block2_one_chain_cpp <- function(
-    batch,
     i,
+    b,
+    fixef,
+    tau2,
+    iters,
+    re_names,
+    group_levels,
     design,
     pfamily_list,
     ptypes
 ) {
-  b_i <- batch$b[, , i, drop = FALSE]
+  b_i <- b[, , i, drop = FALSE]
   b_i <- matrix(
     b_i, nrow = nrow(b_i), ncol = ncol(b_i),
     dimnames = dimnames(b_i)[1:2]
   )
-  fixef_rows <- lapply(batch$re_names, function(k) batch$fixef[[k]][i, ])
-  names(fixef_rows) <- batch$re_names
+  fixef_rows <- lapply(re_names, function(k) fixef[[k]][i, ])
+  names(fixef_rows) <- re_names
   x_hyper <- lapply(design$X_hyper, as.matrix)
-  out <- two_block_block2_one_chain_cpp_export(
+  out <- .two_block_block2_one_chain_cpp(
     b_i            = b_i,
     fixef_rows     = fixef_rows,
-    tau2_i         = batch$tau2[i, ],
-    iters_i        = batch$iters[i, ],
+    tau2_i         = tau2[i, ],
+    iters_i        = iters[i, ],
     x_hyper        = x_hyper,
-    group_levels   = batch$group_levels,
+    group_levels   = group_levels,
     pfamily_list   = pfamily_list,
     ptypes         = ptypes,
-    re_names       = batch$re_names
+    re_names       = re_names
   )
-  for (k in batch$re_names) {
-    batch$fixef[[k]][i, ] <- out$fixef[[k]]
+
+  fixef_out <- fixef
+  for (k in re_names) {
+    fixef_out[[k]][i, ] <- out$fixef[[k]]
   }
-  batch$tau2[i, ] <- out$tau2
-  batch$iters[i, ] <- out$iters
-  batch
+  tau2_out <- tau2
+  tau2_out[i, ] <- out$tau2
+  iters_out <- iters
+  iters_out[i, ] <- out$iters
+
+  list(
+    fixef = fixef_out,
+    tau2  = tau2_out,
+    iters = iters_out
+  )
 }
 
 #' Block 1 one-chain prep + draw (R reference; all piece flags FALSE)
@@ -830,7 +858,7 @@ two_block_block2_one_chain_cpp <- function(
     use_cpp_tau2_row = TRUE
 ) {
   if (isTRUE(use_cpp_tau2_row)) {
-    return(two_block_batch_tau2_chain_row_cpp_export(
+    return(.two_block_batch_tau2_chain_row_cpp(
       batch_tau2,
       as.integer(chain_i)
     ))
@@ -863,7 +891,7 @@ two_block_block2_one_chain_cpp <- function(
     use_cpp_b_slice = FALSE
 ) {
   if (isTRUE(use_cpp_b_slice)) {
-    return(two_block_batch_b_assign_slice_cpp_export(
+    return(.two_block_batch_b_assign_slice_cpp(
       b_store,
       as.integer(chain_i),
       b_draw
@@ -872,14 +900,82 @@ two_block_block2_one_chain_cpp <- function(
   .two_block_batch_b_assign_slice_r(b_store, chain_i, b_draw)
 }
 
-#' Shared \code{.Call} arguments for Block~1 C++ one-chain / all-chains exports
+#' Add one-chain Block~1 envelope iters to \code{batch$iters_ranef} (R reference; step D)
 #' @noRd
-.two_block_block1_cpp_call_args <- function(
-    batch,
+.two_block_batch_iters_ranef_add_r <- function(iters_ranef, chain_i, iters_mean) {
+  stopifnot(length(iters_ranef) >= chain_i)
+  iters_ranef[chain_i] <- iters_ranef[chain_i] + as.numeric(iters_mean)
+  iters_ranef
+}
+
+#' \code{batch$iters_ranef[chain_i] <- batch$iters_ranef[chain_i] + iters_mean}
+#' (all-chains step D)
+#'
+#' Default \code{TRUE} on \code{\link{run_sweep_outer_chains_v6}}; pass
+#' \code{use_cpp_iters_ranef_add = FALSE} to revert to R accumulation.
+#'
+#' @param iters_ranef Length-\code{n} vector (\code{batch$iters_ranef}).
+#' @param chain_i Chain index (\code{1..n}).
+#' @param iters_mean Scalar from \code{out$iters_mean} (one-chain export).
+#' @param use_cpp_iters_ranef_add When \code{TRUE}, use C++ add export; \code{FALSE}
+#'   uses the R reference.
+#' @noRd
+.two_block_batch_iters_ranef_add <- function(
+    iters_ranef,
+    chain_i,
+    iters_mean,
+    use_cpp_iters_ranef_add = FALSE
+) {
+  if (isTRUE(use_cpp_iters_ranef_add)) {
+    return(.two_block_batch_iters_ranef_add_cpp(
+      iters_ranef,
+      as.integer(chain_i),
+      as.numeric(iters_mean)
+    ))
+  }
+  .two_block_batch_iters_ranef_add_r(iters_ranef, chain_i, iters_mean)
+}
+
+#' Block 1 one-chain prep + draw via C++ (native piecewise helpers)
+#'
+#' Same semantics as \code{.two_block_block1_prep_one_chain} followed by
+#' \code{.two_block_block1_draw_one_chain} with all piecewise C++ flags
+#' \code{TRUE} (\code{use_cpp_mu_all}, \code{use_cpp_prior_tau2},
+#' \code{use_cpp_reorder}, \code{use_cpp_iters}).
+#'
+#' @param i Chain index (\code{1..n}).
+#' @param fixef Named list of fixed-effect matrices (\code{n x p_k} per RE block).
+#' @param tau2 \code{n x p_re} matrix of random-effect variances.
+#' @param b \code{J x p_re x n} array of random effects.
+#' @param iters_ranef Length-\code{n} vector of random-effect iteration counts.
+#' @param re_names Character vector of random-effect block names.
+#' @param group_levels Character vector of group level labels.
+#' @param design Model design list.
+#' @param block1_prior Block~1 prior list.
+#' @param family Response \code{family} object.
+#' @param ptypes Named \code{pfamily} type vector.
+#' @param use_cpp_tau2_row Step A (\code{tau2[i, ]}).
+#' @param use_cpp_b_slice Step C (\code{b[, , i] <- out$b}).
+#' @param use_cpp_iters_ranef_add Step D (\code{iters_ranef[i] += iters_mean}).
+#' @return List with \code{b} (updated \code{J x p_re x n} array) and
+#'   \code{iters_ranef} (updated length-\code{n} vector).
+#' @keywords internal
+#' @export
+two_block_block1_one_chain_cpp <- function(
+    i,
+    fixef,
+    tau2,
+    b,
+    iters_ranef,
+    re_names,
+    group_levels,
     design,
     block1_prior,
     family,
-    ptypes
+    ptypes,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE
 ) {
   l2 <- length(design$y)
   offset <- design$offset
@@ -899,17 +995,22 @@ two_block_block2_one_chain_cpp <- function(
   is_gaussian <- identical(family$family, "gaussian")
   fam <- glmbfamfunc(family)
   fam_g <- glmbfamfunc(stats::gaussian())
-  list(
-    batch_fixef  = batch$fixef,
-    batch_tau2   = batch$tau2,
+
+  tau2_i <- .two_block_batch_tau2_chain_row(
+    tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
+  )
+  out <- .two_block_block1_one_chain_cpp(
+    chain_i      = as.integer(i),
+    tau2_i       = tau2_i,
+    batch_fixef  = fixef,
     y            = as.numeric(design$y),
     Z            = as.matrix(design$Z),
     groups       = design$groups,
     offset       = offset,
     wt           = wt,
     x_hyper      = lapply(design$X_hyper, as.matrix),
-    re_names     = batch$re_names,
-    group_levels = batch$group_levels,
+    re_names     = re_names,
+    group_levels = group_levels,
     ptypes       = ptypes,
     block1_prior = block1_prior,
     is_gaussian  = is_gaussian,
@@ -922,70 +1023,45 @@ two_block_block2_one_chain_cpp <- function(
     Gridtype     = 2L,
     n_envopt     = 1L
   )
+
+  list(
+    b = .two_block_batch_b_assign_slice(
+      b, i, out$b, use_cpp_b_slice = use_cpp_b_slice
+    ),
+    iters_ranef = .two_block_batch_iters_ranef_add(
+      iters_ranef,
+      i,
+      out$iters_mean,
+      use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
+    )
+  )
 }
 
-#' Block 1 one-chain prep + draw via C++ (native piecewise helpers)
+#' Block 1 batch: update random effects for all chains (C++ per-chain loop)
 #'
-#' Same semantics as \code{.two_block_block1_prep_one_chain} followed by
-#' \code{.two_block_block1_draw_one_chain} with all piecewise C++ flags
-#' \code{TRUE} (\code{use_cpp_mu_all}, \code{use_cpp_prior_tau2},
-#' \code{use_cpp_reorder}, \code{use_cpp_iters}).
-#' Updates \code{batch$b[,, i]} and \code{batch$iters_ranef[i]}.
+#' Reads batch slice inputs, returns only Block~1 outputs (\code{b},
+#' \code{iters_ranef}). Caller assigns \code{b} and \code{iters_ranef} into batch state.
 #'
-#' @param batch Batch state from \code{.two_block_batch_init}.
-#' @param i Chain index (\code{1..batch$n}).
-#' @param design Model design list.
-#' @param block1_prior Block~1 prior list.
-#' @param family Response \code{family} object.
-#' @param ptypes Named \code{pfamily} type vector.
-#' @param use_cpp_tau2_row Step A (\code{batch$tau2[i, ]}): default \code{TRUE}
-#'   on \code{\link{run_sweep_outer_chains_v6}}; pass \code{FALSE} for R row extract.
-#' @param use_cpp_b_slice Step C (\code{batch$b[, , i] <- out$b}): default \code{TRUE}
-#'   on \code{\link{run_sweep_outer_chains_v6}}; pass \code{FALSE} for R subassignment.
-#' @return Updated \code{batch} (invisibly).
-#' @keywords internal
-#' @export
-two_block_block1_one_chain_cpp <- function(
-    batch,
-    i,
-    design,
-    block1_prior,
-    family,
-    ptypes,
-    use_cpp_tau2_row = TRUE,
-    use_cpp_b_slice = TRUE
-) {
-  args <- .two_block_block1_cpp_call_args(
-    batch, design, block1_prior, family, ptypes
-  )
-  args$batch_tau2 <- NULL
-  tau2_i <- .two_block_batch_tau2_chain_row(
-    batch$tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
-  )
-  out <- do.call(two_block_block1_one_chain_cpp_export, c(
-    list(chain_i = as.integer(i), tau2_i = tau2_i),
-    args
-  ))
-
-  batch$b <- .two_block_batch_b_assign_slice(
-    batch$b, i, out$b, use_cpp_b_slice = use_cpp_b_slice
-  )
-  batch$iters_ranef[i] <- batch$iters_ranef[i] + out$iters_mean
-  batch
-}
-
-#' Block 1 batch: update random effects for all chains
-#' @param use_cpp_block1 When \code{TRUE} (default), Block~1 uses the validated
-#'   R loop over \code{\link{two_block_block1_one_chain_cpp}} (one C++ \code{.Call}
-#'   per chain). When \code{FALSE}, use the R prep/draw loops (reference oracle).
-#' @param use_cpp_block1_all_chains When \code{TRUE}, replace the R chain loop with
-#'   a single \code{two_block_block1_all_chains_cpp_export} \code{.Call}
-#'   (experimental; default \code{FALSE}).
-#' @param use_cpp_tau2_row Passed to \code{two_block_block1_one_chain_cpp} (step A).
-#' @param use_cpp_b_slice Passed to \code{two_block_block1_one_chain_cpp} (step C).
+#' @param n Number of replicate chains.
+#' @param fixef Named list of fixed-effect matrices (read-only for \code{mu_all}).
+#' @param tau2 \code{n x p_re} matrix (read per chain).
+#' @param b \code{J x p_re x n} array of random effects.
+#' @param iters_ranef Length-\code{n} vector of random-effect iteration counts.
+#' @param re_names Character vector of random-effect block names.
+#' @param group_levels Character vector of group level labels.
+#' @param use_cpp_tau2_row Step A (\code{tau2[i, ]}).
+#' @param use_cpp_b_slice Step C (\code{b[, , i] <- out$b}).
+#' @param use_cpp_iters_ranef_add Step D (\code{iters_ranef[i] += iters_mean}).
+#' @return List with \code{b} and \code{iters_ranef}.
 #' @noRd
 .two_block_block1_all_chains <- function(
-    batch,
+    n,
+    fixef,
+    tau2,
+    b,
+    iters_ranef,
+    re_names,
+    group_levels,
     design,
     block1_prior,
     family,
@@ -994,101 +1070,82 @@ two_block_block1_one_chain_cpp <- function(
     progbar = FALSE,
     progbar_prefix = "",
     progbar_finish_newline = TRUE,
-    use_cpp_block1 = TRUE,
-    use_cpp_block1_all_chains = FALSE,
     use_cpp_tau2_row = TRUE,
     use_cpp_b_slice = TRUE,
-    use_cpp_reorder = TRUE,
-    use_cpp_iters = TRUE,
-    use_cpp_mu_all = TRUE,
-    use_cpp_prior_tau2 = TRUE
+    use_cpp_iters_ranef_add = TRUE
 ) {
-  n <- batch$n
+  if (!is.null(n_cores) && as.integer(n_cores[1L]) >= 2L) {
+    warning(
+      "Chain-parallel Block 1 (n_cores > 1) is not supported; ",
+      "running sequential loop.",
+      call. = FALSE
+    )
+  }
+  show_bar <- isTRUE(progbar) && n > 1L &&
+    (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
 
-  if (isTRUE(use_cpp_block1)) {
-    if (!is.null(n_cores) && as.integer(n_cores[1L]) >= 2L) {
-      warning(
-        "Chain-parallel Block 1 (n_cores > 1) is not supported when ",
-        "use_cpp_block1 = TRUE; running sequential loop.",
-        call. = FALSE
-      )
-    }
-    show_bar <- isTRUE(progbar) && n > 1L &&
-      (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
+  b_out <- b
+  iters_ranef_out <- iters_ranef
 
-    if (isTRUE(use_cpp_block1_all_chains)) {
-      args <- .two_block_block1_cpp_call_args(
-        batch, design, block1_prior, family, ptypes
-      )
-      args$batch_tau2 <- NULL
-      out <- do.call(two_block_block1_all_chains_cpp_export, c(
-        list(
-          b_store                 = batch$b,
-          iters_ranef             = batch$iters_ranef,
-          batch_tau2              = batch$tau2,
-          progbar                 = show_bar,
-          progbar_prefix          = progbar_prefix,
-          progbar_finish_newline  = progbar_finish_newline
-        ),
-        args
-      ))
-      batch$b <- out$b
-      batch$iters_ranef <- out$iters_ranef
-      return(batch)
-    }
-
-    for (i in seq_len(n)) {
-      if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-      batch <- two_block_block1_one_chain_cpp(
-        batch        = batch,
-        i            = i,
-        design       = design,
-        block1_prior = block1_prior,
-        family       = family,
-        ptypes       = ptypes,
-        use_cpp_tau2_row = use_cpp_tau2_row,
-        use_cpp_b_slice  = use_cpp_b_slice
-      )
-    }
-    if (show_bar) {
-      .two_block_progress_bar_finish(newline = progbar_finish_newline)
-    }
-    return(batch)
+  for (i in seq_len(n)) {
+    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
+    chain_out <- two_block_block1_one_chain_cpp(
+      i                       = i,
+      fixef                   = fixef,
+      tau2                    = tau2,
+      b                       = b_out,
+      iters_ranef             = iters_ranef_out,
+      re_names                = re_names,
+      group_levels            = group_levels,
+      design                  = design,
+      block1_prior            = block1_prior,
+      family                  = family,
+      ptypes                  = ptypes,
+      use_cpp_tau2_row        = use_cpp_tau2_row,
+      use_cpp_b_slice         = use_cpp_b_slice,
+      use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
+    )
+    b_out <- chain_out$b
+    iters_ranef_out <- chain_out$iters_ranef
+  }
+  if (show_bar) {
+    .two_block_progress_bar_finish(newline = progbar_finish_newline)
   }
 
-  # .two_block_print_block1_phase("prep", "enter", n)
-  prep <- .two_block_block1_prep_all_chains(
-    batch                = batch,
-    design               = design,
-    block1_prior         = block1_prior,
-    ptypes               = ptypes,
-    n_cores              = n_cores,
-    progbar              = FALSE,
-    use_cpp_mu_all       = use_cpp_mu_all,
-    use_cpp_prior_tau2   = use_cpp_prior_tau2
+  list(
+    b           = b_out,
+    iters_ranef = iters_ranef_out
   )
-  # .two_block_print_block1_phase("prep", "exit", n)
-  # .two_block_print_block1_phase("draw", "enter", n)
-  batch <- .two_block_block1_draw_all_chains(
-    batch                   = batch,
-    prep                    = prep,
-    design                  = design,
-    family                  = family,
-    n_cores                 = n_cores,
-    progbar                 = progbar,
-    progbar_prefix          = progbar_prefix,
-    progbar_finish_newline  = progbar_finish_newline,
-    use_cpp_reorder         = use_cpp_reorder,
-    use_cpp_iters           = use_cpp_iters
-  )
-  # .two_block_print_block1_phase("draw", "exit", n)
-  batch
 }
 
 #' Block 2 batch: update fixed effects / tau2 for all chains
+#'
+#' Reads batch slice inputs, returns only Block~2 outputs (\code{fixef},
+#' \code{tau2}, \code{iters}). Caller assigns \code{fixef}, \code{tau2}, and \code{iters}
+#'   into batch state.
+#'
+#' @param n Number of replicate chains.
+#' @param b \code{J x p_re x n} array of random effects (read-only).
+#' @param fixef Named list of fixed-effect matrices.
+#' @param tau2 \code{n x p_re} matrix of random-effect variances.
+#' @param iters \code{n x p_re} matrix of Block~2 iteration counts.
+#' @param re_names Character vector of random-effect block names.
+#' @param group_levels Character vector of group level labels.
+#' @param design Model design list.
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
+#' @param ptypes Named character vector of \code{pfamily} types.
+#' @param use_cpp_block2 When \code{TRUE}, use
+#'   \code{\link{two_block_block2_one_chain_cpp}}; otherwise R reference.
+#' @return List with \code{fixef}, \code{tau2}, and \code{iters}.
 #' @noRd
 .two_block_block2_all_chains <- function(
-    batch,
+    n,
+    b,
+    fixef,
+    tau2,
+    iters,
+    re_names,
+    group_levels,
     design,
     pfamily_list,
     ptypes,
@@ -1097,7 +1154,6 @@ two_block_block1_one_chain_cpp <- function(
     progbar_prefix = "",
     progbar_finish_newline = TRUE
 ) {
-  n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L
   block2_fn <- if (isTRUE(use_cpp_block2)) {
     two_block_block2_one_chain_cpp
@@ -1105,18 +1161,35 @@ two_block_block1_one_chain_cpp <- function(
     two_block_block2_one_chain
   }
 
+  fixef_out <- fixef
+  tau2_out <- tau2
+  iters_out <- iters
+
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    batch <- block2_fn(
-      batch        = batch,
+    chain_out <- block2_fn(
       i            = i,
+      b            = b,
+      fixef        = fixef_out,
+      tau2         = tau2_out,
+      iters        = iters_out,
+      re_names     = re_names,
+      group_levels = group_levels,
       design       = design,
       pfamily_list = pfamily_list,
       ptypes       = ptypes
     )
+    fixef_out <- chain_out$fixef
+    tau2_out <- chain_out$tau2
+    iters_out <- chain_out$iters
   }
   if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
-  batch
+
+  list(
+    fixef = fixef_out,
+    tau2  = tau2_out,
+    iters = iters_out
+  )
 }
 
 #' Starting tau2 vector from pfamily prior fields (plug-in dispersions)

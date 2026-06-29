@@ -215,6 +215,28 @@ void batch_b_assign_slice(
   }
 }
 
+/// All-chains step D: mirror \code{batch$iters_ranef[chain_i] <-
+/// batch$iters_ranef[chain_i] + iters_mean}.
+void batch_iters_ranef_add(
+    Rcpp::NumericVector& iters_ranef,
+    int chain_i,
+    double iters_mean
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  if (chain_i > iters_ranef.size()) {
+    Rcpp::stop(
+      "'chain_i' (%d) exceeds length(iters_ranef) (%d).",
+      chain_i, iters_ranef.size()
+    );
+  }
+  if (!R_finite(iters_mean)) {
+    Rcpp::stop("'iters_mean' must be finite.");
+  }
+  iters_ranef[chain_i - 1] += iters_mean;
+}
+
 MuAllBuilder::MuAllBuilder(
     const Rcpp::List& x_hyper,
     const Rcpp::CharacterVector& group_levels
@@ -548,8 +570,10 @@ Rcpp::List two_block_block1_one_chain_impl(
 }
 
 /// Block~1 prep + draw for all replicate chains (v6 batch driver).
-/// Mirrors the R loop in \code{.two_block_block1_all_chains(use_cpp_block1 = TRUE)}:
-/// \code{for (i in seq_len(n)) two_block_block1_one_chain_cpp(batch, i, ...)}.
+/// Mirrors the R loop in \code{.two_block_block1_all_chains}:
+/// steps A→B→C→D per chain via \code{batch_tau2_chain_row},
+/// \code{two_block_block1_one_chain_impl}, \code{batch_b_assign_slice},
+/// \code{batch_iters_ranef_add}.
 Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::NumericVector b_store,
     Rcpp::NumericVector iters_ranef,
@@ -600,7 +624,6 @@ Rcpp::List two_block_block1_all_chains_impl(
   Rcpp::NumericVector iters_out = Rcpp::clone(iters_ranef);
   const bool show_bar = progbar && n > 1;
 
-  // R: for (i in seq_len(n)) { ... two_block_block1_one_chain_cpp(batch, i, ...) }
   for (int chain_i = 1; chain_i <= n; ++chain_i) {
     Rcpp::checkUserInterrupt();
     if (show_bar) {
@@ -627,8 +650,9 @@ Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::NumericMatrix b_i = Rcpp::as<Rcpp::NumericMatrix>(one["b"]);
     batch_b_assign_slice(b_out, chain_i, b_i);
 
-    // R: batch$iters_ranef[i] <- batch$iters_ranef[i] + out$iters_mean
-    iters_out[chain_i - 1] += Rcpp::as<double>(one["iters_mean"]);
+    batch_iters_ranef_add(
+      iters_out, chain_i, Rcpp::as<double>(one["iters_mean"])
+    );
   }
 
   if (show_bar) {

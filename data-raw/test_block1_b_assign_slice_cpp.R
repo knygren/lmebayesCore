@@ -7,7 +7,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists("two_block_batch_b_assign_slice_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_batch_b_assign_slice_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 J <- 4L
 p_re <- 2L
@@ -30,7 +31,7 @@ for (i in seq_len(n_chains)) {
     dimnames = list(group_levels, re_names)
   )
   b_r <- glmbayesCore:::.two_block_batch_b_assign_slice_r(b + 0, i, b_draw)
-  b_cpp <- two_block_batch_b_assign_slice_cpp_export(b + 0, i, b_draw)
+  b_cpp <- glmbayesCore:::.two_block_batch_b_assign_slice_cpp(b + 0, i, b_draw)
   stopifnot(identical(dim(b_r), dim(b_cpp)))
   stopifnot(identical(dimnames(b_r), dimnames(b_cpp)))
   if (!identical(b_r, b_cpp)) {

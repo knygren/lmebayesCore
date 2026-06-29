@@ -9,7 +9,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
 
 stopifnot(exists(".two_block_block1_prior_with_tau2_r", mode = "function",
                  where = asNamespace("glmbayesCore")))
-stopifnot(exists("two_block_block1_prior_with_tau2_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_block1_prior_with_tau2_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 compare_prior <- function(base_prior, tau2_vec, ptypes, re_names, mu_all) {
   r_out <- glmbayesCore:::.two_block_block1_prior_with_tau2_r(
@@ -59,12 +60,8 @@ compare_prior(base_prior, tau2, ptypes_dnormal, re_names, mu_all)
 r_out <- glmbayesCore:::.two_block_block1_prior_with_tau2_r(
   base_prior, tau2, ptypes_all_ing, re_names, mu_all
 )
-cpp_out <- two_block_block1_prior_with_tau2_cpp_export(
-  base_prior = base_prior,
-  tau2_vec   = tau2,
-  ptypes     = ptypes_all_ing,
-  re_names   = re_names,
-  mu_all     = mu_all
+cpp_out <- glmbayesCore:::.two_block_block1_prior_with_tau2_cpp(
+  base_prior, tau2, ptypes_all_ing, re_names, mu_all
 )
 stopifnot(all.equal(r_out$P, cpp_out$P, tolerance = 0))
 

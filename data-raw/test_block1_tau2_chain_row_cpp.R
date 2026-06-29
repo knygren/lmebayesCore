@@ -7,7 +7,8 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists("two_block_batch_tau2_chain_row_cpp_export", mode = "function"))
+stopifnot(exists(".two_block_batch_tau2_chain_row_cpp", mode = "function",
+                 where = asNamespace("glmbayesCore")))
 
 re_names <- c("(Intercept)", "x")
 n_chains <- 4L
@@ -22,7 +23,7 @@ tau2 <- matrix(
 
 for (i in seq_len(n_chains)) {
   r_row <- glmbayesCore:::.two_block_batch_tau2_chain_row_r(tau2, i)
-  cpp_row <- two_block_batch_tau2_chain_row_cpp_export(tau2, i)
+  cpp_row <- glmbayesCore:::.two_block_batch_tau2_chain_row_cpp(tau2, i)
   stopifnot(all.equal(r_row, cpp_row, tolerance = 0))
   stopifnot(identical(names(r_row), names(cpp_row)))
 }

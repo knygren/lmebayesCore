@@ -387,6 +387,14 @@ void batch_b_assign_slice(
     const Rcpp::NumericMatrix& b_draw
 );
 
+/// All-chains step D: \code{batch$iters_ranef[chain_i] += iters_mean}
+/// (two_block_block1.cpp).
+void batch_iters_ranef_add(
+    Rcpp::NumericVector& iters_ranef,
+    int chain_i,
+    double iters_mean
+);
+
 /// Block~1: reorder coefficient rows to group_levels (two_block_block1.cpp).
 Rcpp::NumericMatrix two_block_reorder_b_to_group_levels(
     Rcpp::NumericMatrix b_draw,

@@ -24,7 +24,7 @@ two-block mixed models and consistent with \code{lmer} and
 order).}
 
 \item{use_cpp}{Logical; if \code{TRUE} (default), compute \code{mu_all} in
-C++ via \code{two_block_build_mu_all_cpp_export}; if \code{FALSE}, use
+C++ via \code{.two_block_build_mu_all_cpp}; if \code{FALSE}, use
 the R reference implementation \code{build_mu_all_r()}.}
 }
 \value{

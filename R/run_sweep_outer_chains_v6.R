@@ -45,19 +45,16 @@
 #' @param use_cpp_block2 When \code{TRUE}, Block~2 uses
 #'   \code{\link{two_block_block2_one_chain_cpp}} (native C++ align + \code{rglmb})
 #'   instead of the pure-R reference.
-#' @param use_cpp_block1 When \code{TRUE} (default), Block~1 uses an R loop over
-#'   \code{two_block_block1_one_chain_cpp} (one \code{.Call} per chain). Set
-#'   \code{use_cpp_block1_all_chains = TRUE} for a single all-chains \code{.Call}.
-#'   When \code{use_cpp_block1 = FALSE}, use the R prep/draw loops (reference oracle).
-#' @param use_cpp_block1_all_chains When \code{TRUE}, Block~1 uses
-#'   \code{two_block_block1_all_chains_cpp_export} instead of the R chain loop.
-#'   Default \code{FALSE}.
 #' @param use_cpp_tau2_row Block~1 step A (\code{batch$tau2[i, ]}): when \code{TRUE}
-#'   (default), use \code{two_block_batch_tau2_chain_row_cpp_export}; \code{FALSE}
+#'   (default), use \code{.two_block_batch_tau2_chain_row_cpp}; \code{FALSE}
 #'   uses pure R row extract (reference oracle during migration).
 #' @param use_cpp_b_slice Block~1 step C (\code{batch$b[, , i] <- out$b}): when
-#'   \code{TRUE} (default), use \code{two_block_batch_b_assign_slice_cpp_export};
+#'   \code{TRUE} (default), use \code{.two_block_batch_b_assign_slice_cpp};
 #'   \code{FALSE} uses pure R subassignment.
+#' @param use_cpp_iters_ranef_add Block~1 step D
+#'   (\code{batch$iters_ranef[i] += out$iters_mean}): when \code{TRUE} (default),
+#'   use \code{.two_block_batch_iters_ranef_add_cpp}; \code{FALSE} uses pure R
+#'   accumulation.
 #' @return A list with components \code{fixef_draws}, \code{dispersion_fixef_draws},
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   \code{mu_all_last}, and \code{sweep_history} (class
@@ -84,10 +81,9 @@ run_sweep_outer_chains_v6 <- function(
     b_start        = NULL,
     ptypes         = NULL,
     tau2_start     = NULL,
-    use_cpp_block1 = TRUE,
-    use_cpp_block1_all_chains = FALSE,
     use_cpp_tau2_row = TRUE,
     use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE,
     use_cpp_block2 = TRUE
 ) {
   if (is.null(ptypes)) {
@@ -142,59 +138,49 @@ run_sweep_outer_chains_v6 <- function(
     #   phase        = "Block1",
     #   boundary     = "enter"
     # )
-    batch <- .two_block_block1_all_chains(
-      batch                  = batch,
-      design                 = design,
-      block1_prior           = block1_prior,
-      family                 = family,
-      ptypes                 = ptypes,
-      progbar                = progbar_use,
-      progbar_prefix         = prefix_b1,
-      progbar_finish_newline = FALSE,
-      use_cpp_block1         = use_cpp_block1,
-      use_cpp_block1_all_chains = use_cpp_block1_all_chains,
-      use_cpp_tau2_row       = use_cpp_tau2_row,
-      use_cpp_b_slice        = use_cpp_b_slice
+    b1 <- .two_block_block1_all_chains(
+      n                       = batch$n,
+      fixef                   = batch$fixef,
+      tau2                    = batch$tau2,
+      b                       = batch$b,
+      iters_ranef             = batch$iters_ranef,
+      re_names                = batch$re_names,
+      group_levels            = batch$group_levels,
+      design                  = design,
+      block1_prior            = block1_prior,
+      family                  = family,
+      ptypes                  = ptypes,
+      progbar                 = progbar_use,
+      progbar_prefix          = prefix_b1,
+      progbar_finish_newline  = FALSE,
+      use_cpp_tau2_row        = use_cpp_tau2_row,
+      use_cpp_b_slice         = use_cpp_b_slice,
+      use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
-    # .two_block_print_sweep_boundary(
-    #   stage_label  = stage_label,
-    #   sweep        = m,
-    #   inner_sweeps = inner_sweeps,
-    #   phase        = "Block1",
-    #   boundary     = "exit"
-    # )
-    # Fixef table only after Block 2 (gamma updated); skip after Block 1.
-    # if (verbose_block_diag) {
-    #   .two_block_print_block_diag(
-    #     stage_label  = stage_label,
-    #     sweep        = m,
-    #     inner_sweeps = inner_sweeps,
-    #     phase        = "Block1",
-    #     batch        = batch,
-    #     fixef_mode   = fixef_mode,
-    #     b_mode       = b_mode,
-    #     re_names     = re_names,
-    #     group_levels = group_levels
-    #   )
-    # }
-
-    # .two_block_print_sweep_boundary(
-    #   stage_label  = stage_label,
-    #   sweep        = m,
-    #   inner_sweeps = inner_sweeps,
-    #   phase        = "Block2",
-    #   boundary     = "enter"
-    # )
-    batch <- .two_block_block2_all_chains(
-      batch                  = batch,
-      design                 = design,
-      pfamily_list           = pfamily_list,
-      ptypes                 = ptypes,
-      use_cpp_block2         = use_cpp_block2,
-      progbar                = progbar_use,
-      progbar_prefix         = prefix_b2,
-      progbar_finish_newline = (m == inner_sweeps)
+    
+    batch$b           <- b1$b
+    batch$iters_ranef <- b1$iters_ranef
+ 
+    
+      b2 <- .two_block_block2_all_chains(
+      n                       = batch$n,
+      b                       = batch$b,
+      fixef                   = batch$fixef,
+      tau2                    = batch$tau2,
+      iters                   = batch$iters,
+      re_names                = batch$re_names,
+      group_levels            = batch$group_levels,
+      design                  = design,
+      pfamily_list            = pfamily_list,
+      ptypes                  = ptypes,
+      use_cpp_block2          = use_cpp_block2,
+      progbar                 = progbar_use,
+      progbar_prefix          = prefix_b2,
+      progbar_finish_newline  = (m == inner_sweeps)
     )
+    batch$fixef <- b2$fixef
+    batch$tau2  <- b2$tau2
+    batch$iters <- b2$iters
     if (m == 1L) {
       cat("--- sweep 1 chain means (R batch) ---\n")
       for (k in re_names) {

@@ -2,15 +2,35 @@
 % Please edit documentation in R/two_block_batch_gibbs.R
 \name{two_block_block2_one_chain}
 \alias{two_block_block2_one_chain}
-\title{One-chain Block 2 update (writes \code{batch$fixef}, \code{batch$tau2},
-\code{batch$iters})}
+\title{One-chain Block 2 update (fixed effects, \eqn{\tau^2}, iteration counts)}
 \usage{
-two_block_block2_one_chain(batch, i, design, pfamily_list, ptypes)
+two_block_block2_one_chain(
+  i,
+  b,
+  fixef,
+  tau2,
+  iters,
+  re_names,
+  group_levels,
+  design,
+  pfamily_list,
+  ptypes
+)
 }
 \arguments{
-\item{batch}{Batch list from \code{.two_block_batch_init()}.}
+\item{i}{Chain index (\code{1..n}).}
 
-\item{i}{Chain index (\code{1..batch$n}).}
+\item{b}{\code{J x p_re x n} array of random effects (read-only).}
+
+\item{fixef}{Named list of fixed-effect matrices (\code{n x p_k} per RE block).}
+
+\item{tau2}{\code{n x p_re} matrix of random-effect variances.}
+
+\item{iters}{\code{n x p_re} matrix of Block~2 iteration counts.}
+
+\item{re_names}{Character vector of random-effect block names.}
+
+\item{group_levels}{Character vector of group level labels.}
 
 \item{design}{Model design list (\code{X_hyper}, etc.).}
 
@@ -19,7 +39,8 @@ two_block_block2_one_chain(batch, i, design, pfamily_list, ptypes)
 \item{ptypes}{Named character vector of \code{pfamily} types.}
 }
 \value{
-Updated \code{batch}.
+List with \code{fixef}, \code{tau2}, and \code{iters} (each fully
+updated for chain \code{i}).
 }
 \description{
 Given current random effects for replicate chain \code{i}, update fixed
