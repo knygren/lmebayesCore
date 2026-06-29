@@ -149,11 +149,14 @@
 }
 
 #' Snapshot chain colMeans and SDs of Block 2 fixef after one sweep
+#' @param fixef Named list of fixed-effect matrices (\code{n x p_k} per RE block).
+#' @param re_names Character vector of random-effect block names.
+#' @return Named list of \code{list(mean = ..., sd = ...)} per \code{re_names} entry.
 #' @noRd
-.two_block_snapshot_fixef_stats <- function(batch, re_names) {
+.two_block_snapshot_fixef_stats <- function(fixef, re_names) {
   out <- list()
   for (k in re_names) {
-    mat <- batch$fixef[[k]]
+    mat <- fixef[[k]]
     cn  <- colnames(mat)
     if (is.null(cn)) {
       cn <- paste0("V", seq_len(ncol(mat)))
@@ -1200,19 +1203,36 @@ two_block_block1_one_chain_cpp <- function(
   }, numeric(1))
 }
 
-#' Pack batch state into replicate-chain draw list
+#' Pack replicate-chain draws from sweep state
+#' @param n Number of replicate chains.
+#' @param fixef Named list of fixed-effect matrices.
+#' @param tau2 \code{n x p_re} matrix of random-effect variances.
+#' @param b \code{J x p_re x n} array of random effects.
+#' @param iters \code{n x p_re} matrix of Block~2 iteration counts.
+#' @param iters_ranef Length-\code{n} vector of random-effect iteration counts.
+#' @param re_names Character vector of random-effect block names.
+#' @param group_levels Character vector of group level labels.
+#' @param design Model design list.
+#' @param collect_block1 When \code{TRUE}, build long \code{coefficients} table from \code{b}.
+#' @return List with \code{fixef_draws}, \code{dispersion_fixef_draws},
+#'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
+#'   and \code{mu_all_last}.
 #' @noRd
 .two_block_pack_batch_draws <- function(
-    batch,
+    n,
+    fixef,
+    tau2,
+    b,
+    iters,
+    iters_ranef,
+    re_names,
+    group_levels,
     design,
     collect_block1 = TRUE
 ) {
-  re_names     <- batch$re_names
-  group_levels <- batch$group_levels
-  n            <- batch$n
-  J            <- length(group_levels)
+  J <- length(group_levels)
 
-  fixef_draws <- lapply(batch$fixef, function(mat) {
+  fixef_draws <- lapply(fixef, function(mat) {
     out <- mat
     rownames(out) <- NULL
     out
@@ -1230,7 +1250,7 @@ two_block_block1_one_chain_cpp <- function(
       )
       draw_df[[grp_col]] <- group_levels
       for (k in re_names) {
-        draw_df[[k]] <- batch$b[, k, i]
+        draw_df[[k]] <- b[, k, i]
       }
       coef_rows[[i]] <- draw_df
     }
@@ -1240,16 +1260,16 @@ two_block_block1_one_chain_cpp <- function(
     coefficients <- NULL
   }
 
-  fixef_mean <- lapply(batch$fixef, colMeans)
+  fixef_mean <- lapply(fixef, colMeans)
   mu_all_last <- as.matrix(build_mu_all(
     design, fixef_mean, group_levels
   )$mu_all)
 
   list(
     fixef_draws            = fixef_draws,
-    dispersion_fixef_draws = batch$tau2,
-    iters_fixef_draws      = batch$iters,
-    iters_ranef_draws      = batch$iters_ranef,
+    dispersion_fixef_draws = tau2,
+    iters_fixef_draws      = iters,
+    iters_ranef_draws      = iters_ranef,
     coefficients           = coefficients,
     mu_all_last            = mu_all_last
   )

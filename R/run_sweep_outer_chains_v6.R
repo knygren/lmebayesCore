@@ -198,7 +198,10 @@ run_sweep_outer_chains_v6 <- function(
     #   phase        = "Block2",
     #   boundary     = "exit"
     # )
-    sweep_stats[[m]] <- .two_block_snapshot_fixef_stats(batch, re_names)
+    sweep_stats[[m]] <- .two_block_snapshot_fixef_stats(
+      fixef    = batch$fixef,
+      re_names = re_names
+    )
     if (progbar_use && n_chains <= 1L) {
       prefix_sweep <- if (nzchar(stage_label)) {
         sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
@@ -211,7 +214,14 @@ run_sweep_outer_chains_v6 <- function(
   }
 
   out <- .two_block_pack_batch_draws(
-    batch          = batch,
+    n              = batch$n,
+    fixef          = batch$fixef,
+    tau2           = batch$tau2,
+    b              = batch$b,
+    iters          = batch$iters,
+    iters_ranef    = batch$iters_ranef,
+    re_names       = batch$re_names,
+    group_levels   = batch$group_levels,
     design         = design,
     collect_block1 = collect_block1
   )
