@@ -47,9 +47,9 @@ library(glmbayesCore)
   )
 }
 
-test_that("run_sweep_outer_chains_v6 always returns sweep_history", {
+test_that("rGLMM_sweep always returns sweep_history", {
   inp <- .mini_v6_inputs(inner_sweeps = 3L)
-  out <- run_sweep_outer_chains_v6(
+  out <- rGLMM_sweep(
     n_chains = inp$n_chains,
     start_fixef = inp$start_fixef,
     inner_sweeps = inp$inner_sweeps,
@@ -98,7 +98,7 @@ test_that("rGLMM verbose no longer auto-prints sweep history table", {
 
 test_that("print.two_block_sweep_history respects max_sweeps", {
   inp <- .mini_v6_inputs(inner_sweeps = 5L)
-  out <- run_sweep_outer_chains_v6(
+  out <- rGLMM_sweep(
     n_chains = inp$n_chains,
     start_fixef = inp$start_fixef,
     inner_sweeps = inp$inner_sweeps,
@@ -120,10 +120,10 @@ test_that("print.two_block_sweep_history respects max_sweeps", {
   expect_true(any(grepl("sweep 5", short, fixed = TRUE)))
 })
 
-test_that("run_sweep_outer_chains_v6 diag_sweeps prints one table per stage", {
+test_that("rGLMM_sweep diag_sweeps prints one table per stage", {
   inp <- .mini_v6_inputs(inner_sweeps = 3L)
   out <- capture.output(
-    run_sweep_outer_chains_v6(
+    rGLMM_sweep(
       n_chains = inp$n_chains,
       start_fixef = inp$start_fixef,
       inner_sweeps = inp$inner_sweeps,
@@ -151,7 +151,7 @@ test_that("run_sweep_outer_chains_v6 diag_sweeps prints one table per stage", {
 
 test_that("print.two_block_sweep_history by_sweep prints one table per sweep", {
   inp <- .mini_v6_inputs(inner_sweeps = 3L)
-  out <- run_sweep_outer_chains_v6(
+  out <- rGLMM_sweep(
     n_chains = inp$n_chains,
     start_fixef = inp$start_fixef,
     inner_sweeps = inp$inner_sweeps,
@@ -184,7 +184,7 @@ test_that("print.two_block_sweep_history by_sweep prints one table per sweep", {
 
 test_that("print.two_block_sweep_history single sweep uses sweep index in header", {
   inp <- .mini_v6_inputs(inner_sweeps = 5L)
-  out <- run_sweep_outer_chains_v6(
+  out <- rGLMM_sweep(
     n_chains = inp$n_chains,
     start_fixef = inp$start_fixef,
     inner_sweeps = inp$inner_sweeps,

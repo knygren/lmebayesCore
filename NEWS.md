@@ -28,7 +28,7 @@
 
 * **Restored `rGLMM()`:** matrix-level GLMM replicate-chain orchestration
   (TV calibration, pilot chi-squared, post-pilot eigenvalue upper bound,
-  main-stage sampling via **`run_sweep_outer_chains_v6`**) is exported again
+  main-stage sampling via **`rGLMM_sweep`**) is exported again
   as **`rGLMM()`**. Replaces the earlier C++-staged implementation; returns
   the `fixef.*` namespace. Formula-level fitting remains in **lmebayes**
   (`rglmerb()` / `glmerb()`).

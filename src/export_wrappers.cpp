@@ -387,7 +387,7 @@ Rcpp::NumericVector two_block_batch_iters_ranef_add_cpp_export(
 }
 
 // [[Rcpp::export]]
-Rcpp::List two_block_block1_one_chain_cpp_export(
+Rcpp::List two_block_block1_one_chain_draw_cpp_export(
     int chain_i,
     const Rcpp::List& batch_fixef,
     const Rcpp::NumericVector& tau2_i,
@@ -420,39 +420,63 @@ Rcpp::List two_block_block1_one_chain_cpp_export(
 }
 
 // [[Rcpp::export]]
+Rcpp::List two_block_block1_one_chain_cpp_export(
+    int chain_i,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericMatrix& batch_tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
+) {
+  return glmbayes::sim::two_block_block1_one_chain_orchestrate_impl(
+    chain_i, b_store, iters_ranef, batch_fixef, batch_tau2, design,
+    block1_prior, family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
+  );
+}
+
+// [[Rcpp::export]]
 Rcpp::List two_block_block1_all_chains_cpp_export(
     Rcpp::NumericVector b_store,
     Rcpp::NumericVector iters_ranef,
     const Rcpp::List& batch_fixef,
     const Rcpp::NumericMatrix& batch_tau2,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& Z,
-    SEXP groups,
-    const Rcpp::NumericVector& offset,
-    const Rcpp::NumericVector& wt,
-    const Rcpp::List& x_hyper,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
-    const Rcpp::CharacterVector& ptypes,
-    const Rcpp::List& block1_prior,
-    bool is_gaussian,
     const Rcpp::Function& f2,
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    const std::string& family,
-    const std::string& link,
-    int Gridtype,
-    int n_envopt,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
     bool progbar,
     const std::string& progbar_prefix,
     bool progbar_finish_newline
 ) {
   return glmbayes::sim::two_block_block1_all_chains_impl(
-    b_store, iters_ranef, batch_fixef, batch_tau2, y, Z, groups, offset, wt,
-    x_hyper, re_names, group_levels, ptypes, block1_prior,
-    is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link,
-    Gridtype, n_envopt, progbar, progbar_prefix, progbar_finish_newline
+    b_store, iters_ranef, batch_fixef, batch_tau2, design, block1_prior,
+    family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
+    progbar, progbar_prefix, progbar_finish_newline
   );
 }
 

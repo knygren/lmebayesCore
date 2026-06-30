@@ -1,4 +1,4 @@
-#' Run independent short Gibbs chains via sweep-outer R driver
+#' Two-block Gibbs sweep for replicate-chain sampling (\code{rGLMM} engine)
 #'
 #' Executes \code{n_chains} independent two-block Gibbs chains, each
 #' initialised at \code{start_fixef} and run for \code{inner_sweeps} sweeps.
@@ -62,7 +62,7 @@
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rNormal_reg_v2}}, \code{\link{rGLMM}}
 #' @export
-run_sweep_outer_chains_v6 <- function(
+rGLMM_sweep <- function(
     n_chains,
     start_fixef,
     inner_sweeps,
@@ -108,7 +108,7 @@ run_sweep_outer_chains_v6 <- function(
     b_start <- b_mode
   }
 
-  batch <- .two_block_batch_init(
+  batch <- .rGLMM_sweep_initialize(
     n_chains     = n_chains,
     start_fixef  = start_fixef,
     b_start      = b_start,
@@ -157,6 +157,26 @@ run_sweep_outer_chains_v6 <- function(
       use_cpp_b_slice         = use_cpp_b_slice,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
+    # Bulk all-chains C++ (two_block_block1_all_chains_via_cpp):
+    # b1 <- .two_block_block1_all_chains_via_cpp(
+    #   n                       = batch$n,
+    #   fixef                   = batch$fixef,
+    #   tau2                    = batch$tau2,
+    #   b                       = batch$b,
+    #   iters_ranef             = batch$iters_ranef,
+    #   re_names                = batch$re_names,
+    #   group_levels            = batch$group_levels,
+    #   design                  = design,
+    #   block1_prior            = block1_prior,
+    #   family                  = family,
+    #   ptypes                  = ptypes,
+    #   progbar                 = progbar_use,
+    #   progbar_prefix          = prefix_b1,
+    #   progbar_finish_newline  = FALSE,
+    #   use_cpp_tau2_row        = use_cpp_tau2_row,
+    #   use_cpp_b_slice         = use_cpp_b_slice,
+    #   use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
+    # )
     
     batch$b           <- b1$b
     batch$iters_ranef <- b1$iters_ranef
@@ -213,7 +233,7 @@ run_sweep_outer_chains_v6 <- function(
     }
   }
 
-  out <- .two_block_pack_batch_draws(
+  out <- .rGLMM_sweep_save(
     n              = batch$n,
     fixef          = batch$fixef,
     tau2           = batch$tau2,

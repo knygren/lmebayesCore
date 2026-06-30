@@ -1,7 +1,7 @@
 # Plan: Block 2 all-chains C++ migration (zero R callbacks)
 
 Maintainer-facing plan to move the **Block 2 inner loop** off R and eliminate
-**all R callbacks** on the hot path used by `run_sweep_outer_chains_v6` /
+**all R callbacks** on the hot path used by `rGLMM_sweep` /
 `glmerb` (`R_engine`).
 
 Related: `inst/ARCHITECTURE_glmerb.md`, legacy full sweep in
@@ -14,7 +14,7 @@ Related: `inst/ARCHITECTURE_glmerb.md`, legacy full sweep in
 After migration, one inner sweep’s Block 2 phase is:
 
 ```
-run_sweep_outer_chains_v6
+rGLMM_sweep
   └── .Call(two_block_block2_all_chains_cpp_export, ...)   # single entry
         └── C++ for (m) sweeps × for (i) chains × for (k) RE components
               ├── two_block_align_b_to_xhyper_cpp          # already native
@@ -203,7 +203,7 @@ parity footgun; v6 native path should follow `rglmb`.
 ### Phase 5 — Docs, flags, cleanup
 
 1. Update `inst/ARCHITECTURE_glmerb.md` Block 2 section (this plan → implemented).
-2. `run_sweep_outer_chains_v6` roxygen: Block 2 is native all-chains C++.
+2. `rGLMM_sweep` roxygen: Block 2 is native all-chains C++.
 3. Deprecate or document `two_block_block2_rglmb_gamma` as legacy / test-only.
 4. Optional flag `use_cpp_block2 = "native"` vs `"rglmb"` for A/B during Phase 2–4 only; remove when Phase 4 done.
 

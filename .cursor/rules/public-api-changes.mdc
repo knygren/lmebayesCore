@@ -37,5 +37,5 @@ two_block_rNormal_reg_v2 <- function(..., progbar = TRUE) { ... }
 
 # OK — new @noRd helper; public signature unchanged
 # OK — internal engine state; pfamily stays prior-spec only
-run_sweep_outer_chains_v6(..., tau2_start = pilot_colMeans)
+rGLMM_sweep(..., tau2_start = pilot_colMeans)
 ```

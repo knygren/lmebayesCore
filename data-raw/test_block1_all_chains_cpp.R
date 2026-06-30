@@ -1,4 +1,4 @@
-## Smoke: .two_block_block1_all_chains_cpp (bulk C++ loop; not production path).
+## Smoke: .two_block_block1_all_chains_via_cpp (bulk C++ orchestrator; not production path).
 
 pkg_root <- if (file.exists("DESCRIPTION")) "." else if (file.exists("../DESCRIPTION")) ".."
 if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
@@ -7,7 +7,7 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists(".two_block_block1_all_chains_cpp", mode = "function",
+stopifnot(exists(".two_block_block1_all_chains_via_cpp", mode = "function",
                  where = asNamespace("glmbayesCore")))
 
 J <- 4L
@@ -27,7 +27,7 @@ design <- list(
   re_coef_names = re_names
 )
 block1_prior <- list(P = diag(c(10, 20)), ddef = TRUE)
-batch <- glmbayesCore:::.two_block_batch_init(
+batch <- glmbayesCore:::.rGLMM_sweep_initialize(
   n_chains     = n_chains,
   start_fixef  = list(
     "(Intercept)" = c("(Intercept)" = 0.5),
@@ -40,42 +40,21 @@ batch <- glmbayesCore:::.two_block_batch_init(
   group_levels = group_levels
 )
 iters_before <- batch$iters_ranef
-
 family <- stats::binomial()
-l2 <- length(design$y)
-offset <- rep(0, l2)
-wt <- rep(1, l2)
-is_gaussian <- identical(family$family, "gaussian")
-fam <- glmbayesCore::glmbfamfunc(family)
-fam_g <- glmbayesCore::glmbfamfunc(stats::gaussian())
 
-out <- glmbayesCore:::.two_block_block1_all_chains_cpp(
-  b_store                 = batch$b,
-  iters_ranef             = batch$iters_ranef,
-  batch_fixef             = batch$fixef,
-  batch_tau2              = batch$tau2,
-  y                       = as.numeric(design$y),
-  Z                       = as.matrix(design$Z),
-  groups                  = design$groups,
-  offset                  = offset,
-  wt                      = wt,
-  x_hyper                 = lapply(design$X_hyper, as.matrix),
-  re_names                = batch$re_names,
-  group_levels            = batch$group_levels,
-  ptypes                  = ptypes,
-  block1_prior            = block1_prior,
-  is_gaussian             = is_gaussian,
-  f2                      = fam$f2,
-  f3                      = fam$f3,
-  f2_gauss                = fam_g$f2,
-  f3_gauss                = fam_g$f3,
-  family                  = family$family,
-  link                    = family$link,
-  Gridtype                = 2L,
-  n_envopt                = 1L,
-  progbar                 = FALSE,
-  progbar_prefix          = "",
-  progbar_finish_newline  = TRUE
+out <- glmbayesCore:::.two_block_block1_all_chains_via_cpp(
+  n            = batch$n,
+  fixef        = batch$fixef,
+  tau2         = batch$tau2,
+  b            = batch$b,
+  iters_ranef  = batch$iters_ranef,
+  re_names     = batch$re_names,
+  group_levels = batch$group_levels,
+  design       = design,
+  block1_prior = block1_prior,
+  family       = family,
+  ptypes       = ptypes,
+  progbar      = FALSE
 )
 batch2 <- batch
 batch2$b <- out$b

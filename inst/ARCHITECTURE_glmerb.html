@@ -355,7 +355,7 @@ display: none;
 <div id="glmerb-two-block-gibbs-internal-architecture" class="section level1">
 <h1>glmerb / two-block Gibbs — internal architecture</h1>
 <p>Maintainer-facing map of the <strong>pure-R sweep-outer</strong> path
-(<code>run_sweep_outer_chains_v6</code>). This is the reference
+(<code>rGLMM_sweep</code>). This is the reference
 implementation for two-block GLMM Gibbs sampling in the glmbayes
 ecosystem. The legacy C++ v5 driver
 (<code>two_block_rNormal_reg_v5</code>) was written to mirror the same
@@ -368,11 +368,11 @@ convention as <code>inst/DESIGN_RGLM_BLOCKS.md</code>).</p>
 <pre><code>glmerb (lmebayes)
   └── rglmerb
         └── [R_engine] rGLMM
-              └── run_sweep_outer_chains_v6     # outer sweep loop
+              └── rGLMM_sweep     # outer sweep loop
                     └── two_block_batch_gibbs.R # Block 1 / Block 2 batch updates</code></pre>
 <p>Default <strong><code>glmerb</code></strong> uses
 <strong><code>R_engine</code></strong> → <code>.rglmerb_v6_rGLMM</code>
-→ <code>run_sweep_outer_chains_v6</code> (pure-R sweep-outer reference).
+→ <code>rGLMM_sweep</code> (pure-R sweep-outer reference).
 Set <code>.rglmerb_engine &lt;- &quot;cpp_engine&quot;</code> in
 <code>lmebayes/R/rglmerb.R</code> to use <code>rglmerb_v5</code> →
 <code>two_block_rNormal_reg_v5</code> (legacy C++).</p>
@@ -395,14 +395,14 @@ Set <code>.rglmerb_engine &lt;- &quot;cpp_engine&quot;</code> in
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>glmbayesCore/R/run_sweep_outer_chains_v6.R</code></td>
-<td><code>run_sweep_outer_chains_v6()</code></td>
+<td><code>glmbayesCore/R/rGLMM_sweep.R</code></td>
+<td><code>rGLMM_sweep()</code></td>
 <td>Outer sweep loop</td>
 </tr>
 <tr class="even">
 <td><code>glmbayesCore/R/two_block_batch_gibbs.R</code></td>
-<td><code>.two_block_batch_init</code>,
-<code>.two_block_pack_batch_draws</code></td>
+<td><code>.rGLMM_sweep_initialize</code>,
+<code>.rGLMM_sweep_save</code></td>
 <td>Batch state init / pack draws</td>
 </tr>
 <tr class="odd">
@@ -419,14 +419,14 @@ Set <code>.rglmerb_engine &lt;- &quot;cpp_engine&quot;</code> in
   batch &lt;- .two_block_block2_all_chains(...)
   sweep_stats[[m]] &lt;- .two_block_snapshot_fixef_stats(batch, re_names)
 }</code></pre>
-<p>After all sweeps, <code>.two_block_pack_batch_draws()</code> produces
+<p>After all sweeps, <code>.rGLMM_sweep_save()</code> produces
 <code>fixef_draws</code>, <code>coefficients</code> (b),
 <code>sweep_history</code>, etc.</p>
 <hr />
 </div>
 <div id="block-2-call-chain-one-sweep" class="section level2">
 <h2>Block 2 call chain (one sweep)</h2>
-<pre><code>run_sweep_outer_chains_v6
+<pre><code>rGLMM_sweep
   └── .two_block_block2_all_chains          # for i in 1:n; optional progress bar
         └── .two_block_block2_one_chain     # core Block 2 logic (per chain)
               ├── .two_block_align_b_to_xhyper   # reorder b to X_hyper rows
@@ -454,8 +454,8 @@ chains + optional progress bar only.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>glmbayesCore/R/run_sweep_outer_chains_v6.R</code></td>
-<td><code>run_sweep_outer_chains_v6</code></td>
+<td><code>glmbayesCore/R/rGLMM_sweep.R</code></td>
+<td><code>rGLMM_sweep</code></td>
 <td>Outer <code>m</code> loop; calls Block 1 then Block 2</td>
 </tr>
 <tr class="even">
@@ -503,7 +503,7 @@ skipped.</p>
 <h2>Block 1 call chain (one sweep)</h2>
 <p>Block 1 is split into <strong>prep</strong> then
 <strong>draw</strong> (optional parallel over chains).</p>
-<pre><code>run_sweep_outer_chains_v6
+<pre><code>rGLMM_sweep
   └── .two_block_block1_all_chains
         ├── .two_block_block1_prep_all_chains
         │     └── .two_block_block1_prep_one_chain
@@ -581,7 +581,7 @@ skipped.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>run_sweep_outer_chains_v6</code></td>
+<td><code>rGLMM_sweep</code></td>
 <td>Outer <code>m</code> loop</td>
 </tr>
 <tr class="even">
@@ -638,7 +638,7 @@ each chain, Block 1 = <code>block_rNormalGLM</code>, Block 2 =
 </tr>
 <tr class="even">
 <td><code>glmbayesCore/R/rGLMM.R</code></td>
-<td>Pilot/main via <code>run_sweep_outer_chains_v6</code> (R
+<td>Pilot/main via <code>rGLMM_sweep</code> (R
 engine)</td>
 </tr>
 <tr class="odd">
@@ -704,7 +704,7 @@ all-chains)</h2>
 prior; draw: <code>block_rNormalGLM</code> for Poisson/binomial GLMM, or
 <code>block_rNormalReg</code> on the Gaussian v6 path). There is
 <strong><code>use_cpp_block1</code></strong> on
-<code>run_sweep_outer_chains_v6</code> (default <code>TRUE</code>). Set
+<code>rGLMM_sweep</code> (default <code>TRUE</code>). Set
 <code>use_cpp_block1 = FALSE</code> for the R prep/draw loop oracle with
 piecewise C++ helpers.</p>
 <p><strong>Full plan:</strong> <a href="PLAN_block1_cpp_migration.md"><code>inst/PLAN_block1_cpp_migration.md</code></a></p>

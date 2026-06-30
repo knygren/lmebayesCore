@@ -185,7 +185,7 @@
 }
 
 # =============================================================================
-#  Tier 1b: Two-block v6 batch (Block 1 / Block 2 piecewise; run_sweep_outer_chains_v6)
+#  Tier 1b: Two-block batch (Block 1 / Block 2 piecewise; rGLMM_sweep)
 #  Callers: two_block_batch_gibbs.R, build_mu_all.R
 # =============================================================================
 
@@ -239,12 +239,12 @@
 
 #' @noRd
 #' @keywords internal
-.two_block_block1_one_chain_cpp <- function(
+.two_block_block1_one_chain_draw_cpp <- function(
     chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper,
     re_names, group_levels, ptypes, block1_prior, is_gaussian,
     f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt
 ) {
-  .Call(`_glmbayesCore_two_block_block1_one_chain_cpp_export`,
+  .Call(`_glmbayesCore_two_block_block1_one_chain_draw_cpp_export`,
     chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt, x_hyper,
     re_names, group_levels, ptypes, block1_prior, is_gaussian,
     f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt
@@ -253,16 +253,34 @@
 
 #' @noRd
 #' @keywords internal
+.two_block_block1_one_chain_cpp <- function(
+    chain_i, b_store, iters_ranef, batch_fixef, batch_tau2, design,
+    block1_prior, family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
+) {
+  .Call(`_glmbayesCore_two_block_block1_one_chain_cpp_export`,
+    chain_i, b_store, iters_ranef, batch_fixef, batch_tau2, design,
+    block1_prior, family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
+  )
+}
+
+#' @noRd
+#' @keywords internal
 .two_block_block1_all_chains_cpp <- function(
-    b_store, iters_ranef, batch_fixef, batch_tau2, y, Z, groups, offset, wt,
-    x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian,
-    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt,
+    b_store, iters_ranef, batch_fixef, batch_tau2, design, block1_prior,
+    family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     progbar, progbar_prefix, progbar_finish_newline
 ) {
   .Call(`_glmbayesCore_two_block_block1_all_chains_cpp_export`,
-    b_store, iters_ranef, batch_fixef, batch_tau2, y, Z, groups, offset, wt,
-    x_hyper, re_names, group_levels, ptypes, block1_prior, is_gaussian,
-    f2, f3, f2_gauss, f3_gauss, family, link, Gridtype, n_envopt,
+    b_store, iters_ranef, batch_fixef, batch_tau2, design, block1_prior,
+    family, ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     progbar, progbar_prefix, progbar_finish_newline
   )
 }

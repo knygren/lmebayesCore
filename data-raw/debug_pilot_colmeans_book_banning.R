@@ -27,7 +27,7 @@ run_pilot <- function(engine) {
   if (engine == "R") {
     set.seed(42L)
     sample.int(.Machine$integer.max - 1L, 1L)
-    out <- glmbayesCore::run_sweep_outer_chains_v6(
+    out <- glmbayesCore::rGLMM_sweep(
       n_chains = n_pilot, start_fixef = fixef_start, inner_sweeps = m_pilot,
       design = design, block1_prior = block1_prior,
       pfamily_list = prior$pfamily_list, family = binomial(),

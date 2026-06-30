@@ -113,18 +113,18 @@ with per-chain state buffers pre-allocated in C++ via
 (\code{m} then \code{i}) with per-sweep logging and chain progress bars.
 }
 \seealso{
-\code{\link{two_block_rNormal_reg_v2}}, \code{\link{run_sweep_outer_chains_v6}},
+\code{\link{two_block_rNormal_reg_v2}}, \code{\link{rGLMM_sweep}},
 \code{\link{rGLMM}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
+\code{\link{rGLMM_sweep}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_d0_pilot_start}()},
 \code{\link{two_block_l_for_tv}()},

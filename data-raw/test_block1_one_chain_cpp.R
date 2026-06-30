@@ -7,7 +7,7 @@ if (nzchar(pkg_root) && requireNamespace("devtools", quietly = TRUE)) {
   library(glmbayesCore)
 }
 
-stopifnot(exists(".two_block_block1_one_chain_cpp", mode = "function",
+stopifnot(exists(".two_block_block1_one_chain_draw_cpp", mode = "function",
                  where = asNamespace("glmbayesCore")))
 
 compare_prep <- function(prep_r, cpp_out) {
@@ -65,7 +65,7 @@ design <- list(
   re_coef_names = re_names
 )
 block1_prior <- list(P = diag(c(10, 20)), ddef = TRUE)
-batch <- glmbayesCore:::.two_block_batch_init(
+batch <- glmbayesCore:::.rGLMM_sweep_initialize(
   n_chains     = n_chains,
   start_fixef  = list(
     "(Intercept)" = c("(Intercept)" = 0.5),
@@ -93,7 +93,7 @@ for (i in seq_len(n_chains)) {
     use_cpp_prior_tau2 = TRUE
   )
   a <- one_chain_cpp_args(i)
-  cpp_out <- glmbayesCore:::.two_block_block1_one_chain_cpp(
+  cpp_out <- glmbayesCore:::.two_block_block1_one_chain_draw_cpp(
     chain_i      = as.integer(i),
     tau2_i       = a$tau2_i,
     batch_fixef  = a$batch_fixef,

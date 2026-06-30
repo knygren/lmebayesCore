@@ -264,7 +264,7 @@
     mode_gap_max        = if (run_pilot) mode_gap_max else NULL,
     m_pilot_from_gap    = if (run_pilot) m_pilot_from_gap else NULL,
     pilot_cost_opt      = pilot_cost_opt,
-    draw_engine         = "run_sweep_outer_chains_v6"
+    draw_engine         = "rGLMM_sweep"
   )
 
   m_convergence_used <- m_convergence
@@ -274,35 +274,6 @@
   pilot_ub           <- NULL
   tau2_start_main    <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
 
-  run_sweep_stage <- function(
-      n_chains,
-      start_fixef,
-      inner_sweeps,
-      stage_label,
-      tau2_start = NULL
-  ) {
-    run_sweep_outer_chains_v6(
-      n_chains       = n_chains,
-      start_fixef    = start_fixef,
-      inner_sweeps   = inner_sweeps,
-      design         = design,
-      block1_prior   = prior_list_block1,
-      pfamily_list   = pfamily_list,
-      family         = family,
-      re_names       = re_names,
-      group_levels   = group_levels,
-      collect_block1 = collect_block1,
-      progbar        = progbar_use,
-      stage_label    = stage_label,
-      diag_sweeps    = isTRUE(diag_sweeps),
-      fixef_mode     = fixef_mode_ref,
-      b_mode         = b_mode_ref,
-      b_start        = b_mode_ref,
-      ptypes         = ptypes,
-      tau2_start     = tau2_start
-    )
-  }
-
   if (run_pilot) {
     if (isTRUE(verbose)) {
       cat(sprintf(
@@ -311,11 +282,24 @@
       ))
     }
 
-    pilot_raw <- run_sweep_stage(
-      n_chains     = n_pilot,
-      start_fixef  = fixef_mode,
-      inner_sweeps = m_convergence_pilot,
-      stage_label  = "pilot"
+    pilot_raw <- rGLMM_sweep(
+      n_chains       = n_pilot,
+      start_fixef    = fixef_mode,
+      inner_sweeps   = m_convergence_pilot,
+      design         = design,
+      block1_prior   = prior_list_block1,
+      pfamily_list   = pfamily_list,
+      family         = family,
+      re_names       = re_names,
+      group_levels   = group_levels,
+      collect_block1 = collect_block1,
+      progbar        = progbar_use,
+      stage_label    = "pilot",
+      diag_sweeps    = isTRUE(diag_sweeps),
+      fixef_mode     = fixef_mode_ref,
+      b_mode         = b_mode_ref,
+      b_start        = b_mode_ref,
+      ptypes         = ptypes
     )
 
     pilot_chisq <- .two_block_pilot_chisq_test(
@@ -398,12 +382,25 @@
     ))
   }
 
-  main_raw <- run_sweep_stage(
-    n_chains     = n,
-    start_fixef  = fixef_init,
-    inner_sweeps = m_convergence_used,
-    stage_label  = "main",
-    tau2_start   = tau2_start_main
+  main_raw <- rGLMM_sweep(
+    n_chains       = n,
+    start_fixef    = fixef_init,
+    inner_sweeps   = m_convergence_used,
+    design         = design,
+    block1_prior   = prior_list_block1,
+    pfamily_list   = pfamily_list,
+    family         = family,
+    re_names       = re_names,
+    group_levels   = group_levels,
+    collect_block1 = collect_block1,
+    progbar        = progbar_use,
+    stage_label    = "main",
+    diag_sweeps    = isTRUE(diag_sweeps),
+    fixef_mode     = fixef_mode_ref,
+    b_mode         = b_mode_ref,
+    b_start        = b_mode_ref,
+    ptypes         = ptypes,
+    tau2_start     = tau2_start_main
   )
 
   draw_engine_args <- list(
@@ -442,8 +439,8 @@
   main_res$m_convergence       <- m_convergence_used
   main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
   main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "run_sweep_outer_chains_v6"
-  main_res$draw_engine_call    <- quote(run_sweep_outer_chains_v6)
+  main_res$draw_engine         <- "rGLMM_sweep"
+  main_res$draw_engine_call    <- quote(rGLMM_sweep)
   main_res$draw_engine_args    <- draw_engine_args
   main_res$pfamily_list        <- pfamily_list
   main_res$family              <- family

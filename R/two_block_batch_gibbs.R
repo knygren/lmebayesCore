@@ -245,9 +245,9 @@
   invisible(NULL)
 }
 
-#' Initialize batch state for sweep-outer R Gibbs driver
+#' Initialize sweep state for \code{\link{rGLMM_sweep}}
 #' @noRd
-.two_block_batch_init <- function(
+.rGLMM_sweep_initialize <- function(
     n_chains,
     start_fixef,
     b_start,
@@ -684,7 +684,7 @@ two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
 #' @return List with \code{fixef}, \code{tau2}, and \code{iters} (each fully
 #'   updated for chain \code{i}).
 #' @seealso \code{\link{two_block_block2_one_chain_cpp}},
-#'   \code{\link{run_sweep_outer_chains_v6}}
+#'   \code{\link{rGLMM_sweep}}
 #' @export
 two_block_block2_one_chain <- function(
     i,
@@ -847,7 +847,7 @@ two_block_block2_one_chain_cpp <- function(
 
 #' Extract chain-i tau2 row from batch state (all-chains step A)
 #'
-#' Default \code{TRUE} on \code{\link{run_sweep_outer_chains_v6}}; pass
+#' Default \code{TRUE} on \code{\link{rGLMM_sweep}}; pass
 #' \code{use_cpp_tau2_row = FALSE} to revert to \code{batch$tau2[i, ]} R indexing.
 #'
 #' @param batch_tau2 \code{n x p_re} matrix (\code{batch$tau2}).
@@ -878,7 +878,7 @@ two_block_block2_one_chain_cpp <- function(
 
 #' Assign \code{batch$b[, , chain_i] <- b_draw} (all-chains step C)
 #'
-#' Default \code{TRUE} on \code{\link{run_sweep_outer_chains_v6}}; pass
+#' Default \code{TRUE} on \code{\link{rGLMM_sweep}}; pass
 #' \code{use_cpp_b_slice = FALSE} to revert to R \code{batch$b[, , i] <- b_draw}.
 #'
 #' @param b_store 3-D array \code{batch$b} (\code{dim = c(J, p_re, n)}).
@@ -914,7 +914,7 @@ two_block_block2_one_chain_cpp <- function(
 #' \code{batch$iters_ranef[chain_i] <- batch$iters_ranef[chain_i] + iters_mean}
 #' (all-chains step D)
 #'
-#' Default \code{TRUE} on \code{\link{run_sweep_outer_chains_v6}}; pass
+#' Default \code{TRUE} on \code{\link{rGLMM_sweep}}; pass
 #' \code{use_cpp_iters_ranef_add = FALSE} to revert to R accumulation.
 #'
 #' @param iters_ranef Length-\code{n} vector (\code{batch$iters_ranef}).
@@ -939,104 +939,18 @@ two_block_block2_one_chain_cpp <- function(
   .two_block_batch_iters_ranef_add_r(iters_ranef, chain_i, iters_mean)
 }
 
-#' Block 1 one-chain prep + draw via C++ (native piecewise helpers)
-#'
-#' Same semantics as \code{.two_block_block1_prep_one_chain} followed by
-#' \code{.two_block_block1_draw_one_chain} with all piecewise C++ flags
-#' \code{TRUE} (\code{use_cpp_mu_all}, \code{use_cpp_prior_tau2},
-#' \code{use_cpp_reorder}, \code{use_cpp_iters}).
-#'
-#' @param i Chain index (\code{1..n}).
-#' @param fixef Named list of fixed-effect matrices (\code{n x p_k} per RE block).
-#' @param tau2 \code{n x p_re} matrix of random-effect variances.
-#' @param b \code{J x p_re x n} array of random effects.
-#' @param iters_ranef Length-\code{n} vector of random-effect iteration counts.
-#' @param re_names Character vector of random-effect block names.
-#' @param group_levels Character vector of group level labels.
-#' @param design Model design list.
-#' @param block1_prior Block~1 prior list.
-#' @param family Response \code{family} object.
-#' @param ptypes Named \code{pfamily} type vector.
-#' @param use_cpp_tau2_row Step A (\code{tau2[i, ]}).
-#' @param use_cpp_b_slice Step C (\code{b[, , i] <- out$b}).
-#' @param use_cpp_iters_ranef_add Step D (\code{iters_ranef[i] += iters_mean}).
-#' @return List with \code{b} (updated \code{J x p_re x n} array) and
-#'   \code{iters_ranef} (updated length-\code{n} vector).
-#' @keywords internal
-#' @export
-two_block_block1_one_chain_cpp <- function(
-    i,
-    fixef,
-    tau2,
-    b,
-    iters_ranef,
-    re_names,
-    group_levels,
-    design,
-    block1_prior,
-    family,
-    ptypes,
-    use_cpp_tau2_row = TRUE,
-    use_cpp_b_slice = TRUE,
-    use_cpp_iters_ranef_add = TRUE
-) {
-  l2 <- length(design$y)
-  offset <- design$offset
-  if (is.null(offset)) {
-    offset <- rep(0, l2)
-  } else {
-    offset <- as.numeric(offset)
-    if (length(offset) == 1L) offset <- rep(offset, l2)
-  }
-  wt <- design$weights
-  if (is.null(wt)) {
-    wt <- rep(1, l2)
-  } else {
-    wt <- as.numeric(wt)
-    if (length(wt) == 1L) wt <- rep(wt, l2)
-  }
+#' Resolve Block~1 \code{f2}/\code{f3} closures once per batch (mirrors
+#' \code{two_block_rNormal_reg}).
+#' @noRd
+.two_block_block1_glmbfamfunc <- function(family) {
   is_gaussian <- identical(family$family, "gaussian")
-  fam <- glmbfamfunc(family)
-  fam_g <- glmbfamfunc(stats::gaussian())
-
-  tau2_i <- .two_block_batch_tau2_chain_row(
-    tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
-  )
-  out <- .two_block_block1_one_chain_cpp(
-    chain_i      = as.integer(i),
-    tau2_i       = tau2_i,
-    batch_fixef  = fixef,
-    y            = as.numeric(design$y),
-    Z            = as.matrix(design$Z),
-    groups       = design$groups,
-    offset       = offset,
-    wt           = wt,
-    x_hyper      = lapply(design$X_hyper, as.matrix),
-    re_names     = re_names,
-    group_levels = group_levels,
-    ptypes       = ptypes,
-    block1_prior = block1_prior,
-    is_gaussian  = is_gaussian,
-    f2           = fam$f2,
-    f3           = fam$f3,
-    f2_gauss     = fam_g$f2,
-    f3_gauss     = fam_g$f3,
-    family       = family$family,
-    link         = family$link,
-    Gridtype     = 2L,
-    n_envopt     = 1L
-  )
-
+  famfunc_block1 <- glmbfamfunc(if (is_gaussian) gaussian() else family)
+  famfunc_gauss <- glmbfamfunc(gaussian())
   list(
-    b = .two_block_batch_b_assign_slice(
-      b, i, out$b, use_cpp_b_slice = use_cpp_b_slice
-    ),
-    iters_ranef = .two_block_batch_iters_ranef_add(
-      iters_ranef,
-      i,
-      out$iters_mean,
-      use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
-    )
+    f2       = famfunc_block1$f2,
+    f3       = famfunc_block1$f3,
+    f2_gauss = famfunc_gauss$f2,
+    f3_gauss = famfunc_gauss$f3
   )
 }
 
@@ -1087,23 +1001,29 @@ two_block_block1_one_chain_cpp <- function(
   show_bar <- isTRUE(progbar) && n > 1L &&
     (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
 
+  fam_f23 <- .two_block_block1_glmbfamfunc(family)
+
   b_out <- b
   iters_ranef_out <- iters_ranef
 
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    chain_out <- two_block_block1_one_chain_cpp(
-      i                       = i,
-      fixef                   = fixef,
-      tau2                    = tau2,
-      b                       = b_out,
+    chain_out <- .two_block_block1_one_chain_cpp(
+      chain_i                 = i,
+      b_store                 = b_out,
       iters_ranef             = iters_ranef_out,
-      re_names                = re_names,
-      group_levels            = group_levels,
+      batch_fixef             = fixef,
+      batch_tau2              = tau2,
       design                  = design,
       block1_prior            = block1_prior,
       family                  = family,
       ptypes                  = ptypes,
+      re_names                = re_names,
+      group_levels            = group_levels,
+      f2                      = fam_f23$f2,
+      f3                      = fam_f23$f3,
+      f2_gauss                = fam_f23$f2_gauss,
+      f3_gauss                = fam_f23$f3_gauss,
       use_cpp_tau2_row        = use_cpp_tau2_row,
       use_cpp_b_slice         = use_cpp_b_slice,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
@@ -1118,6 +1038,65 @@ two_block_block1_one_chain_cpp <- function(
   list(
     b           = b_out,
     iters_ranef = iters_ranef_out
+  )
+}
+
+#' Block 1 batch: all chains via C++ loop (mirrors \code{.two_block_block1_all_chains})
+#'
+#' Single \code{.Call} entry; C++ loop mirrors \code{.two_block_block1_all_chains}.
+#'
+#' @inheritParams .two_block_block1_all_chains
+#' @return List with \code{b} and \code{iters_ranef}.
+#' @noRd
+.two_block_block1_all_chains_via_cpp <- function(
+    n,
+    fixef,
+    tau2,
+    b,
+    iters_ranef,
+    re_names,
+    group_levels,
+    design,
+    block1_prior,
+    family,
+    ptypes,
+    n_cores = NULL,
+    progbar = FALSE,
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE
+) {
+  if (!is.null(n_cores) && as.integer(n_cores[1L]) >= 2L) {
+    warning(
+      "Chain-parallel Block 1 (n_cores > 1) is not supported; ",
+      "running sequential loop.",
+      call. = FALSE
+    )
+  }
+  fam_f23 <- .two_block_block1_glmbfamfunc(family)
+  .two_block_block1_all_chains_cpp(
+    b_store                 = b,
+    iters_ranef             = iters_ranef,
+    batch_fixef             = fixef,
+    batch_tau2              = tau2,
+    design                  = design,
+    block1_prior            = block1_prior,
+    family                  = family,
+    ptypes                  = ptypes,
+    re_names                = re_names,
+    group_levels            = group_levels,
+    f2                      = fam_f23$f2,
+    f3                      = fam_f23$f3,
+    f2_gauss                = fam_f23$f2_gauss,
+    f3_gauss                = fam_f23$f3_gauss,
+    use_cpp_tau2_row        = use_cpp_tau2_row,
+    use_cpp_b_slice         = use_cpp_b_slice,
+    use_cpp_iters_ranef_add = use_cpp_iters_ranef_add,
+    progbar                 = progbar,
+    progbar_prefix          = progbar_prefix,
+    progbar_finish_newline  = progbar_finish_newline
   )
 }
 
@@ -1203,7 +1182,7 @@ two_block_block1_one_chain_cpp <- function(
   }, numeric(1))
 }
 
-#' Pack replicate-chain draws from sweep state
+#' Pack \code{rGLMM_sweep} outputs (draws, coefficients, \code{mu_all_last})
 #' @param n Number of replicate chains.
 #' @param fixef Named list of fixed-effect matrices.
 #' @param tau2 \code{n x p_re} matrix of random-effect variances.
@@ -1218,7 +1197,7 @@ two_block_block1_one_chain_cpp <- function(
 #'   \code{iters_fixef_draws}, \code{iters_ranef_draws}, \code{coefficients},
 #'   and \code{mu_all_last}.
 #' @noRd
-.two_block_pack_batch_draws <- function(
+.rGLMM_sweep_save <- function(
     n,
     fixef,
     tau2,

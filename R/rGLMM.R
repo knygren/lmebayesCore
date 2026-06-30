@@ -1,7 +1,7 @@
 #' Replicate-chain Gibbs sampling for Bayesian GLMMs (v6 sweep-outer driver)
 #'
 #' Low-level matrix-level GLMM replicate-chain sampler using
-#' \code{\link{run_sweep_outer_chains_v6}} (pure-R sweep-outer Block~1 /
+#' \code{\link{rGLMM_sweep}} (pure-R sweep-outer Block~1 /
 #' Block~2). For formula-level fitting with ICM mode and priors, see
 #' \pkg{lmebayes} \code{rglmerb}.
 #'
@@ -72,7 +72,7 @@
 #'   \code{pilot}, \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
 #'   \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
-#' @seealso \code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
+#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{two_block_rNormal_reg_v2}},
 #'   \code{\link{rLMMNormal_reg}}
 #' @export
 rGLMM <- function(
@@ -414,7 +414,7 @@ rGLMM <- function(
     mode_gap_max        = if (run_pilot) mode_gap_max else NULL,
     m_pilot_from_gap    = if (run_pilot) m_pilot_from_gap else NULL,
     pilot_cost_opt      = pilot_cost_opt,
-    draw_engine         = "run_sweep_outer_chains_v6"
+    draw_engine         = "rGLMM_sweep"
   )
 
   m_convergence_used <- m_convergence
@@ -424,34 +424,6 @@ rGLMM <- function(
   pilot_ub           <- NULL
   tau2_start_main    <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
 
-  run_sweep_stage <- function(
-      n_chains,
-      start_fixef,
-      inner_sweeps,
-      stage_label,
-      tau2_start = NULL
-  ) {
-    run_sweep_outer_chains_v6(
-      n_chains       = n_chains,
-      start_fixef    = start_fixef,
-      inner_sweeps   = inner_sweeps,
-      design         = design,
-      block1_prior   = prior_list,
-      pfamily_list   = pfamily_list,
-      family         = family,
-      re_names       = re_names,
-      group_levels   = group_levels,
-      collect_block1 = collect_block1,
-      progbar        = progbar_use,
-      stage_label    = stage_label,
-      fixef_mode     = fixef_mode_ref,
-      b_mode         = b_mode_ref,
-      b_start        = b_mode_ref,
-      ptypes         = ptypes,
-      tau2_start     = tau2_start
-    )
-  }
-
   if (run_pilot) {
     if (isTRUE(verbose)) {
       cat(sprintf(
@@ -460,11 +432,23 @@ rGLMM <- function(
       ))
     }
 
-    pilot_raw <- run_sweep_stage(
-      n_chains     = n_pilot,
-      start_fixef  = fixef_mode,
-      inner_sweeps = m_convergence_pilot,
-      stage_label  = "pilot"
+    pilot_raw <- rGLMM_sweep(
+      n_chains       = n_pilot,
+      start_fixef    = fixef_mode,
+      inner_sweeps   = m_convergence_pilot,
+      design         = design,
+      block1_prior   = prior_list,
+      pfamily_list   = pfamily_list,
+      family         = family,
+      re_names       = re_names,
+      group_levels   = group_levels,
+      collect_block1 = collect_block1,
+      progbar        = progbar_use,
+      stage_label    = "pilot",
+      fixef_mode     = fixef_mode_ref,
+      b_mode         = b_mode_ref,
+      b_start        = b_mode_ref,
+      ptypes         = ptypes
     )
 
     pilot_chisq <- .two_block_pilot_chisq_test(
@@ -547,12 +531,24 @@ rGLMM <- function(
     ))
   }
 
-  main_raw <- run_sweep_stage(
-    n_chains     = n,
-    start_fixef  = fixef_init,
-    inner_sweeps = m_convergence_used,
-    stage_label  = "main",
-    tau2_start   = tau2_start_main
+  main_raw <- rGLMM_sweep(
+    n_chains       = n,
+    start_fixef    = fixef_init,
+    inner_sweeps   = m_convergence_used,
+    design         = design,
+    block1_prior   = prior_list,
+    pfamily_list   = pfamily_list,
+    family         = family,
+    re_names       = re_names,
+    group_levels   = group_levels,
+    collect_block1 = collect_block1,
+    progbar        = progbar_use,
+    stage_label    = "main",
+    fixef_mode     = fixef_mode_ref,
+    b_mode         = b_mode_ref,
+    b_start        = b_mode_ref,
+    ptypes         = ptypes,
+    tau2_start     = tau2_start_main
   )
 
   draw_engine_args <- list(
@@ -590,8 +586,8 @@ rGLMM <- function(
   main_res$m_convergence       <- m_convergence_used
   main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
   main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "run_sweep_outer_chains_v6"
-  main_res$draw_engine_call    <- quote(run_sweep_outer_chains_v6)
+  main_res$draw_engine         <- "rGLMM_sweep"
+  main_res$draw_engine_call    <- quote(rGLMM_sweep)
   main_res$draw_engine_args    <- draw_engine_args
   main_res$pfamily_list        <- pfamily_list
   main_res$family              <- family

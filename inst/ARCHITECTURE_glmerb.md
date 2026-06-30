@@ -1,6 +1,6 @@
 # glmerb / two-block Gibbs — internal architecture
 
-Maintainer-facing map of the **pure-R sweep-outer** path (`run_sweep_outer_chains_v6`).
+Maintainer-facing map of the **pure-R sweep-outer** path (`rGLMM_sweep`).
 This is the reference implementation for two-block GLMM Gibbs sampling in the glmbayes
 ecosystem. The legacy C++ v5 driver (`two_block_rNormal_reg_v5`) was written to mirror
 the same loop order but is a separate port.
@@ -16,11 +16,11 @@ Excluded from the source tarball via `.Rbuildignore` (same convention as
 glmerb (lmebayes)
   └── rglmerb
         └── [R_engine] rGLMM
-              └── run_sweep_outer_chains_v6     # outer sweep loop
+              └── rGLMM_sweep     # outer sweep loop
                     └── two_block_batch_gibbs.R # Block 1 / Block 2 batch updates
 ```
 
-Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → `run_sweep_outer_chains_v6`
+Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → `rGLMM_sweep`
 (pure-R sweep-outer reference). Set `.rglmerb_engine <- "cpp_engine"` in
 `lmebayes/R/rglmerb.R` to use `rglmerb_v5` → `two_block_rNormal_reg_v5` (legacy C++).
 
@@ -30,8 +30,8 @@ Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → `run_sweep_
 
 | File | Function | Role |
 |------|----------|------|
-| `glmbayesCore/R/run_sweep_outer_chains_v6.R` | `run_sweep_outer_chains_v6()` | Outer sweep loop |
-| `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_batch_init`, `.two_block_pack_batch_draws` | Batch state init / pack draws |
+| `glmbayesCore/R/rGLMM_sweep.R` | `rGLMM_sweep()` | Outer sweep loop |
+| `glmbayesCore/R/two_block_batch_gibbs.R` | `.rGLMM_sweep_initialize`, `.rGLMM_sweep_save` | Batch state init / pack draws |
 | `glmbayesCore/R/two_block_sweep_history.R` | `.two_block_build_sweep_history`, etc. | Per-sweep fixef colMean tables |
 
 Loop order is **sweep-outer**: for each inner sweep `m`, all chains run Block 1, then all
@@ -45,7 +45,7 @@ for (m in seq_len(inner_sweeps)) {
 }
 ```
 
-After all sweeps, `.two_block_pack_batch_draws()` produces `fixef_draws`, `coefficients`
+After all sweeps, `.rGLMM_sweep_save()` produces `fixef_draws`, `coefficients`
 (b), `sweep_history`, etc.
 
 ---
@@ -53,7 +53,7 @@ After all sweeps, `.two_block_pack_batch_draws()` produces `fixef_draws`, `coeff
 ## Block 2 call chain (one sweep)
 
 ```
-run_sweep_outer_chains_v6
+rGLMM_sweep
   └── .two_block_block2_all_chains          # for i in 1:n; optional progress bar
         └── .two_block_block2_one_chain     # core Block 2 logic (per chain)
               ├── .two_block_align_b_to_xhyper   # reorder b to X_hyper rows
@@ -69,7 +69,7 @@ run_sweep_outer_chains_v6
 
 | File | Function | Role |
 |------|----------|------|
-| `glmbayesCore/R/run_sweep_outer_chains_v6.R` | `run_sweep_outer_chains_v6` | Outer `m` loop; calls Block 1 then Block 2 |
+| `glmbayesCore/R/rGLMM_sweep.R` | `rGLMM_sweep` | Outer `m` loop; calls Block 1 then Block 2 |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block2_all_chains` | Loop `i = 1..n` |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block2_one_chain` | Per-chain Block 2 update |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_align_b_to_xhyper` | Map `b` (`group_levels` order) → `y` (`X_hyper` row order) |
@@ -89,7 +89,7 @@ skipped.
 Block 1 is split into **prep** then **draw** (optional parallel over chains).
 
 ```
-run_sweep_outer_chains_v6
+rGLMM_sweep
   └── .two_block_block1_all_chains
         ├── .two_block_block1_prep_all_chains
         │     └── .two_block_block1_prep_one_chain
@@ -119,7 +119,7 @@ run_sweep_outer_chains_v6
 
 | Layer | Role |
 |--------|------|
-| `run_sweep_outer_chains_v6` | Outer `m` loop |
+| `rGLMM_sweep` | Outer `m` loop |
 | `*_all_chains` | Loop over `n` replicate chains + progress bars |
 | `*_one_chain` | Actual Gibbs update for one chain |
 | `build_mu_all`, align, prior helpers | Setup for Block 1 / Block 2 |
@@ -138,7 +138,7 @@ Many function names exist for batch bookkeeping, pilot staging, and optional par
 | `lmebayes/R/glmerb.R` | User API; `model_setup`, priors, calls `rglmerb` |
 | `lmebayes/R/rglmerb.R` | Engine switch: `cpp_engine` vs `R_engine` |
 | `lmebayes/R/rglmerb_v5.R` | Pilot/main planning; calls `run_short_chains_v5` (C++) |
-| `glmbayesCore/R/rGLMM.R` | Pilot/main via `run_sweep_outer_chains_v6` (R engine) |
+| `glmbayesCore/R/rGLMM.R` | Pilot/main via `rGLMM_sweep` (R engine) |
 | `glmbayesCore/R/two_block_pilot_cost.R` | `n_pilot`, `m_convergence_pilot` planning |
 | `glmbayesCore/R/two_block_glmm_pilot_helpers.R` | `fixef.init`, pilot UB, staged output names |
 | `glmbayesCore/R/two_block_sweep_history.R` | Per-sweep fixef colMeans tables |
@@ -165,7 +165,7 @@ Helpers already in C++ include `two_block_align_b_col_to_x_rows` and
 
 **Block 1** updates random effects **`b`** (prep: `build_mu_all` + prior; draw:
 `block_rNormalGLM` for Poisson/binomial GLMM, or `block_rNormalReg` on the Gaussian v6 path).
-There is **`use_cpp_block1`** on `run_sweep_outer_chains_v6` (default `TRUE`). Set
+There is **`use_cpp_block1`** on `rGLMM_sweep` (default `TRUE`). Set
 `use_cpp_block1 = FALSE` for the R prep/draw loop oracle with piecewise C++ helpers.
 
 **Full plan:** [`inst/PLAN_block1_cpp_migration.md`](PLAN_block1_cpp_migration.md)

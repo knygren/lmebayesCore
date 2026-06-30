@@ -22,7 +22,7 @@ pm <- glmerb_posterior_mode(design, binomial(), prior)
 one_chain <- function() {
   set.seed(42L)
   sample.int(.Machine$integer.max - 1L, 1L)
-  glmbayesCore::run_sweep_outer_chains_v6(
+  glmbayesCore::rGLMM_sweep(
     n_chains = 1L, start_fixef = pm$fixef, inner_sweeps = 19L,
     design = design, block1_prior = block1, pfamily_list = prior$pfamily_list,
     family = binomial(), re_names = re_names, group_levels = group_levels,

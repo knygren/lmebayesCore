@@ -1,7 +1,7 @@
 # Plan: Block 1 all-chains C++ migration (random-effects updates)
 
 Maintainer-facing plan to move **Block 1** — the **random-effects `b` draw** — off the
-R batch loop used by `run_sweep_outer_chains_v6` / non-Gaussian `glmerb` (`R_engine`).
+R batch loop used by `rGLMM_sweep` / non-Gaussian `glmerb` (`R_engine`).
 
 **Terminology (two-block Gibbs):**
 
@@ -23,7 +23,7 @@ See `inst/ARCHITECTURE_glmerb.md` for the full call tree. Block 2 migration:
 After migration, one inner sweep’s Block 1 phase is:
 
 ```
-run_sweep_outer_chains_v6
+rGLMM_sweep
   └── .Call(two_block_block1_all_chains_cpp_export, ...)   # single entry
         └── C++ for (i) chains
               ├── MuAllBuilder.build(fixef_i)               # = build_mu_all
@@ -78,9 +78,9 @@ run_sweep_outer_chains_v6
 | 5 | reorder `b` | v5 `block_info$ids` | `two_block_reorder_b_to_group_levels_cpp_export` | **Yes** | v6 `group_levels` semantics |
 | 6 | `iters_mean` | inline in v5 | `two_block_block1_iters_mean_cpp_export` | **Yes** | `use_cpp_iters = TRUE` default |
 | 7 | one-chain composite | prep + draw in R | `two_block_block1_one_chain_cpp_export` | **Yes** | `two_block_block1_one_chain_cpp()` |
-| 8 | all-chains composite | R double loop | `two_block_block1_all_chains_cpp_export` | **Yes** | `use_cpp_block1` on `run_sweep_outer_chains_v6` (default `TRUE`) |
+| 8 | all-chains composite | R double loop | `two_block_block1_all_chains_cpp_export` | **Yes** | `use_cpp_block1` on `rGLMM_sweep` (default `TRUE`) |
 
-There is **`use_cpp_block1`** on `run_sweep_outer_chains_v6` (default `TRUE`; set `FALSE` for R prep/draw loops).
+There is **`use_cpp_block1`** on `rGLMM_sweep` (default `TRUE`; set `FALSE` for R prep/draw loops).
 
 Legacy v5 (`twoBlockGibbs.cpp` inner sweep) already runs Block 1 in C++:
 
@@ -230,7 +230,7 @@ Gridtype / link-specific edge cases (cloglog, probit).
 
 ### Phase 5 — Gaussian Block 1 on v6 path (optional)
 
-When `is_gaussian` and model uses `run_sweep_outer_chains_v6` (e.g. ING `lmerb`-style
+When `is_gaussian` and model uses `rGLMM_sweep` (e.g. ING `lmerb`-style
 routing), Block 1 calls `block_rNormalReg` instead of `block_rNormalGLM`.
 
 **Work:** Conjugate / native mode in `rNormalReg` without `lm.fit` (similar to Block 2
@@ -329,7 +329,7 @@ copy of ING refresh / reorder rules.
 | Area | Path |
 |------|------|
 | R batch driver | `R/two_block_batch_gibbs.R` |
-| R sweep | `R/run_sweep_outer_chains_v6.R` |
+| R sweep | `R/rGLMM_sweep.R` |
 | `build_mu_all` | `R/build_mu_all.R` |
 | GLMM block draw | `R/simfunction_block.R`, `src/block_utils.cpp`, `src/rNormalGLMBlocks.cpp`, `src/rNormalGLM.cpp` |
 | Gaussian block draw | `src/rNormalReg.cpp` |

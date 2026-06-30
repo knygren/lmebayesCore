@@ -60,7 +60,7 @@
 #'   \code{m_convergence}; divide by \code{m_convergence} for the average
 #'   number of candidates per accepted draw).
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{run_sweep_outer_chains_v6}},
+#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_sweep}},
 #'   \code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}}
 #'   \code{\link{dNormal}},
 #'   \code{\link{dIndependent_Normal_Gamma}}

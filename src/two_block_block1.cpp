@@ -1,5 +1,5 @@
 // two_block_block1.cpp
-// Block 1 batch helpers for run_sweep_outer_chains_v6 (R-oracle semantics).
+// Block 1 batch helpers for rGLMM_sweep (R-oracle semantics).
 // Migrated incrementally from the R driver in R/two_block_batch_gibbs.R.
 
 #include "simfuncs.h"
@@ -569,35 +569,198 @@ Rcpp::List two_block_block1_one_chain_impl(
   );
 }
 
-/// Block~1 prep + draw for all replicate chains (v6 batch driver).
-/// Mirrors the R loop in \code{.two_block_block1_all_chains}:
-/// steps A→B→C→D per chain via \code{batch_tau2_chain_row},
-/// \code{two_block_block1_one_chain_impl}, \code{batch_b_assign_slice},
-/// \code{batch_iters_ranef_add}.
+/// Mirror \code{two_block_block1_one_chain_cpp} offset/weights prep from \code{design}.
+void design_offset_wt(
+    const Rcpp::List& design,
+    Rcpp::NumericVector& offset,
+    Rcpp::NumericVector& wt
+) {
+  const Rcpp::NumericVector y = Rcpp::as<Rcpp::NumericVector>(design["y"]);
+  const int l2 = y.size();
+  if (l2 < 1) {
+    Rcpp::stop("'design$y' must be non-empty.");
+  }
+
+  SEXP offset_sexp = R_NilValue;
+  if (design.containsElementNamed("offset")) {
+    offset_sexp = design["offset"];
+  }
+  if (Rf_isNull(offset_sexp)) {
+    offset = Rcpp::NumericVector(l2);
+    std::fill(offset.begin(), offset.end(), 0.0);
+  } else {
+    offset = Rcpp::as<Rcpp::NumericVector>(offset_sexp);
+    if (offset.size() == 1) {
+      const double v = offset[0];
+      offset = Rcpp::NumericVector(l2);
+      std::fill(offset.begin(), offset.end(), v);
+    }
+  }
+
+  SEXP wt_sexp = R_NilValue;
+  if (design.containsElementNamed("weights")) {
+    wt_sexp = design["weights"];
+  }
+  if (Rf_isNull(wt_sexp)) {
+    wt = Rcpp::NumericVector(l2);
+    std::fill(wt.begin(), wt.end(), 1.0);
+  } else {
+    wt = Rcpp::as<Rcpp::NumericVector>(wt_sexp);
+    if (wt.size() == 1) {
+      const double v = wt[0];
+      wt = Rcpp::NumericVector(l2);
+      std::fill(wt.begin(), wt.end(), v);
+    }
+  }
+}
+
+/// Coerce \code{design$X_hyper} like \code{lapply(..., as.matrix)} in R.
+Rcpp::List x_hyper_as_matrix(const Rcpp::List& x_hyper) {
+  const int p_re = x_hyper.size();
+  Rcpp::List out(p_re);
+  SEXP nms = x_hyper.names();
+  if (!Rf_isNull(nms)) {
+    out.names() = nms;
+  }
+  for (int k = 0; k < p_re; ++k) {
+    out[k] = Rcpp::as<Rcpp::NumericMatrix>(x_hyper[k]);
+  }
+  return out;
+}
+
+namespace {
+
+/// Mirror \code{identical(family$family, "gaussian")} in R.
+bool family_is_gaussian(SEXP family) {
+  if (Rf_isNull(family)) {
+    return false;
+  }
+  Rcpp::List fam(family);
+  if (!fam.containsElementNamed("family")) {
+    return false;
+  }
+  SEXP fam_name = fam["family"];
+  if (Rf_isNull(fam_name)) {
+    return false;
+  }
+  return Rcpp::as<std::string>(fam_name) == "gaussian";
+}
+
+std::string family_name_string(SEXP family) {
+  Rcpp::List fam(family);
+  return Rcpp::as<std::string>(fam["family"]);
+}
+
+std::string family_link_string(SEXP family) {
+  Rcpp::List fam(family);
+  return Rcpp::as<std::string>(fam["link"]);
+}
+
+} // namespace
+
+/// Full per-chain Block~1 orchestration (steps A→D).
+/// Port of exported \code{two_block_block1_one_chain_cpp} in R before the
+/// rcpp_wrappers thin \code{.Call} layer.
+Rcpp::List two_block_block1_one_chain_orchestrate_impl(
+    int chain_i,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericMatrix& batch_tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+
+  Rcpp::NumericVector offset;
+  Rcpp::NumericVector wt;
+  design_offset_wt(design, offset, wt);
+
+  const bool is_gaussian = family_is_gaussian(family);
+  const std::string fam_str = family_name_string(family);
+  const std::string link_str = family_link_string(family);
+
+  Rcpp::NumericVector tau2_i;
+  if (use_cpp_tau2_row) {
+    tau2_i = batch_tau2_chain_row(batch_tau2, chain_i);
+  } else {
+    const int row_i = chain_i - 1;
+    if (row_i >= batch_tau2.nrow()) {
+      Rcpp::stop(
+        "chain index %d exceeds nrow(batch_tau2) (%d).",
+        chain_i, batch_tau2.nrow()
+      );
+    }
+    tau2_i = batch_tau2(row_i, Rcpp::_);
+  }
+
+  const Rcpp::NumericVector y =
+    Rcpp::as<Rcpp::NumericVector>(design["y"]);
+  const Rcpp::NumericMatrix Z =
+    Rcpp::as<Rcpp::NumericMatrix>(design["Z"]);
+  SEXP groups = design["groups"];
+  Rcpp::List x_hyper =
+    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["X_hyper"]));
+
+  Rcpp::List draw_out = two_block_block1_one_chain_impl(
+    chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt,
+    x_hyper, re_names, group_levels, ptypes, block1_prior,
+    is_gaussian, f2, f3, f2_gauss, f3_gauss,
+    fam_str, link_str, 2, 1
+  );
+
+  Rcpp::NumericMatrix b_draw =
+    Rcpp::as<Rcpp::NumericMatrix>(draw_out["b"]);
+  const double iters_mean = Rcpp::as<double>(draw_out["iters_mean"]);
+
+  Rcpp::NumericVector b_out =
+    use_cpp_b_slice ? Rcpp::clone(b_store) : b_store;
+  batch_b_assign_slice(b_out, chain_i, b_draw);
+
+  Rcpp::NumericVector iters_out =
+    use_cpp_iters_ranef_add ? Rcpp::clone(iters_ranef) : iters_ranef;
+  batch_iters_ranef_add(iters_out, chain_i, iters_mean);
+
+  return Rcpp::List::create(
+    Rcpp::Named("b") = b_out,
+    Rcpp::Named("iters_ranef") = iters_out
+  );
+}
+
+/// Block~1 prep + draw for all replicate chains (rGLMM_sweep batch driver).
+/// Thin C++ loop calling \code{two_block_block1_one_chain_orchestrate_impl}
+/// per chain (same semantics as \code{.two_block_block1_all_chains} in R).
 Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::NumericVector b_store,
     Rcpp::NumericVector iters_ranef,
     const Rcpp::List& batch_fixef,
     const Rcpp::NumericMatrix& batch_tau2,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& Z,
-    SEXP groups,
-    const Rcpp::NumericVector& offset,
-    const Rcpp::NumericVector& wt,
-    const Rcpp::List& x_hyper,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
-    const Rcpp::CharacterVector& ptypes,
-    const Rcpp::List& block1_prior,
-    bool is_gaussian,
     const Rcpp::Function& f2,
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    const std::string& family,
-    const std::string& link,
-    int Gridtype,
-    int n_envopt,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
     bool progbar,
     const std::string& progbar_prefix,
     bool progbar_finish_newline
@@ -606,7 +769,6 @@ Rcpp::List two_block_block1_all_chains_impl(
   if (b_dim.size() != 3) {
     Rcpp::stop("'b_store' must be a 3-dimensional array (J x p_re x n).");
   }
-  const int J = b_dim[0];
   const int p_re = b_dim[1];
   const int n = b_dim[2];
   if (batch_tau2.nrow() != n || batch_tau2.ncol() != p_re) {
@@ -619,7 +781,6 @@ Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::stop("length(re_names) must equal p_re.");
   }
 
-  // In-place on clones (same as R mutating batch$b / batch$iters_ranef).
   Rcpp::NumericVector b_out = Rcpp::clone(b_store);
   Rcpp::NumericVector iters_out = Rcpp::clone(iters_ranef);
   const bool show_bar = progbar && n > 1;
@@ -634,25 +795,15 @@ Rcpp::List two_block_block1_all_chains_impl(
       );
     }
 
-    // R: tau2_i <- batch$tau2[i, ]  (args$batch_tau2 dropped in one_chain wrapper)
-    Rcpp::NumericVector tau2_i = batch_tau2_chain_row(batch_tau2, chain_i);
-
-    // R: do.call(two_block_block1_one_chain_cpp_export,
-    //            c(list(chain_i = i, tau2_i = batch$tau2[i, ]), args))
-    Rcpp::List one = two_block_block1_one_chain_impl(
-      chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt,
-      x_hyper, re_names, group_levels, ptypes, block1_prior,
-      is_gaussian, f2, f3, f2_gauss, f3_gauss, family, link,
-      Gridtype, n_envopt
+    Rcpp::List chain_out = two_block_block1_one_chain_orchestrate_impl(
+      chain_i, b_out, iters_out, batch_fixef, batch_tau2, design,
+      block1_prior, family, ptypes, re_names, group_levels,
+      f2, f3, f2_gauss, f3_gauss,
+      use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
     );
 
-    // R: batch$b[, , i] <- out$b
-    Rcpp::NumericMatrix b_i = Rcpp::as<Rcpp::NumericMatrix>(one["b"]);
-    batch_b_assign_slice(b_out, chain_i, b_i);
-
-    batch_iters_ranef_add(
-      iters_out, chain_i, Rcpp::as<double>(one["iters_mean"])
-    );
+    b_out = Rcpp::as<Rcpp::NumericVector>(chain_out["b"]);
+    iters_out = Rcpp::as<Rcpp::NumericVector>(chain_out["iters_ranef"]);
   }
 
   if (show_bar) {

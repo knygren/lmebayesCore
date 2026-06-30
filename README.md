@@ -298,7 +298,7 @@ The file `inst/ADDING_PFAMILY.md` contains a step-by-step guide. In summary:
 
 ### glmerb / two-block GLMM architecture
 
-`inst/ARCHITECTURE_glmerb.md` maps the sweep-outer R driver (`run_sweep_outer_chains_v6`), Block 1 / Block 2 call chains, staging wrappers in `lmebayes`, and the legacy C++ v5 path — for maintainers working on `glmerb` parity or incremental C++ Block 2 ports.
+`inst/ARCHITECTURE_glmerb.md` maps the sweep-outer R driver (`rGLMM_sweep`), Block 1 / Block 2 call chains, staging wrappers in `lmebayes`, and the legacy C++ v5 path — for maintainers working on `glmerb` parity or incremental C++ Block 2 ports.
 
 ---
 

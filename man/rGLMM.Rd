@@ -136,22 +136,22 @@ plus \code{draw_engine}, \code{convergence_info}, \code{ptypes},
 }
 \description{
 Low-level matrix-level GLMM replicate-chain sampler using
-\code{\link{run_sweep_outer_chains_v6}} (pure-R sweep-outer Block~1 /
+\code{\link{rGLMM_sweep}} (pure-R sweep-outer Block~1 /
 Block~2). For formula-level fitting with ICM mode and priors, see
 \pkg{lmebayes} \code{rglmerb}.
 }
 \seealso{
-\code{\link{run_sweep_outer_chains_v6}}, \code{\link{two_block_rNormal_reg_v2}},
+\code{\link{rGLMM_sweep}}, \code{\link{two_block_rNormal_reg_v2}},
 \code{\link{rLMMNormal_reg}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
+\code{\link{rGLMM_sweep}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{run_sweep_outer_chains_v6}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_d0_pilot_start}()},
 \code{\link{two_block_l_for_tv}()},

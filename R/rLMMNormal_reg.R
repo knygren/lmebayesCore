@@ -661,7 +661,7 @@ rLMMNormal_reg_known_vcov <- function(
 #'   \code{sweep_history} when a pilot stage runs (sweep-outer engine).
 #' @family simfuncs
 #' @seealso \code{\link{rLMMNormal_reg}}, \code{\link{rLMMNormal_reg_known_vcov}},
-#'   \code{\link{run_sweep_outer_chains_v6}}
+#'   \code{\link{rGLMM_sweep}}
 #' @export
 rLMMNormal_reg_estimated_vcov <- function(
     n,

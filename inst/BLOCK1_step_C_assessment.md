@@ -8,7 +8,7 @@ Reference: committed R loop (`two_block_block1_one_chain_cpp`, step C only).
 batch$b[, , i] <- out$b
 ```
 
-- `batch$b` has `dim = c(J, p_re, n)` from `.two_block_batch_init`.
+- `batch$b` has `dim = c(J, p_re, n)` from `.rGLMM_sweep_initialize`.
 - `out$b` is `J × p_re` (rows = groups in `group_levels` order after reorder).
 - Assignment is **positional**: row `g`, col `j` of `out$b` → `batch$b[g, j, i]`.
 - R does **not** match by rownames/colnames on subassignment; slice dimnames stay those of the array.

@@ -428,31 +428,48 @@ Rcpp::List two_block_block1_one_chain_impl(
     int n_envopt
 );
 
+/// Full per-chain Block~1 orchestration steps A→D (two_block_block1.cpp).
+Rcpp::List two_block_block1_one_chain_orchestrate_impl(
+    int chain_i,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::List& batch_fixef,
+    const Rcpp::NumericMatrix& batch_tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
+);
+
 /// Block~1 prep + draw for all chains (two_block_block1.cpp).
+/// Thin C++ loop calling \code{two_block_block1_one_chain_orchestrate_impl}.
 Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::NumericVector b_store,
     Rcpp::NumericVector iters_ranef,
     const Rcpp::List& batch_fixef,
     const Rcpp::NumericMatrix& batch_tau2,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& Z,
-    SEXP groups,
-    const Rcpp::NumericVector& offset,
-    const Rcpp::NumericVector& wt,
-    const Rcpp::List& x_hyper,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
-    const Rcpp::CharacterVector& ptypes,
-    const Rcpp::List& block1_prior,
-    bool is_gaussian,
     const Rcpp::Function& f2,
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    const std::string& family,
-    const std::string& link,
-    int Gridtype,
-    int n_envopt,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
     bool progbar,
     const std::string& progbar_prefix,
     bool progbar_finish_newline
