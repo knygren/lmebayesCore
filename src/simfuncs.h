@@ -387,6 +387,17 @@ void batch_b_assign_slice(
     const Rcpp::NumericMatrix& b_draw
 );
 
+/// \code{dim(b)[3]} for batch \code{b} (two_block_block1.cpp).
+int batch_b_n_chains(const Rcpp::NumericVector& batch_b);
+
+/// Restore \code{dim}/\code{dimnames} on batch \code{b} (two_block_block1.cpp).
+void ensure_batch_b_dimnames(
+    Rcpp::NumericVector& batch_b,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& re_names,
+    int n_chains
+);
+
 /// All-chains step D: \code{batch$iters_ranef[chain_i] += iters_mean}
 /// (two_block_block1.cpp).
 void batch_iters_ranef_add(
@@ -450,13 +461,11 @@ Rcpp::List two_block_block1_one_chain_orchestrate_impl(
     bool use_cpp_iters_ranef_add
 );
 
-/// Block~1 prep + draw for all chains (two_block_block1.cpp).
-/// Thin C++ loop calling \code{two_block_block1_one_chain_orchestrate_impl}.
-Rcpp::List two_block_block1_all_chains_impl(
-    Rcpp::NumericVector b_store,
-    Rcpp::NumericVector iters_ranef,
-    const Rcpp::List& batch_fixef,
-    const Rcpp::NumericMatrix& batch_tau2,
+/// Block~1 prep + draw for one chain (v2): chain-local inputs; returns slice
+/// \code{b} and \code{iters_mean} only (two_block_block1.cpp).
+Rcpp::List two_block_block1_one_chain_v2_impl(
+    const Rcpp::List& fixef_i,
+    const Rcpp::NumericVector& tau2_i,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
@@ -466,11 +475,29 @@ Rcpp::List two_block_block1_all_chains_impl(
     const Rcpp::Function& f2,
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
-    const Rcpp::Function& f3_gauss,
+    const Rcpp::Function& f3_gauss
+);
+
+/// Block~1 prep + draw for all chains (two_block_block1.cpp).
+/// Port of \code{.two_block_block1_all_chains_v2}; resolves \code{glmbfamfunc}
+/// once, then per chain calls \code{two_block_block1_one_chain_v2_impl} and
+/// updates \code{b} / \code{iters_ranef} in place.
+Rcpp::List two_block_block1_all_chains_impl(
+    int n,
+    const Rcpp::List& fixef,
+    const Rcpp::NumericMatrix& tau2,
+    Rcpp::NumericVector b,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add,
-    bool progbar,
+    bool show_bar,
     const std::string& progbar_prefix,
     bool progbar_finish_newline
 );

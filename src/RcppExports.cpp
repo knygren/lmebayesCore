@@ -430,16 +430,14 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_block1_all_chains_cpp_export
-Rcpp::List two_block_block1_all_chains_cpp_export(Rcpp::NumericVector b_store, Rcpp::NumericVector iters_ranef, const Rcpp::List& batch_fixef, const Rcpp::NumericMatrix& batch_tau2, const Rcpp::List& design, const Rcpp::List& block1_prior, SEXP family, const Rcpp::CharacterVector& ptypes, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, bool use_cpp_tau2_row, bool use_cpp_b_slice, bool use_cpp_iters_ranef_add, bool progbar, const std::string& progbar_prefix, bool progbar_finish_newline);
-RcppExport SEXP _glmbayesCore_two_block_block1_all_chains_cpp_export(SEXP b_storeSEXP, SEXP iters_ranefSEXP, SEXP batch_fixefSEXP, SEXP batch_tau2SEXP, SEXP designSEXP, SEXP block1_priorSEXP, SEXP familySEXP, SEXP ptypesSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP use_cpp_tau2_rowSEXP, SEXP use_cpp_b_sliceSEXP, SEXP use_cpp_iters_ranef_addSEXP, SEXP progbarSEXP, SEXP progbar_prefixSEXP, SEXP progbar_finish_newlineSEXP) {
+// two_block_block1_one_chain_v2_cpp_export
+Rcpp::List two_block_block1_one_chain_v2_cpp_export(const Rcpp::List& fixef_i, const Rcpp::NumericVector& tau2_i, const Rcpp::List& design, const Rcpp::List& block1_prior, SEXP family, const Rcpp::CharacterVector& ptypes, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss);
+RcppExport SEXP _glmbayesCore_two_block_block1_one_chain_v2_cpp_export(SEXP fixef_iSEXP, SEXP tau2_iSEXP, SEXP designSEXP, SEXP block1_priorSEXP, SEXP familySEXP, SEXP ptypesSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type b_store(b_storeSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type iters_ranef(iters_ranefSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type batch_fixef(batch_fixefSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type batch_tau2(batch_tau2SEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef_i(fixef_iSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type tau2_i(tau2_iSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type design(designSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type block1_prior(block1_priorSEXP);
     Rcpp::traits::input_parameter< SEXP >::type family(familySEXP);
@@ -450,13 +448,34 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3(f3SEXP);
     Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2_gauss(f2_gaussSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3_gauss(f3_gaussSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_block1_one_chain_v2_cpp_export(fixef_i, tau2_i, design, block1_prior, family, ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss));
+    return rcpp_result_gen;
+END_RCPP
+}
+// two_block_block1_all_chains_cpp_export
+Rcpp::List two_block_block1_all_chains_cpp_export(int n, const Rcpp::List& fixef, const Rcpp::NumericMatrix& tau2, Rcpp::NumericVector b, Rcpp::NumericVector iters_ranef, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::List& design, const Rcpp::List& block1_prior, SEXP family, const Rcpp::CharacterVector& ptypes, bool use_cpp_tau2_row, bool use_cpp_b_slice, bool use_cpp_iters_ranef_add, bool show_bar, const std::string& progbar_prefix, bool progbar_finish_newline);
+RcppExport SEXP _glmbayesCore_two_block_block1_all_chains_cpp_export(SEXP nSEXP, SEXP fixefSEXP, SEXP tau2SEXP, SEXP bSEXP, SEXP iters_ranefSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP designSEXP, SEXP block1_priorSEXP, SEXP familySEXP, SEXP ptypesSEXP, SEXP use_cpp_tau2_rowSEXP, SEXP use_cpp_b_sliceSEXP, SEXP use_cpp_iters_ranef_addSEXP, SEXP show_barSEXP, SEXP progbar_prefixSEXP, SEXP progbar_finish_newlineSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type tau2(tau2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type b(bSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type iters_ranef(iters_ranefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type re_names(re_namesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type group_levels(group_levelsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type design(designSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type block1_prior(block1_priorSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type family(familySEXP);
+    Rcpp::traits::input_parameter< const Rcpp::CharacterVector& >::type ptypes(ptypesSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cpp_tau2_row(use_cpp_tau2_rowSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cpp_b_slice(use_cpp_b_sliceSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cpp_iters_ranef_add(use_cpp_iters_ranef_addSEXP);
-    Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
+    Rcpp::traits::input_parameter< bool >::type show_bar(show_barSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type progbar_prefix(progbar_prefixSEXP);
     Rcpp::traits::input_parameter< bool >::type progbar_finish_newline(progbar_finish_newlineSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_block1_all_chains_cpp_export(b_store, iters_ranef, batch_fixef, batch_tau2, design, block1_prior, family, ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add, progbar, progbar_prefix, progbar_finish_newline));
+    rcpp_result_gen = Rcpp::wrap(two_block_block1_all_chains_cpp_export(n, fixef, tau2, b, iters_ranef, re_names, group_levels, design, block1_prior, family, ptypes, use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add, show_bar, progbar_prefix, progbar_finish_newline));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -945,7 +964,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_batch_iters_ranef_add_cpp_export, 3},
     {"_glmbayesCore_two_block_block1_one_chain_draw_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_draw_cpp_export, 22},
     {"_glmbayesCore_two_block_block1_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_cpp_export, 18},
-    {"_glmbayesCore_two_block_block1_all_chains_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_cpp_export, 20},
+    {"_glmbayesCore_two_block_block1_one_chain_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_v2_cpp_export, 12},
+    {"_glmbayesCore_two_block_block1_all_chains_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_cpp_export, 17},
     {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},
     {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},
     {"_glmbayesCore_two_block_block2_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block2_one_chain_cpp_export, 9},

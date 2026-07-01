@@ -449,11 +449,9 @@ Rcpp::List two_block_block1_one_chain_cpp_export(
 }
 
 // [[Rcpp::export]]
-Rcpp::List two_block_block1_all_chains_cpp_export(
-    Rcpp::NumericVector b_store,
-    Rcpp::NumericVector iters_ranef,
-    const Rcpp::List& batch_fixef,
-    const Rcpp::NumericMatrix& batch_tau2,
+Rcpp::List two_block_block1_one_chain_v2_cpp_export(
+    const Rcpp::List& fixef_i,
+    const Rcpp::NumericVector& tau2_i,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
@@ -463,20 +461,39 @@ Rcpp::List two_block_block1_all_chains_cpp_export(
     const Rcpp::Function& f2,
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
-    const Rcpp::Function& f3_gauss,
+    const Rcpp::Function& f3_gauss
+) {
+  return glmbayes::sim::two_block_block1_one_chain_v2_impl(
+    fixef_i, tau2_i, design, block1_prior, family, ptypes,
+    re_names, group_levels, f2, f3, f2_gauss, f3_gauss
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List two_block_block1_all_chains_cpp_export(
+    int n,
+    const Rcpp::List& fixef,
+    const Rcpp::NumericMatrix& tau2,
+    Rcpp::NumericVector b,
+    Rcpp::NumericVector iters_ranef,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add,
-    bool progbar,
+    bool show_bar,
     const std::string& progbar_prefix,
     bool progbar_finish_newline
 ) {
   return glmbayes::sim::two_block_block1_all_chains_impl(
-    b_store, iters_ranef, batch_fixef, batch_tau2, design, block1_prior,
-    family, ptypes, re_names, group_levels,
-    f2, f3, f2_gauss, f3_gauss,
+    n, fixef, tau2, b, iters_ranef, re_names, group_levels, design,
+    block1_prior, family, ptypes,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
-    progbar, progbar_prefix, progbar_finish_newline
+    show_bar, progbar_prefix, progbar_finish_newline
   );
 }
 
