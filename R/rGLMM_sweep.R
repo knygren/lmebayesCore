@@ -158,7 +158,8 @@ rGLMM_sweep <- function(
     #   use_cpp_b_slice         = use_cpp_b_slice,
     #   use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     # )
-    # b1 <- .two_block_block1_all_chains_via_cpp(
+    # Bulk C++ all-chains (pass-by-reference; not production).
+    # .two_block_block1_all_chains_via_cpp(
     #   n                       = batch$n,
     #   fixef                   = batch$fixef,
     #   tau2                    = batch$tau2,
@@ -199,8 +200,7 @@ rGLMM_sweep <- function(
 
     batch$b           <- b1$b
     batch$iters_ranef <- b1$iters_ranef
- 
-    
+
       b2 <- .two_block_block2_all_chains(
       n                       = batch$n,
       b                       = batch$b,

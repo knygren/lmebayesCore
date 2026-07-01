@@ -374,6 +374,14 @@ Rcpp::List two_block_block1_prior_with_tau2(
 /// Block~1: mean envelope iters across groups (two_block_block1.cpp).
 double two_block_block1_iters_mean(const Rcpp::List& block_out);
 
+/// Extract chain-\code{i} fixef list (two_block_block1.cpp).
+/// Port of \code{.two_block_batch_fixef_chain}.
+Rcpp::List fixef_list_from_batch_chain(
+    const Rcpp::List& batch_fixef,
+    int chain_i,
+    const Rcpp::CharacterVector& re_names
+);
+
 /// All-chains step A: \code{batch$tau2[chain_i, ]} (two_block_block1.cpp).
 Rcpp::NumericVector batch_tau2_chain_row(
     const Rcpp::NumericMatrix& batch_tau2,
@@ -478,22 +486,44 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
     const Rcpp::Function& f3_gauss
 );
 
+/// Per-chain Block~1 v2 internal: fixef/tau2 extract + v2 draw
+/// (two_block_block1.cpp).
+Rcpp::List two_block_block1_all_chains_v2_internal_impl(
+    const Rcpp::List& fixef,
+    int chain_i,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row
+);
+
 /// Block~1 prep + draw for all chains (two_block_block1.cpp).
-/// Port of \code{.two_block_block1_all_chains_v2}; resolves \code{glmbfamfunc}
-/// once, then per chain calls \code{two_block_block1_one_chain_v2_impl} and
-/// updates \code{b} / \code{iters_ranef} in place.
-Rcpp::List two_block_block1_all_chains_impl(
+/// Port of \code{.two_block_block1_all_chains_v2}; mutates \code{b} and
+/// \code{iters_ranef} in place (no return value).
+void two_block_block1_all_chains_impl(
     int n,
     const Rcpp::List& fixef,
     const Rcpp::NumericMatrix& tau2,
-    Rcpp::NumericVector b,
-    Rcpp::NumericVector iters_ranef,
+    Rcpp::NumericVector& b,
+    Rcpp::NumericVector& iters_ranef,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
     const Rcpp::CharacterVector& ptypes,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add,

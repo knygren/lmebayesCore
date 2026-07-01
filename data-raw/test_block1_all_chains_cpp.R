@@ -42,7 +42,7 @@ batch <- glmbayesCore:::.rGLMM_sweep_initialize(
 iters_before <- batch$iters_ranef
 family <- stats::binomial()
 
-out <- glmbayesCore:::.two_block_block1_all_chains_via_cpp(
+glmbayesCore:::.two_block_block1_all_chains_via_cpp(
   n            = batch$n,
   fixef        = batch$fixef,
   tau2         = batch$tau2,
@@ -56,14 +56,11 @@ out <- glmbayesCore:::.two_block_block1_all_chains_via_cpp(
   ptypes       = ptypes,
   progbar      = FALSE
 )
-batch2 <- batch
-batch2$b <- out$b
-batch2$iters_ranef <- out$iters_ranef
 
-stopifnot(identical(dim(batch2$b), dim(batch$b)))
-stopifnot(all(is.finite(batch2$b)))
-stopifnot(length(batch2$iters_ranef) == n_chains)
-stopifnot(all(is.finite(batch2$iters_ranef)))
-stopifnot(any(batch2$iters_ranef >= iters_before))
+stopifnot(identical(dim(batch$b), c(J, length(re_names), n_chains)))
+stopifnot(all(is.finite(batch$b)))
+stopifnot(length(batch$iters_ranef) == n_chains)
+stopifnot(all(is.finite(batch$iters_ranef)))
+stopifnot(any(batch$iters_ranef >= iters_before))
 
 message("test_block1_all_chains_cpp.R: OK")

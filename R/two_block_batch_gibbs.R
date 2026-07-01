@@ -1106,27 +1106,44 @@ two_block_block2_one_chain_cpp <- function(
 
   b_out <- .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n)
   iters_ranef_out <- iters_ranef
-  fixef_batch <- list(fixef = fixef)
+  # fixef_batch <- list(fixef = fixef)
 
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    fixef_i <- .two_block_batch_fixef_chain(fixef_batch, i)
-    tau2_i <- .two_block_batch_tau2_chain_row(
-      tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
-    )
-    chain_draw <- .two_block_block1_one_chain_v2_cpp(
-      fixef_i        = fixef_i,
-      tau2_i         = tau2_i,
-      design         = design,
-      block1_prior   = block1_prior,
-      family         = family,
-      ptypes         = ptypes,
-      re_names       = re_names,
-      group_levels   = group_levels,
-      f2             = fam_f23$f2,
-      f3             = fam_f23$f3,
-      f2_gauss       = fam_f23$f2_gauss,
-      f3_gauss       = fam_f23$f3_gauss
+    # fixef_i <- .two_block_batch_fixef_chain(fixef_batch, i)
+    # fixef_i <- .two_block_batch_fixef_chain_cpp(fixef, i, re_names)
+    # tau2_i <- .two_block_batch_tau2_chain_row(
+    #   tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
+    # )
+    # chain_draw <- .two_block_block1_one_chain_v2_cpp(
+    #   fixef_i        = fixef_i,
+    #   tau2_i         = tau2_i,
+    #   design         = design,
+    #   block1_prior   = block1_prior,
+    #   family         = family,
+    #   ptypes         = ptypes,
+    #   re_names       = re_names,
+    #   group_levels   = group_levels,
+    #   f2             = fam_f23$f2,
+    #   f3             = fam_f23$f3,
+    #   f2_gauss       = fam_f23$f2_gauss,
+    #   f3_gauss       = fam_f23$f3_gauss
+    # )
+    chain_draw <- .two_block_block1_all_chains_v2_internal_cpp(
+      fixef              = fixef,
+      chain_i            = i,
+      tau2               = tau2,
+      design             = design,
+      block1_prior       = block1_prior,
+      family             = family,
+      ptypes             = ptypes,
+      re_names           = re_names,
+      group_levels       = group_levels,
+      f2                 = fam_f23$f2,
+      f3                 = fam_f23$f3,
+      f2_gauss           = fam_f23$f2_gauss,
+      f3_gauss           = fam_f23$f3_gauss,
+      use_cpp_tau2_row   = use_cpp_tau2_row
     )
     b_out <- .two_block_batch_b_assign_slice(
       b_out, i, chain_draw$b, use_cpp_b_slice = use_cpp_b_slice
@@ -1135,6 +1152,7 @@ two_block_block2_one_chain_cpp <- function(
       iters_ranef_out, i, chain_draw$iters_mean,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
+    
   }
   if (show_bar) {
     .two_block_progress_bar_finish(newline = progbar_finish_newline)
@@ -1146,9 +1164,9 @@ two_block_block2_one_chain_cpp <- function(
   )
 }
 
-#' Block 1 batch: all chains via C++ loop (mirrors \code{.two_block_block1_all_chains})
+#' Block 1 batch: all chains via C++ loop (mirrors \code{.two_block_block1_all_chains_v2})
 #' @inheritParams .two_block_block1_all_chains
-#' @return List with \code{b} and \code{iters_ranef}.
+#' @return \code{NULL} invisibly; \code{b} and \code{iters_ranef} are updated in place.
 #' @noRd
 .two_block_block1_all_chains_via_cpp <- function(
     n,
@@ -1180,16 +1198,19 @@ two_block_block2_one_chain_cpp <- function(
   show_bar <- isTRUE(progbar) && n > 1L &&
     (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
 
-  out <- .two_block_block1_all_chains_cpp(
+  fam_f23 <- .two_block_block1_glmbfamfunc(family)
+
+  .two_block_block1_all_chains_cpp(
     n, fixef, tau2, b, iters_ranef, re_names, group_levels, design,
     block1_prior, family, ptypes,
+    f2       = fam_f23$f2,
+    f3       = fam_f23$f3,
+    f2_gauss = fam_f23$f2_gauss,
+    f3_gauss = fam_f23$f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     show_bar, progbar_prefix, progbar_finish_newline
   )
-  out$b <- .two_block_ensure_batch_b_dimnames(
-    out$b, group_levels, re_names, n
-  )
-  out
+  invisible(NULL)
 }
 
 #' Block 2 batch: update fixed effects / tau2 for all chains

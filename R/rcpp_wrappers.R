@@ -215,6 +215,14 @@
 
 #' @noRd
 #' @keywords internal
+.two_block_batch_fixef_chain_cpp <- function(batch_fixef, chain_i, re_names) {
+  .Call(`_glmbayesCore_two_block_batch_fixef_chain_cpp_export`,
+    batch_fixef, chain_i, re_names
+  )
+}
+
+#' @noRd
+#' @keywords internal
 .two_block_batch_tau2_chain_row_cpp <- function(batch_tau2, chain_i) {
   .Call(`_glmbayesCore_two_block_batch_tau2_chain_row_cpp_export`,
     batch_tau2, chain_i
@@ -281,15 +289,28 @@
 
 #' @noRd
 #' @keywords internal
+.two_block_block1_all_chains_v2_internal_cpp <- function(
+    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
+    re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row = TRUE
+) {
+  .Call(`_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export`,
+    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
+    re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row
+  )
+}
+
+#' @noRd
+#' @keywords internal
 .two_block_block1_all_chains_cpp <- function(
     n, fixef, tau2, b, iters_ranef, re_names, group_levels, design,
-    block1_prior, family, ptypes,
+    block1_prior, family, ptypes, f2, f3, f2_gauss, f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     show_bar, progbar_prefix, progbar_finish_newline
 ) {
   .Call(`_glmbayesCore_two_block_block1_all_chains_cpp_export`,
     n, fixef, tau2, b, iters_ranef, re_names, group_levels, design,
-    block1_prior, family, ptypes,
+    block1_prior, family, ptypes, f2, f3, f2_gauss, f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     show_bar, progbar_prefix, progbar_finish_newline
   )

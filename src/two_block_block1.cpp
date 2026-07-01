@@ -58,49 +58,6 @@ SEXP optional_list_elt(const Rcpp::List& pl, const char* name) {
   return pl.containsElementNamed(name) ? pl[name] : R_NilValue;
 }
 
-/// Port of \code{.two_block_batch_fixef_chain(batch, i)}.
-Rcpp::List fixef_list_from_batch_chain(
-    const Rcpp::List& batch_fixef,
-    int chain_i,
-    const Rcpp::CharacterVector& re_names
-) {
-  if (chain_i < 1) {
-    Rcpp::stop("'chain_i' must be at least 1.");
-  }
-  const int row_i = chain_i - 1;
-  const int p_re = re_names.size();
-  Rcpp::List out(p_re);
-  out.attr("names") = re_names;
-  for (int k = 0; k < p_re; ++k) {
-    const std::string nm = Rcpp::as<std::string>(re_names[k]);
-    if (!batch_fixef.containsElementNamed(nm.c_str())) {
-      Rcpp::stop("batch_fixef must contain element '%s'.", nm.c_str());
-    }
-    Rcpp::NumericMatrix mat =
-      Rcpp::as<Rcpp::NumericMatrix>(batch_fixef[nm.c_str()]);
-    if (row_i >= mat.nrow()) {
-      Rcpp::stop(
-        "chain index %d exceeds nrow(batch_fixef[['%s']]) (%d).",
-        chain_i, nm.c_str(), mat.nrow()
-      );
-    }
-    Rcpp::NumericVector row = mat(row_i, Rcpp::_);
-    SEXP col_dn = R_NilValue;
-    SEXP mat_dn = mat.attr("dimnames");
-    if (!Rf_isNull(mat_dn)) {
-      Rcpp::List mat_dnl(mat_dn);
-      if (mat_dnl.size() >= 2 && !Rf_isNull(mat_dnl[1])) {
-        col_dn = mat_dnl[1];
-      }
-    }
-    if (!Rf_isNull(col_dn)) {
-      row.attr("names") = col_dn;
-    }
-    out[k] = row;
-  }
-  return out;
-}
-
 /// Mirror \code{block_rNormalGLM()} / \code{block_rNormalReg()} dimnames on
 /// \code{coefficients} (\code{colnames(x)}, \code{rownames} from
 /// \code{block_info$ids}).
@@ -153,6 +110,49 @@ SEXP matrix_rownames_sexp(const Rcpp::NumericMatrix& M) {
 }
 
 } // namespace
+
+/// Port of \code{.two_block_batch_fixef_chain(batch, i)}.
+Rcpp::List fixef_list_from_batch_chain(
+    const Rcpp::List& batch_fixef,
+    int chain_i,
+    const Rcpp::CharacterVector& re_names
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  const int row_i = chain_i - 1;
+  const int p_re = re_names.size();
+  Rcpp::List out(p_re);
+  out.attr("names") = re_names;
+  for (int k = 0; k < p_re; ++k) {
+    const std::string nm = Rcpp::as<std::string>(re_names[k]);
+    if (!batch_fixef.containsElementNamed(nm.c_str())) {
+      Rcpp::stop("batch_fixef must contain element '%s'.", nm.c_str());
+    }
+    Rcpp::NumericMatrix mat =
+      Rcpp::as<Rcpp::NumericMatrix>(batch_fixef[nm.c_str()]);
+    if (row_i >= mat.nrow()) {
+      Rcpp::stop(
+        "chain index %d exceeds nrow(batch_fixef[['%s']]) (%d).",
+        chain_i, nm.c_str(), mat.nrow()
+      );
+    }
+    Rcpp::NumericVector row = mat(row_i, Rcpp::_);
+    SEXP col_dn = R_NilValue;
+    SEXP mat_dn = mat.attr("dimnames");
+    if (!Rf_isNull(mat_dn)) {
+      Rcpp::List mat_dnl(mat_dn);
+      if (mat_dnl.size() >= 2 && !Rf_isNull(mat_dnl[1])) {
+        col_dn = mat_dnl[1];
+      }
+    }
+    if (!Rf_isNull(col_dn)) {
+      row.attr("names") = col_dn;
+    }
+    out[k] = row;
+  }
+  return out;
+}
 
 /// All-chains step A: mirror \code{batch$tau2[i, ]} (1-based \code{chain_i};
 /// preserve matrix \code{colnames} as vector \code{names}).
@@ -795,8 +795,21 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
   }
 
   set_block_draw_coefficient_dimnames(b_draw, Z, block_info);
+
+  SEXP block_ids = R_NilValue;
+  if (block_info.containsElementNamed("ids")) {
+    block_ids = block_info["ids"];
+  }
+  if (Rf_isNull(block_ids)) {
+    block_ids = matrix_rownames_sexp(b_draw);
+  }
+  if (Rf_isNull(block_ids)) {
+    Rcpp::stop(
+      "Block 1 draw returned no group ids; cannot align rows to group_levels."
+    );
+  }
   b_draw = two_block_reorder_b_to_group_levels(
-    b_draw, matrix_rownames_sexp(b_draw), group_levels
+    b_draw, block_ids, group_levels
   );
   set_matrix_dimnames(b_draw, group_levels, re_names);
 
@@ -807,6 +820,50 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
     Rcpp::Named("iters_mean") = iters_mean
   );
 }
+
+/// Per-chain Block~1 v2 internal: extract \code{fixef_i}/\code{tau2_i}, then draw.
+/// Port of the three-call sequence in \code{.two_block_block1_all_chains_v2}.
+Rcpp::List two_block_block1_all_chains_v2_internal_impl(
+    const Rcpp::List& fixef,
+    int chain_i,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row
+) {
+  Rcpp::List fixef_i = fixef_list_from_batch_chain(
+    fixef, chain_i, re_names
+  );
+
+  Rcpp::NumericVector tau2_i;
+  if (use_cpp_tau2_row) {
+    tau2_i = batch_tau2_chain_row(tau2, chain_i);
+  } else {
+    const int row_i = chain_i - 1;
+    if (row_i >= tau2.nrow()) {
+      Rcpp::stop(
+        "chain index %d exceeds nrow(batch_tau2) (%d).",
+        chain_i, tau2.nrow()
+      );
+    }
+    tau2_i = tau2(row_i, Rcpp::_);
+  }
+
+  return two_block_block1_one_chain_v2_impl(
+    fixef_i, tau2_i, design, block1_prior, family,
+    ptypes, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss
+  );
+
+  }
 
 /// Full per-chain Block~1 orchestration (steps A→D).
 /// Port of exported \code{two_block_block1_one_chain_cpp} in R before the
@@ -894,22 +951,24 @@ Rcpp::List two_block_block1_one_chain_orchestrate_impl(
 }
 
 /// Block~1 prep + draw for all replicate chains (rGLMM_sweep batch driver).
-/// Port of \code{.two_block_block1_all_chains_v2}: resolve \code{glmbfamfunc}
-/// once, extract chain-local \code{fixef_i} / \code{tau2_i}, call
-/// \code{two_block_block1_one_chain_v2_impl}, then update \code{b} and
-/// \code{iters_ranef} in place (no full-batch clone per chain).
-Rcpp::List two_block_block1_all_chains_impl(
+/// Port of \code{.two_block_block1_all_chains_v2}: mutates \code{b} and
+/// \code{iters_ranef} in place; no return value.
+void two_block_block1_all_chains_impl(
     int n,
     const Rcpp::List& fixef,
     const Rcpp::NumericMatrix& tau2,
-    Rcpp::NumericVector b,
-    Rcpp::NumericVector iters_ranef,
+    Rcpp::NumericVector& b,
+    Rcpp::NumericVector& iters_ranef,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
     const Rcpp::CharacterVector& ptypes,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add,
@@ -917,11 +976,10 @@ Rcpp::List two_block_block1_all_chains_impl(
     const std::string& progbar_prefix,
     bool progbar_finish_newline
 ) {
-  const Block1FamF23 fam_f23 = two_block_block1_glmbfamfunc_impl(family);
+  (void)use_cpp_b_slice;
+  (void)use_cpp_iters_ranef_add;
 
-  Rcpp::NumericVector batch_b = b;
-  ensure_batch_b_dimnames(batch_b, group_levels, re_names, n);
-  Rcpp::NumericVector batch_iters_ranef = iters_ranef;
+  ensure_batch_b_dimnames(b, group_levels, re_names, n);
 
   for (int chain_i = 1; chain_i <= n; ++chain_i) {
     if (show_bar) {
@@ -953,25 +1011,20 @@ Rcpp::List two_block_block1_all_chains_impl(
     Rcpp::List chain_draw = two_block_block1_one_chain_v2_impl(
       fixef_i, tau2_i, design, block1_prior, family,
       ptypes, re_names, group_levels,
-      fam_f23.f2, fam_f23.f3, fam_f23.f2_gauss, fam_f23.f3_gauss
+      f2, f3, f2_gauss, f3_gauss
     );
 
     Rcpp::NumericMatrix b_draw =
       Rcpp::as<Rcpp::NumericMatrix>(chain_draw["b"]);
     const double iters_mean = Rcpp::as<double>(chain_draw["iters_mean"]);
 
-    batch_b_assign_slice(batch_b, chain_i, b_draw);
-    batch_iters_ranef_add(batch_iters_ranef, chain_i, iters_mean);
+    batch_b_assign_slice(b, chain_i, b_draw);
+    batch_iters_ranef_add(iters_ranef, chain_i, iters_mean);
   }
 
   if (show_bar) {
     glmbayes::progress::progress_bar_finish(progbar_finish_newline);
   }
-
-  return Rcpp::List::create(
-    Rcpp::Named("b") = batch_b,
-    Rcpp::Named("iters_ranef") = batch_iters_ranef
-  );
 }
 
 } // namespace sim

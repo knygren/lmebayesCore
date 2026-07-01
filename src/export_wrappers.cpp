@@ -357,6 +357,17 @@ double two_block_block1_iters_mean_cpp_export(const Rcpp::List& block_out) {
 }
 
 // [[Rcpp::export]]
+Rcpp::List two_block_batch_fixef_chain_cpp_export(
+    const Rcpp::List& batch_fixef,
+    int chain_i,
+    const Rcpp::CharacterVector& re_names
+) {
+  return glmbayes::sim::fixef_list_from_batch_chain(
+    batch_fixef, chain_i, re_names
+  );
+}
+
+// [[Rcpp::export]]
 Rcpp::NumericVector two_block_batch_tau2_chain_row_cpp_export(
     const Rcpp::NumericMatrix& batch_tau2,
     int chain_i
@@ -470,18 +481,45 @@ Rcpp::List two_block_block1_one_chain_v2_cpp_export(
 }
 
 // [[Rcpp::export]]
-Rcpp::List two_block_block1_all_chains_cpp_export(
+Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(
+    const Rcpp::List& fixef,
+    int chain_i,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row
+) {
+  return glmbayes::sim::two_block_block1_all_chains_v2_internal_impl(
+    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
+    re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row
+  );
+}
+
+// [[Rcpp::export]]
+void two_block_block1_all_chains_cpp_export(
     int n,
     const Rcpp::List& fixef,
     const Rcpp::NumericMatrix& tau2,
-    Rcpp::NumericVector b,
-    Rcpp::NumericVector iters_ranef,
+    Rcpp::NumericVector& b,
+    Rcpp::NumericVector& iters_ranef,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
     const Rcpp::CharacterVector& ptypes,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add,
@@ -489,9 +527,9 @@ Rcpp::List two_block_block1_all_chains_cpp_export(
     const std::string& progbar_prefix,
     bool progbar_finish_newline
 ) {
-  return glmbayes::sim::two_block_block1_all_chains_impl(
+  glmbayes::sim::two_block_block1_all_chains_impl(
     n, fixef, tau2, b, iters_ranef, re_names, group_levels, design,
-    block1_prior, family, ptypes,
+    block1_prior, family, ptypes, f2, f3, f2_gauss, f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
     show_bar, progbar_prefix, progbar_finish_newline
   );

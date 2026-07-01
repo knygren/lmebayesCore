@@ -59,18 +59,19 @@ run_args <- function(batch) {
   )
 }
 
-batch <- init_batch()
-out_r <- do.call(glmbayesCore:::.two_block_block1_all_chains, run_args(batch))
-out_c <- do.call(glmbayesCore:::.two_block_block1_all_chains_via_cpp, run_args(batch))
+batch_r <- init_batch()
+batch_c <- init_batch()
+out_r <- do.call(glmbayesCore:::.two_block_block1_all_chains, run_args(batch_r))
+do.call(glmbayesCore:::.two_block_block1_all_chains_via_cpp, run_args(batch_c))
 
-stopifnot(identical(dim(out_r$b), dim(out_c$b)))
-stopifnot(identical(length(out_r$iters_ranef), length(out_c$iters_ranef)))
-stopifnot(all(is.finite(out_r$b)), all(is.finite(out_c$b)))
-stopifnot(all(is.finite(out_r$iters_ranef)), all(is.finite(out_c$iters_ranef)))
+stopifnot(identical(dim(out_r$b), dim(batch_c$b)))
+stopifnot(identical(length(out_r$iters_ranef), length(batch_c$iters_ranef)))
+stopifnot(all(is.finite(out_r$b)), all(is.finite(batch_c$b)))
+stopifnot(all(is.finite(out_r$iters_ranef)), all(is.finite(batch_c$iters_ranef)))
 
-max_b_diff <- max(abs(out_r$b - out_c$b))
+max_b_diff <- max(abs(out_r$b - batch_c$b))
 stopifnot(max_b_diff < 1e-10)
-stopifnot(max(abs(out_r$iters_ranef - out_c$iters_ranef)) < 1e-10)
+stopifnot(max(abs(out_r$iters_ranef - batch_c$iters_ranef)) < 1e-10)
 
 message(sprintf(
   "test_block1_all_chains_parity.R: OK (max |b_r - b_c| = %.2e)",
