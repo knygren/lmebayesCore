@@ -1104,7 +1104,8 @@ two_block_block2_one_chain_cpp <- function(
 
   fam_f23 <- .two_block_block1_glmbfamfunc(family)
 
-  b_out <- .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n)
+  b_in <- .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n)
+  b_out <- array(b_in, dim = dim(b_in), dimnames = dimnames(b_in))
   iters_ranef_out <- iters_ranef
   # fixef_batch <- list(fixef = fixef)
 
@@ -1133,7 +1134,7 @@ two_block_block2_one_chain_cpp <- function(
       fixef                   = fixef,
       chain_i                 = i,
       tau2                    = tau2,
-      b                       = b_out,
+      b                       = b_in,
       iters_ranef             = iters_ranef_out,
       design                  = design,
       block1_prior            = block1_prior,
@@ -1149,7 +1150,7 @@ two_block_block2_one_chain_cpp <- function(
       use_cpp_b_slice         = use_cpp_b_slice,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
-    b_out <- chain_out$b
+    b_out[, , i] <- chain_out$b[, , i]
     iters_ranef_out <- chain_out$iters_ranef
   }
   if (show_bar) {
