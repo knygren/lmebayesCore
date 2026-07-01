@@ -466,14 +466,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // two_block_block1_all_chains_v2_internal_cpp_export
-Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(const Rcpp::List& fixef, int chain_i, const Rcpp::NumericMatrix& tau2, const Rcpp::List& design, const Rcpp::List& block1_prior, SEXP family, const Rcpp::CharacterVector& ptypes, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, bool use_cpp_tau2_row);
-RcppExport SEXP _glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export(SEXP fixefSEXP, SEXP chain_iSEXP, SEXP tau2SEXP, SEXP designSEXP, SEXP block1_priorSEXP, SEXP familySEXP, SEXP ptypesSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP use_cpp_tau2_rowSEXP) {
+Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(const Rcpp::List& fixef, int chain_i, const Rcpp::NumericMatrix& tau2, Rcpp::NumericVector b_store, Rcpp::NumericVector iters_ranef, const Rcpp::List& design, const Rcpp::List& block1_prior, SEXP family, const Rcpp::CharacterVector& ptypes, const Rcpp::CharacterVector& re_names, const Rcpp::CharacterVector& group_levels, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::Function& f2_gauss, const Rcpp::Function& f3_gauss, bool use_cpp_tau2_row, bool use_cpp_b_slice, bool use_cpp_iters_ranef_add);
+RcppExport SEXP _glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export(SEXP fixefSEXP, SEXP chain_iSEXP, SEXP tau2SEXP, SEXP b_storeSEXP, SEXP iters_ranefSEXP, SEXP designSEXP, SEXP block1_priorSEXP, SEXP familySEXP, SEXP ptypesSEXP, SEXP re_namesSEXP, SEXP group_levelsSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP f2_gaussSEXP, SEXP f3_gaussSEXP, SEXP use_cpp_tau2_rowSEXP, SEXP use_cpp_b_sliceSEXP, SEXP use_cpp_iters_ranef_addSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
     Rcpp::traits::input_parameter< int >::type chain_i(chain_iSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type tau2(tau2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type b_store(b_storeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type iters_ranef(iters_ranefSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type design(designSEXP);
     Rcpp::traits::input_parameter< const Rcpp::List& >::type block1_prior(block1_priorSEXP);
     Rcpp::traits::input_parameter< SEXP >::type family(familySEXP);
@@ -485,7 +487,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Rcpp::Function& >::type f2_gauss(f2_gaussSEXP);
     Rcpp::traits::input_parameter< const Rcpp::Function& >::type f3_gauss(f3_gaussSEXP);
     Rcpp::traits::input_parameter< bool >::type use_cpp_tau2_row(use_cpp_tau2_rowSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_block1_all_chains_v2_internal_cpp_export(fixef, chain_i, tau2, design, block1_prior, family, ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row));
+    Rcpp::traits::input_parameter< bool >::type use_cpp_b_slice(use_cpp_b_sliceSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_cpp_iters_ranef_add(use_cpp_iters_ranef_addSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_block1_all_chains_v2_internal_cpp_export(fixef, chain_i, tau2, b_store, iters_ranef, design, block1_prior, family, ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1006,7 +1010,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_two_block_block1_one_chain_draw_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_draw_cpp_export, 22},
     {"_glmbayesCore_two_block_block1_one_chain_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_cpp_export, 18},
     {"_glmbayesCore_two_block_block1_one_chain_v2_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_one_chain_v2_cpp_export, 12},
-    {"_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export, 14},
+    {"_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export, 18},
     {"_glmbayesCore_two_block_block1_all_chains_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_block1_all_chains_cpp_export, 21},
     {"_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_reorder_b_to_group_levels_cpp_export, 3},
     {"_glmbayesCore_two_block_align_b_to_xhyper_cpp_export", (DL_FUNC) &_glmbayesCore_two_block_align_b_to_xhyper_cpp_export, 3},

@@ -290,13 +290,16 @@
 #' @noRd
 #' @keywords internal
 .two_block_block1_all_chains_v2_internal_cpp <- function(
-    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
-    re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
-    use_cpp_tau2_row = TRUE
+    fixef, chain_i, tau2, b, iters_ranef, design, block1_prior, family,
+    ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE
 ) {
   .Call(`_glmbayesCore_two_block_block1_all_chains_v2_internal_cpp_export`,
-    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
-    re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row
+    fixef, chain_i, tau2, b, iters_ranef, design, block1_prior, family,
+    ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
   )
 }
 

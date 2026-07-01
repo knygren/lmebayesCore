@@ -1129,30 +1129,28 @@ two_block_block2_one_chain_cpp <- function(
     #   f2_gauss       = fam_f23$f2_gauss,
     #   f3_gauss       = fam_f23$f3_gauss
     # )
-    chain_draw <- .two_block_block1_all_chains_v2_internal_cpp(
-      fixef              = fixef,
-      chain_i            = i,
-      tau2               = tau2,
-      design             = design,
-      block1_prior       = block1_prior,
-      family             = family,
-      ptypes             = ptypes,
-      re_names           = re_names,
-      group_levels       = group_levels,
-      f2                 = fam_f23$f2,
-      f3                 = fam_f23$f3,
-      f2_gauss           = fam_f23$f2_gauss,
-      f3_gauss           = fam_f23$f3_gauss,
-      use_cpp_tau2_row   = use_cpp_tau2_row
-    )
-    b_out <- .two_block_batch_b_assign_slice(
-      b_out, i, chain_draw$b, use_cpp_b_slice = use_cpp_b_slice
-    )
-    iters_ranef_out <- .two_block_batch_iters_ranef_add(
-      iters_ranef_out, i, chain_draw$iters_mean,
+    chain_out <- .two_block_block1_all_chains_v2_internal_cpp(
+      fixef                   = fixef,
+      chain_i                 = i,
+      tau2                    = tau2,
+      b                       = b_out,
+      iters_ranef             = iters_ranef_out,
+      design                  = design,
+      block1_prior            = block1_prior,
+      family                  = family,
+      ptypes                  = ptypes,
+      re_names                = re_names,
+      group_levels            = group_levels,
+      f2                      = fam_f23$f2,
+      f3                      = fam_f23$f3,
+      f2_gauss                = fam_f23$f2_gauss,
+      f3_gauss                = fam_f23$f3_gauss,
+      use_cpp_tau2_row        = use_cpp_tau2_row,
+      use_cpp_b_slice         = use_cpp_b_slice,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
-    
+    b_out <- chain_out$b
+    iters_ranef_out <- chain_out$iters_ranef
   }
   if (show_bar) {
     .two_block_progress_bar_finish(newline = progbar_finish_newline)

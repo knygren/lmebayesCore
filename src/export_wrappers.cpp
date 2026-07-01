@@ -485,6 +485,8 @@ Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(
     const Rcpp::List& fixef,
     int chain_i,
     const Rcpp::NumericMatrix& tau2,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
@@ -495,11 +497,14 @@ Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    bool use_cpp_tau2_row
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
 ) {
   return glmbayes::sim::two_block_block1_all_chains_v2_internal_impl(
-    fixef, chain_i, tau2, design, block1_prior, family, ptypes,
-    re_names, group_levels, f2, f3, f2_gauss, f3_gauss, use_cpp_tau2_row
+    fixef, chain_i, tau2, b_store, iters_ranef, design, block1_prior, family,
+    ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
   );
 }
 

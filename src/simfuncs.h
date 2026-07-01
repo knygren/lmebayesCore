@@ -486,12 +486,14 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
     const Rcpp::Function& f3_gauss
 );
 
-/// Per-chain Block~1 v2 internal: fixef/tau2 extract + v2 draw
-/// (two_block_block1.cpp).
+/// Per-chain Block~1 v2 internal: fixef/tau2 extract, v2 draw, slice assign,
+/// iters add (two_block_block1.cpp).
 Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     const Rcpp::List& fixef,
     int chain_i,
     const Rcpp::NumericMatrix& tau2,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
@@ -502,7 +504,9 @@ Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    bool use_cpp_tau2_row
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
 );
 
 /// Block~1 prep + draw for all chains (two_block_block1.cpp).

@@ -821,12 +821,15 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
   );
 }
 
-/// Per-chain Block~1 v2 internal: extract \code{fixef_i}/\code{tau2_i}, then draw.
-/// Port of the three-call sequence in \code{.two_block_block1_all_chains_v2}.
+/// Per-chain Block~1 v2 internal: extract \code{fixef_i}/\code{tau2_i}, draw,
+/// then update \code{b[, , chain_i]} and \code{iters_ranef[chain_i]}.
+/// Port of the per-chain body in \code{.two_block_block1_all_chains_v2}.
 Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     const Rcpp::List& fixef,
     int chain_i,
     const Rcpp::NumericMatrix& tau2,
+    Rcpp::NumericVector b_store,
+    Rcpp::NumericVector iters_ranef,
     const Rcpp::List& design,
     const Rcpp::List& block1_prior,
     SEXP family,
@@ -837,7 +840,9 @@ Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     const Rcpp::Function& f3,
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss,
-    bool use_cpp_tau2_row
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add
 ) {
   Rcpp::List fixef_i = fixef_list_from_batch_chain(
     fixef, chain_i, re_names
@@ -857,13 +862,32 @@ Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     tau2_i = tau2(row_i, Rcpp::_);
   }
 
-  return two_block_block1_one_chain_v2_impl(
+  Rcpp::List draw_out = two_block_block1_one_chain_v2_impl(
     fixef_i, tau2_i, design, block1_prior, family,
     ptypes, re_names, group_levels,
     f2, f3, f2_gauss, f3_gauss
   );
 
-  }
+  Rcpp::NumericMatrix b_draw =
+    Rcpp::as<Rcpp::NumericMatrix>(draw_out["b"]);
+  const double iters_mean = Rcpp::as<double>(draw_out["iters_mean"]);
+
+  Rcpp::NumericVector batch_b =
+    use_cpp_b_slice ? Rcpp::clone(b_store) : b_store;
+  batch_b_assign_slice(batch_b, chain_i, b_draw);
+  ensure_batch_b_dimnames(
+    batch_b, group_levels, re_names, batch_b_n_chains(batch_b)
+  );
+
+  Rcpp::NumericVector batch_iters_ranef =
+    use_cpp_iters_ranef_add ? Rcpp::clone(iters_ranef) : iters_ranef;
+  batch_iters_ranef_add(batch_iters_ranef, chain_i, iters_mean);
+
+  return Rcpp::List::create(
+    Rcpp::Named("b") = batch_b,
+    Rcpp::Named("iters_ranef") = batch_iters_ranef
+  );
+}
 
 /// Full per-chain Block~1 orchestration (steps A→D).
 /// Port of exported \code{two_block_block1_one_chain_cpp} in R before the
