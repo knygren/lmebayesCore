@@ -1106,7 +1106,8 @@ two_block_block2_one_chain_cpp <- function(
 
   b_in <- .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n)
   b_out <- array(b_in, dim = dim(b_in), dimnames = dimnames(b_in))
-  iters_ranef_out <- iters_ranef
+  iters_ranef_in <- iters_ranef
+  iters_ranef_out <- iters_ranef + 0
   # fixef_batch <- list(fixef = fixef)
 
   for (i in seq_len(n)) {
@@ -1135,7 +1136,7 @@ two_block_block2_one_chain_cpp <- function(
       chain_i                 = i,
       tau2                    = tau2,
       b                       = b_in,
-      iters_ranef             = iters_ranef_out,
+      iters_ranef             = iters_ranef_in,
       design                  = design,
       block1_prior            = block1_prior,
       family                  = family,
@@ -1151,7 +1152,7 @@ two_block_block2_one_chain_cpp <- function(
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
     b_out[, , i] <- chain_out$b[, , i]
-    iters_ranef_out <- chain_out$iters_ranef
+    iters_ranef_out[i] <- chain_out$iters_ranef[i]
   }
   if (show_bar) {
     .two_block_progress_bar_finish(newline = progbar_finish_newline)
