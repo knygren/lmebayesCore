@@ -573,6 +573,56 @@
   .two_block_block1_reorder_b_r(b_draw, group_levels)
 }
 
+#' Block~1 envelope draw for one chain (\code{block_rNormalReg}/\code{block_rNormalGLM})
+#' @noRd
+.two_block_block1_draw_block <- function(
+    prior_list,
+    design,
+    family,
+    is_gaussian
+) {
+  if (is_gaussian) {
+    return(block_rNormalReg(
+      n          = 1L,
+      y          = design$y,
+      x          = design$Z,
+      block      = design$groups,
+      prior_list = prior_list
+    ))
+  }
+  block_rNormalGLM(
+    n            = 1L,
+    y            = design$y,
+    x            = design$Z,
+    block        = design$groups,
+    prior_list   = prior_list,
+    family       = family,
+    use_parallel = FALSE,
+    verbose      = FALSE,
+    progbar      = FALSE
+  )
+}
+
+#' Reorder Block~1 draw coefficients and summarize envelope iterations
+#' @noRd
+.two_block_block1_draw_reorder <- function(
+    block_out,
+    group_levels,
+    use_cpp_reorder = TRUE,
+    use_cpp_iters = TRUE
+) {
+  b_draw <- block_out$coefficients
+  b_draw <- .two_block_block1_reorder_b(
+    b_draw       = b_draw,
+    group_levels = group_levels,
+    use_cpp      = use_cpp_reorder
+  )
+  list(
+    b          = b_draw,
+    iters_mean = .two_block_block1_iters_mean(block_out, use_cpp = use_cpp_iters)
+  )
+}
+
 #' One-chain Block 1 draw given a prepared prior_list
 #' @noRd
 .two_block_block1_draw_one_chain <- function(
@@ -584,37 +634,17 @@
     use_cpp_reorder = TRUE,
     use_cpp_iters = TRUE
 ) {
-  if (is_gaussian) {
-    block_out <- block_rNormalReg(
-      n          = 1L,
-      y          = design$y,
-      x          = design$Z,
-      block      = design$groups,
-      prior_list = prior_list
-    )
-  } else {
-    block_out <- block_rNormalGLM(
-      n            = 1L,
-      y            = design$y,
-      x            = design$Z,
-      block        = design$groups,
-      prior_list   = prior_list,
-      family       = family,
-      use_parallel = FALSE,
-      verbose      = FALSE,
-      progbar      = FALSE
-    )
-  }
-
-  b_draw <- block_out$coefficients
-  b_draw <- .two_block_block1_reorder_b(
-    b_draw        = b_draw,
-    group_levels  = group_levels,
-    use_cpp       = use_cpp_reorder
+  block_out <- .two_block_block1_draw_block(
+    prior_list  = prior_list,
+    design      = design,
+    family      = family,
+    is_gaussian = is_gaussian
   )
-  list(
-    b          = b_draw,
-    iters_mean = .two_block_block1_iters_mean(block_out, use_cpp = use_cpp_iters)
+  .two_block_block1_draw_reorder(
+    block_out       = block_out,
+    group_levels    = group_levels,
+    use_cpp_reorder = use_cpp_reorder,
+    use_cpp_iters   = use_cpp_iters
   )
 }
 
@@ -752,15 +782,27 @@
 
   draw_i <- function(i) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    .two_block_block1_draw_one_chain(
-      prior_list       = prior_lists[[i]],
-      design           = design,
-      family           = family,
-      is_gaussian      = is_gaussian,
-      group_levels     = batch$group_levels,
-      use_cpp_reorder  = use_cpp_reorder,
-      use_cpp_iters    = use_cpp_iters
+    block_out <- .two_block_block1_draw_block(
+      prior_list  = prior_lists[[i]],
+      design      = design,
+      family      = family,
+      is_gaussian = is_gaussian
     )
+    .two_block_block1_draw_reorder(
+      block_out       = block_out,
+      group_levels    = batch$group_levels,
+      use_cpp_reorder = use_cpp_reorder,
+      use_cpp_iters   = use_cpp_iters
+    )
+    # .two_block_block1_draw_one_chain(
+    #   prior_list       = prior_lists[[i]],
+    #   design           = design,
+    #   family           = family,
+    #   is_gaussian      = is_gaussian,
+    #   group_levels     = batch$group_levels,
+    #   use_cpp_reorder  = use_cpp_reorder,
+    #   use_cpp_iters    = use_cpp_iters
+    # )
   }
 
   b_draws <- .two_block_lapply_chains(n, draw_i, n_cores = n_cores)
