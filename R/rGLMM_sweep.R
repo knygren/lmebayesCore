@@ -138,47 +138,7 @@ rGLMM_sweep <- function(
     #   phase        = "Block1",
     #   boundary     = "enter"
     # )
-    # R oracle (reference): sequential R loop per chain.
-    # b1 <- .two_block_block1_all_chains(
-    #   n                       = batch$n,
-    #   fixef                   = batch$fixef,
-    #   tau2                    = batch$tau2,
-    #   b                       = batch$b,
-    #   iters_ranef             = batch$iters_ranef,
-    #   re_names                = batch$re_names,
-    #   group_levels            = batch$group_levels,
-    #   design                  = design,
-    #   block1_prior            = block1_prior,
-    #   family                  = family,
-    #   ptypes                  = ptypes,
-    #   progbar                 = progbar_use,
-    #   progbar_prefix          = prefix_b1,
-    #   progbar_finish_newline  = FALSE,
-    #   use_cpp_tau2_row        = use_cpp_tau2_row,
-    #   use_cpp_b_slice         = use_cpp_b_slice,
-    #   use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
-    # )
-    # Bulk C++ all-chains (pass-by-reference; not production).
-    # .two_block_block1_all_chains_via_cpp(
-    #   n                       = batch$n,
-    #   fixef                   = batch$fixef,
-    #   tau2                    = batch$tau2,
-    #   b                       = batch$b,
-    #   iters_ranef             = batch$iters_ranef,
-    #   re_names                = batch$re_names,
-    #   group_levels            = batch$group_levels,
-    #   design                  = design,
-    #   block1_prior            = block1_prior,
-    #   family                  = family,
-    #   ptypes                  = ptypes,
-    #   progbar                 = progbar_use,
-    #   progbar_prefix          = prefix_b1,
-    #   progbar_finish_newline  = FALSE,
-    #   use_cpp_tau2_row        = use_cpp_tau2_row,
-    #   use_cpp_b_slice         = use_cpp_b_slice,
-    #   use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
-    # )
-    b1 <- .two_block_block1_all_chains_v2(
+    b1 <- .two_block_block1_all_chains(
       n                       = batch$n,
       fixef                   = batch$fixef,
       tau2                    = batch$tau2,
