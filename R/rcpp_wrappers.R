@@ -277,6 +277,28 @@
 
 #' @noRd
 #' @keywords internal
+.two_block_block1_one_chain_from_mu_P_cpp <- function(
+    mu_all,
+    P,
+    dispersion,
+    ddef,
+    design,
+    family,
+    re_names,
+    group_levels,
+    f2,
+    f3,
+    f2_gauss,
+    f3_gauss
+) {
+  .Call(`_glmbayesCore_two_block_block1_one_chain_from_mu_P_cpp_export`,
+    mu_all, P, dispersion, ddef, design, family, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss
+  )
+}
+
+#' @noRd
+#' @keywords internal
 .two_block_block1_one_chain_v2_cpp <- function(
     fixef_i, tau2_i, design, block1_prior, family, ptypes,
     re_names, group_levels, f2, f3, f2_gauss, f3_gauss
@@ -300,6 +322,26 @@
     fixef, chain_i, tau2, b, iters_ranef, design, block1_prior, family,
     ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_block1_all_chains_v2_internal_loop_cpp <- function(
+    n, fixef, tau2, b_in_master, iters_ranef_in, design, block1_prior, family,
+    ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE,
+    show_bar = FALSE,
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE
+) {
+  .Call(`_glmbayesCore_two_block_block1_all_chains_v2_internal_loop_cpp_export`,
+    n, fixef, tau2, b_in_master, iters_ranef_in, design, block1_prior, family,
+    ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
+    show_bar, progbar_prefix, progbar_finish_newline
   )
 }
 

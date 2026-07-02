@@ -728,16 +728,15 @@ Block1FamF23 two_block_block1_glmbfamfunc_impl(SEXP family) {
 
 } // namespace
 
-/// Block~1 prep + draw for one chain (v2): chain-local \code{fixef_i} and
-/// \code{tau2_i} only.  Returns the \code{J x p_re} slice (\code{b}) and
-/// \code{iters_mean}; caller assigns into \code{batch$b[, , chain_i]}.
-Rcpp::List two_block_block1_one_chain_v2_impl(
-    const Rcpp::List& fixef_i,
-    const Rcpp::NumericVector& tau2_i,
+/// Block~1 draw for one chain from R-built \code{mu_all} and prior precision \code{P}.
+/// Prep (\code{fixef_i} -> \code{mu_all}, \code{tau2_i} -> \code{P}) stays in R.
+Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
+    const Rcpp::NumericMatrix& mu_all,
+    const Rcpp::NumericMatrix& P,
+    SEXP dispersion,
+    SEXP ddef,
     const Rcpp::List& design,
-    const Rcpp::List& block1_prior,
     SEXP family,
-    const Rcpp::CharacterVector& ptypes,
     const Rcpp::CharacterVector& re_names,
     const Rcpp::CharacterVector& group_levels,
     const Rcpp::Function& f2,
@@ -745,6 +744,13 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
     const Rcpp::Function& f2_gauss,
     const Rcpp::Function& f3_gauss
 ) {
+  Rcpp::List prior_list = Rcpp::List::create(
+    Rcpp::Named("mu") = mu_all,
+    Rcpp::Named("P") = P,
+    Rcpp::Named("dispersion") = dispersion,
+    Rcpp::Named("ddef") = ddef
+  );
+
   Rcpp::NumericVector offset;
   Rcpp::NumericVector wt;
   design_offset_wt(design, offset, wt);
@@ -758,15 +764,6 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
   const Rcpp::NumericMatrix Z =
     Rcpp::as<Rcpp::NumericMatrix>(design["Z"]);
   SEXP groups = design["groups"];
-  Rcpp::List x_hyper =
-    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["X_hyper"]));
-
-  Rcpp::NumericMatrix mu_all = two_block_build_mu_all(
-    x_hyper, fixef_i, re_names, group_levels
-  );
-  Rcpp::List prior_list = two_block_block1_prior_with_tau2(
-    block1_prior, tau2_i, ptypes, re_names, mu_all
-  );
 
   Rcpp::List block_out;
   if (is_gaussian) {
@@ -818,6 +815,42 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
   return Rcpp::List::create(
     Rcpp::Named("b") = b_draw,
     Rcpp::Named("iters_mean") = iters_mean
+  );
+}
+
+/// Block~1 prep + draw for one chain (v2): chain-local \code{fixef_i} and
+/// \code{tau2_i} only.  Returns the \code{J x p_re} slice (\code{b}) and
+/// \code{iters_mean}; caller assigns into \code{batch$b[, , chain_i]}.
+/// Prefer \code{two_block_block1_one_chain_from_mu_P_impl} with R-built inputs.
+Rcpp::List two_block_block1_one_chain_v2_impl(
+    const Rcpp::List& fixef_i,
+    const Rcpp::NumericVector& tau2_i,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss
+) {
+  Rcpp::List x_hyper =
+    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["X_hyper"]));
+  Rcpp::NumericMatrix mu_all = two_block_build_mu_all(
+    x_hyper, fixef_i, re_names, group_levels
+  );
+  Rcpp::List prior_list = two_block_block1_prior_with_tau2(
+    block1_prior, tau2_i, ptypes, re_names, mu_all
+  );
+  return two_block_block1_one_chain_from_mu_P_impl(
+    mu_all,
+    Rcpp::as<Rcpp::NumericMatrix>(prior_list["P"]),
+    prior_list["dispersion"],
+    prior_list["ddef"],
+    design, family, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss
   );
 }
 
@@ -886,6 +919,137 @@ Rcpp::List two_block_block1_all_chains_v2_internal_impl(
   return Rcpp::List::create(
     Rcpp::Named("b") = batch_b,
     Rcpp::Named("iters_ranef") = batch_iters_ranef
+  );
+}
+
+namespace {
+
+/// Write \code{b_draw(g, j)} into rows \code{(chain_i-1)*J + g} of master \code{B}.
+void master_b_assign_chain_draw(
+    Rcpp::NumericMatrix& B,
+    int J,
+    int chain_i,
+    const Rcpp::NumericMatrix& b_draw
+) {
+  if (chain_i < 1) {
+    Rcpp::stop("'chain_i' must be at least 1.");
+  }
+  const int p_re = b_draw.ncol();
+  if (b_draw.nrow() != J) {
+    Rcpp::stop(
+      "Block 1 draw for chain %d is %d x %d; expected %d x %d.",
+      chain_i, b_draw.nrow(), b_draw.ncol(), J, p_re
+    );
+  }
+  const int row0 = (chain_i - 1) * J;
+  if (row0 + J > B.nrow()) {
+    Rcpp::stop(
+      "Chain %d row block [%d, %d) exceeds nrow(B) (%d).",
+      chain_i, row0 + 1, row0 + J, B.nrow()
+    );
+  }
+  for (int j = 0; j < p_re; ++j) {
+    for (int g = 0; g < J; ++g) {
+      B(row0 + g, j) = b_draw(g, j);
+    }
+  }
+}
+
+} // namespace
+
+/// All-chain Block~1 v2 loop: \code{b_in_master} is \code{(J*n) x p_re} (R-built
+/// from \code{b[, , i]} row blocks); per-chain draw updates chain row blocks;
+/// returns master matrix for R to convert back to \code{dim = c(J, p_re, n)}.
+Rcpp::List two_block_block1_all_chains_v2_internal_loop_impl(
+    int n,
+    const Rcpp::List& fixef,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::NumericMatrix& b_in_master,
+    const Rcpp::NumericVector& iters_ranef_in,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
+    bool show_bar,
+    const std::string& progbar_prefix,
+    bool progbar_finish_newline
+) {
+  (void)use_cpp_b_slice;
+  (void)use_cpp_iters_ranef_add;
+
+  const int J = group_levels.size();
+  const int p_re = re_names.size();
+  if (J < 1 || p_re < 1 || n < 1) {
+    Rcpp::stop("J, p_re, and n must be positive.");
+  }
+
+  if (b_in_master.nrow() != J * n || b_in_master.ncol() != p_re) {
+    Rcpp::stop(
+      "b_in_master must be %d x %d (J * n x p_re); got %d x %d.",
+      J * n, p_re, b_in_master.nrow(), b_in_master.ncol()
+    );
+  }
+
+  Rcpp::NumericMatrix B = Rcpp::clone(b_in_master);
+  Rcpp::NumericVector iters_ranef_out = Rcpp::clone(iters_ranef_in);
+
+  for (int chain_i = 1; chain_i <= n; ++chain_i) {
+    if (show_bar) {
+      glmbayes::progress::progress_bar(
+        static_cast<double>(chain_i),
+        static_cast<double>(n),
+        progbar_prefix
+      );
+    }
+
+    Rcpp::List fixef_i = fixef_list_from_batch_chain(
+      fixef, chain_i, re_names
+    );
+
+    Rcpp::NumericVector tau2_i;
+    if (use_cpp_tau2_row) {
+      tau2_i = batch_tau2_chain_row(tau2, chain_i);
+    } else {
+      const int row_i = chain_i - 1;
+      if (row_i >= tau2.nrow()) {
+        Rcpp::stop(
+          "chain index %d exceeds nrow(batch_tau2) (%d).",
+          chain_i, tau2.nrow()
+        );
+      }
+      tau2_i = tau2(row_i, Rcpp::_);
+    }
+
+    Rcpp::List draw_out = two_block_block1_one_chain_v2_impl(
+      fixef_i, tau2_i, design, block1_prior, family,
+      ptypes, re_names, group_levels,
+      f2, f3, f2_gauss, f3_gauss
+    );
+
+    Rcpp::NumericMatrix b_draw =
+      Rcpp::as<Rcpp::NumericMatrix>(draw_out["b"]);
+    const double iters_mean = Rcpp::as<double>(draw_out["iters_mean"]);
+
+    master_b_assign_chain_draw(B, J, chain_i, b_draw);
+    batch_iters_ranef_add(iters_ranef_out, chain_i, iters_mean);
+  }
+
+  if (show_bar) {
+    glmbayes::progress::progress_bar_finish(progbar_finish_newline);
+  }
+
+  return Rcpp::List::create(
+    Rcpp::Named("b_master") = B,
+    Rcpp::Named("iters_ranef") = iters_ranef_out
   );
 }
 

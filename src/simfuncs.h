@@ -469,6 +469,22 @@ Rcpp::List two_block_block1_one_chain_orchestrate_impl(
     bool use_cpp_iters_ranef_add
 );
 
+/// Block~1 draw from R-built \code{mu_all} and \code{P} (two_block_block1.cpp).
+Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
+    const Rcpp::NumericMatrix& mu_all,
+    const Rcpp::NumericMatrix& P,
+    SEXP dispersion,
+    SEXP ddef,
+    const Rcpp::List& design,
+    SEXP family,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss
+);
+
 /// Block~1 prep + draw for one chain (v2): chain-local inputs; returns slice
 /// \code{b} and \code{iters_mean} only (two_block_block1.cpp).
 Rcpp::List two_block_block1_one_chain_v2_impl(
@@ -507,6 +523,31 @@ Rcpp::List two_block_block1_all_chains_v2_internal_impl(
     bool use_cpp_tau2_row,
     bool use_cpp_b_slice,
     bool use_cpp_iters_ranef_add
+);
+
+/// All-chain Block~1 v2 loop (two_block_block1.cpp).
+Rcpp::List two_block_block1_all_chains_v2_internal_loop_impl(
+    int n,
+    const Rcpp::List& fixef,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::NumericMatrix& b_in_master,
+    const Rcpp::NumericVector& iters_ranef_in,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
+    bool show_bar,
+    const std::string& progbar_prefix,
+    bool progbar_finish_newline
 );
 
 /// Block~1 prep + draw for all chains (two_block_block1.cpp).

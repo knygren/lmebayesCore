@@ -460,6 +460,27 @@ Rcpp::List two_block_block1_one_chain_cpp_export(
 }
 
 // [[Rcpp::export]]
+Rcpp::List two_block_block1_one_chain_from_mu_P_cpp_export(
+    const Rcpp::NumericMatrix& mu_all,
+    const Rcpp::NumericMatrix& P,
+    SEXP dispersion,
+    SEXP ddef,
+    const Rcpp::List& design,
+    SEXP family,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss
+) {
+  return glmbayes::sim::two_block_block1_one_chain_from_mu_P_impl(
+    mu_all, P, dispersion, ddef, design, family, re_names, group_levels,
+    f2, f3, f2_gauss, f3_gauss
+  );
+}
+
+// [[Rcpp::export]]
 Rcpp::List two_block_block1_one_chain_v2_cpp_export(
     const Rcpp::List& fixef_i,
     const Rcpp::NumericVector& tau2_i,
@@ -505,6 +526,38 @@ Rcpp::List two_block_block1_all_chains_v2_internal_cpp_export(
     fixef, chain_i, tau2, b_store, iters_ranef, design, block1_prior, family,
     ptypes, re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
     use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List two_block_block1_all_chains_v2_internal_loop_cpp_export(
+    int n,
+    const Rcpp::List& fixef,
+    const Rcpp::NumericMatrix& tau2,
+    const Rcpp::NumericMatrix& b_in_master,
+    const Rcpp::NumericVector& iters_ranef_in,
+    const Rcpp::List& design,
+    const Rcpp::List& block1_prior,
+    SEXP family,
+    const Rcpp::CharacterVector& ptypes,
+    const Rcpp::CharacterVector& re_names,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::Function& f2,
+    const Rcpp::Function& f3,
+    const Rcpp::Function& f2_gauss,
+    const Rcpp::Function& f3_gauss,
+    bool use_cpp_tau2_row,
+    bool use_cpp_b_slice,
+    bool use_cpp_iters_ranef_add,
+    bool show_bar,
+    const std::string& progbar_prefix,
+    bool progbar_finish_newline
+) {
+  return glmbayes::sim::two_block_block1_all_chains_v2_internal_loop_impl(
+    n, fixef, tau2, b_in_master, iters_ranef_in, design, block1_prior, family, ptypes,
+    re_names, group_levels, f2, f3, f2_gauss, f3_gauss,
+    use_cpp_tau2_row, use_cpp_b_slice, use_cpp_iters_ranef_add,
+    show_bar, progbar_prefix, progbar_finish_newline
   );
 }
 

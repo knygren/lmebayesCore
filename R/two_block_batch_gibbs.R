@@ -315,6 +315,73 @@
   b
 }
 
+#' Stack batch \code{b[, , i]} slices into \code{(J*n) x p_re} master matrix
+#' @noRd
+.two_block_batch_b_array_to_master_matrix <- function(
+    b,
+    group_levels,
+    re_names,
+    n
+) {
+  J <- length(group_levels)
+  p_re <- length(re_names)
+  if (length(dim(b)) != 3L ||
+      dim(b)[1L] != J ||
+      dim(b)[2L] != p_re ||
+      dim(b)[3L] != n) {
+    stop(
+      "b must have dim c(J, p_re, n) = c(",
+      J, ", ", p_re, ", ", n, "); got ",
+      paste(dim(b), collapse = " x "),
+      call. = FALSE
+    )
+  }
+  out <- matrix(
+    0,
+    nrow = J * n,
+    ncol = p_re,
+    dimnames = list(rep(group_levels, n), re_names)
+  )
+  for (i in seq_len(n)) {
+    row_lo <- (i - 1L) * J + 1L
+    row_hi <- i * J
+    out[row_lo:row_hi, ] <- b[, , i]
+  }
+  out
+}
+
+#' Fill \code{b[, , i]} from master matrix row blocks (\code{(J*n) x p_re})
+#' @noRd
+.two_block_batch_b_master_matrix_to_array <- function(
+    b_master,
+    group_levels,
+    re_names,
+    n
+) {
+  J <- length(group_levels)
+  p_re <- length(re_names)
+  if (!is.matrix(b_master) ||
+      nrow(b_master) != J * n ||
+      ncol(b_master) != p_re) {
+    stop(
+      "b_master must be a ", J * n, " x ", p_re, " matrix; got ",
+      paste(dim(b_master), collapse = " x "),
+      call. = FALSE
+    )
+  }
+  b_out <- array(
+    0,
+    dim = c(J, p_re, n),
+    dimnames = list(group_levels, re_names, NULL)
+  )
+  for (i in seq_len(n)) {
+    row_lo <- (i - 1L) * J + 1L
+    row_hi <- i * J
+    b_out[, , i] <- b_master[row_lo:row_hi, , drop = FALSE]
+  }
+  b_out
+}
+
 #' Extract chain-i fixef list from batch state
 #' @noRd
 .two_block_batch_fixef_chain <- function(batch, i) {
@@ -549,6 +616,115 @@
     b          = b_draw,
     iters_mean = .two_block_block1_iters_mean(block_out, use_cpp = use_cpp_iters)
   )
+}
+
+#' Block~1 one chain: draw from R-built \code{mu_all} and \code{P}
+#'
+#' Prep (\code{fixef_i} -> \code{mu_all}, \code{tau2_i} -> \code{P}) is done in R
+#' via \code{.two_block_block1_prep_one_chain}; C++ only runs the Block~1 draw.
+#'
+#' @param mu_all \code{p_re x J} prior mean matrix (\code{dimnames}: \code{re_names},
+#'   \code{group_levels}).
+#' @param P \code{p_re x p_re} prior precision matrix for this chain.
+#' @param dispersion Block~1 dispersion (from \code{block1_prior} meta).
+#' @param ddef Block~1 default-prior flag (from \code{block1_prior} meta).
+#' @param design Shared design list (\code{y}, \code{Z}, \code{groups}, \ldots).
+#' @param family GLM family object.
+#' @param group_levels Target row order for \code{b}.
+#' @param re_names Random-effect block names (column order for \code{b}).
+#' @param f2,f3,f2_gauss,f3_gauss Optional; resolved from \code{family} when
+#'   \code{NULL}.
+#' @param use_cpp If \code{TRUE} (default), use the C++ draw export.
+#' @return \code{list(b = J x p_re, iters_mean = numeric(1))}
+#' @noRd
+.two_block_block1_one_chain <- function(
+    mu_all,
+    P,
+    dispersion,
+    ddef,
+    design,
+    family,
+    group_levels,
+    re_names,
+    f2 = NULL,
+    f3 = NULL,
+    f2_gauss = NULL,
+    f3_gauss = NULL,
+    use_cpp = TRUE
+) {
+  if (is.null(f2)) {
+    fam_f23 <- .two_block_block1_glmbfamfunc(family)
+    f2 <- fam_f23$f2
+    f3 <- fam_f23$f3
+    f2_gauss <- fam_f23$f2_gauss
+    f3_gauss <- fam_f23$f3_gauss
+  }
+  if (isTRUE(use_cpp)) {
+    return(.two_block_block1_one_chain_from_mu_P_cpp(
+      mu_all       = mu_all,
+      P            = P,
+      dispersion   = dispersion,
+      ddef         = ddef,
+      design       = design,
+      family       = family,
+      re_names     = re_names,
+      group_levels = group_levels,
+      f2           = f2,
+      f3           = f3,
+      f2_gauss     = f2_gauss,
+      f3_gauss     = f3_gauss
+    ))
+  }
+  prior_list <- list(
+    mu         = mu_all,
+    P          = P,
+    dispersion = dispersion,
+    ddef       = ddef
+  )
+  .two_block_block1_draw_one_chain(
+    prior_list      = prior_list,
+    design          = design,
+    family          = family,
+    is_gaussian     = identical(family$family, "gaussian"),
+    group_levels    = group_levels,
+    use_cpp_reorder = FALSE,
+    use_cpp_iters   = FALSE
+  )
+}
+
+#' Block~1 one chain from batch state: R prep + \code{.two_block_block1_one_chain}
+#' @noRd
+.two_block_block1_one_chain_from_batch <- function(
+    batch,
+    i,
+    design,
+    block1_prior,
+    family,
+    ptypes,
+    use_cpp = TRUE
+) {
+  prep <- .two_block_block1_prep_one_chain(
+    batch              = batch,
+    i                  = i,
+    design             = design,
+    block1_prior       = block1_prior,
+    ptypes             = ptypes,
+    use_cpp_mu_all     = FALSE,
+    use_cpp_prior_tau2 = FALSE
+  )
+  pl <- prep$prior_list
+  draw <- .two_block_block1_one_chain(
+    mu_all       = prep$mu_all,
+    P            = pl$P,
+    dispersion   = pl$dispersion,
+    ddef         = pl$ddef,
+    design       = design,
+    family       = family,
+    group_levels = batch$group_levels,
+    re_names     = batch$re_names,
+    use_cpp      = use_cpp
+  )
+  c(prep, draw)
 }
 
 #' All-chain Block 1 draw from prepared prior_lists
@@ -1063,11 +1239,8 @@ two_block_block2_one_chain_cpp <- function(
   )
 }
 
-#' Block 1 batch v2: R loop with per-chain inputs and in-place batch updates
-#'
-#' Extracts chain-local \code{fixef_i} and \code{tau2_i} in R, calls
-#' \code{.two_block_block1_one_chain_v2_cpp} (draw only), then assigns the
-#' returned slice into \code{b[, , i]} and updates \code{iters_ranef[i]}.
+#' Block 1 batch v2: R prep (\code{mu_all}, \code{P}) per chain, C++ draw via
+#' \code{.two_block_block1_one_chain}; slice updates into pre-allocated \code{b_out}.
 #'
 #' @inheritParams .two_block_block1_all_chains
 #' @return List with \code{b} and \code{iters_ranef} (same SEXPes as inputs).
@@ -1104,55 +1277,55 @@ two_block_block2_one_chain_cpp <- function(
 
   fam_f23 <- .two_block_block1_glmbfamfunc(family)
 
+  batch <- list(
+    n            = n,
+    fixef        = fixef,
+    tau2         = tau2,
+    re_names     = re_names,
+    group_levels = group_levels
+  )
+
   b_in <- .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n)
   b_out <- array(b_in, dim = dim(b_in), dimnames = dimnames(b_in))
-  iters_ranef_in <- iters_ranef
   iters_ranef_out <- iters_ranef + 0
-  # fixef_batch <- list(fixef = fixef)
 
   for (i in seq_len(n)) {
-    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    # fixef_i <- .two_block_batch_fixef_chain(fixef_batch, i)
-    # fixef_i <- .two_block_batch_fixef_chain_cpp(fixef, i, re_names)
-    # tau2_i <- .two_block_batch_tau2_chain_row(
-    #   tau2, i, use_cpp_tau2_row = use_cpp_tau2_row
-    # )
-    # chain_draw <- .two_block_block1_one_chain_v2_cpp(
-    #   fixef_i        = fixef_i,
-    #   tau2_i         = tau2_i,
-    #   design         = design,
-    #   block1_prior   = block1_prior,
-    #   family         = family,
-    #   ptypes         = ptypes,
-    #   re_names       = re_names,
-    #   group_levels   = group_levels,
-    #   f2             = fam_f23$f2,
-    #   f3             = fam_f23$f3,
-    #   f2_gauss       = fam_f23$f2_gauss,
-    #   f3_gauss       = fam_f23$f3_gauss
-    # )
-    chain_out <- .two_block_block1_all_chains_v2_internal_cpp(
-      fixef                   = fixef,
-      chain_i                 = i,
-      tau2                    = tau2,
-      b                       = b_in,
-      iters_ranef             = iters_ranef_in,
-      design                  = design,
-      block1_prior            = block1_prior,
-      family                  = family,
-      ptypes                  = ptypes,
-      re_names                = re_names,
-      group_levels            = group_levels,
-      f2                      = fam_f23$f2,
-      f3                      = fam_f23$f3,
-      f2_gauss                = fam_f23$f2_gauss,
-      f3_gauss                = fam_f23$f3_gauss,
-      use_cpp_tau2_row        = use_cpp_tau2_row,
-      use_cpp_b_slice         = use_cpp_b_slice,
+    if (show_bar) {
+      .two_block_progress_bar(i, n, prefix = progbar_prefix)
+    }
+
+    prep <- .two_block_block1_prep_one_chain(
+      batch              = batch,
+      i                  = i,
+      design             = design,
+      block1_prior       = block1_prior,
+      ptypes             = ptypes,
+      use_cpp_mu_all     = FALSE,
+      use_cpp_prior_tau2 = FALSE
+    )
+    pl <- prep$prior_list
+    draw <- .two_block_block1_one_chain(
+      mu_all       = prep$mu_all,
+      P            = pl$P,
+      dispersion   = pl$dispersion,
+      ddef         = pl$ddef,
+      design       = design,
+      family       = family,
+      group_levels = group_levels,
+      re_names     = re_names,
+      f2           = fam_f23$f2,
+      f3           = fam_f23$f3,
+      f2_gauss     = fam_f23$f2_gauss,
+      f3_gauss     = fam_f23$f3_gauss
+    )
+
+    b_out[, , i] <- draw$b
+    iters_ranef_out <- .two_block_batch_iters_ranef_add(
+      iters_ranef_out,
+      i,
+      draw$iters_mean,
       use_cpp_iters_ranef_add = use_cpp_iters_ranef_add
     )
-    b_out[, , i] <- chain_out$b[, , i]
-    iters_ranef_out[i] <- chain_out$iters_ranef[i]
   }
   if (show_bar) {
     .two_block_progress_bar_finish(newline = progbar_finish_newline)
