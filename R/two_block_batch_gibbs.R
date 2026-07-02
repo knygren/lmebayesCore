@@ -782,31 +782,27 @@
 
   draw_i <- function(i) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    block_out <- .two_block_block1_draw_block(
+    .two_block_block1_draw_block(
       prior_list  = prior_lists[[i]],
       design      = design,
       family      = family,
       is_gaussian = is_gaussian
     )
+  }
+
+  block_outs <- .two_block_lapply_chains(n, draw_i, n_cores = n_cores)
+  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
+
+  reorder_i <- function(i) {
     .two_block_block1_draw_reorder(
-      block_out       = block_out,
+      block_out       = block_outs[[i]],
       group_levels    = batch$group_levels,
       use_cpp_reorder = use_cpp_reorder,
       use_cpp_iters   = use_cpp_iters
     )
-    # .two_block_block1_draw_one_chain(
-    #   prior_list       = prior_lists[[i]],
-    #   design           = design,
-    #   family           = family,
-    #   is_gaussian      = is_gaussian,
-    #   group_levels     = batch$group_levels,
-    #   use_cpp_reorder  = use_cpp_reorder,
-    #   use_cpp_iters    = use_cpp_iters
-    # )
   }
 
-  b_draws <- .two_block_lapply_chains(n, draw_i, n_cores = n_cores)
-  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
+  b_draws <- .two_block_lapply_chains(n, reorder_i, n_cores = NULL)
 
   for (i in seq_len(n)) {
     batch$b[, , i] <- b_draws[[i]]$b
