@@ -147,6 +147,7 @@ Block~2). For formula-level fitting with ICM mode and priors, see
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
+\code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},

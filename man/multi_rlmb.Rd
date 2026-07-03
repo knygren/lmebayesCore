@@ -211,6 +211,7 @@ glmbayes Modeling Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{rGLMM}()},
+\code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
@@ -233,6 +234,7 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{rGLMM}()},
+\code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},

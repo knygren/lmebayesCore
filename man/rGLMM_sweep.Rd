@@ -121,6 +121,7 @@ glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
 \code{\link{rGLMM}()},
+\code{\link{rGLMM_Re_Draw}()},
 \code{\link{rLMMNormal_reg}()},
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},

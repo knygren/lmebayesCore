@@ -693,16 +693,53 @@
   )
 }
 
-#' All-chain Block~1 envelope draws from prepared \code{prior_lists}
-#' @return List of length \code{n} of \code{block_rNormalGLM}/\code{block_rNormalReg} outputs.
-#' @noRd
-.two_block_block1_draw_all_chains_block_outs <- function(
+#' Block~1 random-effect redraw for replicate chains
+#'
+#' Runs one \code{\link{block_rNormalGLM}} or \code{\link{block_rNormalReg}}
+#' envelope draw per chain from prepared Block~1 \code{prior_list} objects.
+#' This is the Block~1 draw step inside \code{\link{rGLMM_sweep}} after
+#' per-chain prep (\code{fixef} \eqn{\to} \code{mu_all}, \eqn{\tau^2} refresh
+#' of \code{P}).
+#'
+#' Each draw uses \code{n = 1L} per chain. Outputs are raw block-sampler
+#' results; reorder rows of \code{$coefficients} to \code{group_levels} and
+#' summarize envelope iterations separately (as \code{rGLMM_sweep} does after
+#' this step).
+#'
+#' @param n Integer. Number of independent chains; must equal
+#'   \code{length(prior_lists)}.
+#' @param prior_lists List of length \code{n}. Each element is a Block~1
+#'   \code{prior_list} with \code{mu} (\code{p_re x J} matrix, rows =
+#'   \code{re_names}, columns = group levels in block order),
+#'   \code{P} (\code{p_re x p_re} precision matrix), \code{dispersion}, and
+#'   optional \code{ddef}. Typically built by the prep step that pairs
+#'   \code{fixef[[k]][i, ]} with \code{tau2[i, k]} for chain \code{i}.
+#' @param design List with at least \code{y} (response), \code{Z} (level-1
+#'   design, \code{l2 x p_re}), and \code{groups} (block partition of length
+#'   \code{l2}). Same layout as the \code{design} argument to
+#'   \code{\link{rGLMM_sweep}}.
+#' @param family A \code{\link[stats]{family}} object. When \code{gaussian()},
+#'   uses \code{\link{block_rNormalReg}}; otherwise
+#'   \code{\link{block_rNormalGLM}} with default offset zero and unit weights.
+#' @param progbar Logical. When \code{TRUE} and \code{n > 1}, show a text
+#'   progress bar over chains. Default \code{FALSE}.
+#' @param progbar_prefix Character prefix for progress-bar lines. Default
+#'   \code{""}.
+#' @param progbar_finish_newline Logical. Print a newline after the progress
+#'   bar finishes. Default \code{TRUE}.
+#' @return List of length \code{n}. Each element is a \code{block_rNormalGLM}
+#'   or \code{block_rNormalReg} object (\code{$coefficients}, \code{$coef.mode},
+#'   \code{$block_info}, \code{$block_results}, \ldots).
+#' @family simfuncs
+#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{block_rNormalGLM}},
+#'   \code{\link{block_rNormalReg}}
+#' @export
+rGLMM_Re_Draw <- function(
     n,
     prior_lists,
     design,
     family,
-    is_gaussian,
-    show_bar = FALSE,
+    progbar = FALSE,
     progbar_prefix = "",
     progbar_finish_newline = TRUE
 ) {
@@ -712,6 +749,8 @@
       call. = FALSE
     )
   }
+  is_gaussian <- identical(family$family, "gaussian")
+  show_bar <- isTRUE(progbar) && n > 1L
   block_outs <- vector("list", n)
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
@@ -876,7 +915,6 @@
     use_cpp_reorder = TRUE,
     use_cpp_iters = TRUE
 ) {
-  is_gaussian <- identical(family$family, "gaussian")
   n <- batch$n
   show_bar <- isTRUE(progbar) && n > 1L &&
     (is.null(n_cores) || as.integer(n_cores[1L]) < 2L)
@@ -885,13 +923,12 @@
     stop("length(prep$prior_lists) must equal batch$n.", call. = FALSE)
   }
 
-  block_outs <- .two_block_block1_draw_all_chains_block_outs(
+  block_outs <- rGLMM_Re_Draw(
     n                      = n,
     prior_lists            = prior_lists,
     design                 = design,
     family                 = family,
-    is_gaussian            = is_gaussian,
-    show_bar               = show_bar,
+    progbar                = show_bar,
     progbar_prefix         = progbar_prefix,
     progbar_finish_newline = progbar_finish_newline
   )
