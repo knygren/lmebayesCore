@@ -10,8 +10,11 @@ R batch loop used by `rGLMM_sweep` / non-Gaussian `glmerb` (`R_engine`).
 | **Block 1** | Random effects **`b`** | `block_rNormalGLM` / `block_rNormalReg` | **Yes** (Poisson, binomial, …) for GLMM path |
 | **Block 2** | Hyperparameters **`γ`** (+ **`τ²`** for ING) | `rglmb(..., gaussian())` | **No** — always Gaussian hyper-regression on `b` |
 
-See `inst/ARCHITECTURE_glmerb.md` for the full call tree. Block 2 migration:
-`inst/PLAN_block2_cpp_migration.md`.
+Related docs:
+
+- `inst/BLOCK1_draw_partition_and_labeling.md` — row partition, `mu` column wiring,
+  coefficient dimnames, reorder, and C++ batch-loop contract
+- `inst/DESIGN_RGLM_BLOCKS.md` — block GLM design and return layout
 
 **Out of scope:** Gaussian glmerb with all `dNormal` RE → `two_block_rNormal_reg_v2`
 (full C++ sweep already). This plan targets the **v6 batch driver** Block 1 path.

@@ -169,6 +169,76 @@
   out
 }
 
+#' Chain-mean Block~1 \code{b} by state (\code{J x p_re})
+#' @noRd
+.two_block_sweep_ranef_chain_mean <- function(b, group_levels, re_names) {
+  ranef_mean <- apply(b, c(1L, 2L), mean)
+  rownames(ranef_mean) <- group_levels
+  colnames(ranef_mean) <- re_names
+  ranef_mean
+}
+
+#' Chain-mean \code{mu_all} by state (\code{J x p_re}); rows = \code{group_levels}.
+#' @noRd
+.two_block_sweep_mu_all_chain_mean <- function(
+    batch,
+    design,
+    group_levels,
+    use_cpp_mu_all = FALSE
+) {
+  re_names <- batch$re_names
+  n <- batch$n
+  p_re <- length(re_names)
+  J <- length(group_levels)
+  mu_sum <- matrix(0, nrow = p_re, ncol = J)
+  for (i in seq_len(n)) {
+    fixef_i <- .two_block_batch_fixef_chain(batch, i)
+    mu_i <- as.matrix(build_mu_all(
+      design, fixef_i, group_levels, use_cpp = use_cpp_mu_all
+    )$mu_all)
+    mu_sum <- mu_sum + mu_i
+  }
+  mu_mean <- mu_sum / n
+  rownames(mu_mean) <- re_names
+  colnames(mu_mean) <- group_levels
+  t(mu_mean)
+}
+
+#' Early-sweep diagnostics: fixef chain means, state ranef table, \code{mu_all} table.
+#' @noRd
+.two_block_print_sweep_early_diagnostics <- function(
+    sweep,
+    stage_label = "",
+    batch,
+    design,
+    re_names,
+    group_levels,
+    use_cpp_mu_all = FALSE
+) {
+  stage_label <- as.character(stage_label)[1L]
+  hdr <- if (nzchar(stage_label)) {
+    sprintf("--- [%s] sweep %d chain means ---", stage_label, sweep)
+  } else {
+    sprintf("--- sweep %d chain means ---", sweep)
+  }
+  cat(hdr, "\n")
+  for (k in re_names) {
+    cat(sprintf("  fixef %s:", k), colMeans(batch$fixef[[k]]), "\n")
+  }
+  ranef_mean <- .two_block_sweep_ranef_chain_mean(
+    batch$b, group_levels, re_names
+  )
+  cat("  ranef (chain means by state):\n")
+  print(ranef_mean)
+  mu_mean <- .two_block_sweep_mu_all_chain_mean(
+    batch, design, group_levels, use_cpp_mu_all = use_cpp_mu_all
+  )
+  cat("  mu_all (chain means by state):\n")
+  print(mu_mean)
+  cat("\n")
+  invisible(list(ranef_mean = ranef_mean, mu_all_mean = mu_mean))
+}
+
 #' Print per-sweep block diagnostics (fixef table across chains; b vs mode optional)
 #' @noRd
 .two_block_print_block_diag <- function(
@@ -623,6 +693,41 @@
   )
 }
 
+#' All-chain Block~1 envelope draws from prepared \code{prior_lists}
+#' @return List of length \code{n} of \code{block_rNormalGLM}/\code{block_rNormalReg} outputs.
+#' @noRd
+.two_block_block1_draw_all_chains_block_outs <- function(
+    n,
+    prior_lists,
+    design,
+    family,
+    is_gaussian,
+    show_bar = FALSE,
+    progbar_prefix = "",
+    progbar_finish_newline = TRUE
+) {
+  if (length(prior_lists) != n) {
+    stop(
+      "length(prior_lists) (", length(prior_lists), ") must equal n (", n, ").",
+      call. = FALSE
+    )
+  }
+  block_outs <- vector("list", n)
+  for (i in seq_len(n)) {
+    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
+    block_outs[[i]] <- .two_block_block1_draw_block(
+      prior_list  = prior_lists[[i]],
+      design      = design,
+      family      = family,
+      is_gaussian = is_gaussian
+    )
+  }
+  if (show_bar) {
+    .two_block_progress_bar_finish(newline = progbar_finish_newline)
+  }
+  block_outs
+}
+
 #' One-chain Block 1 draw given a prepared prior_list
 #' @noRd
 .two_block_block1_draw_one_chain <- function(
@@ -780,18 +885,16 @@
     stop("length(prep$prior_lists) must equal batch$n.", call. = FALSE)
   }
 
-  draw_i <- function(i) {
-    if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
-    .two_block_block1_draw_block(
-      prior_list  = prior_lists[[i]],
-      design      = design,
-      family      = family,
-      is_gaussian = is_gaussian
-    )
-  }
-
-  block_outs <- .two_block_lapply_chains(n, draw_i, n_cores = n_cores)
-  if (show_bar) .two_block_progress_bar_finish(newline = progbar_finish_newline)
+  block_outs <- .two_block_block1_draw_all_chains_block_outs(
+    n                      = n,
+    prior_lists            = prior_lists,
+    design                 = design,
+    family                 = family,
+    is_gaussian            = is_gaussian,
+    show_bar               = show_bar,
+    progbar_prefix         = progbar_prefix,
+    progbar_finish_newline = progbar_finish_newline
+  )
 
   reorder_i <- function(i) {
     .two_block_block1_draw_reorder(

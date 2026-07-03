@@ -2507,35 +2507,9 @@ List two_block_rNormal_reg_v5_cpp_export(
       Rcpp::clone(Rcpp::as<NumericVector>(fixef_start[j]));
   }
 
-  std::vector<NumericVector> fixef_mode_v(p_re);
-  if (diag_sweeps && !Rf_isNull(fixef_mode)) {
-    List fixef_mode_in = Rcpp::as<List>(fixef_mode);
-    if (fixef_mode_in.size() != p_re) {
-      Rcpp::stop("length(fixef_mode) must equal ncol(x) = %d.", p_re);
-    }
-    for (int j = 0; j < p_re; ++j) {
-      fixef_mode_v[j] =
-        Rcpp::clone(Rcpp::as<NumericVector>(fixef_mode_in[j]));
-    }
-  } else {
-    fixef_mode_v = fixef_start_v;
-  }
-
-  List fixef_mode_list_for_print;
-  if (diag_sweeps && !Rf_isNull(fixef_mode)) {
-    fixef_mode_list_for_print = Rcpp::as<List>(fixef_mode);
-  } else {
-    fixef_mode_list_for_print = fixef_start;
-  }
-
-  NumericMatrix b_mode_mat;
-  bool have_b_mode = false;
-  if (diag_sweeps && !Rf_isNull(b_mode)) {
-    b_mode_mat = Rcpp::as<NumericMatrix>(b_mode);
-    if (b_mode_mat.nrow() == J && b_mode_mat.ncol() == p_re) {
-      have_b_mode = true;
-    }
-  }
+  // fixef_mode / b_mode reserved for disabled per-sweep diagnostics (see sweep loop).
+  (void)fixef_mode;
+  (void)b_mode;
 
   CharacterVector re_names;
   if (x.hasAttribute("dimnames")) {

@@ -696,38 +696,6 @@ std::string family_link_string(SEXP family) {
   return Rcpp::as<std::string>(fam["link"]);
 }
 
-namespace {
-
-/// C++ backend of \code{.two_block_block1_glmbfamfunc(family)} in R.
-struct Block1FamF23 {
-  Rcpp::Function f2;
-  Rcpp::Function f3;
-  Rcpp::Function f2_gauss;
-  Rcpp::Function f3_gauss;
-};
-
-Block1FamF23 two_block_block1_glmbfamfunc_impl(SEXP family) {
-  Rcpp::Environment pkg =
-    Rcpp::Environment::namespace_env(GLMBAYES_R_NS);
-  Rcpp::Environment stats_ns =
-    Rcpp::Environment::namespace_env("stats");
-  Rcpp::Function glmbfamfunc = pkg["glmbfamfunc"];
-  Rcpp::Function gaussian = stats_ns["gaussian"];
-
-  const bool is_gaussian = family_is_gaussian(family);
-  Rcpp::List fam = glmbfamfunc(is_gaussian ? gaussian() : family);
-  Rcpp::List fam_g = glmbfamfunc(gaussian());
-
-  return Block1FamF23{
-    Rcpp::as<Rcpp::Function>(fam["f2"]),
-    Rcpp::as<Rcpp::Function>(fam["f3"]),
-    Rcpp::as<Rcpp::Function>(fam_g["f2"]),
-    Rcpp::as<Rcpp::Function>(fam_g["f3"])
-  };
-}
-
-} // namespace
-
 /// Block~1 draw for one chain from R-built \code{mu_all} and prior precision \code{P}.
 /// Prep (\code{fixef_i} -> \code{mu_all}, \code{tau2_i} -> \code{P}) stays in R.
 Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
