@@ -1,5 +1,11 @@
 # glmbayesCore (development version)
 
+* **C++ R callbacks via registered namespace:** envelope and simulation C++
+  now resolve **`EnvelopeOpt()`**, **`EnvelopeSort()`**, **`glmbfamfunc()`**,
+  **`rNormal_reg.wfit()`**, and **`rgamma_ct()`** from the **`glmbayesCore`**
+  namespace (`R_interface.h` / `GLMBAYES_R_NS`), so downstream packages
+  (e.g. **lmebayes**) no longer need to re-export them for search-path lookup.
+
 * **LMM engine split:** **`rLMMNormal_reg()`** samples with fixed observation
   dispersion (\code{prior_list = list(dispersion = sigma2)}); **`P`** is a
   separate argument. **`rLMMindepNormalGamma_reg()`** implements an outer

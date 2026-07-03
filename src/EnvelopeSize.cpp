@@ -12,6 +12,7 @@
 #include "Envelopefuncs.h"
 #include <RcppParallel.h>
 #include "openclPort.h"
+#include "R_interface.h"
 
 
 using namespace Rcpp;
@@ -64,8 +65,7 @@ Rcpp::List EnvelopeSize(const arma::vec& a,
   
   
   
-  // EnvelopeOpt is an R function
-  Rcpp::Function EnvelopeOpt("EnvelopeOpt");
+  Rcpp::Function EnvelopeOpt = glmbayes_R::r_envelope_opt();
   Rcpp::NumericVector gridindex(l1);
   
   if (Gridtype == 2) {

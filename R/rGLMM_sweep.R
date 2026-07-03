@@ -180,17 +180,17 @@ rGLMM_sweep <- function(
     batch$fixef <- b2$fixef
     batch$tau2  <- b2$tau2
     batch$iters <- b2$iters
-    if (m <= 2L) {
-      .two_block_print_sweep_early_diagnostics(
-        sweep          = m,
-        stage_label    = stage_label,
-        batch          = batch,
-        design         = design,
-        re_names       = re_names,
-        group_levels   = group_levels,
-        use_cpp_mu_all = FALSE
-      )
-    }
+    # if (m <= 2L) {
+    #   .two_block_print_sweep_early_diagnostics(
+    #     sweep          = m,
+    #     stage_label    = stage_label,
+    #     batch          = batch,
+    #     design         = design,
+    #     re_names       = re_names,
+    #     group_levels   = group_levels,
+    #     use_cpp_mu_all = FALSE
+    #   )
+    # }
     # .two_block_print_sweep_boundary(
     #   stage_label  = stage_label,
     #   sweep        = m,
