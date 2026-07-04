@@ -2,6 +2,7 @@
 % Please edit documentation in R/two_block_mode_weights.R
 \name{two_block_mode_weights}
 \alias{two_block_mode_weights}
+\alias{print.two_block_mode_weights}
 \title{Likelihood precision weights at the posterior mode}
 \usage{
 two_block_mode_weights(
@@ -14,10 +15,11 @@ two_block_mode_weights(
   dispersion = NULL,
   group_levels = levels(block)
 )
+
+\method{print}{two_block_mode_weights}(x, ...)
 }
 \arguments{
-\item{x}{Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
-to \code{\link{two_block_rNormal_reg}}.}
+\item{x}{Object of class \code{"two_block_mode_weights"}.}
 
 \item{block}{Grouping factor or block partition of length \code{l2}.}
 
@@ -38,6 +40,8 @@ and \code{Gamma} families; defaults to 1 for poisson and binomial.}
 
 \item{group_levels}{Character vector defining group order (default
 \code{levels(block)}); must match the rows of \code{b_mode}.}
+
+\item{...}{Ignored.}
 }
 \value{
 Object of class \code{"two_block_mode_weights"}: a list with
@@ -54,6 +58,8 @@ part of \eqn{B_j} before adding the Block 1 prior precision).}
 \code{group_levels}, \code{b_mode}, \code{call}}{Inputs echoed for
 reference.}
 }
+
+\code{x} invisibly.
 }
 \description{
 Evaluates the per-observation likelihood precisions (IRLS/Fisher weights)

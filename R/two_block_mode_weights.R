@@ -210,11 +210,13 @@ two_block_mode_weights <- function(x,
   )
 }
 
-#' Print method for two_block_mode_weights objects
+#' Print method for \code{two_block_mode_weights} objects
 #'
 #' @param x Object of class \code{"two_block_mode_weights"}.
 #' @param ... Ignored.
 #' @return \code{x} invisibly.
+#' @rdname two_block_mode_weights
+#' @method print two_block_mode_weights
 #' @export
 print.two_block_mode_weights <- function(x, ...) {
   w <- x$weights

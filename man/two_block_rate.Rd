@@ -2,6 +2,7 @@
 % Please edit documentation in R/two_block_rate.R
 \name{two_block_rate}
 \alias{two_block_rate}
+\alias{print.two_block_rate}
 \title{Two-block Gibbs sampler convergence rate (Remark 8 eigenvalues)}
 \usage{
 two_block_rate(
@@ -14,10 +15,11 @@ two_block_rate(
   family = gaussian(),
   group_levels = levels(block)
 )
+
+\method{print}{two_block_rate}(x, tols = c(0.01, 0.001, 1e-06), ...)
 }
 \arguments{
-\item{x}{Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
-to \code{\link{two_block_rNormal_reg}}.}
+\item{x}{Object of class \code{"two_block_rate"}.}
 
 \item{block}{Grouping factor or block partition of length \code{l2}.}
 
@@ -41,6 +43,11 @@ families.}
 \item{group_levels}{Character vector defining group order (default
 \code{levels(block)}); must match the row order of \code{x_hyper}
 when rownames are absent.}
+
+\item{tols}{Numeric vector of TV tolerances for the implied
+\code{m_convergence} table.}
+
+\item{...}{Ignored.}
 }
 \value{
 Object of class \code{"two_block_rate"}: a list with
@@ -51,6 +58,8 @@ spectrum \eqn{a_1 \ge \dots \ge a_q} in \eqn{[0,1)}),
 (\eqn{P_{12}P_{22}^{-1}P_{21}}), \code{P11}, \code{dims},
 \code{re_names}, \code{gamma_names}, \code{group_levels},
 \code{family}, \code{weights_source}, and \code{call}.
+
+\code{x} invisibly.
 }
 \description{
 Computes the eigenvalues of

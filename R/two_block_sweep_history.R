@@ -183,6 +183,11 @@
   invisible(NULL)
 }
 
+#' Two-block sweep history object
+#' @name two_block_sweep_history
+#' @keywords internal
+NULL
+
 #' Print two-block sweep history (fixef mode + per-sweep chain stats)
 #'
 #' @param x Object of class \code{"two_block_sweep_history"}.
@@ -194,13 +199,15 @@
 #' @param covariate Optional character vector of covariate names to include
 #'   (use with \code{components} to trace one coefficient at a time).
 #' @param by_sweep When \code{TRUE}, print a separate table for each inner
-#'   sweep (mode row plus that sweep only), matching live \code{glmerb} /
+#'   sweep (mode row plus that sweep only), matching live \code{glmerb()} /
 #'   \code{diag_sweeps} output. When \code{FALSE} (default), all selected
 #'   sweeps appear in one table per coefficient.
 #' @param digits Number of decimal places for numeric columns.
 #' @param ... Ignored.
 #' @importFrom utils tail
 #' @return \code{x} invisibly.
+#' @rdname two_block_sweep_history
+#' @method print two_block_sweep_history
 #' @export
 print.two_block_sweep_history <- function(
     x,

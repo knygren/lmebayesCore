@@ -23,8 +23,7 @@ rglmerb(
 \arguments{
 \item{n}{Integer. Number of independent chains in the main stage.}
 
-\item{design}{A \code{model_setup} object (typically from
-\code{\link[lmebayes]{model_setup}}).}
+\item{design}{A \code{model_setup} object (from \code{\link{model_setup}}).}
 
 \item{prior}{A normalized prior container with \code{Sigma_ranef},
 \code{prior_list}, and \code{pfamily_list}.}
@@ -80,10 +79,12 @@ prior containers. Routes by response family:
 (\code{\link{rGLMM_sweep}} sweep-outer driver).
 }
 
-For formula-level fitting with \pkg{lmebayes}, see \code{\link[lmebayes]{glmerb}}.
+For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
+Design matrices are built with \code{\link{model_setup}} and priors with
+\code{\link{Prior_Setup_lmebayes}}.
 }
 \seealso{
 \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg}},
 \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{rGLMM}},
-\code{\link[lmebayes]{glmerb}}
+\code{\link{Prior_Setup_lmebayes}}
 }

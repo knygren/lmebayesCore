@@ -357,13 +357,15 @@ two_block_rate <- function(x,
   )
 }
 
-#' Print method for two_block_rate objects
+#' Print method for \code{two_block_rate} objects
 #'
 #' @param x Object of class \code{"two_block_rate"}.
 #' @param tols Numeric vector of TV tolerances for the implied
 #'   \code{m_convergence} table.
 #' @param ... Ignored.
 #' @return \code{x} invisibly.
+#' @rdname two_block_rate
+#' @method print two_block_rate
 #' @export
 print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
   d <- x$dims

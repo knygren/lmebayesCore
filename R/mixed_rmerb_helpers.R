@@ -1,5 +1,5 @@
 ## Internal helpers for matrix-level mixed-model samplers (rlmerb / rglmerb).
-## Duplicated in lmebayes until lmebayes re-exports or aliases these exports.
+## lmebayes calls these via glmbayesCore::: from lmerb() / glmerb() only.
 
 #' @noRd
 .lmebayes_resolve_dispersion_ranef <- function(

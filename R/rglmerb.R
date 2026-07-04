@@ -10,11 +10,12 @@
 #'     (\code{\link{rGLMM_sweep}} sweep-outer driver).
 #' }
 #'
-#' For formula-level fitting with \pkg{lmebayes}, see \code{\link[lmebayes]{glmerb}}.
+#' For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
+#' Design matrices are built with \code{\link{model_setup}} and priors with
+#' \code{\link{Prior_Setup_lmebayes}}.
 #'
 #' @param n Integer. Number of independent chains in the main stage.
-#' @param design A \code{model_setup} object (typically from
-#'   \code{\link[lmebayes]{model_setup}}).
+#' @param design A \code{model_setup} object (from \code{\link{model_setup}}).
 #' @param prior A normalized prior container with \code{Sigma_ranef},
 #'   \code{prior_list}, and \code{pfamily_list}.
 #' @param family A \code{\link[stats]{family}} object. Default \code{poisson()}.
@@ -44,7 +45,7 @@
 #'   \code{n_pilot = 0L} and omit pilot output.
 #' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg}},
 #'   \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{rGLMM}},
-#'   \code{\link[lmebayes]{glmerb}}
+#'   \code{\link{Prior_Setup_lmebayes}}
 #' @name rglmerb
 #' @title The Bayesian Generalized Linear Mixed-Effects Model Distribution
 NULL

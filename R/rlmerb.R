@@ -7,16 +7,17 @@
 #' \code{\link{rLMMindepNormalGamma_reg}} when \code{dispersion_ranef} is a
 #' \code{\link{dGamma}()} pfamily.
 #'
-#' For formula-level fitting with \pkg{lmebayes}, see \code{\link[lmebayes]{lmerb}}.
+#' For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sampler.
 #'
 #' @param n Integer. Number of stored draws (each draw is one full pass through
 #'   \code{m_convergence} inner Gibbs sweeps).
-#' @param design A \code{model_setup} object (typically from
-#'   \code{\link[lmebayes]{model_setup}}) supplying \code{y}, \code{Z},
-#'   \code{groups}, \code{X_hyper}, \code{group_name}, and \code{re_coef_names}.
+#' @param design A \code{model_setup} object (from \code{\link{model_setup}})
+#'   supplying \code{y}, \code{Z}, \code{groups}, \code{X_hyper},
+#'   \code{group_name}, and \code{re_coef_names}.
 #' @param prior Normalized prior container with \code{Sigma_ranef}, \code{prior_list},
 #'   and related Block~2 fields (typically from \code{pfamily_list} and
-#'   \code{dispersion_ranef} via \code{\link[lmebayes]{lmerb}}).
+#'   \code{dispersion_ranef} via \code{\link{Prior_Setup_lmebayes}} or an
+#'   \code{lmerb()} workflow in lmebayes).
 #' @param dispersion_ranef Required observation-level dispersion: a positive
 #'   scalar \eqn{\sigma^2} (fixed) or a \code{\link{dGamma}()} pfamily with
 #'   \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.
@@ -50,7 +51,7 @@
 #'   \code{ranef.mode}, \code{m_convergence}, \code{convergence}, \code{Prior},
 #'   and \code{design}.
 #' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg}},
-#'   \code{\link{rLMMindepNormalGamma_reg}}, \code{\link[lmebayes]{lmerb}},
+#'   \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{Prior_Setup_lmebayes}},
 #'   \code{\link{rlmb}}
 #' @title The Bayesian Linear Mixed-Effects Model Distribution
 #' @export
