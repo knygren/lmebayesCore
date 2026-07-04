@@ -279,8 +279,8 @@ S3 helpers: `print.model_setup`, `print.lmebayes_prior_setup`, `print.two_block_
 
 | Function | Role |
 |----------|------|
-| `two_block_rNormal_reg_v2()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
-| `two_block_rate_v2()`, `two_block_mode_weights()`, `two_block_tv_bound()` | TV / rate calibration for inner Gibbs sweeps |
+| `two_block_rNormal_reg()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
+| `two_block_rate_from_pfamily_list()`, `two_block_mode_weights()`, `two_block_tv_bound()` | TV / rate calibration for inner Gibbs sweeps |
 | `two_block_optimize_pilot_cost()` | Pilot vs main chain cost optimization |
 | `rGLMM()`, `rGLMM_sweep()` | GLMM sweep-outer driver; **lmebayes** reaches via `glmerb()` → `rglmerb()` only |
 | `rLMMNormal_reg()`, `rLMMindepNormalGamma_reg()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM routers; **lmebayes** reaches via `lmerb()` / `glmerb()` → `rlmerb()` / `rglmerb()` only |

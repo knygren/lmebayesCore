@@ -72,7 +72,7 @@ staged0 <- glmbayesCore:::.two_block_rNormal_reg_staged_cpp(
 )
 
 set.seed(515)
-v2_only <- glmbayesCore:::.two_block_rNormal_reg_v2_cpp(
+v2_only <- glmbayesCore:::.two_block_rNormal_reg_cpp(
   n = n_main, m_convergence = m_main,
   y = y_gauss, x = x_re, block = grp, x_hyper = x_hyper,
   prior_list_block1 = pl1_gauss,

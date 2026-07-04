@@ -59,7 +59,7 @@ deliberately diffuse.
 \if{html}{\out{<div class="sourceCode">}}\preformatted{The dispersion prior must not outweigh the data: \eqn{n_0 \le J}
 (equivalently \code{pwt_dispersion} \eqn{\le 0.5}) is required,
 mirroring the sampler-side guard in
-\code{\link{two_block_rNormal_reg_v2}} (the ING dispersion envelope
+\code{\link{two_block_rNormal_reg}} (the ING dispersion envelope
 caps its log-tilt at the data contribution \eqn{J/2}; a
 prior-dominated calibration would invalidate it).
 

@@ -72,7 +72,7 @@
 #'   \code{pilot}, \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
 #'   \code{ranef.mode} and \code{icm_info}.
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{two_block_rNormal_reg_v2}},
+#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{two_block_rNormal_reg}},
 #'   \code{\link{rLMMNormal_reg}}
 #' @export
 rGLMM <- function(
@@ -622,7 +622,7 @@ rGLMM <- function(
     is_gaussian
 ) {
   if (is_gaussian) {
-    two_block_rate_v2(
+    two_block_rate_from_pfamily_list(
       x                 = design$Z,
       block             = design$groups,
       x_hyper           = design$X_hyper,
@@ -639,7 +639,7 @@ rGLMM <- function(
       family       = family,
       group_levels = group_levels
     )
-    two_block_rate_v2(
+    two_block_rate_from_pfamily_list(
       x                 = design$Z,
       block             = design$groups,
       x_hyper           = design$X_hyper,

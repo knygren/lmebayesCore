@@ -149,7 +149,7 @@
   b_mode_ref     <- b_start
   progbar_use    <- isTRUE(progbar) || isTRUE(verbose) || isTRUE(stage_verbose)
 
-  rate <- two_block_rate_v2(
+  rate <- two_block_rate_from_pfamily_list(
     x                 = inp$x,
     block             = block,
     x_hyper           = inp$x_hyper,

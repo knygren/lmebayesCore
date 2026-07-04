@@ -295,7 +295,7 @@
     engine_label,
     verbose
 ) {
-  rate <- two_block_rate_v2(
+  rate <- two_block_rate_from_pfamily_list(
     x                 = x,
     block             = block,
     x_hyper           = x_hyper,
@@ -420,7 +420,7 @@
   convergence_info <- calib$convergence_info
   convergence_info$draw_engine <- draw_engine
 
-  out <- two_block_rNormal_reg_v2(
+  out <- two_block_rNormal_reg(
     n                 = inp$n,
     y                 = inp$y,
     x                 = inp$x,
@@ -473,7 +473,7 @@
 #' @details
 #' Steps 1--3 (validation and Block~2 classification) run here; sampling runs
 #' in the route-specific functions. See their documentation for the full
-#' pipeline (ICM start, convergence calibration, \code{two_block_rNormal_reg_v2},
+#' pipeline (ICM start, convergence calibration, \code{two_block_rNormal_reg},
 #' output formatting).
 #'
 #' Each stored draw runs \code{m_convergence} inner Gibbs sweeps of the
@@ -629,7 +629,7 @@ rLMMNormal_reg_known_vcov <- function(
     verbose          = verbose,
     engine_label     = fn_name,
     any_non_normal   = FALSE,
-    draw_engine      = "two_block_rNormal_reg_v2_known_vcov",
+    draw_engine      = "two_block_rNormal_reg_known_vcov",
     result_class     = "rLMMNormal_reg_known_vcov",
     cl               = cl
   )

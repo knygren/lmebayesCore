@@ -198,7 +198,7 @@ Current v2 driver for cycling fixed hyperparameters and random effects with
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_rNormal_reg_v2()` | `two_block_rNormal_reg_v2.R` | Core-only today (current R path) |
+| `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Core-only today (current R path) |
 
 ---
 
@@ -212,7 +212,7 @@ pilot/main allocation for `rlmerb()` / `rglmerb()`.
 |----------|------|--------|
 | `two_block_mode_weights()` | `two_block_mode_weights.R` | Core-only today |
 | `two_block_rate()` | `two_block_rate.R` | Core-only today |
-| `two_block_rate_v2()` | `two_block_rNormal_reg_v2.R` | Core-only today |
+| `two_block_rate_from_pfamily_list()` | `two_block_rate_from_pfamily_list.R` | Core-only today |
 | `two_block_tv_bound()` | `two_block_tv_bound.R` | Core-only today |
 | `two_block_l_for_tv()` | `two_block_tv_bound.R` | Core-only today |
 

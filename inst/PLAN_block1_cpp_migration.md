@@ -16,7 +16,7 @@ Related docs:
   coefficient dimnames, reorder, and C++ batch-loop contract
 - `inst/DESIGN_RGLM_BLOCKS.md` — block GLM design and return layout
 
-**Out of scope:** Gaussian glmerb with all `dNormal` RE → `two_block_rNormal_reg_v2`
+**Out of scope:** Gaussian glmerb with all `dNormal` RE → `two_block_rNormal_reg`
 (full C++ sweep already). This plan targets the **v6 batch driver** Block 1 path.
 
 ---
@@ -239,7 +239,7 @@ routing), Block 1 calls `block_rNormalReg` instead of `block_rNormalGLM`.
 **Work:** Conjugate / native mode in `rNormalReg` without `lm.fit` (similar to Block 2
 Phase 3 for dNormal).
 
-**Note:** All-`dNormal` Gaussian glmerb already uses `two_block_rNormal_reg_v2` — this
+**Note:** All-`dNormal` Gaussian glmerb already uses `two_block_rNormal_reg` — this
 phase only matters for mixed or ING models on the v6 driver.
 
 ### Phase 6 — Docs, CI, flag cleanup

@@ -43,7 +43,7 @@
 #' theorem.
 #'
 #' @param x Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
-#'   to \code{\link{two_block_rNormal_reg_v2}}.
+#'   to \code{\link{two_block_rNormal_reg}}.
 #' @param block Grouping factor or block partition of length \code{l2}.
 #' @param b_mode \code{J x p_re} matrix of random-effect values at which to
 #'   evaluate the curvature (rows aligned to \code{group_levels}), e.g.

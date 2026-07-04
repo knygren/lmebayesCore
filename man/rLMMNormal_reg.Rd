@@ -83,7 +83,7 @@ random-effect prior precision \code{P}.  Validates inputs and dispatches to
 \details{
 Steps 1--3 (validation and Block~2 classification) run here; sampling runs
 in the route-specific functions. See their documentation for the full
-pipeline (ICM start, convergence calibration, \code{two_block_rNormal_reg_v2},
+pipeline (ICM start, convergence calibration, \code{two_block_rNormal_reg},
 output formatting).
 
 Each stored draw runs \code{m_convergence} inner Gibbs sweeps of the
@@ -112,9 +112,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 }
 \concept{simfuncs}

@@ -71,5 +71,5 @@ matrix, \eqn{X_k = } \code{design$X_hyper[[k]]},
 }
 \seealso{
 \code{\link{lmerb_posterior_mean}}, \code{\link{rglmb}},
-\code{\link{two_block_rNormal_reg_v2}}, \code{\link{build_mu_all}}
+\code{\link{two_block_rNormal_reg}}, \code{\link{build_mu_all}}
 }

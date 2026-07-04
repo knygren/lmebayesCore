@@ -60,7 +60,7 @@
 #'   \code{mu_all_last}, and \code{sweep_history} (class
 #'   \code{"two_block_sweep_history"}).
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg_v2}}, \code{\link{rGLMM}}
+#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM}}
 #' @export
 rGLMM_sweep <- function(
     n_chains,

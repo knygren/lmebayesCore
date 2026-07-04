@@ -1312,7 +1312,7 @@ two_block_block2_one_chain_cpp <- function(
 }
 
 #' Resolve Block~1 \code{f2}/\code{f3} closures once per batch (mirrors
-#' \code{two_block_rNormal_reg_v2}).
+#' \code{two_block_rNormal_reg}).
 #' @noRd
 .two_block_block1_glmbfamfunc <- function(family) {
   is_gaussian <- identical(family$family, "gaussian")

@@ -100,10 +100,10 @@ lmerb() / glmerb()
   → rlmerb() / rglmerb()
     → rLMMNormal_reg() | rLMMNormal_reg_estimated_vcov()
       | rLMMindepNormalGamma_reg() | rGLMM()
-        → two_block_rNormal_reg_v2(), rGLMM_sweep(), rGLMM_Re_Draw()
+        → two_block_rNormal_reg(), rGLMM_sweep(), rGLMM_Re_Draw()
         → block_rNormalReg() / block_rNormalGLM() (Block~1)
         → rglmb() (Block~2 ING / hyper draws)
-        → two_block_rate_v2(), two_block_rate(), two_block_l_for_tv(),
+        → two_block_rate_from_pfamily_list(), two_block_rate(), two_block_l_for_tv(),
            two_block_tv_bound(), two_block_mode_weights(),
            two_block_optimize_pilot_cost(), two_block_pilot_* , …
         → two_block_block2_one_chain_cpp() [default];
@@ -145,7 +145,7 @@ lmerb() / glmerb()
 | `glmbayesCore_has_opencl()` | **`diagnose_glmbayes()`** (retain) |
 | `multi_rlmb()`, `multi_rNormalGamma_reg()`, `multi_rindepNormalGamma_reg()` | Planned **glmbayes** retain / co-export multi-response API |
 | Core `rlmb()`, `rglmb()`, `multi_prior_setup()` | Planned retain |
-| `rGLMM()`, `rGLMM_sweep()`, `rGLMM_Re_Draw()`, `rLMMNormal_reg*`, `two_block_rNormal_reg_v2()`, TV/pilot helpers | **lmebayes** `lmerb()` / `glmerb()` chain |
+| `rGLMM()`, `rGLMM_sweep()`, `rGLMM_Re_Draw()`, `rLMMNormal_reg*`, `two_block_rNormal_reg()`, TV/pilot helpers | **lmebayes** `lmerb()` / `glmerb()` chain |
 | `rLMMNormal_reg_known_vcov()` | Routed from `rLMMNormal_reg()` |
 
 ---

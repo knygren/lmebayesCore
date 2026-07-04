@@ -1,5 +1,5 @@
 ## Equivalence gate for the v2 (pfamily-based) two-block Gibbs driver
-## (two_block_rNormal_reg_v2_cpp_export, src/twoBlockGibbs.cpp).
+## (two_block_rNormal_reg_cpp_export, src/twoBlockGibbs.cpp).
 ##
 ## v2 takes Block 2 priors as pfamily objects (dNormal /
 ## dIndependent_Normal_Gamma) instead of bare prior lists.  With dNormal
@@ -80,7 +80,7 @@ fit_v1 <- two_block_rNormal_reg(
 )
 
 set.seed(515)
-fit_v2 <- two_block_rNormal_reg_v2(
+fit_v2 <- two_block_rNormal_reg(
   n = n_draw, y = y_gauss, x = x_re, block = grp,
   x_hyper = x_hyper,
   prior_list_block1 = pl1_gauss,
@@ -91,7 +91,7 @@ fit_v2 <- two_block_rNormal_reg_v2(
   progbar = FALSE
 )
 
-stopifnot(inherits(fit_v2, "two_block_rNormal_reg_v2"))
+stopifnot(inherits(fit_v2, "two_block_rNormal_reg"))
 stopifnot(inherits(fit_v2, "two_block_rNormal_reg"))
 
 for (k in re_names) {
@@ -144,7 +144,7 @@ fit_v1p <- two_block_rNormal_reg(
   progbar = FALSE
 )
 set.seed(616)
-fit_v2p <- two_block_rNormal_reg_v2(
+fit_v2p <- two_block_rNormal_reg(
   n = n_draw_p, y = y_pois, x = x_re, block = grp,
   x_hyper = x_hyper,
   prior_list_block1 = pl1_pois,
@@ -184,7 +184,7 @@ pfam_ing$slope <- dIndependent_Normal_Gamma(
   mu = 0, Sigma = diag(4, 1L), shape = shape_s, rate = rate_s,
   disp_lower = dl_s, disp_upper = du_s
 )
-fit_ing <- two_block_rNormal_reg_v2(
+fit_ing <- two_block_rNormal_reg(
   n = 5L, y = y_gauss, x = x_re, block = grp,
   x_hyper = x_hyper,
   prior_list_block1 = pl1_gauss,
@@ -212,7 +212,7 @@ pfam_bad$slope <- dIndependent_Normal_Gamma(
   mu = 0, Sigma = diag(4, 1L), shape = 3, rate = 2
 )
 res2 <- tryCatch(
-  two_block_rNormal_reg_v2(
+  two_block_rNormal_reg(
     n = 2L, y = y_gauss, x = x_re, block = grp,
     x_hyper = x_hyper,
     prior_list_block1 = pl1_gauss,
@@ -228,7 +228,7 @@ stopifnot(is.character(res2), grepl("disp_lower", res2))
 cat("5. ING validation (missing disp_lower): OK\n")
 
 ## ---------------------------------------------------------------------------
-## 6. two_block_rate_v2 matches two_block_rate on the unwrapped priors
+## 6. two_block_rate_from_pfamily_list matches two_block_rate on the unwrapped priors
 ## ---------------------------------------------------------------------------
 r1 <- two_block_rate(
   x = x_re, block = grp, x_hyper = x_hyper,
@@ -236,7 +236,7 @@ r1 <- two_block_rate(
   prior_list_block2 = prior_list_block2,
   family = gaussian()
 )
-r2 <- two_block_rate_v2(
+r2 <- two_block_rate_from_pfamily_list(
   x = x_re, block = grp, x_hyper = x_hyper,
   prior_list_block1 = pl1_gauss,
   pfamily_list = pfam_list,
@@ -244,7 +244,7 @@ r2 <- two_block_rate_v2(
 )
 stopifnot(isTRUE(all.equal(r1$lambda_star, r2$lambda_star, tolerance = 1e-12)))
 stopifnot(isTRUE(all.equal(r1$eigenvalues, r2$eigenvalues, tolerance = 1e-12)))
-cat("6. two_block_rate_v2: OK (lambda* = ",
+cat("6. two_block_rate_from_pfamily_list: OK (lambda* = ",
     format(r2$lambda_star, digits = 6), ")\n", sep = "")
 
 cat("\nAll v2 equivalence tests passed.\n")

@@ -420,9 +420,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -441,9 +441,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -462,9 +462,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -483,9 +483,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -504,9 +504,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -525,9 +525,9 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg_v2}()},
+\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_v2}()},
+\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 }
 \author{

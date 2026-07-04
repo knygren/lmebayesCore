@@ -1,5 +1,5 @@
 ## Tests for dIndependent_Normal_Gamma Block 2 priors in the v2 two-block
-## Gibbs driver (two_block_rNormal_reg_v2_cpp_export, src/twoBlockGibbs.cpp).
+## Gibbs driver (two_block_rNormal_reg_cpp_export, src/twoBlockGibbs.cpp).
 ##
 ## Block 2 ING components make a joint (gamma_k, tau2_k) draw via
 ## rIndepNormalGammaReg (the same likelihood-subgradient envelope sampler
@@ -94,7 +94,7 @@ pfam_ing <- list(
   "X1"          = ing_pfamily(tau2_plug[2L], pwt_disp, n_schools)
 )
 set.seed(101)
-fit_ing <- two_block_rNormal_reg_v2(
+fit_ing <- two_block_rNormal_reg(
   n = n_draw, y = y, x = x, block = school,
   x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
@@ -105,7 +105,7 @@ fit_ing <- two_block_rNormal_reg_v2(
   progbar = FALSE
 )
 
-stopifnot(inherits(fit_ing, "two_block_rNormal_reg_v2"))
+stopifnot(inherits(fit_ing, "two_block_rNormal_reg"))
 dd <- fit_ing$dispersion_fixef_draws
 stopifnot(is.matrix(dd), nrow(dd) == n_draw, ncol(dd) == 2L)
 stopifnot(identical(colnames(dd), re_names))
@@ -173,7 +173,7 @@ prior_b1_t <- list(Sigma = diag(tau2_star, 2L), dispersion = sigma2,
                    ddef = FALSE)
 
 err_t <- tryCatch(
-  two_block_rNormal_reg_v2(
+  two_block_rNormal_reg(
     n = 5L, y = y, x = x, block = school,
     x_hyper = x_hyper,
     prior_list_block1 = prior_b1_t,
@@ -199,7 +199,7 @@ pfam_mixed <- list(
   "X1"          = pfam_norm[["X1"]]
 )
 set.seed(303)
-fit_mix <- two_block_rNormal_reg_v2(
+fit_mix <- two_block_rNormal_reg(
   n = 50L, y = y, x = x, block = school,
   x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
@@ -215,9 +215,9 @@ stopifnot(all(dd_m[, "X1"] == tau2_star))              # dNormal: fixed
 cat("4. mixed ING + dNormal: OK\n")
 
 ## ---------------------------------------------------------------------------
-## 5. two_block_rate_v2 with ING components uses the disp_lower plug-in
+## 5. two_block_rate_from_pfamily_list with ING components uses the disp_lower plug-in
 ## ---------------------------------------------------------------------------
-r_ing <- two_block_rate_v2(
+r_ing <- two_block_rate_from_pfamily_list(
   x = x, block = school, x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pfam_ing,
@@ -225,14 +225,14 @@ r_ing <- two_block_rate_v2(
 )
 stopifnot(is.finite(r_ing$lambda_star),
           r_ing$lambda_star >= 0, r_ing$lambda_star < 1)
-cat("5. two_block_rate_v2 (ING plug-in): lambda* = ",
+cat("5. two_block_rate_from_pfamily_list (ING plug-in): lambda* = ",
     format(r_ing$lambda_star, digits = 6), "\n", sep = "")
 
 ## ---------------------------------------------------------------------------
 ## 6. One-sided ING (disp_lower only) is rejected for sampling: without
 ##    disp_upper the envelope would fall back to a per-sweep surrogate
 ##    posterior window, making the truncation state-dependent.  The
-##    calibration-only path (two_block_rate_v2) still accepts it.
+##    calibration-only path (two_block_rate_from_pfamily_list) still accepts it.
 ## ---------------------------------------------------------------------------
 pr1 <- pfam_ing[["(Intercept)"]]$prior_list
 pf_onesided <- pfam_ing
@@ -241,7 +241,7 @@ pf_onesided[["(Intercept)"]] <- dIndependent_Normal_Gamma(
   disp_lower = as.numeric(pr1$disp_lower)
 )
 err_os <- tryCatch(
-  two_block_rNormal_reg_v2(
+  two_block_rNormal_reg(
     n = 5L, y = y, x = x, block = school,
     x_hyper = x_hyper,
     prior_list_block1 = prior_b1,
@@ -254,7 +254,7 @@ err_os <- tryCatch(
   error = function(e) conditionMessage(e)
 )
 stopifnot(is.character(err_os), grepl("disp_upper", err_os, fixed = TRUE))
-r_os <- two_block_rate_v2(
+r_os <- two_block_rate_from_pfamily_list(
   x = x, block = school, x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pf_onesided,

@@ -137,7 +137,7 @@
       dispersion   = dispersion_block1,
       group_levels = group_levels
     )
-    rate_i <- two_block_rate_v2(
+    rate_i <- two_block_rate_from_pfamily_list(
       x                 = x,
       block             = block,
       x_hyper           = x_hyper,
@@ -221,7 +221,7 @@
       dispersion   = dispersion,
       group_levels = group_levels
     )
-    rate_i <- two_block_rate_v2(
+    rate_i <- two_block_rate_from_pfamily_list(
       x                 = x,
       block             = block,
       x_hyper           = x_hyper,

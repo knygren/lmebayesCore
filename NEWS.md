@@ -1,5 +1,9 @@
 # glmbayesCore (development version)
 
+* **Rate helper rename:** **`two_block_rate_v2()`** removed; use
+  **`two_block_rate_from_pfamily_list()`** (`R/two_block_rate_from_pfamily_list.R`)
+  for the `pfamily_list` adapter around **`two_block_rate()`**.
+
 * **C++ R callbacks via registered namespace:** envelope and simulation C++
   now resolve **`EnvelopeOpt()`**, **`EnvelopeSort()`**, **`glmbfamfunc()`**,
   **`rNormal_reg.wfit()`**, and **`rgamma_ct()`** from the **`glmbayesCore`**

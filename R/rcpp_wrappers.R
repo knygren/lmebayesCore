@@ -85,7 +85,7 @@
 
 #' @noRd
 #' @keywords internal
-.two_block_rNormal_reg_v2_cpp <- function(
+.two_block_rNormal_reg_cpp <- function(
     n, m_convergence, y, x, block, x_hyper,
     prior_list_block1, dispersion_block1, ddef_block1,
     pfamily_list, fixef_start, group_levels,

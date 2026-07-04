@@ -156,12 +156,12 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.two_block_block1_all_chains` | `two_block_batch_gibbs.R` | — | rGLMM_sweep.R |
 | `.two_block_block1_all_chains_v2` | `two_block_batch_gibbs.R` | — | *(unused)* |
 | `.two_block_block1_all_chains_via_cpp` | `two_block_batch_gibbs.R` | — | *(unused)* |
-| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R, two_block_rate.R, two_block_rNormal_reg_v2.R |
-| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg_v2.R |
+| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R, two_block_rate.R, two_block_rNormal_reg.R |
+| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg.R |
 | `.two_block_block1_prior_list` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_mu_all` | `two_block_rNormal_reg.R` | — | *(unused)* |
-| `.two_block_format_v2_cpp_out` | `two_block_rNormal_reg_v2.R` | Format raw v2 C++ output into a two_block_rNormal_reg_v2 object | *(unused)* |
-| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg_v2.R` | — | rGLMM.R, rLMMNormal_reg.R |
+| `.two_block_format_cpp_out` | `two_block_rNormal_reg.R` | Format raw C++ output into a `two_block_rNormal_reg` object | *(internal)* |
+| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R |
 
 ---
 
@@ -267,7 +267,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
 | `.ing_n_prior_from_shape` | `ing_prior_guard.R` | — | *(unused)* |
-| `.ing_stop_if_prior_exceeds_data` | `ing_prior_guard.R` | — | simfunction.R, two_block_rNormal_reg_v2.R |
+| `.ing_stop_if_prior_exceeds_data` | `ing_prior_guard.R` | — | simfunction.R, two_block_rNormal_reg.R |
 
 ---
 
@@ -280,7 +280,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.rNormalRegBlocks_cpp` | `rcpp_wrappers.R` | — | *(unused)* |
 | `.block_rNormalReg_cpp` | `rcpp_wrappers.R` | — | simfunction_block.R |
 | `.block_rNormalGLM_cpp` | `rcpp_wrappers.R` | — | simfunction_block.R |
-| `.two_block_rNormal_reg_v2_cpp` | `rcpp_wrappers.R` | — | two_block_rNormal_reg_v2.R |
+| `.two_block_rNormal_reg_cpp` | `rcpp_wrappers.R` | — | two_block_rNormal_reg.R |
 | `.two_block_rNormal_reg_staged_cpp` | `rcpp_wrappers.R` | — | *(unused)* |
 | `.two_block_build_mu_all_cpp` | `rcpp_wrappers.R` | — | build_mu_all.R |
 | `.two_block_batch_fixef_chain_cpp` | `rcpp_wrappers.R` | — | *(unused)* |
@@ -328,7 +328,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_summarize_pfamily_list` | `two_block_rNormal_reg_v2.R` | — | rGLMM.R, rLMMNormal_reg.R |
+| `.two_block_summarize_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R |
 
 ---
 

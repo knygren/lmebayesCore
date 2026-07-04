@@ -4,7 +4,7 @@
 #' \code{x} may be a single shared design matrix or a \strong{list of matrices}
 #' with one entry per response column.  The list path allows each column of
 #' \code{y} to have a different number of predictors, which is required for
-#' Block 2 of \code{\link{two_block_rNormal_reg_v2}}.
+#' Block 2 of \code{\link{two_block_rNormal_reg}}.
 #'
 #' @inheritParams rNormal_reg
 #' @param n Number of draws per column of \code{y}.
@@ -15,7 +15,7 @@
 #' @return For shared \code{x}, an object of class \code{"mrglmb"}.  For list
 #'   \code{x}, a plain named list of \code{rNormal_reg} results.
 #' @family simfuncs
-#' @seealso \code{\link{rNormal_reg}}, \code{\link{two_block_rNormal_reg_v2}}
+#' @seealso \code{\link{rNormal_reg}}, \code{\link{two_block_rNormal_reg}}
 #' @export
 multi_rNormal_reg <- function(n,
                               y,

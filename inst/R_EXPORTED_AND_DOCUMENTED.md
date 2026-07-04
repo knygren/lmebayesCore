@@ -220,9 +220,9 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 | `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
 | `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |
 | `rLMMNormal_reg_known_vcov()` | `rLMMNormal_reg.R` | LMM with known residual variance. |
-| `two_block_rNormal_reg_v2()` | `two_block_rNormal_reg_v2.R` | Two-block engine with `pfamily_list` Block~2. |
+| `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Two-block engine with `pfamily_list` Block~2. |
 | `two_block_rate()` | `two_block_rate.R` | Block~2 convergence rate from mode weights. |
-| `two_block_rate_v2()` | `two_block_rNormal_reg_v2.R` | Rate helper aligned with v2 sampler. |
+| `two_block_rate_from_pfamily_list()` | `two_block_rate_from_pfamily_list.R` | Rate from `pfamily_list` Block~2 spec. |
 | `two_block_mode_weights()` | `two_block_mode_weights.R` | Mode weights for rate / TV calibration. |
 | `two_block_tv_bound()` | `two_block_tv_bound.R` | Total-variation bound vs inner sweeps. |
 | `two_block_l_for_tv()` | `two_block_tv_bound.R` | Invert TV bound for target tolerance. |
