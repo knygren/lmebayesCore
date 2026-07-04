@@ -66,28 +66,55 @@ symbols). Signatures should stay aligned per package policy.
 
 ## Present in **lmebayes** (re-export or `importFrom`)
 
-Exported or re-exported from **lmebayes** (`NAMESPACE` export,
-`reexports_glmbayesCore.R`, or `importFrom(glmbayesCore, …)`), but **not** in
-**glmbayes** (4 symbols).
+Exported or re-exported from **lmebayes** (`NAMESPACE` `export`, `reexports_glmbayesCore.R`), or imported via `importFrom(glmbayesCore, …)` for formula drivers — but **not** in **glmbayes** (8 symbols).
 
 | Function | File | Role |
 |----------|------|------|
-| `pfamily_list()` | `pfamily_list.R` | S3: list Block~2 `pfamily` objects from prior setup. |
-| `build_mu_all()` | `build_mu_all.R` | Observation-level prior means from design + fixef. |
-| `lmerb_posterior_mean()` | `lmerb_posterior_mean.R` | Gaussian LMM ICM / posterior mean for Block~2 start. |
-| `glmerb_posterior_mode()` | `glmerb_posterior_mode.R` | GLMM posterior mode for Block~2 start. |
+| `model_setup()` | `model_setup.R` | Parse lme4-style formula → design object (`"model_setup"`). |
+| `Prior_Setup_lmebayes()` | `Prior_Setup_lmebayes.R` | Calibrate Block~2 hyperpriors from reference `lmer` / `glmer`. |
+| `rlmerb()` | `rlmerb.R` | Matrix-level Gaussian LMM two-block sampler. |
+| `rglmerb()` | `rglmerb.R` | Matrix-level GLMM two-block sampler. |
+| `pfamily_list()` | `pfamily_list.R`, `pfamily_list_lmebayes_prior_setup.R` | S3 generic; `lmebayes_prior_setup` method builds Block~2 priors. |
+| `plot_sweep_history_diag()` | `plot_sweep_history_diag.R` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history`. |
+| `build_mu_all()` | `build_mu_all.R` | Observation-level prior means from design + fixef (`importFrom` only). |
+| `lmerb_posterior_mean()` | `lmerb_posterior_mean.R` | Gaussian LMM ICM / posterior mean for Block~2 start (`importFrom` only). |
+| `glmerb_posterior_mode()` | `glmerb_posterior_mode.R` | GLMM posterior mode for Block~2 start (`importFrom` only). |
 
-**Note:** **lmebayes** also re-exports `Prior_Setup()`, `dNormal()`,
-`dNormal_Gamma()`, `dIndependent_Normal_Gamma()`, and `dGamma()` from this
-package (listed under **glmbayes** shared API above).
+**Note:** **lmebayes** re-exports `Prior_Setup()`, `dNormal()`, `dNormal_Gamma()`,
+`dIndependent_Normal_Gamma()`, and `dGamma()` from this package (listed under **glmbayes**
+shared API above). S3 `print.model_setup` and `print.lmebayes_prior_setup` register in Core;
+**lmebayes** `import(glmbayesCore)` dispatches them for re-exported objects.
+
+---
+
+## Documented but not exported (`@keywords internal` + `man/`)
+
+Callable with `glmbayesCore:::`; have help pages but are not in `NAMESPACE`.
+
+| Function | File | Role |
+|----------|------|------|
+| `is_single_factor_model()` | `lme4_design_utilities.R` | Exactly one grouping factor in formula. |
+| `is_fixed_effects_only()` | `lme4_design_utilities.R` | No random-effects terms. |
+| `get_lme4_components()` | `lme4_design_utilities.R` | lme4 parse → design matrices. |
+| `show_lme4_Z_random()` | `lme4_design_utilities.R` | Debug random-effects design. |
+| `classify_lme4_fixed_columns()` | `lme4_design_utilities.R` | Population vs group-level fixed columns. |
+| `classify_crosslevel_re_moderation()` | `lme4_design_utilities.R` | Cross-level RE structure. |
+| `extract_re_hyper_matrices()` | `lme4_design_utilities.R` | Block~2 group designs. |
+| `extract_re_Z_obs()` | `lme4_design_utilities.R` | Obs-level Z for one group. |
+| `extract_lme4_submatrices()` | `lme4_design_utilities.R` | Subset parsed lme4 parts. |
+| `extract_lme4_fixed_group_matrix()` | `lme4_design_utilities.R` | Group-level fixed matrix. |
+| `extract_lmer_variance_components()` | `lme4_design_utilities.R` | Variance components from **lmer** fit. |
+| `extract_mer_variance_components()` | `lme4_design_utilities.R` | Variance components from **glmer** fit. |
+| `lmerb_default_vcov_formula()` | `lme4_design_utilities.R` | Default vcov formula for prior scaling. |
+
+**lmebayes** calls `extract_mer_variance_components()` from `summary.lmerb()` via `glmbayesCore:::`.
 
 ---
 
 ## Called from **lmebayes** / **glmbayes** without being exported there
 
-Referenced from **lmebayes** `R/` as `glmbayesCore::…` (or `getFromNamespace`),
-exported from **glmbayesCore** only (6 symbols). **glmbayes** does not depend
-on **glmbayesCore**.
+Referenced from **lmebayes** `R/` as `glmbayesCore::…` / `glmbayesCore:::…` (or `getFromNamespace`),
+exported from **glmbayesCore** only (6 symbols). **glmbayes** does not depend on **glmbayesCore**.
 
 | Function | File | Role |
 |----------|------|------|
@@ -147,7 +174,10 @@ Registered methods with help pages; not counted in the export groups above.
 |--------|------|------|
 | `formula.summary.rglmb()` | `formula.summary.rglmb.R` | Formula method for `summary.rglmb`. |
 | `pfamily.default()` | `pfamily.R` | Default method for `pfamily()`. |
+| `pfamily_list.lmebayes_prior_setup()` | `pfamily_list_lmebayes_prior_setup.R` | Build Block~2 `pfamily_list` from prior-setup object. |
 | `print.PriorSetup()` | `prior.R` | Print prior-setup object. |
+| `print.lmebayes_prior_setup()` | `Prior_Setup_lmebayes.R` | Print mixed-model prior-setup object. |
+| `print.model_setup()` | `model_setup.R` | Print mixed-model design object. |
 | `print.glmbfamfunc()` | `simulationpipeline.R` | Print GLM family helper object. |
 | `print.pfamily()` | `pfamily.R` | Print prior-family object. |
 | `print.rGamma_reg()` | `simfunction.R` | Print Gamma-regression sample object. |
@@ -156,9 +186,9 @@ Registered methods with help pages; not counted in the export groups above.
 | `print.summary.rGamma_reg()` | `summary.rgamma_reg.R` | Print Gamma-regression summary. |
 | `print.summary.rglmb()` | `summary.rglmb.R` | Print GLM sample summary. |
 | `print.summary.mrglmb()` | `summary.mrglmb.R` | Print multi-response GLM summary. |
+| `print.two_block_sweep_history()` | `two_block_sweep_history.R` | Print sweep-history diagnostics. |
 | `print.two_block_rate()` | `two_block_rate.R` | Print rate object with TV tolerances. |
 | `print.two_block_mode_weights()` | `two_block_mode_weights.R` | Print mode-weight table. |
-| `print.two_block_sweep_history()` | `two_block_sweep_history.R` | Print sweep-history diagnostics. |
 | `residuals.rglmb()` (+ fitted, working) | `residuals.rglmb.R` | Residuals methods for `rglmb`. |
 | `residuals.rlmb()` | `residuals.rglmb.R` | Residuals for `rlmb`. |
 | `simfunction.default()` | `simfunction.R` | Default simfunction method. |

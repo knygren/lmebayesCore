@@ -72,6 +72,11 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | `simfunction.R` | Low-level simulation functions (`rNormal_reg`, `rNormalGamma_reg`, `rindepNormalGamma_reg`, `rGamma_reg`, `rGamma_Conjugate_reg`, `rBeta_reg`) and the `simfunction()` introspection generic |
 | `simulationpipeline.R` | `glmbfamfunc()` (R closure bundle for f1–f4 and f7), pipeline documentation, and fit helpers |
 | `rglmb.R` / `rlmb.R` | Matrix-input samplers — the primary R-level interface consumed by downstream packages |
+| `model_setup.R` | lme4-style formula → mixed-model design object (`model_setup()`; re-exported from **lmebayes**) |
+| `Prior_Setup_lmebayes.R` | Block~2 hyperprior calibration from reference `lmer` / `glmer` (re-exported from **lmebayes**) |
+| `lme4_design_utilities.R` | Internal lme4 design chain (`get_lme4_components`, `extract_re_hyper_matrices`, …) |
+| `rlmerb.R` / `rglmerb.R` | Matrix-level LMM / GLMM two-block samplers (re-exported from **lmebayes**) |
+| `mixed_rmerb_helpers.R` | Internal helpers for `rlmerb()` / `rglmerb()` and **lmebayes** formula drivers |
 | `envelopeorchestrator.R` | R orchestration of multi-step envelope building and optional GPU dispatch |
 | `compute_gaussian_prior.R` | Gaussian-specific prior calibration utilities |
 
@@ -298,7 +303,13 @@ The file `inst/ADDING_PFAMILY.md` contains a step-by-step guide. In summary:
 
 ### glmerb / two-block GLMM architecture
 
-`inst/ARCHITECTURE_glmerb.md` maps the sweep-outer R driver (`rGLMM_sweep`), Block 1 / Block 2 call chains, staging wrappers in `lmebayes`, and the legacy C++ v5 path — for maintainers working on `glmerb` parity or incremental C++ Block 2 ports.
+`inst/ARCHITECTURE_glmerb.md` maps the sweep-outer R driver (`rGLMM_sweep`), Block 1 / Block 2 call chains, formula-level wrappers in **lmebayes**, and the legacy C++ v5 path — for maintainers working on `glmerb` parity or incremental C++ Block 2 ports.
+
+### `R/` symbol inventory
+
+Maintainers: exported API and internal helpers are listed in
+[inst/R_FUNCTION_INVENTORY.md](inst/R_FUNCTION_INVENTORY.md)
+(`R_EXPORTED_AND_DOCUMENTED.md`, `R_INTERNAL_HELPERS.md`).
 
 ---
 

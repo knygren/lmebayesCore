@@ -1,1 +1,1 @@
-utils::globalVariables(c("_glmbayesCore_gpu_names"))
+utils::globalVariables(c("_glmbayesCore_gpu_names", "yint"))

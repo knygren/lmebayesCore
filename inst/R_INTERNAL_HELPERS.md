@@ -9,7 +9,60 @@ in `R/` (comma-separated). Helpers with no callers are marked *(unused)*.
 
 Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 
-**lmebayes** resolves these via `getFromNamespace` / `:::`: `.two_block_as_staged_names`, `.two_block_tau2_ref_from_pfamily`, `.mrglmb_normalize_pfamily_lists`, `.validate_pfamily_for_rlmb`.
+**lmebayes** resolves these via `getFromNamespace` / `:::`: `.two_block_as_staged_names`, `.two_block_tau2_ref_from_pfamily`, `.mrglmb_normalize_pfamily_lists`, `.validate_pfamily_for_rlmb`, `.lmebayes_priors_from_pfamily_list`, `.lmebayes_block2_icm_labels`, `.lmebayes_mer_optional_args`, `extract_mer_variance_components`.
+
+---
+
+## Mixed-model matrix samplers (`mixed_rmerb_helpers.R`, `rlmerb.R`, `rglmerb.R`)
+
+| Function | File | Role | Called from |
+|----------|------|------|-------------|
+| `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Map `dispersion_ranef` / legacy `dispersion` to per-RE weights | `rlmerb()`, `rglmerb()`, `.lmebayes_priors_from_pfamily_list()` |
+| `.lmebayes_validate_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Validate dispersion-ranef vector | *(unused)* |
+| `.lmebayes_priors_from_pfamily_list()` | `mixed_rmerb_helpers.R` | Normalize `pfamily_list` → sampler `prior` list | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
+| `.lmebayes_run_lmm_engine()` | `mixed_rmerb_helpers.R` | Route Gaussian GLMM to `rLMMNormal_reg` / ING path | `rglmerb()` (Gaussian), `rlmerb()` |
+| `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Assemble Block~1 `prior_list` from design + pfamily | `rlmerb()`, `rglmerb()` |
+| `.lmebayes_add_fixef_summaries()` | `mixed_rmerb_helpers.R` | Attach fixef summary slots to sampler output | `rlmerb()`, `rglmerb()` |
+| `.lmebayes_block2_icm_labels()` | `mixed_rmerb_helpers.R` | ICM column labels for Block~2 fixef table | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
+| `.lmebayes_print_icm_fixef_table()` | `mixed_rmerb_helpers.R` | Console ICM fixef table | `rlmerb()`, `rglmerb()` |
+| `.lmebayes_print_ranef_mode_reference()` | `mixed_rmerb_helpers.R` | Ranef mode reference line (GLMM) | `rglmerb()` |
+| `.lmebayes_print_fixef_init()` | `mixed_rmerb_helpers.R` | Fixef init banner | `rlmerb()`, `rglmerb()` |
+
+---
+
+## Model setup (`model_setup.R`)
+
+| Function | File | Role | Called from |
+|----------|------|------|-------------|
+| `.lmebayes_normalize_family()` | `model_setup.R` | Coerce `family` argument | `model_setup()` |
+| `.lmebayes_mer_convergence_issues()` | `model_setup.R` | Collect lme4 convergence warnings | `Prior_Setup_lmebayes()` |
+| `.lmebayes_mer_optional_args()` | `model_setup.R` | Optional `lmer` / `glmer` call args | `model_setup()`, **lmebayes** `glmerb()` |
+
+---
+
+## Mixed-model prior setup (`Prior_Setup_lmebayes.R`)
+
+| Function | File | Role | Called from |
+|----------|------|------|-------------|
+| `.lmebayes_resolve_pwt()` | `Prior_Setup_lmebayes.R` | Resolve `pwt` / per-RE weights | `Prior_Setup_lmebayes()` |
+| `.lmebayes_resolve_disp_prior()` | `Prior_Setup_lmebayes.R` | Resolve dispersion hyperprior fields | `Prior_Setup_lmebayes()` |
+| `.lmebayes_block_glm_estimable()` | `Prior_Setup_lmebayes.R` | Block-GLM estimability check for binomial | `Prior_Setup_lmebayes()` |
+
+---
+
+## lme4 design chain (`lme4_design_utilities.R`)
+
+| Function | File | Role | Called from |
+|----------|------|------|-------------|
+| `.lmebayes_validate_uncorrelated_re_formula()` | `lme4_design_utilities.R` | Require uncorrelated RE formula | `extract_re_hyper_matrices()` |
+| `.lme4_Z_random_column_map()` | `lme4_design_utilities.R` | Map Z columns to RE terms | `.lme4_Z_random_colnames()`, `get_lme4_components()` |
+| `.lme4_Z_random_colnames()` | `lme4_design_utilities.R` | Column names for sparse Z | `.lme4_label_Z_random_sparse()` |
+| `.lme4_Z_random_rownames()` | `lme4_design_utilities.R` | Row names for sparse Z | `.lme4_Z_random_row_map()`, `.lme4_label_Z_random_sparse()` |
+| `.lme4_Z_random_row_map()` | `lme4_design_utilities.R` | Map Z rows to obs × group | `get_lme4_components()` |
+| `.lme4_label_Z_random_sparse()` | `lme4_design_utilities.R` | Dimnames on sparse Z | `get_lme4_components()` |
+
+Exported entry points that reach the Z-label chain: `model_setup()` →
+`extract_re_hyper_matrices()` → `get_lme4_components()`.
 
 ---
 
