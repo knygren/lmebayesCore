@@ -49,6 +49,6 @@ where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 }
 \seealso{
 \code{\link{lmerb_posterior_mean}},
-\code{\link{two_block_rNormal_reg}},
+\code{\link{two_block_rNormal_reg_v2}},
 \code{\link{block_rNormalReg_update}}
 }

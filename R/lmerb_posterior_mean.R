@@ -2,7 +2,7 @@
 #'
 #' Finds the joint posterior mean (= joint mode, since the posterior is exactly
 #' multivariate normal when variance components are fixed) of the two-block
-#' model sampled by \code{\link{two_block_rNormal_reg}}, using an \emph{iterated
+#' model sampled by \code{\link{two_block_rNormal_reg_v2}}, using an \emph{iterated
 #' conditional means} (ICM) algorithm.
 #'
 #' @details
@@ -48,7 +48,7 @@
 #' @return A list with components \code{fixef}, \code{b_mean}, \code{converged},
 #'   \code{iterations}, and \code{delta}.
 #'
-#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{build_mu_all}}
+#' @seealso \code{\link{two_block_rNormal_reg_v2}}, \code{\link{build_mu_all}}
 #' @export
 lmerb_posterior_mean <- function(design,
                                  measurement_prior_list,

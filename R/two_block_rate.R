@@ -2,7 +2,7 @@
 ##
 ## Notation follows Nygren (2020), "On the total variation distance between
 ## multivariate normal densities with applications to two-block Gibbs
-## samplers", mapped onto two_block_rNormal_reg(): the paper's x1 (block
+## samplers", mapped onto two_block_rNormal_reg_v2(): the paper's x1 (block
 ## updated SECOND in each sweep) is our Block 2 hyper vector gamma (dim q);
 ## the paper's x2 (updated FIRST) is our Block 1 random-effect stack b
 ## (dim J * p_re).  The joint posterior precision blocks are
@@ -259,7 +259,7 @@
 #'
 #' Computes the eigenvalues of
 #' \eqn{A = P_{11}^{-1/2} P_{12} P_{22}^{-1} P_{21} P_{11}^{-1/2}} for the
-#' joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg}}
+#' joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg_v2}}
 #' with \code{family = gaussian()} and fixed variance components.  The
 #' maximal eigenvalue \eqn{\lambda^*} is the geometric contraction rate of
 #' the two-block Gibbs sampler (Nygren 2020, Claim 2 / Remark 8 /
@@ -280,7 +280,7 @@
 #' local-Gaussian heuristic rate (no theorem applies).
 #'
 #' @param x Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
-#'   to \code{\link{two_block_rNormal_reg}}.
+#'   to \code{\link{two_block_rNormal_reg_v2}}.
 #' @param block Grouping factor or block partition of length \code{l2}.
 #' @param x_hyper Named list of group-level design matrices \code{X_k}
 #'   (\code{J x q_k}), one per column of \code{x}.
@@ -309,7 +309,7 @@
 #'   between multivariate normal densities with applications to two-block
 #'   Gibbs samplers.} Unpublished manuscript.
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg}}
+#' @seealso \code{\link{two_block_rNormal_reg_v2}}
 #' @export
 two_block_rate <- function(x,
                            block,

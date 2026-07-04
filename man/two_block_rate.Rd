@@ -64,7 +64,7 @@ spectrum \eqn{a_1 \ge \dots \ge a_q} in \eqn{[0,1)}),
 \description{
 Computes the eigenvalues of
 \eqn{A = P_{11}^{-1/2} P_{12} P_{22}^{-1} P_{21} P_{11}^{-1/2}} for the
-joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg}}
+joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg_v2}}
 with \code{family = gaussian()} and fixed variance components.  The
 maximal eigenvalue \eqn{\lambda^*} is the geometric contraction rate of
 the two-block Gibbs sampler (Nygren 2020, Claim 2 / Remark 8 /
@@ -91,7 +91,7 @@ between multivariate normal densities with applications to two-block
 Gibbs samplers.} Unpublished manuscript.
 }
 \seealso{
-\code{\link{two_block_rNormal_reg}}
+\code{\link{two_block_rNormal_reg_v2}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
@@ -110,9 +110,7 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}
 }

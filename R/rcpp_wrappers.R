@@ -85,28 +85,6 @@
 
 #' @noRd
 #' @keywords internal
-.two_block_rNormal_reg_cpp <- function(
-    n, m_convergence, y, x, block, x_hyper,
-    prior_list_block1, dispersion_block1, ddef_block1,
-    prior_list_block2, fixef_start, group_levels,
-    family, link, f2, f3, f2_gauss, f3_gauss,
-    offset, wt,
-    Gridtype = 2L, n_envopt = 1L,
-    use_parallel = TRUE, use_opencl = FALSE,
-    verbose = FALSE, progbar = TRUE
-) {
-  .Call(`_glmbayesCore_two_block_rNormal_reg_cpp_export`,
-    n, m_convergence, y, x, block, x_hyper,
-    prior_list_block1, dispersion_block1, ddef_block1,
-    prior_list_block2, fixef_start, group_levels,
-    family, link, f2, f3, f2_gauss, f3_gauss,
-    offset, wt, Gridtype, n_envopt,
-    use_parallel, use_opencl, verbose, progbar
-  )
-}
-
-#' @noRd
-#' @keywords internal
 .two_block_rNormal_reg_v2_cpp <- function(
     n, m_convergence, y, x, block, x_hyper,
     prior_list_block1, dispersion_block1, ddef_block1,
@@ -124,36 +102,6 @@
     family, link, f2, f3, f2_gauss, f3_gauss,
     offset, wt, Gridtype, n_envopt,
     use_parallel, use_opencl, verbose, progbar
-  )
-}
-
-#' @noRd
-#' @keywords internal
-.two_block_rNormal_reg_v5_cpp <- function(
-    n, m_convergence, y, x, block, x_hyper,
-    prior_list_block1, dispersion_block1, ddef_block1,
-    pfamily_list, fixef_start, group_levels,
-    family, link, f2, f3, f2_gauss, f3_gauss,
-    offset, wt,
-    Gridtype = 2L, n_envopt = 1L,
-    use_parallel = TRUE, use_opencl = FALSE,
-    verbose = FALSE,
-    seed = NULL,
-    seed_offset = 0L,
-    progbar = TRUE,
-    stage_label = "",
-    diag_sweeps = FALSE,
-    fixef_mode = NULL,
-    b_mode = NULL
-) {
-  .Call(`_glmbayesCore_two_block_rNormal_reg_v5_cpp_export`,
-    n, m_convergence, y, x, block, x_hyper,
-    prior_list_block1, dispersion_block1, ddef_block1,
-    pfamily_list, fixef_start, group_levels,
-    family, link, f2, f3, f2_gauss, f3_gauss,
-    offset, wt, Gridtype, n_envopt,
-    use_parallel, use_opencl, verbose, seed, seed_offset, progbar,
-    stage_label, diag_sweeps, fixef_mode, b_mode
   )
 }
 

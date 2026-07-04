@@ -11,7 +11,7 @@
 
 
 
-<title>R_EXPORTED_AND_DOCUMENTED</title>
+<title>R_CORE_ONLY_EXPORTS</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -352,1357 +352,822 @@ display: none;
 </div>
 
 
-<div id="r-exported-and-documented-functions" class="section level1">
-<h1><code>R/</code> — exported and documented functions</h1>
-<p>Symbols defined in <strong><code>R/</code></strong> that are
-<strong>exported</strong> (<code>NAMESPACE</code>) or have a
-<strong>help page</strong> (<code>man/*.Rd</code>). Use this list when
-reviewing the public API, <code>\usage</code> blocks, and README
-coverage.</p>
-<p>Companion: <a href="R_INTERNAL_HELPERS.md">R_INTERNAL_HELPERS.md</a>
-(<code>@noRd</code> and other undocumented helpers).</p>
-<p><strong>Core-only catalog (by function type):</strong> <a href="R_CORE_ONLY_EXPORTS.md">R_CORE_ONLY_EXPORTS.md</a>.</p>
-<p><strong>Reachability / dead-export analysis:</strong> <a href="R_EXPORT_REACHABILITY.md">R_EXPORT_REACHABILITY.md</a>.</p>
-<p>Index: <a href="R_FUNCTION_INVENTORY.md">R_FUNCTION_INVENTORY.md</a>.</p>
-<p>Exports below are grouped by overlap with <strong>glmbayes</strong>
-and <strong>lmebayes</strong> (non-overlapping priority: glmbayes →
-lmebayes → lmebayes-only callers → glmbayesCore-only).</p>
+<div id="glmbayescore-only-exports-by-function-type" class="section level1">
+<h1><strong>glmbayesCore</strong>-only exports (by function type)</h1>
+<p>Categorized catalog of <strong>glmbayesCore</strong> symbols that are
+<strong>not</strong> re-exported from <strong>lmebayes</strong>,
+organized by the kind of work each group does. Use this when reviewing
+whether an export should stay public, become <code>@noRd</code>, or move
+with <strong>glmbayes</strong> phase-out.</p>
+<p><strong>Companion (overlap matrix):</strong> <a href="R_EXPORTED_AND_DOCUMENTED.md">R_EXPORTED_AND_DOCUMENTED.md</a> —
+which symbols are shared with <strong>glmbayes</strong> /
+<strong>lmebayes</strong>, direct vs indirect <strong>lmebayes</strong>
+callers, and S3 methods.</p>
+<p><strong>Index:</strong> <a href="R_FUNCTION_INVENTORY.md">R_FUNCTION_INVENTORY.md</a>.</p>
 <hr />
-<div id="also-exported-from-glmbayes-shared-api" class="section level2">
-<h2>Also exported from <strong>glmbayes</strong> (shared API)</h2>
-<p>Present in <strong><code>NAMESPACE</code></strong> of both
-<strong>glmbayesCore</strong> and <strong>glmbayes</strong> (42
-symbols). Signatures should stay aligned per package policy while both
-packages export a symbol.</p>
-<p><strong>Migration policy:</strong> <strong>glmbayes</strong> should
-keep re-exporting the <em>user-facing</em> prior and sampler API
-(<code>Prior_Setup</code>, <code>pfamily</code> constructors,
-<code>rglmb</code> / <code>rlmb</code>, <code>multi_prior_setup</code>,
-<code>multi_rlmb</code>, …). Internal calibration helpers (e.g.
-<code>compute_gaussian_prior</code>, used only inside
-<code>Prior_Setup()</code>), plus lower-level simulation, envelope, and
-C++ callback exports, become <strong>glmbayesCore</strong>-only over
-time — call them as <code>glmbayesCore::…</code> (or rely on
-<code>Prior_Setup()</code> / <code>pfamily$simfun</code> routing) rather
-than expecting them on <code>library(glmbayes)</code>.</p>
-<p>S3 methods registered in <strong>glmbayes</strong> today are listed
-separately from Core-only methods at the end of this document (see
-<strong>S3 methods</strong>).</p>
-<div id="retain-as-glmbayes-re-exports-core-api" class="section level3">
-<h3>1) Retain as <strong>glmbayes</strong> re-exports (core API)</h3>
-<p>End-user and formula-level workflow; stay exported from
-<strong>glmbayes</strong> (13 symbols; <code>multi_rlmb()</code> planned
-— not yet in <strong>glmbayes</strong> <code>NAMESPACE</code>).</p>
+<div id="scope" class="section level2">
+<h2>Scope</h2>
 <table>
 <colgroup>
-<col width="45%" />
-<col width="27%" />
-<col width="27%" />
+<col width="43%" />
+<col width="56%" />
 </colgroup>
 <thead>
 <tr class="header">
-<th>Function</th>
-<th>File</th>
-<th>Role</th>
+<th>Label</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>Prior_Setup()</code></td>
-<td><code>prior.R</code></td>
-<td>Default prior calibration from formula / design.</td>
+<td><strong>Core-only today</strong></td>
+<td>In <strong>glmbayesCore</strong> <code>NAMESPACE</code>; not
+exported from <strong>glmbayes</strong> or
+<strong>lmebayes</strong></td>
 </tr>
 <tr class="even">
-<td><code>Prior_Check()</code></td>
-<td><code>prior.R</code></td>
-<td>Prior predictive checks for GLM priors.</td>
+<td><strong>Phase-out (glmbayes)</strong></td>
+<td>Still exported from <strong>glmbayes</strong> today; maintainer
+policy is <strong>glmbayesCore</strong>-only — call
+<code>glmbayesCore::…</code> or rely on <code>pfamily$simfun</code> /
+<code>Prior_Setup()</code> routing</td>
 </tr>
 <tr class="odd">
-<td><code>pfamily()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Prior-family generic (<code>dNormal</code>, <code>dGamma</code>,
-…).</td>
+<td><strong>lmebayes direct</strong></td>
+<td><strong>lmebayes</strong> <code>R/</code> names
+<code>glmbayesCore::…</code> or <code>importFrom</code> — must stay
+exported in Core</td>
 </tr>
 <tr class="even">
-<td><code>dNormal()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Multivariate Normal prior component.</td>
-</tr>
-<tr class="odd">
-<td><code>dGamma()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Gamma prior component.</td>
-</tr>
-<tr class="even">
-<td><code>dBeta()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Beta prior component.</td>
-</tr>
-<tr class="odd">
-<td><code>dNormal_Gamma()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Normal–Gamma prior component.</td>
-</tr>
-<tr class="even">
-<td><code>dIndependent_Normal_Gamma()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Independent Normal–Gamma prior component.</td>
-</tr>
-<tr class="odd">
-<td><code>multi_prior_setup()</code></td>
-<td><code>multi_prior_setup.R</code></td>
-<td>Multi-response Gaussian prior setup (<code>cbind</code> LHS).</td>
-</tr>
-<tr class="even">
-<td><code>multi_rlmb()</code></td>
-<td><code>multi_rlmb.R</code></td>
-<td>Multi-response LM draws (<code>cbind</code> LHS; <code>rlmb()</code>
-per column). Pairs with <code>multi_prior_setup()</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>rglmb()</code></td>
-<td><code>rglmb.R</code></td>
-<td>Matrix-level Bayesian GLM sampler (<code>glmb()</code>
-backend).</td>
-</tr>
-<tr class="even">
-<td><code>rlmb()</code></td>
-<td><code>rlmb.R</code></td>
-<td>Matrix-level Bayesian LM sampler (<code>lmb()</code> backend).</td>
-</tr>
-<tr class="odd">
-<td><code>diagnose_glmbayes()</code></td>
-<td><code>gpu_diagnostics.R</code></td>
-<td>OpenCL / GPU diagnostic report.</td>
+<td><strong>lmebayes indirect</strong></td>
+<td><strong>lmebayes</strong> reaches only via re-exported
+<code>rlmerb()</code> / <code>rglmerb()</code> — export optional for
+<strong>lmebayes</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Co-exports (same help topic, planned with
-<code>multi_rlmb()</code>):</strong>
-<code>multi_rNormalGamma_reg()</code>,
-<code>multi_rindepNormalGamma_reg()</code>.</p>
+<p>Categories below follow the <strong>glmbayes</strong> vignette arc
+(simulation → envelopes → accept–reject; Part 5 / Chapters A05–A08) and
+the <strong>glmbayesCore</strong> README split (C++ engine, iid
+<code>simfunction</code>s, two-block mixed models, block-Gibbs
+extensions).</p>
+<hr />
 </div>
-<div id="phase-out-of-glmbayes-low-level-glmbayescore-only" class="section level3">
-<h3>2) Phase out of <strong>glmbayes</strong> (low-level;
-<strong>glmbayesCore</strong>-only)</h3>
-<p>Internal calibration, simulation registry, envelope pipeline, fitter
-hooks, and truncated-distribution C++ callbacks (30 symbols). Still
-exported from <strong>glmbayesCore</strong>; remove from
-<strong>glmbayes</strong> <code>NAMESPACE</code> when downstream call
-sites use <code>glmbayesCore::</code> or internal routing only.</p>
+<div id="prior-calibration-internal" class="section level2">
+<h2>1. Prior calibration (internal)</h2>
+<p>Gaussian hyperparameter construction used inside default prior setup
+— not a standalone user entry point (see <strong>glmbayes</strong>
+Chapter A12).</p>
 <table>
 <colgroup>
-<col width="45%" />
-<col width="27%" />
-<col width="27%" />
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Function</th>
 <th>File</th>
-<th>Role</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td><code>compute_gaussian_prior()</code></td>
 <td><code>compute_gaussian_prior.R</code></td>
-<td>Gaussian calibration inside <code>Prior_Setup()</code> only (not a
-user entry point).</td>
-</tr>
-<tr class="even">
-<td><code>simfunction()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Registry of simulation functions by family.</td>
-</tr>
-<tr class="odd">
-<td><code>glmbfamfunc()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>GLM family helpers for sampling pipeline.</td>
-</tr>
-<tr class="even">
-<td><code>rNormal_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Normal regression posterior sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>rNormal_reg.wfit()</code></td>
-<td><code>fitter_functions.R</code></td>
-<td>Weighted Normal regression fit helper.</td>
-</tr>
-<tr class="even">
-<td><code>rNormalGamma_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Normal–Gamma regression sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>rindepNormalGamma_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Independent Normal–Gamma regression sampler.</td>
-</tr>
-<tr class="even">
-<td><code>rGamma_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Gamma regression sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>rGamma_Conjugate_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Conjugate Gamma regression sampler.</td>
-</tr>
-<tr class="even">
-<td><code>rBeta_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Beta regression sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>rNormalGLM_std()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Standardized Normal–GLM envelope sampler.</td>
-</tr>
-<tr class="even">
-<td><code>rIndepNormalGammaReg_std()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Standardized ING GLM envelope sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>glmb.wfit()</code></td>
-<td><code>fitter_functions.R</code></td>
-<td>Weighted GLM working fit for sampling.</td>
-</tr>
-<tr class="even">
-<td><code>glmb_Standardize_Model()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Standardize design for envelope sampling.</td>
-</tr>
-<tr class="odd">
-<td><code>EnvelopeSize()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Envelope grid size from subgradient geometry.</td>
-</tr>
-<tr class="even">
-<td><code>EnvelopeBuild()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Build accept–reject envelope.</td>
-</tr>
-<tr class="odd">
-<td><code>EnvelopeEval()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Evaluate envelope log-density.</td>
-</tr>
-<tr class="even">
-<td><code>EnvelopeOpt()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Optimize envelope grid / core count.</td>
-</tr>
-<tr class="odd">
-<td><code>EnvelopeSort()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Sort envelope grid for sampling.</td>
-</tr>
-<tr class="even">
-<td><code>EnvelopeSetGrid()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Assign envelope grid indices.</td>
-</tr>
-<tr class="odd">
-<td><code>EnvelopeSetLogP()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Set envelope log-probability table.</td>
-</tr>
-<tr class="even">
-<td><code>EnvelopeDispersionBuild()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Dispersion envelope for ING models.</td>
-</tr>
-<tr class="odd">
-<td><code>EnvelopeCentering()</code></td>
-<td><code>envelopeorchestrator.R</code></td>
-<td>Center envelope at posterior mode.</td>
-</tr>
-<tr class="even">
-<td><code>EnvelopeOrchestrator()</code></td>
-<td><code>envelopeorchestrator.R</code></td>
-<td>Full envelope build + dispersion orchestration.</td>
-</tr>
-<tr class="odd">
-<td><code>pnorm_ct()</code> / <code>rnorm_ct()</code></td>
-<td><code>normal_ct.R</code></td>
-<td>Truncated Normal cdf / sampler (C++/OpenCL).</td>
-</tr>
-<tr class="even">
-<td><code>pinvgamma_ct()</code> / <code>qinvgamma_ct()</code> /
-<code>rinvgamma_ct()</code></td>
-<td><code>invgamma_ct.R</code></td>
-<td>Inverse-Gamma cdf / quantile / sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>rgamma_ct()</code></td>
-<td><code>gamma_ct.R</code></td>
-<td>Truncated Gamma sampler.</td>
+<td>Phase-out (<strong>glmbayes</strong>); used only inside
+<code>Prior_Setup()</code></td>
 </tr>
 </tbody>
 </table>
 <hr />
 </div>
-</div>
-<div id="present-in-lmebayes-from-glmbayescore" class="section level2">
-<h2>Present in <strong>lmebayes</strong> (from
-<strong>glmbayesCore</strong>)</h2>
-<p>Mixed-model symbols defined in <strong>glmbayesCore</strong> and used
-by <strong>lmebayes</strong>, but <strong>not</strong> in
-<strong>glmbayes</strong> (6 re-exported; 4 additional direct Core calls
-— see below).</p>
-<p><strong>Note:</strong> <strong>lmebayes</strong> also re-exports
-<code>Prior_Setup()</code>, <code>dNormal()</code>,
-<code>dNormal_Gamma()</code>, <code>dIndependent_Normal_Gamma()</code>,
-and <code>dGamma()</code> (listed under <strong>glmbayes</strong> shared
-API above). S3 <code>print.model_setup</code>,
-<code>print.lmebayes_prior_setup</code>, and
-<code>pfamily_list.lmebayes_prior_setup</code> register in Core;
-<strong>lmebayes</strong> <code>import(glmbayesCore)</code> dispatches
-them for re-exported objects.</p>
-<div id="re-exports-6-symbols" class="section level3">
-<h3>Re-exports (6 symbols)</h3>
-<p>Exported from <strong>lmebayes</strong> via
-<code>R/reexports_glmbayesCore.R</code> (<code>@export</code> /
-<code>importFrom</code> + re-export).</p>
+<div id="simulation-registry-and-family-pipeline" class="section level2">
+<h2>2. Simulation registry and family pipeline</h2>
+<p>Introspection and GLM family closure bundles
+(<code>f1</code>–<code>f4</code>, <code>f7</code>) for the envelope path
+(Chapter A03 / A05).</p>
 <table>
-<colgroup>
-<col width="45%" />
-<col width="27%" />
-<col width="27%" />
-</colgroup>
 <thead>
 <tr class="header">
 <th>Function</th>
 <th>File</th>
-<th>Role</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>model_setup()</code></td>
-<td><code>model_setup.R</code></td>
-<td>Parse lme4-style formula → design object
-(<code>&quot;model_setup&quot;</code>).</td>
+<td><code>simfunction()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
 </tr>
 <tr class="even">
-<td><code>Prior_Setup_lmebayes()</code></td>
-<td><code>Prior_Setup_lmebayes.R</code></td>
-<td>Calibrate Block~2 hyperpriors from reference <code>lmer</code> /
-<code>glmer</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>rlmerb()</code></td>
-<td><code>rlmerb.R</code></td>
-<td>Matrix-level Gaussian LMM two-block sampler.</td>
-</tr>
-<tr class="even">
-<td><code>rglmerb()</code></td>
-<td><code>rglmerb.R</code></td>
-<td>Matrix-level GLMM two-block sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>pfamily_list()</code></td>
-<td><code>pfamily_list.R</code>,
-<code>pfamily_list_lmebayes_prior_setup.R</code></td>
-<td>S3 generic; <code>lmebayes_prior_setup</code> method builds Block~2
-priors.</td>
-</tr>
-<tr class="even">
-<td><code>plot_sweep_history_diag()</code></td>
-<td><code>plot_sweep_history_diag.R</code></td>
-<td>Cross-chain mean/SD vs inner sweep for
-<code>two_block_sweep_history</code>.</td>
+<td><code>glmbfamfunc()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
 </tr>
 </tbody>
 </table>
-<p><strong>lmebayes</strong> callers: <code>model_setup()</code> and
-<code>Prior_Setup_lmebayes()</code> from user workflows and
-<code>Prior_SetupBlock()</code>; <code>pfamily_list()</code> from
-<code>lmerb()</code> / <code>glmerb()</code> (via
-<code>.lmebayes_priors_from_pfamily_list()</code>);
-<code>rlmerb()</code> / <code>rglmerb()</code> from <code>lmerb()</code>
-/ <code>glmerb()</code> when <code>simulate = TRUE</code>;
-<code>plot_sweep_history_diag()</code> from demos and user diagnostics
-on <code>fit$sweep_history$main</code>.</p>
+<hr />
 </div>
-<div id="direct-calls-from-lmebayes-r-must-stay-exported-in-core" class="section level3">
-<h3>Direct calls from <strong>lmebayes</strong> <code>R/</code> (must
-stay exported in Core)</h3>
-<p><strong>lmebayes</strong> references these as
-<code>glmbayesCore::…</code> (or <code>importFrom</code>). They must
-remain in <strong>glmbayesCore</strong> <code>NAMESPACE</code> for
-<strong>lmebayes</strong> to load.</p>
+<div id="iid-regression-posterior-samplers-simfunction-layer" class="section level2">
+<h2>3. Iid regression posterior samplers (<code>simfunction</code>
+layer)</h2>
+<p>Matrix-input draws for a single response column — the building blocks
+embedded in <code>pfamily$simfun</code> and called from
+<code>rlmb()</code> / <code>rglmb()</code> (Chapters A05–A07). Gaussian
+families use conjugate or near-conjugate paths; non-Gaussian GLMs route
+to the envelope pipeline (§5–§6).</p>
 <table>
 <colgroup>
-<col width="16%" />
-<col width="10%" />
-<col width="36%" />
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>rNormal_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rNormalGamma_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>rindepNormalGamma_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rGamma_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>rGamma_Conjugate_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rBeta_reg()</code></td>
+<td><code>simfunction.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="standardized-glm-envelope-samplers-and-fitter-hooks" class="section level2">
+<h2>4. Standardized GLM envelope samplers and fitter hooks</h2>
+<p>Standardize the design (<code>glmb_Standardize_Model</code>), build
+subgradient envelopes, and draw via <code>rNormalGLM_std()</code> /
+<code>rIndepNormalGammaReg_std()</code>. Weighted working fits support
+mode finding inside the pipeline.</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>rNormalGLM_std()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rIndepNormalGammaReg_std()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>glmb_Standardize_Model()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>glmb.wfit()</code></td>
+<td><code>fitter_functions.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>rNormal_reg.wfit()</code></td>
+<td><code>fitter_functions.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="envelope-construction-acceptreject-geometry" class="section level2">
+<h2>5. Envelope construction (accept–reject geometry)</h2>
+<p>Piecewise-exponential envelope grid: size, build, evaluate, optimize,
+sort, and orchestrate (Chapter A08; GPU path via OpenCL in
+<code>src/</code>).</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>EnvelopeSize()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>EnvelopeBuild()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>EnvelopeEval()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>EnvelopeOpt()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>EnvelopeSort()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>EnvelopeSetGrid()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>EnvelopeSetLogP()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>EnvelopeDispersionBuild()</code></td>
+<td><code>simulationpipeline.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>EnvelopeCentering()</code></td>
+<td><code>envelopeorchestrator.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>EnvelopeOrchestrator()</code></td>
+<td><code>envelopeorchestrator.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="truncated-distributions-c-opencl-callbacks" class="section level2">
+<h2>6. Truncated distributions (C++ / OpenCL callbacks)</h2>
+<p>Low-level cdf / quantile / sampler hooks for truncated Normal, Gamma,
+and inverse-Gamma draws inside ING and envelope updates (Chapters
+A06–A07).</p>
+<table>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pnorm_ct()</code></td>
+<td><code>normal_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rnorm_ct()</code></td>
+<td><code>normal_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>pinvgamma_ct()</code></td>
+<td><code>invgamma_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>qinvgamma_ct()</code></td>
+<td><code>invgamma_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="odd">
+<td><code>rinvgamma_ct()</code></td>
+<td><code>invgamma_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+<tr class="even">
+<td><code>rgamma_ct()</code></td>
+<td><code>gamma_ct.R</code></td>
+<td>Phase-out (<strong>glmbayes</strong>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="row-block-partition-and-by-style-block-samplers" class="section level2">
+<h2>7. Row-block partition and BY-style block samplers</h2>
+<p>SAS <strong>BY</strong>-style row splits: normalize block indices,
+then run Block~1 Normal or GLM draws conditional on hyperparameters
+(<code>inst/BLOCK_GIBBS_ERGODICITY.md</code>). <strong>lmebayes</strong>
+<code>lmbBlock()</code> / <code>glmbBlock()</code> use
+<code>normalize_block()</code> directly; per-block fits call
+<strong>glmbayes</strong> <code>lmb()</code> / <code>glmb()</code>, not
+the matrix APIs below.</p>
+<table>
+<colgroup>
+<col width="26%" />
+<col width="15%" />
+<col width="21%" />
 <col width="36%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Function</th>
 <th>File</th>
+<th>Status</th>
+<th><strong>lmebayes</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>normalize_block()</code></td>
+<td><code>simfunction_block_utils.R</code></td>
+<td>Core-only today</td>
+<td>Direct — <code>lmbBlock()</code>, <code>glmbBlock()</code>,
+<code>Prior_SetupBlock()</code>,
+<code>block_check_identifiability_xy()</code></td>
+</tr>
+<tr class="even">
+<td><code>block_rNormalReg()</code></td>
+<td><code>simfunction_block.R</code></td>
+<td>Core-only today</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>block_rNormalGLM()</code></td>
+<td><code>simfunction_block.R</code></td>
+<td>Core-only today</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>block_rNormalReg_update()</code></td>
+<td><code>rNormalReg_reg_block_update.R</code></td>
+<td>Core-only today</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>block_rNormalGLM_update()</code></td>
+<td><code>rNormalGLM_reg_block_update.R</code></td>
+<td>Core-only today</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="multi-response-matrix-samplers-cbind-lhs" class="section level2">
+<h2>8. Multi-response matrix samplers (<code>cbind</code> LHS)</h2>
+<p>One draw updates several response columns jointly (contrast with §7
+row blocks). Typical workflow: <code>multi_prior_setup()</code> →
+<code>multi_rlmb()</code> (both planned <strong>glmbayes</strong> retain
+re-exports). <strong>lmebayes</strong> row blocks
+(<code>lmbBlock()</code>) use per-column <strong>glmbayes</strong>
+<code>lmb()</code>, not this API.</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>multi_rlmb()</code></td>
+<td><code>multi_rlmb.R</code></td>
+<td><strong>Planned glmbayes</strong> retain re-export (calls
+<code>rlmb()</code> per column)</td>
+</tr>
+<tr class="even">
+<td><code>multi_rNormalGamma_reg()</code></td>
+<td><code>multi_rlmb.R</code></td>
+<td>Live via planned <code>multi_rlmb</code> API →
+<code>rNormalGamma_reg()</code> per column</td>
+</tr>
+<tr class="odd">
+<td><code>multi_rindepNormalGamma_reg()</code></td>
+<td><code>multi_rlmb.R</code></td>
+<td>Live via planned <code>multi_rlmb</code> API →
+<code>rindepNormalGamma_reg()</code> per column</td>
+</tr>
+<tr class="even">
+<td><code>multi_rNormal_reg()</code></td>
+<td><code>multi_rNormal_reg.R</code></td>
+<td>Core-only today (parallel matrix API; not called by
+<code>multi_rlmb()</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="mixed-model-block1-prep-and-block2-starts" class="section level2">
+<h2>9. Mixed-model Block~1 prep and Block~2 starts</h2>
+<p>Observation-level prior means and Gaussian ICM / GLMM mode starts for
+formula drivers. Required exports for <strong>lmebayes</strong>
+(<code>importFrom</code> or qualified calls).</p>
+<table>
+<colgroup>
+<col width="21%" />
+<col width="13%" />
+<col width="17%" />
+<col width="47%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
 <th><strong>lmebayes</strong> callers</th>
-<th><strong>lmebayes</strong> surface</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td><code>build_mu_all()</code></td>
 <td><code>build_mu_all.R</code></td>
-<td><code>lmerb()</code>, <code>glmerb()</code></td>
-<td><code>importFrom</code> only</td>
+<td>Core-only today</td>
+<td><code>lmerb()</code>, <code>glmerb()</code>
+(<code>simulate = FALSE</code> → <code>fixef.mu</code>)</td>
 </tr>
 <tr class="even">
 <td><code>lmerb_posterior_mean()</code></td>
 <td><code>lmerb_posterior_mean.R</code></td>
-<td><code>lmerb()</code></td>
-<td><code>importFrom</code> only</td>
+<td>Core-only today</td>
+<td><code>lmerb()</code> (<code>simulate = FALSE</code>)</td>
 </tr>
 <tr class="odd">
 <td><code>glmerb_posterior_mode()</code></td>
 <td><code>glmerb_posterior_mode.R</code></td>
-<td><code>glmerb()</code></td>
-<td><code>importFrom</code> only</td>
-</tr>
-<tr class="even">
-<td><code>normalize_block()</code></td>
-<td><code>simfunction_block_utils.R</code></td>
-<td><code>lmbBlock()</code>, <code>glmbBlock()</code>,
-<code>Prior_SetupBlock()</code> (via
-<code>.blmb_formula_block_meta()</code>);
-<code>block_check_identifiability_xy()</code></td>
-<td>direct <code>glmbayesCore::</code> (not in <strong>lmebayes</strong>
-<code>NAMESPACE</code>)</td>
+<td>Core-only today</td>
+<td><code>glmerb()</code> (<code>simulate = FALSE</code>)</td>
 </tr>
 </tbody>
 </table>
-<p>Used when <code>simulate = FALSE</code> for the three posterior/mean
-helpers; when <code>simulate = TRUE</code>, re-exported
-<code>rlmerb()</code> / <code>rglmerb()</code> run the same prep
-internally.</p>
-<p><strong>Direct via <code>glmbayesCore:::</code></strong> (internal in
-Core — export not required):
-<code>extract_mer_variance_components()</code> ←
-<code>summary.lmerb()</code>; <code>.lmebayes_*</code> helpers ←
-<code>lmerb()</code>, <code>glmerb()</code>. Listed under
-<strong>Documented but not exported</strong> below.</p>
-<p>Indirect engines (<code>rGLMM</code>, <code>rLMMNormal_reg</code>, …)
-are listed under <strong>glmbayesCore-only exports</strong> below —
-<strong>lmebayes</strong> reaches them only via re-exported
-<code>rlmerb()</code> / <code>rglmerb()</code> (export optional for
-<strong>lmebayes</strong>).</p>
+<p>When <code>simulate = TRUE</code>, re-exported <code>rlmerb()</code>
+/ <code>rglmerb()</code> perform the same prep internally.</p>
 <hr />
 </div>
-</div>
-<div id="documented-but-not-exported-keywords-internal-man" class="section level2">
-<h2>Documented but not exported (<code>@keywords internal</code> +
-<code>man/</code>)</h2>
-<p>Callable with <code>glmbayesCore:::</code>; have help pages but are
-not in <code>NAMESPACE</code>.</p>
+<div id="lmm-glmm-replicate-chain-routers-two-block-outer-stage" class="section level2">
+<h2>10. LMM / GLMM replicate-chain routers (two-block outer stage)</h2>
+<p>Replicate independent chains; each chain runs inner Gibbs sweeps
+between Block~1 (random effects) and Block~2 (variance components /
+hyperparameters). <strong>lmebayes</strong> <code>lmerb()</code> /
+<code>glmerb()</code> call re-exported <code>rlmerb()</code> /
+<code>rglmerb()</code>, which route here — <strong>lmebayes</strong>
+never names these symbols in <code>R/</code>.</p>
 <table>
 <colgroup>
-<col width="45%" />
-<col width="27%" />
-<col width="27%" />
+<col width="19%" />
+<col width="11%" />
+<col width="15%" />
+<col width="52%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Function</th>
 <th>File</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>is_single_factor_model()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Exactly one grouping factor in formula.</td>
-</tr>
-<tr class="even">
-<td><code>is_fixed_effects_only()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>No random-effects terms.</td>
-</tr>
-<tr class="odd">
-<td><code>get_lme4_components()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>lme4 parse → design matrices.</td>
-</tr>
-<tr class="even">
-<td><code>show_lme4_Z_random()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Debug random-effects design.</td>
-</tr>
-<tr class="odd">
-<td><code>classify_lme4_fixed_columns()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Population vs group-level fixed columns.</td>
-</tr>
-<tr class="even">
-<td><code>classify_crosslevel_re_moderation()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Cross-level RE structure.</td>
-</tr>
-<tr class="odd">
-<td><code>extract_re_hyper_matrices()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Block~2 group designs.</td>
-</tr>
-<tr class="even">
-<td><code>extract_re_Z_obs()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Obs-level Z for one group.</td>
-</tr>
-<tr class="odd">
-<td><code>extract_lme4_submatrices()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Subset parsed lme4 parts.</td>
-</tr>
-<tr class="even">
-<td><code>extract_lme4_fixed_group_matrix()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Group-level fixed matrix.</td>
-</tr>
-<tr class="odd">
-<td><code>extract_lmer_variance_components()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Variance components from <strong>lmer</strong> fit.</td>
-</tr>
-<tr class="even">
-<td><code>extract_mer_variance_components()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Variance components from <strong>glmer</strong> fit.</td>
-</tr>
-<tr class="odd">
-<td><code>lmerb_default_vcov_formula()</code></td>
-<td><code>lme4_design_utilities.R</code></td>
-<td>Default vcov formula for prior scaling.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>lmebayes</strong> calls
-<code>extract_mer_variance_components()</code> from
-<code>summary.lmerb()</code> via <code>glmbayesCore:::</code> (direct
-call; correctly <strong>not</strong> exported).</p>
-<hr />
-</div>
-<div id="glmbayescore-only-exports" class="section level2">
-<h2><strong>glmbayesCore</strong>-only exports</h2>
-<p>Not in <strong>glmbayes</strong> or <strong>lmebayes</strong> export
-surfaces (29 symbols). None are direct <code>glmbayesCore::…</code>
-references from <strong>lmebayes</strong> <code>R/</code>.</p>
-<p><strong>By function type:</strong> <a href="R_CORE_ONLY_EXPORTS.md">R_CORE_ONLY_EXPORTS.md</a> (full 66-symbol
-catalog including <strong>glmbayes</strong> phase-out groups §1–§6).</p>
-<div id="indirect-from-lmebayes-via-rlmerb-rglmerb-4-symbols" class="section level3">
-<h3>Indirect from <strong>lmebayes</strong> via <code>rlmerb()</code> /
-<code>rglmerb()</code> (4 symbols)</h3>
-<p><strong>lmebayes</strong> never names these in <code>R/</code>;
-<strong>glmbayesCore</strong> routes to them inside
-<code>rlmerb()</code>, <code>rglmerb()</code>, or
-<code>.lmebayes_run_lmm_engine()</code>. They do <strong>not</strong>
-need to stay <code>@export</code> for <strong>lmebayes</strong> to work
-(could become <code>@noRd</code> internals). They may remain exported
-for power users, <code>data-raw/</code>, or <strong>glmbayes</strong>
-migration.</p>
-<table>
-<colgroup>
-<col width="21%" />
-<col width="12%" />
-<col width="53%" />
-<col width="12%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Function</th>
-<th>File</th>
+<th>Status</th>
 <th>Route from <strong>lmebayes</strong></th>
-<th>Role</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>rGLMM()</code></td>
-<td><code>rGLMM.R</code></td>
-<td><code>glmerb()</code> → <code>rglmerb()</code> when
-<code>simulate = TRUE</code>, non-Gaussian <code>family</code></td>
-<td>GLMM sweep-outer engine.</td>
-</tr>
-<tr class="even">
 <td><code>rLMMNormal_reg()</code></td>
 <td><code>rLMMNormal_reg.R</code></td>
+<td>Core-only today; export optional for <strong>lmebayes</strong></td>
 <td><code>lmerb()</code> / <code>glmerb()</code> → <code>rlmerb()</code>
-/ <code>rglmerb()</code> → <code>.lmebayes_run_lmm_engine()</code> when
-Block~2 is all <code>dNormal</code> and <code>dispersion_ranef</code> is
-a fixed scalar</td>
-<td>Gaussian LMM replicate-chain router.</td>
+/ <code>rglmerb()</code> → <code>.lmebayes_run_lmm_engine()</code>
+(all-<code>dNormal</code> Block~2, fixed scalar dispersion)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>rLMMNormal_reg_estimated_vcov()</code></td>
 <td><code>rLMMNormal_reg.R</code></td>
-<td>Same chain when <code>prior$any_non_normal</code> (e.g. ING
-Block~2)</td>
-<td>LMM with estimated residual variance.</td>
+<td>Core-only today; export optional for <strong>lmebayes</strong></td>
+<td>Same when <code>prior$any_non_normal</code> (e.g. ING Block~2)</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>rLMMindepNormalGamma_reg()</code></td>
 <td><code>rLMMNormal_reg.R</code></td>
-<td>Same chain when <code>dispersion_ranef</code> is
-<code>dGamma()</code> (<code>disp_info$mode == &quot;gamma&quot;</code>)</td>
-<td>LMM with ING measurement dispersion.</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="other-glmbayescore-only-exports-25-symbols" class="section level3">
-<h3>Other <strong>glmbayesCore</strong>-only exports (25 symbols)</h3>
-<p>Not called from <strong>lmebayes</strong> <code>R/</code> (directly
-or via formula drivers).</p>
-<table>
-<colgroup>
-<col width="45%" />
-<col width="27%" />
-<col width="27%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Function</th>
-<th>File</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>block_rNormalReg()</code></td>
-<td><code>simfunction_block.R</code></td>
-<td>Row-block Normal regression sampler.</td>
-</tr>
-<tr class="even">
-<td><code>block_rNormalGLM()</code></td>
-<td><code>simfunction_block.R</code></td>
-<td>Row-block GLM envelope sampler.</td>
-</tr>
-<tr class="odd">
-<td><code>block_rNormalReg_update()</code></td>
-<td><code>rNormalReg_reg_block_update.R</code></td>
-<td>Block~1 Normal reg draw given <code>mu_all</code>.</td>
-</tr>
-<tr class="even">
-<td><code>block_rNormalGLM_update()</code></td>
-<td><code>rNormalGLM_reg_block_update.R</code></td>
-<td>Block~1 GLM draw given <code>mu_all</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>multi_rNormal_reg()</code></td>
-<td><code>multi_rNormal_reg.R</code></td>
-<td>Multi-response Normal regression sampler (matrix API; not called by
-<code>multi_rlmb()</code>).</td>
-</tr>
-<tr class="even">
-<td><code>rGLMM_sweep()</code></td>
-<td><code>rGLMM_sweep.R</code></td>
-<td>Sweep-outer Gibbs driver for two-block GLMM.</td>
-</tr>
-<tr class="odd">
-<td><code>rGLMM_Re_Draw()</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>Single sweep-outer re-draw helper.</td>
+<td>Core-only today; export optional for <strong>lmebayes</strong></td>
+<td>Same when <code>dispersion_ranef</code> is
+<code>dGamma()</code></td>
 </tr>
 <tr class="even">
 <td><code>rLMMNormal_reg_known_vcov()</code></td>
 <td><code>rLMMNormal_reg.R</code></td>
-<td>LMM with known residual variance.</td>
+<td>Core-only today</td>
+<td>— (lower-level vcov route)</td>
 </tr>
+<tr class="odd">
+<td><code>rGLMM()</code></td>
+<td><code>rGLMM.R</code></td>
+<td>Core-only today; export optional for <strong>lmebayes</strong></td>
+<td><code>glmerb()</code> → <code>rglmerb()</code> when
+<code>simulate = TRUE</code>, non-Gaussian <code>family</code></td>
+</tr>
+<tr class="even">
+<td><code>rGLMM_sweep()</code></td>
+<td><code>rGLMM_sweep.R</code></td>
+<td>Core-only today</td>
+<td>Driver behind <code>rGLMM()</code></td>
+</tr>
+<tr class="odd">
+<td><code>rGLMM_Re_Draw()</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today</td>
+<td>Single sweep-outer re-draw helper</td>
+</tr>
+</tbody>
+</table>
+<p>See <code>inst/ARCHITECTURE_glmerb.md</code> for the full Block~1 /
+Block~2 call graph.</p>
+<hr />
+</div>
+<div id="two-block-gibbs-engines-inner-block-1-block-2" class="section level2">
+<h2>11. Two-block Gibbs engines (inner Block 1 ↔︎ Block 2)</h2>
+<p>Current v2 driver for cycling fixed hyperparameters and random
+effects with <code>pfamily_list</code> Block~2 (used inside §10 routers
+and <code>data-raw/</code> calibration).</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
 <td><code>two_block_rNormal_reg_v2()</code></td>
 <td><code>two_block_rNormal_reg_v2.R</code></td>
-<td>Two-block engine with <code>pfamily_list</code> Block~2.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_rate()</code></td>
-<td><code>two_block_rate.R</code></td>
-<td>Block~2 convergence rate from mode weights.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_rate_v2()</code></td>
-<td><code>two_block_rNormal_reg_v2.R</code></td>
-<td>Rate helper aligned with v2 sampler.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_mode_weights()</code></td>
-<td><code>two_block_mode_weights.R</code></td>
-<td>Mode weights for rate / TV calibration.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_tv_bound()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
-<td>Total-variation bound vs inner sweeps.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_l_for_tv()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
-<td>Invert TV bound for target tolerance.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_pilot_sampling_cost()</code></td>
-<td><code>two_block_pilot_cost.R</code></td>
-<td>Pilot chain sampling cost model.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_optimize_pilot_cost()</code></td>
-<td><code>two_block_pilot_cost.R</code></td>
-<td>Optimize pilot vs main chain allocation.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_d0_pilot_start()</code></td>
-<td><code>two_block_pilot_cost.R</code></td>
-<td>Default pilot start for cost optimization.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_m_convergence_for_pilot_start()</code></td>
-<td><code>two_block_pilot_cost.R</code></td>
-<td>Inner sweeps for pilot-start calibration.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_align_b_to_xhyper()</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>Align ranef vector to hyper design rows.</td>
-</tr>
-<tr class="even">
-<td><code>two_block_align_b_to_xhyper_cpp()</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>C++ export for align helper.</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_block2_one_chain()</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>One Block~2 Gibbs chain (fixef + tau2).</td>
-</tr>
-<tr class="even">
-<td><code>two_block_block2_one_chain_cpp()</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>C++ export for Block~2 one-chain draw.</td>
-</tr>
-<tr class="odd">
-<td><code>.two_block_align_b_to_xhyper</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>Namespace alias of <code>two_block_align_b_to_xhyper</code>.</td>
-</tr>
-<tr class="even">
-<td><code>.two_block_block2_one_chain</code></td>
-<td><code>two_block_batch_gibbs.R</code></td>
-<td>Namespace alias of <code>two_block_block2_one_chain</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>glmbayesCore_has_opencl()</code></td>
-<td><code>gpu_diagnostics.R</code></td>
-<td>Compile-time OpenCL flag for this build.</td>
+<td>Core-only today (current R path)</td>
 </tr>
 </tbody>
 </table>
 <hr />
 </div>
-</div>
-<div id="s3-methods-namespace-s3method" class="section level2">
-<h2>S3 methods (<code>NAMESPACE</code> → <code>S3method</code>)</h2>
-<p>Registered in <strong>glmbayesCore</strong>; not counted in the
-export groups above. When both <strong>glmbayes</strong> and
-<strong>glmbayesCore</strong> attach, <strong>R</strong> warns that
-<strong>glmbayes</strong> overwrites duplicate registrations — during
-migration, <strong>glmbayes</strong> should
-<code>import(glmbayesCore)</code> and stop re-registering methods that
-live in Core.</p>
-<p><strong>Verification source:</strong> <strong>glmbayes</strong>
-<code>NAMESPACE</code> (installed R 4.6 library) cross-checked
-line-by-line against <strong>glmbayesCore</strong>
-<code>NAMESPACE</code> (<strong>44</strong> vs <strong>26</strong>
-registrations). Older <strong>glmbayes</strong> source trees may omit
-some lines (e.g. <code>summary.mlmb</code>); treat the installed
-namespace as authoritative.</p>
-<div id="complete-s3-overlap-glmbayes-glmbayescore-15-methods" class="section level3">
-<h3>Complete S3 overlap (<strong>glmbayes</strong> ∩
-<strong>glmbayesCore</strong>) — 15 methods</h3>
-<p>Exhaustive intersection — no other shared <code>S3method</code>
-registrations exist. Methods like <code>extractAIC.rglmb()</code>,
-<code>deviance.rglmb()</code>, and all <code>*.glmb</code> /
-<code>*.lmb</code> / <code>*.mlmb</code> dispatch are
-<strong>glmbayes-only</strong> (see below).</p>
+<div id="two-block-ergodicity-and-total-variation-calibration" class="section level2">
+<h2>12. Two-block ergodicity and total-variation calibration</h2>
+<p>Mode weights, convergence rates, and TV bounds for inner Gibbs sweeps
+(Nygren 2020; <code>inst/BLOCK_GIBBS_ERGODICITY.md</code>). Used when
+deriving <code>m_convergence</code> and pilot/main allocation for
+<code>rlmerb()</code> / <code>rglmerb()</code>.</p>
 <table>
 <colgroup>
-<col width="29%" />
-<col width="40%" />
-<col width="29%" />
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
 </colgroup>
 <thead>
 <tr class="header">
-<th>Method</th>
-<th>Core file</th>
-<th>Policy</th>
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>pfamily.default()</code></td>
-<td><code>pfamily.R</code></td>
-<td><strong>Retain</strong></td>
+<td><code>two_block_mode_weights()</code></td>
+<td><code>two_block_mode_weights.R</code></td>
+<td>Core-only today</td>
 </tr>
 <tr class="even">
-<td><code>print.PriorSetup()</code></td>
-<td><code>prior.R</code></td>
-<td><strong>Retain</strong></td>
+<td><code>two_block_rate()</code></td>
+<td><code>two_block_rate.R</code></td>
+<td>Core-only today</td>
 </tr>
 <tr class="odd">
-<td><code>print.pfamily()</code></td>
-<td><code>pfamily.R</code></td>
-<td><strong>Retain</strong></td>
+<td><code>two_block_rate_v2()</code></td>
+<td><code>two_block_rNormal_reg_v2.R</code></td>
+<td>Core-only today</td>
 </tr>
 <tr class="even">
-<td><code>print.rglmb()</code></td>
-<td><code>rglmb.R</code></td>
-<td><strong>Retain</strong></td>
+<td><code>two_block_tv_bound()</code></td>
+<td><code>two_block_tv_bound.R</code></td>
+<td>Core-only today</td>
 </tr>
 <tr class="odd">
-<td><code>print.rlmb()</code></td>
-<td><code>rlmb.R</code></td>
-<td><strong>Retain</strong></td>
-</tr>
-<tr class="even">
-<td><code>residuals.rglmb()</code></td>
-<td><code>residuals.rglmb.R</code></td>
-<td><strong>Retain</strong> (also <code>rlmb</code> via class)</td>
-</tr>
-<tr class="odd">
-<td><code>summary.rglmb()</code></td>
-<td><code>summary.rglmb.R</code></td>
-<td><strong>Retain</strong> (also <code>rlmb</code> via class)</td>
-</tr>
-<tr class="even">
-<td><code>print.summary.rglmb()</code></td>
-<td><code>summary.rglmb.R</code></td>
-<td><strong>Retain</strong></td>
-</tr>
-<tr class="odd">
-<td><code>formula.summary.rglmb()</code></td>
-<td><code>formula.summary.rglmb.R</code></td>
-<td><strong>Retain</strong></td>
-</tr>
-<tr class="even">
-<td><code>print.glmbfamfunc()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
-</tr>
-<tr class="odd">
-<td><code>print.simfunction()</code></td>
-<td><code>simfunction.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
-</tr>
-<tr class="even">
-<td><code>simfunction.default()</code></td>
-<td><code>simfunction.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
-</tr>
-<tr class="odd">
-<td><code>print.rGamma_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
-</tr>
-<tr class="even">
-<td><code>summary.rGamma_reg()</code></td>
-<td><code>summary.rgamma_reg.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
-</tr>
-<tr class="odd">
-<td><code>print.summary.rGamma_reg()</code></td>
-<td><code>summary.rgamma_reg.R</code></td>
-<td><strong>Phase-out</strong> (§2)</td>
+<td><code>two_block_l_for_tv()</code></td>
+<td><code>two_block_tv_bound.R</code></td>
+<td>Core-only today</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Attach warning:</strong> when <strong>lmebayes</strong> loads
-both packages, <strong>R</strong> may list a subset of these 15 as
-overwritten by <strong>glmbayes</strong>; the table above is the full
-set.</p>
+<hr />
 </div>
-<div id="glmbayes-s3-not-in-glmbayescore-29-methods" class="section level3">
-<h3><strong>glmbayes</strong> S3 not in <strong>glmbayesCore</strong> —
-29 methods</h3>
-<p>Formula-layer and <strong>glmbayes</strong>-specific dispatch; stay
-on <strong>glmbayes</strong> (do not duplicate in Core).</p>
+<div id="pilot-vs-main-chain-cost-optimization" class="section level2">
+<h2>13. Pilot vs main chain cost optimization</h2>
+<p>Model sampling cost vs inner-sweep count when calibrating pilot
+chains for ING Block~2 and non-Gaussian GLMM paths.</p>
 <table>
 <colgroup>
+<col width="41%" />
 <col width="25%" />
-<col width="51%" />
-<col width="22%" />
+<col width="33%" />
 </colgroup>
 <thead>
 <tr class="header">
-<th>Method</th>
-<th>Typical object</th>
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>two_block_pilot_sampling_cost()</code></td>
+<td><code>two_block_pilot_cost.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="even">
+<td><code>two_block_optimize_pilot_cost()</code></td>
+<td><code>two_block_pilot_cost.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="odd">
+<td><code>two_block_d0_pilot_start()</code></td>
+<td><code>two_block_pilot_cost.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="even">
+<td><code>two_block_m_convergence_for_pilot_start()</code></td>
+<td><code>two_block_pilot_cost.R</code></td>
+<td>Core-only today</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="two-block-c-batch-path-align-block2-one-chain" class="section level2">
+<h2>14. Two-block C++ batch path (align, Block~2 one-chain)</h2>
+<p>R and <code>.Call</code> exports for aligning random effects to hyper
+rows and running one Block~2 Gibbs chain in C++ (v5 / sweep-outer batch
+updates).</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>two_block_align_b_to_xhyper()</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="even">
+<td><code>two_block_align_b_to_xhyper_cpp()</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="odd">
+<td><code>two_block_block2_one_chain()</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="even">
+<td><code>two_block_block2_one_chain_cpp()</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="odd">
+<td><code>.two_block_align_b_to_xhyper</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today (namespace alias)</td>
+</tr>
+<tr class="even">
+<td><code>.two_block_block2_one_chain</code></td>
+<td><code>two_block_batch_gibbs.R</code></td>
+<td>Core-only today (namespace alias)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="build-and-compile-time-diagnostics" class="section level2">
+<h2>15. Build and compile-time diagnostics</h2>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="25%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>File</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>glmbayesCore_has_opencl()</code></td>
+<td><code>gpu_diagnostics.R</code></td>
+<td>Core-only today (distinct from <strong>glmbayes</strong> /
+<strong>lmebayes</strong> <code>has_opencl()</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="summary-counts" class="section level2">
+<h2>Summary counts</h2>
+<table>
+<colgroup>
+<col width="30%" />
+<col width="39%" />
+<col width="30%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Group</th>
+<th>Symbols</th>
 <th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>anova.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
+<td>§1–§6 Phase-out from <strong>glmbayes</strong></td>
+<td>30</td>
+<td>Still on <strong>glmbayes</strong> <code>NAMESPACE</code> until
+migration</td>
 </tr>
 <tr class="even">
-<td><code>case.names.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
+<td>§7–§15 Core-only today (not on <strong>lmebayes</strong> export
+surface)</td>
+<td>33</td>
+<td>Includes 4 <strong>lmebayes</strong> direct + 4
+<strong>lmebayes</strong> indirect; excludes planned
+<strong>glmbayes</strong> <code>multi_rlmb</code> retain</td>
 </tr>
 <tr class="odd">
-<td><code>confint.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>cooks.distance.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>dfbetas.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>dummy.coef.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>extractAIC.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>influence.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>logLik.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>plot.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>predict.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>residuals.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>rstandard.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>rstudent.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>simulate.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>variable.names.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>vcov.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>print.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>print.dummy_coef.glmb()</code></td>
-<td><code>dummy_coef.glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>print.lmb()</code></td>
-<td><code>lmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>print.mlmb()</code></td>
-<td><code>mlmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>print.directional_tail()</code></td>
-<td><code>directional_tail</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>residuals.lmb()</code></td>
-<td><code>lmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>deviance.rglmb()</code></td>
-<td><code>rglmb</code></td>
-<td><strong>Not</strong> in Core (Core has no
-<code>deviance.rglmb</code>)</td>
-</tr>
-<tr class="odd">
-<td><code>extractAIC.rglmb()</code></td>
-<td><code>rglmb</code></td>
-<td><strong>Not</strong> in Core</td>
-</tr>
-<tr class="even">
-<td><code>summary.glmb()</code></td>
-<td><code>glmb</code></td>
-<td></td>
-</tr>
-<tr class="odd">
-<td><code>print.summary.glmb()</code></td>
-<td><code>summary.glmb</code></td>
-<td></td>
-</tr>
-<tr class="even">
-<td><code>summary.mlmb()</code></td>
-<td><code>mlmb</code></td>
-<td>Installed <strong>glmbayes</strong> only (may be absent in older
-source)</td>
-</tr>
-<tr class="odd">
-<td><code>print.summary.mlmb()</code></td>
-<td><code>summary.mlmb</code></td>
-<td>Same</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="summary-methods-complete-glmbayes-inventory" class="section level3">
-<h3>Summary methods — complete <strong>glmbayes</strong> inventory</h3>
-<p>Every <code>summary</code>, <code>print.summary</code>, and
-<code>formula.summary</code> registration in <strong>glmbayes</strong>
-<code>NAMESPACE</code>. None omitted.</p>
-<table style="width:100%;">
-<colgroup>
-<col width="22%" />
-<col width="54%" />
-<col width="22%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Method</th>
-<th><strong>glmbayesCore</strong>?</th>
-<th>Policy</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>summary.glmb()</code></td>
-<td>No</td>
-<td><strong>glmbayes-only</strong> — formula <code>glmb()</code> /
-<code>lmb()</code> fit objects; stays on <strong>glmbayes</strong> (not
-in Core).</td>
-</tr>
-<tr class="even">
-<td><code>print.summary.glmb()</code></td>
-<td>No</td>
-<td><strong>glmbayes-only</strong> — print method for
-<code>summary.glmb</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>summary.mlmb()</code></td>
-<td>No</td>
-<td><strong>glmbayes-only</strong> — formula <code>mlmb()</code>
-multi-response fits; stays on <strong>glmbayes</strong>.</td>
-</tr>
-<tr class="even">
-<td><code>print.summary.mlmb()</code></td>
-<td>No</td>
-<td><strong>glmbayes-only</strong> — print method for
-<code>summary.mlmb</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>summary.rglmb()</code></td>
-<td>Yes (<code>summary.rglmb.R</code>)</td>
-<td><strong>Overlap / retain</strong> — matrix sampler
-<code>rglmb()</code>; also serves <code>rlmb</code> via class
-<code>c(&quot;rlmb&quot;,&quot;rglmb&quot;,…)</code>.</td>
-</tr>
-<tr class="even">
-<td><code>print.summary.rglmb()</code></td>
-<td>Yes (<code>summary.rglmb.R</code>)</td>
-<td><strong>Overlap / retain</strong></td>
-</tr>
-<tr class="odd">
-<td><code>formula.summary.rglmb()</code></td>
-<td>Yes (<code>formula.summary.rglmb.R</code>)</td>
-<td><strong>Overlap / retain</strong></td>
-</tr>
-<tr class="even">
-<td><code>summary.rGamma_reg()</code></td>
-<td>Yes (<code>summary.rgamma_reg.R</code>)</td>
-<td><strong>Overlap / phase-out</strong> — drop from
-<strong>glmbayes</strong> when <code>rGamma_reg()</code> moves Core-only
-(§2).</td>
-</tr>
-<tr class="odd">
-<td><code>print.summary.rGamma_reg()</code></td>
-<td>Yes (<code>summary.rgamma_reg.R</code>)</td>
-<td><strong>Overlap / phase-out</strong></td>
-</tr>
-</tbody>
-</table>
-<p><strong>Summary methods in glmbayesCore but not glmbayes</strong> (do
-not add to <strong>glmbayes</strong> <code>NAMESPACE</code> unless
-policy changes):</p>
-<table>
-<colgroup>
-<col width="36%" />
-<col width="27%" />
-<col width="36%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Method</th>
-<th>File</th>
-<th>Policy</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>summary.rlmb()</code></td>
-<td><code>summary.rglmb.R</code></td>
-<td><strong>Core alias</strong> — delegates to
-<code>summary.rglmb()</code>; <strong>glmbayes</strong> uses
-<code>summary.rglmb</code> for <code>rlmb</code> objects.</td>
-</tr>
-<tr class="even">
-<td><code>summary.mrglmb()</code></td>
-<td><code>summary.mrglmb.R</code></td>
-<td><strong>Retain gap</strong> — pairs with planned
-<code>multi_rlmb()</code> re-export.</td>
-</tr>
-<tr class="odd">
-<td><code>print.summary.mrglmb()</code></td>
-<td><code>summary.mrglmb.R</code></td>
-<td><strong>Retain gap</strong></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="other-s3-overlap-with-glmbayes-non-summary-10-methods" class="section level3">
-<h3>Other S3 — overlap with <strong>glmbayes</strong> (non-summary) — 10
-methods</h3>
-<p>Duplicate registration in both packages (excluding summary rows
-above).</p>
-<table>
-<colgroup>
-<col width="40%" />
-<col width="30%" />
-<col width="30%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Method</th>
-<th>File</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>pfamily.default()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Default method for retain generic <code>pfamily()</code>.</td>
-</tr>
-<tr class="even">
-<td><code>print.PriorSetup()</code></td>
-<td><code>prior.R</code></td>
-<td>Print prior-setup object.</td>
-</tr>
-<tr class="odd">
-<td><code>print.glmbfamfunc()</code></td>
-<td><code>simulationpipeline.R</code></td>
-<td>Print GLM family helper object.</td>
-</tr>
-<tr class="even">
-<td><code>print.pfamily()</code></td>
-<td><code>pfamily.R</code></td>
-<td>Print prior-family object.</td>
-</tr>
-<tr class="odd">
-<td><code>print.rGamma_reg()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Print Gamma-regression sample object.</td>
-</tr>
-<tr class="even">
-<td><code>print.rglmb()</code></td>
-<td><code>rglmb.R</code></td>
-<td>Print GLM sample object.</td>
-</tr>
-<tr class="odd">
-<td><code>print.rlmb()</code></td>
-<td><code>rlmb.R</code></td>
-<td>Print LM sample object.</td>
-</tr>
-<tr class="even">
-<td><code>print.simfunction()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Print simulation-function registry.</td>
-</tr>
-<tr class="odd">
-<td><code>residuals.rglmb()</code> (+ fitted, working)</td>
-<td><code>residuals.rglmb.R</code></td>
-<td>Residuals for <code>rglmb</code> and (via class) <code>rlmb</code>
-objects.</td>
-</tr>
-<tr class="even">
-<td><code>simfunction.default()</code></td>
-<td><code>simfunction.R</code></td>
-<td>Default method for <code>simfunction()</code>.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Phase-out note (non-summary overlap):</strong>
-<code>print.glmbfamfunc</code>, <code>print.simfunction</code>,
-<code>simfunction.default</code>, and <code>print.rGamma_reg</code>
-dispatch on phase-out exports (§2).</p>
-</div>
-<div id="not-in-glmbayes-core-only-dispatch-9-methods" class="section level3">
-<h3>Not in <strong>glmbayes</strong> (Core-only dispatch) — 9
-methods</h3>
-<p>Registered only in <strong>glmbayesCore</strong>; do
-<strong>not</strong> add to <strong>glmbayes</strong>
-<code>NAMESPACE</code> (excluding summary rows already listed
-above).</p>
-<table>
-<colgroup>
-<col width="26%" />
-<col width="20%" />
-<col width="33%" />
-<col width="20%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Method</th>
-<th>File</th>
-<th>Subgroup</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>residuals.rlmb()</code></td>
-<td><code>residuals.rglmb.R</code></td>
-<td>Core alias</td>
-<td>Same draw logic as <code>residuals.rglmb()</code>;
-<strong>glmbayes</strong> uses <code>residuals.rglmb</code> for
-<code>rlmb</code>.</td>
-</tr>
-<tr class="even">
-<td><code>pfamily_list.lmebayes_prior_setup()</code></td>
-<td><code>pfamily_list_lmebayes_prior_setup.R</code></td>
-<td>lmebayes</td>
-<td>Build Block~2 <code>pfamily_list</code> from prior-setup
-object.</td>
-</tr>
-<tr class="odd">
-<td><code>print.lmebayes_prior_setup()</code></td>
-<td><code>Prior_Setup_lmebayes.R</code></td>
-<td>lmebayes</td>
-<td>Print mixed-model prior-setup object.</td>
-</tr>
-<tr class="even">
-<td><code>print.model_setup()</code></td>
-<td><code>model_setup.R</code></td>
-<td>lmebayes</td>
-<td>Print mixed-model design object.</td>
-</tr>
-<tr class="odd">
-<td><code>print.two_block_sweep_history()</code></td>
-<td><code>two_block_sweep_history.R</code></td>
-<td>lmebayes</td>
-<td>Print sweep-history diagnostics (<code>rglmerb()</code> /
-<code>rlmerb()</code>).</td>
-</tr>
-<tr class="even">
-<td><code>print.two_block_rate()</code></td>
-<td><code>two_block_rate.R</code></td>
-<td>Core-only</td>
-<td>Print rate object with TV tolerances.</td>
-</tr>
-<tr class="odd">
-<td><code>print.two_block_mode_weights()</code></td>
-<td><code>two_block_mode_weights.R</code></td>
-<td>Core-only</td>
-<td>Print mode-weight table.</td>
-</tr>
-<tr class="even">
-<td><code>residuals.summary.rglmb()</code></td>
-<td><code>residuals.rglmb.R</code></td>
-<td>Core-only</td>
-<td>Residuals for <code>summary.rglmb</code> object.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>S3 counts:</strong> <strong>glmbayes</strong> 44;
-<strong>glmbayesCore</strong> 26; <strong>overlap</strong> 15;
-<strong>glmbayes-only</strong> 29; <strong>Core-only</strong> 11 (26 −
-15).</p>
-<hr />
-</div>
-</div>
-<div id="documentation-topics-no-function-body-in-r" class="section level2">
-<h2>Documentation topics (no function body in <code>R/</code>)</h2>
-<table>
-<colgroup>
-<col width="58%" />
-<col width="41%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Topic / file</th>
-<th>Contents</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>glmbayesCore-package.R</code></td>
-<td>Package meta, imports (<code>&quot;_PACKAGE&quot;</code>).</td>
-</tr>
-<tr class="even">
-<td><code>gpu_diagnostics.R</code></td>
-<td>Links to OpenCL diagnostics topics.</td>
-</tr>
-<tr class="odd">
-<td><code>data-*.R</code></td>
-<td>Lazy data docs (<code>Boston_centered</code>,
-<code>BikeSharing</code>, <code>carinsca</code>, etc.).</td>
+<td><strong>Total catalogued</strong></td>
+<td><strong>66</strong></td>
+<td>Overlap matrix: <a href="R_EXPORTED_AND_DOCUMENTED.md">R_EXPORTED_AND_DOCUMENTED.md</a></td>
 </tr>
 </tbody>
 </table>
 <hr />
 </div>
-<div id="review-checklist-exports-docs" class="section level2">
-<h2>Review checklist (exports / docs)</h2>
+<div id="review-checklist" class="section level2">
+<h2>Review checklist</h2>
 <table>
 <colgroup>
 <col width="62%" />
@@ -1717,34 +1182,26 @@ object.</td>
 <tbody>
 <tr class="odd">
 <td>1</td>
-<td>Keep <strong>glmbayes</strong>-shared exports signature-aligned when
-touching <code>R/</code>.</td>
+<td>Do not drop §9 symbols — <strong>lmebayes</strong>
+<code>importFrom</code> / direct <code>glmbayesCore::</code> depends on
+them.</td>
 </tr>
 <tr class="even">
 <td>2</td>
-<td>Trim <strong>glmbayes</strong> re-exports in group
-<strong>2</strong> (simfunctions, envelopes, <code>*_ct</code>) once
-call sites use <code>glmbayesCore::</code>.</td>
+<td>§10 indirect engines may move to <code>@noRd</code> once
+<strong>glmbayes</strong> migration and <code>data-raw/</code> call
+sites are audited.</td>
 </tr>
 <tr class="odd">
 <td>3</td>
-<td>Treat <strong>lmebayes</strong> direct call surface
-(<code>build_mu_all</code>, <code>normalize_block</code>, …) as
-semver-sensitive; indirect engines (<code>rGLMM</code>,
-<code>rLMMNormal_reg</code>, …) may be internalized.</td>
+<td>Complete <strong>glmbayes</strong> phase-out (§1–§6) before removing
+duplicate exports from <strong>glmbayes</strong>
+<code>NAMESPACE</code>.</td>
 </tr>
 <tr class="even">
 <td>4</td>
-<td>Run <code>devtools::document()</code> after any <code>@export</code>
-or <code>\usage</code> change.</td>
-</tr>
-<tr class="odd">
-<td>5</td>
-<td>When <strong>glmbayes</strong> imports
-<strong>glmbayesCore</strong>, drop duplicate S3 registrations (see
-<strong>S3 methods</strong> — overlap tables; keep
-<strong>glmbayes-only</strong> summary methods for <code>glmb</code> /
-<code>mlmb</code>).</td>
+<td>Keep category boundaries aligned with vignette chapters when adding
+new simfunctions or envelope steps.</td>
 </tr>
 </tbody>
 </table>

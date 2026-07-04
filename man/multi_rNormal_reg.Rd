@@ -59,10 +59,10 @@ Runs \code{\link{rNormal_reg}} once per column of \code{y}.  Argument
 \code{x} may be a single shared design matrix or a \strong{list of matrices}
 with one entry per response column.  The list path allows each column of
 \code{y} to have a different number of predictors, which is required for
-Block 2 of \code{\link{two_block_rNormal_reg}}.
+Block 2 of \code{\link{two_block_rNormal_reg_v2}}.
 }
 \seealso{
-\code{\link{rNormal_reg}}, \code{\link{two_block_rNormal_reg}}
+\code{\link{rNormal_reg}}, \code{\link{two_block_rNormal_reg_v2}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rlmb}()},
@@ -80,9 +80,7 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rNormal_reg_v2}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}

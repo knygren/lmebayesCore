@@ -2,7 +2,7 @@
 % Please edit documentation in R/two_block_rNormal_reg_v2.R
 \name{two_block_rNormal_reg_v2}
 \alias{two_block_rNormal_reg_v2}
-\title{Two-block Gibbs sampler with pfamily Block 2 priors (development v2)}
+\title{Two-block Gibbs sampler with pfamily Block 2 priors}
 \usage{
 two_block_rNormal_reg_v2(
   n,
@@ -74,8 +74,11 @@ when \code{family} is not Gaussian.}
 }
 \value{
 Object of class \code{c("two_block_rNormal_reg_v2",
-  "two_block_rNormal_reg")}.  Same fields as
-\code{\link{two_block_rNormal_reg}}, plus
+  "two_block_rNormal_reg")} with fields \code{fixef_draws},
+\code{coefficients}, \code{fixef_last}, \code{b_last},
+\code{mu_all_last}, \code{family}, \code{n}, \code{m_convergence},
+\code{sampling}, \code{fixef_start}, \code{re_coef_names},
+\code{group_levels}, \code{group_name}, \code{call}, plus
 \code{dispersion_fixef_draws}: an \code{n x p_re} matrix of the Block~2
 dispersion (tau^2_k) at each stored draw (constant columns for
 \code{dNormal} components), and \code{iters_fixef_draws}: an
@@ -89,11 +92,14 @@ count exactly 1 conjugate draw per sweep, so their column equals
 number of candidates per accepted draw).
 }
 \description{
-Development version of \code{\link{two_block_rNormal_reg}} where the
-Block~2 priors are supplied as \code{pfamily} objects instead of bare
-prior lists.  Each component of \code{pfamily_list} may be a
-\code{\link{dNormal}} prior (conjugate gamma_k draw at fixed dispersion,
-identical to v1) or a \code{\link{dIndependent_Normal_Gamma}} prior, in
+Runs the coupled Block~1 / Block~2 Gibbs sampler for two-block mixed models.
+Block~1 draws group-level random effects \eqn{b_j}; Block~2 updates hyper
+means \eqn{\gamma_k} via \code{pfamily$simfun} (always Gaussian).
+}
+\details{
+Each component of \code{pfamily_list} may be a
+\code{\link{dNormal}} prior (conjugate gamma_k draw at fixed dispersion)
+or a \code{\link{dIndependent_Normal_Gamma}} prior, in
 which case Block~2 makes a joint (gamma_k, tau^2_k) draw via the
 likelihood-subgradient envelope sampler (the same path as \code{rglmb}
 with an ING pfamily) and the sampled tau^2_k is fed back into the
@@ -104,15 +110,9 @@ window fixed across sweeps (one-sided specifications would fall back to
 a per-sweep surrogate-posterior window inside the envelope code, making
 the truncation state-dependent).
 }
-\details{
-With \code{dNormal} priors throughout, this function produces draws that
-are identical to \code{\link{two_block_rNormal_reg}} when both are run under
-the same \code{\link{set.seed}} state for the conjugate-Gaussian blocks;
-that equivalence is the regression gate for the v2 development track.
-}
 \seealso{
-\code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_sweep}},
-\code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}}
+\code{\link{rGLMM_sweep}},
+\code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}},
 \code{\link{dNormal}},
 \code{\link{dIndependent_Normal_Gamma}}
 
@@ -133,8 +133,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_pilot_sampling_cost}()},
-\code{\link{two_block_rNormal_reg}()},
-\code{\link{two_block_rNormal_reg_v5}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_rate_v2}()},
 \code{\link{two_block_tv_bound}()}

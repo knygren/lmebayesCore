@@ -27,7 +27,7 @@ A list with components \code{fixef}, \code{b_mean}, \code{converged},
 \description{
 Finds the joint posterior mean (= joint mode, since the posterior is exactly
 multivariate normal when variance components are fixed) of the two-block
-model sampled by \code{\link{two_block_rNormal_reg}}, using an \emph{iterated
+model sampled by \code{\link{two_block_rNormal_reg_v2}}, using an \emph{iterated
 conditional means} (ICM) algorithm.
 }
 \details{
@@ -61,5 +61,5 @@ matrix, \eqn{X_k = } \code{design$X_hyper[[k]]},
 }
 }
 \seealso{
-\code{\link{two_block_rNormal_reg}}, \code{\link{build_mu_all}}
+\code{\link{two_block_rNormal_reg_v2}}, \code{\link{build_mu_all}}
 }

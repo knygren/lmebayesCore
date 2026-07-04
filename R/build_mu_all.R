@@ -34,7 +34,7 @@
 #'     \item{\code{group_levels}}{Grouping levels used for columns.}
 #'   }
 #' @seealso \code{\link{lmerb_posterior_mean}},
-#'   \code{\link{two_block_rNormal_reg}},
+#'   \code{\link{two_block_rNormal_reg_v2}},
 #'   \code{\link{block_rNormalReg_update}}
 #' @export
 build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {

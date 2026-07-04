@@ -102,7 +102,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 |----------|------|------|-------------|
 | `.two_block_print_sweep_boundary` | `two_block_batch_gibbs.R` | Print sweep/block enter or exit line with wall-clock timestamp | rGLMM_sweep.R |
 | `.two_block_print_sweep_early_diagnostics` | `two_block_batch_gibbs.R` | — | rGLMM_sweep.R |
-| `.two_block_build_sweep_history` | `two_block_sweep_history.R` | Build structured two-block sweep history from per-sweep fixef snapshots | rGLMM_sweep.R, two_block_rNormal_reg_v5.R |
+| `.two_block_build_sweep_history` | `two_block_sweep_history.R` | Build structured two-block sweep history from per-sweep fixef snapshots | rGLMM_sweep.R |
 | `.two_block_filter_sweep_history_table` | `two_block_sweep_history.R` | Filter sweep-history table rows for printing | *(unused)* |
 | `.two_block_sweep_history_header_n` | `two_block_sweep_history.R` | Sweep count shown in the print header | *(unused)* |
 | `.two_block_print_sweep_history_body` | `two_block_sweep_history.R` | Print one Block~2 sweep-history table (mode + optional sweep rows) | *(unused)* |
@@ -156,13 +156,12 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.two_block_block1_all_chains` | `two_block_batch_gibbs.R` | — | rGLMM_sweep.R |
 | `.two_block_block1_all_chains_v2` | `two_block_batch_gibbs.R` | — | *(unused)* |
 | `.two_block_block1_all_chains_via_cpp` | `two_block_batch_gibbs.R` | — | *(unused)* |
-| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R, two_block_rate.R, two_block_rNormal_reg_v2.R, two_block_rNormal_reg_v5.R |
-| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg_v2.R, two_block_rNormal_reg_v5.R |
+| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R, two_block_rate.R, two_block_rNormal_reg_v2.R |
+| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg_v2.R |
 | `.two_block_block1_prior_list` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_mu_all` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_format_v2_cpp_out` | `two_block_rNormal_reg_v2.R` | Format raw v2 C++ output into a two_block_rNormal_reg_v2 object | *(unused)* |
-| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg_v2.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_rNormal_reg_v5.R |
-| `.two_block_format_v5_cpp_out` | `two_block_rNormal_reg_v5.R` | Format raw v5 C++ output into a two_block_rNormal_reg object | *(unused)* |
+| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg_v2.R` | — | rGLMM.R, rLMMNormal_reg.R |
 
 ---
 
@@ -281,9 +280,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.rNormalRegBlocks_cpp` | `rcpp_wrappers.R` | — | *(unused)* |
 | `.block_rNormalReg_cpp` | `rcpp_wrappers.R` | — | simfunction_block.R |
 | `.block_rNormalGLM_cpp` | `rcpp_wrappers.R` | — | simfunction_block.R |
-| `.two_block_rNormal_reg_cpp` | `rcpp_wrappers.R` | — | two_block_rNormal_reg.R |
 | `.two_block_rNormal_reg_v2_cpp` | `rcpp_wrappers.R` | — | two_block_rNormal_reg_v2.R |
-| `.two_block_rNormal_reg_v5_cpp` | `rcpp_wrappers.R` | — | two_block_rNormal_reg_v5.R |
 | `.two_block_rNormal_reg_staged_cpp` | `rcpp_wrappers.R` | — | *(unused)* |
 | `.two_block_build_mu_all_cpp` | `rcpp_wrappers.R` | — | build_mu_all.R |
 | `.two_block_batch_fixef_chain_cpp` | `rcpp_wrappers.R` | — | *(unused)* |

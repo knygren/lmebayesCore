@@ -72,11 +72,14 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | `simfunction.R` | Low-level simulation functions (`rNormal_reg`, `rNormalGamma_reg`, `rindepNormalGamma_reg`, `rGamma_reg`, `rGamma_Conjugate_reg`, `rBeta_reg`) and the `simfunction()` introspection generic |
 | `simulationpipeline.R` | `glmbfamfunc()` (R closure bundle for f1–f4 and f7), pipeline documentation, and fit helpers |
 | `rglmb.R` / `rlmb.R` | Matrix-input samplers — the primary R-level interface consumed by downstream packages |
-| `model_setup.R` | lme4-style formula → mixed-model design object (`model_setup()`; re-exported from **lmebayes**) |
-| `Prior_Setup_lmebayes.R` | Block~2 hyperprior calibration from reference `lmer` / `glmer` (re-exported from **lmebayes**) |
+| `pfamily_list.R` / `pfamily_list_lmebayes_prior_setup.R` | S3 generic and `lmebayes_prior_setup` method — Block~2 `pfamily` list from prior setup |
+| `model_setup.R` | lme4-style formula → mixed-model design object (`model_setup()`) |
+| `Prior_Setup_lmebayes.R` | Block~2 hyperprior calibration from reference `lmer` / `glmer` |
 | `lme4_design_utilities.R` | Internal lme4 design chain (`get_lme4_components`, `extract_re_hyper_matrices`, …) |
-| `rlmerb.R` / `rglmerb.R` | Matrix-level LMM / GLMM two-block samplers (re-exported from **lmebayes**) |
+| `rlmerb.R` / `rglmerb.R` | Matrix-level LMM / GLMM two-block samplers |
 | `mixed_rmerb_helpers.R` | Internal helpers for `rlmerb()` / `rglmerb()` and **lmebayes** formula drivers |
+| `plot_sweep_history_diag.R` | Cross-chain mean/SD plots for `two_block_sweep_history` (pilot/main stages) |
+| `two_block_sweep_history.R` | Sweep-history container and `print.two_block_sweep_history()` |
 | `envelopeorchestrator.R` | R orchestration of multi-step envelope building and optional GPU dispatch |
 | `compute_gaussian_prior.R` | Gaussian-specific prior calibration utilities |
 
@@ -202,7 +205,92 @@ The interaction with the two architecture sections above is:
 
 `rlmb()` follows the same pattern but restricts `okfamilies` to `"gaussian"` and skips the `glmbfamfunc` step, since the Gaussian posterior is always conjugate or near-conjugate.
 
-**Extensibility note.** The orchestrator pattern is intentionally generic: validate a model specification, unpack a routing object, call the embedded function, post-process. A mixed-effects package such as `lmebayes` could implement a richer orchestrator (e.g. cycling over fixed-effects, random-effects, and variance-component blocks in a Gibbs loop) while reusing the same glmbayesCore simulation functions at each step. The only requirement is that each block presents a compatible `prior_list` to the relevant `simfun`.
+**Extensibility note.** The orchestrator pattern is intentionally generic: validate a model specification, unpack a routing object, call the embedded function, post-process. A mixed-effects package such as **lmebayes** implements formula drivers (`lmerb()`, `glmerb()`) on top of `rlmerb()` / `rglmerb()` and re-exports the mixed-model setup symbols below. The only requirement at each Gibbs block is a compatible `prior_list` for the relevant `simfun`.
+
+---
+
+## Function overview
+
+Symbols below are exported from **glmbayesCore** (`help(package = "glmbayesCore")`). End users typically load **glmbayes** or **lmebayes** instead; those packages re-export subsets of this API.
+
+**Maintainers:** full export and helper inventories live in
+[inst/R_FUNCTION_INVENTORY.md](inst/R_FUNCTION_INVENTORY.md)
+([exports / overlap matrix](inst/R_EXPORTED_AND_DOCUMENTED.md),
+[Core-only by function type](inst/R_CORE_ONLY_EXPORTS.md),
+[export reachability](inst/R_EXPORT_REACHABILITY.md),
+[internal helpers](inst/R_INTERNAL_HELPERS.md)).
+
+### Shared with **glmbayes** (iid GLM / LM)
+
+**glmbayes** currently re-exports 42 symbols from **glmbayesCore**. Maintainer
+policy: keep the user-facing prior/sampler API on `library(glmbayes)`; phase
+low-level simulation and envelope exports to **glmbayesCore**-only (see
+[inst/R_EXPORTED_AND_DOCUMENTED.md](inst/R_EXPORTED_AND_DOCUMENTED.md)).
+
+#### Retain as **glmbayes** re-exports
+
+| Function | Role |
+|----------|------|
+| `Prior_Setup()`, `Prior_Check()` | Default prior calibration and prior predictive checks |
+| `pfamily()`, `dNormal()`, `dNormal_Gamma()`, `dIndependent_Normal_Gamma()`, `dGamma()`, `dBeta()` | Prior-family constructors |
+| `multi_prior_setup()` | Multi-response Gaussian prior setup (`cbind` LHS; calls `Prior_Setup()` per column) |
+| `multi_rlmb()` | Multi-response LM sampler (`cbind` LHS; `rlmb()` per column). Planned re-export — not yet in **glmbayes** `NAMESPACE`. |
+| `rglmb()`, `rlmb()` | Matrix-level Bayesian GLM / LM samplers (`glmb()` / `lmb()` backends) |
+| `diagnose_glmbayes()` | OpenCL / GPU diagnostic report |
+
+#### Phase out of **glmbayes** (stay in **glmbayesCore**)
+
+| Function | Role |
+|----------|------|
+| `compute_gaussian_prior()` | Internal Gaussian calibration used only inside `Prior_Setup()` |
+| `simfunction()`, `glmbfamfunc()` | Simulation registry and GLM family pipeline helpers |
+| `rNormal_reg()`, `rNormalGamma_reg()`, `rindepNormalGamma_reg()`, `rGamma_reg()`, `rBeta_reg()`, … | Low-level `simfunction` samplers |
+| `rNormalGLM_std()`, `rIndepNormalGammaReg_std()`, `glmb.wfit()`, `glmb_Standardize_Model()` | Standardized envelope path and fitter hooks |
+| `EnvelopeBuild()`, `EnvelopeOrchestrator()`, `EnvelopeSize()`, … | Accept–reject envelope machinery |
+| `pnorm_ct()`, `rnorm_ct()`, `pinvgamma_ct()`, `rgamma_ct()`, … | Truncated-distribution C++ callbacks |
+
+See the **glmbayes** README and vignettes for the formula interface (`glmb()`, `lmb()`) and S3 methods built on the retained exports.
+
+### Mixed-model setup and sampling (also re-exported by **lmebayes**)
+
+| Function | Role |
+|----------|------|
+| `model_setup()` | Parse an lme4-style formula into design matrices and variance components |
+| `Prior_Setup_lmebayes()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
+| `pfamily_list()` | S3 generic; `pfamily_list.lmebayes_prior_setup()` builds Block~2 `pfamily` objects |
+| `rlmerb()` | Matrix-level Gaussian LMM two-block sampler (replicate chains) |
+| `rglmerb()` | Matrix-level GLMM two-block sampler (`rLMMNormal_reg` / `rGLMM` routing) |
+| `plot_sweep_history_diag()` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history` |
+
+Typical **lmebayes** workflow: `model_setup()` → `Prior_Setup_lmebayes()` → `pfamily_list(ps)` → `lmerb()` / `glmerb()`.
+
+S3 helpers: `print.model_setup`, `print.lmebayes_prior_setup`, `print.two_block_sweep_history`.
+
+### **lmebayes** direct Core calls (`importFrom` or `glmbayesCore::` — must stay exported)
+
+| Function | **lmebayes** callers | Role |
+|----------|----------------------|------|
+| `build_mu_all()` | `lmerb()`, `glmerb()` | Observation-level prior means when `simulate = FALSE` |
+| `lmerb_posterior_mean()` | `lmerb()` | Gaussian ICM fixef start when `simulate = FALSE` |
+| `glmerb_posterior_mode()` | `glmerb()` | GLMM mode fixef start when `simulate = FALSE` |
+| `normalize_block()` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()` | Row-block partition normalization |
+
+### Two-block engines — indirect from **lmebayes** (export optional for **lmebayes**)
+
+| Function | Role |
+|----------|------|
+| `two_block_rNormal_reg_v2()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
+| `two_block_rate_v2()`, `two_block_mode_weights()`, `two_block_tv_bound()` | TV / rate calibration for inner Gibbs sweeps |
+| `two_block_optimize_pilot_cost()` | Pilot vs main chain cost optimization |
+| `rGLMM()`, `rGLMM_sweep()` | GLMM sweep-outer driver; **lmebayes** reaches via `glmerb()` → `rglmerb()` only |
+| `rLMMNormal_reg()`, `rLMMindepNormalGamma_reg()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM routers; **lmebayes** reaches via `lmerb()` / `glmerb()` → `rlmerb()` / `rglmerb()` only |
+| `block_rNormalReg()`, `block_rNormalGLM()` | Row-block samplers for BY-style splits |
+
+These are listed under **glmbayesCore-only exports** in `inst/R_EXPORTED_AND_DOCUMENTED.md` (indirect from **lmebayes** subsection). Export is optional for **lmebayes** — Core routes inside `rlmerb()` / `rglmerb()`.
+
+### Internal helpers
+
+Undocumented `@noRd` symbols (mixed-model glue, lme4 design chain, two-block staging, envelope internals) are listed in [inst/R_INTERNAL_HELPERS.md](inst/R_INTERNAL_HELPERS.md). **lmebayes** resolves a subset via `glmbayesCore:::` / `importFrom`.
 
 ---
 
