@@ -530,7 +530,7 @@ diagnose_glmbayes() → glmbayesCore_has_opencl()</code></pre>
         → block_rNormalReg() / block_rNormalGLM() (Block~1)
         → rglmb() (Block~2 ING / hyper draws)
         → two_block_rate_from_pfamily_list(), two_block_rate(), two_block_l_for_tv(),
-           two_block_tv_bound(), two_block_mode_weights(),
+           two_block_tv_bound(),
            two_block_optimize_pilot_cost(), two_block_pilot_* , …
         → two_block_block2_one_chain_cpp() [default];
            two_block_block2_one_chain(), two_block_align_b_to_xhyper() [R fallback]</code></pre>
@@ -563,13 +563,13 @@ retain/lmebayes drivers.</td>
 </tr>
 <tr class="even">
 <td><code>block_rNormalReg_update()</code></td>
-<td><code>rNormalReg_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Not on <code>rGLMM_sweep</code> / <code>lmerb</code> chain; examples
 / roxygen only.</td>
 </tr>
 <tr class="odd">
 <td><code>block_rNormalGLM_update()</code></td>
-<td><code>rNormalGLM_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Same.</td>
 </tr>
 <tr class="even">

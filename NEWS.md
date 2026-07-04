@@ -1,8 +1,13 @@
 # glmbayesCore (development version)
 
 * **Rate helper rename:** **`two_block_rate_v2()`** removed; use
-  **`two_block_rate_from_pfamily_list()`** (`R/two_block_rate_from_pfamily_list.R`)
+  **`two_block_rate_from_pfamily_list()`** (`R/two_block_ergodicity.R`)
   for the `pfamily_list` adapter around **`two_block_rate()`**.
+
+* **Two-block ergodicity consolidation:** rate, TV-bound, and mode-weight
+  helpers merged into **`R/two_block_ergodicity.R`**. **`two_block_mode_weights()`**
+  is no longer exported (still used internally by **`rGLMM()`** for non-Gaussian
+  rate calibration).
 
 * **C++ R callbacks via registered namespace:** envelope and simulation C++
   now resolve **`EnvelopeOpt()`**, **`EnvelopeSort()`**, **`glmbfamfunc()`**,

@@ -1,21 +1,52 @@
 ## Pilot-chain cost trade-off for two-block GLMM sampling (analogous to
 ## EnvelopeOpt grid sizing: upfront setup vs per-draw inner sweeps).
 
-#' Squared standardized start distance from a pilot mean start
+#' Pilot / main chain cost calibration for two-block GLMM sampling
 #'
-#' Returns the 95\% (or general \code{pilot_start_tol}) certificate for
-#' \eqn{D_0 = (\bar\theta - \mu)^\top \Sigma^{-1} (\bar\theta - \mu)} when
-#' the main stage starts at the mean of \code{n_pilot} approximately unbiased
-#' pilot draws: \eqn{D_0 = \chi^2_{p,\alpha} / n_{\mathrm{pilot}}}.
+#' @description
+#' Tools for the pilot-vs-main trade-off in non-Gaussian two-block GLMM paths:
+#' certificate the start distance when main chains begin at a pilot mean,
+#' calibrate \code{m_convergence} from Nygren TV bounds, evaluate total
+#' inner-sweep cost, and search for a cost-optimal \code{n_pilot}.
+#'
+#' @details
+#' The functions form a bottom-up stack:
+#' \enumerate{
+#'   \item \code{\link{two_block_d0_pilot_start}}:
+#'     \eqn{D_0 = \chi^2_{p,\alpha} / n_{\mathrm{pilot}}} for a pilot-mean start.
+#'   \item \code{\link{two_block_m_convergence_for_pilot_start}}: main-stage
+#'     \code{m_convergence} at that \eqn{D_0} (via \code{\link{two_block_l_for_tv}}).
+#'   \item \code{\link{two_block_pilot_sampling_cost}}:
+#'     \eqn{C = n_{\mathrm{pilot}} m_p + n\, m_{\mathrm{conv}}(n_{\mathrm{pilot}})}.
+#'   \item \code{\link{two_block_optimize_pilot_cost}}: minimize \eqn{C} over
+#'     \code{n_pilot} (advisory unless wired into \code{\link{rGLMM}}).
+#' }
+#' This is the Gibbs analogue of \code{\link{EnvelopeOpt}}'s build-plus-sample cost.
 #'
 #' @param n_pilot Number of pilot replicate chains (positive integer).
 #' @param p Dimension of the Block~2 hyper vector (positive integer).
 #' @param pilot_start_tol One-sided chi-squared quantile in \code{(0, 1)}
-#'   (default \code{0.95}).
-#' @return Non-negative scalar \eqn{D_0}.
+#'   for the \eqn{D_0} certificate (default \code{0.95}).
+#' @inheritParams two_block_tv_bound
+#' @param tv_tol Target total-variation tolerance in \code{(0, 1)} passed to
+#'   \code{\link{two_block_l_for_tv}} when calibrating \code{m_convergence}.
+#' @param n Number of main-stage stored draws.
+#' @param m_convergence_pilot Inner Gibbs sweeps per pilot stored draw
+#'   (\eqn{m_p}).
+#' @param n_pilot_min,n_pilot_max Integer bounds for the \code{n_pilot} search
+#'   in \code{two_block_optimize_pilot_cost} (inclusive).  When
+#'   \code{n_pilot_max} is \code{NULL}, defaults to \code{max(10000L, 10L * n)}.
 #' @family simfuncs
-#' @seealso \code{\link{two_block_m_convergence_for_pilot_start}},
-#'   \code{\link{two_block_optimize_pilot_cost}}, \code{\link{EnvelopeOpt}}
+#' @seealso \code{\link{two_block_rate}}, \code{\link{two_block_l_for_tv}},
+#'   \code{\link{EnvelopeOpt}}, \code{\link{rGLMM}}
+#' @name two_block_optimize_pilot_cost
+#' @aliases two_block_pilot_sampling_cost two_block_m_convergence_for_pilot_start
+#'   two_block_d0_pilot_start
+NULL
+
+#' @describeIn two_block_optimize_pilot_cost Squared standardized start distance
+#'   from a pilot mean start: \eqn{D_0 = \chi^2_{p,\alpha} / n_{\mathrm{pilot}}}.
+#' @return Non-negative scalar \eqn{D_0}.
 #' @export
 two_block_d0_pilot_start <- function(n_pilot,
                                      p,
@@ -35,25 +66,12 @@ two_block_d0_pilot_start <- function(n_pilot,
   stats::qchisq(pilot_start_tol, df = p) / n_pilot
 }
 
-#' Main-stage inner sweeps for a pilot-mean chain start
-#'
-#' Calibrates \code{m_convergence} from Theorem~3 at the pilot-start
-#' certificate \code{D_0 = \link{two_block_d0_pilot_start}(n_pilot, p)}.
-#' When \code{n_pilot} is large, \code{D_0} is small and the result approaches
-#' the mode-start minimum \code{m_min} (with \code{D_0 = 0}).
-#'
-#' @inheritParams two_block_tv_bound
-#' @param tv_tol Target total-variation tolerance in \code{(0, 1)} passed to
-#'   \code{\link{two_block_l_for_tv}} when calibrating \code{m_convergence}.
-#' @param n_pilot Number of pilot replicate chains (positive integer).
-#' @param p Dimension of the Block~2 hyper vector.
-#' @param pilot_start_tol Chi-squared quantile for the \code{D_0} certificate.
+#' @describeIn two_block_optimize_pilot_cost Main-stage inner sweeps for a
+#'   pilot-mean chain start.  When \code{n_pilot} is large, \code{D_0} is small
+#'   and the result approaches the mode-start minimum \code{m_min}.
 #' @return List with \code{m_convergence} (integer sweeps per main draw),
 #'   \code{m_min} (mode-start minimum), \code{delta_m}, \code{D_0}, and
 #'   \code{n_pilot}.
-#' @family simfuncs
-#' @seealso \code{\link{two_block_l_for_tv}},
-#'   \code{\link{two_block_optimize_pilot_cost}}
 #' @export
 two_block_m_convergence_for_pilot_start <- function(rate,
                                                     n_pilot,
@@ -83,25 +101,12 @@ two_block_m_convergence_for_pilot_start <- function(rate,
   )
 }
 
-#' Total inner-sweep cost for a pilot / main sampling plan
-#'
-#' Evaluates
-#' \deqn{C(n_{\mathrm{pilot}}) = n_{\mathrm{pilot}}\, m_p +
-#'   n\, m_{\mathrm{conv}}(n_{\mathrm{pilot}}),}
-#' where \eqn{m_{\mathrm{conv}}(n_{\mathrm{pilot}})} comes from
-#' \code{\link{two_block_m_convergence_for_pilot_start}}.  This is the Gibbs
-#' analogue of \code{\link{EnvelopeOpt}}'s build-plus-sample cost.
-#'
-#' @param n Number of main-stage stored draws.
-#' @param m_convergence_pilot Inner Gibbs sweeps per pilot stored draw
-#'   (\eqn{m_p}).
-#' @inheritParams two_block_m_convergence_for_pilot_start
+#' @describeIn two_block_optimize_pilot_cost Total inner-sweep cost for a
+#'   pilot / main sampling plan:
+#'   \eqn{C = n_{\mathrm{pilot}} m_p + n\, m_{\mathrm{conv}}(n_{\mathrm{pilot}})}.
 #' @return List with \code{total_cost}, \code{pilot_cost}, \code{main_cost},
 #'   \code{m_convergence}, and the fields returned by
 #'   \code{two_block_m_convergence_for_pilot_start}.
-#' @family simfuncs
-#' @seealso \code{\link{two_block_optimize_pilot_cost}},
-#'   \code{\link{EnvelopeOpt}}
 #' @export
 two_block_pilot_sampling_cost <- function(n,
                                           n_pilot,
@@ -142,22 +147,13 @@ two_block_pilot_sampling_cost <- function(n,
   )
 }
 
-#' Minimize total pilot / main inner-sweep cost
-#'
-#' Searches over candidate \code{n_pilot} values for the minimum of
-#' \code{\link{two_block_pilot_sampling_cost}}.  The returned optimum is
-#' advisory only unless wired into the sampler.
-#'
-#' @param n_pilot_min,n_pilot_max Integer bounds for the search (inclusive).
-#'   When \code{n_pilot_max} is \code{NULL}, defaults to
-#'   \code{max(10000L, 10L * n)}.
-#' @inheritParams two_block_pilot_sampling_cost
+#' @describeIn two_block_optimize_pilot_cost Search over candidate
+#'   \code{n_pilot} values for the minimum of
+#'   \code{\link{two_block_pilot_sampling_cost}}.  The returned optimum is
+#'   advisory only unless wired into the sampler.
 #' @return List with \code{n_pilot_opt}, \code{m_convergence_opt},
 #'   \code{total_cost_opt}, \code{cost_at_opt}, and \code{cost_curve} (data
 #'   frame of evaluated \code{n_pilot} values near the optimum).
-#' @family simfuncs
-#' @seealso \code{\link{two_block_pilot_sampling_cost}},
-#'   \code{\link{EnvelopeOpt}}
 #' @export
 two_block_optimize_pilot_cost <- function(n,
                                           rate,

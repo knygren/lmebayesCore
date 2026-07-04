@@ -104,7 +104,7 @@ lmerb() / glmerb()
         → block_rNormalReg() / block_rNormalGLM() (Block~1)
         → rglmb() (Block~2 ING / hyper draws)
         → two_block_rate_from_pfamily_list(), two_block_rate(), two_block_l_for_tv(),
-           two_block_tv_bound(), two_block_mode_weights(),
+           two_block_tv_bound(),
            two_block_optimize_pilot_cost(), two_block_pilot_* , …
         → two_block_block2_one_chain_cpp() [default];
            two_block_block2_one_chain(), two_block_align_b_to_xhyper() [R fallback]
@@ -119,8 +119,8 @@ lmerb() / glmerb()
 | Export | File (approx.) | Why inactive |
 |--------|----------------|--------------|
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Parallel matrix API; not called by `multi_rlmb()` or retain/lmebayes drivers. |
-| `block_rNormalReg_update()` | `rNormalReg_reg_block_update.R` | Not on `rGLMM_sweep` / `lmerb` chain; examples / roxygen only. |
-| `block_rNormalGLM_update()` | `rNormalGLM_reg_block_update.R` | Same. |
+| `block_rNormalReg_update()` | `simfunction_block.R` | Not on `rGLMM_sweep` / `lmerb` chain; examples / roxygen only. |
+| `block_rNormalGLM_update()` | `simfunction_block.R` | Same. |
 | `simfunction()` | `simfunction.R` | Introspection generic; runtime uses `pfamily$simfun` directly. |
 
 **Note:** `block_rNormalReg()` and `block_rNormalGLM()` are **live** (called from

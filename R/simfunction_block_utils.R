@@ -1,7 +1,8 @@
 # Internal utilities for conditionally independent block simulation.
 # See inst/DESIGN_RGLM_BLOCKS.md.
 
-#' Normalize a row-block partition for BY-style fits
+#' @describeIn block_simfuncs Normalize a row-block partition for BY-style fits
+#'   and block Gibbs samplers.
 #'
 #' @param block Block partition: \code{factor} or integer vector of length
 #'   \code{l2}, \code{l2_blocks} counts summing to \code{l2}, or a list of

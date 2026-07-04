@@ -414,15 +414,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -435,15 +429,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -456,15 +444,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -477,15 +459,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -498,15 +474,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
@@ -519,15 +489,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_estimated_vcov}()},
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 }
 \author{

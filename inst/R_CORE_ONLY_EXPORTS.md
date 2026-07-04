@@ -133,8 +133,8 @@ per-block fits call **glmbayes** `lmb()` / `glmb()`, not the matrix APIs below.
 | `normalize_block()` | `simfunction_block_utils.R` | Core-only today | Direct — `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()`, `block_check_identifiability_xy()` |
 | `block_rNormalReg()` | `simfunction_block.R` | Core-only today | — |
 | `block_rNormalGLM()` | `simfunction_block.R` | Core-only today | — |
-| `block_rNormalReg_update()` | `rNormalReg_reg_block_update.R` | Core-only today | — |
-| `block_rNormalGLM_update()` | `rNormalGLM_reg_block_update.R` | Core-only today | — |
+| `block_rNormalReg_update()` | `simfunction_block.R` | Core-only today | — |
+| `block_rNormalGLM_update()` | `simfunction_block.R` | Core-only today | — |
 
 ---
 
@@ -162,8 +162,8 @@ drivers. Required exports for **lmebayes** (`importFrom` or qualified calls).
 | Function | File | Status | **lmebayes** callers |
 |----------|------|--------|----------------------|
 | `build_mu_all()` | `build_mu_all.R` | Core-only today | `lmerb()`, `glmerb()` (`simulate = FALSE` → `fixef.mu`) |
-| `lmerb_posterior_mean()` | `lmerb_posterior_mean.R` | Core-only today | `lmerb()` (`simulate = FALSE`) |
-| `glmerb_posterior_mode()` | `glmerb_posterior_mode.R` | Core-only today | `glmerb()` (`simulate = FALSE`) |
+| `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | Core-only today | `lmerb()` (`simulate = FALSE`) |
+| `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | Core-only today | `glmerb()` (`simulate = FALSE`) |
 
 When `simulate = TRUE`, re-exported `rlmerb()` / `rglmerb()` perform the same
 prep internally.
@@ -210,11 +210,12 @@ pilot/main allocation for `rlmerb()` / `rglmerb()`.
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_mode_weights()` | `two_block_mode_weights.R` | Core-only today |
-| `two_block_rate()` | `two_block_rate.R` | Core-only today |
-| `two_block_rate_from_pfamily_list()` | `two_block_rate_from_pfamily_list.R` | Core-only today |
-| `two_block_tv_bound()` | `two_block_tv_bound.R` | Core-only today |
-| `two_block_l_for_tv()` | `two_block_tv_bound.R` | Core-only today |
+| `two_block_rate()` | `two_block_ergodicity.R` | Core-only today |
+| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Core-only today |
+| `two_block_tv_bound()` | `two_block_ergodicity.R` | Core-only today |
+| `two_block_l_for_tv()` | `two_block_ergodicity.R` | Core-only today |
+
+Internal (same file): `two_block_mode_weights()` — IRLS/Fisher weights at the posterior mode for non-Gaussian rate calibration via `rGLMM()`.
 
 ---
 

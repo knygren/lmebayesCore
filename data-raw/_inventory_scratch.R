@@ -302,7 +302,7 @@ write_helper_section <- function(title, fns) {
 
 # Helpers grouped by theme (exclusive — specific groups before broad patterns)
 helper_groups <- list(
-  "Two-block rate / TV (`two_block_rate.R`, `two_block_tv_bound.R`)" = grep("^\\.two_block_(rate|S_P|gen_eigen|erfn|tv_bound)", names(no_rd), value = TRUE),
+  "Two-block rate / TV (`two_block_ergodicity.R`)" = grep("^\\.two_block_(rate|S_P|gen_eigen|erfn|tv_bound)|^two_block_mode_weights$", names(no_rd), value = TRUE),
   "Two-block pilot / GLMM (`two_block_glmm_pilot_helpers.R`, `two_block_pilot_cost.R`)" = grep("^\\.two_block_(print_pilot|as_staged|pilot|fixef_col|resolve_n|resolve_pilot|pilot_will)", names(no_rd), value = TRUE),
   "Two-block sweep history (`two_block_sweep_history.R`)" = grep("^\\.two_block_(build_sweep|filter_sweep|sweep_history|print_sweep)", names(no_rd), value = TRUE),
   "Two-block measurement / tau2 (`two_block_measurement_prior.R`, `two_block_tau2_ref.R`)" = grep("^\\.two_block_(measurement|icm_at|validate_gap|tau2)", names(no_rd), value = TRUE),

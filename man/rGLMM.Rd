@@ -117,7 +117,7 @@ shown automatically even if \code{progbar = FALSE}.}
 \code{eigenvalues}, and \code{m_min} at the mode for \code{stage_verbose}.}
 
 \item{b_start}{Optional \code{J x p_re} Block~1 mode matrix for
-\code{two_block_mode_weights} and v6 batch init.  Required for
+internal IRLS mode-weight helper and v6 batch init.  Required for
 non-Gaussian families when \code{start} is supplied; computed by ICM when
 \code{start = NULL}.}
 
@@ -154,15 +154,9 @@ glmbayes Simulation Functions
 \code{\link{rLMMNormal_reg_known_vcov}()},
 \code{\link{rLMMindepNormalGamma_reg}()},
 \code{\link{simfuncs}},
-\code{\link{two_block_d0_pilot_start}()},
-\code{\link{two_block_l_for_tv}()},
-\code{\link{two_block_m_convergence_for_pilot_start}()},
-\code{\link{two_block_mode_weights}()},
 \code{\link{two_block_optimize_pilot_cost}()},
-\code{\link{two_block_pilot_sampling_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_from_pfamily_list}()},
 \code{\link{two_block_tv_bound}()}
 }
 \concept{simfuncs}

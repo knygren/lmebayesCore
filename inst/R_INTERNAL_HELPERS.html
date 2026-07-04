@@ -429,9 +429,8 @@ prior setup (<code>Prior_Setup_lmebayes.R</code>)</h2>
 <code>get_lme4_components()</code>.</p>
 <hr />
 <h2
-id="two-block-rate-tv-two_block_rate.r-two_block_tv_bound.r">Two-block
-rate / TV (<code>two_block_rate.R</code>,
-<code>two_block_tv_bound.R</code>)</h2>
+id="two-block-rate-tv-two_block_ergodicity.r">Two-block
+rate / TV (<code>two_block_ergodicity.R</code>)</h2>
 <table>
 <thead>
 <tr>
@@ -443,32 +442,38 @@ rate / TV (<code>two_block_rate.R</code>,
 </thead>
 <tbody>
 <tr>
+<td><code>two_block_mode_weights</code></td>
+<td><code>two_block_ergodicity.R</code></td>
+<td>IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic)</td>
+<td>rGLMM.R, two_block_glmm_pilot_helpers.R</td>
+</tr>
+<tr>
 <td><code>.two_block_rate_inputs</code></td>
-<td><code>two_block_rate.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>—</td>
 <td><em>(unused)</em></td>
 </tr>
 <tr>
 <td><code>.two_block_S_P11</code></td>
-<td><code>two_block_rate.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>—</td>
 <td><em>(unused)</em></td>
 </tr>
 <tr>
 <td><code>.two_block_gen_eigen</code></td>
-<td><code>two_block_rate.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>—</td>
 <td><em>(unused)</em></td>
 </tr>
 <tr>
 <td><code>.two_block_erfn</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>—</td>
 <td><em>(unused)</em></td>
 </tr>
 <tr>
 <td><code>.two_block_tv_bound_one</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>—</td>
 <td><em>(unused)</em></td>
 </tr>
@@ -894,9 +899,8 @@ FALSE)</td>
 <td><code>.two_block_normalize_family</code></td>
 <td><code>two_block_rNormal_reg.R</code></td>
 <td>—</td>
-<td>rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R,
-two_block_rate.R, two_block_rNormal_reg_v2.R,
-two_block_rNormal_reg_v5.R</td>
+<td>rGLMM.R, two_block_measurement_prior.R, two_block_ergodicity.R,
+two_block_rNormal_reg.R</td>
 </tr>
 <tr>
 <td><code>.two_block_validate_block1_prior</code></td>
@@ -1366,7 +1370,7 @@ simfunction utils (<code>simfunction_block_utils.R</code>)</h2>
 <hr />
 <h2 id="lmerb-build_mu-build_mu_all.r-lmerb_posterior_mean.r">lmerb /
 build_mu (<code>build_mu_all.R</code>,
-<code>lmerb_posterior_mean.R</code>)</h2>
+<code>lmebayes_posterior_icm.R</code>)</h2>
 <table>
 <colgroup>
 <col style="width: 28%" />
@@ -1394,13 +1398,13 @@ implementation)</td>
 <td><code>.lmerb_validate_design</code></td>
 <td><code>build_mu_all.R</code></td>
 <td>—</td>
-<td>glmerb_posterior_mode.R, lmerb_posterior_mean.R</td>
+<td>lmebayes_posterior_icm.R</td>
 </tr>
 <tr>
 <td><code>.lmerb_validate_measurement_prior_list</code></td>
-<td><code>lmerb_posterior_mean.R</code></td>
+<td><code>lmebayes_posterior_icm.R</code></td>
 <td>—</td>
-<td>glmerb_posterior_mode.R</td>
+<td>lmebayes_posterior_icm.R</td>
 </tr>
 </tbody>
 </table>

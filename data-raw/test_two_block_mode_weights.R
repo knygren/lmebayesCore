@@ -17,6 +17,7 @@ if (!requireNamespace("pkgload", quietly = TRUE)) {
   stop("Install pkgload.", call. = FALSE)
 }
 pkgload::load_all(export_all = FALSE)
+two_block_mode_weights <- getFromNamespace("two_block_mode_weights", "glmbayesCore")
 
 ## ---------------------------------------------------------------------------
 ## Fixture: same toy design as test_two_block_rate.R

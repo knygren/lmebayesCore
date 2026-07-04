@@ -66,15 +66,16 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 ---
 
-## Two-block rate / TV (`two_block_rate.R`, `two_block_tv_bound.R`)
+## Two-block rate / TV (`two_block_ergodicity.R`)
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_rate_inputs` | `two_block_rate.R` | — | *(unused)* |
-| `.two_block_S_P11` | `two_block_rate.R` | — | *(unused)* |
-| `.two_block_gen_eigen` | `two_block_rate.R` | — | *(unused)* |
-| `.two_block_erfn` | `two_block_tv_bound.R` | — | *(unused)* |
-| `.two_block_tv_bound_one` | `two_block_tv_bound.R` | — | *(unused)* |
+| `two_block_mode_weights` | `two_block_ergodicity.R` | IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic) | rGLMM.R, two_block_glmm_pilot_helpers.R |
+| `.two_block_rate_inputs` | `two_block_ergodicity.R` | — | *(unused)* |
+| `.two_block_S_P11` | `two_block_ergodicity.R` | — | *(unused)* |
+| `.two_block_gen_eigen` | `two_block_ergodicity.R` | — | *(unused)* |
+| `.two_block_erfn` | `two_block_ergodicity.R` | — | *(unused)* |
+| `.two_block_tv_bound_one` | `two_block_ergodicity.R` | — | *(unused)* |
 
 ---
 
@@ -156,7 +157,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.two_block_block1_all_chains` | `two_block_batch_gibbs.R` | — | rGLMM_sweep.R |
 | `.two_block_block1_all_chains_v2` | `two_block_batch_gibbs.R` | — | *(unused)* |
 | `.two_block_block1_all_chains_via_cpp` | `two_block_batch_gibbs.R` | — | *(unused)* |
-| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_mode_weights.R, two_block_rate.R, two_block_rNormal_reg.R |
+| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_ergodicity.R, two_block_rNormal_reg.R |
 | `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg.R |
 | `.two_block_block1_prior_list` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_mu_all` | `two_block_rNormal_reg.R` | — | *(unused)* |
@@ -252,13 +253,13 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 ---
 
-## lmerb / build_mu (`build_mu_all.R`, `lmerb_posterior_mean.R`)
+## lmerb / build_mu (`build_mu_all.R`, `lmebayes_posterior_icm.R`)
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
 | `build_mu_all_r` | `build_mu_all.R` | Build per-group random-effect prior means (R reference implementation) | *(unused)* |
-| `.lmerb_validate_design` | `build_mu_all.R` | — | glmerb_posterior_mode.R, lmerb_posterior_mean.R |
-| `.lmerb_validate_measurement_prior_list` | `lmerb_posterior_mean.R` | — | glmerb_posterior_mode.R |
+| `.lmerb_validate_design` | `build_mu_all.R` | — | glmerb_posterior_mode, lmerb_posterior_mean (lmebayes_posterior_icm.R) |
+| `.lmerb_validate_measurement_prior_list` | `lmebayes_posterior_icm.R` | — | glmerb_posterior_mode (same file), lmerb_posterior_mean |
 
 ---
 

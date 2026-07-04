@@ -58,7 +58,7 @@
 #'   the mode (\code{D_0 = 0}). When \code{NULL} and \code{tv_tol} is \code{NULL},
 #'   defaults to \code{10L}.
 #' @param b_start Optional \code{J x p_re} Block~1 mode matrix for
-#'   \code{two_block_mode_weights} and v6 batch init.  Required for
+#'   internal IRLS mode-weight helper and v6 batch init.  Required for
 #'   non-Gaussian families when \code{start} is supplied; computed by ICM when
 #'   \code{start = NULL}.
 #' @param collect_block1 Logical. Collect Block~1 \code{coefficients} from each

@@ -141,8 +141,8 @@ remain in **glmbayesCore** `NAMESPACE` for **lmebayes** to load.
 | Function | File | **lmebayes** callers | **lmebayes** surface |
 |----------|------|----------------------|----------------------|
 | `build_mu_all()` | `build_mu_all.R` | `lmerb()`, `glmerb()` | `importFrom` only |
-| `lmerb_posterior_mean()` | `lmerb_posterior_mean.R` | `lmerb()` | `importFrom` only |
-| `glmerb_posterior_mode()` | `glmerb_posterior_mode.R` | `glmerb()` | `importFrom` only |
+| `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | `lmerb()` | `importFrom` only |
+| `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | `glmerb()` | `importFrom` only |
 | `normalize_block()` | `simfunction_block_utils.R` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()` (via `.blmb_formula_block_meta()`); `block_check_identifiability_xy()` | direct `glmbayesCore::` (not in **lmebayes** `NAMESPACE`) |
 
 Used when `simulate = FALSE` for the three posterior/mean helpers; when
@@ -214,18 +214,17 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 |----------|------|------|
 | `block_rNormalReg()` | `simfunction_block.R` | Row-block Normal regression sampler. |
 | `block_rNormalGLM()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
-| `block_rNormalReg_update()` | `rNormalReg_reg_block_update.R` | Block~1 Normal reg draw given `mu_all`. |
-| `block_rNormalGLM_update()` | `rNormalGLM_reg_block_update.R` | Block~1 GLM draw given `mu_all`. |
+| `block_rNormalReg_update()` | `simfunction_block.R` | Block~1 Normal reg draw given `mu_all`. |
+| `block_rNormalGLM_update()` | `simfunction_block.R` | Block~1 GLM draw given `mu_all`. |
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Multi-response Normal regression sampler (matrix API; not called by `multi_rlmb()`). |
 | `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
 | `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |
 | `rLMMNormal_reg_known_vcov()` | `rLMMNormal_reg.R` | LMM with known residual variance. |
 | `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Two-block engine with `pfamily_list` Block~2. |
-| `two_block_rate()` | `two_block_rate.R` | Block~2 convergence rate from mode weights. |
-| `two_block_rate_from_pfamily_list()` | `two_block_rate_from_pfamily_list.R` | Rate from `pfamily_list` Block~2 spec. |
-| `two_block_mode_weights()` | `two_block_mode_weights.R` | Mode weights for rate / TV calibration. |
-| `two_block_tv_bound()` | `two_block_tv_bound.R` | Total-variation bound vs inner sweeps. |
-| `two_block_l_for_tv()` | `two_block_tv_bound.R` | Invert TV bound for target tolerance. |
+| `two_block_rate()` | `two_block_ergodicity.R` | Block~2 convergence rate from mode weights. |
+| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Rate from `pfamily_list` Block~2 spec. |
+| `two_block_tv_bound()` | `two_block_ergodicity.R` | Total-variation bound vs inner sweeps. |
+| `two_block_l_for_tv()` | `two_block_ergodicity.R` | Invert TV bound for target tolerance. |
 | `two_block_pilot_sampling_cost()` | `two_block_pilot_cost.R` | Pilot chain sampling cost model. |
 | `two_block_optimize_pilot_cost()` | `two_block_pilot_cost.R` | Optimize pilot vs main chain allocation. |
 | `two_block_d0_pilot_start()` | `two_block_pilot_cost.R` | Default pilot start for cost optimization. |
@@ -374,8 +373,7 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 | `print.lmebayes_prior_setup()` | `Prior_Setup_lmebayes.R` | lmebayes | Print mixed-model prior-setup object. |
 | `print.model_setup()` | `model_setup.R` | lmebayes | Print mixed-model design object. |
 | `print.two_block_sweep_history()` | `two_block_sweep_history.R` | lmebayes | Print sweep-history diagnostics (`rglmerb()` / `rlmerb()`). |
-| `print.two_block_rate()` | `two_block_rate.R` | Core-only | Print rate object with TV tolerances. |
-| `print.two_block_mode_weights()` | `two_block_mode_weights.R` | Core-only | Print mode-weight table. |
+| `print.two_block_rate()` | `two_block_ergodicity.R` | Core-only | Print rate object with TV tolerances. |
 | `residuals.summary.rglmb()` | `residuals.rglmb.R` | Core-only | Residuals for `summary.rglmb` object. |
 
 **S3 counts:** **glmbayes** 44; **glmbayesCore** 26; **overlap** 15; **glmbayes-only** 29;

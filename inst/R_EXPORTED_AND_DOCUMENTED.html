@@ -759,13 +759,13 @@ remain in <strong>glmbayesCore</strong> <code>NAMESPACE</code> for
 </tr>
 <tr class="even">
 <td><code>lmerb_posterior_mean()</code></td>
-<td><code>lmerb_posterior_mean.R</code></td>
+<td><code>lmebayes_posterior_icm.R</code></td>
 <td><code>lmerb()</code></td>
 <td><code>importFrom</code> only</td>
 </tr>
 <tr class="odd">
 <td><code>glmerb_posterior_mode()</code></td>
-<td><code>glmerb_posterior_mode.R</code></td>
+<td><code>lmebayes_posterior_icm.R</code></td>
 <td><code>glmerb()</code></td>
 <td><code>importFrom</code> only</td>
 </tr>
@@ -988,12 +988,12 @@ or via formula drivers).</p>
 </tr>
 <tr class="odd">
 <td><code>block_rNormalReg_update()</code></td>
-<td><code>rNormalReg_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Block~1 Normal reg draw given <code>mu_all</code>.</td>
 </tr>
 <tr class="even">
 <td><code>block_rNormalGLM_update()</code></td>
-<td><code>rNormalGLM_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Block~1 GLM draw given <code>mu_all</code>.</td>
 </tr>
 <tr class="odd">
@@ -1024,27 +1024,22 @@ or via formula drivers).</p>
 </tr>
 <tr class="even">
 <td><code>two_block_rate()</code></td>
-<td><code>two_block_rate.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Block~2 convergence rate from mode weights.</td>
 </tr>
 <tr class="odd">
 <td><code>two_block_rate_from_pfamily_list()</code></td>
-<td><code>two_block_rate_from_pfamily_list.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Rate from <code>pfamily_list</code> Block~2 spec.</td>
 </tr>
 <tr class="even">
-<td><code>two_block_mode_weights()</code></td>
-<td><code>two_block_mode_weights.R</code></td>
-<td>Mode weights for rate / TV calibration.</td>
-</tr>
-<tr class="odd">
 <td><code>two_block_tv_bound()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Total-variation bound vs inner sweeps.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>two_block_l_for_tv()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Invert TV bound for target tolerance.</td>
 </tr>
 <tr class="odd">
@@ -1645,15 +1640,9 @@ object.</td>
 </tr>
 <tr class="even">
 <td><code>print.two_block_rate()</code></td>
-<td><code>two_block_rate.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Core-only</td>
 <td>Print rate object with TV tolerances.</td>
-</tr>
-<tr class="odd">
-<td><code>print.two_block_mode_weights()</code></td>
-<td><code>two_block_mode_weights.R</code></td>
-<td>Core-only</td>
-<td>Print mode-weight table.</td>
 </tr>
 <tr class="even">
 <td><code>residuals.summary.rglmb()</code></td>

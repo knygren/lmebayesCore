@@ -743,13 +743,13 @@ the matrix APIs below.</p>
 </tr>
 <tr class="even">
 <td><code>block_rNormalReg_update()</code></td>
-<td><code>rNormalReg_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Core-only today</td>
 <td>—</td>
 </tr>
 <tr class="odd">
 <td><code>block_rNormalGLM_update()</code></td>
-<td><code>rNormalGLM_reg_block_update.R</code></td>
+<td><code>simfunction_block.R</code></td>
 <td>Core-only today</td>
 <td>—</td>
 </tr>
@@ -837,13 +837,13 @@ formula drivers. Required exports for <strong>lmebayes</strong>
 </tr>
 <tr class="even">
 <td><code>lmerb_posterior_mean()</code></td>
-<td><code>lmerb_posterior_mean.R</code></td>
+<td><code>lmebayes_posterior_icm.R</code></td>
 <td>Core-only today</td>
 <td><code>lmerb()</code> (<code>simulate = FALSE</code>)</td>
 </tr>
 <tr class="odd">
 <td><code>glmerb_posterior_mode()</code></td>
-<td><code>glmerb_posterior_mode.R</code></td>
+<td><code>lmebayes_posterior_icm.R</code></td>
 <td>Core-only today</td>
 <td><code>glmerb()</code> (<code>simulate = FALSE</code>)</td>
 </tr>
@@ -978,28 +978,23 @@ deriving <code>m_convergence</code> and pilot/main allocation for
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>two_block_mode_weights()</code></td>
-<td><code>two_block_mode_weights.R</code></td>
-<td>Core-only today</td>
-</tr>
-<tr class="even">
 <td><code>two_block_rate()</code></td>
-<td><code>two_block_rate.R</code></td>
-<td>Core-only today</td>
-</tr>
-<tr class="odd">
-<td><code>two_block_rate_from_pfamily_list()</code></td>
-<td><code>two_block_rate_from_pfamily_list.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Core-only today</td>
 </tr>
 <tr class="even">
-<td><code>two_block_tv_bound()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_rate_from_pfamily_list()</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Core-only today</td>
 </tr>
 <tr class="odd">
+<td><code>two_block_tv_bound()</code></td>
+<td><code>two_block_ergodicity.R</code></td>
+<td>Core-only today</td>
+</tr>
+<tr class="even">
 <td><code>two_block_l_for_tv()</code></td>
-<td><code>two_block_tv_bound.R</code></td>
+<td><code>two_block_ergodicity.R</code></td>
 <td>Core-only today</td>
 </tr>
 </tbody>
