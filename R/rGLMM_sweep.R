@@ -1,4 +1,4 @@
-#' Two-block Gibbs sweep for replicate-chain sampling (\code{rGLMM} engine)
+#' Two-block Gibbs sweep for replicate-chain sampling (\code{rGLMM_reg} engine)
 #'
 #' Executes \code{n_chains} independent two-block Gibbs chains, each
 #' initialised at \code{start_fixef} and run for \code{inner_sweeps} sweeps.
@@ -60,7 +60,7 @@
 #'   \code{mu_all_last}, and \code{sweep_history} (class
 #'   \code{"two_block_sweep_history"}).
 #' @family simfuncs
-#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM}}
+#' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_reg}}
 #' @export
 rGLMM_sweep <- function(
     n_chains,

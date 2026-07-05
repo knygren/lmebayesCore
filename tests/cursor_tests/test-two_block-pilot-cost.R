@@ -54,7 +54,7 @@ test_that("rGLMM stores pilot_cost_opt when verbose pilot path runs", {
     re_nm
   )
   pf <- dNormal(mu = c(`(Intercept)` = 0), Sigma = matrix(1), dispersion = 1)
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 2L,
     y = y,
     x = x,

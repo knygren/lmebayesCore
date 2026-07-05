@@ -145,15 +145,16 @@ remain in **glmbayesCore** `NAMESPACE` for **lmebayes** to load.
 | `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | `glmerb()` | `importFrom` only |
 | `normalize_block()` | `simfunction_block_utils.R` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()` (via `.blmb_formula_block_meta()`); `block_check_identifiability_xy()` | direct `glmbayesCore::` (not in **lmebayes** `NAMESPACE`) |
 
-Used when `simulate = FALSE` for the three posterior/mean helpers; when
-`simulate = TRUE`, re-exported `rlmerb()` / `rglmerb()` run the same prep
-internally.
+Used when `simulate = FALSE` for the three posterior/mean helpers; variance
+components (\(\tau^2_k\), \(\sigma^2\)) stay at prior plug-ins (ING:
+`rate/(shape−1)` from calibrated `pfamily_list`). When `simulate = TRUE`,
+re-exported `rlmerb()` / `rglmerb()` run the same prep internally.
 
 **Direct via `glmbayesCore:::`** (internal in Core — export not required):
 `extract_mer_variance_components()` ← `summary.lmerb()`; `.lmebayes_*` helpers
 ← `lmerb()`, `glmerb()`. Listed under **Documented but not exported** below.
 
-Indirect engines (`rGLMM`, `rLMMNormal_reg`, …) are listed under
+Indirect engines (`rGLMM_reg`, `rLMM_reg` routes, …) are listed under
 **glmbayesCore-only exports** below — **lmebayes** reaches them only via
 re-exported `rlmerb()` / `rglmerb()` (export optional for **lmebayes**).
 
@@ -186,27 +187,33 @@ Callable with `glmbayesCore:::`; have help pages but are not in `NAMESPACE`.
 
 ## **glmbayesCore**-only exports
 
-Not in **glmbayes** or **lmebayes** export surfaces (29 symbols). None are
+Not in **glmbayes** or **lmebayes** export surfaces (32 symbols). None are
 direct `glmbayesCore::…` references from **lmebayes** `R/`.
 
 **By function type:** [R_CORE_ONLY_EXPORTS.md](R_CORE_ONLY_EXPORTS.md) (full
-66-symbol catalog including **glmbayes** phase-out groups §1–§6).
+70-symbol catalog including **glmbayes** phase-out groups §1–§6).
 
-### Indirect from **lmebayes** via `rlmerb()` / `rglmerb()` (4 symbols)
+### Indirect from **lmebayes** via `rlmerb()` / `rglmerb()`
 
-**lmebayes** never names these in `R/`; **glmbayesCore** routes to them inside
-`rlmerb()`, `rglmerb()`, or `.lmebayes_run_lmm_engine()`. They do **not** need
-to stay `@export` for **lmebayes** to work (could become `@noRd` internals).
-They may remain exported for power users, `data-raw/`, or **glmbayes** migration.
+**lmebayes** never names these in `R/`; **glmbayesCore** routes inside
+`rlmerb()`, `rglmerb()`, or `.lmebayes_run_lmm_engine()`. Shared help:
+`?rLMM_reg` (LMM) and **`?rGLMM_reg`** (GLMM). There is no standalone
+**`rLMM()`** — matrix Gaussian LMMs use the LMM symbols below; formula GLMMs
+use **`rGLMM_reg`** (via **`rglmerb()`**).
 
 | Function | File | Route from **lmebayes** | Role |
 |----------|------|-------------------------|------|
-| `rGLMM()` | `rGLMM.R` | `glmerb()` → `rglmerb()` when `simulate = TRUE`, non-Gaussian `family` | GLMM sweep-outer engine. |
-| `rLMMNormal_reg()` | `rLMMNormal_reg.R` | `lmerb()` / `glmerb()` → `rlmerb()` / `rglmerb()` → `.lmebayes_run_lmm_engine()` when Block~2 is all `dNormal` and `dispersion_ranef` is a fixed scalar | Gaussian LMM replicate-chain router. |
-| `rLMMNormal_reg_estimated_vcov()` | `rLMMNormal_reg.R` | Same chain when `prior$any_non_normal` (e.g. ING Block~2) | LMM with estimated residual variance. |
-| `rLMMindepNormalGamma_reg()` | `rLMMNormal_reg.R` | Same chain when `dispersion_ranef` is `dGamma()` (`disp_info$mode == "gamma"`) | LMM with ING measurement dispersion. |
+| `rGLMM_reg()` | `rGLMM_reg.R` | `glmerb()` → `rglmerb()` when non-Gaussian `family` | Dispatcher → known or estimated τ² route. |
+| `rGLMM_reg_known_vcov()` | `rGLMM_reg.R` | Same | All Block~2 `dNormal`; non-Gaussian always pilots; standard eigenvalue bounds. |
+| `rGLMM_reg_estimated_vcov()` | `rGLMM_reg.R` | Same | ING Block~2; non-Gaussian always pilots; `disp_lower` eigenvalue conservatism. |
+| `rLMMNormal_reg_known_vcov()` | `rLMM_reg.R` | `lmerb()` → `rlmerb()` → `.lmebayes_run_lmm_engine()` when fixed scalar `dispersion_ranef` and all Block~2 `dNormal` | Fixed σ²; known τ²_k. |
+| `rLMMNormal_reg_estimated_vcov()` | `rLMM_reg.R` | Same when fixed σ² and `prior$any_non_normal` (ING Block~2) | Fixed σ²; Gibbs updates τ²_k. |
+| `rLMMindepNormalGamma_reg_known_vcov()` | `rLMM_reg.R` | Same when `dispersion_ranef` is `dGamma()` and all Block~2 `dNormal` | Random σ² (ING Block~1); known τ²_k. |
+| `rLMMindepNormalGamma_reg_estimated_vcov()` | `rLMM_reg.R` | Same when dGamma σ² and ING Block~2 | Random σ²; Gibbs updates τ²_k. |
+| `rLMMNormal_reg()` | `rLMM_reg.R` | Dispatcher for fixed σ² (→ known or estimated route) | Validates and delegates. |
+| `rLMMindepNormalGamma_reg()` | `rLMM_reg.R` | Legacy outer loop (not default **`rlmerb()`** path) | Draw σ² via `rGamma_reg()`, then `rLMMNormal_reg()` per chain. |
 
-### Other **glmbayesCore**-only exports (25 symbols)
+### Other **glmbayesCore**-only exports (23 symbols)
 
 Not called from **lmebayes** `R/` (directly or via formula drivers).
 
@@ -219,7 +226,6 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Multi-response Normal regression sampler (matrix API; not called by `multi_rlmb()`). |
 | `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
 | `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |
-| `rLMMNormal_reg_known_vcov()` | `rLMMNormal_reg.R` | LMM with known residual variance. |
 | `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Two-block engine with `pfamily_list` Block~2. |
 | `two_block_rate()` | `two_block_ergodicity.R` | Block~2 convergence rate from mode weights. |
 | `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Rate from `pfamily_list` Block~2 spec. |
@@ -397,6 +403,6 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 |----------|------|
 | 1 | Keep **glmbayes**-shared exports signature-aligned when touching `R/`. |
 | 2 | Trim **glmbayes** re-exports in group **2** (simfunctions, envelopes, `*_ct`) once call sites use `glmbayesCore::`. |
-| 3 | Treat **lmebayes** direct call surface (`build_mu_all`, `normalize_block`, …) as semver-sensitive; indirect engines (`rGLMM`, `rLMMNormal_reg`, …) may be internalized. |
+| 3 | Treat **lmebayes** direct call surface (`build_mu_all`, `normalize_block`, …) as semver-sensitive; indirect engines (`rGLMM_reg`, `rLMM_reg` routes, …) may be internalized. |
 | 4 | Run `devtools::document()` after any `@export` or `\usage` change. |
 | 5 | When **glmbayes** imports **glmbayesCore**, drop duplicate S3 registrations (see **S3 methods** — overlap tables; keep **glmbayes-only** summary methods for `glmb` / `mlmb`). |

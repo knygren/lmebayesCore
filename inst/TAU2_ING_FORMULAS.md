@@ -1,6 +1,6 @@
 # How τ² is computed in the two-block ING model
 
-This note explains **what enters the τ² update**, how that relates to **`mu_all`**, and how the **`dIndependent_Normal_Gamma`** prior parameters are used. It matches the implementation in `two_block_tau2_mode_ing()`, `two_block_joint_posterior_mode()`, and Gibbs Block~2 (`two_block_block2_one_chain()`).
+This note explains **what enters the τ² update**, how that relates to **`mu_all`**, and how the **`dIndependent_Normal_Gamma`** prior parameters are used. It matches the current implementation in **`R/two_block_tau2_ref.R`** (plug-ins and conservative bounds), **`lmerb_posterior_mean()`** / **`glmerb_posterior_mode()`** (ICM at **fixed** τ²), and Gibbs Block~2 (**`two_block_block2_one_chain()`** → **`rglmb()`**).
 
 ---
 
@@ -13,10 +13,12 @@ The Gaussian mixed model is split into two coupled blocks:
 | **Block 1** | Random effects `b` (J groups × p_re components) | School-level deviations from the hyper-mean, given data `y` |
 | **Block 2** | Hyper-parameters `γ` (population RE structure) and variances `τ²_k` | How RE means vary across schools, and how much residual RE variance remains |
 
-Joint posterior mode / Gibbs **alternates**:
+Joint posterior **Gibbs** alternates:
 
-1. **Block 1 ICM** — update `b` and `γ` at fixed `(σ², τ²)`.
-2. **Variance step** — update `τ²_k` (and optionally `σ²`) at fixed `(b, γ)`.
+1. **Block 1 ICM** — update `b` and `γ` at **fixed** `(σ², τ²)` plug-ins.
+2. **Block 2 Gibbs** — update `τ²_k` (and optionally `σ²`) via **`rglmb()`** at fixed `(b, γ)` from the inner sweep.
+
+**ICM starts** (`lmerb_posterior_mean`, `glmerb_posterior_mode`, `.rLMM_icm_at_start`) use the same fixed-τ² policy and do **not** iterate closed-form τ² updates.
 
 **`mu_all` belongs to Block 1 only.** It is **not** passed into the τ² formula as a separate matrix. The τ² step uses the current random-effect vector `b_k` and hyper coefficients `γ_k`; the fitted hyper-mean `X_k γ_k` is numerically the same as column `k` of `mu_all` when `γ` is the current Block~2 state.
 
@@ -85,7 +87,7 @@ $$
 \quad\text{(ING; requires shape > 1)}
 $$
 
-Code: `two_block_tau2_plug_in()` / `two_block_tau2_plug_in_list()`.
+Code: **`.two_block_tau2_plug_in_from_pfamily()`** / **`.two_block_tau2_plug_in_vector()`** (ICM and Σ_ranef). Conservative λ* bounds use **`.two_block_tau2_ref_from_pfamily()`** (`rate/shape`).
 
 From `Prior_Setup_lmebayes` calibration (per component k):
 
@@ -133,9 +135,13 @@ b_al <- two_block_align_b_to_xhyper(b_k, X_k, group_levels)
 
 ---
 
-## 5. Method A — closed-form conditional mode (`method = "closed_form"`)
+## 5. Method A — closed-form conditional mode (algebra only)
 
-Used by **`two_block_joint_posterior_mode()`** today. **Fixes γ_k** at its current value; updates only τ²_k.
+**Fixes γ_k** at its current value; updates only τ²_k. This is the conjugate
+Gamma–Normal algebra for one RE component. Production **Gibbs** Block~2 uses
+Method B (**`rglmb()`**); the closed form is not an exported joint-mode loop
+(anymore), but the formula still describes what **`rglmb`** collapses to when
+γ_k is frozen.
 
 ### Step 1 — fitted hyper-mean and RSS
 
@@ -148,7 +154,7 @@ $$
 \mathrm{RSS} = \sum_{j=1}^{J} (b_{jk} - \eta_j)^2
 $$
 
-Code (`.two_block_conditional_tau2_mode_ing`):
+Code (same algebra as scratch validators in `data-raw/scratch_tau2_*.R`):
 
 ```r
 eta <- as.numeric(X_k %*% gamma_k)
@@ -221,7 +227,7 @@ Here **all four ING pieces matter**:
 | `mu` (= μ_γ) | Prior mean of hyper coefficients γ_k |
 | `Sigma` (= Σ_γ) | Prior covariance of γ_k; sets shrinkage of population effects |
 | `shape`, `rate` | Prior on λ_k = 1/τ²_k; combined with RSS after optimizing γ |
-| `disp_lower`, `disp_upper` | Truncation window on τ² (envelope sampler); **not** applied in joint-mode closed form |
+| `disp_lower`, `disp_upper` | Truncation window on τ² (envelope sampler); **not** applied in the closed-form algebra |
 
 Because `rglmb` **jointly** finds the conditional mode of \((\gamma_k, \tau^2_k)\), the reported τ² differs from Method A when γ_k is not already at its ING conditional mode. That is why validation at ICM `(b, γ)` can show a large gap for slopes:
 
@@ -231,7 +237,7 @@ Because `rglmb` **jointly** finds the conditional mode of \((\gamma_k, \tau^2_k)
 | distracted_ppvt | ~22.5 | ~4.4 | ~14 |
 | distracted_a1 | ~42 | ~10 | ~28–36 |
 
-Closed form **matches joint mode** (same formula). **`rglmb` is closer to lmer** on slopes but still not exact.
+Closed form **matches frozen-γ conditional mode**. **`rglmb`** refits γ and can differ on slopes (see table below).
 
 ---
 
@@ -262,23 +268,23 @@ Code: `lmerb_posterior_mean()`, `two_block_conditional_posterior_ranef()`.
 
 ---
 
-## 8. End-to-end flow (joint mode, case 2 — random τ² only)
+## 8. End-to-end flow (Gibbs sampling — random τ²)
 
 ```
-Start:  σ² = plug-in,  τ²_k = rate_k/(shape_k - 1)  [prior; no b, no mu_all]
+Start:  σ² = plug-in or draw,  τ²_k = rate_k/(shape_k - 1)  [prior plug-in; no b, no mu_all]
 
-Repeat until convergence:
-  ┌─ Inner ICM at fixed (σ², τ²) ─────────────────────────────┐
+Each outer replicate chain (rlmerb / rGLMM_reg):
+  ┌─ Optional ICM start at fixed (σ², τ²) ─────────────────────┐
   │  Build mu_all from current γ                                 │
   │  Update b_j using y, Z, σ², τ², mu_all   (Block 1)        │
   │  Update γ_k using b, τ², Block~2 Normal prior (Block 2)   │
   └──────────────────────────────────────────────────────────────┘
-  For each ING component k:
-      τ²_k ← closed_form( b_k, X_k, γ_k, shape, rate )   # γ fixed here
-  Check Δ(γ, b, τ²) < tol
+  Inner Gibbs sweeps:
+      Block~1 update b  (uses fixed τ² plug-ins in ICM paths)
+      Block~2 two_block_block2_one_chain() → rglmb() per ING component
 ```
 
-Gibbs replaces the last line with `two_block_block2_one_chain()` → `rglmb()`.
+ICM helpers stop at fixed τ²; only the Gibbs Block~2 step moves τ²_k.
 
 ---
 
@@ -286,9 +292,10 @@ Gibbs replaces the last line with `two_block_block2_one_chain()` → `rglmb()`.
 
 | Quantity | Function | Uses mu_all? | Uses b? | Uses ING shape/rate? |
 |----------|----------|:------------:|:-------:|:--------------------:|
-| Prior plug-in τ² | `two_block_tau2_plug_in()` | No | No | Yes |
-| Conditional τ² (closed) | `two_block_tau2_mode_ing(..., "closed_form")` | No* | Yes | Yes |
-| Conditional τ² (Gibbs) | `two_block_tau2_mode_ing(..., "rglmb")` | No* | Yes | Yes (+ μ_γ, Σ_γ) |
+| Prior plug-in τ² (ICM) | `.two_block_tau2_plug_in_from_pfamily()` | No | No | Yes |
+| Conservative τ² ref (λ*) | `.two_block_tau2_ref_from_pfamily()` | No | No | Yes |
+| Conditional τ² (closed algebra) | *(not exported; see §5)* | No* | Yes | Yes |
+| Conditional τ² (Gibbs) | `two_block_block2_one_chain()` → `rglmb()` | No* | Yes | Yes (+ μ_γ, Σ_γ) |
 | Block~1 prior Σ_b | `two_block_Sigma_ranef(tau2)` | No | No | No |
 | Block~1 μ_j(γ) | `two_block_conditional_prior_ranef()` | **Yes** | No | No (uses τ²) |
 | Block~1 posterior b | `two_block_conditional_posterior_ranef()` | **Yes** | via y | No (uses τ², σ²) |

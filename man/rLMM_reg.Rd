@@ -199,8 +199,8 @@ Gaussian two-block LMM samplers at matrix level (\code{y}, \code{Z},
 \code{x_hyper}, \code{pfamily_list}). Each stored draw runs
 \code{m_convergence} inner Gibbs sweeps (Block~1 random effects, then
 Block~2 hyperparameters). There is no standalone \code{rLMM()} function;
-use \code{\link{rGLMM}} for formula-level GLMMs or these matrix engines
-via \code{\link{rlmerb}}.
+use the \code{\link{rGLMM_reg}} routes via \code{\link{rglmerb}}; Gaussian LMMs
+use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
 }
 \section{Functions}{
 \itemize{
@@ -253,13 +253,13 @@ outer-loop \code{rLMMindepNormalGamma_reg}, draw \eqn{\sigma^2} then call
 }
 
 \seealso{
-\code{\link{rGLMM}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
+\code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},

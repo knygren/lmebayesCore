@@ -66,8 +66,8 @@ Block 2 of \code{\link{two_block_rNormal_reg}}.
 
 glmbayes Simulation Functions
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{simfuncs}},

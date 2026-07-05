@@ -111,15 +111,15 @@ the truncation state-dependent).
 }
 \seealso{
 \code{\link{rGLMM_sweep}},
-\code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}},
+\code{\link{rGLMM_reg}}, \code{\link{rLMMNormal_reg}},
 \code{\link{dNormal}},
 \code{\link{dIndependent_Normal_Gamma}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{simfuncs}},

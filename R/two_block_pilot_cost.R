@@ -19,7 +19,7 @@
 #'   \item \code{\link{two_block_pilot_sampling_cost}}:
 #'     \eqn{C = n_{\mathrm{pilot}} m_p + n\, m_{\mathrm{conv}}(n_{\mathrm{pilot}})}.
 #'   \item \code{\link{two_block_optimize_pilot_cost}}: minimize \eqn{C} over
-#'     \code{n_pilot} (advisory unless wired into \code{\link{rGLMM}}).
+#'     \code{n_pilot} (advisory unless wired into \code{\link{rGLMM_reg}}).
 #' }
 #' This is the Gibbs analogue of \code{\link{EnvelopeOpt}}'s build-plus-sample cost.
 #'
@@ -38,7 +38,7 @@
 #'   \code{n_pilot_max} is \code{NULL}, defaults to \code{max(10000L, 10L * n)}.
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rate}}, \code{\link{two_block_l_for_tv}},
-#'   \code{\link{EnvelopeOpt}}, \code{\link{rGLMM}}
+#'   \code{\link{EnvelopeOpt}}, \code{\link{rGLMM_reg}}
 #' @name two_block_optimize_pilot_cost
 #' @aliases two_block_pilot_sampling_cost two_block_m_convergence_for_pilot_start
 #'   two_block_d0_pilot_start

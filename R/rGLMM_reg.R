@@ -1,116 +1,94 @@
-#' Replicate-chain Gibbs sampling for Bayesian GLMMs (v6 sweep-outer driver)
+#' Matrix-level replicate-chain Gibbs engines for Bayesian GLMMs
 #'
-#' Low-level matrix-level GLMM replicate-chain sampler using
-#' \code{\link{rGLMM_sweep}} (pure-R sweep-outer Block~1 /
-#' Block~2). For formula-level fitting with ICM mode and priors, see
-#' \pkg{lmebayes} \code{rglmerb}.
+#' @description
+#' Non-Gaussian (and optionally Gaussian) two-block GLMM samplers at matrix
+#' level. Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
+#' \code{\link{rGLMM_sweep}}. Formula-level fitting uses \code{\link{rglmerb}}
+#' in **lmebayes**; Gaussian models with observation dispersion typically use
+#' the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
+#'
+#' @section Two route engines:
+#' Both routes run a \strong{pilot stage for non-Gaussian} families (local-Gaussian
+#' rate calibration and chain-mean initialisation; skip only with
+#' \code{n_pilot = 0L}). The route split is \strong{not} whether a pilot runs,
+#' but how \strong{eigenvalue bounds} are set for Theorem~3 and post-pilot
+#' upper-bound calibration:
+#' \describe{
+#'   \item{\code{rGLMM_reg_known_vcov}}{
+#'     All Block~2 \code{dNormal} (known \eqn{\tau^2_k}): standard fixed-dispersion
+#'     rate at the mode; post-pilot eigenvalue upper bound from pilot
+#'     \code{coefficients} without ING \code{disp_lower} conservatism.}
+#'   \item{\code{rGLMM_reg_estimated_vcov}}{
+#'     At least one ING Block~2 component: conservative \code{disp_lower} plug-in
+#'     in \code{\link{two_block_rate_from_pfamily_list}} (upper bound over truncated
+#'     \eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from dispersion draws.}
+#' }
+#'
+#' @section Dispatcher:
+#' \code{\link{rGLMM_reg}} validates Block~2 \code{pfamily_list} and delegates
+#' to the appropriate route.
 #'
 #' @param n Number of stored main-stage draws. If \code{length(n) > 1}, the
-#'   length is taken to be the number required.
+#'   length is used.
 #' @param y Response vector of length \code{nrow(x)}.
 #' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}).
 #' @param block Grouping factor or block partition of length \code{l2}.
-#' @param x_hyper Named list of group-level design matrices \code{X_k}
-#'   (\code{J x q_k}), one per column of \code{x}.
+#' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
+#'   one per column of \code{x}.
 #' @param prior_list Prior for Block~1: \code{P} or \code{Sigma},
 #'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
 #' @param pfamily_list Named list of \code{pfamily} objects for Block~2.
-#' @param start Named list of Block~2 hyper-parameter vectors at which each
-#'   inner chain is initialised (pilot stage uses \code{start}; main stage uses
-#'   the pilot mean when \code{n_pilot > 0}). When \code{NULL} (default), the
-#'   ICM posterior mode is computed internally via
-#'   \code{\link{glmerb_posterior_mode}} (or \code{\link{lmerb_posterior_mean}}
-#'   when \code{family = gaussian()}).
-#' @param icm_tol,icm_maxit Convergence controls passed to ICM when
-#'   \code{start = NULL}.
+#' @param start Named list of Block~2 hyper-parameter vectors. When \code{NULL}
+#'   (default), the ICM start is computed via \code{\link{glmerb_posterior_mode}}
+#'   (or \code{\link{lmerb_posterior_mean}} when \code{family = gaussian()}).
+#' @param icm_tol,icm_maxit ICM convergence controls when \code{start = NULL}.
 #' @param offset,weights,family Passed to Block~1 (length \code{l2} or recycled).
 #' @param re_coef_names Character vector naming columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
-#' @param n_pilot Number of pilot replicate chains. When \code{NULL} (default)
-#'   and \code{tv_tol} is set, derived from \code{\link{two_block_optimize_pilot_cost}}
-#'   for non-Gaussian families; when \code{NULL} and \code{tv_tol} is \code{NULL},
-#'   falls back to \code{gap_tol} (legacy). \code{0L} skips the pilot. Ignored
-#'   for \code{gaussian()}.
-#' @param gap_tol Legacy mode--mean gap tolerance used to derive \code{n_pilot}
-#'   only when \code{n_pilot} is \code{NULL} and \code{tv_tol} is \code{NULL}.
-#'   Default \code{0.0196} gives \code{n_pilot = 10000}. Set \code{NULL} to skip
-#'   the pilot unless \code{n_pilot} is supplied explicitly or \code{tv_tol} is set.
-#' @param m_convergence_pilot Inner Gibbs steps per pilot stored draw. Defaults
-#'   to \code{m_convergence} when \code{n_pilot > 0} and \code{tv_tol} is
-#'   \code{NULL}.
-#' @param tv_tol When non-\code{NULL}, run Theorem~3 calibration at \code{start}
-#'   and, when \code{n_pilot > 0}, post-pilot eigenvalue upper-bound calibration.
-#' @param mode_gap_max When \code{m_convergence_pilot} is \code{NULL} and
-#'   \code{n_pilot > 0}, used to derive pilot inner sweeps.
-#' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved for Block~1 GLM
-#'   path (not yet forwarded to v6).
+#' @param n_pilot Number of pilot replicate chains. For \strong{non-Gaussian}
+#'   families a pilot stage always runs unless \code{n_pilot = 0L}. When
+#'   \code{NULL}, \code{n_pilot} is derived from \code{tv_tol}, \code{gap_tol},
+#'   or cost optimization (\code{\link{two_block_optimize_pilot_cost}}).
+#' @param gap_tol Legacy mode--mean gap for pilot chain count when \code{tv_tol}
+#'   is \code{NULL}.
+#' @param m_convergence_pilot Inner Gibbs steps per pilot stored draw.
+#' @param tv_tol Total-variation tolerance for Theorem~3 calibration.
+#' @param mode_gap_max Pilot inner-sweep calibration when \code{n_pilot > 0}.
+#' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved (not yet forwarded).
 #' @param verbose Print stage headers and convergence calibration lines.
-#' @param progbar Progress bars during pilot and main sampling. When
-#'   \code{verbose} or \code{stage_verbose} is \code{TRUE}, progress bars are
-#'   shown automatically even if \code{progbar = FALSE}.
+#' @param progbar Progress bars during sampling.
 #' @param stage_verbose Print pilot chi-squared and post-pilot UB diagnostics.
-#' @param rate_calibration Optional list with \code{lambda_star},
-#'   \code{eigenvalues}, and \code{m_min} at the mode for \code{stage_verbose}.
-#' @param m_convergence Inner Gibbs steps per main-stage stored draw. When
-#'   \code{NULL} and a pilot stage runs with \code{tv_tol}, derived from the
-#'   cost-optimal or pilot-start certificate; without a pilot, from Theorem~3 at
-#'   the mode (\code{D_0 = 0}). When \code{NULL} and \code{tv_tol} is \code{NULL},
-#'   defaults to \code{10L}.
-#' @param b_start Optional \code{J x p_re} Block~1 mode matrix for
-#'   internal IRLS mode-weight helper and v6 batch init.  Required for
-#'   non-Gaussian families when \code{start} is supplied; computed by ICM when
-#'   \code{start = NULL}.
-#' @param collect_block1 Logical. Collect Block~1 \code{coefficients} from each
-#'   chain (needed for post-pilot eigenvalue upper bounds).
-#' @return Object of class \code{c("rGLMM", "list")} with main-stage
-#'   Block~2 fields in the \code{fixef.*} namespace (\code{fixef},
-#'   \code{fixef.mode}, \code{fixef.init}, \code{fixef.dispersion},
-#'   \code{fixef.iters}, \code{fixef.mu}), Block~1 draws in \code{coefficients},
-#'   plus \code{draw_engine}, \code{convergence_info}, \code{ptypes},
-#'   \code{any_non_normal}, optional
-#'   \code{pilot}, \code{pilot_chisq}, \code{pilot_ub}, and (when ICM is run)
-#'   \code{ranef.mode} and \code{icm_info}.
+#' @param rate_calibration Optional rate object for \code{stage_verbose}.
+#' @param m_convergence Inner Gibbs sweeps per main-stage stored draw.
+#' @param b_start Optional \code{J x p_re} Block~1 mode matrix; required for
+#'   non-Gaussian families when \code{start} is user-supplied.
+#' @param collect_block1 Collect Block~1 \code{coefficients} from main chains.
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{two_block_rNormal_reg}},
-#'   \code{\link{rLMMNormal_reg}}
-#' @export
-rGLMM <- function(
+#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rLMM_reg}},
+#'   \code{\link{rglmerb}}
+#' @name rGLMM_reg
+NULL
+
+#' Shared matrix-level validation for GLMM replicate-chain engines
+#' @noRd
+.rGLMM_validate_matrix_inputs <- function(
     n,
     y,
     x,
     block,
     x_hyper,
+    tv_tol,
+    m_convergence,
+    re_coef_names,
+    group_levels,
+    group_name,
+    family,
+    mode_gap_max,
+    gap_tol,
     prior_list,
-    pfamily_list,
-    start               = NULL,
-    icm_tol             = 1e-10,
-    icm_maxit           = 200L,
-    offset              = NULL,
-    weights             = 1,
-    family              = gaussian(),
-    m_convergence       = NULL,
-    re_coef_names       = colnames(x),
-    group_levels        = levels(block),
-    group_name          = NULL,
-    n_pilot             = NULL,
-    gap_tol             = 0.0196,
-    m_convergence_pilot = NULL,
-    tv_tol              = 0.01,
-    mode_gap_max        = 1.0,
-    Gridtype            = 2,
-    n_envopt            = NULL,
-    use_parallel        = TRUE,
-    use_opencl          = FALSE,
-    verbose             = FALSE,
-    progbar             = FALSE,
-    stage_verbose       = FALSE,
-    rate_calibration    = NULL,
-    b_start             = NULL,
-    collect_block1      = TRUE
+    pfamily_list
 ) {
-  cl <- match.call()
-
   family <- .two_block_normalize_family(family)
   is_gaussian <- identical(family$family, "gaussian")
 
@@ -118,12 +96,10 @@ rGLMM <- function(
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
-  n_pilot_arg        <- n_pilot
-  m_convergence_user <- m_convergence
-  gap_tol            <- .two_block_validate_gap_tol(gap_tol)
+  gap_tol <- .two_block_validate_gap_tol(gap_tol)
 
-  if (!is.null(m_convergence_user)) {
-    m_convergence <- as.integer(m_convergence_user[1L])
+  if (!is.null(m_convergence)) {
+    m_convergence <- as.integer(m_convergence[1L])
     if (m_convergence < 1L) {
       stop("'m_convergence' must be at least 1.", call. = FALSE)
     }
@@ -153,7 +129,7 @@ rGLMM <- function(
         cn
       }
     } else {
-      stop("'x' must have at least one column.", call. = FALSE)
+      stop("'x' must have at least 1 column.", call. = FALSE)
     }
   }
   colnames(x) <- re_coef_names
@@ -187,15 +163,6 @@ rGLMM <- function(
     pfamily_list, re_names, J = length(group_levels)
   )
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
-  ptypes <- pf_summary$ptypes
-  any_non_normal <- pf_summary$any_non_normal
-
-  will_pilot <- .two_block_pilot_will_run(
-    is_gaussian, n_pilot_arg, gap_tol, tv_tol,
-    any_non_normal = any_non_normal
-  )
-  run_pilot <- will_pilot
-  run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (!is.null(tv_tol)) {
     if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
@@ -203,6 +170,160 @@ rGLMM <- function(
       stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
     }
   }
+
+  .two_block_validate_block1_prior(prior_list, family = family)
+
+  list(
+    n              = n,
+    y              = y,
+    x              = x,
+    block          = block,
+    x_hyper        = x_hyper,
+    re_names       = re_names,
+    group_levels   = group_levels,
+    group_name     = group_name,
+    family         = family,
+    is_gaussian    = is_gaussian,
+    prior_list     = prior_list,
+    pfamily_list   = pfamily_list,
+    pf_summary     = pf_summary,
+    ptypes         = pf_summary$ptypes,
+    any_non_normal = pf_summary$any_non_normal,
+    tv_tol         = tv_tol,
+    m_convergence  = m_convergence,
+    gap_tol        = gap_tol
+  )
+}
+
+#' Main GLMM sampling pipeline entry (ICM, optional pilot, main sweep)
+#' @noRd
+.rGLMM_reg_run <- function(
+    inp,
+    start,
+    icm_tol,
+    icm_maxit,
+    b_start,
+    n_pilot,
+    m_convergence_pilot,
+    mode_gap_max,
+    verbose,
+    progbar,
+    stage_verbose,
+    rate_calibration,
+    collect_block1,
+    engine_label,
+    result_class,
+    cl
+) {
+  .rGLMM_reg_run_pipeline(
+    inp                = inp,
+    start              = start,
+    icm_tol            = icm_tol,
+    icm_maxit          = icm_maxit,
+    b_start            = b_start,
+    n_pilot            = n_pilot,
+    m_convergence_pilot = m_convergence_pilot,
+    mode_gap_max       = mode_gap_max,
+    verbose            = verbose,
+    progbar            = progbar,
+    stage_verbose      = stage_verbose,
+    rate_calibration   = rate_calibration,
+    collect_block1     = collect_block1,
+    engine_label       = engine_label,
+    result_class       = result_class,
+    cl                 = cl
+  )
+}
+
+#' Full GLMM sampling pipeline (same as \code{.rGLMM_reg_run}; reserved for
+#' future pilot-policy split)
+#' @noRd
+.rGLMM_reg_run_with_pilot <- function(
+    inp,
+    start,
+    icm_tol,
+    icm_maxit,
+    b_start,
+    n_pilot,
+    m_convergence_pilot,
+    mode_gap_max,
+    verbose,
+    progbar,
+    stage_verbose,
+    rate_calibration,
+    collect_block1,
+    engine_label,
+    result_class,
+    cl
+) {
+  .rGLMM_reg_run_pipeline(
+    inp                = inp,
+    start              = start,
+    icm_tol            = icm_tol,
+    icm_maxit          = icm_maxit,
+    b_start            = b_start,
+    n_pilot            = n_pilot,
+    m_convergence_pilot = m_convergence_pilot,
+    mode_gap_max       = mode_gap_max,
+    verbose            = verbose,
+    progbar            = progbar,
+    stage_verbose      = stage_verbose,
+    rate_calibration   = rate_calibration,
+    collect_block1     = collect_block1,
+    engine_label       = engine_label,
+    result_class       = result_class,
+    cl                 = cl
+  )
+}
+
+#' Shared GLMM replicate-chain pipeline (sweep-outer driver)
+#' @noRd
+.rGLMM_reg_run_pipeline <- function(
+    inp,
+    start,
+    icm_tol,
+    icm_maxit,
+    b_start,
+    n_pilot,
+    m_convergence_pilot,
+    mode_gap_max,
+    verbose,
+    progbar,
+    stage_verbose,
+    rate_calibration,
+    collect_block1,
+    engine_label,
+    result_class,
+    cl
+) {
+  n              <- inp$n
+  y              <- inp$y
+  x              <- inp$x
+  block          <- inp$block
+  x_hyper        <- inp$x_hyper
+  re_names       <- inp$re_names
+  group_levels   <- inp$group_levels
+  group_name     <- inp$group_name
+  family         <- inp$family
+  is_gaussian    <- inp$is_gaussian
+  prior_list     <- inp$prior_list
+  pfamily_list   <- inp$pfamily_list
+  pf_summary     <- inp$pf_summary
+  ptypes         <- inp$ptypes
+  any_non_normal <- inp$any_non_normal
+  tv_tol         <- inp$tv_tol
+  gap_tol        <- inp$gap_tol
+  m_convergence_user <- inp$m_convergence
+
+  n_pilot_arg <- n_pilot
+  m_convergence <- m_convergence_user
+
+  will_pilot <- .two_block_pilot_will_run(
+    is_gaussian, n_pilot_arg, gap_tol, tv_tol,
+    any_non_normal = any_non_normal
+  )
+  run_pilot <- will_pilot
+  run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (run_pilot && is.null(m_convergence_pilot)) {
     m_convergence_pilot <- if (!is.null(m_convergence_user)) {
@@ -219,10 +340,6 @@ rGLMM <- function(
            call. = FALSE)
     }
   }
-
-  .two_block_validate_block1_prior(
-    prior_list, family = family
-  )
 
   icm_info   <- NULL
   ranef_mode <- b_start
@@ -257,7 +374,8 @@ rGLMM <- function(
         icm_what <- "ICM posterior mode"
       }
       cat(sprintf(
-        "  rGLMM: %s (converged: %s, %d iter, delta = %.2e)\n\n",
+        "  %s: %s (converged: %s, %d iter, delta = %.2e)\n\n",
+        engine_label,
         icm_what,
         icm_info$converged,
         icm_info$iterations,
@@ -371,13 +489,22 @@ rGLMM <- function(
 
   if (isTRUE(verbose) && !is.null(tv_tol)) {
     cat(sprintf(
-      "--- rGLMM: convergence calibration [%s]:\n    lambda* = %.4f, tv_tol = %g => m_min = %d (mode start), main m_convergence = %d ---\n\n",
-      calib_label, rate$lambda_star, tv_tol, m_min, m_convergence
+      paste0(
+        "--- %s: convergence calibration [%s]:\n",
+        "    lambda* = %.4f, tv_tol = %g => m_min = %d (mode start), ",
+        "main m_convergence = %d ---\n\n"
+      ),
+      engine_label, calib_label, rate$lambda_star, tv_tol, m_min, m_convergence
     ))
     if (run_pilot && !is.null(mode_gap_max) && !is.null(m_pilot_from_gap)) {
       cat(sprintf(
-        "--- rGLMM: pilot sweep calibration [mode_gap_max = %g SD/dim, p = %d, D_max = %.4f]:\n    m_min = %d, lambda* = %.4f => m_convergence_pilot = %d ---\n\n",
-        mode_gap_max, p_dim, D_max, m_min, rate$lambda_star, m_convergence_pilot
+        paste0(
+          "--- %s: pilot sweep calibration [mode_gap_max = %g SD/dim, p = %d, ",
+          "D_max = %.4f]:\n    m_min = %d, lambda* = %.4f => ",
+          "m_convergence_pilot = %d ---\n\n"
+        ),
+        engine_label, mode_gap_max, p_dim, D_max, m_min,
+        rate$lambda_star, m_convergence_pilot
       ))
     }
     if (run_pilot) {
@@ -427,8 +554,8 @@ rGLMM <- function(
   if (run_pilot) {
     if (isTRUE(verbose)) {
       cat(sprintf(
-        "--- rGLMM [sweep-outer]: pilot stage (%d chains; m_convergence_pilot = %d) ---\n\n",
-        n_pilot, m_convergence_pilot
+        "--- %s [sweep-outer]: pilot stage (%d chains; m_convergence_pilot = %d) ---\n\n",
+        engine_label, n_pilot, m_convergence_pilot
       ))
     }
 
@@ -460,7 +587,8 @@ rGLMM <- function(
 
     if (isTRUE(stage_verbose) || isTRUE(verbose)) {
       cat(sprintf(
-        "--- rGLMM: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
+        "--- %s: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
+        engine_label,
         pilot_chisq$p_value, pilot_chisq$df, pilot_chisq$n_pilot
       ))
     }
@@ -511,8 +639,8 @@ rGLMM <- function(
       )
     } else if (isTRUE(verbose)) {
       cat(sprintf(
-        "--- rGLMM [sweep-outer]: pilot complete; main stage (%d chains; m_convergence = %d) ---\n\n",
-        n, m_convergence_used
+        "--- %s [sweep-outer]: pilot complete; main stage (%d chains; m_convergence = %d) ---\n\n",
+        engine_label, n, m_convergence_used
       ))
     }
 
@@ -526,8 +654,8 @@ rGLMM <- function(
     )
   } else if (isTRUE(verbose)) {
     cat(sprintf(
-      "--- rGLMM [sweep-outer]: main stage (%d chains; m_convergence = %d) ---\n\n",
-      n, m_convergence_used
+      "--- %s [sweep-outer]: main stage (%d chains; m_convergence = %d) ---\n\n",
+      engine_label, n, m_convergence_used
     ))
   }
 
@@ -594,8 +722,8 @@ rGLMM <- function(
   main_res$prior_list          <- prior_list
   main_res$ranef.mode          <- ranef_mode
   main_res$icm_info            <- icm_info
-  main_res$ptypes         <- pf_summary$ptypes
-  main_res$any_non_normal <- pf_summary$any_non_normal
+  main_res$ptypes              <- pf_summary$ptypes
+  main_res$any_non_normal      <- pf_summary$any_non_normal
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res
@@ -606,7 +734,7 @@ rGLMM <- function(
     main_res$tv_tol   <- tv_tol
   }
 
-  class(main_res) <- c("rGLMM", "list")
+  class(main_res) <- c(result_class, "list")
   main_res
 }
 
@@ -679,4 +807,209 @@ rGLMM <- function(
     fixef_mode = fixef_mode,
     fixef_init = fixef_init
   )
+}
+
+#' @describeIn rGLMM_reg All Block~2 \code{dNormal} (known \eqn{\tau^2_k}).
+#'   Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); standard
+#'   fixed-dispersion eigenvalue rate bounds (no ING \code{disp_lower} path).
+#' @export
+rGLMM_reg_known_vcov <- function(
+    n,
+    y,
+    x,
+    block,
+    x_hyper,
+    prior_list,
+    pfamily_list,
+    start               = NULL,
+    icm_tol             = 1e-10,
+    icm_maxit           = 200L,
+    offset              = NULL,
+    weights             = 1,
+    family              = gaussian(),
+    m_convergence       = NULL,
+    re_coef_names       = colnames(x),
+    group_levels        = levels(block),
+    group_name          = NULL,
+    n_pilot             = NULL,
+    gap_tol             = 0.0196,
+    m_convergence_pilot = NULL,
+    tv_tol              = 0.01,
+    mode_gap_max        = 1.0,
+    Gridtype            = 2,
+    n_envopt            = NULL,
+    use_parallel        = TRUE,
+    use_opencl          = FALSE,
+    verbose             = FALSE,
+    progbar             = FALSE,
+    stage_verbose       = FALSE,
+    rate_calibration    = NULL,
+    b_start             = NULL,
+    collect_block1      = TRUE
+) {
+  cl <- match.call()
+  fn_name <- "rGLMM_reg_known_vcov"
+
+  inp <- .rGLMM_validate_matrix_inputs(
+    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    gap_tol, prior_list, pfamily_list
+  )
+  if (!inp$pf_summary$all_dNormal) {
+    stop(
+      fn_name, "(): all Block~2 components must be dNormal(); ",
+      "use rGLMM_reg_estimated_vcov() or rGLMM_reg().",
+      call. = FALSE
+    )
+  }
+
+  .rGLMM_reg_run(
+    inp                = inp,
+    start              = start,
+    icm_tol            = icm_tol,
+    icm_maxit          = icm_maxit,
+    b_start            = b_start,
+    n_pilot            = n_pilot,
+    m_convergence_pilot = m_convergence_pilot,
+    mode_gap_max       = mode_gap_max,
+    verbose            = verbose,
+    progbar            = progbar,
+    stage_verbose      = stage_verbose,
+    rate_calibration   = rate_calibration,
+    collect_block1     = collect_block1,
+    engine_label       = fn_name,
+    result_class       = "rGLMM_reg_known_vcov",
+    cl                 = cl
+  )
+}
+
+#' @describeIn rGLMM_reg ING Block~2 (estimated \eqn{\tau^2_k}).
+#'   Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); conservative
+#'   \code{disp_lower} eigenvalue bounds and pilot-updated \eqn{\tau^2} starts.
+#' @export
+rGLMM_reg_estimated_vcov <- function(
+    n,
+    y,
+    x,
+    block,
+    x_hyper,
+    prior_list,
+    pfamily_list,
+    start               = NULL,
+    icm_tol             = 1e-10,
+    icm_maxit           = 200L,
+    offset              = NULL,
+    weights             = 1,
+    family              = gaussian(),
+    m_convergence       = NULL,
+    re_coef_names       = colnames(x),
+    group_levels        = levels(block),
+    group_name          = NULL,
+    n_pilot             = NULL,
+    gap_tol             = 0.0196,
+    m_convergence_pilot = NULL,
+    tv_tol              = 0.01,
+    mode_gap_max        = 1.0,
+    Gridtype            = 2,
+    n_envopt            = NULL,
+    use_parallel        = TRUE,
+    use_opencl          = FALSE,
+    verbose             = FALSE,
+    progbar             = FALSE,
+    stage_verbose       = FALSE,
+    rate_calibration    = NULL,
+    b_start             = NULL,
+    collect_block1      = TRUE
+) {
+  cl <- match.call()
+  fn_name <- "rGLMM_reg_estimated_vcov"
+
+  inp <- .rGLMM_validate_matrix_inputs(
+    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    gap_tol, prior_list, pfamily_list
+  )
+  if (inp$pf_summary$all_dNormal) {
+    stop(
+      fn_name, "(): at least one Block~2 component must not be dNormal(); ",
+      "use rGLMM_reg_known_vcov() or rGLMM_reg().",
+      call. = FALSE
+    )
+  }
+
+  .rGLMM_reg_run_with_pilot(
+    inp                = inp,
+    start              = start,
+    icm_tol            = icm_tol,
+    icm_maxit          = icm_maxit,
+    b_start            = b_start,
+    n_pilot            = n_pilot,
+    m_convergence_pilot = m_convergence_pilot,
+    mode_gap_max       = mode_gap_max,
+    verbose            = verbose,
+    progbar            = progbar,
+    stage_verbose      = stage_verbose,
+    rate_calibration   = rate_calibration,
+    collect_block1     = collect_block1,
+    engine_label       = fn_name,
+    result_class       = "rGLMM_reg_estimated_vcov",
+    cl                 = cl
+  )
+}
+
+#' @describeIn rGLMM_reg Route by Block~2 \code{pfamily_list} to known or
+#'   estimated \eqn{\tau^2} engines.
+#' @export
+rGLMM_reg <- function(
+    n,
+    y,
+    x,
+    block,
+    x_hyper,
+    prior_list,
+    pfamily_list,
+    start               = NULL,
+    icm_tol             = 1e-10,
+    icm_maxit           = 200L,
+    offset              = NULL,
+    weights             = 1,
+    family              = gaussian(),
+    m_convergence       = NULL,
+    re_coef_names       = colnames(x),
+    group_levels        = levels(block),
+    group_name          = NULL,
+    n_pilot             = NULL,
+    gap_tol             = 0.0196,
+    m_convergence_pilot = NULL,
+    tv_tol              = 0.01,
+    mode_gap_max        = 1.0,
+    Gridtype            = 2,
+    n_envopt            = NULL,
+    use_parallel        = TRUE,
+    use_opencl          = FALSE,
+    verbose             = FALSE,
+    progbar             = FALSE,
+    stage_verbose       = FALSE,
+    rate_calibration    = NULL,
+    b_start             = NULL,
+    collect_block1      = TRUE
+) {
+  cl <- match.call()
+
+  inp <- .rGLMM_validate_matrix_inputs(
+    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    gap_tol, prior_list, pfamily_list
+  )
+
+  route_fn <- if (inp$pf_summary$all_dNormal) {
+    rGLMM_reg_known_vcov
+  } else {
+    rGLMM_reg_estimated_vcov
+  }
+  mc <- match.call(expand.dots = FALSE)
+  mc[[1L]] <- route_fn
+  out <- eval(mc, parent.frame())
+  out$call <- cl
+  out
 }

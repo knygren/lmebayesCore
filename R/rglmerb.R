@@ -9,8 +9,11 @@
 #'     \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #'     \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
 #'     \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
-#'   \item Non-Gaussian families delegate to \code{\link{rGLMM}}
-#'     (\code{\link{rGLMM_sweep}} sweep-outer driver).
+#'   \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}} routes
+#'     (through internal \code{.lmebayes_run_glmm_engine()} and
+#'     \code{REG_ROUTE_TABLE}; pilot stage always unless \code{n_pilot = 0L};
+#'     routes differ in eigenvalue-bound complexity). Inner sweeps use
+#'     \code{\link{rGLMM_sweep}}.
 #' }
 #'
 #' For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
@@ -49,7 +52,7 @@
 #' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
-#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM}},
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},
 #'   \code{\link{Prior_Setup_lmebayes}}
 #' @name rglmerb
 #' @title The Bayesian Generalized Linear Mixed-Effects Model Distribution
@@ -183,28 +186,19 @@ rglmerb <- function(
 
   block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
 
-  out <- rGLMM(
-    n                   = n,
-    y                   = design$y,
-    x                   = design$Z,
-    block               = design$groups,
-    x_hyper             = design$X_hyper,
-    prior_list          = block1_prior,
-    pfamily_list        = prior$pfamily_list,
-    start               = fixef_start,
-    family              = family,
-    m_convergence       = m_convergence,
-    re_coef_names       = re_names,
-    group_levels        = group_levels,
-    group_name          = design$group_name,
-    gap_tol             = gap_tol,
-    tv_tol              = tv_tol,
-    mode_gap_max        = mode_gap_max,
-    verbose             = verbose,
-    progbar             = progbar,
-    stage_verbose       = verbose,
-    b_start             = NULL,
-    collect_block1      = collect_block1
+  out <- .lmebayes_run_glmm_engine(
+    n              = n,
+    design         = design,
+    prior          = prior,
+    family         = family,
+    fixef_start    = fixef_start,
+    m_convergence  = m_convergence,
+    gap_tol        = gap_tol,
+    tv_tol         = tv_tol,
+    mode_gap_max   = mode_gap_max,
+    verbose        = verbose,
+    progbar        = progbar,
+    collect_block1 = collect_block1
   )
   out$call <- cl
 

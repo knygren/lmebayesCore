@@ -78,8 +78,11 @@ prior containers. Routes by response family:
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
 \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
-\item Non-Gaussian families delegate to \code{\link{rGLMM}}
-(\code{\link{rGLMM_sweep}} sweep-outer driver).
+\item Non-Gaussian families delegate via \code{\link{rGLMM_reg}} routes
+(through internal \code{.lmebayes_run_glmm_engine()} and
+\code{REG_ROUTE_TABLE}; pilot stage always unless \code{n_pilot = 0L};
+routes differ in eigenvalue-bound complexity). Inner sweeps use
+\code{\link{rGLMM_sweep}}.
 }
 
 For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
@@ -90,6 +93,6 @@ Design matrices are built with \code{\link{model_setup}} and priors with
 \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
-\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM}},
+\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},
 \code{\link{Prior_Setup_lmebayes}}
 }

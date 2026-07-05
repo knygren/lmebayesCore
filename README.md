@@ -259,7 +259,7 @@ See the **glmbayes** README and vignettes for the formula interface (`glmb()`, `
 | `Prior_Setup_lmebayes()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
 | `pfamily_list()` | S3 generic; `pfamily_list.lmebayes_prior_setup()` builds Block~2 `pfamily` objects |
 | `rlmerb()` | Matrix-level Gaussian LMM two-block sampler (replicate chains) |
-| `rglmerb()` | Matrix-level GLMM two-block sampler (`rLMMNormal_reg` / `rGLMM` routing) |
+| `rglmerb()` | Matrix-level GLMM two-block sampler (`rGLMM_reg` routing; Gaussian `rglmerb` uses `rlmerb` → `rLMM_reg` routes) |
 | `plot_sweep_history_diag()` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history` |
 
 Typical **lmebayes** workflow: `model_setup()` → `Prior_Setup_lmebayes()` → `pfamily_list(ps)` → `lmerb()` / `glmerb()`.
@@ -271,8 +271,8 @@ S3 helpers: `print.model_setup`, `print.lmebayes_prior_setup`, `print.two_block_
 | Function | **lmebayes** callers | Role |
 |----------|----------------------|------|
 | `build_mu_all()` | `lmerb()`, `glmerb()` | Observation-level prior means when `simulate = FALSE` |
-| `lmerb_posterior_mean()` | `lmerb()` | Gaussian ICM fixef start when `simulate = FALSE` |
-| `glmerb_posterior_mode()` | `glmerb()` | GLMM mode fixef start when `simulate = FALSE` |
+| `lmerb_posterior_mean()` | `lmerb()` | Gaussian ICM fixef start when `simulate = FALSE` (fixed τ² / σ² plug-ins) |
+| `glmerb_posterior_mode()` | `glmerb()` | GLMM mode fixef start when `simulate = FALSE` (fixed variance components) |
 | `normalize_block()` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()` | Row-block partition normalization |
 
 ### Two-block engines — indirect from **lmebayes** (export optional for **lmebayes**)
@@ -282,8 +282,9 @@ S3 helpers: `print.model_setup`, `print.lmebayes_prior_setup`, `print.two_block_
 | `two_block_rNormal_reg()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
 | `two_block_rate_from_pfamily_list()`, `two_block_tv_bound()` | TV / rate calibration for inner Gibbs sweeps |
 | `two_block_optimize_pilot_cost()` | Pilot vs main chain cost optimization |
-| `rGLMM()`, `rGLMM_sweep()` | GLMM sweep-outer driver; **lmebayes** reaches via `glmerb()` → `rglmerb()` only |
-| `rLMMNormal_reg()`, `rLMMindepNormalGamma_reg()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM routers; **lmebayes** reaches via `lmerb()` / `glmerb()` → `rlmerb()` / `rglmerb()` only |
+| `rGLMM_reg` engines (`rGLMM_reg_known_vcov`, `rGLMM_reg_estimated_vcov`, dispatcher) | GLMM sweep-outer driver; non-Gaussian always pilots; routes differ in eigenvalue-bound complexity; **lmebayes** via `glmerb()` → `rglmerb()` only |
+| `rGLMM_sweep()` | Inner two-block sweep driver behind **`rGLMM_reg`** and ING LMM routes |
+| `rLMM_reg` engines (`rLMMNormal_reg_*`, `rLMMindepNormalGamma_reg_*`, dispatchers) | Four Gaussian LMM routes + two dispatchers in `R/rLMM_reg.R`; shared help `?rLMM_reg`; **lmebayes** reaches via `lmerb()` → `rlmerb()` only (no standalone `rLMM()`) |
 | `block_rNormalReg()`, `block_rNormalGLM()` | Row-block samplers for BY-style splits |
 
 These are listed under **glmbayesCore-only exports** in `inst/R_EXPORTED_AND_DOCUMENTED.md` (indirect from **lmebayes** subsection). Export is optional for **lmebayes** — Core routes inside `rlmerb()` / `rglmerb()`.

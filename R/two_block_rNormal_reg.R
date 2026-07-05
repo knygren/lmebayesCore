@@ -145,7 +145,7 @@
 #'   number of candidates per accepted draw).
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}},
-#'   \code{\link{rGLMM}}, \code{\link{rLMMNormal_reg}},
+#'   \code{\link{rGLMM_reg}}, \code{\link{rLMMNormal_reg}},
 #'   \code{\link{dNormal}},
 #'   \code{\link{dIndependent_Normal_Gamma}}
 #' @export

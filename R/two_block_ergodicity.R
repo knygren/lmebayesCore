@@ -277,7 +277,7 @@
 #'
 #' For non-Gaussian families the joint posterior is not normal; supplying
 #' IRLS-style \code{weights} evaluated at the posterior mode (via the internal
-#' \code{two_block_mode_weights()} helper used by \code{\link{rGLMM}}) yields a
+#' \code{two_block_mode_weights()} helper used by \code{\link{rGLMM_reg}}) yields a
 #' local-Gaussian heuristic rate (no theorem applies).
 #'
 #' @param x Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed

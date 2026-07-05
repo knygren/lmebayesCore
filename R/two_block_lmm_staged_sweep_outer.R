@@ -27,7 +27,7 @@
   )
 }
 
-#' ING LMM replicate chains: pilot then main via sweep-outer v6 (mirrors rGLMM)
+#' ING LMM replicate chains: pilot then main via sweep-outer v6 (mirrors rGLMM_reg)
 #' @noRd
 .rLMMNormal_reg_run_with_pilot <- function(
     inp,

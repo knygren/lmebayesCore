@@ -162,8 +162,8 @@ drivers. Required exports for **lmebayes** (`importFrom` or qualified calls).
 | Function | File | Status | **lmebayes** callers |
 |----------|------|--------|----------------------|
 | `build_mu_all()` | `build_mu_all.R` | Core-only today | `lmerb()`, `glmerb()` (`simulate = FALSE` → `fixef.mu`) |
-| `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | Core-only today | `lmerb()` (`simulate = FALSE`) |
-| `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | Core-only today | `glmerb()` (`simulate = FALSE`) |
+| `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | Core-only today | `lmerb()` (`simulate = FALSE`; ICM at **fixed** variance components) |
+| `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | Core-only today | `glmerb()` (`simulate = FALSE`; same) |
 
 When `simulate = TRUE`, re-exported `rlmerb()` / `rglmerb()` perform the same
 prep internally.
@@ -177,15 +177,23 @@ Block~1 (random effects) and Block~2 (variance components / hyperparameters).
 **lmebayes** `lmerb()` / `glmerb()` call re-exported `rlmerb()` / `rglmerb()`,
 which route here — **lmebayes** never names these symbols in `R/`.
 
+All matrix LMM engines live in **`R/rLMM_reg.R`** (shared help: **`?rLMM_reg`**).
+GLMM engines live in **`R/rGLMM_reg.R`** (shared help: **`?rGLMM_reg`**).
+There is no standalone **`rLMM()`** function.
+
 | Function | File | Status | Route from **lmebayes** |
 |----------|------|--------|---------------------------|
-| `rLMMNormal_reg()` | `rLMMNormal_reg.R` | Core-only today; export optional for **lmebayes** | `lmerb()` / `glmerb()` → `rlmerb()` / `rglmerb()` → `.lmebayes_run_lmm_engine()` (all-`dNormal` Block~2, fixed scalar dispersion) |
-| `rLMMNormal_reg_estimated_vcov()` | `rLMMNormal_reg.R` | Core-only today; export optional for **lmebayes** | Same when `prior$any_non_normal` (e.g. ING Block~2) |
-| `rLMMindepNormalGamma_reg()` | `rLMMNormal_reg.R` | Core-only today; export optional for **lmebayes** | Same when `dispersion_ranef` is `dGamma()` |
-| `rLMMNormal_reg_known_vcov()` | `rLMMNormal_reg.R` | Core-only today | — (lower-level vcov route) |
-| `rGLMM()` | `rGLMM.R` | Core-only today; export optional for **lmebayes** | `glmerb()` → `rglmerb()` when `simulate = TRUE`, non-Gaussian `family` |
-| `rGLMM_sweep()` | `rGLMM_sweep.R` | Core-only today | Driver behind `rGLMM()` |
-| `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Core-only today | Single sweep-outer re-draw helper |
+| `rLMMNormal_reg_known_vcov()` | `rLMM_reg.R` | Exported | `rlmerb()` → `.lmebayes_run_lmm_engine()` when fixed σ², all `dNormal` Block~2 |
+| `rLMMNormal_reg_estimated_vcov()` | `rLMM_reg.R` | Exported | Same when fixed σ², ING Block~2 |
+| `rLMMindepNormalGamma_reg_known_vcov()` | `rLMM_reg.R` | Exported | Same when dGamma `dispersion_ranef`, all `dNormal` Block~2 |
+| `rLMMindepNormalGamma_reg_estimated_vcov()` | `rLMM_reg.R` | Exported | Same when dGamma σ² and ING Block~2 |
+| `rLMMNormal_reg()` | `rLMM_reg.R` | Exported | Dispatcher for fixed σ² routes |
+| `rLMMindepNormalGamma_reg()` | `rLMM_reg.R` | Exported | Legacy outer loop (not default **`rlmerb()`** path) |
+| `rGLMM_reg()` | `rGLMM_reg.R` | Exported | `glmerb()` → `rglmerb()` when non-Gaussian `family` |
+| `rGLMM_reg_known_vcov()` | `rGLMM_reg.R` | Exported | Same; all Block~2 `dNormal`; non-Gaussian always pilots; standard eigenvalue bounds |
+| `rGLMM_reg_estimated_vcov()` | `rGLMM_reg.R` | Exported | Same; ING Block~2; non-Gaussian always pilots; `disp_lower` eigenvalue bounds |
+| `rGLMM_sweep()` | `rGLMM_sweep.R` | Exported | Driver behind **`rGLMM_reg`** and ING LMM routes |
+| `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Exported | Single sweep-outer re-draw helper |
 
 See `inst/ARCHITECTURE_glmerb.md` for the full Block~1 / Block~2 call graph.
 
@@ -215,7 +223,7 @@ pilot/main allocation for `rlmerb()` / `rglmerb()`.
 | `two_block_tv_bound()` | `two_block_ergodicity.R` | Core-only today |
 | `two_block_l_for_tv()` | `two_block_ergodicity.R` | Core-only today |
 
-Internal (same file): `two_block_mode_weights()` — IRLS/Fisher weights at the posterior mode for non-Gaussian rate calibration via `rGLMM()`.
+Internal (same file): `two_block_mode_weights()` — IRLS/Fisher weights at the posterior mode for non-Gaussian rate calibration via **`rGLMM_reg`**.
 
 ---
 
@@ -262,8 +270,8 @@ Block~2 Gibbs chain in C++ (v5 / sweep-outer batch updates).
 | Group | Symbols | Notes |
 |-------|---------|-------|
 | §1–§6 Phase-out from **glmbayes** | 30 | Still on **glmbayes** `NAMESPACE` until migration |
-| §7–§15 Core-only today (not on **lmebayes** export surface) | 33 | Includes 4 **lmebayes** direct + 4 **lmebayes** indirect; excludes planned **glmbayes** `multi_rlmb` retain |
-| **Total catalogued** | **66** | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
+| §7–§15 Core-only today (not on **lmebayes** export surface) | 37 | Includes 4 **lmebayes** direct + 9 **lmebayes** indirect; excludes planned **glmbayes** `multi_rlmb` retain |
+| **Total catalogued** | **70** | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
 
 ---
 

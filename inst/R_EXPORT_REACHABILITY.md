@@ -98,9 +98,15 @@ diagnose_glmbayes() → glmbayesCore_has_opencl()
 ```
 lmerb() / glmerb()
   → rlmerb() / rglmerb()
-    → rLMMNormal_reg() | rLMMNormal_reg_estimated_vcov()
-      | rLMMindepNormalGamma_reg() | rGLMM()
-        → two_block_rNormal_reg(), rGLMM_sweep(), rGLMM_Re_Draw()
+    → .lmebayes_run_lmm_engine()  [Gaussian lmerb only]
+        → rLMMNormal_reg_known_vcov()
+        | rLMMNormal_reg_estimated_vcov()
+        | rLMMindepNormalGamma_reg_known_vcov()
+        | rLMMindepNormalGamma_reg_estimated_vcov()
+    → rGLMM_reg()  [non-Gaussian glmerb; pilot always unless n_pilot = 0L]
+        → rGLMM_reg_known_vcov() | rGLMM_reg_estimated_vcov()
+          (routes differ in eigenvalue-bound complexity, not pilot policy)
+        → rGLMM_sweep(), two_block_rNormal_reg(), rGLMM_Re_Draw()
         → block_rNormalReg() / block_rNormalGLM() (Block~1)
         → rglmb() (Block~2 ING / hyper draws)
         → two_block_rate_from_pfamily_list(), two_block_rate(), two_block_l_for_tv(),
@@ -109,6 +115,9 @@ lmerb() / glmerb()
         → two_block_block2_one_chain_cpp() [default];
            two_block_block2_one_chain(), two_block_align_b_to_xhyper() [R fallback]
 ```
+
+Dispatchers **`rLMMNormal_reg()`** (fixed σ²) and legacy **`rLMMindepNormalGamma_reg()`**
+(outer σ² loop) remain exported but are not the default **`rlmerb()`** paths above.
 
 ---
 
@@ -145,8 +154,8 @@ lmerb() / glmerb()
 | `glmbayesCore_has_opencl()` | **`diagnose_glmbayes()`** (retain) |
 | `multi_rlmb()`, `multi_rNormalGamma_reg()`, `multi_rindepNormalGamma_reg()` | Planned **glmbayes** retain / co-export multi-response API |
 | Core `rlmb()`, `rglmb()`, `multi_prior_setup()` | Planned retain |
-| `rGLMM()`, `rGLMM_sweep()`, `rGLMM_Re_Draw()`, `rLMMNormal_reg*`, `two_block_rNormal_reg()`, TV/pilot helpers | **lmebayes** `lmerb()` / `glmerb()` chain |
-| `rLMMNormal_reg_known_vcov()` | Routed from `rLMMNormal_reg()` |
+| `rGLMM_reg()`, `rGLMM_reg_*`, `rGLMM_sweep()`, `rGLMM_Re_Draw()`, `rLMM_reg` routes (`rLMMNormal_reg_*`, `rLMMindepNormalGamma_reg_*`), `two_block_rNormal_reg()`, TV/pilot helpers | **lmebayes** `lmerb()` / `glmerb()` chain |
+| `rLMMNormal_reg()` | Dispatcher for fixed σ² (→ `rLMMNormal_reg_known_vcov` or `_estimated_vcov`) |
 
 ---
 

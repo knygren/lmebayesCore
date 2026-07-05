@@ -98,7 +98,7 @@ eigendecomposition.
 
 For non-Gaussian families the joint posterior is not normal; supplying
 IRLS-style \code{weights} evaluated at the posterior mode (via the internal
-\code{two_block_mode_weights()} helper used by \code{\link{rGLMM}}) yields a
+\code{two_block_mode_weights()} helper used by \code{\link{rGLMM_reg}}) yields a
 local-Gaussian heuristic rate (no theorem applies).
 }
 \section{Functions}{
@@ -122,8 +122,8 @@ Gibbs samplers.} Unpublished manuscript.
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{simfuncs}},

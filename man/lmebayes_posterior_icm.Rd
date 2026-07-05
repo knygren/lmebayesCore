@@ -41,7 +41,7 @@ A list with components \code{fixef}, \code{b_mean}, \code{converged},
 }
 \description{
 Iterated conditional means/modes (ICM) for the two-block posterior targeted
-by \code{\link{two_block_rNormal_reg}} and \code{\link{rGLMM}}.  Block~2
+by \code{\link{two_block_rNormal_reg}} and \code{\link{rGLMM_reg}}.  Block~2
 hyperparameters \eqn{\gamma} and Block~1 random effects \eqn{b} are updated
 alternately until \code{fixef} stabilizes.
 }

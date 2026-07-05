@@ -1,5 +1,37 @@
 # glmbayesCore (development version)
 
+* **GLMM router (`.lmebayes_run_glmm_engine()`):** non-Gaussian **`rglmerb()`**
+  dispatches through **`REG_ROUTE_TABLE`** to **`rGLMM_reg_known_vcov()`** or
+  **`rGLMM_reg_estimated_vcov()`** (replacing a direct **`rGLMM_reg()`** call).
+  LMM routing (**`.lmebayes_run_lmm_engine()`**) uses the same table for four
+  Gaussian routes.
+
+* **GLMM engines split (`rGLMM_reg.R`):** monolithic **`rGLMM()`** replaced by
+  **`rGLMM_reg_known_vcov()`**, **`rGLMM_reg_estimated_vcov()`**, and dispatcher
+  **`rGLMM_reg()`** (shared help **`?rGLMM_reg`**). Non-Gaussian models always
+  run a pilot stage (unless **`n_pilot = 0L`**); the two routes differ in
+  eigenvalue-bound complexity (fixed **`dNormal`** τ² vs ING **`disp_lower`**
+  conservatism), not in whether a pilot runs.
+
+* **LMM engines merged (`rLMM_reg.R`):** **`rLMMNormal_reg.R`** and
+  **`rLMMIngNormal_reg.R`** are one module with shared help **`?rLMM_reg`**
+  (aliases for six exports). There is no standalone **`rLMM()`** export —
+  matrix Gaussian LMMs use **`rLMMNormal_reg_*`** / **`rLMMindepNormalGamma_reg_*`**
+  routes; formula GLMMs use **`rGLMM_reg`** via **`rglmerb()`**.
+
+* **`rlmerb()` four-route routing:** **`.lmebayes_run_lmm_engine()`** dispatches
+  to **`rLMMNormal_reg_known_vcov()`**, **`rLMMNormal_reg_estimated_vcov()`**,
+  **`rLMMindepNormalGamma_reg_known_vcov()`**, or
+  **`rLMMindepNormalGamma_reg_estimated_vcov()`** from fixed vs ING Block~2 and
+  fixed vs dGamma σ². Legacy **`rLMMindepNormalGamma_reg()`** (outer σ² loop)
+  remains exported but is not the default **`rlmerb()`** path.
+
+* **ICM at fixed variance components:** **`lmerb_posterior_mean()`** /
+  **`glmerb_posterior_mode()`** iterate Block~1 / Block~2 hyperparameters at
+  **fixed** \(\tau^2_k\) and \(\sigma^2\) plug-ins
+  (**`.two_block_tau2_plug_in_from_pfamily()`**, `rate/(shape−1)`). Removed
+  joint posterior-mode τ² iteration (**`two_block_joint_posterior_mode()`** stack).
+
 * **Rate helper rename:** **`two_block_rate_v2()`** removed; use
   **`two_block_rate_from_pfamily_list()`** (`R/two_block_ergodicity.R`)
   for the `pfamily_list` adapter around **`two_block_rate()`**.
@@ -27,18 +59,17 @@
   the pilot. Gaussian models never run a pilot. **`tv_tol`** now defaults to
   **`0.01`**. Helper **`.two_block_resolve_n_pilot()`** centralises the policy.
 
-* **`rLMM()` / `rGLMM()` ICM:** when `start = NULL` (default), both engines
-  now compute the Block~2 posterior mean/mode internally via
-  **`lmerb_posterior_mean()`** / **`glmerb_posterior_mode()`**, using a new
-  helper **`.two_block_measurement_prior_list()`** to assemble the
-  measurement prior from matrix-level `prior_list` + `pfamily_list`. Outputs
-  include **`ranef.mode`** and **`icm_info`**. Non-Gaussian **`rGLMM()`**
-  still requires **`b_start`** when **`start`** is user-supplied.
+* **Matrix LMM / GLMM ICM:** when `start = NULL` (default), **`rLMM_reg`**
+  routes and **`rGLMM()`** compute Block~2 starts via
+  **`lmerb_posterior_mean()`** / **`glmerb_posterior_mode()`** at **fixed**
+  variance-component plug-ins, using **`.two_block_measurement_prior_list()`**
+  (and **`.two_block_tau2_plug_in_from_pfamily()`** for τ²). Outputs include
+  **`ranef.mode`** and **`icm_info`**. Non-Gaussian **`rGLMM()`** still requires
+  **`b_start`** when **`start`** is user-supplied.
 
-* **Added `rLMM()`:** matrix-level LMM replicate-chain orchestration
-  (exact Gaussian TV calibration via Theorem~3, main-stage sampling via
-  **`two_block_rNormal_reg_v2`**) parallel to **`rGLMM()`**. Returns the
-  `fixef.*` namespace. Formula-level fitting remains in **lmebayes**
+* **Matrix LMM replicate chains:** Gaussian LMM sampling is exported as six
+  **`rLMM_reg`** engines (four direct **`rlmerb()`** routes plus two
+  dispatchers). Formula-level fitting remains in **lmebayes**
   (`rlmerb()` / `lmerb()`).
 
 * **Restored `rGLMM()`:** matrix-level GLMM replicate-chain orchestration

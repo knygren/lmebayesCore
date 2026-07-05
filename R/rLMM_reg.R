@@ -5,8 +5,8 @@
 #' \code{x_hyper}, \code{pfamily_list}). Each stored draw runs
 #' \code{m_convergence} inner Gibbs sweeps (Block~1 random effects, then
 #' Block~2 hyperparameters). There is no standalone \code{rLMM()} function;
-#' use \code{\link{rGLMM}} for formula-level GLMMs or these matrix engines
-#' via \code{\link{rlmerb}}.
+#' use the \code{\link{rGLMM_reg}} routes via \code{\link{rglmerb}}; Gaussian LMMs
+#' use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
 #'
 #' @section Four route engines:
 #' \describe{
@@ -55,7 +55,7 @@
 #' @param gap_tol,mode_gap_max,diag_sweeps,stage_verbose Pilot-stage controls for
 #'   \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
+#' @seealso \code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
 #' @name rLMM_reg
 NULL
 

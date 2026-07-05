@@ -38,7 +38,7 @@ library(glmbayesCore)
 
 test_that("rGLMM: Gaussian skips pilot even with default gap_tol", {
   inp <- .mini_rGLMM_inputs(gaussian())
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 2L,
     y = inp$y,
     x = inp$x,
@@ -59,7 +59,7 @@ test_that("rGLMM: Gaussian skips pilot even with default gap_tol", {
 
 test_that("rGLMM: Poisson runs pilot when n_pilot is explicit", {
   inp <- .mini_rGLMM_inputs(poisson())
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 2L,
     y = inp$y,
     x = inp$x,
@@ -83,7 +83,7 @@ test_that("rGLMM: Poisson runs pilot when n_pilot is explicit", {
 
 test_that("rGLMM: Poisson skips pilot when n_pilot = 0L", {
   inp <- .mini_rGLMM_inputs(poisson())
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 2L,
     y = inp$y,
     x = inp$x,
@@ -103,7 +103,7 @@ test_that("rGLMM: Poisson skips pilot when n_pilot = 0L", {
 
 test_that("rGLMM: Poisson skips pilot when tv_tol and gap_tol are NULL", {
   inp <- .mini_rGLMM_inputs(poisson())
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 2L,
     y = inp$y,
     x = inp$x,
@@ -124,7 +124,7 @@ test_that("rGLMM: Poisson skips pilot when tv_tol and gap_tol are NULL", {
 
 test_that("rGLMM: Poisson derives n_pilot from cost optimization when tv_tol set", {
   inp <- .mini_rGLMM_inputs(poisson())
-  out <- rGLMM(
+  out <- rGLMM_reg(
     n = 100L,
     y = inp$y,
     x = inp$x,

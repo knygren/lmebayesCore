@@ -81,7 +81,7 @@ for (j in seq_len(k)) {
 be the prior mean for `block_info$ids[j]`.
 
 `build_mu_all()` produces columns in **`group_levels`** order (see `R/build_mu_all.R`).
-In the standard `rGLMM` setup, `group_levels` and `levels(design$groups)` are the same
+In the standard `rGLMM_reg` setup, `group_levels` and `levels(design$groups)` are the same
 vector, so `mu[, j]` aligns with `ids[j]`. If those orderings ever differ, prep must
 permute `mu_all` columns to `block_info$ids` order **before** draw — reordering
 coefficient rows after draw cannot fix a wrong prior assignment.
@@ -187,7 +187,7 @@ reorder, batch assign). Items marked **silent** fail without error when wrong.
 | `fixef[[k]]` colnames → `names(fixef_i)` | `.two_block_batch_fixef_chain()` | `build_mu_all` / `X_hyper` misalignment |
 | `tau2[i, ]` colnames = `re_names` | batch init | ING `P` refresh uses wrong component index |
 | `batch$b` dimnames `(group_levels, re_names, NULL)` | `.rGLMM_sweep_initialize()` | Unnamed 3-D array after slice assign |
-| `group_levels` vs `levels(design$groups)` | `rGLMM()` | Divergent order breaks mu, reorder, storage |
+| `group_levels` vs `levels(design$groups)` | `rGLMM_reg()` | Divergent order breaks mu, reorder, storage |
 
 **Verify:** `names(fixef_i[[k]])` match `colnames(X_hyper[[k]])`; `names(tau2_i)` match
 `re_names`.

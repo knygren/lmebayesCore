@@ -407,8 +407,8 @@ Theory and implementation narrative: \insertCite{Nygren2006}{glmbayesCore};
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
@@ -419,8 +419,8 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
@@ -431,8 +431,8 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
@@ -443,8 +443,8 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
@@ -455,8 +455,8 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
@@ -467,8 +467,8 @@ glmbayes Simulation Functions
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},

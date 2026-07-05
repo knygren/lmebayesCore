@@ -2,7 +2,7 @@
 % Please edit documentation in R/rGLMM_sweep.R
 \name{rGLMM_sweep}
 \alias{rGLMM_sweep}
-\title{Two-block Gibbs sweep for replicate-chain sampling (\code{rGLMM} engine)}
+\title{Two-block Gibbs sweep for replicate-chain sampling (\code{rGLMM_reg} engine)}
 \usage{
 rGLMM_sweep(
   n_chains,
@@ -115,13 +115,13 @@ then all chains run Block~2. Each chain stores exactly one draw
 (for large enough \code{inner_sweeps}).
 }
 \seealso{
-\code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM}}
+\code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_reg}}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
 \code{\link{multi_rlmb}()},
-\code{\link{rGLMM}()},
 \code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
 \code{\link{rLMM_reg}},
 \code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},

@@ -303,6 +303,110 @@
   out
 }
 
+#' Shared matrix-level arguments for LMM reg routes
+#' @noRd
+.lmebayes_matrix_args_lmm <- function(
+    n,
+    design,
+    prior,
+    disp_info,
+    fixef_start   = NULL,
+    m_convergence = NULL,
+    tv_tol        = 0.01,
+    progbar       = TRUE,
+    verbose       = FALSE,
+    gap_tol       = 0.0196,
+    mode_gap_max  = 1.0,
+    diag_sweeps   = FALSE
+) {
+  re_names     <- design$re_coef_names
+  group_levels <- levels(design$groups)
+  P            <- solve(prior$Sigma_ranef)
+
+  args <- list(
+    n             = n,
+    y             = design$y,
+    x             = design$Z,
+    block         = design$groups,
+    x_hyper       = design$X_hyper,
+    P             = P,
+    pfamily_list  = prior$pfamily_list,
+    start         = fixef_start,
+    m_convergence = m_convergence,
+    tv_tol        = tv_tol,
+    re_coef_names = re_names,
+    group_levels  = group_levels,
+    group_name    = design$group_name,
+    progbar       = progbar,
+    verbose       = verbose
+  )
+
+  if (identical(disp_info$mode, "gamma")) {
+    args$prior_list <- .lmebayes_ing_measurement_prior_list(
+      prior     = prior,
+      disp_info = disp_info,
+      design    = design
+    )
+    args$dispersion_fix <- disp_info$dispersion_fix
+  } else {
+    args$prior_list <- list(dispersion = disp_info$dispersion_fix)
+  }
+
+  if (isTRUE(prior$any_non_normal)) {
+    args$gap_tol       <- gap_tol
+    args$mode_gap_max  <- mode_gap_max
+    args$diag_sweeps   <- diag_sweeps
+    args$stage_verbose <- verbose
+  }
+
+  args
+}
+
+#' Shared matrix-level arguments for GLMM reg routes
+#' @noRd
+.lmebayes_matrix_args_glmm <- function(
+    n,
+    design,
+    prior,
+    family,
+    fixef_start   = NULL,
+    m_convergence = NULL,
+    gap_tol       = 0.0196,
+    tv_tol        = 0.01,
+    mode_gap_max  = 1.0,
+    verbose       = FALSE,
+    progbar       = FALSE,
+    collect_block1 = TRUE
+) {
+  re_names     <- design$re_coef_names
+  group_levels <- levels(design$groups)
+  block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
+
+  list(
+    n               = n,
+    y               = design$y,
+    x               = design$Z,
+    block           = design$groups,
+    x_hyper         = design$X_hyper,
+    prior_list      = block1_prior,
+    pfamily_list    = prior$pfamily_list,
+    start           = fixef_start,
+    family          = family,
+    m_convergence   = m_convergence,
+    re_coef_names   = re_names,
+    group_levels    = group_levels,
+    group_name      = design$group_name,
+    gap_tol         = gap_tol,
+    tv_tol          = tv_tol,
+    mode_gap_max    = mode_gap_max,
+    verbose         = verbose,
+    progbar         = progbar,
+    stage_verbose   = verbose,
+    b_start         = NULL,
+    collect_block1  = collect_block1
+  )
+}
+
 #' @noRd
 .lmebayes_run_lmm_engine <- function(
     n,
@@ -318,104 +422,65 @@
     mode_gap_max        = 1.0,
     diag_sweeps         = FALSE
 ) {
-  re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
-  P            <- solve(prior$Sigma_ranef)
+  route_key <- .lmebayes_reg_route_key(
+    family         = gaussian(),
+    disp_mode      = disp_info$mode,
+    any_non_normal = prior$any_non_normal
+  )
+  route <- .lmebayes_reg_route_fn(route_key)
+  args  <- .lmebayes_matrix_args_lmm(
+    n             = n,
+    design        = design,
+    prior         = prior,
+    disp_info     = disp_info,
+    fixef_start   = fixef_start,
+    m_convergence = m_convergence,
+    tv_tol        = tv_tol,
+    progbar       = progbar,
+    verbose       = verbose,
+    gap_tol       = gap_tol,
+    mode_gap_max  = mode_gap_max,
+    diag_sweeps   = diag_sweeps
+  )
+  do.call(route$export_fn, args)
+}
 
-  if (identical(disp_info$mode, "gamma")) {
-    ing_prior_list <- .lmebayes_ing_measurement_prior_list(
-      prior     = prior,
-      disp_info = disp_info,
-      design    = design
-    )
-    if (isTRUE(prior$any_non_normal)) {
-      rLMMindepNormalGamma_reg_estimated_vcov(
-        n             = n,
-        y             = design$y,
-        x             = design$Z,
-        block         = design$groups,
-        x_hyper       = design$X_hyper,
-        P             = P,
-        prior_list    = ing_prior_list,
-        pfamily_list  = prior$pfamily_list,
-        dispersion_fix = disp_info$dispersion_fix,
-        start         = fixef_start,
-        m_convergence = m_convergence,
-        tv_tol        = tv_tol,
-        re_coef_names = re_names,
-        group_levels  = group_levels,
-        group_name    = design$group_name,
-        progbar       = progbar,
-        verbose       = verbose,
-        gap_tol       = gap_tol,
-        mode_gap_max  = mode_gap_max,
-        diag_sweeps   = diag_sweeps,
-        stage_verbose = verbose
-      )
-    } else {
-      rLMMindepNormalGamma_reg_known_vcov(
-        n             = n,
-        y             = design$y,
-        x             = design$Z,
-        block         = design$groups,
-        x_hyper       = design$X_hyper,
-        P             = P,
-        prior_list    = ing_prior_list,
-        pfamily_list  = prior$pfamily_list,
-        dispersion_fix = disp_info$dispersion_fix,
-        start         = fixef_start,
-        m_convergence = m_convergence,
-        tv_tol        = tv_tol,
-        re_coef_names = re_names,
-        group_levels  = group_levels,
-        group_name    = design$group_name,
-        progbar       = progbar,
-        verbose       = verbose
-      )
-    }
-  } else if (isTRUE(prior$any_non_normal)) {
-    rLMMNormal_reg_estimated_vcov(
-      n             = n,
-      y             = design$y,
-      x             = design$Z,
-      block         = design$groups,
-      x_hyper       = design$X_hyper,
-      P             = P,
-      prior_list    = list(dispersion = disp_info$dispersion_fix),
-      pfamily_list  = prior$pfamily_list,
-      start         = fixef_start,
-      m_convergence = m_convergence,
-      tv_tol        = tv_tol,
-      re_coef_names = re_names,
-      group_levels  = group_levels,
-      group_name    = design$group_name,
-      progbar       = progbar,
-      verbose       = verbose,
-      gap_tol       = gap_tol,
-      mode_gap_max  = mode_gap_max,
-      diag_sweeps   = diag_sweeps,
-      stage_verbose = verbose
-    )
-  } else {
-    rLMMNormal_reg_known_vcov(
-      n             = n,
-      y             = design$y,
-      x             = design$Z,
-      block         = design$groups,
-      x_hyper       = design$X_hyper,
-      P             = P,
-      prior_list    = list(dispersion = disp_info$dispersion_fix),
-      pfamily_list  = prior$pfamily_list,
-      start         = fixef_start,
-      m_convergence = m_convergence,
-      tv_tol        = tv_tol,
-      re_coef_names = re_names,
-      group_levels  = group_levels,
-      group_name    = design$group_name,
-      progbar       = progbar,
-      verbose       = verbose
-    )
-  }
+#' @noRd
+.lmebayes_run_glmm_engine <- function(
+    n,
+    design,
+    prior,
+    family,
+    fixef_start   = NULL,
+    m_convergence = NULL,
+    gap_tol       = 0.0196,
+    tv_tol        = 0.01,
+    mode_gap_max  = 1.0,
+    verbose       = FALSE,
+    progbar       = FALSE,
+    collect_block1 = TRUE
+) {
+  route_key <- .lmebayes_reg_route_key(
+    family         = family,
+    disp_mode      = "none",
+    any_non_normal = prior$any_non_normal
+  )
+  route <- .lmebayes_reg_route_fn(route_key)
+  args  <- .lmebayes_matrix_args_glmm(
+    n              = n,
+    design         = design,
+    prior          = prior,
+    family         = family,
+    fixef_start    = fixef_start,
+    m_convergence  = m_convergence,
+    gap_tol        = gap_tol,
+    tv_tol         = tv_tol,
+    mode_gap_max   = mode_gap_max,
+    verbose        = verbose,
+    progbar        = progbar,
+    collect_block1 = collect_block1
+  )
+  do.call(route$export_fn, args)
 }
 
 #' @noRd

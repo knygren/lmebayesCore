@@ -15,13 +15,20 @@ Excluded from the source tarball via `.Rbuildignore` (same convention as
 ```
 glmerb (lmebayes)
   └── rglmerb
-        └── [R_engine] rGLMM
-              └── rGLMM_sweep     # outer sweep loop
+        └── [R_engine] rGLMM_reg
+              ├── rGLMM_reg_known_vcov()      # all Block~2 dNormal; standard eigenvalue bounds
+              │     └── pilot (non-Gaussian always unless n_pilot = 0) + rGLMM_sweep
+              └── rGLMM_reg_estimated_vcov()  # ING Block~2; disp_lower eigenvalue bounds
+                    └── pilot + rGLMM_sweep
+              └── rGLMM_sweep     # outer sweep loop (main and pilot stages)
                     └── two_block_batch_gibbs.R # Block 1 / Block 2 batch updates
 ```
 
-Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → `rGLMM_sweep`
-(pure-R sweep-outer reference). Set `.rglmerb_engine <- "cpp_engine"` in
+Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → **`rGLMM_reg()`**
+(pure-R replicate-chain orchestration). Non-Gaussian models **always** run a pilot
+stage unless **`n_pilot = 0L`**; the two routes differ in **eigenvalue-bound complexity**
+(standard fixed-dispersion vs ING **`disp_lower`** conservatism), not in whether a
+pilot runs. Set `.rglmerb_engine <- "cpp_engine"` in
 `lmebayes/R/rglmerb.R` to use `rglmerb_v5` → `two_block_rNormal_reg_v5` (legacy C++).
 
 ---
@@ -138,7 +145,7 @@ Many function names exist for batch bookkeeping, pilot staging, and optional par
 | `lmebayes/R/glmerb.R` | User API; `model_setup`, priors, calls `rglmerb` |
 | `lmebayes/R/rglmerb.R` | Engine switch: `cpp_engine` vs `R_engine` |
 | `lmebayes/R/rglmerb_v5.R` | Pilot/main planning; calls `run_short_chains_v5` (C++) |
-| `glmbayesCore/R/rGLMM.R` | Pilot/main via `rGLMM_sweep` (R engine) |
+| `glmbayesCore/R/rGLMM_reg.R` | Pilot/main orchestration via `rGLMM_sweep` (R engine); two route exports |
 | `glmbayesCore/R/two_block_pilot_cost.R` | `n_pilot`, `m_convergence_pilot` planning |
 | `glmbayesCore/R/two_block_glmm_pilot_helpers.R` | `fixef.init`, pilot UB, staged output names |
 | `glmbayesCore/R/two_block_sweep_history.R` | Per-sweep fixef colMeans tables |

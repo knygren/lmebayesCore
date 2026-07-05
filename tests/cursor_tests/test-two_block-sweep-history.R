@@ -77,7 +77,7 @@ test_that("rGLMM_sweep always returns sweep_history", {
 test_that("rGLMM verbose no longer auto-prints sweep history table", {
   inp <- .mini_v6_inputs(family = poisson(), inner_sweeps = 2L)
   out <- capture.output(
-    fit <- rGLMM(
+    fit <- rGLMM_reg(
       n = 2L,
       y = inp$design$y,
       x = inp$design$Z,

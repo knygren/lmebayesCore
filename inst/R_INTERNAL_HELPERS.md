@@ -20,7 +20,8 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 | `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Map `dispersion_ranef` / legacy `dispersion` to per-RE weights | `rlmerb()`, `rglmerb()`, `.lmebayes_priors_from_pfamily_list()` |
 | `.lmebayes_validate_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Validate dispersion-ranef vector | *(unused)* |
 | `.lmebayes_priors_from_pfamily_list()` | `mixed_rmerb_helpers.R` | Normalize `pfamily_list` → sampler `prior` list | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
-| `.lmebayes_run_lmm_engine()` | `mixed_rmerb_helpers.R` | Route Gaussian GLMM to `rLMMNormal_reg` / ING path | `rglmerb()` (Gaussian), `rlmerb()` |
+| `.lmebayes_ing_measurement_prior_list()` | `mixed_rmerb_helpers.R` | Build shared ING Block~1 `prior_list` for dGamma `dispersion_ranef` | `.lmebayes_run_lmm_engine()` |
+| `.lmebayes_run_lmm_engine()` | `mixed_rmerb_helpers.R` | Route `rlmerb()` to four LMM engines in `rLMM_reg.R` (fixed vs dGamma σ² × known vs ING Block~2) | `rlmerb()` |
 | `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Assemble Block~1 `prior_list` from design + pfamily | `rlmerb()`, `rglmerb()` |
 | `.lmebayes_add_fixef_summaries()` | `mixed_rmerb_helpers.R` | Attach fixef summary slots to sampler output | `rlmerb()`, `rglmerb()` |
 | `.lmebayes_block2_icm_labels()` | `mixed_rmerb_helpers.R` | ICM column labels for Block~2 fixef table | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
@@ -70,7 +71,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `two_block_mode_weights` | `two_block_ergodicity.R` | IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic) | rGLMM.R, two_block_glmm_pilot_helpers.R |
+| `two_block_mode_weights` | `two_block_ergodicity.R` | IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic) | rGLMM_reg.R, two_block_glmm_pilot_helpers.R |
 | `.two_block_rate_inputs` | `two_block_ergodicity.R` | — | *(unused)* |
 | `.two_block_S_P11` | `two_block_ergodicity.R` | — | *(unused)* |
 | `.two_block_gen_eigen` | `two_block_ergodicity.R` | — | *(unused)* |
@@ -83,16 +84,16 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_print_pilot_stage_diagnostics` | `two_block_glmm_pilot_helpers.R` | Print pilot-stage diagnostics between pilot and main sampling (UB path) | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_as_staged_names` | `two_block_glmm_pilot_helpers.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_pilot_chisq_test` | `two_block_glmm_pilot_helpers.R` | Hotelling chi-squared test: pilot fixef mean vs start | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_fixef_colmeans` | `two_block_glmm_pilot_helpers.R` | Column means of fixef draws with names copied from fixef mode | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_print_pilot_stage_diagnostics` | `two_block_glmm_pilot_helpers.R` | Print pilot-stage diagnostics between pilot and main sampling (UB path) | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_as_staged_names` | `two_block_glmm_pilot_helpers.R` | — | rGLMM_reg.R, rLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_pilot_chisq_test` | `two_block_glmm_pilot_helpers.R` | Hotelling chi-squared test: pilot fixef mean vs start | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_fixef_colmeans` | `two_block_glmm_pilot_helpers.R` | Column means of fixef draws with names copied from fixef mode | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_pilot_eigenvalue_ub` | `two_block_glmm_pilot_helpers.R` | Post-pilot eigenvalue upper bounds (per-draw rate maxima) | *(unused)* |
-| `.two_block_pilot_ub_from_coefficients` | `two_block_glmm_pilot_helpers.R` | — | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_pilot_ub_from_coefficients` | `two_block_glmm_pilot_helpers.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_resolve_n_pilot` | `two_block_measurement_prior.R` | — | *(unused)* |
-| `.two_block_pilot_will_run` | `two_block_pilot_cost.R` | still run (Gaussian LMM with ING Block~2 components). | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_resolve_pilot_plan` | `two_block_pilot_cost.R` | — | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_print_pilot_plan` | `two_block_pilot_cost.R` | Print resolved pilot / main sampling plan (before pilot stage) | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_pilot_will_run` | `two_block_pilot_cost.R` | Pilot policy for Gaussian LMM / legacy paths; **non-Gaussian GLMM** always pilots via **`rGLMM_reg`** unless `n_pilot = 0L`. | `rGLMM_reg.R`, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_resolve_pilot_plan` | `two_block_pilot_cost.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_print_pilot_plan` | `two_block_pilot_cost.R` | Print resolved pilot / main sampling plan (before pilot stage) | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_print_pilot_cost_opt` | `two_block_pilot_cost.R` | Print pilot cost optimization advisory (before pilot stage) | *(unused)* |
 
 ---
@@ -115,13 +116,14 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_tau2_start_from_pfamily` | `two_block_batch_gibbs.R` | Starting tau2 vector from pfamily prior fields (plug-in dispersions) | rGLMM.R, rGLMM_sweep.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_tau2_start_from_pfamily` | `two_block_batch_gibbs.R` | Starting tau2 vector from pfamily prior fields (plug-in dispersions) | rGLMM_reg.R, rGLMM_sweep.R, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_measurement_prior_list` | `two_block_measurement_prior.R` | — | *(unused)* |
-| `.two_block_icm_at_start` | `two_block_measurement_prior.R` | — | rGLMM.R, rLMMNormal_reg.R |
-| `.two_block_validate_gap_tol` | `two_block_measurement_prior.R` | Validate gap tolerance for pilot chain count derivation | rGLMM.R, two_block_lmm_staged_sweep_outer.R, two_block_pilot_cost.R |
-| `.two_block_tau2_ref_from_pfamily` | `two_block_tau2_ref.R` | — | two_block_batch_gibbs.R, two_block_measurement_prior.R |
-| `.two_block_tau2_ref_vector` | `two_block_tau2_ref.R` | Named plug-in tau^2 vector from a validated pfamily_list | *(unused)* |
-| `.two_block_tau2_start_from_dispersion_draws` | `two_block_tau2_ref.R` | — | rGLMM.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_icm_at_start` | `two_block_measurement_prior.R` | — | rGLMM_reg.R, rLMM_reg.R |
+| `.two_block_validate_gap_tol` | `two_block_measurement_prior.R` | Validate gap tolerance for pilot chain count derivation | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_pilot_cost.R |
+| `.two_block_tau2_ref_from_pfamily` | `two_block_tau2_ref.R` | Precision-mean plug-in `rate/shape` for λ* / conservative bounds | two_block_batch_gibbs.R |
+| `.two_block_tau2_plug_in_from_pfamily` | `two_block_tau2_ref.R` | ICM / Σ_ranef plug-in `rate/(shape−1)` (reverse of `Prior_Setup_lmebayes` ING calibration) | `mixed_rmerb_helpers.R`, `two_block_measurement_prior.R` |
+| `.two_block_tau2_plug_in_vector` | `two_block_tau2_ref.R` | Named vector of ICM τ² plug-ins from `pfamily_list` | *(internal)* |
+| `.two_block_tau2_start_from_dispersion_draws` | `two_block_tau2_ref.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 
 ---
 
@@ -157,12 +159,12 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.two_block_block1_all_chains` | `two_block_batch_gibbs.R` | — | rGLMM_sweep.R |
 | `.two_block_block1_all_chains_v2` | `two_block_batch_gibbs.R` | — | *(unused)* |
 | `.two_block_block1_all_chains_via_cpp` | `two_block_batch_gibbs.R` | — | *(unused)* |
-| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM.R, two_block_measurement_prior.R, two_block_ergodicity.R, two_block_rNormal_reg.R |
-| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg.R |
+| `.two_block_normalize_family` | `two_block_rNormal_reg.R` | — | rGLMM_reg.R, two_block_measurement_prior.R, two_block_ergodicity.R, two_block_rNormal_reg.R |
+| `.two_block_validate_block1_prior` | `two_block_rNormal_reg.R` | — | rGLMM_reg.R, rLMM_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_rNormal_reg.R |
 | `.two_block_block1_prior_list` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_mu_all` | `two_block_rNormal_reg.R` | — | *(unused)* |
 | `.two_block_format_cpp_out` | `two_block_rNormal_reg.R` | Format raw C++ output into a `two_block_rNormal_reg` object | *(internal)* |
-| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R |
+| `.two_block_validate_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM_reg.R, rLMM_reg.R |
 
 ---
 
@@ -197,31 +199,81 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 ---
 
-## LMM engines (`rLMMNormal_reg.R`, `two_block_lmm_staged_sweep_outer.R`)
+## LMM engines (`rLMM_reg.R`, `two_block_lmm_staged_sweep_outer.R`)
+
+Matrix-level replicate-chain Gibbs engines for Gaussian LMMs. Shared help:
+`?rLMM_reg` (aliases all six exports below). There is no standalone **`rLMM()`**
+function — use the six **`rLMM*`** route exports or **`rlmerb()`** for formula-level LMMs.
+
+**Four routes** (called directly from `.lmebayes_run_lmm_engine()`):
+
+| Route export | σ² | Block~2 |
+|--------------|----|---------|
+| `rLMMNormal_reg_known_vcov()` | fixed | all `dNormal` |
+| `rLMMNormal_reg_estimated_vcov()` | fixed | ING (≥1 component) |
+| `rLMMindepNormalGamma_reg_known_vcov()` | random (ING Block~1) | all `dNormal` |
+| `rLMMindepNormalGamma_reg_estimated_vcov()` | random (ING Block~1) | ING |
+
+**Dispatchers:** `rLMMNormal_reg()` (fixed σ²); `rLMMindepNormalGamma_reg()` (legacy
+outer loop — not the default **`rlmerb()`** path).
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.rLMM_validate_matrix_inputs` | `rLMMNormal_reg.R` | Shared matrix-level validation for LMM replicate-chain engines | *(unused)* |
-| `.rLMM_validate_P` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMM_validate_fixed_dispersion_prior_list` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMM_validate_dGamma_dispersion_prior_list` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMM_observation_mu` | `rLMMNormal_reg.R` | Observation-level linear predictor from group random effects | *(unused)* |
-| `.rLMM_b_matrix_from_coefficients` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMM_icm_at_start` | `rLMMNormal_reg.R` | — | two_block_lmm_staged_sweep_outer.R |
-| `.rLMM_calibrate_m_convergence` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMMNormal_reg_run` | `rLMMNormal_reg.R` | — | *(unused)* |
-| `.rLMM_format_v2_out` | `rLMMNormal_reg.R` | — | *(unused)* |
+| `.rLMM_validate_matrix_inputs` | `rLMM_reg.R` | Shared matrix-level validation | all six exports |
+| `.rLMM_validate_P` | `rLMM_reg.R` | Validate RE prior precision `P` | `rLMM_reg.R` |
+| `.rLMM_validate_fixed_dispersion_prior_list` | `rLMM_reg.R` | Fixed σ² Block~1 prior | fixed-σ² routes |
+| `.rLMM_validate_dGamma_dispersion_prior_list` | `rLMM_reg.R` | dGamma σ² prior (legacy outer loop) | `rLMMindepNormalGamma_reg()` |
+| `.rLMM_validate_ing_measurement_prior_list` | `rLMM_reg.R` | Shared ING measurement prior for Block~1 | ING σ² routes |
+| `.rLMM_observation_mu` | `rLMM_reg.R` | Observation-level linear predictor from group RE | `rLMMindepNormalGamma_reg()` |
+| `.rLMM_b_matrix_from_coefficients` | `rLMM_reg.R` | Group-level `b` matrix from `coefficients` | `rLMMindepNormalGamma_reg()` |
+| `.rLMM_icm_at_start` | `rLMM_reg.R` | ICM Block~2 start at fixed variance components | `rLMM_reg.R`, `two_block_lmm_staged_sweep_outer.R` |
+| `.rLMM_rate_calibration_meta` | `rLMM_reg.R` | Labels for rate-calibration plug-ins | `rLMM_reg.R` |
+| `.rLMM_calibrate_m_convergence` | `rLMM_reg.R` | Theorem~3 `m_convergence` calibration | `rLMM_reg.R` |
+| `.rLMMNormal_reg_run` | `rLMM_reg.R` | Fixed-σ² sampling pipeline | `rLMMNormal_reg_known_vcov()` |
+| `.rLMM_format_v2_out` | `rLMM_reg.R` | Format v2 batch output (`fixef.*` naming) | `rLMM_reg.R` |
+| `.rLMMIngNormal_reg_run_with_pilot` | `rLMM_reg.R` | ING σ² routes: pilot + main (sweep-outer) | `rLMMindepNormalGamma_reg_*()` |
+| `.two_block_block1_ing_one_chain` | `rLMM_reg.R` | Per-group `rindepNormalGamma_reg()` Block~1 update | `.rGLMM_sweep_ing_block1()` |
+| `.two_block_block1_ing_all_chains` | `rLMM_reg.R` | ING Block~1 batch over replicate chains | `.rGLMM_sweep_ing_block1()` |
+| `.rGLMM_sweep_save_ing` | `rLMM_reg.R` | Pack ING sweep outputs (+ `dispersion_ranef`) | `.rGLMM_sweep_ing_block1()` |
+| `.rGLMM_sweep_ing_block1` | `rLMM_reg.R` | Two-block sweep with ING Block~1 σ² | ING σ² routes |
+| `.rLMM_format_ing_sweep_out` | `rLMM_reg.R` | Stage ING sweep output | `.rLMMIngNormal_reg_run_with_pilot()` |
 | `.rLMM_format_sweep_out` | `two_block_lmm_staged_sweep_outer.R` | — | *(unused)* |
-| `.rLMMNormal_reg_run_with_pilot` | `two_block_lmm_staged_sweep_outer.R` | ING LMM replicate chains: pilot then main via sweep-outer v6 (mirrors rGLMM) | rLMMNormal_reg.R |
+| `.rLMMNormal_reg_run_with_pilot` | `two_block_lmm_staged_sweep_outer.R` | Fixed σ² ING Block~2: pilot + main | `rLMMNormal_reg_estimated_vcov()` |
 
 ---
 
-## GLMM sweep (`rGLMM.R`, `two_block_batch_gibbs.R`)
+## GLMM engines (`rGLMM_reg.R`)
+
+Matrix-level replicate-chain Gibbs engines for non-Gaussian GLMMs. Shared help:
+`?rGLMM_reg` (aliases all three exports below). There is no standalone **`rGLMM()`**
+function — use **`rGLMM_reg()`** or **`rglmerb()`** for formula-level GLMMs.
+
+**Two routes** (called from **`rglmerb()`** via **`rGLMM_reg()`**):
+
+| Route export | Block~2 eigenvalue bounds | Pilot |
+|--------------|---------------------------|-------|
+| `rGLMM_reg_known_vcov()` | standard (`dNormal` fixed dispersion) | **always** unless `n_pilot = 0L` |
+| `rGLMM_reg_estimated_vcov()` | ING `disp_lower` (conservative) | **always** unless `n_pilot = 0L` |
+
+Both routes share the same pilot policy: non-Gaussian GLMMs require a pilot run
+for τ² starting values unless the caller explicitly sets **`n_pilot = 0L`**. The
+route split is **not** pilot vs no-pilot — it is **standard vs ING eigenvalue-bound
+complexity** on Block~2.
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.rGLMM_rate_at_mode` | `rGLMM.R` | Local-Gaussian rate at the ICM mode | *(unused)* |
-| `.rGLMM_format_v6_out` | `rGLMM.R` | — | *(unused)* |
+| `.rGLMM_validate_matrix_inputs` | `rGLMM_reg.R` | Shared matrix-level validation | both route exports |
+| `.rGLMM_reg_run_pipeline` | `rGLMM_reg.R` | ICM + optional pilot + main `rGLMM_sweep` | `.rGLMM_reg_run`, `.rGLMM_reg_run_with_pilot` |
+| `.rGLMM_reg_run` | `rGLMM_reg.R` | Thin wrapper → pipeline | `rGLMM_reg_known_vcov()` |
+| `.rGLMM_reg_run_with_pilot` | `rGLMM_reg.R` | Thin wrapper → pipeline | `rGLMM_reg_estimated_vcov()` |
+| `.rGLMM_rate_at_mode` | `rGLMM_reg.R` | Local-Gaussian rate at the ICM mode | `.rGLMM_reg_run_pipeline` |
+| `.rGLMM_format_v6_out` | `rGLMM_reg.R` | Pack sweep batch as staged `fixef.*` | `.rGLMM_reg_run_pipeline` |
+
+---
+
+## GLMM sweep (`rGLMM_sweep.R`, `two_block_batch_gibbs.R`)
+
+See **GLMM engines** above for `.rGLMM_rate_at_mode` and `.rGLMM_format_v6_out`.
 
 ---
 
@@ -260,6 +312,10 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `build_mu_all_r` | `build_mu_all.R` | Build per-group random-effect prior means (R reference implementation) | *(unused)* |
 | `.lmerb_validate_design` | `build_mu_all.R` | — | glmerb_posterior_mode, lmerb_posterior_mean (lmebayes_posterior_icm.R) |
 | `.lmerb_validate_measurement_prior_list` | `lmebayes_posterior_icm.R` | — | glmerb_posterior_mode (same file), lmerb_posterior_mean |
+
+ICM helpers iterate Block~1 / Block~2 at **fixed** τ² plug-ins
+(`.two_block_tau2_plug_in_from_pfamily()`, `rate/(shape−1)`); they do not run
+closed-form τ² updates.
 
 ---
 
@@ -329,7 +385,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_summarize_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM.R, rLMMNormal_reg.R |
+| `.two_block_summarize_pfamily_list` | `two_block_rNormal_reg.R` | — | rGLMM_reg.R, rLMM_reg.R |
 
 ---
 
