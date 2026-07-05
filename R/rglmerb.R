@@ -3,9 +3,12 @@
 #' Matrix-level sampler for \code{model_setup} design objects and normalized
 #' prior containers. Routes by response family:
 #' \itemize{
-#'   \item \code{family = gaussian()} delegates to \code{\link{rLMMNormal_reg}} or
-#'     \code{\link{rLMMindepNormalGamma_reg}} when \code{dispersion_ranef} is a
-#'     \code{\link{dGamma}()} pfamily.
+#'   \item \code{family = gaussian()} delegates to
+#'     \code{\link{rLMMNormal_reg_known_vcov}},
+#'     \code{\link{rLMMNormal_reg_estimated_vcov}},
+#'     \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
+#'     \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
+#'     \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
 #'   \item Non-Gaussian families delegate to \code{\link{rGLMM}}
 #'     (\code{\link{rGLMM_sweep}} sweep-outer driver).
 #' }
@@ -40,11 +43,13 @@
 #' @param progbar Progress bars when \code{verbose} is \code{FALSE}.
 #' @return Object of class \code{c("rglmerb", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{Prior},
-#'   \code{design}, and \code{family}. Non-Gaussian fits may include
-#'   \code{n_pilot}, \code{pilot}, and \code{pilot_chisq}; Gaussian fits set
-#'   \code{n_pilot = 0L} and omit pilot output.
-#' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg}},
-#'   \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{rGLMM}},
+#'   \code{design}, and \code{family}. When a pilot stage runs (ING Block~2
+#'   and/or dGamma measurement dispersion), \code{n_pilot}, \code{pilot}, and
+#'   \code{pilot_chisq} are included; otherwise \code{n_pilot} is \code{0L}.
+#' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
+#'   \code{\link{rLMMNormal_reg_estimated_vcov}},
+#'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM}},
 #'   \code{\link{Prior_Setup_lmebayes}}
 #' @name rglmerb
 #' @title The Bayesian Generalized Linear Mixed-Effects Model Distribution
@@ -154,8 +159,16 @@ rglmerb <- function(
     )
     out$design      <- design
     out$family      <- family
-    out$n_pilot     <- 0L
-    out$pilot_chisq <- NULL
+
+    if (!is.null(out$n_pilot) && out$n_pilot > 0L) {
+      .lmebayes_print_fixef_init(
+        out$fixef.init,
+        re_names,
+        verbose,
+        header = "--- rglmerb: main-stage fixef.init (pilot colMeans) ---"
+      )
+    }
+
     class(out)      <- c("rglmerb", "list")
     return(out)
   }

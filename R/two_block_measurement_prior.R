@@ -93,7 +93,7 @@
     d_k <- if (identical(pf$pfamily, "dNormal")) {
       pl$dispersion
     } else {
-      .two_block_tau2_ref_from_pfamily(pf)
+      .two_block_tau2_plug_in_from_pfamily(pf)
     }
     if (is.null(d_k) || !is.numeric(d_k) || length(d_k) != 1L ||
         !is.finite(d_k) || d_k <= 0) {

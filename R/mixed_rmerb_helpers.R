@@ -43,16 +43,18 @@
         call. = FALSE
       )
     }
-    if (is.null(design) || is.null(design$residual_var)) {
+    shape <- as.numeric(pl$shape[1L])
+    rate  <- as.numeric(pl$rate[1L])
+    if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
       stop(
-        fn_name, "(): a model_setup with residual_var is required for ",
-        "dGamma() dispersion_ranef (plug-in sigma^2).",
+        fn_name, "(): dGamma() dispersion_ranef prior_list requires positive ",
+        "'shape' and 'rate'.",
         call. = FALSE
       )
     }
     return(list(
       mode                  = "gamma",
-      dispersion_fix        = as.numeric(design$residual_var),
+      dispersion_fix        = shape / rate,
       dispersion_prior_list = pl,
       dispersion_pfamily    = dispersion_ranef
     ))
@@ -197,7 +199,7 @@
       }
     } else {
       ## ING: disp_lower/disp_upper fix the truncation window and lambda*
-      ## calibration; plug-in tau^2 for Sigma_ranef is rate/shape = 1/E[1/tau^2].
+      ## calibration only; ICM plug-in tau^2 comes from the pfamily spec.
       d_k <- pf$prior_list$disp_lower
       if (is.null(d_k) || !is.numeric(d_k) || length(d_k) != 1L ||
           !is.finite(d_k) || d_k <= 0) {
@@ -223,7 +225,7 @@
       }
     }
 
-    tau2_k <- .two_block_tau2_ref_from_pfamily(pf)
+    tau2_k <- .two_block_tau2_plug_in_from_pfamily(pf)
     tau2[[k]] <- tau2_k
     prior_list[[k]] <- list(
       mu_fixef         = mu_k,
@@ -248,6 +250,59 @@
   )
 }
 
+#' Build shared ING Block~1 measurement \code{prior_list} for lmebayes glue
+#' @noRd
+.lmebayes_ing_measurement_prior_list <- function(prior, disp_info, design) {
+  re_names <- design$re_coef_names
+  p_re     <- length(re_names)
+  pl       <- disp_info$dispersion_prior_list
+  if (is.null(pl$shape) || is.null(pl$rate)) {
+    stop(
+      "dGamma() dispersion_ranef prior_list must contain 'shape' and 'rate'.",
+      call. = FALSE
+    )
+  }
+  mu <- matrix(
+    0,
+    nrow = p_re,
+    ncol = 1L,
+    dimnames = list(re_names, NULL)
+  )
+  Sigma <- as.matrix(prior$Sigma_ranef)
+  if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
+    stop(
+      "prior$Sigma_ranef must be ", p_re, " x ", p_re, ".",
+      call. = FALSE
+    )
+  }
+  out <- list(
+    mu            = mu,
+    Sigma         = Sigma,
+    shape         = pl$shape,
+    rate          = pl$rate,
+    max_disp_perc = if (!is.null(pl$max_disp_perc)) pl$max_disp_perc else 0.99
+  )
+  if (!is.null(pl$disp_lower)) out$disp_lower <- pl$disp_lower
+  if (!is.null(pl$disp_upper)) out$disp_upper <- pl$disp_upper
+  if (is.null(out$disp_upper)) {
+    out$disp_upper <- as.numeric(stats::qgamma(
+      0.99, shape = pl$shape, rate = pl$rate
+    ))
+  }
+  if (is.null(out$disp_lower)) {
+    out$disp_lower <- as.numeric(stats::qgamma(
+      0.01, shape = pl$shape, rate = pl$rate
+    ))
+  }
+  if (out$disp_upper <= out$disp_lower) {
+    stop(
+      "dGamma() measurement prior: implied disp_upper must exceed disp_lower.",
+      call. = FALSE
+    )
+  }
+  out
+}
+
 #' @noRd
 .lmebayes_run_lmm_engine <- function(
     n,
@@ -266,55 +321,99 @@
   re_names     <- design$re_coef_names
   group_levels <- levels(design$groups)
   P            <- solve(prior$Sigma_ranef)
-  common_args  <- list(
-    n             = n,
-    y             = design$y,
-    x             = design$Z,
-    block         = design$groups,
-    x_hyper       = design$X_hyper,
-    P             = P,
-    pfamily_list  = prior$pfamily_list,
-    start         = fixef_start,
-    m_convergence = m_convergence,
-    tv_tol        = tv_tol,
-    re_coef_names = re_names,
-    group_levels  = group_levels,
-    group_name    = design$group_name,
-    progbar       = progbar,
-    verbose       = verbose
-  )
+
   if (identical(disp_info$mode, "gamma")) {
-    do.call(
-      rLMMindepNormalGamma_reg,
-      c(
-        common_args,
-        list(
-          prior_list     = disp_info$dispersion_prior_list,
-          dispersion_fix = disp_info$dispersion_fix
-        )
-      )
+    ing_prior_list <- .lmebayes_ing_measurement_prior_list(
+      prior     = prior,
+      disp_info = disp_info,
+      design    = design
     )
-  } else if (isTRUE(prior$any_non_normal)) {
-    do.call(
-      rLMMNormal_reg_estimated_vcov,
-      c(
-        common_args,
-        list(
-          prior_list    = list(dispersion = disp_info$dispersion_fix),
-          gap_tol       = gap_tol,
-          mode_gap_max  = mode_gap_max,
-          diag_sweeps   = diag_sweeps,
-          stage_verbose = verbose
-        )
+    if (isTRUE(prior$any_non_normal)) {
+      rLMMindepNormalGamma_reg_estimated_vcov(
+        n             = n,
+        y             = design$y,
+        x             = design$Z,
+        block         = design$groups,
+        x_hyper       = design$X_hyper,
+        P             = P,
+        prior_list    = ing_prior_list,
+        pfamily_list  = prior$pfamily_list,
+        dispersion_fix = disp_info$dispersion_fix,
+        start         = fixef_start,
+        m_convergence = m_convergence,
+        tv_tol        = tv_tol,
+        re_coef_names = re_names,
+        group_levels  = group_levels,
+        group_name    = design$group_name,
+        progbar       = progbar,
+        verbose       = verbose,
+        gap_tol       = gap_tol,
+        mode_gap_max  = mode_gap_max,
+        diag_sweeps   = diag_sweeps,
+        stage_verbose = verbose
       )
+    } else {
+      rLMMindepNormalGamma_reg_known_vcov(
+        n             = n,
+        y             = design$y,
+        x             = design$Z,
+        block         = design$groups,
+        x_hyper       = design$X_hyper,
+        P             = P,
+        prior_list    = ing_prior_list,
+        pfamily_list  = prior$pfamily_list,
+        dispersion_fix = disp_info$dispersion_fix,
+        start         = fixef_start,
+        m_convergence = m_convergence,
+        tv_tol        = tv_tol,
+        re_coef_names = re_names,
+        group_levels  = group_levels,
+        group_name    = design$group_name,
+        progbar       = progbar,
+        verbose       = verbose
+      )
+    }
+  } else if (isTRUE(prior$any_non_normal)) {
+    rLMMNormal_reg_estimated_vcov(
+      n             = n,
+      y             = design$y,
+      x             = design$Z,
+      block         = design$groups,
+      x_hyper       = design$X_hyper,
+      P             = P,
+      prior_list    = list(dispersion = disp_info$dispersion_fix),
+      pfamily_list  = prior$pfamily_list,
+      start         = fixef_start,
+      m_convergence = m_convergence,
+      tv_tol        = tv_tol,
+      re_coef_names = re_names,
+      group_levels  = group_levels,
+      group_name    = design$group_name,
+      progbar       = progbar,
+      verbose       = verbose,
+      gap_tol       = gap_tol,
+      mode_gap_max  = mode_gap_max,
+      diag_sweeps   = diag_sweeps,
+      stage_verbose = verbose
     )
   } else {
-    do.call(
-      rLMMNormal_reg,
-      c(
-        common_args,
-        list(prior_list = list(dispersion = disp_info$dispersion_fix))
-      )
+    rLMMNormal_reg_known_vcov(
+      n             = n,
+      y             = design$y,
+      x             = design$Z,
+      block         = design$groups,
+      x_hyper       = design$X_hyper,
+      P             = P,
+      prior_list    = list(dispersion = disp_info$dispersion_fix),
+      pfamily_list  = prior$pfamily_list,
+      start         = fixef_start,
+      m_convergence = m_convergence,
+      tv_tol        = tv_tol,
+      re_coef_names = re_names,
+      group_levels  = group_levels,
+      group_name    = design$group_name,
+      progbar       = progbar,
+      verbose       = verbose
     )
   }
 }

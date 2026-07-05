@@ -1,9 +1,52 @@
-#' Plug-in tau^2_k from a Block~2 pfamily prior spec (not simulation state)
+#' ICM / joint-mode tau^2 plug-in from a Block~2 \code{pfamily} (prior spec)
+#'
+#' For \code{dNormal}, returns fixed \code{dispersion}.  For ING, returns the
+#' prior mean \eqn{E[\tau^2_k] = rate/(shape - 1)} from the calibrated
+#' \code{pfamily_list(Prior_Setup_lmebayes(...))} object.
+#' @noRd
+.two_block_tau2_plug_in_from_pfamily <- function(pf) {
+  pl <- pf$prior_list
+  if (identical(pf$pfamily, "dNormal")) {
+    d <- as.numeric(pl$dispersion)
+    if (!is.finite(d) || d <= 0) {
+      stop(
+        "dNormal pfamily requires a positive finite 'dispersion' plug-in.",
+        call. = FALSE
+      )
+    }
+    return(d)
+  }
+  if (identical(pf$pfamily, "dIndependent_Normal_Gamma")) {
+    shape <- as.numeric(pl$shape[1L])
+    rate  <- as.numeric(pl$rate[1L])
+    if (!is.finite(shape) || shape <= 1 || !is.finite(rate) || rate <= 0) {
+      stop(
+        "ING pfamily requires shape > 1 and positive rate for tau^2 plug-in ",
+        "rate/(shape - 1).",
+        call. = FALSE
+      )
+    }
+    return(rate / (shape - 1))
+  }
+  stop("Unsupported pfamily: ", pf$pfamily, call. = FALSE)
+}
+
+#' Named tau^2 plug-in vector for ICM / joint mode from \code{pfamily_list}
+#' @noRd
+.two_block_tau2_plug_in_vector <- function(pfamily_list, re_names) {
+  stats::setNames(
+    vapply(re_names, function(k) {
+      .two_block_tau2_plug_in_from_pfamily(pfamily_list[[k]])
+    }, numeric(1)),
+    re_names
+  )
+}
+
+#' Rate-calibration plug-in tau^2_k from a Block~2 pfamily (not ICM starts)
 #'
 #' For \code{dNormal}, returns fixed \code{dispersion}.  For ING, returns
-#' \code{rate / shape} = \eqn{1/E[1/\tau^2]} (harmonic-mean / precision-mean
-#' plug-in), since \eqn{\tau^2} enters Block~1 and Block~2 conditionals through
-#' precision \eqn{1/\tau^2}.
+#' \code{rate / shape} = \eqn{1/E[1/\tau^2]} (precision-mean plug-in) used
+#' only for \eqn{\lambda^*} / conservative rate bounds — not for ICM starts.
 #' @noRd
 .two_block_tau2_ref_from_pfamily <- function(pf) {
   pl <- pf$prior_list

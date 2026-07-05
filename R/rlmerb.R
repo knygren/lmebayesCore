@@ -3,9 +3,12 @@
 #' Matrix-level sampling engine for Gaussian linear mixed models, parallel to
 #' \code{\link{rlmb}} and \code{\link{rglmerb}}. Takes structured \code{design}
 #' and \code{prior} objects, computes the ICM posterior mean internally, and
-#' delegates replicate-chain sampling to \code{\link{rLMMNormal_reg}} or
-#' \code{\link{rLMMindepNormalGamma_reg}} when \code{dispersion_ranef} is a
-#' \code{\link{dGamma}()} pfamily.
+#' delegates replicate-chain sampling to
+#' \code{\link{rLMMNormal_reg_known_vcov}},
+#' \code{\link{rLMMNormal_reg_estimated_vcov}},
+#' \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
+#' \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
+#' \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
 #'
 #' For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sampler.
 #'
@@ -23,8 +26,8 @@
 #'   \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.
 #' @param fixef_start Optional named list of starting hyper-parameter vectors
 #'   (one per RE component). When \code{NULL} (default), the ICM posterior
-#'   mean is computed inside \code{\link{rLMMNormal_reg}} or
-#'   \code{\link{rLMMindepNormalGamma_reg}}.
+#'   mean is computed inside the route-specific \code{rLMM*} /
+#'   \code{rLMMindepNormalGamma_reg_*} sampler.
 #' @param m_convergence Optional integer. Number of inner Gibbs sweeps per
 #'   stored draw. When \code{NULL} (default), derived from \code{tv_tol} via
 #'   Theorem 3 (Nygren 2020) and floored at the derived \code{m_min}.
@@ -50,8 +53,11 @@
 #'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
 #'   \code{ranef.mode}, \code{m_convergence}, \code{convergence}, \code{Prior},
 #'   and \code{design}.
-#' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg}},
-#'   \code{\link{rLMMindepNormalGamma_reg}}, \code{\link{Prior_Setup_lmebayes}},
+#' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
+#'   \code{\link{rLMMNormal_reg_estimated_vcov}},
+#'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},
+#'   \code{\link{Prior_Setup_lmebayes}},
 #'   \code{\link{rlmb}}
 #' @title The Bayesian Linear Mixed-Effects Model Distribution
 #' @export

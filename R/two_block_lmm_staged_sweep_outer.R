@@ -95,6 +95,7 @@
 
   icm_info   <- NULL
   ranef_mode <- NULL
+  icm        <- NULL
 
   if (is.null(start)) {
     icm <- .rLMM_icm_at_start(
@@ -272,7 +273,11 @@
   pilot_res          <- NULL
   pilot_chisq        <- NULL
   pilot_ub           <- NULL
-  tau2_start_main    <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
+  tau2_start_main    <- if (!is.null(icm) && !is.null(icm$tau2_start)) {
+    icm$tau2_start
+  } else {
+    .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
+  }
 
   if (run_pilot) {
     if (isTRUE(verbose)) {
