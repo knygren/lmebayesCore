@@ -103,8 +103,8 @@ lmerb() / glmerb()
         | rLMMNormal_reg_estimated_vcov()
         | rLMMindepNormalGamma_reg_known_vcov()
         | rLMMindepNormalGamma_reg_estimated_vcov()
-    → rGLMM_reg()  [non-Gaussian glmerb; pilot always unless n_pilot = 0L]
-        → rGLMM_reg_known_vcov() | rGLMM_reg_estimated_vcov()
+    → .lmebayes_run_glmm_engine()  [non-Gaussian glmerb; pilot always unless n_pilot = 0L]
+        → REG_ROUTE_TABLE → rGLMM_reg_known_vcov() | rGLMM_reg_estimated_vcov()
           (routes differ in eigenvalue-bound complexity, not pilot policy)
         → rGLMM_sweep(), two_block_rNormal_reg(), rGLMM_Re_Draw()
         → block_rNormalReg() / block_rNormalGLM() (Block~1)

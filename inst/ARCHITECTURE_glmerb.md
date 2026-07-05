@@ -15,17 +15,18 @@ Excluded from the source tarball via `.Rbuildignore` (same convention as
 ```
 glmerb (lmebayes)
   └── rglmerb
-        └── [R_engine] rGLMM_reg
-              ├── rGLMM_reg_known_vcov()      # all Block~2 dNormal; standard eigenvalue bounds
-              │     └── pilot (non-Gaussian always unless n_pilot = 0) + rGLMM_sweep
-              └── rGLMM_reg_estimated_vcov()  # ING Block~2; disp_lower eigenvalue bounds
-                    └── pilot + rGLMM_sweep
-              └── rGLMM_sweep     # outer sweep loop (main and pilot stages)
-                    └── two_block_batch_gibbs.R # Block 1 / Block 2 batch updates
+        └── [R_engine] .lmebayes_run_glmm_engine()
+              └── REG_ROUTE_TABLE
+                    ├── rGLMM_reg_known_vcov()      # all Block~2 dNormal; standard eigenvalue bounds
+                    │     └── pilot (non-Gaussian always unless n_pilot = 0) + rGLMM_sweep
+                    └── rGLMM_reg_estimated_vcov()  # ING Block~2; disp_lower eigenvalue bounds
+                          └── pilot + rGLMM_sweep
+                    └── rGLMM_sweep     # outer sweep loop (main and pilot stages)
+                          └── two_block_batch_gibbs.R # Block 1 / Block 2 batch updates
 ```
 
-Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → **`rGLMM_reg()`**
-(pure-R replicate-chain orchestration). Non-Gaussian models **always** run a pilot
+Default **`glmerb`** uses **`R_engine`** → `.rglmerb_v6_rGLMM` → **`.lmebayes_run_glmm_engine()`**
+→ **`REG_ROUTE_TABLE`** → **`rGLMM_reg_*`** (pure-R replicate-chain orchestration). Non-Gaussian models **always** run a pilot
 stage unless **`n_pilot = 0L`**; the two routes differ in **eigenvalue-bound complexity**
 (standard fixed-dispersion vs ING **`disp_lower`** conservatism), not in whether a
 pilot runs. Set `.rglmerb_engine <- "cpp_engine"` in

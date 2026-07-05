@@ -20,8 +20,14 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 | `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Map `dispersion_ranef` / legacy `dispersion` to per-RE weights | `rlmerb()`, `rglmerb()`, `.lmebayes_priors_from_pfamily_list()` |
 | `.lmebayes_validate_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Validate dispersion-ranef vector | *(unused)* |
 | `.lmebayes_priors_from_pfamily_list()` | `mixed_rmerb_helpers.R` | Normalize `pfamily_list` → sampler `prior` list | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
-| `.lmebayes_ing_measurement_prior_list()` | `mixed_rmerb_helpers.R` | Build shared ING Block~1 `prior_list` for dGamma `dispersion_ranef` | `.lmebayes_run_lmm_engine()` |
-| `.lmebayes_run_lmm_engine()` | `mixed_rmerb_helpers.R` | Route `rlmerb()` to four LMM engines in `rLMM_reg.R` (fixed vs dGamma σ² × known vs ING Block~2) | `rlmerb()` |
+| `.lmebayes_ing_measurement_prior_list()` | `mixed_rmerb_helpers.R` | Build shared ING Block~1 `prior_list` for dGamma `dispersion_ranef` | `.lmebayes_matrix_args_lmm()` |
+| `.lmebayes_reg_route_key()` | `lmebayes_reg_route_table.R` | Map `(family, disp_mode, any_non_normal)` → `REG_ROUTE_TABLE` key | `.lmebayes_run_lmm_engine()`, `.lmebayes_run_glmm_engine()` |
+| `REG_ROUTE_TABLE` | `lmebayes_reg_route_table.R` | Declarative LMM / GLMM reg route metadata | `.lmebayes_reg_route_fn()` |
+| `.lmebayes_reg_route_fn()` | `lmebayes_reg_route_table.R` | Resolve route key to export function | `.lmebayes_run_lmm_engine()`, `.lmebayes_run_glmm_engine()` |
+| `.lmebayes_matrix_args_lmm()` | `mixed_rmerb_helpers.R` | Shared matrix args for four LMM routes | `.lmebayes_run_lmm_engine()` |
+| `.lmebayes_matrix_args_glmm()` | `mixed_rmerb_helpers.R` | Shared matrix args for two GLMM routes | `.lmebayes_run_glmm_engine()` |
+| `.lmebayes_run_lmm_engine()` | `mixed_rmerb_helpers.R` | Route `rlmerb()` / Gaussian `rglmerb()` to four LMM engines via `REG_ROUTE_TABLE` | `rlmerb()`, `rglmerb()` |
+| `.lmebayes_run_glmm_engine()` | `mixed_rmerb_helpers.R` | Route non-Gaussian `rglmerb()` to two GLMM engines via `REG_ROUTE_TABLE` | `rglmerb()` |
 | `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Assemble Block~1 `prior_list` from design + pfamily | `rlmerb()`, `rglmerb()` |
 | `.lmebayes_add_fixef_summaries()` | `mixed_rmerb_helpers.R` | Attach fixef summary slots to sampler output | `rlmerb()`, `rglmerb()` |
 | `.lmebayes_block2_icm_labels()` | `mixed_rmerb_helpers.R` | ICM column labels for Block~2 fixef table | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
@@ -248,7 +254,7 @@ Matrix-level replicate-chain Gibbs engines for non-Gaussian GLMMs. Shared help:
 `?rGLMM_reg` (aliases all three exports below). There is no standalone **`rGLMM()`**
 function — use **`rGLMM_reg()`** or **`rglmerb()`** for formula-level GLMMs.
 
-**Two routes** (called from **`rglmerb()`** via **`rGLMM_reg()`**):
+**Two routes** (called from **`rglmerb()`** via **`.lmebayes_run_glmm_engine()`** → **`REG_ROUTE_TABLE`**):
 
 | Route export | Block~2 eigenvalue bounds | Pilot |
 |--------------|---------------------------|-------|
