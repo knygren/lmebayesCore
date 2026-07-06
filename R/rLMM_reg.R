@@ -785,8 +785,20 @@ NULL
   }
 
   ids <- as.character(center$block_info$ids)
-  b_mat <- do.call(rbind, lapply(center$blocks, `[[`, "b_post_mean"))
+  b_rows <- lapply(center$blocks, function(blk) {
+    v <- as.numeric(blk$b_post_mean)
+    if (length(v) != p_re) {
+      stop(
+        "BlockEnvelopeCentering b_post_mean length (", length(v),
+        ") must equal ncol(Z) / length(re_names) (", p_re, ").",
+        call. = FALSE
+      )
+    }
+    stats::setNames(v, re_names)
+  })
+  b_mat <- do.call(rbind, b_rows)
   rownames(b_mat) <- ids
+  colnames(b_mat) <- re_names
   if (!all(group_levels %in% ids)) {
     stop(
       "BlockEnvelopeCentering block ids do not cover all group levels.",
@@ -794,6 +806,7 @@ NULL
     )
   }
   b_draw <- b_mat[group_levels, re_names, drop = FALSE]
+  rownames(b_draw) <- group_levels
 
   list(
     b                = b_draw,
