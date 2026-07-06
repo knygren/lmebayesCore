@@ -741,131 +741,64 @@ NULL
     use_cpp_prior_tau2 = FALSE
   )
   mu_all <- prep$mu_all
-  J <- length(batch$group_levels)
   p_re <- length(batch$re_names)
   re_names <- batch$re_names
   group_levels <- batch$group_levels
-  groups <- as.character(design$groups)
 
   y <- design$y
   Z <- as.matrix(design$Z)
 
-  ## TEMP block ING dev -- stage 1: centering only; remove when block path shipped
-  {
-    prior_list <- list(
-      mu            = mu_all,
-      Sigma         = ing_prior_list$Sigma,
-      shape         = ing_prior_list$shape,
-      rate          = ing_prior_list$rate,
-      max_disp_perc = if (!is.null(ing_prior_list$max_disp_perc)) {
-        ing_prior_list$max_disp_perc
-      } else {
-        0.99
-      }
-    )
-    if (!is.null(ing_prior_list$disp_lower)) {
-      prior_list$disp_lower <- ing_prior_list$disp_lower
+  ## TEMP block ING dev -- centering bridge (until BlockEnvelopeSim)
+  prior_list <- list(
+    mu            = mu_all,
+    Sigma         = ing_prior_list$Sigma,
+    shape         = ing_prior_list$shape,
+    rate          = ing_prior_list$rate,
+    max_disp_perc = if (!is.null(ing_prior_list$max_disp_perc)) {
+      ing_prior_list$max_disp_perc
+    } else {
+      0.99
     }
-    if (!is.null(ing_prior_list$disp_upper)) {
-      prior_list$disp_upper <- ing_prior_list$disp_upper
-    }
-    nobs   <- length(y)
-    offset <- rep(0, nobs)
-    wt     <- rep(1, nobs)
-    center <- .BlockEnvelopeCentering_cpp(
-      y, Z, design$groups, prior_list, NULL, offset, wt,
-      prior_list$shape, prior_list$rate, prior_list$max_disp_perc,
-      prior_list$disp_lower, prior_list$disp_upper,
-      p_re = p_re, n_rss_iter = 10L, verbose = FALSE
-    )
-    cat("\n=== TEMP BlockEnvelopeCentering (compare to lmer_full above) ===\n")
-    cat(sprintf("  dispersion: %.6g\n", center$dispersion))
-    b_post <- do.call(
-      rbind,
-      lapply(center$blocks, function(b) b$b_post_mean)
-    )
-    rownames(b_post) <- group_levels[seq_len(nrow(b_post))]
-    colnames(b_post) <- re_names
-    cat("  b_post_mean (rows = schools, cols = re_names):\n")
-    print(round(b_post, 4))
-    stop(
-      "TEMP block ING: centering done -- compare dispersion and b_post_mean to lmer_full",
-      call. = FALSE
-    )
-  }
-  ## END TEMP
-
-  b_draw <- matrix(
-    NA_real_,
-    nrow = J,
-    ncol = p_re,
-    dimnames = list(group_levels, re_names)
   )
-  sigma2_j <- numeric(J)
-  names(sigma2_j) <- group_levels
-  iters_sum <- 0
+  if (!is.null(ing_prior_list$disp_lower)) {
+    prior_list$disp_lower <- ing_prior_list$disp_lower
+  }
+  if (!is.null(ing_prior_list$disp_upper)) {
+    prior_list$disp_upper <- ing_prior_list$disp_upper
+  }
+  nobs   <- length(y)
+  offset <- rep(0, nobs)
+  wt     <- rep(1, nobs)
+  center <- .BlockEnvelopeCentering_cpp(
+    y, Z, design$groups, prior_list, NULL, offset, wt,
+    prior_list$shape, prior_list$rate, prior_list$max_disp_perc,
+    prior_list$disp_lower, prior_list$disp_upper,
+    p_re = p_re, n_rss_iter = 10L, verbose = FALSE
+  )
 
-  debug_b1 <- isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))
-  if (debug_b1) {
+  if (isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))) {
     cat(sprintf(
-      "  [Block1 ING debug] chain %d/%d: %d levels\n",
-      i, batch$n, J
+      "  [Block1 ING debug] chain %d/%d: centering dispersion=%.6g\n",
+      i, batch$n, center$dispersion
     ))
     utils::flush.console()
   }
 
-  for (j in seq_len(J)) {
-    lev <- group_levels[j]
-    idx <- which(groups == lev)
-    if (!length(idx)) {
-      stop("No observations for group level: ", lev, call. = FALSE)
-    }
-    if (debug_b1) {
-      cat(sprintf(
-        "  [Block1 ING debug] chain %d: level %s (%d/%d, n_obs=%d)\n",
-        i, lev, j, J, length(idx)
-      ))
-      utils::flush.console()
-    }
-    pl_j <- .rLMM_ing_prior_list_for_group(
-      ing_prior_list = ing_prior_list,
-      mu_j           = mu_all[, j],
-      re_names       = re_names
+  ids <- as.character(center$block_info$ids)
+  b_mat <- do.call(rbind, lapply(center$blocks, `[[`, "b_post_mean"))
+  rownames(b_mat) <- ids
+  if (!all(group_levels %in% ids)) {
+    stop(
+      "BlockEnvelopeCentering block ids do not cover all group levels.",
+      call. = FALSE
     )
-    re_rank_j <- if (!is.null(design$re_rank)) {
-      design$re_rank[lev]
-    } else {
-      NULL
-    }
-    ing <- .rLMM_ing_one_group_draw(
-      y_j       = y[idx],
-      Z_j       = Z[idx, , drop = FALSE],
-      pl_j      = pl_j,
-      re_names  = re_names,
-      family    = family,
-      full_rank = re_rank_j
-    )
-    coef_row <- ing$coefficients
-    if (!is.null(names(coef_row))) {
-      b_draw[j, names(coef_row)] <- coef_row
-    } else {
-      b_draw[j, ] <- as.numeric(coef_row)
-    }
-    sigma2_j[j] <- ing$dispersion
-    iters_sum   <- iters_sum + ing$iters
-    if (debug_b1) {
-      cat(sprintf(
-        "  [Block1 ING debug] chain %d: level %s done (sigma2=%.4g, iters=%g)\n",
-        i, lev, ing$dispersion, ing$iters
-      ))
-      utils::flush.console()
-    }
   }
+  b_draw <- b_mat[group_levels, re_names, drop = FALSE]
 
   list(
-    b               = b_draw,
-    dispersion_ranef = mean(sigma2_j),
-    iters_mean      = iters_sum / J
+    b                = b_draw,
+    dispersion_ranef = center$dispersion,
+    iters_mean       = 1
   )
 }
 
