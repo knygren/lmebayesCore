@@ -19,10 +19,8 @@ rLMMNormal_reg(
   P,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -40,10 +38,8 @@ rLMMNormal_reg_known_vcov(
   P,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -61,10 +57,8 @@ rLMMNormal_reg_estimated_vcov(
   P,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -86,11 +80,8 @@ rLMMindepNormalGamma_reg(
   P,
   prior_list,
   pfamily_list,
-  dispersion_fix,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -108,11 +99,8 @@ rLMMindepNormalGamma_reg_known_vcov(
   P,
   prior_list,
   pfamily_list,
-  dispersion_fix,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -130,11 +118,8 @@ rLMMindepNormalGamma_reg_estimated_vcov(
   P,
   prior_list,
   pfamily_list,
-  dispersion_fix,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
-  m_convergence = NULL,
   tv_tol = 0.01,
   re_coef_names = colnames(x),
   group_levels = levels(block),
@@ -164,19 +149,16 @@ one per column of \code{x}.}
 \item{prior_list}{Block~1 prior: \code{list(dispersion = sigma2)} for fixed
 \eqn{\sigma^2} routes, \code{dGamma()} fields for legacy
 \code{rLMMindepNormalGamma_reg}, or shared ING measurement prior
-(\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes.}
+(\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes
+(plug-in \eqn{\sigma^2 =} \code{shape/rate} for ICM/TV is derived internally).}
 
 \item{pfamily_list}{Named list of Block~2 \code{pfamily} objects.}
 
-\item{start}{Named list of Block~2 coefficient vectors (ICM start when
-\code{NULL}). Computed via \code{\link{lmerb_posterior_mean}} when omitted.}
+\item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
 
-\item{icm_tol, icm_maxit}{ICM convergence controls when \code{start = NULL}.}
-
-\item{m_convergence}{Inner Gibbs sweeps per stored draw; \code{NULL} derives
-from Theorem~3 at \code{start} using \code{tv_tol}.}
-
-\item{tv_tol}{Total-variation tolerance in \code{(0, 1)} for calibration.}
+\item{tv_tol}{Total-variation tolerance in \code{(0, 1)} for calibration.
+Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
+Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.}
 
 \item{re_coef_names}{Names for columns of \code{x}.}
 
@@ -190,9 +172,6 @@ from Theorem~3 at \code{start} using \code{tv_tol}.}
 
 \item{gap_tol, mode_gap_max, diag_sweeps, stage_verbose}{Pilot-stage controls for
 \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).}
-
-\item{dispersion_fix}{Plug-in \eqn{\sigma^2} for ICM start and TV calibration
-when \code{start = NULL} (ING / dGamma routes).}
 }
 \description{
 Gaussian two-block LMM samplers at matrix level (\code{y}, \code{Z},

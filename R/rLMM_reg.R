@@ -37,16 +37,13 @@
 #' @param prior_list Block~1 prior: \code{list(dispersion = sigma2)} for fixed
 #'   \eqn{\sigma^2} routes, \code{dGamma()} fields for legacy
 #'   \code{rLMMindepNormalGamma_reg}, or shared ING measurement prior
-#'   (\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes.
+#'   (\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes
+#'   (plug-in \eqn{\sigma^2 =} \code{shape/rate} for ICM/TV is derived internally).
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
-#' @param dispersion_fix Plug-in \eqn{\sigma^2} for ICM start and TV calibration
-#'   when \code{start = NULL} (ING / dGamma routes).
-#' @param start Named list of Block~2 coefficient vectors (ICM start when
-#'   \code{NULL}). Computed via \code{\link{lmerb_posterior_mean}} when omitted.
-#' @param icm_tol,icm_maxit ICM convergence controls when \code{start = NULL}.
-#' @param m_convergence Inner Gibbs sweeps per stored draw; \code{NULL} derives
-#'   from Theorem~3 at \code{start} using \code{tv_tol}.
+#' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
 #' @param tv_tol Total-variation tolerance in \code{(0, 1)} for calibration.
+#'   Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
+#'   Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.
 #' @param re_coef_names Names for columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
@@ -67,7 +64,6 @@ NULL
     x,
     x_hyper,
     tv_tol,
-    m_convergence,
     re_coef_names,
     group_levels,
     group_name,
@@ -80,15 +76,6 @@ NULL
   if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
       !is.finite(tv_tol) || tv_tol <= 0 || tv_tol >= 1) {
     stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
-  }
-
-  if (!is.null(m_convergence)) {
-    if (!is.numeric(m_convergence) || length(m_convergence) != 1L ||
-        !is.finite(m_convergence) || m_convergence < 1) {
-      stop("'m_convergence' must be NULL or a single integer >= 1.",
-           call. = FALSE)
-    }
-    m_convergence <- as.integer(m_convergence)
   }
 
   y <- as.vector(y)
@@ -143,7 +130,6 @@ NULL
     x             = x,
     x_hyper       = x_hyper,
     tv_tol        = tv_tol,
-    m_convergence = m_convergence,
     re_names      = re_names,
     group_levels  = group_levels,
     group_name    = group_name
@@ -252,6 +238,30 @@ NULL
   prior_list
 }
 
+#' Plug-in observation \eqn{\sigma^2} from a dGamma / ING measurement \code{prior_list}
+#' @noRd
+.rLMM_dispersion_fix_from_prior_list <- function(
+    prior_list,
+    fn_name = "rLMM_reg"
+) {
+  if (!is.list(prior_list) || is.null(prior_list$shape) || is.null(prior_list$rate)) {
+    stop(
+      fn_name, "(): 'prior_list' must contain 'shape' and 'rate' ",
+      "(plug-in sigma^2 = shape / rate is derived internally).",
+      call. = FALSE
+    )
+  }
+  shape <- as.numeric(prior_list$shape[1L])
+  rate  <- as.numeric(prior_list$rate[1L])
+  if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
+    stop(
+      fn_name, "(): 'prior_list$shape' and 'prior_list$rate' must be positive scalars.",
+      call. = FALSE
+    )
+  }
+  as.numeric(shape / rate)
+}
+
 #' Observation-level linear predictor from group random effects
 #' @noRd
 .rLMM_observation_mu <- function(x, block, b_mat, group_levels) {
@@ -292,7 +302,7 @@ NULL
 #' ICM start for matrix-level LMM engines
 #'
 #' Iterated conditional modes for Block~2 hyperparameters at fixed Block~1
-#' dispersion; used when \code{start = NULL} in \code{rLMMNormal_reg}.
+#' dispersion; used internally by \code{rLMMNormal_reg_*_vcov}.
 #' @noRd
 .rLMM_icm_at_start <- function(
     y,
@@ -379,7 +389,6 @@ NULL
     prior_list_block1,
     pfamily_list,
     group_levels,
-    m_convergence,
     tv_tol,
     any_non_normal,
     random_measurement = FALSE,
@@ -396,17 +405,7 @@ NULL
     group_levels      = group_levels
   )
   m_min <- two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
-  if (is.null(m_convergence)) {
-    m_convergence <- m_min
-  } else if (m_convergence < m_min) {
-    warning(
-      engine_label, ": m_convergence = ", m_convergence,
-      " is below the derived minimum m_min = ", m_min,
-      " for tv_tol = ", tv_tol, "; using m_min instead.",
-      call. = FALSE
-    )
-    m_convergence <- m_min
-  }
+  m_convergence <- m_min
   calib_meta <- .rLMM_rate_calibration_meta(
     any_non_normal     = any_non_normal,
     random_measurement = random_measurement
@@ -520,6 +519,174 @@ NULL
   as.numeric(d)
 }
 
+#' Truncated Gamma draw for ING measurement dispersion (prior-only path)
+#' @noRd
+.rLMM_ing_sample_sigma2 <- function(pl_j) {
+  shape <- as.numeric(pl_j$shape[1L])
+  rate  <- as.numeric(pl_j$rate[1L])
+  lo    <- pl_j$disp_lower
+  hi    <- pl_j$disp_upper
+  if (is.null(lo)) {
+    lo <- as.numeric(stats::qgamma(0.01, shape = shape, rate = rate))
+  }
+  if (is.null(hi)) {
+    hi <- as.numeric(stats::qgamma(0.99, shape = shape, rate = rate))
+  }
+  F_lo <- stats::pgamma(lo, shape = shape, rate = rate)
+  F_hi <- stats::pgamma(hi, shape = shape, rate = rate)
+  stats::qgamma(
+    F_lo + stats::runif(1L) * (F_hi - F_lo),
+    shape = shape,
+    rate  = rate
+  )
+}
+
+#' Prior-only ING draw for one group when \code{Z_j} is rank-deficient
+#' @noRd
+.rLMM_ing_prior_draw_one_group <- function(pl_j, re_names) {
+  sigma2 <- .rLMM_ing_sample_sigma2(pl_j)
+  mu     <- as.numeric(pl_j$mu[, 1L])
+  names(mu) <- re_names
+  Sigma  <- as.matrix(pl_j$Sigma)
+  L <- tryCatch(
+    chol(Sigma),
+    error = function(e) chol(Sigma + 1e-8 * diag(nrow(Sigma)))
+  )
+  b <- mu + sqrt(sigma2) * as.numeric(crossprod(L, stats::rnorm(length(mu))))
+  names(b) <- re_names
+  list(coefficients = b, dispersion = sigma2, iters = 1L)
+}
+
+#' Subset an ING \code{prior_list} to identifiable \code{Z_j} columns
+#' @noRd
+.rLMM_ing_prior_list_subset <- function(pl_j, keep, re_names) {
+  keep <- as.integer(keep)
+  re_keep <- re_names[keep]
+  list(
+    mu            = pl_j$mu[re_keep, , drop = FALSE],
+    Sigma         = pl_j$Sigma[re_keep, re_keep, drop = FALSE],
+    shape         = pl_j$shape,
+    rate          = pl_j$rate,
+    max_disp_perc = pl_j$max_disp_perc,
+    disp_lower    = pl_j$disp_lower,
+    disp_upper    = pl_j$disp_upper
+  )
+}
+
+#' One school/group Block~1 ING draw (wrapper around \code{rindepNormalGamma_reg})
+#'
+#' Called once per factor level inside \code{.two_block_block1_ing_one_chain}.
+#' Returns a **fixed contract** for the batch driver:
+#' \code{list(coefficients = named b_j, dispersion = sigma2_j, iters = ...)}.
+#'
+#' Why not call \code{rindepNormalGamma_reg()} directly in the school loop?
+#' \itemize{
+#'   \item \code{rindepNormalGamma_reg} expects a full-rank design and returns an
+#'     \code{rglmb}-style object (\code{coefficients} matrix, \code{Prior}, etc.).
+#'     The sweep driver only needs one named \code{b_j} row plus scalar
+#'     \code{sigma2_j} and envelope iteration count.
+#'   \item Per-school \code{Z_j} can be rank-deficient (too few pupils, collinear
+#'     RE columns). The ING envelope then fails or is undefined on the full
+#'     \code{p_re} columns; this helper routes deficient schools to prior-only or
+#'     QR-identifiable subsets before calling the sampler.
+#'   \item Optional \code{full_rank} (from \code{design$re_rank}) skips repeated
+#'     QR when rank was computed once at setup.
+#' }
+#'
+#' Three paths (mutually exclusive after rank is resolved):
+#' \describe{
+#'   \item[Path A — standard]{Full column rank and \code{n_j >= p_re}: one
+#'     \code{rindepNormalGamma_reg(n = 1)} on all RE columns.}
+#'   \item[Path B — prior only]{\code{rank(Z_j) == 0}: no likelihood information;
+#'     draw \code{(b_j, sigma2_j)} from the ING prior only
+#'     (\code{.rLMM_ing_prior_draw_one_group}).}
+#'   \item[Path C — partial rank]{Some but not all columns identified: ING on the
+#'     QR-identifiable columns, then impute the remaining coordinates from the
+#'     prior given the drawn \code{sigma2_j}.}
+#' }
+#'
+#' @noRd
+.rLMM_ing_one_group_draw <- function(
+    y_j,
+    Z_j,
+    pl_j,
+    re_names,
+    family,
+    full_rank = NULL
+) {
+  p_re <- length(re_names)
+  n_j  <- nrow(Z_j)
+
+  # Resolve effective rank of this school's design (cached or QR).
+  rk   <- if (isTRUE(full_rank)) {
+    p_re
+  } else if (isFALSE(full_rank)) {
+    0L
+  } else {
+    as.integer(Matrix::rankMatrix(Z_j, method = "qr")[1L])
+  }
+
+  # Path A: data identify all RE columns — direct ING envelope on full Z_j.
+  if (rk >= p_re && n_j >= p_re) {
+    ing <- rindepNormalGamma_reg(
+      n            = 1L,
+      y            = y_j,
+      x            = Z_j,
+      prior_list   = pl_j,
+      family       = family,
+      progbar      = FALSE,
+      verbose      = FALSE,
+      use_parallel = FALSE
+    )
+    return(list(
+      coefficients = ing$coefficients[1L, , drop = TRUE],
+      dispersion   = as.numeric(ing$dispersion[1L]),
+      iters        = as.numeric(ing$iters[1L])
+    ))
+  }
+
+  # Path B: no identifiable column — skip likelihood; prior draw only.
+  if (rk < 1L) {
+    return(.rLMM_ing_prior_draw_one_group(pl_j, re_names))
+  }
+
+  # Path C: rank 1 .. p_re-1 — ING on identifiable columns, impute the rest.
+  qr_j  <- qr(Z_j)
+  keep  <- qr_j$pivot[seq_len(qr_j$rank)]
+  pl_sub <- .rLMM_ing_prior_list_subset(pl_j, keep, re_names)
+  ing <- rindepNormalGamma_reg(
+    n            = 1L,
+    y            = y_j,
+    x            = Z_j[, keep, drop = FALSE],
+    prior_list   = pl_sub,
+    family       = family,
+    progbar      = FALSE,
+    verbose      = FALSE,
+    use_parallel = FALSE
+  )
+
+  mu     <- as.numeric(pl_j$mu[, 1L])
+  names(mu) <- re_names
+  Sigma  <- as.matrix(pl_j$Sigma)
+  sigma2 <- as.numeric(ing$dispersion[1L])
+  b_full <- mu
+  coef_sub <- ing$coefficients[1L, , drop = TRUE]
+  b_full[keep] <- as.numeric(coef_sub)
+  non <- setdiff(seq_len(p_re), keep)
+  if (length(non)) {
+    for (k in non) {
+      b_full[k] <- mu[k] + sqrt(sigma2 * Sigma[k, k]) * stats::rnorm(1L)
+    }
+  }
+  names(b_full) <- re_names
+
+  list(
+    coefficients = b_full,
+    dispersion   = sigma2,
+    iters        = as.numeric(ing$iters[1L])
+  )
+}
+
 #' Build a group-level \code{prior_list} for \code{rindepNormalGamma_reg()}
 #' @noRd
 .rLMM_ing_prior_list_for_group <- function(
@@ -593,35 +760,61 @@ NULL
   names(sigma2_j) <- group_levels
   iters_sum <- 0
 
+  debug_b1 <- isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))
+  if (debug_b1) {
+    cat(sprintf(
+      "  [Block1 ING debug] chain %d/%d: %d levels\n",
+      i, batch$n, J
+    ))
+    utils::flush.console()
+  }
+
   for (j in seq_len(J)) {
     lev <- group_levels[j]
     idx <- which(groups == lev)
     if (!length(idx)) {
       stop("No observations for group level: ", lev, call. = FALSE)
     }
+    if (debug_b1) {
+      cat(sprintf(
+        "  [Block1 ING debug] chain %d: level %s (%d/%d, n_obs=%d)\n",
+        i, lev, j, J, length(idx)
+      ))
+      utils::flush.console()
+    }
     pl_j <- .rLMM_ing_prior_list_for_group(
       ing_prior_list = ing_prior_list,
       mu_j           = mu_all[, j],
       re_names       = re_names
     )
-    ing <- rindepNormalGamma_reg(
-      n            = 1L,
-      y            = y[idx],
-      x            = Z[idx, , drop = FALSE],
-      prior_list   = pl_j,
-      family       = family,
-      progbar      = FALSE,
-      verbose      = FALSE,
-      use_parallel = FALSE
+    re_rank_j <- if (!is.null(design$re_rank)) {
+      design$re_rank[lev]
+    } else {
+      NULL
+    }
+    ing <- .rLMM_ing_one_group_draw(
+      y_j       = y[idx],
+      Z_j       = Z[idx, , drop = FALSE],
+      pl_j      = pl_j,
+      re_names  = re_names,
+      family    = family,
+      full_rank = re_rank_j
     )
-    coef_row <- ing$coefficients[1L, , drop = TRUE]
+    coef_row <- ing$coefficients
     if (!is.null(names(coef_row))) {
       b_draw[j, names(coef_row)] <- coef_row
     } else {
       b_draw[j, ] <- as.numeric(coef_row)
     }
-    sigma2_j[j] <- as.numeric(ing$dispersion[1L])
-    iters_sum <- iters_sum + as.numeric(ing$iters[1L])
+    sigma2_j[j] <- ing$dispersion
+    iters_sum   <- iters_sum + ing$iters
+    if (debug_b1) {
+      cat(sprintf(
+        "  [Block1 ING debug] chain %d: level %s done (sigma2=%.4g, iters=%g)\n",
+        i, lev, ing$dispersion, ing$iters
+      ))
+      utils::flush.console()
+    }
   }
 
   list(
@@ -661,9 +854,14 @@ NULL
     iters_ranef  = iters_ranef + 0
   )
   dispersion_ranef <- numeric(n)
+  debug_b1 <- isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))
 
   for (i in seq_len(n)) {
     if (show_bar) .two_block_progress_bar(i, n, prefix = progbar_prefix)
+    if (debug_b1 && nzchar(progbar_prefix)) {
+      cat(progbar_prefix, "chain ", i, "/", n, " Block1 ING\n", sep = "")
+      utils::flush.console()
+    }
     out <- .two_block_block1_ing_one_chain(
       batch          = batch,
       i              = i,
@@ -908,10 +1106,8 @@ NULL
     block,
     P,
     ing_prior_list,
-    dispersion_fix,
     pfamily_list,
     pf_summary,
-    start,
     icm_tol,
     icm_maxit,
     progbar,
@@ -931,7 +1127,6 @@ NULL
   group_name       <- inp$group_name
   tv_tol           <- inp$tv_tol
   n                <- inp$n
-  m_convergence_user <- inp$m_convergence
   n_pilot_arg      <- NULL
   m_convergence_pilot <- NULL
   rate_calibration <- NULL
@@ -939,6 +1134,10 @@ NULL
   family           <- gaussian()
   is_gaussian      <- TRUE
   ptypes           <- pf_summary$ptypes
+
+  dispersion_fix <- .rLMM_dispersion_fix_from_prior_list(
+    ing_prior_list, fn_name = engine_label
+  )
 
   disp_upper_rate <- .rLMM_measurement_disp_upper_for_rate(
     ing_prior_list, engine_label
@@ -967,58 +1166,41 @@ NULL
   run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (run_pilot && is.null(m_convergence_pilot)) {
-    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
-      m_convergence_user
-    } else if (!is.null(tv_tol)) {
+    m_convergence_pilot <- if (!is.null(tv_tol)) {
       NULL
     } else {
       10L
     }
   }
 
-  icm_info   <- NULL
-  ranef_mode <- NULL
-  icm        <- NULL
-
-  if (is.null(start)) {
-    icm <- .rLMM_icm_at_start(
-      y                     = inp$y,
-      x                     = inp$x,
-      block                 = block,
-      x_hyper               = inp$x_hyper,
-      prior_list_block1     = prior_list_block1_icm,
-      pfamily_list          = pfamily_list,
-      re_names              = re_names,
-      group_levels          = group_levels,
-      group_name            = group_name,
-      icm_tol               = icm_tol,
-      icm_maxit             = icm_maxit,
-      verbose               = verbose,
-      engine_label          = engine_label
-    )
-    start      <- icm$start
-    ranef_mode <- icm$b_start
-    icm_info   <- icm$icm
-    if (isTRUE(verbose)) {
-      cat(sprintf(
-        "  %s: Block 2 start at lmer tau^2 plug-in (converged: %s, %d iter, delta = %.2e)\n\n",
-        engine_label,
-        icm_info$converged,
-        icm_info$iterations,
-        icm_info$delta
-      ))
-    }
-  } else {
-    if (!is.list(start) || is.null(names(start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
-    }
-    if (!setequal(names(start), re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
-    }
-    start <- start[re_names]
+  icm <- .rLMM_icm_at_start(
+    y                     = inp$y,
+    x                     = inp$x,
+    block                 = block,
+    x_hyper               = inp$x_hyper,
+    prior_list_block1     = prior_list_block1_icm,
+    pfamily_list          = pfamily_list,
+    re_names              = re_names,
+    group_levels          = group_levels,
+    group_name            = group_name,
+    icm_tol               = icm_tol,
+    icm_maxit             = icm_maxit,
+    verbose               = verbose,
+    engine_label          = engine_label
+  )
+  fixef_mode <- icm$start
+  ranef_mode <- icm$b_start
+  icm_info   <- icm$icm
+  if (isTRUE(verbose)) {
+    cat(sprintf(
+      "  %s: Block 2 start at lmer tau^2 plug-in (converged: %s, %d iter, delta = %.2e)\n\n",
+      engine_label,
+      icm_info$converged,
+      icm_info$iterations,
+      icm_info$delta
+    ))
   }
-  fixef_mode <- start
-  b_start    <- ranef_mode
+  b_start <- ranef_mode
 
   design <- list(
     y             = inp$y,
@@ -1026,7 +1208,10 @@ NULL
     groups        = factor(block, levels = group_levels),
     X_hyper       = inp$x_hyper,
     re_coef_names = re_names,
-    group_name    = group_name
+    group_name    = group_name,
+    re_rank       = .lmebayes_re_rank_from_Z(
+      inp$x, block, group_levels = group_levels
+    )
   )
 
   if (is.null(b_start)) {
@@ -1078,7 +1263,7 @@ NULL
     n_pilot_arg         = n_pilot_arg,
     gap_tol             = gap_tol,
     tv_tol              = tv_tol,
-    m_convergence_user  = m_convergence_user,
+    m_convergence_user  = NULL,
     m_convergence_pilot = m_convergence_pilot,
     rate                = rate,
     p_dim               = p_dim,
@@ -1092,7 +1277,7 @@ NULL
   run_pilot      <- n_pilot > 0L
   run_ub         <- run_pilot && !is.null(tv_tol)
 
-  if (is.null(m_min) && is.null(m_convergence_user) && !run_pilot) {
+  if (is.null(m_min) && !run_pilot) {
     m_convergence <- 10L
   }
 
@@ -1367,7 +1552,6 @@ NULL
     dispersion,
     pfamily_list,
     pf_summary,
-    start,
     icm_tol,
     icm_maxit,
     progbar,
@@ -1376,7 +1560,8 @@ NULL
     any_non_normal,
     draw_engine,
     result_class,
-    cl
+    cl,
+    fixef_start = NULL
 ) {
   prior_list_block1 <- list(
     P          = P,
@@ -1388,7 +1573,7 @@ NULL
   icm_info   <- NULL
   ranef_mode <- NULL
 
-  if (is.null(start)) {
+  if (is.null(fixef_start)) {
     icm <- .rLMM_icm_at_start(
       y                 = inp$y,
       x                 = inp$x,
@@ -1404,19 +1589,18 @@ NULL
       verbose           = verbose,
       engine_label      = engine_label
     )
-    start      <- icm$start
+    fixef_mode <- icm$start
     ranef_mode <- icm$b_start
     icm_info   <- icm$icm
   } else {
-    if (!is.list(start) || is.null(names(start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
+    if (!is.list(fixef_start) || is.null(names(fixef_start))) {
+      stop("'fixef_start' must be a named list.", call. = FALSE)
     }
-    if (!setequal(names(start), inp$re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
+    if (!setequal(names(fixef_start), inp$re_names)) {
+      stop("names(fixef_start) must match re_coef_names.", call. = FALSE)
     }
-    start <- start[inp$re_names]
+    fixef_mode <- fixef_start[inp$re_names]
   }
-  fixef_mode <- start
 
   calib <- .rLMM_calibrate_m_convergence(
     x                 = inp$x,
@@ -1425,7 +1609,6 @@ NULL
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
     group_levels      = inp$group_levels,
-    m_convergence     = inp$m_convergence,
     tv_tol            = inp$tv_tol,
     any_non_normal    = any_non_normal,
     engine_label      = engine_label,
@@ -1443,7 +1626,7 @@ NULL
     x_hyper           = inp$x_hyper,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
-    fixef_start       = start,
+    fixef_start       = fixef_mode,
     re_coef_names     = inp$re_names,
     group_levels      = inp$group_levels,
     group_name        = inp$group_name,
@@ -1490,10 +1673,8 @@ rLMMNormal_reg <- function(
     P,
     prior_list,
     pfamily_list,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -1504,7 +1685,7 @@ rLMMNormal_reg <- function(
   cl <- match.call()
 
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names))
@@ -1538,10 +1719,8 @@ rLMMNormal_reg_known_vcov <- function(
     P,
     prior_list,
     pfamily_list,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -1553,7 +1732,7 @@ rLMMNormal_reg_known_vcov <- function(
   fn_name <- "rLMMNormal_reg_known_vcov"
 
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
@@ -1579,7 +1758,6 @@ rLMMNormal_reg_known_vcov <- function(
     dispersion       = dispersion,
     pfamily_list     = pfamily_list,
     pf_summary       = pf_summary,
-    start            = start,
     icm_tol          = icm_tol,
     icm_maxit        = icm_maxit,
     progbar          = progbar,
@@ -1604,10 +1782,8 @@ rLMMNormal_reg_estimated_vcov <- function(
     P,
     prior_list,
     pfamily_list,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -1623,7 +1799,7 @@ rLMMNormal_reg_estimated_vcov <- function(
   fn_name <- "rLMMNormal_reg_estimated_vcov"
 
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
@@ -1649,7 +1825,6 @@ rLMMNormal_reg_estimated_vcov <- function(
     dispersion     = dispersion,
     pfamily_list   = pfamily_list,
     pf_summary     = pf_summary,
-    start          = start,
     icm_tol        = icm_tol,
     icm_maxit      = icm_maxit,
     progbar        = progbar,
@@ -1679,11 +1854,8 @@ rLMMindepNormalGamma_reg <- function(
     P,
     prior_list,
     pfamily_list,
-    dispersion_fix,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -1693,21 +1865,14 @@ rLMMindepNormalGamma_reg <- function(
 ) {
   cl <- match.call()
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names))
   prior_list <- .rLMM_validate_dGamma_dispersion_prior_list(prior_list)
-
-  if (is.null(dispersion_fix) || !is.numeric(dispersion_fix) ||
-      length(dispersion_fix) != 1L || !is.finite(dispersion_fix) ||
-      dispersion_fix <= 0) {
-    stop(
-      "'dispersion_fix' must be a single positive number (plug-in sigma^2).",
-      call. = FALSE
-    )
-  }
-  dispersion_fix <- as.numeric(dispersion_fix)
+  dispersion_fix <- .rLMM_dispersion_fix_from_prior_list(
+    prior_list, fn_name = "rLMMindepNormalGamma_reg"
+  )
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -1721,37 +1886,24 @@ rLMMindepNormalGamma_reg <- function(
   )
   .two_block_validate_block1_prior(prior_list_block1_cal, family = gaussian())
 
-  fixef_start <- start
-  icm_info    <- NULL
-  ranef_mode  <- NULL
-  if (is.null(fixef_start)) {
-    icm <- .rLMM_icm_at_start(
-      y                     = inp$y,
-      x                     = inp$x,
-      block                 = block,
-      x_hyper               = inp$x_hyper,
-      prior_list_block1     = prior_list_block1_cal,
-      pfamily_list          = pfamily_list,
-      re_names              = inp$re_names,
-      group_levels          = inp$group_levels,
-      group_name            = inp$group_name,
-      icm_tol               = icm_tol,
-      icm_maxit             = icm_maxit,
-      verbose               = verbose,
-      engine_label          = "rLMMindepNormalGamma_reg"
-    )
-    fixef_start <- icm$start
-    ranef_mode  <- icm$b_start
-    icm_info    <- icm$icm
-  } else {
-    if (!is.list(fixef_start) || is.null(names(fixef_start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
-    }
-    if (!setequal(names(fixef_start), inp$re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
-    }
-    fixef_start <- fixef_start[inp$re_names]
-  }
+  icm <- .rLMM_icm_at_start(
+    y                     = inp$y,
+    x                     = inp$x,
+    block                 = block,
+    x_hyper               = inp$x_hyper,
+    prior_list_block1     = prior_list_block1_cal,
+    pfamily_list          = pfamily_list,
+    re_names              = inp$re_names,
+    group_levels          = inp$group_levels,
+    group_name            = inp$group_name,
+    icm_tol               = icm_tol,
+    icm_maxit             = icm_maxit,
+    verbose               = verbose,
+    engine_label          = "rLMMindepNormalGamma_reg"
+  )
+  fixef_start <- icm$start
+  ranef_mode  <- icm$b_start
+  icm_info    <- icm$icm
 
   calib <- .rLMM_calibrate_m_convergence(
     x                 = inp$x,
@@ -1760,7 +1912,6 @@ rLMMindepNormalGamma_reg <- function(
     prior_list_block1 = prior_list_block1_cal,
     pfamily_list      = pfamily_list,
     group_levels      = inp$group_levels,
-    m_convergence     = inp$m_convergence,
     tv_tol            = inp$tv_tol,
     any_non_normal    = pf_summary$any_non_normal,
     engine_label      = "rLMMindepNormalGamma_reg",
@@ -1824,25 +1975,30 @@ rLMMindepNormalGamma_reg <- function(
     sigma2_i <- as.numeric(gamma_out$dispersion[1L])
     dispersion_ranef_draws[i] <- sigma2_i
 
-    lmm_i <- rLMMNormal_reg(
-      n               = 1L,
-      y               = inp$y,
-      x               = inp$x,
-      block           = block,
-      x_hyper         = inp$x_hyper,
-      P               = P,
-      prior_list      = list(dispersion = sigma2_i),
-      pfamily_list    = pfamily_list,
-      start           = fixef_cur,
-      icm_tol         = icm_tol,
-      icm_maxit       = icm_maxit,
-      m_convergence   = m_convergence,
-      tv_tol          = inp$tv_tol,
-      re_coef_names   = re_names,
-      group_levels    = inp$group_levels,
-      group_name      = inp$group_name,
-      progbar         = FALSE,
-      verbose         = FALSE
+    draw_engine <- if (pf_summary$all_dNormal) {
+      "two_block_rNormal_reg_known_vcov"
+    } else {
+      "two_block_rNormal_reg_estimated_vcov"
+    }
+    inp_i <- inp
+    inp_i$n <- 1L
+    lmm_i <- .rLMMNormal_reg_run(
+      inp            = inp_i,
+      block          = block,
+      P              = P,
+      dispersion     = sigma2_i,
+      pfamily_list   = pfamily_list,
+      pf_summary     = pf_summary,
+      icm_tol        = icm_tol,
+      icm_maxit      = icm_maxit,
+      progbar        = FALSE,
+      verbose        = FALSE,
+      engine_label   = "rLMMindepNormalGamma_reg",
+      any_non_normal = pf_summary$any_non_normal,
+      draw_engine    = draw_engine,
+      result_class   = "rLMMNormal_reg",
+      cl             = NULL,
+      fixef_start    = fixef_cur
     )
 
     for (k in re_names) {
@@ -1933,11 +2089,8 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     P,
     prior_list,
     pfamily_list,
-    dispersion_fix,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -1949,23 +2102,13 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
   fn_name <- "rLMMindepNormalGamma_reg_known_vcov"
 
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name
   )
-  if (is.null(dispersion_fix) || !is.numeric(dispersion_fix) ||
-      length(dispersion_fix) != 1L || !is.finite(dispersion_fix) ||
-      dispersion_fix <= 0) {
-    stop(
-      fn_name, "(): 'dispersion_fix' must be a single positive number ",
-      "(plug-in sigma^2 for ICM and TV calibration).",
-      call. = FALSE
-    )
-  }
-  dispersion_fix <- as.numeric(dispersion_fix)
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -1984,10 +2127,8 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     block              = block,
     P                  = P,
     ing_prior_list     = ing_prior_list,
-    dispersion_fix     = dispersion_fix,
     pfamily_list       = pfamily_list,
     pf_summary         = pf_summary,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
     progbar            = progbar,
@@ -2013,11 +2154,8 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     P,
     prior_list,
     pfamily_list,
-    dispersion_fix,
-    start           = NULL,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
-    m_convergence   = NULL,
     tv_tol          = 0.01,
     re_coef_names   = colnames(x),
     group_levels    = levels(block),
@@ -2033,23 +2171,13 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
   fn_name <- "rLMMindepNormalGamma_reg_estimated_vcov"
 
   inp <- .rLMM_validate_matrix_inputs(
-    n, y, x, x_hyper, tv_tol, m_convergence,
+    n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name
   )
-  if (is.null(dispersion_fix) || !is.numeric(dispersion_fix) ||
-      length(dispersion_fix) != 1L || !is.finite(dispersion_fix) ||
-      dispersion_fix <= 0) {
-    stop(
-      fn_name, "(): 'dispersion_fix' must be a single positive number ",
-      "(plug-in sigma^2 for ICM and TV calibration).",
-      call. = FALSE
-    )
-  }
-  dispersion_fix <- as.numeric(dispersion_fix)
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2068,10 +2196,8 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     block              = block,
     P                  = P,
     ing_prior_list     = ing_prior_list,
-    dispersion_fix     = dispersion_fix,
     pfamily_list       = pfamily_list,
     pf_summary         = pf_summary,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
     progbar            = progbar,

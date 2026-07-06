@@ -10,8 +10,6 @@ rglmerb(
   prior,
   family = poisson(),
   dispersion_ranef = NULL,
-  fixef_start = NULL,
-  m_convergence = NULL,
   gap_tol = 0.0196,
   tv_tol = 0.01,
   mode_gap_max = 1,
@@ -35,18 +33,12 @@ required positive scalar for \code{family = gaussian()}, or a
 \code{\link{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
 \code{NULL} (default) for \code{poisson()} and \code{binomial()}.}
 
-\item{fixef_start}{Optional named list of Block~2 starting vectors. When
-\code{NULL}, the ICM start is computed inside the Core engine
-(\code{\link{lmerb_posterior_mean}} for Gaussian,
-\code{\link{glmerb_posterior_mode}} otherwise).}
-
-\item{m_convergence}{Optional integer inner Gibbs sweeps per main draw.}
-
 \item{gap_tol}{Legacy mode--mean gap for deriving the pilot chain count when
 \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING Block~2
 components.}
 
-\item{tv_tol}{Total variation tolerance for convergence calibration.}
+\item{tv_tol}{Total variation tolerance for convergence calibration.
+Inner Gibbs sweeps and pilot chain counts are derived internally.}
 
 \item{mode_gap_max}{Pilot inner-sweep calibration (non-Gaussian and
 Gaussian+ING only).}

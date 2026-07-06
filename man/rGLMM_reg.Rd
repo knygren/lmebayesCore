@@ -14,19 +14,15 @@ rGLMM_reg_known_vcov(
   x_hyper,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  m_convergence = NULL,
   re_coef_names = colnames(x),
   group_levels = levels(block),
   group_name = NULL,
-  n_pilot = NULL,
   gap_tol = 0.0196,
-  m_convergence_pilot = NULL,
   tv_tol = 0.01,
   mode_gap_max = 1,
   Gridtype = 2,
@@ -37,7 +33,6 @@ rGLMM_reg_known_vcov(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  b_start = NULL,
   collect_block1 = TRUE
 )
 
@@ -49,19 +44,15 @@ rGLMM_reg_estimated_vcov(
   x_hyper,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  m_convergence = NULL,
   re_coef_names = colnames(x),
   group_levels = levels(block),
   group_name = NULL,
-  n_pilot = NULL,
   gap_tol = 0.0196,
-  m_convergence_pilot = NULL,
   tv_tol = 0.01,
   mode_gap_max = 1,
   Gridtype = 2,
@@ -72,7 +63,6 @@ rGLMM_reg_estimated_vcov(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  b_start = NULL,
   collect_block1 = TRUE
 )
 
@@ -84,19 +74,15 @@ rGLMM_reg(
   x_hyper,
   prior_list,
   pfamily_list,
-  start = NULL,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  m_convergence = NULL,
   re_coef_names = colnames(x),
   group_levels = levels(block),
   group_name = NULL,
-  n_pilot = NULL,
   gap_tol = 0.0196,
-  m_convergence_pilot = NULL,
   tv_tol = 0.01,
   mode_gap_max = 1,
   Gridtype = 2,
@@ -107,7 +93,6 @@ rGLMM_reg(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  b_start = NULL,
   collect_block1 = TRUE
 )
 }
@@ -129,15 +114,9 @@ one per column of \code{x}.}
 
 \item{pfamily_list}{Named list of \code{pfamily} objects for Block~2.}
 
-\item{start}{Named list of Block~2 hyper-parameter vectors. When \code{NULL}
-(default), the ICM start is computed via \code{\link{glmerb_posterior_mode}}
-(or \code{\link{lmerb_posterior_mean}} when \code{family = gaussian()}).}
-
-\item{icm_tol, icm_maxit}{ICM convergence controls when \code{start = NULL}.}
+\item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
 
 \item{offset, weights, family}{Passed to Block~1 (length \code{l2} or recycled).}
-
-\item{m_convergence}{Inner Gibbs sweeps per main-stage stored draw.}
 
 \item{re_coef_names}{Character vector naming columns of \code{x}.}
 
@@ -145,19 +124,14 @@ one per column of \code{x}.}
 
 \item{group_name}{Name for the grouping column in \code{coefficients}.}
 
-\item{n_pilot}{Number of pilot replicate chains. For \strong{non-Gaussian}
-families a pilot stage always runs unless \code{n_pilot = 0L}. When
-\code{NULL}, \code{n_pilot} is derived from \code{tv_tol}, \code{gap_tol},
-or cost optimization (\code{\link{two_block_optimize_pilot_cost}}).}
-
 \item{gap_tol}{Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 is \code{NULL}.}
 
-\item{m_convergence_pilot}{Inner Gibbs steps per pilot stored draw.}
+\item{tv_tol}{Total-variation tolerance for Theorem~3 calibration.
+\code{n_pilot}, \code{m_convergence_pilot}, and main-stage
+\code{m_convergence} are derived internally.}
 
-\item{tv_tol}{Total-variation tolerance for Theorem~3 calibration.}
-
-\item{mode_gap_max}{Pilot inner-sweep calibration when \code{n_pilot > 0}.}
+\item{mode_gap_max}{Pilot inner-sweep calibration when a pilot stage runs.}
 
 \item{Gridtype, n_envopt, use_parallel, use_opencl}{Reserved (not yet forwarded).}
 
@@ -168,9 +142,6 @@ is \code{NULL}.}
 \item{stage_verbose}{Print pilot chi-squared and post-pilot UB diagnostics.}
 
 \item{rate_calibration}{Optional rate object for \code{stage_verbose}.}
-
-\item{b_start}{Optional \code{J x p_re} Block~1 mode matrix; required for
-non-Gaussian families when \code{start} is user-supplied.}
 
 \item{collect_block1}{Collect Block~1 \code{coefficients} from main chains.}
 }

@@ -9,8 +9,6 @@ rlmerb(
   design,
   prior,
   dispersion_ranef,
-  fixef_start = NULL,
-  m_convergence = NULL,
   tv_tol = 0.01,
   progbar = TRUE,
   verbose = TRUE,
@@ -37,17 +35,9 @@ and related Block~2 fields (typically from \code{pfamily_list} and
 scalar \eqn{\sigma^2} (fixed) or a \code{\link{dGamma}()} pfamily with
 \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.}
 
-\item{fixef_start}{Optional named list of starting hyper-parameter vectors
-(one per RE component). When \code{NULL} (default), the ICM posterior
-mean is computed inside the route-specific \code{rLMM*} /
-\code{rLMMindepNormalGamma_reg_*} sampler.}
-
-\item{m_convergence}{Optional integer. Number of inner Gibbs sweeps per
-stored draw. When \code{NULL} (default), derived from \code{tv_tol} via
-Theorem 3 (Nygren 2020) and floored at the derived \code{m_min}.}
-
 \item{tv_tol}{Single numeric in \code{(0, 1)}. Total variation tolerance
-used for convergence calibration. Default \code{0.01}.}
+used for convergence calibration. Default \code{0.01}.
+Inner Gibbs sweeps per stored draw are derived from Theorem~3.}
 
 \item{progbar}{Logical. Show a text progress bar during sampling.
 Default \code{TRUE}.}

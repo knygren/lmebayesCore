@@ -38,31 +38,22 @@
 #' @param prior_list Prior for Block~1: \code{P} or \code{Sigma},
 #'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
 #' @param pfamily_list Named list of \code{pfamily} objects for Block~2.
-#' @param start Named list of Block~2 hyper-parameter vectors. When \code{NULL}
-#'   (default), the ICM start is computed via \code{\link{glmerb_posterior_mode}}
-#'   (or \code{\link{lmerb_posterior_mean}} when \code{family = gaussian()}).
-#' @param icm_tol,icm_maxit ICM convergence controls when \code{start = NULL}.
+#' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
 #' @param offset,weights,family Passed to Block~1 (length \code{l2} or recycled).
 #' @param re_coef_names Character vector naming columns of \code{x}.
 #' @param group_levels Character vector defining row order of Block~1 draws.
 #' @param group_name Name for the grouping column in \code{coefficients}.
-#' @param n_pilot Number of pilot replicate chains. For \strong{non-Gaussian}
-#'   families a pilot stage always runs unless \code{n_pilot = 0L}. When
-#'   \code{NULL}, \code{n_pilot} is derived from \code{tv_tol}, \code{gap_tol},
-#'   or cost optimization (\code{\link{two_block_optimize_pilot_cost}}).
 #' @param gap_tol Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 #'   is \code{NULL}.
-#' @param m_convergence_pilot Inner Gibbs steps per pilot stored draw.
 #' @param tv_tol Total-variation tolerance for Theorem~3 calibration.
-#' @param mode_gap_max Pilot inner-sweep calibration when \code{n_pilot > 0}.
+#'   \code{n_pilot}, \code{m_convergence_pilot}, and main-stage
+#'   \code{m_convergence} are derived internally.
+#' @param mode_gap_max Pilot inner-sweep calibration when a pilot stage runs.
 #' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved (not yet forwarded).
 #' @param verbose Print stage headers and convergence calibration lines.
 #' @param progbar Progress bars during sampling.
 #' @param stage_verbose Print pilot chi-squared and post-pilot UB diagnostics.
 #' @param rate_calibration Optional rate object for \code{stage_verbose}.
-#' @param m_convergence Inner Gibbs sweeps per main-stage stored draw.
-#' @param b_start Optional \code{J x p_re} Block~1 mode matrix; required for
-#'   non-Gaussian families when \code{start} is user-supplied.
 #' @param collect_block1 Collect Block~1 \code{coefficients} from main chains.
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rLMM_reg}},
@@ -79,7 +70,6 @@ NULL
     block,
     x_hyper,
     tv_tol,
-    m_convergence,
     re_coef_names,
     group_levels,
     group_name,
@@ -97,13 +87,6 @@ NULL
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
   gap_tol <- .two_block_validate_gap_tol(gap_tol)
-
-  if (!is.null(m_convergence)) {
-    m_convergence <- as.integer(m_convergence[1L])
-    if (m_convergence < 1L) {
-      stop("'m_convergence' must be at least 1.", call. = FALSE)
-    }
-  }
 
   if (!is.null(mode_gap_max)) {
     if (!is.numeric(mode_gap_max) || length(mode_gap_max) != 1L ||
@@ -190,7 +173,6 @@ NULL
     ptypes         = pf_summary$ptypes,
     any_non_normal = pf_summary$any_non_normal,
     tv_tol         = tv_tol,
-    m_convergence  = m_convergence,
     gap_tol        = gap_tol
   )
 }
@@ -199,12 +181,8 @@ NULL
 #' @noRd
 .rGLMM_reg_run <- function(
     inp,
-    start,
     icm_tol,
     icm_maxit,
-    b_start,
-    n_pilot,
-    m_convergence_pilot,
     mode_gap_max,
     verbose,
     progbar,
@@ -217,12 +195,8 @@ NULL
 ) {
   .rGLMM_reg_run_pipeline(
     inp                = inp,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
-    b_start            = b_start,
-    n_pilot            = n_pilot,
-    m_convergence_pilot = m_convergence_pilot,
     mode_gap_max       = mode_gap_max,
     verbose            = verbose,
     progbar            = progbar,
@@ -240,12 +214,8 @@ NULL
 #' @noRd
 .rGLMM_reg_run_with_pilot <- function(
     inp,
-    start,
     icm_tol,
     icm_maxit,
-    b_start,
-    n_pilot,
-    m_convergence_pilot,
     mode_gap_max,
     verbose,
     progbar,
@@ -258,12 +228,8 @@ NULL
 ) {
   .rGLMM_reg_run_pipeline(
     inp                = inp,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
-    b_start            = b_start,
-    n_pilot            = n_pilot,
-    m_convergence_pilot = m_convergence_pilot,
     mode_gap_max       = mode_gap_max,
     verbose            = verbose,
     progbar            = progbar,
@@ -280,12 +246,8 @@ NULL
 #' @noRd
 .rGLMM_reg_run_pipeline <- function(
     inp,
-    start,
     icm_tol,
     icm_maxit,
-    b_start,
-    n_pilot,
-    m_convergence_pilot,
     mode_gap_max,
     verbose,
     progbar,
@@ -313,10 +275,8 @@ NULL
   any_non_normal <- inp$any_non_normal
   tv_tol         <- inp$tv_tol
   gap_tol        <- inp$gap_tol
-  m_convergence_user <- inp$m_convergence
-
-  n_pilot_arg <- n_pilot
-  m_convergence <- m_convergence_user
+  n_pilot_arg         <- NULL
+  m_convergence_pilot <- NULL
 
   will_pilot <- .two_block_pilot_will_run(
     is_gaussian, n_pilot_arg, gap_tol, tv_tol,
@@ -326,78 +286,52 @@ NULL
   run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (run_pilot && is.null(m_convergence_pilot)) {
-    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
-      m_convergence_user
-    } else if (!is.null(tv_tol)) {
+    m_convergence_pilot <- if (!is.null(tv_tol)) {
       NULL
     } else {
       10L
     }
-  } else if (run_pilot) {
-    m_convergence_pilot <- as.integer(m_convergence_pilot[1L])
-    if (m_convergence_pilot < 1L) {
-      stop("'m_convergence_pilot' must be at least 1 when n_pilot > 0.",
-           call. = FALSE)
-    }
   }
 
-  icm_info   <- NULL
+  icm_info <- NULL
+  design_icm <- list(
+    y             = y,
+    Z             = x,
+    groups        = factor(block, levels = group_levels),
+    X_hyper       = x_hyper,
+    re_coef_names = re_names,
+    group_name    = group_name
+  )
+  icm <- .two_block_icm_at_start(
+    design       = design_icm,
+    prior_list   = prior_list,
+    pfamily_list = pfamily_list,
+    re_names     = re_names,
+    family       = family,
+    tol          = icm_tol,
+    maxit        = icm_maxit
+  )
+  fixef_mode <- icm$start
+  b_start    <- icm$b_start
   ranef_mode <- b_start
-  if (is.null(start)) {
-    design_icm <- list(
-      y             = y,
-      Z             = x,
-      groups        = factor(block, levels = group_levels),
-      X_hyper       = x_hyper,
-      re_coef_names = re_names,
-      group_name    = group_name
-    )
-    icm <- .two_block_icm_at_start(
-      design       = design_icm,
-      prior_list   = prior_list,
-      pfamily_list = pfamily_list,
-      re_names     = re_names,
-      family       = family,
-      tol          = icm_tol,
-      maxit        = icm_maxit
-    )
-    start      <- icm$start
-    ranef_mode <- icm$b_start
-    b_start    <- icm$b_start
-    icm_info   <- icm$icm
-    if (isTRUE(verbose)) {
-      if (isTRUE(any_non_normal)) {
-        icm_what <- "Block 2 start at lmer tau^2 plug-in"
-      } else if (is_gaussian) {
-        icm_what <- "ICM posterior mean"
-      } else {
-        icm_what <- "ICM posterior mode"
-      }
-      cat(sprintf(
-        "  %s: %s (converged: %s, %d iter, delta = %.2e)\n\n",
-        engine_label,
-        icm_what,
-        icm_info$converged,
-        icm_info$iterations,
-        icm_info$delta
-      ))
+  icm_info   <- icm$icm
+  if (isTRUE(verbose)) {
+    if (isTRUE(any_non_normal)) {
+      icm_what <- "Block 2 start at lmer tau^2 plug-in"
+    } else if (is_gaussian) {
+      icm_what <- "ICM posterior mean"
+    } else {
+      icm_what <- "ICM posterior mode"
     }
-  } else {
-    if (!is.list(start) || is.null(names(start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
-    }
-    if (!setequal(names(start), re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
-    }
-    start <- start[re_names]
-    if (!is_gaussian && is.null(b_start)) {
-      stop(
-        "'b_start' is required for non-Gaussian families when 'start' is supplied.",
-        call. = FALSE
-      )
-    }
+    cat(sprintf(
+      "  %s: %s (converged: %s, %d iter, delta = %.2e)\n\n",
+      engine_label,
+      icm_what,
+      icm_info$converged,
+      icm_info$iterations,
+      icm_info$delta
+    ))
   }
-  fixef_mode <- start
 
   design <- list(
     y             = y,
@@ -450,7 +384,7 @@ NULL
     n_pilot_arg         = n_pilot_arg,
     gap_tol             = gap_tol,
     tv_tol              = tv_tol,
-    m_convergence_user  = m_convergence_user,
+    m_convergence_user  = NULL,
     m_convergence_pilot = m_convergence_pilot,
     rate                = rate,
     p_dim               = p_dim,
@@ -463,7 +397,7 @@ NULL
   run_pilot        <- n_pilot > 0L
   run_ub           <- run_pilot && !is.null(tv_tol)
 
-  if (is.null(m_min) && is.null(m_convergence_user) && !run_pilot) {
+  if (is.null(m_min) && !run_pilot) {
     m_convergence <- 10L
   }
 
@@ -821,19 +755,15 @@ rGLMM_reg_known_vcov <- function(
     x_hyper,
     prior_list,
     pfamily_list,
-    start               = NULL,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    m_convergence       = NULL,
     re_coef_names       = colnames(x),
     group_levels        = levels(block),
     group_name          = NULL,
-    n_pilot             = NULL,
     gap_tol             = 0.0196,
-    m_convergence_pilot = NULL,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
     Gridtype            = 2,
@@ -844,14 +774,13 @@ rGLMM_reg_known_vcov <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    b_start             = NULL,
     collect_block1      = TRUE
 ) {
   cl <- match.call()
   fn_name <- "rGLMM_reg_known_vcov"
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    n, y, x, block, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -865,12 +794,8 @@ rGLMM_reg_known_vcov <- function(
 
   .rGLMM_reg_run(
     inp                = inp,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
-    b_start            = b_start,
-    n_pilot            = n_pilot,
-    m_convergence_pilot = m_convergence_pilot,
     mode_gap_max       = mode_gap_max,
     verbose            = verbose,
     progbar            = progbar,
@@ -895,19 +820,15 @@ rGLMM_reg_estimated_vcov <- function(
     x_hyper,
     prior_list,
     pfamily_list,
-    start               = NULL,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    m_convergence       = NULL,
     re_coef_names       = colnames(x),
     group_levels        = levels(block),
     group_name          = NULL,
-    n_pilot             = NULL,
     gap_tol             = 0.0196,
-    m_convergence_pilot = NULL,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
     Gridtype            = 2,
@@ -918,14 +839,13 @@ rGLMM_reg_estimated_vcov <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    b_start             = NULL,
     collect_block1      = TRUE
 ) {
   cl <- match.call()
   fn_name <- "rGLMM_reg_estimated_vcov"
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    n, y, x, block, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -939,12 +859,8 @@ rGLMM_reg_estimated_vcov <- function(
 
   .rGLMM_reg_run_with_pilot(
     inp                = inp,
-    start              = start,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
-    b_start            = b_start,
-    n_pilot            = n_pilot,
-    m_convergence_pilot = m_convergence_pilot,
     mode_gap_max       = mode_gap_max,
     verbose            = verbose,
     progbar            = progbar,
@@ -968,19 +884,15 @@ rGLMM_reg <- function(
     x_hyper,
     prior_list,
     pfamily_list,
-    start               = NULL,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    m_convergence       = NULL,
     re_coef_names       = colnames(x),
     group_levels        = levels(block),
     group_name          = NULL,
-    n_pilot             = NULL,
     gap_tol             = 0.0196,
-    m_convergence_pilot = NULL,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
     Gridtype            = 2,
@@ -991,13 +903,12 @@ rGLMM_reg <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    b_start             = NULL,
     collect_block1      = TRUE
 ) {
   cl <- match.call()
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol, m_convergence,
+    n, y, x, block, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )

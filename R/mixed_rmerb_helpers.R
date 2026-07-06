@@ -250,6 +250,121 @@
   )
 }
 
+#' Scalar \code{pwt} for measurement-dispersion \code{n_prior} (mean if \code{pwt} is a list)
+#' @noRd
+.lmebayes_pwt_scalar_for_measurement <- function(pwt_out) {
+  if (is.numeric(pwt_out)) {
+    if (length(pwt_out) != 1L || is.na(pwt_out) || pwt_out <= 0 || pwt_out >= 1) {
+      stop("'pwt' must be a scalar in (0, 1) for measurement dispersion calibration.",
+           call. = FALSE)
+    }
+    return(as.numeric(pwt_out))
+  }
+  vals <- unlist(pwt_out, use.names = FALSE)
+  if (!length(vals) || anyNA(vals) || any(vals <= 0) || any(vals >= 1)) {
+    stop(
+      "All 'pwt' values must lie in (0, 1) for measurement dispersion calibration.",
+      call. = FALSE
+    )
+  }
+  mean(vals)
+}
+
+#' Prospective \code{dGamma()} measurement \eqn{\sigma^2} calibration from setup
+#'
+#' Mean-matched inverse-Gamma hyperparameters for Block~1 ING (same algebra as
+#' \code{ing_prior} for \eqn{\tau^2_k}, with \eqn{\hat\sigma^2} =
+#' \code{dispersion_ranef}, \eqn{p = p_{\mathrm{re}}}, and
+#' \eqn{n_{\mathrm{prior}} = \mathrm{pwt}/(1-\mathrm{pwt})\times n} on the total
+#' observation count).  Truncation bounds use the shared limiting-posterior
+#' window (identical at every group level).
+#' @noRd
+.lmebayes_calibrate_ing_prior_measurement <- function(
+    design,
+    dispersion_ranef,
+    pwt_out,
+    J_groups
+) {
+  p_re <- length(design$re_coef_names)
+  n    <- length(design$y)
+  if (p_re < 1L) {
+    stop(
+      "Measurement dispersion calibration requires at least one random coefficient.",
+      call. = FALSE
+    )
+  }
+
+  pwt_scalar <- .lmebayes_pwt_scalar_for_measurement(pwt_out)
+  n_prior    <- pwt_scalar / (1 - pwt_scalar) * n
+  if (!is.finite(n_prior) || n_prior <= 0) {
+    stop(
+      "Computed measurement-dispersion n_prior must be positive and finite.",
+      call. = FALSE
+    )
+  }
+  if (n_prior > n) {
+    stop(
+      "Measurement dispersion prior requires n_prior <= n (equivalently ",
+      "scalar pwt <= 0.5); got n_prior = ", signif(n_prior, 4),
+      ", n = ", n, ".",
+      call. = FALSE
+    )
+  }
+
+  shape <- (n_prior + 1) / 2 + p_re / 2
+  rate  <- dispersion_ranef * (n_prior + p_re - 1) / 2
+  if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
+    stop(
+      "Measurement dispersion ING calibration produced non-positive shape/rate.",
+      call. = FALSE
+    )
+  }
+
+  win <- .lmebayes_ing_limiting_posterior_window(dispersion_ranef, J_groups)
+
+  list(
+    sigma2_hat  = dispersion_ranef,
+    shape       = shape,
+    rate        = rate,
+    disp_lower  = win$disp_lower,
+    disp_upper  = win$disp_upper,
+    n_prior     = n_prior,
+    n_effective = n,
+    p_re        = p_re
+  )
+}
+
+#' Limiting-posterior \eqn{\sigma^2}/\eqn{\tau^2} truncation window (lmebayes default)
+#'
+#' Central 98% mass of \code{Gamma((J+1)/2, d_hat*(J-1)/2)} inverted to the
+#' variance scale; see \code{inst/ING_TRUNCATION_WINDOW.md} in \pkg{lmebayes}.
+#' @noRd
+.lmebayes_ing_limiting_posterior_window <- function(d_hat, J) {
+  if (!is.numeric(d_hat) || length(d_hat) != 1L || !is.finite(d_hat) ||
+      d_hat <= 0) {
+    stop(
+      "'d_hat' must be a positive finite scalar (classical variance plug-in).",
+      call. = FALSE
+    )
+  }
+  J <- as.integer(J[1L])
+  if (!is.finite(J) || J < 1L) {
+    stop("'J' must be a positive integer (number of groups).", call. = FALSE)
+  }
+  a_inf <- (J + 1) / 2
+  b_inf <- as.numeric(d_hat) * (J - 1) / 2
+  if (b_inf <= 0) {
+    stop(
+      "Limiting-posterior ING window requires J >= 2 (got J = ", J, ").",
+      call. = FALSE
+    )
+  }
+  list(
+    disp_lower = 1 / stats::qgamma(0.99, shape = a_inf, rate = b_inf),
+    disp_upper = 1 / stats::qgamma(0.01, shape = a_inf, rate = b_inf)
+  )
+}
+
 #' Build shared ING Block~1 measurement \code{prior_list} for lmebayes glue
 #' @noRd
 .lmebayes_ing_measurement_prior_list <- function(prior, disp_info, design) {
@@ -284,15 +399,18 @@
   )
   if (!is.null(pl$disp_lower)) out$disp_lower <- pl$disp_lower
   if (!is.null(pl$disp_upper)) out$disp_upper <- pl$disp_upper
-  if (is.null(out$disp_upper)) {
-    out$disp_upper <- as.numeric(stats::qgamma(
-      0.99, shape = pl$shape, rate = pl$rate
-    ))
-  }
-  if (is.null(out$disp_lower)) {
-    out$disp_lower <- as.numeric(stats::qgamma(
-      0.01, shape = pl$shape, rate = pl$rate
-    ))
+  if (is.null(out$disp_lower) || is.null(out$disp_upper)) {
+    sigma2_hat <- if (!is.null(design$residual_var)) {
+      as.numeric(design$residual_var)
+    } else {
+      as.numeric(prior$dispersion_ranef)
+    }
+    win <- .lmebayes_ing_limiting_posterior_window(
+      d_hat = sigma2_hat,
+      J     = nlevels(design$groups)
+    )
+    if (is.null(out$disp_lower)) out$disp_lower <- win$disp_lower
+    if (is.null(out$disp_upper)) out$disp_upper <- win$disp_upper
   }
   if (out$disp_upper <= out$disp_lower) {
     stop(
@@ -310,8 +428,6 @@
     design,
     prior,
     disp_info,
-    fixef_start   = NULL,
-    m_convergence = NULL,
     tv_tol        = 0.01,
     progbar       = TRUE,
     verbose       = FALSE,
@@ -331,8 +447,6 @@
     x_hyper       = design$X_hyper,
     P             = P,
     pfamily_list  = prior$pfamily_list,
-    start         = fixef_start,
-    m_convergence = m_convergence,
     tv_tol        = tv_tol,
     re_coef_names = re_names,
     group_levels  = group_levels,
@@ -347,7 +461,6 @@
       disp_info = disp_info,
       design    = design
     )
-    args$dispersion_fix <- disp_info$dispersion_fix
   } else {
     args$prior_list <- list(dispersion = disp_info$dispersion_fix)
   }
@@ -369,8 +482,6 @@
     design,
     prior,
     family,
-    fixef_start   = NULL,
-    m_convergence = NULL,
     gap_tol       = 0.0196,
     tv_tol        = 0.01,
     mode_gap_max  = 1.0,
@@ -390,9 +501,7 @@
     x_hyper         = design$X_hyper,
     prior_list      = block1_prior,
     pfamily_list    = prior$pfamily_list,
-    start           = fixef_start,
     family          = family,
-    m_convergence   = m_convergence,
     re_coef_names   = re_names,
     group_levels    = group_levels,
     group_name      = design$group_name,
@@ -402,7 +511,6 @@
     verbose         = verbose,
     progbar         = progbar,
     stage_verbose   = verbose,
-    b_start         = NULL,
     collect_block1  = collect_block1
   )
 }
@@ -413,8 +521,6 @@
     design,
     prior,
     disp_info,
-    fixef_start   = NULL,
-    m_convergence = NULL,
     tv_tol        = 0.01,
     progbar       = TRUE,
     verbose       = FALSE,
@@ -433,8 +539,6 @@
     design        = design,
     prior         = prior,
     disp_info     = disp_info,
-    fixef_start   = fixef_start,
-    m_convergence = m_convergence,
     tv_tol        = tv_tol,
     progbar       = progbar,
     verbose       = verbose,
@@ -451,8 +555,6 @@
     design,
     prior,
     family,
-    fixef_start   = NULL,
-    m_convergence = NULL,
     gap_tol       = 0.0196,
     tv_tol        = 0.01,
     mode_gap_max  = 1.0,
@@ -471,8 +573,6 @@
     design         = design,
     prior          = prior,
     family         = family,
-    fixef_start    = fixef_start,
-    m_convergence  = m_convergence,
     gap_tol        = gap_tol,
     tv_tol         = tv_tol,
     mode_gap_max   = mode_gap_max,
@@ -544,6 +644,33 @@
     icm_label   = icm_label,
     icm_verbose = icm_verbose,
     conv_label  = conv_label
+  )
+}
+
+#' Per-group full column-rank flag for Block~1 \code{Z_j} (same rule as
+#' \code{model_setup()$re_rank}).
+#' @noRd
+.lmebayes_re_rank_from_Z <- function(Z, groups, group_levels = NULL) {
+  Z <- as.matrix(Z)
+  g_chr <- as.character(groups)
+  levs <- if (is.null(group_levels)) {
+    unique(g_chr)
+  } else {
+    as.character(group_levels)
+  }
+  p_re <- ncol(Z)
+  stats::setNames(
+    vapply(
+      levs,
+      function(lev) {
+        rows <- which(g_chr == lev)
+        Z_j  <- Z[rows, , drop = FALSE]
+        nrow(Z_j) >= p_re &&
+          Matrix::rankMatrix(Z_j, method = "qr")[1L] == p_re
+      },
+      logical(1L)
+    ),
+    levs
   )
 }
 

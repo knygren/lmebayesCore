@@ -24,15 +24,9 @@
 #' @param dispersion_ranef Required observation-level dispersion: a positive
 #'   scalar \eqn{\sigma^2} (fixed) or a \code{\link{dGamma}()} pfamily with
 #'   \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.
-#' @param fixef_start Optional named list of starting hyper-parameter vectors
-#'   (one per RE component). When \code{NULL} (default), the ICM posterior
-#'   mean is computed inside the route-specific \code{rLMM*} /
-#'   \code{rLMMindepNormalGamma_reg_*} sampler.
-#' @param m_convergence Optional integer. Number of inner Gibbs sweeps per
-#'   stored draw. When \code{NULL} (default), derived from \code{tv_tol} via
-#'   Theorem 3 (Nygren 2020) and floored at the derived \code{m_min}.
 #' @param tv_tol Single numeric in \code{(0, 1)}. Total variation tolerance
 #'   used for convergence calibration. Default \code{0.01}.
+#'   Inner Gibbs sweeps per stored draw are derived from Theorem~3.
 #' @param gap_tol Legacy mode--mean gap tolerance for the pilot stage when
 #'   any Block~2 component uses \code{dIndependent_Normal_Gamma} and
 #'   \code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.
@@ -66,8 +60,6 @@ rlmerb <- function(
     design,
     prior,
     dispersion_ranef,
-    fixef_start   = NULL,
-    m_convergence = NULL,
     tv_tol        = 0.01,
     progbar         = TRUE,
     verbose         = TRUE,
@@ -106,15 +98,6 @@ rlmerb <- function(
     stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
   }
 
-  if (!is.null(m_convergence)) {
-    if (!is.numeric(m_convergence) || length(m_convergence) != 1L ||
-        !is.finite(m_convergence) || m_convergence < 1) {
-      stop("'m_convergence' must be NULL or a single integer >= 1.",
-           call. = FALSE)
-    }
-    m_convergence <- as.integer(m_convergence)
-  }
-
   if (!is.null(mode_gap_max)) {
     if (!is.numeric(mode_gap_max) || length(mode_gap_max) != 1L ||
         !is.finite(mode_gap_max) || mode_gap_max <= 0) {
@@ -135,8 +118,6 @@ rlmerb <- function(
     design          = design,
     prior           = prior,
     disp_info       = disp_info,
-    fixef_start     = fixef_start,
-    m_convergence   = m_convergence,
     tv_tol          = tv_tol,
     progbar         = progbar,
     verbose         = verbose,
@@ -145,7 +126,7 @@ rlmerb <- function(
     diag_sweeps         = diag_sweeps
   )
 
-  if (is.null(fixef_start) && isTRUE(print_icm_table)) {
+  if (isTRUE(print_icm_table)) {
     icm_lbl <- .lmebayes_block2_icm_labels(prior, gaussian())
     .lmebayes_print_icm_fixef_table(
       prior_list = prior$prior_list,

@@ -200,15 +200,12 @@ pfamily_list.lmebayes_prior_setup <- function(object,
         if (is.null(ing_k)) {
           shape_k <- (n_prior_k + 1) / 2 + p_k / 2
           rate_k  <- d_k * (n_prior_k + p_k - 1) / 2
-          a_inf <- (J + 1) / 2
-          b_inf <- d_k * (J - 1) / 2
+          win_k <- .lmebayes_ing_limiting_posterior_window(d_k, J)
           ing_k <- list(
             shape      = shape_k,
             rate       = rate_k,
-            disp_lower = 1 / stats::qgamma(0.99, shape = a_inf,
-                                           rate = b_inf),
-            disp_upper = 1 / stats::qgamma(0.01, shape = a_inf,
-                                           rate = b_inf)
+            disp_lower = win_k$disp_lower,
+            disp_upper = win_k$disp_upper
           )
         }
         dIndependent_Normal_Gamma(

@@ -36,7 +36,6 @@
     dispersion,
     pfamily_list,
     pf_summary,
-    start,
     icm_tol,
     icm_maxit,
     progbar,
@@ -54,7 +53,6 @@
   group_name       <- inp$group_name
   tv_tol           <- inp$tv_tol
   n                <- inp$n
-  m_convergence_user <- inp$m_convergence
   n_pilot_arg      <- NULL
   m_convergence_pilot <- NULL
   rate_calibration <- NULL
@@ -84,58 +82,41 @@
   run_ub    <- will_pilot && !is.null(tv_tol)
 
   if (run_pilot && is.null(m_convergence_pilot)) {
-    m_convergence_pilot <- if (!is.null(m_convergence_user)) {
-      m_convergence_user
-    } else if (!is.null(tv_tol)) {
+    m_convergence_pilot <- if (!is.null(tv_tol)) {
       NULL
     } else {
       10L
     }
   }
 
-  icm_info   <- NULL
-  ranef_mode <- NULL
-  icm        <- NULL
-
-  if (is.null(start)) {
-    icm <- .rLMM_icm_at_start(
-      y                 = inp$y,
-      x                 = inp$x,
-      block             = block,
-      x_hyper           = inp$x_hyper,
-      prior_list_block1 = prior_list_block1,
-      pfamily_list      = pfamily_list,
-      re_names          = re_names,
-      group_levels      = group_levels,
-      group_name        = group_name,
-      icm_tol           = icm_tol,
-      icm_maxit         = icm_maxit,
-      verbose           = verbose,
-      engine_label      = engine_label
-    )
-    start      <- icm$start
-    ranef_mode <- icm$b_start
-    icm_info   <- icm$icm
-    if (isTRUE(verbose)) {
-      cat(sprintf(
-        "  %s: Block 2 start at lmer tau^2 plug-in (converged: %s, %d iter, delta = %.2e)\n\n",
-        engine_label,
-        icm_info$converged,
-        icm_info$iterations,
-        icm_info$delta
-      ))
-    }
-  } else {
-    if (!is.list(start) || is.null(names(start))) {
-      stop("'start' must be a named list or NULL.", call. = FALSE)
-    }
-    if (!setequal(names(start), re_names)) {
-      stop("names(start) must match re_coef_names.", call. = FALSE)
-    }
-    start <- start[re_names]
+  icm <- .rLMM_icm_at_start(
+    y                 = inp$y,
+    x                 = inp$x,
+    block             = block,
+    x_hyper           = inp$x_hyper,
+    prior_list_block1 = prior_list_block1,
+    pfamily_list      = pfamily_list,
+    re_names          = re_names,
+    group_levels      = group_levels,
+    group_name        = group_name,
+    icm_tol           = icm_tol,
+    icm_maxit         = icm_maxit,
+    verbose           = verbose,
+    engine_label      = engine_label
+  )
+  fixef_mode <- icm$start
+  ranef_mode <- icm$b_start
+  icm_info   <- icm$icm
+  if (isTRUE(verbose)) {
+    cat(sprintf(
+      "  %s: Block 2 start at lmer tau^2 plug-in (converged: %s, %d iter, delta = %.2e)\n\n",
+      engine_label,
+      icm_info$converged,
+      icm_info$iterations,
+      icm_info$delta
+    ))
   }
-  fixef_mode <- start
-  b_start    <- ranef_mode
+  b_start <- ranef_mode
 
   design <- list(
     y             = inp$y,
@@ -186,7 +167,7 @@
     n_pilot_arg         = n_pilot_arg,
     gap_tol             = gap_tol,
     tv_tol              = tv_tol,
-    m_convergence_user  = m_convergence_user,
+    m_convergence_user  = NULL,
     m_convergence_pilot = m_convergence_pilot,
     rate                = rate,
     p_dim               = p_dim,
@@ -199,7 +180,7 @@
   run_pilot      <- n_pilot > 0L
   run_ub         <- run_pilot && !is.null(tv_tol)
 
-  if (is.null(m_min) && is.null(m_convergence_user) && !run_pilot) {
+  if (is.null(m_min) && !run_pilot) {
     m_convergence <- 10L
   }
 

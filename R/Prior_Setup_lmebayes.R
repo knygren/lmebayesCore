@@ -125,6 +125,16 @@
 #'       \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} when
 #'       \code{ptypes = "dIndependent_Normal_Gamma"}; ignored for
 #'       \code{dNormal} priors.}
+#'     \item{\code{ing_prior_measurement}}{Gaussian models only: prospective
+#'       \code{dGamma()} \code{dispersion_ranef} calibration for Block~1 ING
+#'       (observation \eqn{\sigma^2} shared across all group levels):
+#'       mean-matched \code{shape} / \code{rate} with
+#'       \eqn{n_{\mathrm{prior}} = \mathrm{pwt}/(1-\mathrm{pwt})\times n},
+#'       \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
+#'       \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
+#'       \eqn{\tau^2_k}; requires scalar \code{pwt} \eqn{\le 0.5}), plus
+#'       limiting-posterior \code{disp_lower} / \code{disp_upper} with \eqn{J}
+#'       groups.  Pass these fields to \code{\link{dGamma}()}.}
 #'   }
 #' @details
 #' \strong{Why default calibration depends on classical estimates.}
@@ -460,17 +470,27 @@ Prior_Setup_lmebayes <- function(formula,
       tau2_k  <- unname(prior_list[[k]]$dispersion_fixef)
       shape_k <- (n0_k + 1) / 2 + p_k / 2
       rate_k  <- tau2_k * (n0_k + p_k - 1) / 2
-      a_inf   <- (J_groups + 1) / 2
-      b_inf   <- tau2_k * (J_groups - 1) / 2
+      win_k <- .lmebayes_ing_limiting_posterior_window(tau2_k, J_groups)
       list(
         shape      = shape_k,
         rate       = rate_k,
-        disp_lower = 1 / stats::qgamma(0.99, shape = a_inf, rate = b_inf),
-        disp_upper = 1 / stats::qgamma(0.01, shape = a_inf, rate = b_inf)
+        disp_lower = win_k$disp_lower,
+        disp_upper = win_k$disp_upper
       )
     }),
     re_names
   )
+
+  ing_prior_measurement <- if (is_gaussian) {
+    .lmebayes_calibrate_ing_prior_measurement(
+      design           = design,
+      dispersion_ranef = dispersion_ranef,
+      pwt_out          = pwt_out,
+      J_groups         = J_groups
+    )
+  } else {
+    NULL
+  }
 
   structure(
     list(
@@ -485,8 +505,9 @@ Prior_Setup_lmebayes <- function(formula,
       fit_ref            = fit_ref,
       dispersion_ranef   = dispersion_ranef,
       Sigma_ranef        = Sigma_ranef,
-      prior_list         = prior_list,
-      ing_prior          = ing_prior
+      prior_list            = prior_list,
+      ing_prior             = ing_prior,
+      ing_prior_measurement = ing_prior_measurement
     ),
     class = "lmebayes_prior_setup"
   )
@@ -690,6 +711,29 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
       "  dispersion_ranef : %.4f  (sigma2, fixed from all %d %s)\n",
       x$dispersion_ranef, n_all, x$design$group_name
     ))
+    ing_m <- x$ing_prior_measurement
+    if (!is.null(ing_m)) {
+      cat(sprintf(
+        paste0(
+          "  ING sigma^2 window: [%.4g, %.4g]  ",
+          "(0.01/0.99 limiting-posterior quantiles; upper/sigma2 = %.3g)\n"
+        ),
+        ing_m$disp_lower, ing_m$disp_upper,
+        ing_m$disp_upper / unname(ing_m$sigma2_hat)
+      ))
+      cat(sprintf(
+        paste0(
+          "  ING sigma^2 shape, rate : %.4g, %.4g  ",
+          "(mean-matched IG; E[sigma^2] = rate/(shape-1) = %.4g)\n"
+        ),
+        ing_m$shape, ing_m$rate,
+        ing_m$rate / (ing_m$shape - 1)
+      ))
+      cat(sprintf(
+        "  ING sigma^2 n_prior   : %.4g  (= n * pwt / (1 - pwt); p_re = %d)\n",
+        ing_m$n_prior, ing_m$p_re
+      ))
+    }
   } else {
     cat("  dispersion_ranef : NULL  (no observation-level dispersion)\n")
   }
