@@ -1009,6 +1009,31 @@ Rcpp::List EnvelopeCentering_cpp_export(
 }
 
 // [[Rcpp::export]]
+Rcpp::List BlockEnvelopeCentering_cpp_export(
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    int p_re = -1,
+    int n_rss_iter = 10,
+    bool verbose = false
+) {
+  return glmbayes::env::BlockEnvelopeCentering(
+    y, x, block, prior_list, prior_lists,
+    offset, wt, shape, rate, max_disp_perc,
+    disp_lower, disp_upper, p_re, n_rss_iter, verbose
+  );
+}
+
+// [[Rcpp::export]]
 Rcpp::List EnvelopeSet_Grid_cpp_export(
     const Rcpp::NumericMatrix& GIndex,
     const Rcpp::NumericMatrix& cbars,

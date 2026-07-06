@@ -714,6 +714,28 @@ Rcpp::List glmb_Standardize_Model(
     NumericMatrix A1  // Precision for Log-Posterior at posterior mode (to be adjusted)
 );
 
+namespace env {
+
+Rcpp::List BlockEnvelopeCentering(
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    Rcpp::NumericVector offset,
+    Rcpp::NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    int p_re,
+    int n_rss_iter,
+    bool verbose
+);
+
+}
+
 
 }
 }

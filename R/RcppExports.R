@@ -157,6 +157,10 @@ EnvelopeCentering_cpp_export <- function(y, x, mu, P, offset, wt, shape, rate, G
     .Call(`_glmbayesCore_EnvelopeCentering_cpp_export`, y, x, mu, P, offset, wt, shape, rate, Gridtype, verbose)
 }
 
+BlockEnvelopeCentering_cpp_export <- function(y, x, block, prior_list, prior_lists, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, p_re = -1L, n_rss_iter = 10L, verbose = FALSE) {
+    .Call(`_glmbayesCore_BlockEnvelopeCentering_cpp_export`, y, x, block, prior_list, prior_lists, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, p_re, n_rss_iter, verbose)
+}
+
 EnvelopeSet_Grid_cpp_export <- function(GIndex, cbars, Lint) {
     .Call(`_glmbayesCore_EnvelopeSet_Grid_cpp_export`, GIndex, cbars, Lint)
 }

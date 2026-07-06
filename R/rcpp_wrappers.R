@@ -432,6 +432,20 @@
 
 #' @noRd
 #' @keywords internal
+.BlockEnvelopeCentering_cpp <- function(
+    y, x, block, prior_list, prior_lists,
+    offset, wt, shape, rate, max_disp_perc,
+    disp_lower = NULL, disp_upper = NULL,
+    p_re = -1L, n_rss_iter = 10L, verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeCentering_cpp_export`,
+    y, x, block, prior_list, prior_lists,
+    offset, wt, shape, rate, max_disp_perc,
+    disp_lower, disp_upper, p_re, n_rss_iter, verbose)
+}
+
+#' @noRd
+#' @keywords internal
 .EnvelopeSize_cpp <- function(a, G1, Gridtype, n, n_envopt, use_opencl, verbose) {
   .Call(`_glmbayesCore_EnvelopeSize_cpp_export`, a, G1, Gridtype, n, n_envopt, use_opencl, verbose)
 }

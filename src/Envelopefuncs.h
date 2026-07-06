@@ -149,6 +149,25 @@ List EnvelopeCentering(
     bool verbose = false
 );
 
+/// BlockEnvelopeCentering: pooled dispersion anchoring for block ING (Step 1).
+List BlockEnvelopeCentering(
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    NumericVector offset,
+    NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    int p_re,
+    int n_rss_iter,
+    bool verbose
+);
+
 Rcpp::List EnvelopeOrchestrator(
     NumericVector bstar2,
     NumericMatrix A,

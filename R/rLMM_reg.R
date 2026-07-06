@@ -750,6 +750,51 @@ NULL
   y <- design$y
   Z <- as.matrix(design$Z)
 
+  ## TEMP block ING dev -- stage 1: centering only; remove when block path shipped
+  {
+    prior_list <- list(
+      mu            = mu_all,
+      Sigma         = ing_prior_list$Sigma,
+      shape         = ing_prior_list$shape,
+      rate          = ing_prior_list$rate,
+      max_disp_perc = if (!is.null(ing_prior_list$max_disp_perc)) {
+        ing_prior_list$max_disp_perc
+      } else {
+        0.99
+      }
+    )
+    if (!is.null(ing_prior_list$disp_lower)) {
+      prior_list$disp_lower <- ing_prior_list$disp_lower
+    }
+    if (!is.null(ing_prior_list$disp_upper)) {
+      prior_list$disp_upper <- ing_prior_list$disp_upper
+    }
+    nobs   <- length(y)
+    offset <- rep(0, nobs)
+    wt     <- rep(1, nobs)
+    center <- .BlockEnvelopeCentering_cpp(
+      y, Z, design$groups, prior_list, NULL, offset, wt,
+      prior_list$shape, prior_list$rate, prior_list$max_disp_perc,
+      prior_list$disp_lower, prior_list$disp_upper,
+      p_re = p_re, n_rss_iter = 10L, verbose = FALSE
+    )
+    cat("\n=== TEMP BlockEnvelopeCentering (compare to lmer_full above) ===\n")
+    cat(sprintf("  dispersion: %.6g\n", center$dispersion))
+    b_post <- do.call(
+      rbind,
+      lapply(center$blocks, function(b) b$b_post_mean)
+    )
+    rownames(b_post) <- group_levels[seq_len(nrow(b_post))]
+    colnames(b_post) <- re_names
+    cat("  b_post_mean (rows = schools, cols = re_names):\n")
+    print(round(b_post, 4))
+    stop(
+      "TEMP block ING: centering done -- compare dispersion and b_post_mean to lmer_full",
+      call. = FALSE
+    )
+  }
+  ## END TEMP
+
   b_draw <- matrix(
     NA_real_,
     nrow = J,
