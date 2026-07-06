@@ -412,6 +412,31 @@ A complete bibliography is in `inst/REFERENCES.bib`.
 
 ---
 
+## Future plans
+
+- **Sweep-outer drivers and `sweep_history` on all two-block paths:** Mixed-model
+  sampling should eventually use a **sweep-outer** loop (all chains complete inner
+  sweep `m`, then `m+1`, …) on every route, for consistency with `rGLMM_sweep()` /
+  `rGLMM_reg_*`. Each stored draw should attach **`sweep_history`** (class
+  `two_block_sweep_history`) so `print()` and `plot_sweep_history_diag()` can
+  diagnose inner-Gibbs convergence. Today, sweep-outer R drivers and ING pilot/main
+  paths already capture history; **gaps remain** (e.g. Gaussian `lmerb()` with fixed
+  σ² and fixed Block~2 τ² still uses the v2 C++ chain-outer driver, which does not
+  export per-sweep cross-chain stats). See `inst/ARCHITECTURE_glmerb.md` and
+  `inst/PLAN_block2_cpp_migration.md`.
+- **C++ inner-chain loops and within-block parallel sampling:** The per-sweep
+  **inner chain** loops (Block~1 + Block~2 updates across replicate chains) should
+  migrate from R orchestration (`rGLMM_sweep()`, batch helpers in
+  `two_block_batch_gibbs.R`) into **`src/*.cpp`** drivers (alongside / replacing
+  v2 and v5), matching the v5 sweep-outer layout. Parallelism should be
+  **within-block, across chains** at fixed inner sweep `m` (not parallel inner
+  sweeps): **Block~1** random-effect updates over replicate chains first
+  (**higher priority**); **Block~2** fixed-effect / hyperparameter updates over
+  chains in parallel where safe (**ideal follow-on**). Use native threading (e.g.
+  `RcppParallel`) so large `n` does not pay full R-loop overhead.
+
+---
+
 ## License
 
 GPL-2. See the `LICENSE` file and `inst/COPYRIGHTS` for attribution of incorporated R Mathlib sources.

@@ -1087,6 +1087,7 @@ NULL
   )
   staged$dispersion_ranef      <- sweep_out$dispersion_ranef
   staged$dispersion_ranef.mean <- mean(sweep_out$dispersion_ranef)
+  staged$sweep_history         <- sweep_out$sweep_history
   staged
 }
 
