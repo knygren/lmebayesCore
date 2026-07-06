@@ -72,10 +72,13 @@
   d_pm <- mu_pilot - mode_vec
   S_pilot <- stats::cov(X_pilot)
   p_dim2 <- ncol(X_pilot)
+  ridge <- 1e-8 * sum(diag(S_pilot)) / p_dim2
+  if (!is.finite(ridge) || ridge <= 0) {
+    ridge <- 1e-8
+  }
   S_inv <- tryCatch(
     solve(S_pilot),
     error = function(e) {
-      ridge <- 1e-8 * mean(diag(S_pilot))
       solve(S_pilot + diag(ridge, p_dim2))
     }
   )

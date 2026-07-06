@@ -71,7 +71,7 @@ rGLMM_sweep
 ```
 
 **Substance:** `.two_block_block2_one_chain` (~50 lines): align `b`, call `rglmb`, write
-`batch$fixef[i, ]` (and `tau2` / `iters` if ING).
+`batch$fixef[i, ]` from **`coefficients[1, ]`** (and `tau2` / `iters` if ING).
 
 **`.two_block_block2_all_chains`:** loop over chains + optional progress bar only.
 
@@ -161,8 +161,8 @@ Many function names exist for batch bookkeeping, pilot staging, and optional par
 | `glmbayesCore/R/two_block_rNormal_reg_v5.R` | R wrapper → v5 C++ |
 | `lmebayes/R/run_short_chains_v5.R` | Thin wrapper for `rglmerb_v5` |
 
-Intended to mirror the R batch driver. Block 2 parity depends on align semantics and using
-`rglmb` / `coef.mode` (not raw `rNormalReg` with random `coefficients`).
+Intended to mirror the R batch driver. Block 2 uses **`rglmb()$coefficients`** (posterior
+draw), aligned with v5 `rNormalReg` / ING envelope output — not `coef.mode`.
 
 Helpers already in C++ include `two_block_align_b_col_to_x_rows` and
 `two_block_block2_rglmb_gamma` (align via R `.two_block_align_b_to_xhyper` + `rglmb`).

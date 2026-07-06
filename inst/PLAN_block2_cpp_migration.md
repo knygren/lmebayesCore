@@ -119,16 +119,15 @@ two_block_block2_component_cpp(
 );
 ```
 
-Dispatch (mirror v5, fix align + use `coef.mode` / `betastar`):
+Dispatch (mirror v5, fix align + use posterior **draws**):
 
 | `pr.is_ing` | C++ call | Read γ from | Read τ² from | Read iters from |
 |-------------|----------|-------------|--------------|-----------------|
-| false | `two_block_block2_dNormal_draw` (Phase 3) or interim `rNormalReg` | `coef.mode` | fixed `pr.dispersion` | `1` |
-| true | `two_block_block2_ING_draw` (Phase 4) or interim `rIndepNormalGammaReg` | `betastar` / `out[,0]` | `disp_out[0]` | `iters_out[0]` |
+| false | `two_block_block2_dNormal_draw` (Phase 3) or interim `rNormalReg` | `coefficients(0,_)` | fixed `pr.dispersion` | `1` |
+| true | `two_block_block2_ING_draw` (Phase 4) or interim `rIndepNormalGammaReg` | `out[,0]` / `rglmb` `coefficients(0,_)` | `disp_out[0]` | `iters_out[0]` |
 
-**Semantics:** match R reference `two_block_block2_one_chain` → **`fit_k$coef.mode`**
-(not `coefficients[1,]`). v5’s use of `coefficients(0,_)` for dNormal is a known
-parity footgun; v6 native path should follow `rglmb`.
+**Semantics:** match v5 and `two_block_block2_one_chain` → **`fit_k$coefficients[1, ]`**
+(posterior draw). `coef.mode` is for ICM / envelope anchoring only, not Gibbs updates.
 
 ---
 
@@ -180,7 +179,7 @@ parity footgun; v6 native path should follow `rglmb`.
 1. Add `two_block_block2_dNormal_draw(n=1, y, X, mu, P, dispersion)`:
    - Stack `[sqrt(w) X; R]` and `[sqrt(w) y; R mu]` (same algebra as `rNormalReg`).
    - Posterior mode = solve via **Armadillo** (`chol`, `solve`), not `lm.fit`.
-   - Single draw: `mode + IR * z`, return `coef.mode`.
+   - Single draw: `mode + IR * z`, return draw in `coefficients` (same as `rNormalReg`).
 2. Use from `two_block_block2_component_cpp` when `!pr.is_ing`.
 3. Optional: narrow `rNormalReg` itself later; Block 2 should not depend on that refactor.
 
@@ -271,7 +270,7 @@ Phases 3 and 4 can proceed in parallel after Phase 2.
 | Risk | Mitigation |
 |------|------------|
 | v5 Block 2 skipped align | Always call `two_block_align_b_to_xhyper_cpp` in new code |
-| dNormal γ: draw vs mode | Match `rglmb` → `coef.mode`, not raw `coefficients` row |
+| dNormal γ: draw vs mode | Use `rglmb` / `rNormalReg` **`coefficients`** row; not `coef.mode` |
 | ING `optim` cost dominates | Phase 4 split; cache mode at sweep start if needed |
 | Mixed dNormal / ING | `Block2PriorV2` per component already handles this |
 | Progress / interrupt | Reuse v5 `checkUserInterrupt` + progress helpers |

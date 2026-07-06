@@ -1097,7 +1097,10 @@ two_block_block2_one_chain <- function(
       use_parallel = FALSE
     )
 
-    coef_k <- fit_k$coef.mode
+    coef_k <- fit_k$coefficients[1L, , drop = TRUE]
+    if (is.null(names(coef_k)) && !is.null(colnames(fit_k$coefficients))) {
+      names(coef_k) <- colnames(fit_k$coefficients)
+    }
     if (!is.null(names(coef_k))) {
       fixef_out[[k]][i, names(coef_k)] <- coef_k
     } else {

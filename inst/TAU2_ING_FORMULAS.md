@@ -217,7 +217,7 @@ fit_k <- rglmb(
   pfamily = pf_ing    # dIndependent_Normal_Gamma(mu, Sigma, shape, rate)
 )
 tau2_k <- fit_k$dispersion[1L]
-gamma_k_new <- fit_k$coef.mode
+gamma_k_new <- fit_k$coefficients[1L, ]
 ```
 
 Here **all four ING pieces matter**:

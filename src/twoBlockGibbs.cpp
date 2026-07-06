@@ -965,26 +965,30 @@ std::string two_block_sweep_only_prefix(
          std::to_string(inner_sweeps) + ": ";
 }
 
-// R batch Block 2 uses rglmb()$coef.mode (conditional mean), not coefficients.
-NumericVector two_block_coef_mode_from_rNormalReg(const Rcpp::List& out_j) {
-  SEXP cm = out_j["coef.mode"];
-  if (Rf_isNull(cm)) {
-    Rcpp::stop("rNormalReg result missing coef.mode.");
+// Block~2 Gibbs: use rglmb()$coefficients row 1 (posterior draw), not coef.mode.
+NumericVector two_block_coef_draw_from_rglmb(const Rcpp::List& fit_k) {
+  SEXP coef_sexp = fit_k["coefficients"];
+  if (Rf_isNull(coef_sexp)) {
+    Rcpp::stop("rglmb result missing coefficients.");
   }
-  if (Rcpp::is<Rcpp::NumericMatrix>(cm)) {
-    Rcpp::NumericMatrix M(cm);
-    if (M.nrow() == 1) {
-      return Rcpp::NumericVector(M(0, Rcpp::_));
-    }
-    if (M.ncol() == 1) {
-      Rcpp::NumericVector v(M.nrow());
-      for (int r = 0; r < M.nrow(); ++r) {
-        v[r] = M(r, 0);
-      }
-      return v;
+  if (!Rcpp::is<Rcpp::NumericMatrix>(coef_sexp)) {
+    Rcpp::stop("rglmb coefficients must be a matrix.");
+  }
+  Rcpp::NumericMatrix coef(coef_sexp);
+  if (coef.nrow() < 1) {
+    Rcpp::stop("rglmb coefficients must have at least one row.");
+  }
+  Rcpp::NumericVector draw(coef.ncol());
+  for (int j = 0; j < coef.ncol(); ++j) {
+    draw[j] = coef(0, j);
+  }
+  if (coef.hasAttribute("dimnames")) {
+    Rcpp::List dn(coef.attr("dimnames"));
+    if (!Rf_isNull(dn[1])) {
+      draw.attr("names") = dn[1];
     }
   }
-  return Rcpp::as<Rcpp::NumericVector>(cm);
+  return draw;
 }
 
 namespace {
@@ -1215,7 +1219,7 @@ Rcpp::NumericVector two_block_block2_rglmb_gamma(
     iters_add = 1.0;
   }
 
-  return two_block_coef_mode_from_rNormalReg(fit_k);
+  return two_block_coef_draw_from_rglmb(fit_k);
 }
 
 // Port of R two_block_block2_one_chain() for one replicate chain.
