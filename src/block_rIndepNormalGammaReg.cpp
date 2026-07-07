@@ -6,6 +6,8 @@
 #include "RcppArmadillo.h"
 #include "Envelopefuncs.h"
 #include "simfuncs.h"
+#include "package_ns.h"
+#include "R_interface.h"
 #include <cmath>
 #include <string>
 
@@ -21,9 +23,27 @@ using Rcpp::Nullable;
 using Rcpp::NumericMatrix;
 using Rcpp::NumericVector;
 using Rcpp::RObject;
+using Rcpp::Function;
+
+using glmbayes::env::EnvelopeBuild;
+using glmbayes::sim::glmb_Standardize_Model;
+
+#define BEB_DBG(verbose, msg) \
+  do { \
+    if (verbose) { \
+      Rcpp::Rcout << msg << std::endl; \
+    } \
+  } while (0)
 
 static inline bool has_non_null(const List& pl, const char* name) {
   return pl.containsElementNamed(name) && !Rf_isNull(pl[name]);
+}
+
+static inline int resolve_n_envopt(const Nullable<int>& n_envopt) {
+  if (!n_envopt.isSet() || n_envopt.isNull()) {
+    return -1;
+  }
+  return Rcpp::as<int>(n_envopt.get());
 }
 
 static inline bool is_symmetric_mat(const NumericMatrix& M, double tol = 1e-10) {
@@ -359,7 +379,7 @@ Nullable<double> resolve_nullable_bound(
     const List& prior_list,
     const char* name
 ) {
-  if (arg_val.isNotNull()) {
+  if (arg_val.isSet() && arg_val.isNotNull()) {
     return arg_val;
   }
   if (has_non_null(prior_list, name)) {
@@ -369,6 +389,149 @@ Nullable<double> resolve_nullable_bound(
     }
   }
   return R_NilValue;
+}
+
+List block_envelope_build_one(
+    const NumericVector& y_j,
+    const NumericMatrix& x_j,
+    const NumericVector& mu_j,
+    const NumericMatrix& P_j,
+    const NumericVector& offset_j,
+    const NumericVector& wt_j,
+    const NumericVector& b_post_mean,
+    double dispersion2,
+    bool identifiable,
+    const std::string& block_id,
+    Function& optim,
+    Function& f2,
+    Function& f3,
+    int Gridtype,
+    int n,
+    int n_envopt_val,
+    bool use_opencl,
+    bool verbose
+) {
+  const int l1 = x_j.ncol();
+  BEB_DBG(verbose, "[BEB 4.0] block_envelope_build_one id=" << block_id
+          << " identifiable=" << identifiable
+          << " l1=" << l1 << " n_j=" << y_j.size());
+
+  if (!identifiable) {
+    BEB_DBG(verbose, "[BEB 4.1] prior-only stub (not identifiable)");
+    return List::create(
+      Rcpp::Named("block_envelope") = R_NilValue,
+      Rcpp::Named("block_standardization") = List::create(
+        Rcpp::Named("mu") = mu_j,
+        Rcpp::Named("P") = P_j,
+        Rcpp::Named("prior_only") = true
+      ),
+      Rcpp::Named("block_id") = block_id,
+      Rcpp::Named("identifiable") = false
+    );
+  }
+
+  const int n_j = y_j.size();
+  NumericVector wt2(n_j);
+  for (int i = 0; i < n_j; ++i) {
+    wt2[i] = wt_j[i] / dispersion2;
+  }
+
+  const arma::mat X = Rcpp::as<arma::mat>(x_j);
+  const arma::vec alpha_vec =
+    X * Rcpp::as<arma::vec>(mu_j) + Rcpp::as<arma::vec>(offset_j);
+  const NumericVector alpha = Rcpp::wrap(alpha_vec);
+
+  NumericVector mu2(l1);
+  std::fill(mu2.begin(), mu2.end(), 0.0);
+
+  NumericVector parin(l1);
+  for (int i = 0; i < l1; ++i) {
+    parin[i] = b_post_mean[i];
+  }
+
+  BEB_DBG(verbose, "[BEB 4.2] before optim block_id=" << block_id);
+  List opt_out = optim(
+    Rcpp::_["par"] = parin,
+    Rcpp::_["fn"] = f2,
+    Rcpp::_["gr"] = f3,
+    Rcpp::_["y"] = y_j,
+    Rcpp::_["x"] = x_j,
+    Rcpp::_["mu"] = mu2,
+    Rcpp::_["P"] = P_j,
+    Rcpp::_["alpha"] = alpha,
+    Rcpp::_["wt"] = wt2,
+    Rcpp::_["method"] = "BFGS",
+    Rcpp::_["hessian"] = true
+  );
+
+  NumericVector bstar = opt_out["par"];
+  NumericMatrix A1 = opt_out["hessian"];
+  BEB_DBG(verbose, "[BEB 4.3] after optim block_id=" << block_id
+          << " bstar_len=" << bstar.size());
+
+  NumericMatrix bstar_mat(l1, 1);
+  for (int i = 0; i < l1; ++i) {
+    bstar_mat(i, 0) = bstar[i];
+  }
+
+  NumericMatrix x2_mat = x_j;
+  NumericMatrix P2_mat = P_j;
+
+  BEB_DBG(verbose, "[BEB 4.4] before glmb_Standardize_Model block_id=" << block_id);
+  List Standard_Mod = glmb_Standardize_Model(
+    y_j, x2_mat, P2_mat, bstar_mat, A1
+  );
+  BEB_DBG(verbose, "[BEB 4.5] after glmb_Standardize_Model block_id=" << block_id);
+
+  NumericVector bstar2 = Standard_Mod["bstar2"];
+  NumericMatrix A = Standard_Mod["A"];
+  NumericMatrix x2_std = Standard_Mod["x2"];
+  NumericMatrix mu2_std = Standard_Mod["mu2"];
+  NumericMatrix P2_std = Standard_Mod["P2"];
+
+  BEB_DBG(verbose, "[BEB 4.6] before EnvelopeBuild block_id=" << block_id
+          << " Gridtype=" << Gridtype << " n=" << n);
+  List Env2 = EnvelopeBuild(
+    bstar2,
+    A,
+    y_j,
+    x2_std,
+    mu2_std,
+    P2_std,
+    alpha,
+    wt2,
+    "gaussian",
+    "identity",
+    Gridtype,
+    n,
+    n_envopt_val,
+    false,
+    use_opencl,
+    verbose
+  );
+  BEB_DBG(verbose, "[BEB 4.7] after EnvelopeBuild block_id=" << block_id);
+
+  List block_standardization = List::create(
+    Rcpp::Named("bstar") = bstar,
+    Rcpp::Named("bstar2") = bstar2,
+    Rcpp::Named("A") = A,
+    Rcpp::Named("x2") = x2_std,
+    Rcpp::Named("P2") = P2_std,
+    Rcpp::Named("mu2") = mu2_std,
+    Rcpp::Named("L2Inv") = Standard_Mod["L2Inv"],
+    Rcpp::Named("L3Inv") = Standard_Mod["L3Inv"],
+    Rcpp::Named("alpha") = alpha,
+    Rcpp::Named("mu") = mu_j,
+    Rcpp::Named("P") = P_j,
+    Rcpp::Named("prior_only") = false
+  );
+
+  return List::create(
+    Rcpp::Named("block_envelope") = Env2,
+    Rcpp::Named("block_standardization") = block_standardization,
+    Rcpp::Named("block_id") = block_id,
+    Rcpp::Named("identifiable") = true
+  );
 }
 
 }  // anonymous namespace
@@ -516,10 +679,10 @@ List BlockEnvelopeCentering(
   const double shape2 = shape + n_w / 2.0;
   const double rate3 = rate + RSS_post_pooled / 2.0;
 
-  RObject disp_lower_out = disp_lower.isNotNull()
+  RObject disp_lower_out = disp_lower.isUsable()
     ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_lower.get())))
     : RObject(R_NilValue);
-  RObject disp_upper_out = disp_upper.isNotNull()
+  RObject disp_upper_out = disp_upper.isUsable()
     ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_upper.get())))
     : RObject(R_NilValue);
 
@@ -539,6 +702,214 @@ List BlockEnvelopeCentering(
     Rcpp::Named("block_info") = block_info,
     Rcpp::Named("blocks") = blocks,
     Rcpp::Named("prior_lists") = prior_block
+  );
+}
+
+List BlockEnvelopeBuild(
+    const List& centering_out,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list_sexp,
+    SEXP prior_lists_sexp,
+    NumericVector offset,
+    NumericVector wt,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    int n,
+    int Gridtype,
+    Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose
+) {
+  BEB_DBG(verbose, "[BEB 1.0] BlockEnvelopeBuild enter");
+
+  if (!centering_out.containsElementNamed("dispersion") ||
+      !centering_out.containsElementNamed("blocks") ||
+      !centering_out.containsElementNamed("block_info") ||
+      !centering_out.containsElementNamed("k")) {
+    Rcpp::stop("'centering_out' must be a full BlockEnvelopeCentering return list.");
+  }
+
+  const double dispersion2 = Rcpp::as<double>(centering_out["dispersion"]);
+  const double RSS_post = Rcpp::as<double>(centering_out["RSS_post"]);
+  const double shape2 = Rcpp::as<double>(centering_out["shape2"]);
+  const double rate3 = Rcpp::as<double>(centering_out["rate3"]);
+  const double n_w = Rcpp::as<double>(centering_out["n_w"]);
+  const int p_re = Rcpp::as<int>(centering_out["p_re"]);
+  const int l1 = Rcpp::as<int>(centering_out["l1"]);
+  const int l2 = Rcpp::as<int>(centering_out["l2"]);
+  const int k = Rcpp::as<int>(centering_out["k"]);
+  BEB_DBG(verbose, "[BEB 1.1] parsed centering_out k=" << k << " l1=" << l1
+          << " l2=" << l2 << " dispersion=" << dispersion2);
+
+  if (y.size() != l2) {
+    Rcpp::stop("length(y) must match centering_out$l2.");
+  }
+  if (x.nrow() != l2 || x.ncol() != l1) {
+    Rcpp::stop("dim(x) must match centering_out$l2 x l1.");
+  }
+
+  if (max_disp_perc <= 0.0 || max_disp_perc >= 1.0) {
+    if (centering_out.containsElementNamed("max_disp_perc")) {
+      max_disp_perc = Rcpp::as<double>(centering_out["max_disp_perc"]);
+    } else {
+      max_disp_perc = 0.99;
+    }
+  }
+
+  if (!disp_lower.isUsable() && centering_out.containsElementNamed("disp_lower")) {
+    SEXP dl = centering_out["disp_lower"];
+    if (!Rf_isNull(dl)) {
+      disp_lower = Nullable<double>(Rcpp::wrap(Rcpp::as<double>(dl)));
+    }
+  }
+  if (!disp_upper.isUsable() && centering_out.containsElementNamed("disp_upper")) {
+    SEXP du = centering_out["disp_upper"];
+    if (!Rf_isNull(du)) {
+      disp_upper = Nullable<double>(Rcpp::wrap(Rcpp::as<double>(du)));
+    }
+  }
+
+  List block_info = centering_out["block_info"];
+  List row_blocks = block_info["rows"];
+  List blocks_centering = centering_out["blocks"];
+
+  List block_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
+  if (Rcpp::as<int>(block_info_data["k"]) != k) {
+    Rcpp::stop("'block' partition k must match centering_out$k.");
+  }
+
+  List prior_block = normalize_prior_for_block_ing(
+    prior_list_sexp, prior_lists_sexp, block_info_data, l1
+  );
+  BEB_DBG(verbose, "[BEB 1.2] partition + prior expand done");
+
+  if (offset.size() == 1) offset = Rcpp::rep(offset[0], l2);
+  if (wt.size() == 1) wt = Rcpp::rep(wt[0], l2);
+  if (offset.size() != l2) {
+    Rcpp::stop("length(offset) must be 1 or length(y).");
+  }
+  if (wt.size() != l2) {
+    Rcpp::stop("length(wt) must be 1 or length(y).");
+  }
+
+  const int n_envopt_val = resolve_n_envopt(n_envopt);
+
+  BEB_DBG(verbose, "[BEB 1.3] before optim() lookup");
+  Function optim("optim");
+  BEB_DBG(verbose, "[BEB 1.4] before r_glmbfamfunc()");
+  Function gaussian("gaussian");
+  Function glmbfamfunc = glmbayes_R::r_glmbfamfunc();
+  BEB_DBG(verbose, "[BEB 1.5] before glmbfamfunc(gaussian())");
+  List famfunc = glmbfamfunc(gaussian());
+  BEB_DBG(verbose, "[BEB 1.6] after glmbfamfunc(gaussian())");
+  Function f2 = famfunc["f2"];
+  Function f3 = famfunc["f3"];
+  BEB_DBG(verbose, "[BEB 1.7] f2/f3 extracted");
+
+  List block_envelopes(k);
+  List block_standardization(k);
+  int n_identifiable = 0;
+
+  for (int j = 0; j < k; ++j) {
+    IntegerVector rows = row_blocks[j];
+    List pb = prior_block[j];
+    List bc = blocks_centering[j];
+    NumericVector mu_j = pb["mu"];
+    NumericMatrix P_j = pb["P"];
+    NumericVector y_j = slice_numeric(y, rows);
+    NumericMatrix x_j = slice_matrix_rows(x, rows);
+    NumericVector offset_j = slice_numeric(offset, rows);
+    NumericVector wt_j = slice_numeric(wt, rows);
+    NumericVector b_post_mean = bc["b_post_mean"];
+    const bool identifiable = Rcpp::as<bool>(bc["identifiable"]);
+    const std::string block_id = Rcpp::as<std::string>(bc["id"]);
+
+    BEB_DBG(verbose, "[BEB 2.0] block j=" << (j + 1) << "/" << k
+            << " id=" << block_id
+            << " identifiable=" << identifiable
+            << " n_obs=" << rows.size());
+
+    BEB_DBG(verbose, "[BEB 2.1] before block_envelope_build_one id=" << block_id);
+    List one = block_envelope_build_one(
+      y_j, x_j, mu_j, P_j, offset_j, wt_j,
+      b_post_mean, dispersion2, identifiable, block_id,
+      optim, f2, f3, Gridtype, n, n_envopt_val,
+      use_opencl, verbose
+    );
+    BEB_DBG(verbose, "[BEB 2.2] after block_envelope_build_one id=" << block_id);
+
+    if (identifiable) {
+      List env_j = Rcpp::as<List>(one["block_envelope"]);
+      env_j["block_id"] = block_id;
+      block_envelopes[j] = env_j;
+      ++n_identifiable;
+    } else {
+      block_envelopes[j] = R_NilValue;
+    }
+    block_standardization[j] = one["block_standardization"];
+
+    if (verbose) {
+      Rcpp::Rcout << "BlockEnvelopeBuild block " << (j + 1)
+                  << " id=" << block_id
+                  << " identifiable=" << identifiable << std::endl;
+    }
+  }
+
+  BEB_DBG(verbose, "[BEB 3.0] all blocks done n_identifiable=" << n_identifiable);
+
+  RObject disp_lower_out = disp_lower.isUsable()
+    ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_lower.get())))
+    : RObject(R_NilValue);
+  RObject disp_upper_out = disp_upper.isUsable()
+    ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_upper.get())))
+    : RObject(R_NilValue);
+
+  List dispersion_envelope = List::create(
+    Rcpp::Named("gamma_list") = List::create(
+      Rcpp::Named("shape2") = shape2,
+      Rcpp::Named("rate2") = rate3,
+      Rcpp::Named("disp_lower") = disp_lower_out,
+      Rcpp::Named("disp_upper") = disp_upper_out
+    ),
+    Rcpp::Named("UB_list") = List::create(
+      Rcpp::Named("status") = "stub_v1"
+    ),
+    Rcpp::Named("low") = disp_lower_out,
+    Rcpp::Named("upp") = disp_upper_out,
+    Rcpp::Named("RSS_post") = RSS_post,
+    Rcpp::Named("RSS_ML") = RSS_ML,
+    Rcpp::Named("status") = "stub_pending_BlockEnvelopeDispersionBuild"
+  );
+
+  List meta = List::create(
+    Rcpp::Named("k") = k,
+    Rcpp::Named("l1") = l1,
+    Rcpp::Named("l2") = l2,
+    Rcpp::Named("n_w") = n_w,
+    Rcpp::Named("p_re") = p_re,
+    Rcpp::Named("n") = n,
+    Rcpp::Named("Gridtype") = Gridtype,
+    Rcpp::Named("d1_star") = dispersion2,
+    Rcpp::Named("dispersion") = dispersion2,
+    Rcpp::Named("RSS_post") = RSS_post,
+    Rcpp::Named("shape2") = shape2,
+    Rcpp::Named("rate3") = rate3,
+    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("n_identifiable") = n_identifiable,
+    Rcpp::Named("use_parallel") = use_parallel
+  );
+
+  BEB_DBG(verbose, "[BEB 3.1] BlockEnvelopeBuild return");
+  return List::create(
+    Rcpp::Named("block_envelopes") = block_envelopes,
+    Rcpp::Named("dispersion_envelope") = dispersion_envelope,
+    Rcpp::Named("block_standardization") = block_standardization,
+    Rcpp::Named("meta") = meta
   );
 }
 

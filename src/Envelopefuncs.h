@@ -168,6 +168,28 @@ List BlockEnvelopeCentering(
     bool verbose
 );
 
+/// BlockEnvelopeBuild: per-block beta envelopes + shared dispersion stub (Step 2).
+List BlockEnvelopeBuild(
+    const List& centering_out,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    NumericVector offset,
+    NumericVector wt,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    int n,
+    int Gridtype,
+    Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose
+);
+
 Rcpp::List EnvelopeOrchestrator(
     NumericVector bstar2,
     NumericMatrix A,

@@ -776,6 +776,35 @@ NULL
     p_re = p_re, n_rss_iter = 10L, verbose = FALSE
   )
 
+  if (isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))) {
+    cat(sprintf(
+      "[BEB 0.0] before BlockEnvelopeBuild_cpp chain=%d/%d center$k=%d dispersion=%.6g\n",
+      i, batch$n, center$k, center$dispersion
+    ))
+    utils::flush.console()
+  }
+
+  build <- .BlockEnvelopeBuild_cpp(
+    center, y, Z, design$groups, prior_list, NULL, offset, wt,
+    prior_list$max_disp_perc,
+    prior_list$disp_lower, prior_list$disp_upper,
+    n = 1L, Gridtype = 3L, n_envopt = -1L,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE, use_opencl = FALSE,
+    verbose = isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))
+  )
+
+  if (isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))) {
+    stop(
+      sprintf(
+        "TEMP block ING: build done (k=%d, n_identifiable=%d)",
+        length(build$block_envelopes),
+        build$meta$n_identifiable
+      ),
+      call. = FALSE
+    )
+  }
+
   if (isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))) {
     cat(sprintf(
       "  [Block1 ING debug] chain %d/%d: centering dispersion=%.6g\n",

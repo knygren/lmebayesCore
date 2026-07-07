@@ -446,6 +446,23 @@
 
 #' @noRd
 #' @keywords internal
+.BlockEnvelopeBuild_cpp <- function(
+    centering_out, y, x, block, prior_list, prior_lists,
+    offset, wt, max_disp_perc,
+    disp_lower = NULL, disp_upper = NULL,
+    n = 1L, Gridtype = 3L, n_envopt = -1L,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeBuild_cpp_export`,
+    centering_out, y, x, block, prior_list, prior_lists,
+    offset, wt, max_disp_perc, disp_lower, disp_upper,
+    n, Gridtype, n_envopt, RSS_ML,
+    use_parallel, use_opencl, verbose)
+}
+
+#' @noRd
+#' @keywords internal
 .EnvelopeSize_cpp <- function(a, G1, Gridtype, n, n_envopt, use_opencl, verbose) {
   .Call(`_glmbayesCore_EnvelopeSize_cpp_export`, a, G1, Gridtype, n, n_envopt, use_opencl, verbose)
 }

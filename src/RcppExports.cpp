@@ -955,6 +955,34 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// BlockEnvelopeBuild_cpp_export
+Rcpp::List BlockEnvelopeBuild_cpp_export(const Rcpp::List& centering_out, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, SEXP block, SEXP prior_list, SEXP prior_lists, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, double max_disp_perc, Rcpp::Nullable<double> disp_lower, Rcpp::Nullable<double> disp_upper, int n, int Gridtype, int n_envopt, double RSS_ML, bool use_parallel, bool use_opencl, bool verbose);
+RcppExport SEXP _glmbayesCore_BlockEnvelopeBuild_cpp_export(SEXP centering_outSEXP, SEXP ySEXP, SEXP xSEXP, SEXP blockSEXP, SEXP prior_listSEXP, SEXP prior_listsSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP max_disp_percSEXP, SEXP disp_lowerSEXP, SEXP disp_upperSEXP, SEXP nSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP RSS_MLSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type centering_out(centering_outSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type block(blockSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type prior_list(prior_listSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type prior_lists(prior_listsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type wt(wtSEXP);
+    Rcpp::traits::input_parameter< double >::type max_disp_perc(max_disp_percSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<double> >::type disp_lower(disp_lowerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<double> >::type disp_upper(disp_upperSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type Gridtype(GridtypeSEXP);
+    Rcpp::traits::input_parameter< int >::type n_envopt(n_envoptSEXP);
+    Rcpp::traits::input_parameter< double >::type RSS_ML(RSS_MLSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_parallel(use_parallelSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_opencl(use_openclSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(BlockEnvelopeBuild_cpp_export(centering_out, y, x, block, prior_list, prior_lists, offset, wt, max_disp_perc, disp_lower, disp_upper, n, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 // EnvelopeSet_Grid_cpp_export
 Rcpp::List EnvelopeSet_Grid_cpp_export(const Rcpp::NumericMatrix& GIndex, const Rcpp::NumericMatrix& cbars, const Rcpp::NumericMatrix& Lint);
 RcppExport SEXP _glmbayesCore_EnvelopeSet_Grid_cpp_export(SEXP GIndexSEXP, SEXP cbarsSEXP, SEXP LintSEXP) {
@@ -1109,6 +1137,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_glmbayesCore_EnvelopeOrchestrator_cpp_export", (DL_FUNC) &_glmbayesCore_EnvelopeOrchestrator_cpp_export, 21},
     {"_glmbayesCore_EnvelopeCentering_cpp_export", (DL_FUNC) &_glmbayesCore_EnvelopeCentering_cpp_export, 10},
     {"_glmbayesCore_BlockEnvelopeCentering_cpp_export", (DL_FUNC) &_glmbayesCore_BlockEnvelopeCentering_cpp_export, 15},
+    {"_glmbayesCore_BlockEnvelopeBuild_cpp_export", (DL_FUNC) &_glmbayesCore_BlockEnvelopeBuild_cpp_export, 18},
     {"_glmbayesCore_EnvelopeSet_Grid_cpp_export", (DL_FUNC) &_glmbayesCore_EnvelopeSet_Grid_cpp_export, 3},
     {"_glmbayesCore_EnvelopeSet_LogP_cpp_export", (DL_FUNC) &_glmbayesCore_EnvelopeSet_LogP_cpp_export, 4},
     {"_glmbayesCore_rIndepNormalGammaReg_std_cpp_export", (DL_FUNC) &_glmbayesCore_rIndepNormalGammaReg_std_cpp_export, 15},

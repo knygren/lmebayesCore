@@ -734,6 +734,27 @@ Rcpp::List BlockEnvelopeCentering(
     bool verbose
 );
 
+Rcpp::List BlockEnvelopeBuild(
+    const Rcpp::List& centering_out,
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    Rcpp::NumericVector offset,
+    Rcpp::NumericVector wt,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    int n,
+    int Gridtype,
+    Rcpp::Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose
+);
+
 }
 
 
