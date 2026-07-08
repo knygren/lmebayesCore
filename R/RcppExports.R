@@ -113,6 +113,10 @@ rIndepNormalGammaReg_cpp_export <- function(n, y, x, mu, P, offset, wt, shape, r
     .Call(`_glmbayesCore_rIndepNormalGammaReg_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
 }
 
+rIndepNormalGammaReg_with_envelope_cpp_export <- function(n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar) {
+    .Call(`_glmbayesCore_rIndepNormalGammaReg_with_envelope_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
+}
+
 rNormalGammaReg_cpp_export <- function(n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose = FALSE) {
     .Call(`_glmbayesCore_rNormalGammaReg_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose)
 }
@@ -163,6 +167,18 @@ BlockEnvelopeCentering_cpp_export <- function(y, x, block, prior_list, prior_lis
 
 BlockEnvelopeBuild_cpp_export <- function(centering_out, y, x, block, prior_list, prior_lists, offset, wt, max_disp_perc, disp_lower, disp_upper, n = 1L, Gridtype = 3L, n_envopt = -1L, RSS_ML = NA_real_, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE) {
     .Call(`_glmbayesCore_BlockEnvelopeBuild_cpp_export`, centering_out, y, x, block, prior_list, prior_lists, offset, wt, max_disp_perc, disp_lower, disp_upper, n, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, verbose)
+}
+
+BlockEnvelopeDispersionBuild_cpp_export <- function(build_out, centering_out, y, x, block, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, RSS_ML = NA_real_, use_parallel = TRUE, verbose = FALSE) {
+    .Call(`_glmbayesCore_BlockEnvelopeDispersionBuild_cpp_export`, build_out, centering_out, y, x, block, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, RSS_ML, use_parallel, verbose)
+}
+
+BlockEnvelopeSim_cpp_export <- function(build_out, n = 1L, progbar = FALSE, verbose = FALSE) {
+    .Call(`_glmbayesCore_BlockEnvelopeSim_cpp_export`, build_out, n, progbar, verbose)
+}
+
+rIndepNormalGammaRegBlock_cpp_export <- function(n, y, x, block, prior_list, prior_lists, offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, progbar, verbose, group_levels, re_names) {
+    .Call(`_glmbayesCore_rIndepNormalGammaRegBlock_cpp_export`, n, y, x, block, prior_list, prior_lists, offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, progbar, verbose, group_levels, re_names)
 }
 
 EnvelopeSet_Grid_cpp_export <- function(GIndex, cbars, Lint) {

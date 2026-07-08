@@ -696,7 +696,52 @@ Rcpp::List rIndepNormalGammaReg_cpp_export(
     use_parallel,
     use_opencl,
     verbose,
-    progbar
+    progbar,
+    false
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List rIndepNormalGammaReg_with_envelope_cpp_export(
+    int n,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    const Rcpp::NumericVector& mu,
+    const Rcpp::NumericMatrix& P,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_lower,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_upper,
+    int Gridtype,
+    int n_envopt,
+    bool use_parallel,
+    bool use_opencl,
+    bool verbose,
+    bool progbar
+) {
+  return rIndepNormalGammaReg(
+    n,
+    y,
+    x,
+    mu,
+    P,
+    offset,
+    wt,
+    shape,
+    rate,
+    max_disp_perc,
+    disp_lower,
+    disp_upper,
+    Gridtype,
+    n_envopt,
+    use_parallel,
+    use_opencl,
+    verbose,
+    progbar,
+    true
   );
 }
 
@@ -1062,6 +1107,77 @@ Rcpp::List BlockEnvelopeBuild_cpp_export(
     offset, wt, max_disp_perc, disp_lower, disp_upper,
     n, Gridtype, n_envopt_nullable, RSS_ML,
     use_parallel, use_opencl, verbose
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List BlockEnvelopeDispersionBuild_cpp_export(
+    const Rcpp::List& build_out,
+    const Rcpp::List& centering_out,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    SEXP block,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    double RSS_ML = NA_REAL,
+    bool use_parallel = true,
+    bool verbose = false
+) {
+  return glmbayes::env::BlockEnvelopeDispersionBuild(
+    build_out, centering_out, y, x, block,
+    offset, wt, shape, rate, max_disp_perc,
+    disp_lower, disp_upper, RSS_ML,
+    use_parallel, verbose
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List BlockEnvelopeSim_cpp_export(
+    const Rcpp::List& build_out,
+    int n = 1,
+    bool progbar = false,
+    bool verbose = false
+) {
+  return glmbayes::env::BlockEnvelopeSim(
+    build_out, n, progbar, verbose
+  );
+}
+
+// [[Rcpp::export]]
+Rcpp::List rIndepNormalGammaRegBlock_cpp_export(
+    int n,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    const Rcpp::NumericVector& offset,
+    const Rcpp::NumericVector& wt,
+    int p_re,
+    int n_rss_iter,
+    int Gridtype,
+    int n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool progbar,
+    bool verbose,
+    const Rcpp::CharacterVector& group_levels,
+    const Rcpp::CharacterVector& re_names
+) {
+  Rcpp::Nullable<int> n_envopt_nullable(
+    n_envopt < 0 ? R_NilValue : Rcpp::wrap(n_envopt)
+  );
+  return glmbayes::env::rIndepNormalGammaRegBlock(
+    n, y, x, block, prior_list, prior_lists,
+    offset, wt, p_re, n_rss_iter, Gridtype, n_envopt_nullable,
+    RSS_ML, use_parallel, use_opencl, progbar, verbose,
+    group_levels, re_names
   );
 }
 

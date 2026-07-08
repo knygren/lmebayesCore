@@ -131,6 +131,7 @@ glmbayes Simulation Functions
 \code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
+\code{\link{rindepNormalGamma_reg_with_envelope}()},
 \code{\link{simfuncs}},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},

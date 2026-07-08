@@ -720,7 +720,95 @@ NULL
   out
 }
 
-#' Block~1 one chain: per-group \code{rindepNormalGamma_reg()} updates
+#' Build Block~1 ING \code{prior_list} for one chain (mu_all from prep)
+#' @noRd
+.two_block_block1_ing_prior_list_one_chain <- function(mu_all, ing_prior_list) {
+  prior_list <- list(
+    mu            = mu_all,
+    Sigma         = ing_prior_list$Sigma,
+    shape         = ing_prior_list$shape,
+    rate          = ing_prior_list$rate,
+    max_disp_perc = if (!is.null(ing_prior_list$max_disp_perc)) {
+      ing_prior_list$max_disp_perc
+    } else {
+      0.99
+    }
+  )
+  if (!is.null(ing_prior_list$disp_lower)) {
+    prior_list$disp_lower <- ing_prior_list$disp_lower
+  }
+  if (!is.null(ing_prior_list$disp_upper)) {
+    prior_list$disp_upper <- ing_prior_list$disp_upper
+  }
+  prior_list
+}
+
+#' Map \code{BlockEnvelopeSim} block draws to the batch \code{b} matrix layout
+#' @noRd
+.two_block_block1_map_envelope_sim_to_b <- function(sim, re_names, group_levels, p_re) {
+  ids <- vapply(sim$block_results, function(br) as.character(br$block_id), character(1))
+  b_rows <- lapply(sim$block_results, function(br) {
+    v <- as.numeric(br$beta[, 1L])
+    if (length(v) != p_re) {
+      stop(
+        "BlockEnvelopeSim beta length (", length(v),
+        ") must equal ncol(Z) / length(re_names) (", p_re, ").",
+        call. = FALSE
+      )
+    }
+    stats::setNames(v, re_names)
+  })
+  b_mat <- do.call(rbind, b_rows)
+  rownames(b_mat) <- ids
+  colnames(b_mat) <- re_names
+  if (!all(group_levels %in% ids)) {
+    stop(
+      "BlockEnvelopeSim block ids do not cover all group levels.",
+      call. = FALSE
+    )
+  }
+  b_draw <- b_mat[group_levels, re_names, drop = FALSE]
+  rownames(b_draw) <- group_levels
+  b_draw
+}
+
+#' Block~1 one chain: block ING envelope update via \code{rIndepNormalGammaRegBlock}
+#' (Centering → Build → DispersionBuild → Sim in one C++ call).
+#' @noRd
+.two_block_block1_envelope_draw_one_chain <- function(
+    y,
+    Z,
+    groups,
+    prior_list,
+    p_re,
+    re_names,
+    group_levels
+) {
+  nobs <- length(y)
+  .rIndepNormalGammaRegBlock_cpp(
+    n             = 1L,
+    y             = y,
+    x             = Z,
+    block         = groups,
+    prior_list    = prior_list,
+    prior_lists   = NULL,
+    offset        = rep(0, nobs),
+    wt            = rep(1, nobs),
+    p_re          = p_re,
+    n_rss_iter    = 10L,
+    Gridtype      = 3L,
+    n_envopt      = -1L,
+    RSS_ML        = NA_real_,
+    use_parallel  = TRUE,
+    use_opencl    = FALSE,
+    progbar       = FALSE,
+    verbose       = FALSE,
+    group_levels  = group_levels,
+    re_names      = re_names
+  )[c("b", "dispersion_ranef", "iters_mean")]
+}
+
+#' Block~1 one chain: block ING envelope update for all groups
 #' @noRd
 .two_block_block1_ing_one_chain <- function(
     batch,
@@ -748,100 +836,29 @@ NULL
   y <- design$y
   Z <- as.matrix(design$Z)
 
-  ## TEMP block ING dev -- centering bridge (until BlockEnvelopeSim)
-  prior_list <- list(
-    mu            = mu_all,
-    Sigma         = ing_prior_list$Sigma,
-    shape         = ing_prior_list$shape,
-    rate          = ing_prior_list$rate,
-    max_disp_perc = if (!is.null(ing_prior_list$max_disp_perc)) {
-      ing_prior_list$max_disp_perc
-    } else {
-      0.99
-    }
-  )
-  if (!is.null(ing_prior_list$disp_lower)) {
-    prior_list$disp_lower <- ing_prior_list$disp_lower
-  }
-  if (!is.null(ing_prior_list$disp_upper)) {
-    prior_list$disp_upper <- ing_prior_list$disp_upper
-  }
-  nobs   <- length(y)
-  offset <- rep(0, nobs)
-  wt     <- rep(1, nobs)
-  center <- .BlockEnvelopeCentering_cpp(
-    y, Z, design$groups, prior_list, NULL, offset, wt,
-    prior_list$shape, prior_list$rate, prior_list$max_disp_perc,
-    prior_list$disp_lower, prior_list$disp_upper,
-    p_re = p_re, n_rss_iter = 10L, verbose = FALSE
+  prior_list <- .two_block_block1_ing_prior_list_one_chain(
+    mu_all, ing_prior_list
   )
 
-  if (isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))) {
-    cat(sprintf(
-      "[BEB 0.0] before BlockEnvelopeBuild_cpp chain=%d/%d center$k=%d dispersion=%.6g\n",
-      i, batch$n, center$k, center$dispersion
-    ))
-    utils::flush.console()
-  }
-
-  build <- .BlockEnvelopeBuild_cpp(
-    center, y, Z, design$groups, prior_list, NULL, offset, wt,
-    prior_list$max_disp_perc,
-    prior_list$disp_lower, prior_list$disp_upper,
-    n = 1L, Gridtype = 3L, n_envopt = -1L,
-    RSS_ML = NA_real_,
-    use_parallel = TRUE, use_opencl = FALSE,
-    verbose = isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))
+  out <- .two_block_block1_envelope_draw_one_chain(
+    y            = y,
+    Z            = Z,
+    groups       = design$groups,
+    prior_list   = prior_list,
+    p_re         = p_re,
+    re_names     = re_names,
+    group_levels = group_levels
   )
-
-  if (isTRUE(getOption("glmbayesCore.debug_block_envelope_build", FALSE))) {
-    stop(
-      sprintf(
-        "TEMP block ING: build done (k=%d, n_identifiable=%d)",
-        length(build$block_envelopes),
-        build$meta$n_identifiable
-      ),
-      call. = FALSE
-    )
-  }
 
   if (isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))) {
     cat(sprintf(
-      "  [Block1 ING debug] chain %d/%d: centering dispersion=%.6g\n",
-      i, batch$n, center$dispersion
+      "  [Block1 ING debug] chain %d/%d: envelope sim dispersion=%.6g\n",
+      i, batch$n, out$dispersion_ranef
     ))
     utils::flush.console()
   }
 
-  ids <- as.character(center$block_info$ids)
-  b_rows <- lapply(center$blocks, function(blk) {
-    v <- as.numeric(blk$b_post_mean)
-    if (length(v) != p_re) {
-      stop(
-        "BlockEnvelopeCentering b_post_mean length (", length(v),
-        ") must equal ncol(Z) / length(re_names) (", p_re, ").",
-        call. = FALSE
-      )
-    }
-    stats::setNames(v, re_names)
-  })
-  b_mat <- do.call(rbind, b_rows)
-  rownames(b_mat) <- ids
-  colnames(b_mat) <- re_names
-  if (!all(group_levels %in% ids)) {
-    stop(
-      "BlockEnvelopeCentering block ids do not cover all group levels.",
-      call. = FALSE
-    )
-  }
-  b_draw <- b_mat[group_levels, re_names, drop = FALSE]
-  rownames(b_draw) <- group_levels
-
-  list(
-    b                = b_draw,
-    dispersion_ranef = center$dispersion,
-    iters_mean       = 1
-  )
+  out
 }
 
 #' Block~1 batch: ING per-group updates for all replicate chains
@@ -912,7 +929,7 @@ NULL
   )
 }
 
-#' Pack ING sweep outputs (stopgap chain-average measurement dispersion)
+#' Pack ING sweep outputs (includes per-chain \code{dispersion_ranef} from envelope sim)
 #' @noRd
 .rGLMM_sweep_save_ing <- function(
     n,
@@ -1549,7 +1566,6 @@ NULL
   main_res$icm_info            <- icm_info
   main_res$ptypes              <- pf_summary$ptypes
   main_res$any_non_normal      <- any_non_normal
-  main_res$iters_ranef_draws   <- main_raw$iters_ranef_draws
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res
@@ -2249,6 +2265,7 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     coefficients           = v2_out$coefficients,
     dispersion_fixef_draws = v2_out$dispersion_fixef_draws,
     iters_fixef_draws      = v2_out$iters_fixef_draws,
+    iters_ranef_draws      = v2_out$iters_ranef_draws,
     mu_all_last            = v2_out$mu_all_last,
     re_coef_names          = re_names,
     group_levels           = group_levels,

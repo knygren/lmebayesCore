@@ -5,11 +5,32 @@
 
 #include "RcppArmadillo.h"
 #include "Envelopefuncs.h"
+#include "famfuncs.h"
 #include "simfuncs.h"
 #include "package_ns.h"
 #include "R_interface.h"
+#include "rng_utils.h"
+#include "progress_utils.h"
 #include <cmath>
+#include <sstream>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+Rcpp::NumericVector EnvBuildLinBound_cpp(
+    Rcpp::NumericMatrix thetabars,
+    Rcpp::NumericMatrix cbars,
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    Rcpp::NumericMatrix P,
+    Rcpp::NumericVector alpha,
+    double dispstar
+);
+Rcpp::NumericVector thetabar_const_cpp(
+    Rcpp::NumericMatrix P,
+    Rcpp::NumericMatrix cbars,
+    Rcpp::NumericMatrix thetabars
+);
 
 namespace glmbayes {
 namespace env {
@@ -26,7 +47,15 @@ using Rcpp::RObject;
 using Rcpp::Function;
 
 using glmbayes::env::EnvelopeBuild;
+using glmbayes::env::EnvelopeDispersionBuild;
+using glmbayes::fam::Inv_f3_precompute_disp;
+using glmbayes::fam::Inv_f3_with_disp;
+using glmbayes::fam::f2_gaussian;
 using glmbayes::sim::glmb_Standardize_Model;
+using glmbayes::progress::progress_bar;
+using glmbayes::rng::runif_safe;
+using glmbayes::rng::rnorm_ct;
+using glmbayes::rng::rinvgamma_ct_safe;
 
 #define BEB_DBG(verbose, msg) \
   do { \
@@ -34,6 +63,16 @@ using glmbayes::sim::glmb_Standardize_Model;
       Rcpp::Rcout << msg << std::endl; \
     } \
   } while (0)
+
+static inline double max_vec_local(const NumericVector& v) {
+  double m = R_NegInf;
+  for (int i = 0; i < v.size(); ++i) {
+    if (v[i] > m) {
+      m = v[i];
+    }
+  }
+  return m;
+}
 
 static inline bool has_non_null(const List& pl, const char* name) {
   return pl.containsElementNamed(name) && !Rf_isNull(pl[name]);
@@ -521,6 +560,8 @@ List block_envelope_build_one(
     Rcpp::Named("L2Inv") = Standard_Mod["L2Inv"],
     Rcpp::Named("L3Inv") = Standard_Mod["L3Inv"],
     Rcpp::Named("alpha") = alpha,
+    Rcpp::Named("y") = y_j,
+    Rcpp::Named("wt") = wt_j,
     Rcpp::Named("mu") = mu_j,
     Rcpp::Named("P") = P_j,
     Rcpp::Named("prior_only") = false
@@ -531,6 +572,779 @@ List block_envelope_build_one(
     Rcpp::Named("block_standardization") = block_standardization,
     Rcpp::Named("block_id") = block_id,
     Rcpp::Named("identifiable") = true
+  );
+}
+
+void compute_sigma2_bounds_cpp(
+    double shape2,
+    double rate3,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    double* low_out,
+    double* upp_out
+) {
+  if (!disp_lower.isUsable() || !disp_upper.isUsable()) {
+    Function qgamma("qgamma");
+    NumericVector q_low = qgamma(
+      Rcpp::_["p"] = max_disp_perc,
+      Rcpp::_["shape"] = shape2,
+      Rcpp::_["rate"] = rate3
+    );
+    NumericVector q_upp = qgamma(
+      Rcpp::_["p"] = 1.0 - max_disp_perc,
+      Rcpp::_["shape"] = shape2,
+      Rcpp::_["rate"] = rate3
+    );
+    *low_out = 1.0 / static_cast<double>(q_low[0]);
+    *upp_out = 1.0 / static_cast<double>(q_upp[0]);
+  } else {
+    *low_out = Rcpp::as<double>(disp_lower.get());
+    *upp_out = Rcpp::as<double>(disp_upper.get());
+    if (!R_finite(*low_out) || !R_finite(*upp_out)) {
+      Rcpp::stop("disp_lower/disp_upper must be finite.");
+    }
+    if (*low_out <= 0.0 || *upp_out <= 0.0) {
+      Rcpp::stop("disp_lower/disp_upper must be positive.");
+    }
+    if (*upp_out <= *low_out) {
+      Rcpp::stop("disp_upper must be strictly greater than disp_lower.");
+    }
+  }
+}
+
+List block_envelope_dispersion_one(
+    List Env_j,
+    double shape,
+    double rate,
+    const NumericMatrix& P2_j,
+    const NumericVector& y_j,
+    const NumericMatrix& x2_j,
+    const NumericMatrix& mu2_j,
+    const NumericVector& alpha_j,
+    const NumericVector& wt_j,
+    double RSS_post_j,
+    double RSS_ML_j,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    bool use_parallel,
+    bool verbose,
+    const std::string& block_id
+) {
+  const int n_obs = y_j.size();
+
+  List edb = EnvelopeDispersionBuild(
+    Env_j,
+    shape,
+    rate,
+    P2_j,
+    y_j,
+    x2_j,
+    alpha_j,
+    n_obs,
+    RSS_post_j,
+    RSS_ML_j,
+    mu2_j,
+    wt_j,
+    max_disp_perc,
+    disp_lower,
+    disp_upper,
+    verbose,
+    use_parallel
+  );
+
+  List Env_out = edb["Env_out"];
+  List gamma_list_j = edb["gamma_list"];
+  List UB_list_j = edb["UB_list"];
+  List diagnostics_j = edb["diagnostics"];
+
+  NumericMatrix cbars = Env_out["cbars"];
+  List cache_j = Inv_f3_precompute_disp(
+    cbars, y_j, x2_j, mu2_j, P2_j, alpha_j, wt_j
+  );
+
+  const double rss_min_global_j = Rcpp::as<double>(UB_list_j["RSS_Min"]);
+  double rss_ml_j = Rcpp::as<double>(UB_list_j["RSS_ML"]);
+  if (!R_finite(RSS_ML_j)) {
+    rss_ml_j = Rcpp::as<double>(UB_list_j["RSS_ML"]);
+  } else {
+    rss_ml_j = RSS_ML_j;
+  }
+
+  if (verbose) {
+    Rcpp::Rcout << "BlockEnvelopeDispersionBuild block id=" << block_id
+                << " gs=" << cbars.nrow() << std::endl;
+  }
+
+  return List::create(
+    Rcpp::Named("Env_out") = Env_out,
+    Rcpp::Named("gamma_list") = gamma_list_j,
+    Rcpp::Named("UB_list") = UB_list_j,
+    Rcpp::Named("diagnostics") = diagnostics_j,
+    Rcpp::Named("cache") = cache_j,
+    Rcpp::Named("lg_prob_factor") = UB_list_j["lg_prob_factor"],
+    Rcpp::Named("UB2min") = UB_list_j["UB2min"],
+    Rcpp::Named("rss_min_global") = rss_min_global_j,
+    Rcpp::Named("RSS_ML") = rss_ml_j,
+    Rcpp::Named("block_id") = block_id
+  );
+}
+
+struct BlockFaceGeom {
+  NumericVector slope;
+  NumericVector upp_apprx;
+  NumericVector low_apprx;
+  NumericVector logP1;
+  NumericVector ub2_min;
+  int gs = 0;
+};
+
+List ub3_geometry_from_joint_faces(
+    const NumericVector& joint_slope,
+    const NumericVector& joint_low_apprx,
+    const NumericVector& joint_upp_apprx,
+    double n_w_global,
+    double low,
+    double upp
+) {
+  const double max_upp = max_vec_local(joint_upp_apprx);
+  const double lmc2_max =
+    (n_w_global / 2.0) * (std::log(upp) - std::log(low)) / (upp - low);
+  const double mean_slope = static_cast<double>(Rcpp::mean(joint_slope));
+  if (mean_slope > lmc2_max) {
+    Rcpp::Rcout
+      << "[BlockEnvelopeDispersionBuild] UB3A mean slope (" << mean_slope
+      << ") exceeds UB3B-compatible maximum (" << lmc2_max << ").\n"
+      << "          Capping global slope to preserve lm_log2 <= n_w/2 "
+      << "and ensure shape3 > 0.\n";
+  }
+  const double m_New_LL_Slope = std::min(mean_slope, lmc2_max);
+  const double max_low_mean = max_upp - m_New_LL_Slope * (upp - low);
+  const double new_slope = (max_upp - max_low_mean) / (upp - low);
+  const double new_int = max_low_mean - new_slope * low;
+  const double d2_star = (upp - low) / (std::log(upp / low));
+
+  return List::create(
+    Rcpp::Named("thetabar_const_low_apprx") = joint_low_apprx,
+    Rcpp::Named("thetabar_const_upp_apprx") = joint_upp_apprx,
+    Rcpp::Named("max_low") = max_upp - mean_slope * (upp - low),
+    Rcpp::Named("max_upp") = max_upp,
+    Rcpp::Named("new_slope") = new_slope,
+    Rcpp::Named("new_int") = new_int,
+    Rcpp::Named("d2_star") = d2_star
+  );
+}
+
+List gamma_ub_from_joint_geometry(
+    const List& geom,
+    double shape2_global,
+    double rate_prior,
+    double RSS_Min_global,
+    double RSS_ML_global,
+    double low,
+    double upp
+) {
+  const double max_low = Rcpp::as<double>(geom["max_low"]);
+  const double max_upp = Rcpp::as<double>(geom["max_upp"]);
+  const double new_slope = Rcpp::as<double>(geom["new_slope"]);
+  const double new_int = Rcpp::as<double>(geom["new_int"]);
+  const double d2_star = Rcpp::as<double>(geom["d2_star"]);
+
+  const double lm_log2 = new_slope * d2_star;
+  const double lm_log1 =
+    new_int + new_slope * d2_star - new_slope * std::log(d2_star);
+  const double shape3 = shape2_global - lm_log2;
+  const double rate2 = rate_prior + RSS_Min_global / 2.0;
+
+  if (!R_finite(lm_log1) || !R_finite(lm_log2)) {
+    Rcpp::stop(
+      "BlockEnvelopeDispersionBuild: joint lm_log1/lm_log2 non-finite."
+    );
+  }
+  if (!R_finite(shape3) || shape3 <= 0.0) {
+    Rcpp::stop(
+      "BlockEnvelopeDispersionBuild: joint shape3 <= 0; invalid tilted IG."
+    );
+  }
+  if (!R_finite(rate2) || rate2 <= 0.0) {
+    Rcpp::stop(
+      "BlockEnvelopeDispersionBuild: joint rate2 <= 0; invalid tilted IG."
+    );
+  }
+
+  List gamma_list = List::create(
+    Rcpp::Named("shape3") = shape3,
+    Rcpp::Named("rate2") = rate2,
+    Rcpp::Named("disp_lower") = low,
+    Rcpp::Named("disp_upper") = upp
+  );
+
+  List UB_list = List::create(
+    Rcpp::Named("RSS_ML") = RSS_ML_global,
+    Rcpp::Named("RSS_Min") = RSS_Min_global,
+    Rcpp::Named("max_New_LL_UB") = max_upp,
+    Rcpp::Named("max_LL_log_disp") = lm_log1 + lm_log2 * std::log(upp),
+    Rcpp::Named("lm_log1") = lm_log1,
+    Rcpp::Named("lm_log2") = lm_log2,
+    Rcpp::Named("lmc1") = new_int,
+    Rcpp::Named("lmc2") = new_slope
+  );
+
+  return List::create(
+    Rcpp::Named("gamma_list") = gamma_list,
+    Rcpp::Named("UB_list") = UB_list,
+    Rcpp::Named("max_low") = max_low,
+    Rcpp::Named("max_upp") = max_upp
+  );
+}
+
+List build_joint_face_product_geometry(
+    const IntegerVector& identifiable_idx,
+    const List& block_envelopes,
+    const List& block_standardization,
+    const List& block_dispersion,
+    double shape2_global,
+    double rate3_global,
+    double n_w_global,
+    double low,
+    double upp
+) {
+  const int n_blocks = identifiable_idx.size();
+  const double d1_star = rate3_global / (shape2_global - 1.0);
+
+  std::vector<BlockFaceGeom> block_geom(static_cast<size_t>(n_blocks));
+  int gs_total = 1;
+  for (int t = 0; t < n_blocks; ++t) {
+    const int j = identifiable_idx[t];
+    List Env = block_envelopes[j];
+    List std_j = block_standardization[j];
+    List disp_j = block_dispersion[j];
+
+    NumericMatrix cbars = Env["cbars"];
+    NumericMatrix thetabars = Env["thetabars"];
+    NumericVector logP1 = Env["logP"];
+    NumericVector ub2_min = disp_j["UB2min"];
+    NumericMatrix x2 = std_j["x2"];
+    NumericMatrix P2 = std_j["P2"];
+    NumericVector alpha = std_j["alpha"];
+    NumericVector y = std_j["y"];
+
+    BlockFaceGeom bg;
+    bg.gs = cbars.nrow();
+    bg.slope = EnvBuildLinBound_cpp(
+      thetabars, cbars, y, x2, P2, alpha, d1_star
+    );
+    NumericVector const_base = thetabar_const_cpp(P2, cbars, thetabars);
+    bg.upp_apprx = NumericVector(bg.gs);
+    bg.low_apprx = NumericVector(bg.gs);
+    for (int f = 0; f < bg.gs; ++f) {
+      bg.upp_apprx[f] = const_base[f] + (upp - d1_star) * bg.slope[f];
+      bg.low_apprx[f] = const_base[f] + (low - d1_star) * bg.slope[f];
+    }
+    bg.logP1 = logP1;
+    bg.ub2_min = ub2_min;
+    block_geom[static_cast<size_t>(t)] = bg;
+    gs_total *= bg.gs;
+  }
+
+  NumericVector joint_slope(gs_total);
+  NumericVector joint_upp_apprx(gs_total);
+  NumericVector joint_low_apprx(gs_total);
+  std::vector<int> face_idx(static_cast<size_t>(n_blocks), 0);
+
+  for (int flat = 0; flat < gs_total; ++flat) {
+    double slope_sum = 0.0;
+    double upp_sum = 0.0;
+    double low_sum = 0.0;
+    for (int t = 0; t < n_blocks; ++t) {
+      const BlockFaceGeom& bg = block_geom[static_cast<size_t>(t)];
+      const int f = face_idx[static_cast<size_t>(t)];
+      slope_sum += bg.slope[f];
+      upp_sum += bg.upp_apprx[f];
+      low_sum += bg.low_apprx[f];
+    }
+    joint_slope[flat] = slope_sum;
+    joint_upp_apprx[flat] = upp_sum;
+    joint_low_apprx[flat] = low_sum;
+
+    for (int t = n_blocks - 1; t >= 0; --t) {
+      ++face_idx[static_cast<size_t>(t)];
+      if (face_idx[static_cast<size_t>(t)] < block_geom[static_cast<size_t>(t)].gs) {
+        break;
+      }
+      face_idx[static_cast<size_t>(t)] = 0;
+    }
+  }
+
+  return ub3_geometry_from_joint_faces(
+    joint_slope, joint_low_apprx, joint_upp_apprx, n_w_global, low, upp
+  );
+}
+
+List build_global_dispersion_constants(
+    int n_identifiable,
+    const List& single_gamma_list,
+    const List& single_ub_list,
+    const IntegerVector& identifiable_idx,
+    const List& block_envelopes,
+    const List& block_standardization,
+    const List& block_dispersion,
+    double shape2_global,
+    double rate_prior,
+    double rate3_global,
+    double n_w_global,
+    double RSS_Min_global,
+    double RSS_ML_global,
+    double low,
+    double upp,
+    double RSS_post_global
+) {
+  if (n_identifiable == 1) {
+    return List::create(
+      Rcpp::Named("gamma_list") = single_gamma_list,
+      Rcpp::Named("UB_list") = single_ub_list,
+      Rcpp::Named("source") = "single_block_edb"
+    );
+  }
+
+  List geom = build_joint_face_product_geometry(
+    identifiable_idx,
+    block_envelopes,
+    block_standardization,
+    block_dispersion,
+    shape2_global,
+    rate3_global,
+    n_w_global,
+    low,
+    upp
+  );
+
+  List out = gamma_ub_from_joint_geometry(
+    geom,
+    shape2_global,
+    rate_prior,
+    RSS_Min_global,
+    RSS_ML_global,
+    low,
+    upp
+  );
+
+  return List::create(
+    Rcpp::Named("gamma_list") = out["gamma_list"],
+    Rcpp::Named("UB_list") = out["UB_list"],
+    Rcpp::Named("source") = "joint_face_product_edb",
+    Rcpp::Named("RSS_post") = RSS_post_global,
+    Rcpp::Named("prob_max_low") = geom["max_low"]
+  );
+}
+
+// Per-block upp/low extrapolations at global d1_star + joint prob_factor anchors
+// (max_upp, max_low) via additive shortcuts — no product-face loop.
+List compute_block_face_apprx_and_prob_anchors(
+    const IntegerVector& identifiable_idx,
+    const List& block_envelopes,
+    const List& block_standardization,
+    const List& block_dispersion,
+    double shape2_global,
+    double rate3_global,
+    double low,
+    double upp
+) {
+  const int n_blocks = identifiable_idx.size();
+  const double d1_star = rate3_global / (shape2_global - 1.0);
+  double max_upp_prob = 0.0;
+  double mean_slope_sum = 0.0;
+  List block_apprx(n_blocks);
+
+  for (int t = 0; t < n_blocks; ++t) {
+    const int j = identifiable_idx[t];
+    List Env = block_envelopes[j];
+    List std_j = block_standardization[j];
+    NumericMatrix cbars = Env["cbars"];
+    NumericMatrix thetabars = Env["thetabars"];
+    NumericMatrix x2 = std_j["x2"];
+    NumericMatrix P2 = std_j["P2"];
+    NumericVector alpha = std_j["alpha"];
+    NumericVector y = std_j["y"];
+    NumericVector wt = std_j["wt"];
+    List disp_j = block_dispersion[j];
+    List cache = disp_j["cache"];
+    const double rss_min = Rcpp::as<double>(disp_j["rss_min_global"]);
+
+    NumericVector slope = EnvBuildLinBound_cpp(
+      thetabars, cbars, y, x2, P2, alpha, d1_star
+    );
+    NumericVector const_base = thetabar_const_cpp(P2, cbars, thetabars);
+    NumericVector upp_apprx(slope.size());
+    NumericVector low_apprx(slope.size());
+    NumericVector ub2_at_low(slope.size());
+    NumericVector ub2_at_upp(slope.size());
+    for (int f = 0; f < slope.size(); ++f) {
+      upp_apprx[f] = const_base[f] + (upp - d1_star) * slope[f];
+      low_apprx[f] = const_base[f] + (low - d1_star) * slope[f];
+      NumericVector cbars_j = cbars(f, _);
+      ub2_at_low[f] = UB2(low, cache, cbars_j, y, x2, alpha, wt, rss_min);
+      ub2_at_upp[f] = UB2(upp, cache, cbars_j, y, x2, alpha, wt, rss_min);
+    }
+
+    max_upp_prob += max_vec_local(upp_apprx);
+    mean_slope_sum += static_cast<double>(Rcpp::mean(slope));
+
+    block_apprx[t] = List::create(
+      Rcpp::Named("block_index") = j,
+      Rcpp::Named("upp_apprx") = upp_apprx,
+      Rcpp::Named("low_apprx") = low_apprx,
+      Rcpp::Named("ub2_at_low") = ub2_at_low,
+      Rcpp::Named("ub2_at_upp") = ub2_at_upp
+    );
+  }
+
+  const double max_low_prob = max_upp_prob - mean_slope_sum * (upp - low);
+
+  return List::create(
+    Rcpp::Named("block_apprx") = block_apprx,
+    Rcpp::Named("prob_max_upp") = max_upp_prob,
+    Rcpp::Named("prob_max_low") = max_low_prob
+  );
+}
+
+void patch_block_dispersion_apprx(
+    List& block_dispersion,
+    const List& apprx_out
+) {
+  List block_apprx = apprx_out["block_apprx"];
+  for (int t = 0; t < block_apprx.size(); ++t) {
+    List one = block_apprx[t];
+    const int j = Rcpp::as<int>(one["block_index"]);
+    List bd = Rcpp::as<List>(block_dispersion[j]);
+    bd = Rcpp::clone(bd);
+    bd["upp_apprx"] = one["upp_apprx"];
+    bd["low_apprx"] = one["low_apprx"];
+    bd["ub2_at_low"] = one["ub2_at_low"];
+    bd["ub2_at_upp"] = one["ub2_at_upp"];
+    block_dispersion[j] = bd;
+  }
+}
+
+double ub2min_joint_at_draw(
+    const List& block_dispersion,
+    const std::vector<int>& J_draw,
+    int k
+) {
+  double ub2_low_sum = 0.0;
+  double ub2_upp_sum = 0.0;
+  for (int j = 0; j < k; ++j) {
+    if (Rf_isNull(block_dispersion[j])) {
+      continue;
+    }
+    if (J_draw[static_cast<size_t>(j)] < 0) {
+      continue;
+    }
+    List bd = Rcpp::as<List>(block_dispersion[j]);
+    if (!bd.containsElementNamed("ub2_at_low") ||
+        !bd.containsElementNamed("ub2_at_upp")) {
+      Rcpp::stop(
+        "BlockEnvelopeSim: block_dispersion missing ub2_at_low/ub2_at_upp "
+        "for joint UB2min shortcut."
+      );
+    }
+    const int J = J_draw[static_cast<size_t>(j)];
+    NumericVector ub2_at_low = bd["ub2_at_low"];
+    NumericVector ub2_at_upp = bd["ub2_at_upp"];
+    if (J < 0 || J >= ub2_at_low.size()) {
+      Rcpp::stop("BlockEnvelopeSim: face index out of range for ub2_at_low.");
+    }
+    ub2_low_sum += ub2_at_low[J];
+    ub2_upp_sum += ub2_at_upp[J];
+  }
+  return (ub2_low_sum <= ub2_upp_sum ? ub2_low_sum : ub2_upp_sum);
+}
+
+double lg_prob_factor_joint_at_draw(
+    const List& block_dispersion,
+    const std::vector<int>& J_draw,
+    int k,
+    double max_upp_prob,
+    double max_low_prob
+) {
+  double upp_sum = 0.0;
+  double low_sum = 0.0;
+  for (int j = 0; j < k; ++j) {
+    if (Rf_isNull(block_dispersion[j])) {
+      continue;
+    }
+    if (J_draw[static_cast<size_t>(j)] < 0) {
+      continue;
+    }
+    List bd = Rcpp::as<List>(block_dispersion[j]);
+    if (!bd.containsElementNamed("upp_apprx") ||
+        !bd.containsElementNamed("low_apprx")) {
+      Rcpp::stop(
+        "BlockEnvelopeSim: block_dispersion missing upp_apprx/low_apprx "
+        "for joint lg_prob_factor shortcut."
+      );
+    }
+    const int J = J_draw[static_cast<size_t>(j)];
+    NumericVector upp_apprx = bd["upp_apprx"];
+    NumericVector low_apprx = bd["low_apprx"];
+    if (J < 0 || J >= upp_apprx.size()) {
+      Rcpp::stop("BlockEnvelopeSim: face index out of range for upp_apprx.");
+    }
+    upp_sum += upp_apprx[J];
+    low_sum += low_apprx[J];
+  }
+  const double pf_upp = upp_sum - max_upp_prob;
+  const double pf_low = low_sum - max_low_prob;
+  return (pf_upp > pf_low ? pf_upp : pf_low);
+}
+
+// g1_j(d) = -0.5 * theta_j(d)^T P theta_j(d) + c_j^T theta_j(d)  (matches rIndepNormalGammaReg_std)
+double g1_face_at_disp(
+    double dispersion,
+    int j,
+    const List& cache,
+    const arma::mat& P2,
+    const NumericMatrix& cbars
+) {
+  const int p = cbars.ncol();
+  NumericMatrix cbars_small(1, p);
+  for (int k = 0; k < p; ++k) {
+    cbars_small(0, k) = cbars(j, k);
+  }
+  NumericMatrix cbars_small_t = Rcpp::transpose(cbars_small);
+  arma::mat theta_mat = Inv_f3_with_disp(cache, dispersion, cbars_small_t);
+  arma::rowvec theta_row = theta_mat.row(0);
+  arma::vec theta = theta_row.t();
+  arma::vec c_j(p);
+  for (int k = 0; k < p; ++k) {
+    c_j(k) = cbars(j, k);
+  }
+  return arma::as_scalar(-0.5 * theta.t() * P2 * theta + c_j.t() * theta);
+}
+
+int draw_face_index(const NumericVector& PLSD) {
+  double U = runif_safe();
+  int J = 0;
+  while (true) {
+    if (U <= PLSD[J]) {
+      return J;
+    }
+    U -= PLSD[J];
+    ++J;
+  }
+}
+
+NumericVector draw_beta_std_face(
+    const List& Env,
+    int J,
+    int l1
+) {
+  NumericMatrix loglt = Env["loglt"];
+  NumericMatrix logrt = Env["logrt"];
+  NumericMatrix cbars = Env["cbars"];
+  NumericVector beta_std(l1);
+  for (int j = 0; j < l1; ++j) {
+    beta_std[j] = rnorm_ct(logrt(J, j), loglt(J, j), -cbars(J, j), 1.0);
+  }
+  return beta_std;
+}
+
+void block_ar_accumulate_one(
+    int J,
+    const NumericVector& beta_std,
+    double sigma2,
+    const List& Env,
+    const List& block_std,
+    const List& block_disp,
+    double* LL_sum,
+    double* UB1_sum,
+    double* quad_sum,
+    double* ub3a_block_sum,
+    bool include_block_lg_in_ub3a
+) {
+  NumericMatrix x2 = block_std["x2"];
+  NumericMatrix mu2 = block_std["mu2"];
+  NumericMatrix P2 = block_std["P2"];
+  NumericVector alpha = block_std["alpha"];
+  NumericVector y = block_std["y"];
+  NumericVector wt = block_std["wt"];
+  List cache = block_disp["cache"];
+  NumericVector lg_prob_factor = block_disp["lg_prob_factor"];
+  NumericMatrix cbars = Env["cbars"];
+
+  const int l1 = beta_std.size();
+  NumericVector wt2 = wt / sigma2;
+
+  NumericMatrix out_mat(1, l1);
+  for (int t = 0; t < l1; ++t) {
+    out_mat(0, t) = beta_std[t];
+  }
+  const double LL_Test =
+    -f2_gaussian(Rcpp::transpose(out_mat), y, x2, mu2, P2, alpha, wt2)[0];
+  *LL_sum += LL_Test;
+
+  NumericMatrix cbars_small(1, l1);
+  for (int t = 0; t < l1; ++t) {
+    cbars_small(0, t) = cbars(J, t);
+  }
+  arma::mat theta2 = Inv_f3_with_disp(cache, sigma2, Rcpp::transpose(cbars_small));
+  NumericMatrix thetabars_new = Rcpp::wrap(theta2);
+  const double LL_New2 =
+    -f2_gaussian(Rcpp::transpose(thetabars_new), y, x2, mu2, P2, alpha, wt2)[0];
+
+  arma::vec betadiff(l1);
+  arma::vec cbars_j(l1);
+  for (int t = 0; t < l1; ++t) {
+    betadiff(t) = beta_std[t] - thetabars_new(0, t);
+    cbars_j(t) = cbars(J, t);
+  }
+  *UB1_sum += LL_New2 - arma::as_scalar(cbars_j.t() * betadiff);
+
+  NumericVector cbars_j_nv = cbars(J, _);
+  *quad_sum += rss_face_at_disp(sigma2, cache, cbars_j_nv, y, x2, alpha, wt);
+
+  arma::mat P2_arma(P2.begin(), l1, l1, false);
+  const double g1j = g1_face_at_disp(sigma2, J, cache, P2_arma, cbars);
+  if (include_block_lg_in_ub3a) {
+    *ub3a_block_sum += lg_prob_factor[J] - g1j;
+  } else {
+    *ub3a_block_sum -= g1j;
+  }
+}
+
+bool block_ar_check_signs(
+    double test1,
+    double UB1,
+    double UB2,
+    double UB3A,
+    double UB3B,
+    double test,
+    double quad_sum,
+    double RSS_Min,
+    double UB2_raw,
+    double UB2min_sum,
+    bool verbose
+) {
+  bool bad = false;
+  std::ostringstream msg;
+
+  const double tol1 = 1e-9 * std::max(1.0, std::abs(UB1));
+  if (test1 > tol1) {
+    bad = true;
+    msg << "Sign violation: test1 = " << test1 << " > 0\n";
+  }
+  if (UB2 < 0.0) {
+    const double ratio = std::abs(UB2) / std::max(std::abs(test), 1e-15);
+    if (ratio >= 1e-2) {
+      bad = true;
+      msg << "Sign violation: UB2 = " << UB2 << " < 0\n";
+    } else if (ratio >= 1e-4 && verbose) {
+      Rcpp::Rcout << "BlockEnvelopeSim warning [UB2]: UB2=" << UB2
+                  << " ratio=" << ratio << "\n";
+    }
+  }
+  if (UB3A < 0.0) {
+    bad = true;
+    msg << "Sign violation: UB3A = " << UB3A << " < 0\n";
+  }
+  if (UB3B < 0.0) {
+    bad = true;
+    msg << "Sign violation: UB3B = " << UB3B << " < 0\n";
+  }
+  if (bad && verbose) {
+    Rcpp::Rcout << "BlockEnvelopeSim sign check:\n" << msg.str()
+                << " quad_sum=" << quad_sum
+                << " RSS_Min=" << RSS_Min
+                << " UB2_raw=" << UB2_raw
+                << " UB2min_sum=" << UB2min_sum
+                << " test=" << test << "\n";
+  }
+  return bad;
+}
+
+// Chapter A05 steps 1–2: draw face J ~ PLSD, then beta_j ~ TN(loglt, logrt, -cbars).
+NumericVector envelope_draw_beta_std_one(const List& Env, int l1) {
+  NumericVector PLSD = Env["PLSD"];
+  NumericMatrix cbars = Env["cbars"];
+  NumericMatrix loglt = Env["loglt"];
+  NumericMatrix logrt = Env["logrt"];
+
+  double U = runif_safe();
+  int J = 0;
+  int a2 = 0;
+  while (a2 == 0) {
+    if (U <= PLSD[J]) {
+      a2 = 1;
+    } else {
+      U -= PLSD[J];
+      ++J;
+    }
+  }
+
+  NumericVector beta_std(l1);
+  for (int j = 0; j < l1; ++j) {
+    beta_std[j] = rnorm_ct(logrt(J, j), loglt(J, j), -cbars(J, j), 1.0);
+  }
+  return beta_std;
+}
+
+NumericVector unstandardize_beta_one(
+    const NumericVector& beta_std,
+    const NumericMatrix& L2Inv,
+    const NumericMatrix& L3Inv,
+    const NumericVector& mu
+) {
+  const arma::vec b = Rcpp::as<arma::vec>(beta_std);
+  const arma::mat L2 = Rcpp::as<arma::mat>(L2Inv);
+  const arma::mat L3 = Rcpp::as<arma::mat>(L3Inv);
+  const arma::vec mu_v = Rcpp::as<arma::vec>(mu);
+  const arma::vec out = L2 * L3 * b + mu_v;
+  return Rcpp::wrap(out);
+}
+
+List block_envelope_sim_one(
+    const List& block_envelope,
+    const List& block_standardization,
+    const std::string& block_id,
+    int l1,
+    int n
+) {
+  const bool prior_only = Rcpp::as<bool>(block_standardization["prior_only"]);
+  NumericVector mu_j = block_standardization["mu"];
+  NumericMatrix beta_draw(l1, n);
+  NumericVector iters_out(n);
+
+  if (prior_only || Rf_isNull(block_envelope)) {
+    for (int i = 0; i < n; ++i) {
+      beta_draw(Rcpp::_, i) = mu_j;
+      iters_out[i] = 1.0;
+    }
+    return List::create(
+      Rcpp::Named("block_id") = block_id,
+      Rcpp::Named("identifiable") = false,
+      Rcpp::Named("beta") = beta_draw,
+      Rcpp::Named("iters_out") = iters_out,
+      Rcpp::Named("prior_only") = true
+    );
+  }
+
+  NumericMatrix L2Inv = block_standardization["L2Inv"];
+  NumericMatrix L3Inv = block_standardization["L3Inv"];
+  List Env = block_envelope;
+
+  for (int i = 0; i < n; ++i) {
+    NumericVector beta_std = envelope_draw_beta_std_one(Env, l1);
+    beta_draw(Rcpp::_, i) = unstandardize_beta_one(beta_std, L2Inv, L3Inv, mu_j);
+    iters_out[i] = 1.0;
+  }
+
+  return List::create(
+    Rcpp::Named("block_id") = block_id,
+    Rcpp::Named("identifiable") = true,
+    Rcpp::Named("beta") = beta_draw,
+    Rcpp::Named("iters_out") = iters_out,
+    Rcpp::Named("prior_only") = false
   );
 }
 
@@ -911,6 +1725,803 @@ List BlockEnvelopeBuild(
     Rcpp::Named("block_standardization") = block_standardization,
     Rcpp::Named("meta") = meta
   );
+}
+
+List BlockEnvelopeDispersionBuild(
+    const List& build_out,
+    const List& centering_out,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    NumericVector offset,
+    NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    double RSS_ML,
+    bool use_parallel,
+    bool verbose
+) {
+  if (!build_out.containsElementNamed("block_envelopes") ||
+      !build_out.containsElementNamed("block_standardization") ||
+      !build_out.containsElementNamed("meta")) {
+    Rcpp::stop("'build_out' must be a full BlockEnvelopeBuild return list.");
+  }
+  if (!centering_out.containsElementNamed("dispersion") ||
+      !centering_out.containsElementNamed("blocks") ||
+      !centering_out.containsElementNamed("block_info") ||
+      !centering_out.containsElementNamed("RSS_post") ||
+      !centering_out.containsElementNamed("shape2") ||
+      !centering_out.containsElementNamed("rate3")) {
+    Rcpp::stop("'centering_out' must be a full BlockEnvelopeCentering return list.");
+  }
+
+  List block_envelopes = Rcpp::as<List>(build_out["block_envelopes"]);
+  block_envelopes = Rcpp::clone(block_envelopes);
+  List block_standardization = build_out["block_standardization"];
+  List meta = build_out["meta"];
+
+  const double RSS_post_global = Rcpp::as<double>(centering_out["RSS_post"]);
+  const double shape2_global = Rcpp::as<double>(centering_out["shape2"]);
+  const double rate3_global = Rcpp::as<double>(centering_out["rate3"]);
+  const double n_w_global = Rcpp::as<double>(centering_out["n_w"]);
+  const int l1 = Rcpp::as<int>(centering_out["l1"]);
+  const int l2 = Rcpp::as<int>(centering_out["l2"]);
+  const int k = Rcpp::as<int>(centering_out["k"]);
+
+  if (y.size() != l2) {
+    Rcpp::stop("length(y) must match centering_out$l2.");
+  }
+  if (x.nrow() != l2 || x.ncol() != l1) {
+    Rcpp::stop("dim(x) must match centering_out$l2 x l1.");
+  }
+
+  if (max_disp_perc <= 0.0 || max_disp_perc >= 1.0) {
+    if (centering_out.containsElementNamed("max_disp_perc")) {
+      max_disp_perc = Rcpp::as<double>(centering_out["max_disp_perc"]);
+    } else {
+      max_disp_perc = 0.99;
+    }
+  }
+
+  if (!disp_lower.isUsable() && centering_out.containsElementNamed("disp_lower")) {
+    SEXP dl = centering_out["disp_lower"];
+    if (!Rf_isNull(dl)) {
+      disp_lower = Nullable<double>(Rcpp::wrap(Rcpp::as<double>(dl)));
+    }
+  }
+  if (!disp_upper.isUsable() && centering_out.containsElementNamed("disp_upper")) {
+    SEXP du = centering_out["disp_upper"];
+    if (!Rf_isNull(du)) {
+      disp_upper = Nullable<double>(Rcpp::wrap(Rcpp::as<double>(du)));
+    }
+  }
+
+  List block_info = centering_out["block_info"];
+  List row_blocks = block_info["rows"];
+  List blocks_centering = centering_out["blocks"];
+
+  List block_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
+  if (Rcpp::as<int>(block_info_data["k"]) != k) {
+    Rcpp::stop("'block' partition k must match centering_out$k.");
+  }
+
+  if (offset.size() == 1) offset = Rcpp::rep(offset[0], l2);
+  if (wt.size() == 1) wt = Rcpp::rep(wt[0], l2);
+  if (offset.size() != l2) {
+    Rcpp::stop("length(offset) must be 1 or length(y).");
+  }
+  if (wt.size() != l2) {
+    Rcpp::stop("length(wt) must be 1 or length(y).");
+  }
+
+  double low = 0.0;
+  double upp = 0.0;
+  compute_sigma2_bounds_cpp(
+    shape2_global, rate3_global, max_disp_perc,
+    disp_lower, disp_upper, &low, &upp
+  );
+
+  List block_dispersion(k);
+  IntegerVector identifiable_idx;
+  double RSS_Min_global = 0.0;
+  double RSS_ML_global = 0.0;
+  bool rss_ml_provided = R_finite(RSS_ML);
+  if (rss_ml_provided) {
+    RSS_ML_global = RSS_ML;
+  }
+
+  List single_gamma_list;
+  List single_ub_list;
+
+  for (int j = 0; j < k; ++j) {
+    List bc = blocks_centering[j];
+    const bool identifiable = Rcpp::as<bool>(bc["identifiable"]);
+    const std::string block_id = Rcpp::as<std::string>(bc["id"]);
+
+    if (!identifiable) {
+      block_dispersion[j] = R_NilValue;
+      continue;
+    }
+
+    IntegerVector rows = row_blocks[j];
+    List std_j = block_standardization[j];
+    List Env_j = block_envelopes[j];
+
+    NumericVector y_j = slice_numeric(y, rows);
+    NumericMatrix x2_j = std_j["x2"];
+    NumericMatrix P2_j = std_j["P2"];
+    NumericMatrix mu2_j = std_j["mu2"];
+    NumericVector alpha_j = std_j["alpha"];
+    NumericVector wt_j = slice_numeric(wt, rows);
+    const double RSS_post_j = Rcpp::as<double>(bc["RSS_post"]);
+
+    double RSS_ML_j = NA_REAL;
+    if (rss_ml_provided) {
+      RSS_ML_j = RSS_ML;
+    }
+
+    List one = block_envelope_dispersion_one(
+      Env_j,
+      shape,
+      rate,
+      P2_j,
+      y_j,
+      x2_j,
+      mu2_j,
+      alpha_j,
+      wt_j,
+      RSS_post_j,
+      RSS_ML_j,
+      max_disp_perc,
+      disp_lower,
+      disp_upper,
+      use_parallel,
+      verbose,
+      block_id
+    );
+
+    block_envelopes[j] = one["Env_out"];
+    List ub_j = one["UB_list"];
+    List gamma_j = one["gamma_list"];
+    block_dispersion[j] = List::create(
+      Rcpp::Named("cache") = one["cache"],
+      Rcpp::Named("lg_prob_factor") = one["lg_prob_factor"],
+      Rcpp::Named("UB2min") = one["UB2min"],
+      Rcpp::Named("UB_list") = ub_j,
+      Rcpp::Named("gamma_list") = gamma_j,
+      Rcpp::Named("rss_min_global") = one["rss_min_global"],
+      Rcpp::Named("RSS_ML") = one["RSS_ML"],
+      Rcpp::Named("diagnostics") = one["diagnostics"],
+      Rcpp::Named("block_id") = block_id,
+      Rcpp::Named("identifiable") = true
+    );
+
+    RSS_Min_global += Rcpp::as<double>(one["rss_min_global"]);
+    if (!rss_ml_provided) {
+      RSS_ML_global += Rcpp::as<double>(one["RSS_ML"]);
+    }
+    if (identifiable_idx.size() == 0) {
+      single_gamma_list = gamma_j;
+      single_ub_list = ub_j;
+    }
+
+    identifiable_idx.push_back(j);
+  }
+
+  if (identifiable_idx.size() < 1) {
+    Rcpp::stop("BlockEnvelopeDispersionBuild: no identifiable blocks.");
+  }
+
+  List global_constants = build_global_dispersion_constants(
+    identifiable_idx.size(),
+    single_gamma_list,
+    single_ub_list,
+    identifiable_idx,
+    block_envelopes,
+    block_standardization,
+    block_dispersion,
+    shape2_global,
+    rate,
+    rate3_global,
+    n_w_global,
+    RSS_Min_global,
+    RSS_ML_global,
+    low,
+    upp,
+    RSS_post_global
+  );
+
+  List gamma_list = global_constants["gamma_list"];
+  List UB_list_global = global_constants["UB_list"];
+
+  double prob_max_upp = Rcpp::as<double>(UB_list_global["max_New_LL_UB"]);
+  double prob_max_low = NA_REAL;
+  if (identifiable_idx.size() > 1) {
+    List apprx = compute_block_face_apprx_and_prob_anchors(
+      identifiable_idx,
+      block_envelopes,
+      block_standardization,
+      block_dispersion,
+      shape2_global,
+      rate3_global,
+      low,
+      upp
+    );
+    patch_block_dispersion_apprx(block_dispersion, apprx);
+    if (global_constants.containsElementNamed("prob_max_low")) {
+      prob_max_low = Rcpp::as<double>(global_constants["prob_max_low"]);
+    } else {
+      prob_max_low = Rcpp::as<double>(apprx["prob_max_low"]);
+    }
+  }
+
+  RObject disp_lower_out = disp_lower.isUsable()
+    ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_lower.get())))
+    : RObject(R_NilValue);
+  RObject disp_upper_out = disp_upper.isUsable()
+    ? RObject(Rcpp::wrap(Rcpp::as<double>(disp_upper.get())))
+    : RObject(R_NilValue);
+
+  IntegerVector gs_per_block(identifiable_idx.size());
+  for (int t = 0; t < identifiable_idx.size(); ++t) {
+    List env_t = block_envelopes[identifiable_idx[t]];
+    NumericMatrix cbars_t = env_t["cbars"];
+    gs_per_block[t] = cbars_t.nrow();
+  }
+
+  List dispersion_envelope = List::create(
+    Rcpp::Named("gamma_list") = gamma_list,
+    Rcpp::Named("UB_list") = UB_list_global,
+    Rcpp::Named("block_dispersion") = block_dispersion,
+    Rcpp::Named("cross_face_meta") = List::create(
+      Rcpp::Named("gs_per_block") = gs_per_block,
+      Rcpp::Named("n_identifiable") = identifiable_idx.size(),
+      Rcpp::Named("aggregation") = global_constants["source"],
+      Rcpp::Named("ub3a_lg_mode") = (identifiable_idx.size() > 1)
+        ? "joint_face_max_v1"
+        : "single_block_lg",
+      Rcpp::Named("ub2_mode") = (identifiable_idx.size() > 1)
+        ? "joint_ub2min_min_of_endpoint_sums_v1"
+        : "single_block_ub2min"
+    ),
+    Rcpp::Named("prob_max_upp") = prob_max_upp,
+    Rcpp::Named("prob_max_low") = prob_max_low,
+    Rcpp::Named("low") = low,
+    Rcpp::Named("upp") = upp,
+    Rcpp::Named("RSS_post") = RSS_post_global,
+    Rcpp::Named("RSS_ML") = RSS_ML_global,
+    Rcpp::Named("RSS_Min") = RSS_Min_global,
+    Rcpp::Named("status") = "v1"
+  );
+
+  List meta_out = Rcpp::clone(meta);
+  meta_out["dispersion_envelope_status"] = "v1";
+
+  List build_out_patched = List::create(
+    Rcpp::Named("block_envelopes") = block_envelopes,
+    Rcpp::Named("dispersion_envelope") = dispersion_envelope,
+    Rcpp::Named("block_standardization") = block_standardization,
+    Rcpp::Named("meta") = meta_out
+  );
+
+  if (verbose) {
+    Rcpp::Rcout << "BlockEnvelopeDispersionBuild: k=" << k
+                << " n_identifiable=" << identifiable_idx.size()
+                << " RSS_Min=" << RSS_Min_global
+                << " low=" << low << " upp=" << upp << std::endl;
+  }
+
+  return List::create(
+    Rcpp::Named("build_out") = build_out_patched,
+    Rcpp::Named("dispersion_envelope") = dispersion_envelope,
+    Rcpp::Named("low") = low,
+    Rcpp::Named("upp") = upp,
+    Rcpp::Named("diagnostics") = List::create(
+      Rcpp::Named("RSS_Min_global") = RSS_Min_global,
+      Rcpp::Named("RSS_ML_global") = RSS_ML_global,
+      Rcpp::Named("n_identifiable") = identifiable_idx.size(),
+      Rcpp::Named("aggregation") = global_constants["source"]
+    )
+  );
+}
+
+List BlockEnvelopeSim(
+    const List& build_out,
+    int n,
+    bool progbar,
+    bool verbose
+) {
+  if (n < 1) {
+    Rcpp::stop("'n' must be at least 1.");
+  }
+  if (!build_out.containsElementNamed("block_envelopes") ||
+      !build_out.containsElementNamed("block_standardization") ||
+      !build_out.containsElementNamed("meta")) {
+    Rcpp::stop("'build_out' must be a full BlockEnvelopeBuild return list.");
+  }
+
+  List block_envelopes = build_out["block_envelopes"];
+  List block_standardization = build_out["block_standardization"];
+  List meta = build_out["meta"];
+  if (!meta.containsElementNamed("block_info") ||
+      !meta.containsElementNamed("l1") ||
+      !meta.containsElementNamed("dispersion")) {
+    Rcpp::stop("'build_out$meta' must contain block_info, l1, and dispersion.");
+  }
+
+  List block_info = meta["block_info"];
+  const int k = Rcpp::as<int>(block_info["k"]);
+  const int l1 = Rcpp::as<int>(meta["l1"]);
+  const double dispersion_anchor = Rcpp::as<double>(meta["dispersion"]);
+  CharacterVector ids = block_info["ids"];
+
+  if (block_envelopes.size() != k ||
+      block_standardization.size() != k) {
+    Rcpp::stop("block_envelopes and block_standardization must have length k.");
+  }
+
+  const bool has_disp_env =
+    build_out.containsElementNamed("dispersion_envelope") &&
+    !Rf_isNull(build_out["dispersion_envelope"]);
+  std::string disp_status = "missing";
+  if (has_disp_env) {
+    List dispersion_envelope = build_out["dispersion_envelope"];
+    if (dispersion_envelope.containsElementNamed("status") &&
+        !Rf_isNull(dispersion_envelope["status"])) {
+      disp_status = Rcpp::as<std::string>(dispersion_envelope["status"]);
+    }
+  }
+  const bool use_ar_compute = (disp_status == "v1");
+
+  List block_results(k);
+  NumericVector dispersion_out(n);
+  NumericVector iters_out(n);
+
+  if (!use_ar_compute) {
+    std::fill(dispersion_out.begin(), dispersion_out.end(), dispersion_anchor);
+    std::fill(iters_out.begin(), iters_out.end(), 1.0);
+    for (int j = 0; j < k; ++j) {
+      if (progbar && verbose) {
+        Rcpp::Rcout << "BlockEnvelopeSim block " << (j + 1) << "/" << k << std::endl;
+      }
+      const std::string block_id = Rcpp::as<std::string>(ids[j]);
+      SEXP env_j = block_envelopes[j];
+      List env_list = Rf_isNull(env_j) ? List() : List(env_j);
+      List std_j = block_standardization[j];
+      block_results[j] = block_envelope_sim_one(
+        env_list, std_j, block_id, l1, n
+      );
+    }
+    List meta_out = Rcpp::clone(meta);
+    meta_out["accept_mode"] = "auto_v1";
+    meta_out["n"] = n;
+    return List::create(
+      Rcpp::Named("block_results") = block_results,
+      Rcpp::Named("dispersion") = dispersion_out,
+      Rcpp::Named("iters_out") = iters_out,
+      Rcpp::Named("block_info") = block_info,
+      Rcpp::Named("meta") = meta_out
+    );
+  }
+
+  List dispersion_envelope = build_out["dispersion_envelope"];
+  List gamma_list = dispersion_envelope["gamma_list"];
+  List UB_global = dispersion_envelope["UB_list"];
+  List block_dispersion = dispersion_envelope["block_dispersion"];
+
+  const double shape3 = Rcpp::as<double>(gamma_list["shape3"]);
+  const double rate2 = Rcpp::as<double>(gamma_list["rate2"]);
+  const double disp_lower = Rcpp::as<double>(gamma_list["disp_lower"]);
+  const double disp_upper = Rcpp::as<double>(gamma_list["disp_upper"]);
+  const double RSS_Min_G = Rcpp::as<double>(dispersion_envelope["RSS_Min"]);
+  const double max_New_LL_UB = Rcpp::as<double>(UB_global["max_New_LL_UB"]);
+  const double max_LL_log_disp = Rcpp::as<double>(UB_global["max_LL_log_disp"]);
+  const double lm_log1 = Rcpp::as<double>(UB_global["lm_log1"]);
+  const double lm_log2 = Rcpp::as<double>(UB_global["lm_log2"]);
+  const double lmc1 = Rcpp::as<double>(UB_global["lmc1"]);
+  const double lmc2 = Rcpp::as<double>(UB_global["lmc2"]);
+
+  List cross_face_meta = dispersion_envelope["cross_face_meta"];
+  const int n_identifiable = Rcpp::as<int>(cross_face_meta["n_identifiable"]);
+  const bool use_joint_lg_ub3a = (n_identifiable > 1);
+  double prob_max_upp = max_New_LL_UB;
+  double prob_max_low = NA_REAL;
+  if (use_joint_lg_ub3a) {
+    if (dispersion_envelope.containsElementNamed("prob_max_low") &&
+        !Rf_isNull(dispersion_envelope["prob_max_low"])) {
+      prob_max_low = Rcpp::as<double>(dispersion_envelope["prob_max_low"]);
+    }
+    if (!R_finite(prob_max_low)) {
+      Rcpp::stop(
+        "BlockEnvelopeSim: prob_max_low missing for joint lg_prob_factor shortcut."
+      );
+    }
+  }
+
+  for (int j = 0; j < k; ++j) {
+    List std_j = block_standardization[j];
+    const bool prior_only = Rcpp::as<bool>(std_j["prior_only"]);
+    const std::string block_id = Rcpp::as<std::string>(ids[j]);
+
+    if (prior_only || Rf_isNull(block_envelopes[j])) {
+      NumericVector mu_j = std_j["mu"];
+      NumericMatrix beta_block(l1, n);
+      NumericVector block_iters(n);
+      for (int i = 0; i < n; ++i) {
+        beta_block(Rcpp::_, i) = mu_j;
+        block_iters[i] = 1.0;
+      }
+      block_results[j] = List::create(
+        Rcpp::Named("block_id") = block_id,
+        Rcpp::Named("identifiable") = false,
+        Rcpp::Named("beta") = beta_block,
+        Rcpp::Named("iters_out") = block_iters,
+        Rcpp::Named("prior_only") = true
+      );
+    } else {
+      block_results[j] = List::create(
+        Rcpp::Named("block_id") = block_id,
+        Rcpp::Named("identifiable") = true,
+        Rcpp::Named("beta") = NumericMatrix(l1, n),
+        Rcpp::Named("iters_out") = NumericVector(n),
+        Rcpp::Named("prior_only") = false,
+        Rcpp::Named("face_J_last") = NA_INTEGER
+      );
+    }
+  }
+
+  std::vector<int> J_draw(k, 0);
+  std::vector<NumericVector> beta_std_draw(k);
+  std::vector<NumericVector> beta_orig_draw(k);
+
+  for (int i = 0; i < n; ++i) {
+    Rcpp::checkUserInterrupt();
+    if (progbar && n > 1) {
+      progress_bar(static_cast<double>(i), static_cast<double>(n - 1));
+      if (i == n - 1) {
+        Rcpp::Rcout << "" << std::endl;
+      }
+    }
+
+    for (int j = 0; j < k; ++j) {
+      List std_j = block_standardization[j];
+      if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+        beta_orig_draw[j] = std_j["mu"];
+        J_draw[j] = -1;
+        continue;
+      }
+      List Env = block_envelopes[j];
+      J_draw[j] = draw_face_index(Env["PLSD"]);
+      beta_std_draw[j] = draw_beta_std_face(Env, J_draw[j], l1);
+      beta_orig_draw[j] = unstandardize_beta_one(
+        beta_std_draw[j],
+        std_j["L2Inv"],
+        std_j["L3Inv"],
+        std_j["mu"]
+      );
+    }
+
+    const double sigma2 =
+      rinvgamma_ct_safe(shape3, rate2, disp_upper, disp_lower);
+    if (!R_finite(sigma2)) {
+      Rcpp::stop("BlockEnvelopeSim: non-finite sigma2 draw.");
+    }
+
+    double LL_total = 0.0;
+    double UB1_total = 0.0;
+    double quad_sum = 0.0;
+    double ub3a_block_sum = 0.0;
+    double UB2min_used = 0.0;
+
+    for (int j = 0; j < k; ++j) {
+      List std_j = block_standardization[j];
+      if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+        continue;
+      }
+      List Env = block_envelopes[j];
+      List block_disp_j = block_dispersion[j];
+      block_ar_accumulate_one(
+        J_draw[j], beta_std_draw[j], sigma2, Env, std_j, block_disp_j,
+        &LL_total, &UB1_total, &quad_sum, &ub3a_block_sum,
+        !use_joint_lg_ub3a
+      );
+      if (!use_joint_lg_ub3a) {
+        NumericVector UB2min_j = block_disp_j["UB2min"];
+        UB2min_used += UB2min_j[J_draw[j]];
+      }
+    }
+
+    if (use_joint_lg_ub3a) {
+      ub3a_block_sum += lg_prob_factor_joint_at_draw(
+        block_dispersion, J_draw, k, prob_max_upp, prob_max_low
+      );
+      UB2min_used = ub2min_joint_at_draw(block_dispersion, J_draw, k);
+    }
+
+    const double UB2_raw = 0.5 * (1.0 / sigma2) * (quad_sum - RSS_Min_G);
+    const double UB2 = UB2_raw - UB2min_used;
+    const double UB3A = ub3a_block_sum + lmc1 + lmc2 * sigma2;
+    const double New_LL_log_disp = lm_log1 + lm_log2 * std::log(sigma2);
+    const double UB3B =
+      (max_New_LL_UB - max_LL_log_disp + New_LL_log_disp) -
+      (lmc1 + lmc2 * sigma2);
+
+    const double test1 = LL_total - UB1_total;
+    double test = test1 - (UB2 + UB3A + UB3B);
+    const double U2 = runif_safe();
+    test -= std::log(U2);
+
+    block_ar_check_signs(
+      test1, UB1_total, UB2, UB3A, UB3B, test,
+      quad_sum, RSS_Min_G, UB2_raw, UB2min_used, verbose
+    );
+
+    const double iters_flag = (test >= 0.0) ? 1.0 : 0.0;
+
+    dispersion_out[i] = sigma2;
+    iters_out[i] = iters_flag;
+
+    for (int j = 0; j < k; ++j) {
+      List std_j = block_standardization[j];
+      if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+        List res_j = block_results[j];
+        NumericMatrix beta_block = res_j["beta"];
+        beta_block(Rcpp::_, i) = beta_orig_draw[j];
+        res_j["beta"] = beta_block;
+        NumericVector block_iters = res_j["iters_out"];
+        block_iters[i] = iters_flag;
+        res_j["iters_out"] = block_iters;
+        block_results[j] = res_j;
+        continue;
+      }
+      List res_j = block_results[j];
+      NumericMatrix beta_block = res_j["beta"];
+      beta_block(Rcpp::_, i) = beta_orig_draw[j];
+      res_j["beta"] = beta_block;
+      NumericVector block_iters = res_j["iters_out"];
+      block_iters[i] = iters_flag;
+      res_j["iters_out"] = block_iters;
+      res_j["face_J_last"] = J_draw[j];
+      block_results[j] = res_j;
+    }
+
+    if (verbose && i == 0) {
+      Rcpp::Rcout << "BlockEnvelopeSim compute_v1_iters01 draw 0: sigma2="
+                  << sigma2 << " test=" << test
+                  << " accept=" << iters_flag
+                  << " LL=" << LL_total << " UB1=" << UB1_total
+                  << " UB2=" << UB2 << " UB3A=" << UB3A
+                  << " UB3B=" << UB3B << std::endl;
+    }
+  }
+
+  List meta_out = Rcpp::clone(meta);
+  meta_out["accept_mode"] = use_joint_lg_ub3a
+    ? "compute_v1_iters01_joint_lg_ub2"
+    : "compute_v1_iters01";
+  meta_out["n"] = n;
+
+  return List::create(
+    Rcpp::Named("block_results") = block_results,
+    Rcpp::Named("dispersion") = dispersion_out,
+    Rcpp::Named("iters_out") = iters_out,
+    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("meta") = meta_out
+  );
+}
+
+static void prior_hyperparams_from_list(
+    SEXP prior_list_sexp,
+    double* shape,
+    double* rate,
+    double* max_disp_perc,
+    Nullable<double>* disp_lower,
+    Nullable<double>* disp_upper
+) {
+  List prior_list(prior_list_sexp);
+  if (!has_non_null(prior_list, "shape") || !has_non_null(prior_list, "rate")) {
+    Rcpp::stop("'prior_list' must contain 'shape' and 'rate'.");
+  }
+  *shape = Rcpp::as<double>(prior_list["shape"]);
+  *rate = Rcpp::as<double>(prior_list["rate"]);
+  if (has_non_null(prior_list, "max_disp_perc")) {
+    *max_disp_perc = Rcpp::as<double>(prior_list["max_disp_perc"]);
+  } else {
+    *max_disp_perc = 0.99;
+  }
+  *disp_lower = resolve_nullable_bound(Nullable<double>(), prior_list, "disp_lower");
+  *disp_upper = resolve_nullable_bound(Nullable<double>(), prior_list, "disp_upper");
+}
+
+NumericMatrix map_block_sim_to_b_draw(
+    const List& sim,
+    const CharacterVector& group_levels,
+    int p_re,
+    int draw_i
+) {
+  List block_results = sim["block_results"];
+  const int k = block_results.size();
+  if (k < 1) {
+    Rcpp::stop("BlockEnvelopeSim returned no block_results.");
+  }
+
+  std::unordered_map<std::string, NumericVector> by_id;
+  by_id.reserve(static_cast<std::size_t>(k));
+  for (int j = 0; j < k; ++j) {
+    List br = block_results[j];
+    const std::string block_id = Rcpp::as<std::string>(br["block_id"]);
+    NumericMatrix beta = br["beta"];
+    if (draw_i < 0 || draw_i >= beta.ncol()) {
+      Rcpp::stop("map_block_sim_to_b_draw: draw index out of range.");
+    }
+    NumericVector v = beta(Rcpp::_, draw_i);
+    if (v.size() != p_re) {
+      Rcpp::stop(
+        "BlockEnvelopeSim beta length (%d) must equal p_re (%d).",
+        v.size(), p_re
+      );
+    }
+    by_id[block_id] = v;
+  }
+
+  if (group_levels.size() < 1) {
+    NumericMatrix b_draw(k, p_re);
+    for (int j = 0; j < k; ++j) {
+      List br = block_results[j];
+      const std::string block_id = Rcpp::as<std::string>(br["block_id"]);
+      b_draw(j, Rcpp::_) = by_id.at(block_id);
+    }
+    return b_draw;
+  }
+
+  NumericMatrix b_draw(group_levels.size(), p_re);
+  for (int i = 0; i < group_levels.size(); ++i) {
+    const std::string gl = Rcpp::as<std::string>(group_levels[i]);
+    const auto it = by_id.find(gl);
+    if (it == by_id.end()) {
+      Rcpp::stop(
+        "BlockEnvelopeSim block ids do not cover all group levels."
+      );
+    }
+    b_draw(i, Rcpp::_) = it->second;
+  }
+  return b_draw;
+}
+
+NumericMatrix block_beta_to_out_k1(
+    const List& sim,
+    int p_re,
+    int n
+) {
+  List block_results = sim["block_results"];
+  if (block_results.size() != 1) {
+    Rcpp::stop("'out' is only defined when k = 1 identifiable block layout.");
+  }
+  List br = block_results[0];
+  NumericMatrix beta = br["beta"];
+  if (beta.nrow() != p_re || beta.ncol() != n) {
+    Rcpp::stop("k = 1 beta matrix must be p_re x n.");
+  }
+  NumericMatrix out(p_re, n);
+  for (int j = 0; j < p_re; ++j) {
+    for (int i = 0; i < n; ++i) {
+      out(j, i) = beta(j, i);
+    }
+  }
+  return out;
+}
+
+// Orchestrator: BlockEnvelopeCentering → Build → DispersionBuild → Sim
+// (same sequence as .two_block_block1_envelope_draw_one_chain() in R).
+List rIndepNormalGammaRegBlock(
+    int n,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list_sexp,
+    SEXP prior_lists_sexp,
+    NumericVector offset,
+    NumericVector wt,
+    int p_re,
+    int n_rss_iter,
+    int Gridtype,
+    Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool progbar,
+    bool verbose,
+    CharacterVector group_levels,
+    CharacterVector re_names
+) {
+  if (n < 1) {
+    Rcpp::stop("'n' must be at least 1.");
+  }
+  if (n_rss_iter < 1) {
+    Rcpp::stop("'n_rss_iter' must be at least 1.");
+  }
+
+  double shape = NA_REAL;
+  double rate = NA_REAL;
+  double max_disp_perc = 0.99;
+  Nullable<double> disp_lower;
+  Nullable<double> disp_upper;
+  prior_hyperparams_from_list(
+    prior_list_sexp, &shape, &rate, &max_disp_perc, &disp_lower, &disp_upper
+  );
+
+  List center = BlockEnvelopeCentering(
+    y, x, block, prior_list_sexp, prior_lists_sexp,
+    offset, wt, shape, rate, max_disp_perc,
+    disp_lower, disp_upper, p_re, n_rss_iter, verbose
+  );
+
+  List build = BlockEnvelopeBuild(
+    center, y, x, block, prior_list_sexp, prior_lists_sexp,
+    offset, wt, max_disp_perc, disp_lower, disp_upper,
+    n, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, verbose
+  );
+
+  List disp = BlockEnvelopeDispersionBuild(
+    build, center, y, x, block, offset, wt,
+    shape, rate, max_disp_perc, disp_lower, disp_upper,
+    RSS_ML, use_parallel, verbose
+  );
+  build = disp["build_out"];
+
+  List sim = BlockEnvelopeSim(build, n, progbar, verbose);
+
+  const int p_re_eff = Rcpp::as<int>(center["p_re"]);
+  const int k = Rcpp::as<int>(center["k"]);
+  NumericVector dispersion = sim["dispersion"];
+  NumericVector iters_out = sim["iters_out"];
+
+  NumericMatrix b_draw = map_block_sim_to_b_draw(
+    sim, group_levels, p_re_eff, 0
+  );
+  if (re_names.size() == p_re_eff) {
+    colnames(b_draw) = re_names;
+  } else if (re_names.size() > 0 && re_names.size() != p_re_eff) {
+    Rcpp::stop("'re_names' must have length 0 or p_re.");
+  }
+  if (group_levels.size() == b_draw.nrow()) {
+    rownames(b_draw) = group_levels;
+  }
+
+  NumericVector weight_out(n);
+  std::fill(weight_out.begin(), weight_out.end(), 1.0);
+
+  const double low = Rcpp::as<double>(disp["low"]);
+  const double upp = Rcpp::as<double>(disp["upp"]);
+
+  List ret = List::create(
+    Rcpp::Named("b") = b_draw,
+    Rcpp::Named("dispersion_ranef") = dispersion[0],
+    Rcpp::Named("iters_mean") = iters_out[0],
+    Rcpp::Named("disp_out") = dispersion,
+    Rcpp::Named("iters_out") = iters_out,
+    Rcpp::Named("weight_out") = weight_out,
+    Rcpp::Named("low") = low,
+    Rcpp::Named("upp") = upp,
+    Rcpp::Named("k") = k,
+    Rcpp::Named("p_re") = p_re_eff,
+    Rcpp::Named("sim") = sim,
+    Rcpp::Named("centering_out") = center,
+    Rcpp::Named("build_out") = build
+  );
+
+  if (k == 1) {
+    List blocks = center["blocks"];
+    List block0 = blocks[0];
+    NumericVector betastar = block0["b_post_mean"];
+    ret["out"] = block_beta_to_out_k1(sim, p_re_eff, n);
+    ret["betastar"] = betastar;
+  }
+
+  return ret;
 }
 
 }  // namespace env

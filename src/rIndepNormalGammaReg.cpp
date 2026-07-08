@@ -1058,7 +1058,8 @@ Rcpp::List rIndepNormalGammaReg(
     bool use_parallel,
     bool use_opencl,
     bool verbose,
-    bool progbar
+    bool progbar,
+    bool return_envelope
 ){
   const int p = x.ncol();
   double n_w = 0.0;
@@ -1458,7 +1459,7 @@ Rcpp::List rIndepNormalGammaReg(
   // Final return (mirror R core)
   // -------------------------------
   
-  return Rcpp::List::create(
+  Rcpp::List ret = Rcpp::List::create(
     Rcpp::Named("out")        = out,
     Rcpp::Named("betastar")   = bstar+mu,       // posterior mode from optim() - Add back in prior mean
     Rcpp::Named("disp_out")   = disp_out,
@@ -1467,6 +1468,13 @@ Rcpp::List rIndepNormalGammaReg(
     Rcpp::Named("low")        = low,
     Rcpp::Named("upp")        = upp
   );
+  if (return_envelope) {
+    ret["Env"] = Env3;
+    ret["gamma_list"] = gamma_list_new;
+    ret["UB_list"] = UB_list_new;
+    ret["diagnostics"] = diagnostics;
+  }
+  return ret;
 }  
   
  

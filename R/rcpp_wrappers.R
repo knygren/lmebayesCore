@@ -361,6 +361,12 @@
 
 #' @noRd
 #' @keywords internal
+.rIndepNormalGammaReg_with_envelope_cpp <- function(n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar) {
+  .Call(`_glmbayesCore_rIndepNormalGammaReg_with_envelope_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
+}
+
+#' @noRd
+#' @keywords internal
 .rNormalGammaReg_cpp <- function(n, y, x, mu, P, offset, wt, shape, rate,
                                  max_disp_perc, disp_lower, disp_upper,
                                  verbose = FALSE) {
@@ -459,6 +465,89 @@
     offset, wt, max_disp_perc, disp_lower, disp_upper,
     n, Gridtype, n_envopt, RSS_ML,
     use_parallel, use_opencl, verbose)
+}
+
+#' @noRd
+#' @keywords internal
+.BlockEnvelopeDispersionBuild_cpp <- function(
+    build_out,
+    centering_out,
+    y,
+    x,
+    block,
+    offset,
+    wt,
+    shape,
+    rate,
+    max_disp_perc,
+    disp_lower = NULL,
+    disp_upper = NULL,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE,
+    verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeDispersionBuild_cpp_export`,
+    build_out,
+    centering_out,
+    y,
+    x,
+    block,
+    offset,
+    wt,
+    shape,
+    rate,
+    max_disp_perc,
+    disp_lower,
+    disp_upper,
+    RSS_ML,
+    use_parallel,
+    verbose
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.BlockEnvelopeSim_cpp <- function(
+    build_out,
+    n = 1L,
+    progbar = FALSE,
+    verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeSim_cpp_export`,
+    build_out, n, progbar, verbose)
+}
+
+#' Block ING envelope pipeline: Centering → Build → DispersionBuild → Sim
+#' @noRd
+#' @keywords internal
+.rIndepNormalGammaRegBlock_cpp <- function(
+    n,
+    y,
+    x,
+    block,
+    prior_list,
+    prior_lists = NULL,
+    offset,
+    wt,
+    p_re = -1L,
+    n_rss_iter = 10L,
+    Gridtype = 3L,
+    n_envopt = -1L,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE,
+    use_opencl = FALSE,
+    progbar = FALSE,
+    verbose = FALSE,
+    group_levels = character(0),
+    re_names = character(0)
+) {
+  .Call(
+    `_glmbayesCore_rIndepNormalGammaRegBlock_cpp_export`,
+    n, y, x, block, prior_list, prior_lists,
+    offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML,
+    use_parallel, use_opencl, progbar, verbose,
+    group_levels, re_names
+  )
 }
 
 #' @noRd

@@ -673,7 +673,8 @@ Rcpp::List rIndepNormalGammaReg(
     bool use_parallel,
     bool use_opencl,
     bool verbose,
-    bool progbar
+    bool progbar,
+    bool return_envelope = false
 );
 
 Rcpp::List rGammaGaussian(
@@ -755,10 +756,35 @@ Rcpp::List BlockEnvelopeBuild(
     bool verbose
 );
 
+Rcpp::List BlockEnvelopeDispersionBuild(
+    const Rcpp::List& build_out,
+    const Rcpp::List& centering_out,
+    Rcpp::NumericVector y,
+    Rcpp::NumericMatrix x,
+    SEXP block,
+    Rcpp::NumericVector offset,
+    Rcpp::NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    double RSS_ML,
+    bool use_parallel,
+    bool verbose
+);
+
+Rcpp::List BlockEnvelopeSim(
+    const Rcpp::List& build_out,
+    int n,
+    bool progbar,
+    bool verbose
+);
+
 }
 
-
 }
+
 }
 
 #endif

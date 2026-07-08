@@ -190,6 +190,56 @@ List BlockEnvelopeBuild(
     bool verbose
 );
 
+/// BlockEnvelopeDispersionBuild: per-block EDB + pooled sigma^2 constants (Step 3).
+List BlockEnvelopeDispersionBuild(
+    const List& build_out,
+    const List& centering_out,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    NumericVector offset,
+    NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    double RSS_ML,
+    bool use_parallel,
+    bool verbose
+);
+
+/// BlockEnvelopeSim: envelope-proposal draws per block (phase 1 auto-accept).
+List BlockEnvelopeSim(
+    const List& build_out,
+    int n,
+    bool progbar,
+    bool verbose
+);
+
+/// Block ING pipeline orchestrator (Centering → Build → DispersionBuild → Sim).
+List rIndepNormalGammaRegBlock(
+    int n,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    NumericVector offset,
+    NumericVector wt,
+    int p_re,
+    int n_rss_iter,
+    int Gridtype,
+    Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool progbar,
+    bool verbose,
+    CharacterVector group_levels,
+    CharacterVector re_names
+);
+
 Rcpp::List EnvelopeOrchestrator(
     NumericVector bstar2,
     NumericMatrix A,

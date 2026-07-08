@@ -1121,7 +1121,7 @@ rBeta_reg <- function(
 rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=gaussian(),
                                       Gridtype=2,n_envopt = NULL,
                                       use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,
-                                      progbar=TRUE){
+                                      progbar=TRUE, return_envelope = FALSE){
 
 
 
@@ -1249,26 +1249,49 @@ rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=ga
   n_envopt <- as.integer(n_envopt)
 
   
-  core_out <- .rIndepNormalGammaReg_cpp(
-    n,
-    y,
-    x,
-    mu,
-    P,
-    offset2,
-    wt,
-    shape,
-    rate,
-    max_disp_perc,
-    disp_lower,
-    disp_upper,
-    Gridtype,
-    n_envopt,
-    use_parallel,
-    use_opencl,
-    verbose,
-    progbar
-  )
+  core_out <- if (isTRUE(return_envelope)) {
+    .rIndepNormalGammaReg_with_envelope_cpp(
+      n,
+      y,
+      x,
+      mu,
+      P,
+      offset2,
+      wt,
+      shape,
+      rate,
+      max_disp_perc,
+      disp_lower,
+      disp_upper,
+      Gridtype,
+      n_envopt,
+      use_parallel,
+      use_opencl,
+      verbose,
+      progbar
+    )
+  } else {
+    .rIndepNormalGammaReg_cpp(
+      n,
+      y,
+      x,
+      mu,
+      P,
+      offset2,
+      wt,
+      shape,
+      rate,
+      max_disp_perc,
+      disp_lower,
+      disp_upper,
+      Gridtype,
+      n_envopt,
+      use_parallel,
+      use_opencl,
+      verbose,
+      progbar
+    )
+  }
   
 
 
@@ -1303,12 +1326,17 @@ rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=ga
     call=call,
     famfunc=famfunc,
     iters=iters_out,
-    Envelope=NULL,
+    Envelope=if (isTRUE(return_envelope)) core_out$Env else NULL,
     loglike=NULL,
     weight_out=weight_out,
     sim_bounds=list(low=low,upp=upp)
     #,test_out=test_out
   )
+  if (isTRUE(return_envelope)) {
+    outlist$gamma_list <- core_out$gamma_list
+    outlist$UB_list <- core_out$UB_list
+    outlist$diagnostics <- core_out$diagnostics
+  }
   
   ## Build a minimal pfamily object so summary.rglmb can detect prior type
   pfamily_obj <- list(
@@ -1335,6 +1363,53 @@ rindepNormalGamma_reg<-function(n,y,x,prior_list,offset=NULL,weights=1,family=ga
   return(outlist)  
   
   
+}
+
+
+#' Independent Normal--Gamma regression with envelope artifacts returned
+#'
+#' Same sampling pipeline as \code{\link{rindepNormalGamma_reg}}, but also
+#' returns the standardized envelope (\code{Envelope}), \code{gamma_list},
+#' \code{UB_list}, and \code{diagnostics} used by the joint accept--reject
+#' sampler (standardized subproblem; see \code{\link{EnvelopeOrchestrator}}).
+#'
+#' @inheritParams rindepNormalGamma_reg
+#' @return An \code{rglmb} object like \code{\link{rindepNormalGamma_reg}}, plus
+#'   \code{Envelope}, \code{gamma_list}, \code{UB_list}, and \code{diagnostics}.
+#' @family simfuncs
+#' @export
+#' @rdname rindepNormalGamma_reg_with_envelope
+rindepNormalGamma_reg_with_envelope <- function(
+    n,
+    y,
+    x,
+    prior_list,
+    offset = NULL,
+    weights = 1,
+    family = gaussian(),
+    Gridtype = 2,
+    n_envopt = NULL,
+    use_parallel = TRUE,
+    use_opencl = FALSE,
+    verbose = FALSE,
+    progbar = TRUE
+) {
+  rindepNormalGamma_reg(
+    n = n,
+    y = y,
+    x = x,
+    prior_list = prior_list,
+    offset = offset,
+    weights = weights,
+    family = family,
+    Gridtype = Gridtype,
+    n_envopt = n_envopt,
+    use_parallel = use_parallel,
+    use_opencl = use_opencl,
+    verbose = verbose,
+    progbar = progbar,
+    return_envelope = TRUE
+  )
 }
 
 
