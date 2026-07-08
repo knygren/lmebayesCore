@@ -55,10 +55,13 @@ An \code{rglmb} object like \code{\link{rindepNormalGamma_reg}}, plus
 \code{Envelope}, \code{gamma_list}, \code{UB_list}, and \code{diagnostics}.
 }
 \description{
-Same sampling pipeline as \code{\link{rindepNormalGamma_reg}}, but also
-returns the standardized envelope (\code{Envelope}), \code{gamma_list},
-\code{UB_list}, and \code{diagnostics} used by the joint accept--reject
-sampler (standardized subproblem; see \code{\link{EnvelopeOrchestrator}}).
+Diagnostic wrapper with the same sampling pipeline as
+\code{\link{rindepNormalGamma_reg}}, but also returns the standardized
+envelope (\code{Envelope}), \code{gamma_list}, \code{UB_list}, and
+\code{diagnostics} used by the joint accept--reject sampler (standardized
+subproblem; see \code{\link{EnvelopeOrchestrator}}). Intended for parity
+checks and development; production callers should use
+\code{\link{rindepNormalGamma_reg}}.
 }
 \seealso{
 glmbayes Simulation Functions

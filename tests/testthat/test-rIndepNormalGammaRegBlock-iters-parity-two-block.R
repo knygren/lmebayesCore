@@ -164,10 +164,55 @@
   )
 }
 
+.ing_rindepNormalGamma_reg_glmbayes_names <- function() {
+  c(
+    "coefficients", "coef.mode", "dispersion", "Prior", "family",
+    "prior.weights", "y", "x", "call", "famfunc", "iters", "Envelope",
+    "loglike", "weight_out", "sim_bounds", "pfamily", "offset2"
+  )
+}
+
 test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB constants", {
   fix <- .dobson_plant_two_block_fixture()
   n_envopt <- 10000L
   n_draws <- 1L
+
+  sim_std <- rindepNormalGamma_reg(
+    n = n_draws,
+    y = fix$y,
+    x = fix$x_old,
+    prior_list = fix$prior_list_old,
+    n_envopt = n_envopt,
+    Gridtype = 3L,
+    use_parallel = FALSE,
+    progbar = FALSE
+  )
+  expect_identical(names(sim_std), .ing_rindepNormalGamma_reg_glmbayes_names())
+  expect_identical(class(sim_std), "rglmb")
+  expect_null(sim_std$Envelope)
+  expect_null(sim_std$loglike)
+  expect_false("gamma_list" %in% names(sim_std))
+  expect_false("UB_list" %in% names(sim_std))
+  expect_false("diagnostics" %in% names(sim_std))
+
+  if (requireNamespace("glmbayes", quietly = TRUE)) {
+    sim_gb <- glmbayes::rindepNormalGamma_reg(
+      n = n_draws,
+      y = fix$y,
+      x = fix$x_old,
+      prior_list = fix$prior_list_old,
+      n_envopt = n_envopt,
+      Gridtype = 3L,
+      use_parallel = FALSE,
+      progbar = FALSE
+    )
+    expect_identical(names(sim_std), names(sim_gb))
+    expect_identical(class(sim_std), class(sim_gb))
+    expect_identical(
+      names(sim_std)[vapply(sim_std, is.null, logical(1))],
+      names(sim_gb)[vapply(sim_gb, is.null, logical(1))]
+    )
+  }
 
   sim_env <- rindepNormalGamma_reg_with_envelope(
     n = n_draws,
