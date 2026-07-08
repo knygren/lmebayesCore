@@ -11,6 +11,7 @@
 #include "R_interface.h"
 #include "rng_utils.h"
 #include "progress_utils.h"
+#include <algorithm>
 #include <cmath>
 #include <sstream>
 #include <string>
@@ -733,18 +734,53 @@ struct BlockFaceGeom {
   int gs = 0;
 };
 
+// Per-block arrays hoisted once before the O(prod gs_t) product-face loop in
+// build_joint_product_face_slack (avoids repeated SEXP/List indexing and
+// recomputing ||cbar||^2 for every occurrence of the same block face).
+struct BlockJointSlackCache {
+  NumericVector ub2_at_low;
+  NumericVector ub2_at_upp;
+  NumericVector logP1;
+  NumericVector norm2;
+  int gs = 0;
+};
+
+NumericVector cbars_row_norm2_sq(const NumericMatrix& cbars) {
+  const int gs = cbars.nrow();
+  const int p = cbars.ncol();
+  NumericVector out(gs);
+  for (int f = 0; f < gs; ++f) {
+    double s = 0.0;
+    for (int c = 0; c < p; ++c) {
+      const double cjk = cbars(f, c);
+      s += cjk * cjk;
+    }
+    out[f] = s;
+  }
+  return out;
+}
+
+// max_upp and mean_slope are taken as pre-reduced scalars rather than being
+// recomputed here from the full length-gs_total product-face arrays. This is
+// not an approximation: for a product face flat = (j1,...,jk), joint_upp_apprx
+// and joint_slope are sums of independent per-block terms (no cross terms,
+// see build_joint_face_product_geometry), so
+//   max over product faces of a separable sum = sum of per-block maxes, and
+//   mean over product faces of a separable sum = sum of per-block means.
+// The caller therefore reduces each block's own (small) upp_apprx/slope
+// vectors once and sums the results, which is exactly equal to scanning the
+// full O(prod gs_t) joint array but costs only O(sum gs_t).
 List ub3_geometry_from_joint_faces(
-    const NumericVector& joint_slope,
+    double max_upp,
+    double mean_slope,
     const NumericVector& joint_low_apprx,
     const NumericVector& joint_upp_apprx,
     double n_w_global,
     double low,
     double upp
 ) {
-  const double max_upp = max_vec_local(joint_upp_apprx);
   const double lmc2_max =
     (n_w_global / 2.0) * (std::log(upp) - std::log(low)) / (upp - low);
-  const double mean_slope = static_cast<double>(Rcpp::mean(joint_slope));
   if (mean_slope > lmc2_max) {
     Rcpp::Rcout
       << "[BlockEnvelopeDispersionBuild] UB3A mean slope (" << mean_slope
@@ -881,23 +917,31 @@ List build_joint_face_product_geometry(
     gs_total *= bg.gs;
   }
 
-  NumericVector joint_slope(gs_total);
+  // max_upp / mean_slope: O(sum gs_t) additive shortcut (see comment on
+  // ub3_geometry_from_joint_faces). Avoids ever materializing a length-
+  // gs_total slope array just to reduce it, which is the only thing
+  // joint_slope was used for.
+  double max_upp = 0.0;
+  double mean_slope = 0.0;
+  for (int t = 0; t < n_blocks; ++t) {
+    const BlockFaceGeom& bg = block_geom[static_cast<size_t>(t)];
+    max_upp += max_vec_local(bg.upp_apprx);
+    mean_slope += static_cast<double>(Rcpp::mean(bg.slope));
+  }
+
   NumericVector joint_upp_apprx(gs_total);
   NumericVector joint_low_apprx(gs_total);
   std::vector<int> face_idx(static_cast<size_t>(n_blocks), 0);
 
   for (int flat = 0; flat < gs_total; ++flat) {
-    double slope_sum = 0.0;
     double upp_sum = 0.0;
     double low_sum = 0.0;
     for (int t = 0; t < n_blocks; ++t) {
       const BlockFaceGeom& bg = block_geom[static_cast<size_t>(t)];
       const int f = face_idx[static_cast<size_t>(t)];
-      slope_sum += bg.slope[f];
       upp_sum += bg.upp_apprx[f];
       low_sum += bg.low_apprx[f];
     }
-    joint_slope[flat] = slope_sum;
     joint_upp_apprx[flat] = upp_sum;
     joint_low_apprx[flat] = low_sum;
 
@@ -911,7 +955,7 @@ List build_joint_face_product_geometry(
   }
 
   List geom = ub3_geometry_from_joint_faces(
-    joint_slope, joint_low_apprx, joint_upp_apprx, n_w_global, low, upp
+    max_upp, mean_slope, joint_low_apprx, joint_upp_apprx, n_w_global, low, upp
   );
   geom["joint_upp_apprx"] = joint_upp_apprx;
   geom["joint_low_apprx"] = joint_low_apprx;
@@ -1065,78 +1109,6 @@ void patch_block_dispersion_apprx(
   }
 }
 
-double ub2min_joint_at_draw(
-    const List& block_dispersion,
-    const std::vector<int>& J_draw,
-    int k
-) {
-  double ub2_low_sum = 0.0;
-  double ub2_upp_sum = 0.0;
-  for (int j = 0; j < k; ++j) {
-    if (Rf_isNull(block_dispersion[j])) {
-      continue;
-    }
-    if (J_draw[static_cast<size_t>(j)] < 0) {
-      continue;
-    }
-    List bd = Rcpp::as<List>(block_dispersion[j]);
-    if (!bd.containsElementNamed("ub2_at_low") ||
-        !bd.containsElementNamed("ub2_at_upp")) {
-      Rcpp::stop(
-        "BlockEnvelopeSim: block_dispersion missing ub2_at_low/ub2_at_upp "
-        "for joint UB2min shortcut."
-      );
-    }
-    const int J = J_draw[static_cast<size_t>(j)];
-    NumericVector ub2_at_low = bd["ub2_at_low"];
-    NumericVector ub2_at_upp = bd["ub2_at_upp"];
-    if (J < 0 || J >= ub2_at_low.size()) {
-      Rcpp::stop("BlockEnvelopeSim: face index out of range for ub2_at_low.");
-    }
-    ub2_low_sum += ub2_at_low[J];
-    ub2_upp_sum += ub2_at_upp[J];
-  }
-  return (ub2_low_sum <= ub2_upp_sum ? ub2_low_sum : ub2_upp_sum);
-}
-
-double lg_prob_factor_joint_at_draw(
-    const List& block_dispersion,
-    const std::vector<int>& J_draw,
-    int k,
-    double max_upp_prob,
-    double max_low_prob
-) {
-  double upp_sum = 0.0;
-  double low_sum = 0.0;
-  for (int j = 0; j < k; ++j) {
-    if (Rf_isNull(block_dispersion[j])) {
-      continue;
-    }
-    if (J_draw[static_cast<size_t>(j)] < 0) {
-      continue;
-    }
-    List bd = Rcpp::as<List>(block_dispersion[j]);
-    if (!bd.containsElementNamed("upp_apprx") ||
-        !bd.containsElementNamed("low_apprx")) {
-      Rcpp::stop(
-        "BlockEnvelopeSim: block_dispersion missing upp_apprx/low_apprx "
-        "for joint lg_prob_factor shortcut."
-      );
-    }
-    const int J = J_draw[static_cast<size_t>(j)];
-    NumericVector upp_apprx = bd["upp_apprx"];
-    NumericVector low_apprx = bd["low_apprx"];
-    if (J < 0 || J >= upp_apprx.size()) {
-      Rcpp::stop("BlockEnvelopeSim: face index out of range for upp_apprx.");
-    }
-    upp_sum += upp_apprx[J];
-    low_sum += low_apprx[J];
-  }
-  const double pf_upp = upp_sum - max_upp_prob;
-  const double pf_low = low_sum - max_low_prob;
-  return (pf_upp > pf_low ? pf_upp : pf_low);
-}
-
 int product_face_flat_index(
     const std::vector<int>& J_draw,
     const IntegerVector& identifiable_idx,
@@ -1193,6 +1165,28 @@ List build_joint_product_face_slack(
   const int n_blocks = identifiable_idx.size();
   const int gs_total = joint_upp_apprx.size();
 
+  std::vector<BlockJointSlackCache> block_cache(static_cast<size_t>(n_blocks));
+  for (int t = 0; t < n_blocks; ++t) {
+    const int block_j = identifiable_idx[t];
+    List bd = block_dispersion[block_j];
+    List Env = block_envelopes[block_j];
+    NumericMatrix cbars = Env["cbars"];
+    BlockJointSlackCache bc;
+    bc.ub2_at_low = bd["ub2_at_low"];
+    bc.ub2_at_upp = bd["ub2_at_upp"];
+    bc.logP1 = Env["logP"];
+    bc.norm2 = cbars_row_norm2_sq(cbars);
+    bc.gs = bc.ub2_at_low.size();
+    if (bc.ub2_at_upp.size() != bc.gs ||
+        bc.logP1.size() != bc.gs ||
+        bc.norm2.size() != bc.gs) {
+      Rcpp::stop(
+        "build_joint_product_face_slack: per-block face table length mismatch."
+      );
+    }
+    block_cache[static_cast<size_t>(t)] = bc;
+  }
+
   NumericVector joint_lg_prob_factor(gs_total);
   NumericVector joint_ub2min_product(gs_total);
   NumericVector joint_logw(gs_total);
@@ -1208,22 +1202,12 @@ List build_joint_product_face_slack(
     double logp_sum = 0.0;
     double norm2_sum = 0.0;
     for (int t = 0; t < n_blocks; ++t) {
-      const int block_j = identifiable_idx[t];
+      const BlockJointSlackCache& bc = block_cache[static_cast<size_t>(t)];
       const int f = face_idx[static_cast<size_t>(t)];
-      List bd = block_dispersion[block_j];
-      NumericVector ub2_at_low = bd["ub2_at_low"];
-      NumericVector ub2_at_upp = bd["ub2_at_upp"];
-      ub2_low_sum += ub2_at_low[f];
-      ub2_upp_sum += ub2_at_upp[f];
-
-      List Env = block_envelopes[block_j];
-      NumericVector logP1 = Env["logP"];
-      NumericMatrix cbars = Env["cbars"];
-      logp_sum += logP1[f];
-      for (int c = 0; c < cbars.ncol(); ++c) {
-        const double cjk = cbars(f, c);
-        norm2_sum += cjk * cjk;
-      }
+      ub2_low_sum += bc.ub2_at_low[f];
+      ub2_upp_sum += bc.ub2_at_upp[f];
+      logp_sum += bc.logP1[f];
+      norm2_sum += bc.norm2[f];
     }
     joint_ub2min_product[flat] =
       (ub2_low_sum <= ub2_upp_sum ? ub2_low_sum : ub2_upp_sum);
@@ -1232,9 +1216,7 @@ List build_joint_product_face_slack(
 
     for (int t = n_blocks - 1; t >= 0; --t) {
       ++face_idx[static_cast<size_t>(t)];
-      List bd = block_dispersion[identifiable_idx[t]];
-      NumericVector ub2_at_low = bd["ub2_at_low"];
-      if (face_idx[static_cast<size_t>(t)] < ub2_at_low.size()) {
+      if (face_idx[static_cast<size_t>(t)] < block_cache[static_cast<size_t>(t)].gs) {
         break;
       }
       face_idx[static_cast<size_t>(t)] = 0;
@@ -1318,16 +1300,33 @@ double g1_face_at_disp(
   return arma::as_scalar(-0.5 * theta.t() * P2 * theta + c_j.t() * theta);
 }
 
-int draw_face_index(const NumericVector& PLSD) {
-  double U = runif_safe();
-  int J = 0;
-  while (true) {
-    if (U <= PLSD[J]) {
-      return J;
-    }
-    U -= PLSD[J];
-    ++J;
+// Cumulative sum of a (normalized) probability vector, precomputed once so
+// that repeated draws from the same PLSD can use binary search instead of a
+// linear scan (see draw_face_index_from_cdf below).
+std::vector<double> build_face_cdf(const NumericVector& p) {
+  std::vector<double> cdf(static_cast<size_t>(p.size()));
+  double running = 0.0;
+  for (int i = 0; i < p.size(); ++i) {
+    running += p[i];
+    cdf[static_cast<size_t>(i)] = running;
   }
+  return cdf;
+}
+
+// O(log gs) equivalent of draw_face_index(PLSD) via binary search on a
+// precomputed cumulative sum. Same semantics (smallest J with U <= CDF[J]),
+// but avoids re-scanning the full face array on every resample-until-accept
+// attempt, which matters because draw_face_index is called once per attempt
+// (not once per build) and gs can be O(prod gs_t) for k > 1 blocks. Clamps to
+// the last index if floating-point error leaves U fractionally above
+// cdf.back() (~1), which is strictly safer than the unbounded linear scan.
+int draw_face_index_from_cdf(const std::vector<double>& cdf) {
+  const double U = runif_safe();
+  const auto it = std::lower_bound(cdf.begin(), cdf.end(), U);
+  if (it == cdf.end()) {
+    return static_cast<int>(cdf.size()) - 1;
+  }
+  return static_cast<int>(it - cdf.begin());
 }
 
 NumericVector draw_beta_std_face(
@@ -2369,6 +2368,16 @@ List BlockEnvelopeSim(
     joint_PLSD = dispersion_envelope["joint_PLSD"];
   }
 
+  // Precompute face-draw CDFs once per sim call (joint_PLSD / each block's own
+  // PLSD are fixed for the whole resample-until-accept loop below), so every
+  // attempt does an O(log gs) binary-search draw instead of an O(gs) linear
+  // scan. gs can be O(prod gs_t) for k > 1 blocks, so this matters most there.
+  std::vector<double> joint_plsd_cdf;
+  if (use_joint_lg_ub3a) {
+    joint_plsd_cdf = build_face_cdf(joint_PLSD);
+  }
+  std::vector<std::vector<double>> block_plsd_cdf(k);
+
   for (int j = 0; j < k; ++j) {
     List std_j = block_standardization[j];
     const bool prior_only = Rcpp::as<bool>(std_j["prior_only"]);
@@ -2390,6 +2399,10 @@ List BlockEnvelopeSim(
         Rcpp::Named("prior_only") = true
       );
     } else {
+      if (!use_joint_lg_ub3a) {
+        List Env = block_envelopes[j];
+        block_plsd_cdf[j] = build_face_cdf(Env["PLSD"]);
+      }
       block_results[j] = List::create(
         Rcpp::Named("block_id") = block_id,
         Rcpp::Named("identifiable") = true,
@@ -2420,7 +2433,7 @@ List BlockEnvelopeSim(
 
     while (accept == 0) {
       if (use_joint_lg_ub3a) {
-        const int flat = draw_face_index(joint_PLSD);
+        const int flat = draw_face_index_from_cdf(joint_plsd_cdf);
         std::vector<int> faces_identifiable(static_cast<size_t>(n_identifiable));
         decode_product_face_flat_index(flat, gs_per_block, faces_identifiable);
         for (int t = 0; t < n_identifiable; ++t) {
@@ -2452,7 +2465,7 @@ List BlockEnvelopeSim(
             continue;
           }
           List Env = block_envelopes[j];
-          J_draw[j] = draw_face_index(Env["PLSD"]);
+          J_draw[j] = draw_face_index_from_cdf(block_plsd_cdf[j]);
           beta_std_draw[j] = draw_beta_std_face(Env, J_draw[j], l1);
           beta_orig_draw[j] = unstandardize_beta_one(
             beta_std_draw[j],

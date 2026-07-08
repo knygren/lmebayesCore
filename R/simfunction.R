@@ -1106,17 +1106,6 @@ rBeta_reg <- function(
 
 
 
-#' @family simfuncs
-#' @example inst/examples/Ex_rindepNormalGamma_reg.R
-#' @usage rindepNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
-#'                              family = gaussian(), Gridtype = 2,n_envopt = NULL,
-#'                               use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
-#'                              progbar = TRUE)
-#' @export 
-#' @rdname simfuncs
-#' @order 4
-
-
 #' @noRd
 .rindepNormalGamma_reg_impl <- function(
     n,
@@ -1395,6 +1384,15 @@ rBeta_reg <- function(
 }
 
 
+#' @family simfuncs
+#' @example inst/examples/Ex_rindepNormalGamma_reg.R
+#' @usage rindepNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
+#'                              family = gaussian(), Gridtype = 2,n_envopt = NULL,
+#'                               use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
+#'                              progbar = TRUE)
+#' @export 
+#' @rdname simfuncs
+#' @order 4
 rindepNormalGamma_reg <- function(
     n,
     y,

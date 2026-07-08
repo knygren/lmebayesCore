@@ -5,6 +5,7 @@
 \alias{simfunction}
 \alias{rNormal_reg}
 \alias{rNormalGamma_reg}
+\alias{rindepNormalGamma_reg}
 \alias{rGamma_reg}
 \alias{print.rGamma_reg}
 \alias{print.simfunction}
@@ -21,6 +22,11 @@ rNormal_reg(n, y, x, prior_list, offset = NULL, weights = 1,
 rNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
                   Gridtype = 2,n_envopt = NULL, 
                   use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE,progbar=FALSE)
+
+rindepNormalGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1,
+                             family = gaussian(), Gridtype = 2,n_envopt = NULL,
+                              use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE, 
+                             progbar = TRUE)
 
 rGamma_reg(n, y, x, prior_list, offset = NULL, weights = 1, family = gaussian(),
            Gridtype = 2,n_envopt = NULL,
@@ -326,6 +332,43 @@ ngamma.D9 <- rNormalGamma_reg(n = 1000, y = y, x = x,
   prior_list = prior_list)
 
 print(ngamma.D9)
+############################### Start of rindepNormalGamma_reg examples ####################
+## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
+## Page 9: Plant Weight Data.
+ctl <- c(4.17,5.58,5.18,6.11,4.50,4.61,5.17,4.53,5.33,5.14)
+trt <- c(4.81,4.17,4.41,3.59,5.87,3.83,6.03,4.89,4.32,4.69)
+group <- gl(2, 10, 20, labels = c("Ctl","Trt"))
+weight <- c(ctl, trt)
+p_setup <- Prior_Setup(weight ~ group, family = gaussian())
+
+mu <- p_setup$mu
+Sigma_prior <- p_setup$Sigma
+dispersion <- p_setup$dispersion
+shape <- p_setup$shape
+rate <- p_setup$rate
+y <- p_setup$y
+x <- p_setup$x
+
+prior_list <- list(
+  mu = mu,
+  Sigma = Sigma_prior,
+  dispersion = dispersion,
+  shape = shape,
+  rate = rate,
+  Precision = solve(Sigma_prior),
+  max_disp_perc = 0.99
+)
+
+
+set.seed(360)
+
+sim2 <- rindepNormalGamma_reg(n = 1000, y, x, prior_list = prior_list)
+print(sim2)
+ 
+ 
+ 
+ 
+ 
 ############################### Start of rGamma_reg examples ####################
 ## Annette Dobson (1990) "An Introduction to Generalized Linear Models".
 ## Page 9: Plant Weight Data.
@@ -360,6 +403,19 @@ and grid evaluation used in likelihood-subgradient sampling.
 
 Theory and implementation narrative: \insertCite{Nygren2006}{glmbayesCore};
 \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore}.
+
+glmbayes Simulation Functions
+\code{\link{multi_rNormal_reg}()},
+\code{\link{multi_rlmb}()},
+\code{\link{rGLMM_Re_Draw}()},
+\code{\link{rGLMM_reg}()},
+\code{\link{rGLMM_sweep}()},
+\code{\link{rLMM_reg}},
+\code{\link{rindepNormalGamma_reg_with_envelope}()},
+\code{\link{two_block_optimize_pilot_cost}()},
+\code{\link{two_block_rNormal_reg}()},
+\code{\link{two_block_rate}()},
+\code{\link{two_block_tv_bound}()}
 
 glmbayes Simulation Functions
 \code{\link{multi_rNormal_reg}()},
