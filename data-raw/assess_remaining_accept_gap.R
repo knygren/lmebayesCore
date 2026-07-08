@@ -100,9 +100,8 @@ summ_diff <- function(x, y, label) {
 cat("=== Methodology note ===\n")
 cat(
   "Legacy iters = attempts until accept (resample loop).\n",
-  "Block iters_out = 1 if first proposal would accept, else 0.\n",
-  "At ~4% accept rate these are close but not identical estimands.\n",
-  "RNG streams also diverge (joint 81-face PLSD vs two 9-face PLSDs).\n\n"
+  "Block iters_out uses the same convention (starts at 1, increments on reject).\n",
+  "Same seed still does not sync proposal streams (joint vs product PLSD).\n\n"
 )
 
 cat("=== Global constants (already matched in tests) ===\n")
@@ -143,23 +142,20 @@ sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
   p_re = -1L, n_rss_iter = 10L, RSS_ML = NA_real_, use_opencl = FALSE,
   group_levels = character(0), re_names = character(0)
 )
-legacy_rate <- 1 / mean(sim_legacy$iters)
-block_rate <- mean(sim_block$iters_out)
+legacy_dpa <- mean(sim_legacy$iters)
+block_dpa <- mean(sim_block$iters_out)
+legacy_rate <- 1 / legacy_dpa
+block_rate <- 1 / block_dpa
 cat(sprintf(
-  "  legacy 1/mean(iters) = %.5f (%.2f%%)\n  block mean(would-accept) = %.5f (%.2f%%)\n  ratio = %.4f  gap = %+.2f pp\n",
+  "  legacy 1/mean(iters) = %.5f (%.2f%%)\n  block 1/mean(iters) = %.5f (%.2f%%)\n  mean(iters) ratio block/legacy = %.4f  gap = %+.2f\n",
   legacy_rate, 100 * legacy_rate, block_rate, 100 * block_rate,
-  block_rate / legacy_rate, 100 * (block_rate - legacy_rate)
+  block_dpa / legacy_dpa, block_dpa - legacy_dpa
 ))
-
-# First-attempt proxy on legacy: iters==1 means accepted on first try
 legacy_first <- mean(sim_legacy$iters == 1)
+block_first <- mean(sim_block$iters_out == 1)
 cat(sprintf(
-  "  legacy P(iters==1) first-attempt accept = %.5f (%.2f%%)\n",
-  legacy_first, 100 * legacy_first
-))
-cat(sprintf(
-  "  block - legacy_first gap = %+.2f pp\n",
-  100 * (block_rate - legacy_first)
+  "  legacy P(iters==1) = %.5f  block P(iters==1) = %.5f\n",
+  legacy_first, block_first
 ))
 
 cat("\n=== PLSD / proposal distribution ===\n")
@@ -188,5 +184,4 @@ cat("\n=== Likely residual gap sources (ranked) ===\n")
 cat("1. Different proposal RNG paths (joint vs product face draws) — not same proposals.\n")
 cat("2. UB2 joint uses rss_face_at_disp endpoints; legacy UB2min uses M_min/M_max (method 2).\n")
 cat("3. lg_prob_factor shortcut vs legacy joint prob_factor — small sorted-vector drift.\n")
-cat("4. Block sim has no reject/resample loop yet (first-proposal diagnostic only).\n")
-cat("5. Per-block vs joint envelope build (cbars / face geometry not byte-identical).\n")
+cat("4. Per-block vs joint envelope build (cbars / face geometry not byte-identical).\n")

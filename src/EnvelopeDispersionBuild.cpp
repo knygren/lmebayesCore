@@ -727,6 +727,8 @@ Rcpp::List bound_ub2_over_dispersion(
 
   NumericVector disp_min_ub2(gs);
   NumericVector ub2_min(gs);
+  NumericVector ub2_at_low(gs);
+  NumericVector ub2_at_upp(gs);
 
   // Local selector for UB2 endpoint method:
   // 1 = UB2() via rss_face_at_disp (current default)
@@ -781,6 +783,9 @@ Rcpp::List bound_ub2_over_dispersion(
       ub2_upp = (0.5 / upp) * (rss_upp_approx - rss_min_global);
     }
 
+    ub2_at_low[j] = ub2_low;
+    ub2_at_upp[j] = ub2_upp;
+
     if (ub2_low <= ub2_upp) {
       disp_min_ub2[j] = low;
       ub2_min[j]      = ub2_low;
@@ -792,7 +797,9 @@ Rcpp::List bound_ub2_over_dispersion(
 
   return Rcpp::List::create(
     Rcpp::Named("disp_min_ub2") = disp_min_ub2,
-    Rcpp::Named("ub2_min")      = ub2_min
+    Rcpp::Named("ub2_min")      = ub2_min,
+    Rcpp::Named("ub2_at_low")   = ub2_at_low,
+    Rcpp::Named("ub2_at_upp")   = ub2_at_upp
   );
 }
 

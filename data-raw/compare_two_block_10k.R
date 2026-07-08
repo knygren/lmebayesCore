@@ -146,18 +146,20 @@ t_block <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
 legacy_iters <- sim_legacy$iters
 block_iters <- sim_block$iters_out
-legacy_rate <- 1 / mean(legacy_iters)
-block_rate <- mean(block_iters)
+legacy_dpa <- mean(legacy_iters)
+block_dpa <- mean(block_iters)
+legacy_rate <- 1 / legacy_dpa
+block_rate <- 1 / block_dpa
 
 cat(sprintf(
   "Legacy: mean(iters) = %.4f  accept rate = %.4f  wall_sec = %.1f\n",
-  mean(legacy_iters), legacy_rate, t_legacy
+  legacy_dpa, legacy_rate, t_legacy
 ))
 cat(sprintf(
-  "Block:  mean(iters_out) = %.4f  would-accept rate = %.4f  wall_sec = %.1f\n",
-  block_rate, block_rate, t_block
+  "Block:  mean(iters_out) = %.4f  accept rate = %.4f  wall_sec = %.1f\n",
+  block_dpa, block_rate, t_block
 ))
-cat(sprintf("Ratio block/legacy accept rate: %.3f\n", block_rate / legacy_rate))
+cat(sprintf("Ratio block/legacy mean(iters): %.3f\n", block_dpa / legacy_dpa))
 cat(sprintf(
   "Block iters_out: min=%s max=%s  prop(1)=%.4f\n",
   min(block_iters), max(block_iters), mean(block_iters == 1)

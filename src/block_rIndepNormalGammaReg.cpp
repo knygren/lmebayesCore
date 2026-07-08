@@ -49,6 +49,36 @@ using Rcpp::Function;
 using glmbayes::env::EnvelopeBuild;
 using glmbayes::env::EnvelopeDispersionBuild;
 using glmbayes::fam::Inv_f3_precompute_disp;
+
+void add_ub2_bound_matrices_to_cache(
+    List& cache,
+    double low,
+    double upp
+) {
+  if (cache.containsElementNamed("M_min") && cache.containsElementNamed("M_max")) {
+    return;
+  }
+  arma::mat base_A = cache["base_A"];
+  arma::mat Pmat = cache["Pmat"];
+  Pmat = 0.5 * (Pmat + Pmat.t());
+
+  arma::mat A_max = Pmat + base_A / low;
+  A_max = 0.5 * (A_max + A_max.t());
+  arma::mat Ainv_max = arma::inv_sympd(A_max);
+  arma::mat M_min = Ainv_max.t() * base_A * Ainv_max;
+  M_min = 0.5 * (M_min + M_min.t());
+
+  arma::mat A_min = Pmat + base_A / upp;
+  A_min = 0.5 * (A_min + A_min.t());
+  arma::mat Ainv_min = arma::inv_sympd(A_min);
+  arma::mat M_max = Ainv_min.t() * base_A * Ainv_min;
+  M_max = 0.5 * (M_max + M_max.t());
+
+  cache["A_max"] = A_max;
+  cache["M_min"] = M_min;
+  cache["A_min"] = A_min;
+  cache["M_max"] = M_max;
+}
 using glmbayes::fam::Inv_f3_with_disp;
 using glmbayes::fam::f2_gaussian;
 using glmbayes::sim::glmb_Standardize_Model;
@@ -663,6 +693,9 @@ List block_envelope_dispersion_one(
   List cache_j = Inv_f3_precompute_disp(
     cbars, y_j, x2_j, mu2_j, P2_j, alpha_j, wt_j
   );
+  const double low_j = Rcpp::as<double>(gamma_list_j["disp_lower"]);
+  const double upp_j = Rcpp::as<double>(gamma_list_j["disp_upper"]);
+  add_ub2_bound_matrices_to_cache(cache_j, low_j, upp_j);
 
   const double rss_min_global_j = Rcpp::as<double>(UB_list_j["RSS_Min"]);
   double rss_ml_j = Rcpp::as<double>(UB_list_j["RSS_ML"]);
@@ -877,9 +910,12 @@ List build_joint_face_product_geometry(
     }
   }
 
-  return ub3_geometry_from_joint_faces(
+  List geom = ub3_geometry_from_joint_faces(
     joint_slope, joint_low_apprx, joint_upp_apprx, n_w_global, low, upp
   );
+  geom["joint_upp_apprx"] = joint_upp_apprx;
+  geom["joint_low_apprx"] = joint_low_apprx;
+  return geom;
 }
 
 List build_global_dispersion_constants(
@@ -935,7 +971,9 @@ List build_global_dispersion_constants(
     Rcpp::Named("UB_list") = out["UB_list"],
     Rcpp::Named("source") = "joint_face_product_edb",
     Rcpp::Named("RSS_post") = RSS_post_global,
-    Rcpp::Named("prob_max_low") = geom["max_low"]
+    Rcpp::Named("prob_max_low") = geom["max_low"],
+    Rcpp::Named("joint_upp_apprx") = geom["joint_upp_apprx"],
+    Rcpp::Named("joint_low_apprx") = geom["joint_low_apprx"]
   );
 }
 
@@ -1097,6 +1135,163 @@ double lg_prob_factor_joint_at_draw(
   const double pf_upp = upp_sum - max_upp_prob;
   const double pf_low = low_sum - max_low_prob;
   return (pf_upp > pf_low ? pf_upp : pf_low);
+}
+
+int product_face_flat_index(
+    const std::vector<int>& J_draw,
+    const IntegerVector& identifiable_idx,
+    const IntegerVector& gs_per_block
+) {
+  const int n_blocks = identifiable_idx.size();
+  int flat = 0;
+  int stride = 1;
+  for (int t = n_blocks - 1; t >= 0; --t) {
+    const int block_j = identifiable_idx[t];
+    const int J = J_draw[static_cast<size_t>(block_j)];
+    if (J < 0) {
+      Rcpp::stop("product_face_flat_index: invalid face index for identifiable block.");
+    }
+    if (J >= gs_per_block[t]) {
+      Rcpp::stop("product_face_flat_index: face index out of range for block.");
+    }
+    flat += J * stride;
+    stride *= gs_per_block[t];
+  }
+  return flat;
+}
+
+void decode_product_face_flat_index(
+    int flat,
+    const IntegerVector& gs_per_block,
+    std::vector<int>& face_idx_out
+) {
+  const int n_blocks = gs_per_block.size();
+  face_idx_out.assign(static_cast<size_t>(n_blocks), 0);
+  int rem = flat;
+  for (int t = n_blocks - 1; t >= 0; --t) {
+    const int gs = gs_per_block[t];
+    if (gs <= 0) {
+      Rcpp::stop("decode_product_face_flat_index: invalid gs_per_block entry.");
+    }
+    face_idx_out[static_cast<size_t>(t)] = rem % gs;
+    rem /= gs;
+  }
+  if (rem != 0) {
+    Rcpp::stop("decode_product_face_flat_index: flat index out of range.");
+  }
+}
+
+List build_joint_product_face_slack(
+    const IntegerVector& identifiable_idx,
+    const List& block_envelopes,
+    const List& block_dispersion,
+    const NumericVector& joint_upp_apprx,
+    const NumericVector& joint_low_apprx,
+    double prob_max_upp,
+    double prob_max_low
+) {
+  const int n_blocks = identifiable_idx.size();
+  const int gs_total = joint_upp_apprx.size();
+
+  NumericVector joint_lg_prob_factor(gs_total);
+  NumericVector joint_ub2min_product(gs_total);
+  NumericVector joint_logw(gs_total);
+  std::vector<int> face_idx(static_cast<size_t>(n_blocks), 0);
+
+  for (int flat = 0; flat < gs_total; ++flat) {
+    const double pf_upp = joint_upp_apprx[flat] - prob_max_upp;
+    const double pf_low = joint_low_apprx[flat] - prob_max_low;
+    joint_lg_prob_factor[flat] = (pf_upp > pf_low ? pf_upp : pf_low);
+
+    double ub2_low_sum = 0.0;
+    double ub2_upp_sum = 0.0;
+    double logp_sum = 0.0;
+    double norm2_sum = 0.0;
+    for (int t = 0; t < n_blocks; ++t) {
+      const int block_j = identifiable_idx[t];
+      const int f = face_idx[static_cast<size_t>(t)];
+      List bd = block_dispersion[block_j];
+      NumericVector ub2_at_low = bd["ub2_at_low"];
+      NumericVector ub2_at_upp = bd["ub2_at_upp"];
+      ub2_low_sum += ub2_at_low[f];
+      ub2_upp_sum += ub2_at_upp[f];
+
+      List Env = block_envelopes[block_j];
+      NumericVector logP1 = Env["logP"];
+      NumericMatrix cbars = Env["cbars"];
+      logp_sum += logP1[f];
+      for (int c = 0; c < cbars.ncol(); ++c) {
+        const double cjk = cbars(f, c);
+        norm2_sum += cjk * cjk;
+      }
+    }
+    joint_ub2min_product[flat] =
+      (ub2_low_sum <= ub2_upp_sum ? ub2_low_sum : ub2_upp_sum);
+    joint_logw[flat] = logp_sum + 0.5 * norm2_sum +
+      (joint_lg_prob_factor[flat] - joint_ub2min_product[flat]);
+
+    for (int t = n_blocks - 1; t >= 0; --t) {
+      ++face_idx[static_cast<size_t>(t)];
+      List bd = block_dispersion[identifiable_idx[t]];
+      NumericVector ub2_at_low = bd["ub2_at_low"];
+      if (face_idx[static_cast<size_t>(t)] < ub2_at_low.size()) {
+        break;
+      }
+      face_idx[static_cast<size_t>(t)] = 0;
+    }
+  }
+
+  NumericVector joint_PLSD(gs_total);
+  double max_logw = joint_logw[0];
+  for (int flat = 1; flat < gs_total; ++flat) {
+    if (joint_logw[flat] > max_logw) {
+      max_logw = joint_logw[flat];
+    }
+  }
+  double sumP = 0.0;
+  for (int flat = 0; flat < gs_total; ++flat) {
+    joint_PLSD[flat] = std::exp(joint_logw[flat] - max_logw);
+    sumP += joint_PLSD[flat];
+  }
+  if (sumP <= 0.0 || !R_finite(sumP)) {
+    Rcpp::stop("build_joint_product_face_slack: joint_PLSD normalization failed.");
+  }
+  for (int flat = 0; flat < gs_total; ++flat) {
+    joint_PLSD[flat] /= sumP;
+  }
+
+  return List::create(
+    Rcpp::Named("joint_lg_prob_factor") = joint_lg_prob_factor,
+    Rcpp::Named("joint_ub2min_product") = joint_ub2min_product,
+    Rcpp::Named("joint_PLSD") = joint_PLSD,
+    Rcpp::Named("n_product_faces") = gs_total
+  );
+}
+
+double joint_lg_prob_factor_at_draw(
+    const NumericVector& joint_lg_prob_factor,
+    const std::vector<int>& J_draw,
+    const IntegerVector& identifiable_idx,
+    const IntegerVector& gs_per_block
+) {
+  const int flat = product_face_flat_index(J_draw, identifiable_idx, gs_per_block);
+  if (flat < 0 || flat >= joint_lg_prob_factor.size()) {
+    Rcpp::stop("joint_lg_prob_factor_at_draw: product face index out of range.");
+  }
+  return joint_lg_prob_factor[flat];
+}
+
+double joint_ub2min_at_draw(
+    const NumericVector& joint_ub2min_product,
+    const std::vector<int>& J_draw,
+    const IntegerVector& identifiable_idx,
+    const IntegerVector& gs_per_block
+) {
+  const int flat = product_face_flat_index(J_draw, identifiable_idx, gs_per_block);
+  if (flat < 0 || flat >= joint_ub2min_product.size()) {
+    Rcpp::stop("joint_ub2min_at_draw: product face index out of range.");
+  }
+  return joint_ub2min_product[flat];
 }
 
 // g1_j(d) = -0.5 * theta_j(d)^T P theta_j(d) + c_j^T theta_j(d)  (matches rIndepNormalGammaReg_std)
@@ -1939,6 +2134,7 @@ List BlockEnvelopeDispersionBuild(
 
   double prob_max_upp = Rcpp::as<double>(UB_list_global["max_New_LL_UB"]);
   double prob_max_low = NA_REAL;
+  List joint_slack;
   if (identifiable_idx.size() > 1) {
     List apprx = compute_block_face_apprx_and_prob_anchors(
       identifiable_idx,
@@ -1956,6 +2152,15 @@ List BlockEnvelopeDispersionBuild(
     } else {
       prob_max_low = Rcpp::as<double>(apprx["prob_max_low"]);
     }
+    joint_slack = build_joint_product_face_slack(
+      identifiable_idx,
+      block_envelopes,
+      block_dispersion,
+      global_constants["joint_upp_apprx"],
+      global_constants["joint_low_apprx"],
+      prob_max_upp,
+      prob_max_low
+    );
   }
 
   RObject disp_lower_out = disp_lower.isUsable()
@@ -1978,14 +2183,18 @@ List BlockEnvelopeDispersionBuild(
     Rcpp::Named("block_dispersion") = block_dispersion,
     Rcpp::Named("cross_face_meta") = List::create(
       Rcpp::Named("gs_per_block") = gs_per_block,
+      Rcpp::Named("identifiable_idx") = identifiable_idx,
       Rcpp::Named("n_identifiable") = identifiable_idx.size(),
       Rcpp::Named("aggregation") = global_constants["source"],
       Rcpp::Named("ub3a_lg_mode") = (identifiable_idx.size() > 1)
-        ? "joint_face_max_v1"
+        ? "joint_product_face_lookup_v2"
         : "single_block_lg",
       Rcpp::Named("ub2_mode") = (identifiable_idx.size() > 1)
-        ? "joint_ub2min_min_of_endpoint_sums_v1"
-        : "single_block_ub2min"
+        ? "joint_product_face_ub2_rss_v2"
+        : "single_block_ub2min",
+      Rcpp::Named("face_draw_mode") = (identifiable_idx.size() > 1)
+        ? "joint_product_plsd_v1"
+        : "per_block_plsd"
     ),
     Rcpp::Named("prob_max_upp") = prob_max_upp,
     Rcpp::Named("prob_max_low") = prob_max_low,
@@ -1996,6 +2205,15 @@ List BlockEnvelopeDispersionBuild(
     Rcpp::Named("RSS_Min") = RSS_Min_global,
     Rcpp::Named("status") = "v1"
   );
+
+  if (identifiable_idx.size() > 1) {
+    dispersion_envelope["joint_lg_prob_factor"] =
+      joint_slack["joint_lg_prob_factor"];
+    dispersion_envelope["joint_ub2min_product"] =
+      joint_slack["joint_ub2min_product"];
+    dispersion_envelope["joint_PLSD"] = joint_slack["joint_PLSD"];
+    dispersion_envelope["n_product_faces"] = joint_slack["n_product_faces"];
+  }
 
   List meta_out = Rcpp::clone(meta);
   meta_out["dispersion_envelope_status"] = "v1";
@@ -2127,18 +2345,28 @@ List BlockEnvelopeSim(
   List cross_face_meta = dispersion_envelope["cross_face_meta"];
   const int n_identifiable = Rcpp::as<int>(cross_face_meta["n_identifiable"]);
   const bool use_joint_lg_ub3a = (n_identifiable > 1);
-  double prob_max_upp = max_New_LL_UB;
-  double prob_max_low = NA_REAL;
+  IntegerVector identifiable_idx;
+  IntegerVector gs_per_block;
+  NumericVector joint_lg_prob_factor;
+  NumericVector joint_ub2min_product;
+  NumericVector joint_PLSD;
   if (use_joint_lg_ub3a) {
-    if (dispersion_envelope.containsElementNamed("prob_max_low") &&
-        !Rf_isNull(dispersion_envelope["prob_max_low"])) {
-      prob_max_low = Rcpp::as<double>(dispersion_envelope["prob_max_low"]);
-    }
-    if (!R_finite(prob_max_low)) {
+    identifiable_idx = cross_face_meta["identifiable_idx"];
+    gs_per_block = cross_face_meta["gs_per_block"];
+    if (!dispersion_envelope.containsElementNamed("joint_lg_prob_factor") ||
+        Rf_isNull(dispersion_envelope["joint_lg_prob_factor"]) ||
+        !dispersion_envelope.containsElementNamed("joint_ub2min_product") ||
+        Rf_isNull(dispersion_envelope["joint_ub2min_product"]) ||
+        !dispersion_envelope.containsElementNamed("joint_PLSD") ||
+        Rf_isNull(dispersion_envelope["joint_PLSD"])) {
       Rcpp::stop(
-        "BlockEnvelopeSim: prob_max_low missing for joint lg_prob_factor shortcut."
+        "BlockEnvelopeSim: joint product-face tables missing "
+        "(joint_lg_prob_factor / joint_ub2min_product / joint_PLSD)."
       );
     }
+    joint_lg_prob_factor = dispersion_envelope["joint_lg_prob_factor"];
+    joint_ub2min_product = dispersion_envelope["joint_ub2min_product"];
+    joint_PLSD = dispersion_envelope["joint_PLSD"];
   }
 
   for (int j = 0; j < k; ++j) {
@@ -2186,83 +2414,131 @@ List BlockEnvelopeSim(
       }
     }
 
-    for (int j = 0; j < k; ++j) {
-      List std_j = block_standardization[j];
-      if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
-        beta_orig_draw[j] = std_j["mu"];
-        J_draw[j] = -1;
-        continue;
+    iters_out[i] = 1.0;
+    int accept = 0;
+    double sigma2_accept = NA_REAL;
+
+    while (accept == 0) {
+      if (use_joint_lg_ub3a) {
+        const int flat = draw_face_index(joint_PLSD);
+        std::vector<int> faces_identifiable(static_cast<size_t>(n_identifiable));
+        decode_product_face_flat_index(flat, gs_per_block, faces_identifiable);
+        for (int t = 0; t < n_identifiable; ++t) {
+          const int j = identifiable_idx[t];
+          List std_j = block_standardization[j];
+          List Env = block_envelopes[j];
+          J_draw[j] = faces_identifiable[static_cast<size_t>(t)];
+          beta_std_draw[j] = draw_beta_std_face(Env, J_draw[j], l1);
+          beta_orig_draw[j] = unstandardize_beta_one(
+            beta_std_draw[j],
+            std_j["L2Inv"],
+            std_j["L3Inv"],
+            std_j["mu"]
+          );
+        }
+        for (int j = 0; j < k; ++j) {
+          List std_j = block_standardization[j];
+          if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+            beta_orig_draw[j] = std_j["mu"];
+            J_draw[j] = -1;
+          }
+        }
+      } else {
+        for (int j = 0; j < k; ++j) {
+          List std_j = block_standardization[j];
+          if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+            beta_orig_draw[j] = std_j["mu"];
+            J_draw[j] = -1;
+            continue;
+          }
+          List Env = block_envelopes[j];
+          J_draw[j] = draw_face_index(Env["PLSD"]);
+          beta_std_draw[j] = draw_beta_std_face(Env, J_draw[j], l1);
+          beta_orig_draw[j] = unstandardize_beta_one(
+            beta_std_draw[j],
+            std_j["L2Inv"],
+            std_j["L3Inv"],
+            std_j["mu"]
+          );
+        }
       }
-      List Env = block_envelopes[j];
-      J_draw[j] = draw_face_index(Env["PLSD"]);
-      beta_std_draw[j] = draw_beta_std_face(Env, J_draw[j], l1);
-      beta_orig_draw[j] = unstandardize_beta_one(
-        beta_std_draw[j],
-        std_j["L2Inv"],
-        std_j["L3Inv"],
-        std_j["mu"]
-      );
-    }
 
-    const double sigma2 =
-      rinvgamma_ct_safe(shape3, rate2, disp_upper, disp_lower);
-    if (!R_finite(sigma2)) {
-      Rcpp::stop("BlockEnvelopeSim: non-finite sigma2 draw.");
-    }
-
-    double LL_total = 0.0;
-    double UB1_total = 0.0;
-    double quad_sum = 0.0;
-    double ub3a_block_sum = 0.0;
-    double UB2min_used = 0.0;
-
-    for (int j = 0; j < k; ++j) {
-      List std_j = block_standardization[j];
-      if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
-        continue;
+      const double sigma2 =
+        rinvgamma_ct_safe(shape3, rate2, disp_upper, disp_lower);
+      if (!R_finite(sigma2)) {
+        Rcpp::stop("BlockEnvelopeSim: non-finite sigma2 draw.");
       }
-      List Env = block_envelopes[j];
-      List block_disp_j = block_dispersion[j];
-      block_ar_accumulate_one(
-        J_draw[j], beta_std_draw[j], sigma2, Env, std_j, block_disp_j,
-        &LL_total, &UB1_total, &quad_sum, &ub3a_block_sum,
-        !use_joint_lg_ub3a
+
+      double LL_total = 0.0;
+      double UB1_total = 0.0;
+      double quad_sum = 0.0;
+      double ub3a_block_sum = 0.0;
+      double UB2min_used = 0.0;
+
+      for (int j = 0; j < k; ++j) {
+        List std_j = block_standardization[j];
+        if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
+          continue;
+        }
+        List Env = block_envelopes[j];
+        List block_disp_j = block_dispersion[j];
+        block_ar_accumulate_one(
+          J_draw[j], beta_std_draw[j], sigma2, Env, std_j, block_disp_j,
+          &LL_total, &UB1_total, &quad_sum, &ub3a_block_sum,
+          !use_joint_lg_ub3a
+        );
+        if (!use_joint_lg_ub3a) {
+          NumericVector UB2min_j = block_disp_j["UB2min"];
+          UB2min_used += UB2min_j[J_draw[j]];
+        }
+      }
+
+      if (use_joint_lg_ub3a) {
+        ub3a_block_sum += joint_lg_prob_factor_at_draw(
+          joint_lg_prob_factor, J_draw, identifiable_idx, gs_per_block
+        );
+        UB2min_used = joint_ub2min_at_draw(
+          joint_ub2min_product, J_draw, identifiable_idx, gs_per_block
+        );
+      }
+
+      const double UB2_raw = 0.5 * (1.0 / sigma2) * (quad_sum - RSS_Min_G);
+      const double UB2 = UB2_raw - UB2min_used;
+      const double UB3A = ub3a_block_sum + lmc1 + lmc2 * sigma2;
+      const double New_LL_log_disp = lm_log1 + lm_log2 * std::log(sigma2);
+      const double UB3B =
+        (max_New_LL_UB - max_LL_log_disp + New_LL_log_disp) -
+        (lmc1 + lmc2 * sigma2);
+
+      const double test1 = LL_total - UB1_total;
+      double test = test1 - (UB2 + UB3A + UB3B);
+
+      block_ar_check_signs(
+        test1, UB1_total, UB2, UB3A, UB3B, test,
+        quad_sum, RSS_Min_G, UB2_raw, UB2min_used, verbose
       );
-      if (!use_joint_lg_ub3a) {
-        NumericVector UB2min_j = block_disp_j["UB2min"];
-        UB2min_used += UB2min_j[J_draw[j]];
+
+      const double U2 = runif_safe();
+      test -= std::log(U2);
+
+      if (test >= 0.0) {
+        accept = 1;
+        sigma2_accept = sigma2;
+
+        if (verbose && i == 0) {
+          Rcpp::Rcout << "BlockEnvelopeSim resample_until_accept draw 0: sigma2="
+                      << sigma2 << " test=" << test
+                      << " iters=" << iters_out[i]
+                      << " LL=" << LL_total << " UB1=" << UB1_total
+                      << " UB2=" << UB2 << " UB3A=" << UB3A
+                      << " UB3B=" << UB3B << std::endl;
+        }
+      } else {
+        iters_out[i] = iters_out[i] + 1.0;
       }
     }
 
-    if (use_joint_lg_ub3a) {
-      ub3a_block_sum += lg_prob_factor_joint_at_draw(
-        block_dispersion, J_draw, k, prob_max_upp, prob_max_low
-      );
-      UB2min_used = ub2min_joint_at_draw(block_dispersion, J_draw, k);
-    }
-
-    const double UB2_raw = 0.5 * (1.0 / sigma2) * (quad_sum - RSS_Min_G);
-    const double UB2 = UB2_raw - UB2min_used;
-    const double UB3A = ub3a_block_sum + lmc1 + lmc2 * sigma2;
-    const double New_LL_log_disp = lm_log1 + lm_log2 * std::log(sigma2);
-    const double UB3B =
-      (max_New_LL_UB - max_LL_log_disp + New_LL_log_disp) -
-      (lmc1 + lmc2 * sigma2);
-
-    const double test1 = LL_total - UB1_total;
-    double test = test1 - (UB2 + UB3A + UB3B);
-    const double U2 = runif_safe();
-    test -= std::log(U2);
-
-    block_ar_check_signs(
-      test1, UB1_total, UB2, UB3A, UB3B, test,
-      quad_sum, RSS_Min_G, UB2_raw, UB2min_used, verbose
-    );
-
-    const double iters_flag = (test >= 0.0) ? 1.0 : 0.0;
-
-    dispersion_out[i] = sigma2;
-    iters_out[i] = iters_flag;
+    dispersion_out[i] = sigma2_accept;
 
     for (int j = 0; j < k; ++j) {
       List std_j = block_standardization[j];
@@ -2272,7 +2548,7 @@ List BlockEnvelopeSim(
         beta_block(Rcpp::_, i) = beta_orig_draw[j];
         res_j["beta"] = beta_block;
         NumericVector block_iters = res_j["iters_out"];
-        block_iters[i] = iters_flag;
+        block_iters[i] = iters_out[i];
         res_j["iters_out"] = block_iters;
         block_results[j] = res_j;
         continue;
@@ -2282,26 +2558,20 @@ List BlockEnvelopeSim(
       beta_block(Rcpp::_, i) = beta_orig_draw[j];
       res_j["beta"] = beta_block;
       NumericVector block_iters = res_j["iters_out"];
-      block_iters[i] = iters_flag;
+      block_iters[i] = iters_out[i];
       res_j["iters_out"] = block_iters;
       res_j["face_J_last"] = J_draw[j];
       block_results[j] = res_j;
-    }
-
-    if (verbose && i == 0) {
-      Rcpp::Rcout << "BlockEnvelopeSim compute_v1_iters01 draw 0: sigma2="
-                  << sigma2 << " test=" << test
-                  << " accept=" << iters_flag
-                  << " LL=" << LL_total << " UB1=" << UB1_total
-                  << " UB2=" << UB2 << " UB3A=" << UB3A
-                  << " UB3B=" << UB3B << std::endl;
     }
   }
 
   List meta_out = Rcpp::clone(meta);
   meta_out["accept_mode"] = use_joint_lg_ub3a
-    ? "compute_v1_iters01_joint_lg_ub2"
-    : "compute_v1_iters01";
+    ? "resample_until_accept_joint_product_slack_v2"
+    : "resample_until_accept_v1";
+  meta_out["face_draw_mode"] = use_joint_lg_ub3a
+    ? "joint_product_plsd_v1"
+    : "per_block_plsd";
   meta_out["n"] = n;
 
   return List::create(

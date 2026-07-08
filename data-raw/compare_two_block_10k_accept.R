@@ -64,19 +64,19 @@ sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
 )
 
 legacy_iters <- sim_legacy$iters
-block_flag <- sim_block$iters_out
-legacy_rate <- 1 / mean(legacy_iters)
-block_rate <- mean(block_flag)
+block_iters <- sim_block$iters_out
 legacy_dpa <- mean(legacy_iters)
-block_dpa <- if (block_rate > 0) 1 / block_rate else Inf
-abs_diff <- block_rate - legacy_rate
-rel_diff <- abs_diff / legacy_rate
+block_dpa <- mean(block_iters)
+legacy_rate <- 1 / legacy_dpa
+block_rate <- 1 / block_dpa
+abs_diff <- block_dpa - legacy_dpa
+rel_diff <- abs_diff / legacy_dpa
 
 cat(sprintf("n = %d, seed = %d\n\n", n_draws, seed))
 cat(sprintf("Legacy  accept rate     = %.5f  (%.2f%%)\n", legacy_rate, 100 * legacy_rate))
-cat(sprintf("Legacy  draws / accept  = %.3f  (median iters = %g)\n", legacy_dpa, median(legacy_iters)))
-cat(sprintf("Block   would-accept    = %.5f  (%.2f%%)\n", block_rate, 100 * block_rate))
-cat(sprintf("Block   implied dpa     = %.3f  (n would-accept = %d)\n", block_dpa, sum(block_flag)))
-cat(sprintf("\nAbsolute gap (block - legacy) = %+.5f  (%.2f pp)\n", abs_diff, 100 * abs_diff))
-cat(sprintf("Block / legacy ratio          = %.3f\n", block_rate / legacy_rate))
-cat(sprintf("Relative shortfall            = %.1f%%\n", 100 * (1 - block_rate / legacy_rate)))
+cat(sprintf("Legacy  mean(iters)      = %.3f  (median iters = %g)\n", legacy_dpa, median(legacy_iters)))
+cat(sprintf("Block   accept rate     = %.5f  (%.2f%%)\n", block_rate, 100 * block_rate))
+cat(sprintf("Block   mean(iters)     = %.3f  (median iters = %g)\n", block_dpa, median(block_iters)))
+cat(sprintf("\nAbsolute gap mean(iters) (block - legacy) = %+.3f\n", abs_diff))
+cat(sprintf("Block / legacy mean(iters) ratio              = %.3f\n", block_dpa / legacy_dpa))
+cat(sprintf("Accept-rate ratio (legacy/block)              = %.3f\n", legacy_rate / block_rate))

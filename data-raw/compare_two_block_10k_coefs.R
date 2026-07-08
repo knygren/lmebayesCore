@@ -1,4 +1,4 @@
-# Mean coefficients: two-block stacked Dobson, n = 10000
+# Mean / SD coefficients and dispersion: two-block stacked Dobson, n = 10000
 pkgload::load_all(quiet = TRUE)
 
 n_draws <- 10000L
@@ -83,44 +83,72 @@ sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
   re_names = character(0)
 )
 
-legacy_mean <- colMeans(sim_legacy$coefficients)
-cat("Legacy mean coefficients (all accepted draws, n =", n_draws, "):\n")
-print(round(legacy_mean, 4))
-cat("\nLegacy names:", paste(colnames(sim_legacy$coefficients), collapse = ", "), "\n\n")
-
-b1 <- sim_block$sim$block_results[[1]]$beta
-b2 <- sim_block$sim$block_results[[2]]$beta
-cn <- rownames(b1)
-if (is.null(cn)) {
-  cn <- paste0("beta", seq_len(nrow(b1)))
+summ_vec <- function(x) {
+  c(mean = mean(x), sd = sd(x))
 }
-block_mean_all <- c(rowMeans(b1), rowMeans(b2))
-names(block_mean_all) <- c(paste0("B1.", cn), paste0("B2.", cn))
-cat("Block mean coefficients (all proposals, n =", n_draws, "):\n")
-print(round(block_mean_all, 4))
 
-acc <- sim_block$iters_out == 1
-cat(
-  "\nBlock mean coefficients (would-accept only, n_acc =",
-  sum(acc), "):\n"
-)
-block_mean_acc <- c(
-  rowMeans(b1[, acc, drop = FALSE]),
-  rowMeans(b2[, acc, drop = FALSE])
-)
-names(block_mean_acc) <- names(block_mean_all)
-print(round(block_mean_acc, 4))
+## Legacy coefficients: n x p matrix
+leg_coef <- sim_legacy$coefficients
+leg_names <- colnames(leg_coef)
+leg_b1 <- leg_coef[, seq_len(l1), drop = FALSE]
+leg_b2 <- leg_coef[, seq_len(l1) + l1, drop = FALSE]
+cn <- colnames(leg_b1)
+if (is.null(cn) || !length(cn)) {
+  cn <- paste0("beta", seq_len(l1))
+}
+block_b1 <- t(sim_block$sim$block_results[[1]]$beta)
+block_b2 <- t(sim_block$sim$block_results[[2]]$beta)
+nm_vec <- c(paste0("B1.", cn), paste0("B2.", cn))
+leg_stack <- cbind(leg_b1, leg_b2)
+colnames(leg_stack) <- nm_vec
+block_stack <- cbind(block_b1, block_b2)
+colnames(block_stack) <- nm_vec
 
-leg_names <- colnames(sim_legacy$coefficients)
-leg_stack <- legacy_mean
-names(leg_stack) <- c(
-  paste0("B1.", leg_names[seq_len(l1)]),
-  paste0("B2.", leg_names[seq_len(l1) + l1])
+cat(sprintf("=== Coefficients (n = %d, seed = %d) ===\n\n", n_draws, seed))
+
+fmt_row <- function(nm, leg, blk) {
+  sprintf(
+    "  %-12s  legacy mean %8.4f  sd %7.4f  |  block mean %8.4f  sd %7.4f  |  diff mean %+.4f",
+    nm, mean(leg), sd(leg), mean(blk), sd(blk), mean(blk) - mean(leg)
+  )
+}
+
+cat("Per-parameter mean and SD (B1/B2 aligned):\n")
+for (nm in colnames(leg_stack)) {
+  cat(fmt_row(nm, leg_stack[, nm], block_stack[, nm]), "\n")
+}
+
+cat("\n=== Dispersion ===\n")
+leg_disp <- sim_legacy$dispersion
+blk_disp <- sim_block$disp_out
+cat(sprintf(
+  "  legacy  mean = %.6f   sd = %.6f\n  block   mean = %.6f   sd = %.6f\n  diff mean = %+.6f   diff sd = %+.6f\n",
+  mean(leg_disp), sd(leg_disp), mean(blk_disp), sd(blk_disp),
+  mean(blk_disp) - mean(leg_disp), sd(blk_disp) - sd(leg_disp)
+))
+
+cat("\n=== Iteration counts ===\n")
+cat(sprintf(
+  "  legacy mean(iters) = %.3f   sd = %.3f\n  block  mean(iters) = %.3f   sd = %.3f\n",
+  mean(sim_legacy$iters), sd(sim_legacy$iters),
+  mean(sim_block$iters_out), sd(sim_block$iters_out)
+))
+
+cat("\nCompact table (mean / sd):\n")
+tab <- data.frame(
+  legacy_mean = colMeans(leg_stack),
+  legacy_sd = apply(leg_stack, 2, sd),
+  block_mean = colMeans(block_stack),
+  block_sd = apply(block_stack, 2, sd),
+  row.names = colnames(leg_stack)
 )
-cmp <- cbind(
-  legacy = leg_stack,
-  block_all = block_mean_all,
-  block_acc = block_mean_acc
+print(round(tab, 4))
+
+disp_tab <- data.frame(
+  legacy_mean = mean(leg_disp),
+  legacy_sd = sd(leg_disp),
+  block_mean = mean(blk_disp),
+  block_sd = sd(blk_disp),
+  row.names = "dispersion"
 )
-cat("\nSide-by-side (legacy block-diagonal vs block B1/B2):\n")
-print(round(cmp, 4))
+print(round(disp_tab, 6))

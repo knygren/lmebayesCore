@@ -59,34 +59,23 @@ test_that("BlockEnvelope iters_out matches rindepNormalGamma_reg draws per accep
 
   old_draws_per_accept <- mean(sim_old$iters)
   block_iters <- sim_block$iters_out
-  block_accept_rate <- mean(block_iters)
-  block_draws_from_iters <- if (block_accept_rate > 0) {
-    1 / block_accept_rate
-  } else {
-    Inf
-  }
+  block_draws_per_accept <- mean(block_iters)
 
   expect_length(block_iters, n_draws)
-  expect_true(all(block_iters %in% c(0, 1)))
+  expect_true(all(block_iters >= 1))
   expect_equal(sim_block$iters_mean, block_iters[[1L]])
   expect_equal(
     sim_block$sim$meta$accept_mode,
-    "compute_v1_iters01"
+    "resample_until_accept_v1"
   )
   expect_true(is.finite(old_draws_per_accept))
   expect_true(old_draws_per_accept >= 1)
+  expect_true(is.finite(block_draws_per_accept))
+  expect_true(block_draws_per_accept >= 1)
 
-  old_accept_rate <- 1 / old_draws_per_accept
-
-  ## Old path: mean(iters) = candidates per stored draw (full A/R loop).
-  ## Block path (compute_v1_iters01): iters_out is 0/1 would-accept on the
-  ## first proposal only, so mean(iters_out) ~= 1 / mean(old$iters) when each
-  ## attempt is an i.i.d. envelope test (same order of magnitude until build
-  ## paths are bit-identical).
-  expect_true(is.finite(block_draws_from_iters))
-  expect_equal(block_accept_rate, old_accept_rate, tolerance = 0.25)
+  ## Both paths: iters_out counts candidates until acceptance (starts at 1).
   expect_equal(
-    block_draws_from_iters,
+    block_draws_per_accept,
     old_draws_per_accept,
     tolerance = 0.3
   )

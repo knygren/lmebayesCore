@@ -249,7 +249,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
   expect_equal(as.integer(per_block$gs), rep(3^fix$l1, fix$k))
   expect_equal(unname(legacy["n_faces"]), 3^(2L * fix$l1))
 
-  ## With matched globals, block would-accept should be closer to legacy (still 0/1 diagnostic).
+  ## With matched globals, block resample-until-accept iters should track legacy.
   set.seed(360)
   sim_legacy_ar <- rindepNormalGamma_reg(
     n = 500L,
@@ -282,11 +282,16 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
     group_levels = character(0),
     re_names = character(0)
   )
-  legacy_rate <- 1 / mean(sim_legacy_ar$iters)
-  block_rate <- mean(sim_block_ar$iters_out)
+  legacy_dpa <- mean(sim_legacy_ar$iters)
+  block_dpa <- mean(sim_block_ar$iters_out)
   message(sprintf(
-    "acceptance (n = 500): legacy A/R rate %.4f vs block would-accept %.4f (ratio %.2f)",
-    legacy_rate, block_rate, block_rate / legacy_rate
+    "acceptance (n = 500): legacy mean(iters) %.3f vs block mean(iters) %.3f (ratio %.2f)",
+    legacy_dpa, block_dpa, block_dpa / legacy_dpa
   ))
-  expect_gt(block_rate, 0.005)
+  expect_equal(
+    sim_block_ar$sim$meta$accept_mode,
+    "resample_until_accept_joint_product_slack_v2"
+  )
+  expect_gt(1 / block_dpa, 0.005)
+  expect_equal(block_dpa, legacy_dpa, tolerance = 0.35)
 })

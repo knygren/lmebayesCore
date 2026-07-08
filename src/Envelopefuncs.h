@@ -334,6 +334,19 @@ double UB2(double dispersion,
            Rcpp::NumericVector wt,
            double rss_min_global);
 
+Rcpp::List bound_ub2_over_dispersion(
+    int gs,
+    double low,
+    double upp,
+    const Rcpp::List& cache,
+    const Rcpp::NumericMatrix& cbars,
+    const Rcpp::NumericVector& y,
+    const Rcpp::NumericMatrix& x,
+    const Rcpp::NumericVector& alpha,
+    const Rcpp::NumericVector& wt,
+    double rss_min_global
+);
+
 
 
 #endif
