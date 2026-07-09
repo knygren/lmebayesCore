@@ -674,6 +674,98 @@
 
 
 # =============================================================================
+#  Independent-block separable-overbound variants (Ind)
+#  See Appendix A of inst/BLOCK_ING_RINDEPNORMALGAMMA_REG.md for the theory.
+# =============================================================================
+
+#' @noRd
+#' @keywords internal
+.BlockEnvelopeDispersionBuildInd_cpp <- function(
+    build_out,
+    centering_out,
+    y,
+    x,
+    block,
+    offset,
+    wt,
+    shape,
+    rate,
+    max_disp_perc,
+    disp_lower = NULL,
+    disp_upper = NULL,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE,
+    verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeDispersionBuildInd_cpp_export`,
+    build_out,
+    centering_out,
+    y,
+    x,
+    block,
+    offset,
+    wt,
+    shape,
+    rate,
+    max_disp_perc,
+    disp_lower,
+    disp_upper,
+    RSS_ML,
+    use_parallel,
+    verbose
+  )
+}
+
+#' @noRd
+#' @keywords internal
+.BlockEnvelopeSimInd_cpp <- function(
+    build_out,
+    n = 1L,
+    progbar = FALSE,
+    verbose = FALSE
+) {
+  .Call(`_glmbayesCore_BlockEnvelopeSimInd_cpp_export`,
+    build_out,
+    n,
+    progbar,
+    verbose
+  )
+}
+
+#' Block ING independent-block pipeline: Centering → Build → DispersionBuildInd → SimInd
+#' @noRd
+#' @keywords internal
+.rIndepNormalGammaRegBlockInd_cpp <- function(
+    n,
+    y,
+    x,
+    block,
+    prior_list,
+    prior_lists = NULL,
+    offset,
+    wt,
+    p_re = -1L,
+    n_rss_iter = 10L,
+    Gridtype = 3L,
+    n_envopt = -1L,
+    RSS_ML = NA_real_,
+    use_parallel = TRUE,
+    use_opencl = FALSE,
+    progbar = FALSE,
+    verbose = FALSE,
+    group_levels = character(0),
+    re_names = character(0)
+) {
+  .Call(
+    `_glmbayesCore_rIndepNormalGammaRegBlockInd_cpp_export`,
+    n, y, x, block, prior_list, prior_lists,
+    offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML,
+    use_parallel, use_opencl, progbar, verbose,
+    group_levels, re_names
+  )
+}
+
+# =============================================================================
 #  Phased Out (no R wrappers; C++ exports may still exist for compatibility)
 #  - .rss_face_at_disp_cpp, .UB2_cpp
 #  - Former RSS/UB2 minimization callbacks; active path uses closed-form C++ bounds

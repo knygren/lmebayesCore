@@ -340,3 +340,172 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
   expect_gt(1 / block_dpa, 0.005)
   expect_equal(block_dpa, legacy_dpa, tolerance = 0.35)
 })
+
+# ---------------------------------------------------------------------------
+# Three-way comparison: legacy vs joint-block vs independent-block
+# For the stacked Dobson fixture (two identical blocks), Appendix A of
+# BLOCK_ING_RINDEPNORMALGAMMA_REG.md shows that the lg-overbound slack is
+# zero for every product face, so the independent sampler should give
+# acceptance rates essentially identical to the joint sampler.
+# ---------------------------------------------------------------------------
+test_that("two-block Dobson: three-way means/SDs/acceptance — legacy, joint, ind", {
+  fix <- .dobson_plant_two_block_fixture()
+  n_envopt <- 10000L
+  n_draws  <- 500L
+
+  block_args <- list(
+    y            = fix$y,
+    x            = fix$x_block,
+    block        = fix$block,
+    prior_list   = fix$prior_list_block,
+    prior_lists  = NULL,
+    offset       = rep(0, fix$n_obs),
+    wt           = rep(1, fix$n_obs),
+    p_re         = -1L,
+    n_rss_iter   = 10L,
+    Gridtype     = 3L,
+    n_envopt     = n_envopt,
+    RSS_ML       = NA_real_,
+    use_parallel = FALSE,
+    use_opencl   = FALSE,
+    progbar      = FALSE,
+    verbose      = FALSE,
+    group_levels = character(0),
+    re_names     = character(0)
+  )
+
+  set.seed(2026)
+  sim_legacy <- rindepNormalGamma_reg(
+    n            = n_draws,
+    y            = fix$y,
+    x            = fix$x_old,
+    prior_list   = fix$prior_list_old,
+    n_envopt     = n_envopt,
+    Gridtype     = 3L,
+    use_parallel = FALSE,
+    progbar      = FALSE
+  )
+
+  set.seed(2026)
+  sim_joint <- do.call(
+    glmbayesCore:::.rIndepNormalGammaRegBlock_cpp,
+    c(list(n = n_draws), block_args)
+  )
+
+  set.seed(2026)
+  sim_ind <- do.call(
+    glmbayesCore:::.rIndepNormalGammaRegBlockInd_cpp,
+    c(list(n = n_draws), block_args)
+  )
+
+  # --- accept_mode tags ---
+  expect_equal(
+    sim_joint$sim$meta$accept_mode,
+    "resample_until_accept_joint_product_slack_v2"
+  )
+  expect_equal(
+    sim_ind$sim$meta$accept_mode,
+    "resample_until_accept_ind_v1"
+  )
+  expect_equal(
+    sim_ind$sim$meta$face_draw_mode,
+    "per_block_plsd_ind_v1"
+  )
+
+  # --- Coefficient matrices ---
+  # legacy$coefficients is n x p  (each row = one draw)
+  # block beta is l1 x n          (each row = one parameter, each col = one draw)
+  legacy_coefs  <- sim_legacy$coefficients           # n x (2*l1)
+  joint_coefs   <- rbind(                            # (2*l1) x n
+    sim_joint$sim$block_results[[1]]$beta,
+    sim_joint$sim$block_results[[2]]$beta
+  )
+  ind_coefs     <- rbind(
+    sim_ind$sim$block_results[[1]]$beta,
+    sim_ind$sim$block_results[[2]]$beta
+  )
+
+  legacy_means  <- colMeans(legacy_coefs)            # p-element vector
+  joint_means   <- rowMeans(joint_coefs)             # p-element vector
+  ind_means     <- rowMeans(ind_coefs)               # p-element vector
+  legacy_sds    <- apply(legacy_coefs, 2L, sd)
+  joint_sds     <- apply(joint_coefs,  1L, sd)
+  ind_sds       <- apply(ind_coefs,    1L, sd)
+
+  # legacy stores dispersion draws in $dispersion; block samplers use $disp_out
+  legacy_disp_mean <- mean(sim_legacy$dispersion)
+  joint_disp_mean  <- mean(sim_joint$disp_out)
+  ind_disp_mean    <- mean(sim_ind$disp_out)
+  legacy_disp_sd   <- sd(sim_legacy$dispersion)
+  joint_disp_sd    <- sd(sim_joint$disp_out)
+  ind_disp_sd      <- sd(sim_ind$disp_out)
+
+  legacy_dpa <- mean(sim_legacy$iters)
+  joint_dpa  <- mean(sim_joint$iters_out)
+  ind_dpa    <- mean(sim_ind$iters_out)
+
+  coef_labels <- paste0("b", seq_len(ncol(legacy_coefs)))
+  message(sprintf(
+    "Three-way comparison (n = %d):", n_draws
+  ))
+  message(sprintf(
+    "  acceptance (mean iters): legacy %.3f | joint %.3f | ind %.3f",
+    legacy_dpa, joint_dpa, ind_dpa
+  ))
+  for (i in seq_along(coef_labels)) {
+    message(sprintf(
+      "  %s mean: legacy %.4f | joint %.4f | ind %.4f",
+      coef_labels[i], legacy_means[i], joint_means[i], ind_means[i]
+    ))
+    message(sprintf(
+      "  %s sd:   legacy %.4f | joint %.4f | ind %.4f",
+      coef_labels[i], legacy_sds[i], joint_sds[i], ind_sds[i]
+    ))
+  }
+  message(sprintf(
+    "  disp mean: legacy %.4f | joint %.4f | ind %.4f",
+    legacy_disp_mean, joint_disp_mean, ind_disp_mean
+  ))
+  message(sprintf(
+    "  disp sd:   legacy %.4f | joint %.4f | ind %.4f",
+    legacy_disp_sd, joint_disp_sd, ind_disp_sd
+  ))
+
+  # --- Acceptance rate sanity ---
+  # The Ind sampler is valid but less efficient: drawing block faces
+  # independently can pair an "upp"-bound face from block 1 with a
+  # "low"-bound face from block 2, producing non-zero slack even for
+  # identical blocks (Appendix A §A.6 of BLOCK_ING_RINDEPNORMALGAMMA_REG.md).
+  # For this two-block Dobson fixture the observed ratio is roughly 1.3–1.5x.
+  expect_gt(1 / ind_dpa,   0.005)   # ind acceptance rate must be finite
+  expect_gt(1 / joint_dpa, 0.005)  # joint acceptance rate must be finite
+  expect_lt(ind_dpa / joint_dpa, 2.5)  # ind not more than 2.5x worse than joint
+
+  # --- Coefficient means: each sampler draws from the same posterior,
+  #     so E[b] should agree within Monte Carlo error (~3 * sd/sqrt(n)). ---
+  expect_equal(ind_means, joint_means, tolerance = 0.20,
+    info = "ind vs joint coefficient means"
+  )
+  expect_equal(ind_means, unname(legacy_means), tolerance = 0.20,
+    info = "ind vs legacy coefficient means"
+  )
+
+  # --- Coefficient SDs: should agree within 30% relative. ---
+  expect_equal(ind_sds, joint_sds, tolerance = 0.30,
+    info = "ind vs joint coefficient SDs"
+  )
+  expect_equal(ind_sds, unname(legacy_sds), tolerance = 0.30,
+    info = "ind vs legacy coefficient SDs"
+  )
+
+  # --- Dispersion mean and SD. ---
+  expect_equal(ind_disp_mean, joint_disp_mean, tolerance = 0.20,
+    info = "ind vs joint dispersion mean"
+  )
+  expect_equal(ind_disp_mean, legacy_disp_mean, tolerance = 0.20,
+    info = "ind vs legacy dispersion mean"
+  )
+  expect_equal(ind_disp_sd, joint_disp_sd, tolerance = 0.30,
+    info = "ind vs joint dispersion SD"
+  )
+})

@@ -12,6 +12,8 @@ Prior_Setup_lmebayes(
   pwt = 0.01,
   pwt_dispersion = NULL,
   n_prior_dispersion = NULL,
+  pwt_measurement = NULL,
+  n_prior_measurement = NULL,
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model")
 )
@@ -52,16 +54,29 @@ an effective prior sample size \eqn{n_k = J\,w_k/(1-w_k)} where \eqn{J}
 is the number of groups.  At most one of \code{pwt_dispersion} and
 \code{n_prior_dispersion} may be supplied; when neither is, the value
 is derived from \code{pwt} (the mean across a component's predictors),
-keeping the dispersion prior consistent with the coefficient prior
-strength.  Weak values carry no computational penalty for
+keeping the Block~2 \eqn{\tau^2_k} dispersion prior consistent with the
+coefficient prior strength.  Weak values carry no computational penalty for
 \code{dIndependent_Normal_Gamma} sampling: the \eqn{\tau^2} truncation
 window comes from limiting-posterior quantiles independent of the
 prior strength (see \code{ing_prior} below).}
 
 \item{n_prior_dispersion}{Optional \emph{absolute} effective prior sample
-size(s) (in group units) for the Block~2 dispersion prior.  A positive
-scalar, or a list / numeric vector with one value per random-effect
-component (named or positional).  See \code{pwt_dispersion}.}
+size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion prior.
+A positive scalar, or a list / numeric vector with one value per
+random-effect component (named or positional).  See \code{pwt_dispersion}.}
+
+\item{pwt_measurement}{Optional scalar in \eqn{(0, 1)}: relative prior
+weight for the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian
+models only), decoupled from \code{pwt} (Block~2 fixef) and from
+\code{pwt_dispersion} (Block~2 \eqn{\tau^2_k}).  Converted to
+\eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n}
+on the total observation count \eqn{n}.  At most one of
+\code{pwt_measurement} and \code{n_prior_measurement} may be supplied;
+when neither is, \code{pwt_measurement = 0.01} is used.}
+
+\item{n_prior_measurement}{Optional positive scalar: absolute effective
+prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
+not groups).  See \code{pwt_measurement}.}
 
 \item{intercept_source}{Character string controlling the prior mean for the
 global intercept hyperparameter \code{(Intercept)::(Intercept)} only.
@@ -102,6 +117,10 @@ effective prior sample sizes for the Block~2 dispersion prior
 (always present; used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
 calibrate \code{dIndependent_Normal_Gamma} components).}
+\item{\code{pwt_measurement}}{Gaussian models only: scalar relative
+prior weight for Block~1 \eqn{\sigma^2} (independent of \code{pwt}).}
+\item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
+prior sample size for Block~1 \eqn{\sigma^2} on the observation scale.}
 \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 \item{\code{fit_ref}}{Reference \code{lmer}/\code{glmer} fit on all
 groups (the full-formula fit from \code{\link{model_setup}}).}
@@ -133,12 +152,13 @@ priors weaken; see \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
 \code{dGamma()} \code{dispersion_ranef} calibration for Block~1 ING
 (observation \eqn{\sigma^2} shared across all group levels):
 mean-matched \code{shape} / \code{rate} with
-\eqn{n_{\mathrm{prior}} = \mathrm{pwt}/(1-\mathrm{pwt})\times n},
+\eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n},
 \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
 \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
-\eqn{\tau^2_k}; requires scalar \code{pwt} \eqn{\le 0.5}), plus
-limiting-posterior \code{disp_lower} / \code{disp_upper} with \eqn{J}
-groups.  Pass these fields to \code{\link{dGamma}()}.}
+\eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
+\code{disp_lower} / \code{disp_upper} as the central 98\% prior-mass
+interval from the same calibrated \code{shape}/\code{rate}.  Pass these
+fields to \code{\link{dGamma}()}.}
 }
 
 \code{x} invisibly.

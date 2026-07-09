@@ -45,7 +45,9 @@
 #'   the fit. Default \code{FALSE}.
 #' @return An object of class \code{c("rlmerb", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
-#'   \code{ranef.mode}, \code{m_convergence}, \code{convergence}, \code{Prior},
+#'   \code{ranef.mode}, \code{sigma2} (scalar when \eqn{\sigma^2} is fixed,
+#'   length-\code{n} vector when \code{dispersion_ranef} is \code{dGamma()}),
+#'   \code{sigma2.mean}, \code{m_convergence}, \code{convergence}, \code{Prior},
 #'   and \code{design}.
 #' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},

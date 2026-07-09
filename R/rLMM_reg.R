@@ -785,7 +785,30 @@ NULL
     group_levels
 ) {
   nobs <- length(y)
-  .rIndepNormalGammaRegBlock_cpp(
+  # Joint sampler (gs^k product-face table — only feasible for very few groups;
+  # for k groups with gs faces each the table has gs^k entries, exponential in k):
+  # .rIndepNormalGammaRegBlock_cpp(
+  #   n             = 1L,
+  #   y             = y,
+  #   x             = Z,
+  #   block         = groups,
+  #   prior_list    = prior_list,
+  #   prior_lists   = NULL,
+  #   offset        = rep(0, nobs),
+  #   wt            = rep(1, nobs),
+  #   p_re          = p_re,
+  #   n_rss_iter    = 10L,
+  #   Gridtype      = 3L,
+  #   n_envopt      = -1L,
+  #   RSS_ML        = NA_real_,
+  #   use_parallel  = TRUE,
+  #   use_opencl    = FALSE,
+  #   progbar       = FALSE,
+  #   verbose       = FALSE,
+  #   group_levels  = group_levels,
+  #   re_names      = re_names
+  # )[c("b", "dispersion_ranef", "iters_mean")]
+  .rIndepNormalGammaRegBlockInd_cpp(
     n             = 1L,
     y             = y,
     x             = Z,
@@ -1378,7 +1401,7 @@ NULL
     mode_gap_max        = if (run_pilot) mode_gap_max else NULL,
     m_pilot_from_gap    = if (run_pilot) m_pilot_from_gap else NULL,
     pilot_cost_opt      = pilot_cost_opt,
-    draw_engine         = "rGLMM_sweep_ing_block1"
+    draw_engine         = "rGLMM_sweep_ing_block1_ind"
   )
 
   m_convergence_used <- m_convergence
@@ -1554,7 +1577,7 @@ NULL
   main_res$m_convergence       <- m_convergence_used
   main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
   main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "rGLMM_sweep_ing_block1"
+  main_res$draw_engine         <- "rGLMM_sweep_ing_block1_ind"
   main_res$draw_engine_call    <- quote(.rGLMM_sweep_ing_block1)
   main_res$draw_engine_args    <- draw_engine_args
   main_res$pfamily_list        <- pfamily_list

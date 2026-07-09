@@ -209,3 +209,15 @@ gpu_names_cpp_export <- function() {
     .Call(`_glmbayesCore_gpu_names_cpp_export`)
 }
 
+BlockEnvelopeDispersionBuildInd_cpp_export <- function(build_out, centering_out, y, x, block, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, RSS_ML = NA_real_, use_parallel = TRUE, verbose = FALSE) {
+    .Call(`_glmbayesCore_BlockEnvelopeDispersionBuildInd_cpp_export`, build_out, centering_out, y, x, block, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, RSS_ML, use_parallel, verbose)
+}
+
+BlockEnvelopeSimInd_cpp_export <- function(build_out, n = 1L, progbar = FALSE, verbose = FALSE) {
+    .Call(`_glmbayesCore_BlockEnvelopeSimInd_cpp_export`, build_out, n, progbar, verbose)
+}
+
+rIndepNormalGammaRegBlockInd_cpp_export <- function(n, y, x, block, prior_list, prior_lists, offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, progbar, verbose, group_levels, re_names) {
+    .Call(`_glmbayesCore_rIndepNormalGammaRegBlockInd_cpp_export`, n, y, x, block, prior_list, prior_lists, offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, progbar, verbose, group_levels, re_names)
+}
+

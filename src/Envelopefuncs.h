@@ -240,6 +240,59 @@ List rIndepNormalGammaRegBlock(
     CharacterVector re_names
 );
 
+/// Independent-block separable-overbound variant of BlockEnvelopeDispersionBuild.
+/// Skips build_joint_product_face_slack; faces drawn from per-block PLSDs.
+List BlockEnvelopeDispersionBuildInd(
+    const List& build_out,
+    const List& centering_out,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    NumericVector offset,
+    NumericVector wt,
+    double shape,
+    double rate,
+    double max_disp_perc,
+    Nullable<double> disp_lower,
+    Nullable<double> disp_upper,
+    double RSS_ML,
+    bool use_parallel,
+    bool verbose
+);
+
+/// Independent-block variant of BlockEnvelopeSim.
+/// Always draws faces independently from each block's own PLSD.
+List BlockEnvelopeSimInd(
+    const List& build_out,
+    int n,
+    bool progbar,
+    bool verbose
+);
+
+/// Orchestrator for the independent-block pipeline
+/// (Centering → Build → DispersionBuildInd → SimInd).
+List rIndepNormalGammaRegBlockInd(
+    int n,
+    NumericVector y,
+    NumericMatrix x,
+    SEXP block,
+    SEXP prior_list,
+    SEXP prior_lists,
+    NumericVector offset,
+    NumericVector wt,
+    int p_re,
+    int n_rss_iter,
+    int Gridtype,
+    Nullable<int> n_envopt,
+    double RSS_ML,
+    bool use_parallel,
+    bool use_opencl,
+    bool progbar,
+    bool verbose,
+    CharacterVector group_levels,
+    CharacterVector re_names
+);
+
 Rcpp::List EnvelopeOrchestrator(
     NumericVector bstar2,
     NumericMatrix A,

@@ -41,10 +41,12 @@
 #' @param verbose Print stage headers and diagnostics.
 #' @param progbar Progress bars when \code{verbose} is \code{FALSE}.
 #' @return Object of class \code{c("rglmerb", "list")} with Block~2 fields in
-#'   the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{Prior},
-#'   \code{design}, and \code{family}. When a pilot stage runs (ING Block~2
-#'   and/or dGamma measurement dispersion), \code{n_pilot}, \code{pilot}, and
-#'   \code{pilot_chisq} are included; otherwise \code{n_pilot} is \code{0L}.
+#'   the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{sigma2}
+#'   (Gaussian only: scalar or length-\code{n} vector as for \code{\link{rlmerb}}),
+#'   \code{sigma2.mean}, \code{Prior}, \code{design}, and \code{family}. When a
+#'   pilot stage runs (ING Block~2 and/or dGamma measurement dispersion),
+#'   \code{n_pilot}, \code{pilot}, and \code{pilot_chisq} are included;
+#'   otherwise \code{n_pilot} is \code{0L}.
 #' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},

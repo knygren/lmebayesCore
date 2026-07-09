@@ -250,24 +250,89 @@
   )
 }
 
-#' Scalar \code{pwt} for measurement-dispersion \code{n_prior} (mean if \code{pwt} is a list)
+#' Resolve Block~1 \eqn{\sigma^2} prior weight into observation-scale \code{n_prior}.
+#'
+#' \eqn{n_{\mathrm{prior}} = w/(1-w)\times n} with \eqn{w =} \code{pwt_measurement}.
+#' Independent of Block~2 fixef \code{pwt} and Block~2 \eqn{\tau^2}
+#' \code{pwt_dispersion}.
 #' @noRd
-.lmebayes_pwt_scalar_for_measurement <- function(pwt_out) {
-  if (is.numeric(pwt_out)) {
-    if (length(pwt_out) != 1L || is.na(pwt_out) || pwt_out <= 0 || pwt_out >= 1) {
-      stop("'pwt' must be a scalar in (0, 1) for measurement dispersion calibration.",
-           call. = FALSE)
-    }
-    return(as.numeric(pwt_out))
-  }
-  vals <- unlist(pwt_out, use.names = FALSE)
-  if (!length(vals) || anyNA(vals) || any(vals <= 0) || any(vals >= 1)) {
+.lmebayes_resolve_measurement_disp_prior <- function(
+    pwt_measurement,
+    n_prior_measurement,
+    n_obs
+) {
+  if (!is.null(pwt_measurement) && !is.null(n_prior_measurement)) {
     stop(
-      "All 'pwt' values must lie in (0, 1) for measurement dispersion calibration.",
+      "Supply at most one of 'pwt_measurement' and 'n_prior_measurement'.",
       call. = FALSE
     )
   }
-  mean(vals)
+  if (!is.numeric(n_obs) || length(n_obs) != 1L || !is.finite(n_obs) ||
+      n_obs <= 0) {
+    stop("'n_obs' must be a positive finite scalar.", call. = FALSE)
+  }
+
+  if (!is.null(pwt_measurement)) {
+    if (!is.numeric(pwt_measurement) || length(pwt_measurement) != 1L ||
+        is.na(pwt_measurement) || pwt_measurement <= 0 || pwt_measurement >= 1) {
+      stop(
+        "'pwt_measurement' must be a scalar in (0, 1).",
+        call. = FALSE
+      )
+    }
+    w <- as.numeric(pwt_measurement)
+    n_prior <- w / (1 - w) * n_obs
+    src <- "user-supplied (pwt_measurement)"
+  } else if (!is.null(n_prior_measurement)) {
+    if (!is.numeric(n_prior_measurement) || length(n_prior_measurement) != 1L ||
+        is.na(n_prior_measurement) || n_prior_measurement <= 0 ||
+        !is.finite(n_prior_measurement)) {
+      stop(
+        "'n_prior_measurement' must be a positive finite scalar.",
+        call. = FALSE
+      )
+    }
+    n_prior <- as.numeric(n_prior_measurement)
+    w <- n_prior / (n_prior + n_obs)
+    src <- "user-supplied (n_prior_measurement)"
+  } else {
+    w <- 0.01
+    n_prior <- w / (1 - w) * n_obs
+    src <- "default (pwt_measurement = 0.01)"
+  }
+
+  if (n_prior > n_obs) {
+    stop(
+      "Measurement dispersion prior requires n_prior <= n (equivalently ",
+      "pwt_measurement <= 0.5); got n_prior = ", signif(n_prior, 4),
+      ", n = ", n_obs, ".",
+      call. = FALSE
+    )
+  }
+
+  list(
+    pwt_measurement     = w,
+    n_prior_measurement = n_prior,
+    source              = src
+  )
+}
+
+#' Central 98% prior-mass \eqn{\sigma^2}/\eqn{\tau^2} window from calibrated precision prior
+#'
+#' Precision \eqn{1/\sigma^2 \sim \mathrm{Gamma}(\code{shape}, \code{rate})};
+#' bounds are 0.01/0.99 quantiles inverted to the variance scale.
+#' @noRd
+.lmebayes_ing_prior_quantile_window <- function(shape, rate) {
+  if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
+    stop(
+      "ING prior quantile window requires positive finite shape and rate.",
+      call. = FALSE
+    )
+  }
+  list(
+    disp_lower = 1 / stats::qgamma(0.99, shape = shape, rate = rate),
+    disp_upper = 1 / stats::qgamma(0.01, shape = shape, rate = rate)
+  )
 }
 
 #' Prospective \code{dGamma()} measurement \eqn{\sigma^2} calibration from setup
@@ -275,15 +340,14 @@
 #' Mean-matched inverse-Gamma hyperparameters for Block~1 ING (same algebra as
 #' \code{ing_prior} for \eqn{\tau^2_k}, with \eqn{\hat\sigma^2} =
 #' \code{dispersion_ranef}, \eqn{p = p_{\mathrm{re}}}, and
-#' \eqn{n_{\mathrm{prior}} = \mathrm{pwt}/(1-\mathrm{pwt})\times n} on the total
-#' observation count).  Truncation bounds use the shared limiting-posterior
-#' window (identical at every group level).
+#' \eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n} on the total
+#' observation count).  Truncation bounds are the central 98% prior-mass
+#' interval from the same \code{shape}/\code{rate}.
 #' @noRd
 .lmebayes_calibrate_ing_prior_measurement <- function(
     design,
     dispersion_ranef,
-    pwt_out,
-    J_groups
+    n_prior
 ) {
   p_re <- length(design$re_coef_names)
   n    <- length(design$y)
@@ -294,19 +358,17 @@
     )
   }
 
-  pwt_scalar <- .lmebayes_pwt_scalar_for_measurement(pwt_out)
-  n_prior    <- pwt_scalar / (1 - pwt_scalar) * n
-  if (!is.finite(n_prior) || n_prior <= 0) {
+  if (!is.numeric(n_prior) || length(n_prior) != 1L || !is.finite(n_prior) ||
+      n_prior <= 0) {
     stop(
-      "Computed measurement-dispersion n_prior must be positive and finite.",
+      "'n_prior' must be a positive finite scalar for measurement dispersion calibration.",
       call. = FALSE
     )
   }
   if (n_prior > n) {
     stop(
-      "Measurement dispersion prior requires n_prior <= n (equivalently ",
-      "scalar pwt <= 0.5); got n_prior = ", signif(n_prior, 4),
-      ", n = ", n, ".",
+      "Measurement dispersion prior requires n_prior <= n; got n_prior = ",
+      signif(n_prior, 4), ", n = ", n, ".",
       call. = FALSE
     )
   }
@@ -320,7 +382,7 @@
     )
   }
 
-  win <- .lmebayes_ing_limiting_posterior_window(dispersion_ranef, J_groups)
+  win <- .lmebayes_ing_prior_quantile_window(shape, rate)
 
   list(
     sigma2_hat  = dispersion_ranef,
@@ -400,14 +462,9 @@
   if (!is.null(pl$disp_lower)) out$disp_lower <- pl$disp_lower
   if (!is.null(pl$disp_upper)) out$disp_upper <- pl$disp_upper
   if (is.null(out$disp_lower) || is.null(out$disp_upper)) {
-    sigma2_hat <- if (!is.null(design$residual_var)) {
-      as.numeric(design$residual_var)
-    } else {
-      as.numeric(prior$dispersion_ranef)
-    }
-    win <- .lmebayes_ing_limiting_posterior_window(
-      d_hat = sigma2_hat,
-      J     = nlevels(design$groups)
+    win <- .lmebayes_ing_prior_quantile_window(
+      shape = as.numeric(pl$shape[1L]),
+      rate  = as.numeric(pl$rate[1L])
     )
     if (is.null(out$disp_lower)) out$disp_lower <- win$disp_lower
     if (is.null(out$disp_upper)) out$disp_upper <- win$disp_upper
@@ -546,7 +603,8 @@
     mode_gap_max  = mode_gap_max,
     diag_sweeps   = diag_sweeps
   )
-  do.call(route$export_fn, args)
+  out <- do.call(route$export_fn, args)
+  .lmebayes_attach_sigma2(out, disp_info)
 }
 
 #' @noRd
@@ -580,7 +638,9 @@
     progbar        = progbar,
     collect_block1 = collect_block1
   )
-  do.call(route$export_fn, args)
+  out <- do.call(route$export_fn, args)
+  disp_none <- list(mode = "none")
+  .lmebayes_attach_sigma2(out, disp_none)
 }
 
 #' @noRd
@@ -602,6 +662,41 @@
   } else {
     list(P = P, dispersion = dispersion, ddef = FALSE)
   }
+}
+
+#' Attach \code{sigma2} / \code{sigma2.mean} from dispersion mode and sampler draws.
+#'
+#' Fixed measurement dispersion returns a scalar; \code{dGamma()} returns the
+#' length-\code{n} vector from the final inner sweep (\code{dispersion_ranef});
+#' families without observation-level dispersion get \code{NULL}.
+#' @noRd
+.lmebayes_attach_sigma2 <- function(out, disp_info) {
+  mode <- disp_info$mode
+  if (identical(mode, "none")) {
+    out$sigma2 <- NULL
+    out$sigma2.mean <- NULL
+    return(out)
+  }
+  if (identical(mode, "fixed")) {
+    val <- as.numeric(disp_info$dispersion_fix)
+    out$sigma2 <- val
+    out$sigma2.mean <- val
+    return(out)
+  }
+  if (identical(mode, "gamma")) {
+    dr <- out$dispersion_ranef
+    if (is.null(dr)) {
+      stop(
+        "Internal error: dGamma measurement dispersion requires ",
+        "'dispersion_ranef' draws on the sampler output.",
+        call. = FALSE
+      )
+    }
+    out$sigma2 <- as.numeric(dr)
+    out$sigma2.mean <- mean(out$sigma2)
+    return(out)
+  }
+  stop("Unknown dispersion mode: ", mode, call. = FALSE)
 }
 
 #' @noRd

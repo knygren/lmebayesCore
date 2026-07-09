@@ -523,3 +523,268 @@ constants, not raw face index.
 | `src/block_rIndepNormalGammaReg.cpp` | Block centering/build/dispersion/sim |
 | `src/EnvelopeDispersionBuild.cpp` | Shared EDB (`EnvelopeDispersionBuild`) |
 | `R/simfunction.R` | `rindepNormalGamma_reg`, `rindepNormalGamma_reg_with_envelope` |
+
+---
+
+## Appendix: Making proposals independent across blocks
+
+### A.1 What makes the current joint-product PLSD non-separable
+
+The `joint_logw` built in `build_joint_product_face_slack`
+(`src/block_rIndepNormalGammaReg.cpp:1195–1215`) has the form
+
+\[
+\log w_{\text{joint}}(j_1,j_2) =
+  \underbrace{\bigl[\log P^{(1)}(j_1) + \tfrac12\|\bar c^{(1)}_{j_1}\|^2\bigr]
+            + \bigl[\log P^{(2)}(j_2) + \tfrac12\|\bar c^{(2)}_{j_2}\|^2\bigr]}_{\text{separable}}
+  \;+\;
+  \underbrace{\mathrm{lg\_joint}(j_1,j_2)}_{\text{not separable}}
+  \;-\;
+  \underbrace{\mathrm{ub2min\_joint}(j_1,j_2)}_{\text{not separable}}
+\]
+
+where
+
+\[
+\mathrm{lg\_joint}(j_1,j_2)
+  = \max\!\bigl(\underbrace{\mathrm{pf\_upp}^{(1)}(j_1)+\mathrm{pf\_upp}^{(2)}(j_2)}_{\text{separable sum}},\;
+               \underbrace{\mathrm{pf\_low}^{(1)}(j_1)+\mathrm{pf\_low}^{(2)}(j_2)}_{\text{separable sum}}\bigr),
+\]
+\[
+\mathrm{ub2min\_joint}(j_1,j_2)
+  = \min\!\bigl(\mathrm{ub2\_low}^{(1)}(j_1)+\mathrm{ub2\_low}^{(2)}(j_2),\;
+               \mathrm{ub2\_upp}^{(1)}(j_1)+\mathrm{ub2\_upp}^{(2)}(j_2)\bigr).
+\]
+
+Both are **a max (or min) of two separable sums** evaluated at the same index pair.
+A `max` of two separable sums does not itself decompose into a sum of per-block
+terms — which binding endpoint wins (`upp` vs `low`) depends on the *combination*
+`(j_1,j_2)`, not on either index alone.
+
+### A.2 A valid separable overbound
+
+There is a simple separable quantity that is a provably valid *upper* bound on
+`lg_joint(j_1,j_2)`:
+
+**Lemma A1 (max of a separable sum ≤ sum of per-factor maxes).**
+For any real \(a_t, b_t\):
+
+\[
+\max\!\Bigl(\sum_t a_t,\;\sum_t b_t\Bigr)
+\;\leq\;
+\sum_t \max(a_t, b_t).
+\]
+
+*Proof.* WLOG \(\sum a_t \geq \sum b_t\). Then the left side equals \(\sum a_t
+\leq \sum \max(a_t,b_t)\), since \(a_t \leq \max(a_t,b_t)\) term by term. □
+
+Applying this with \(a_t = \mathrm{pf\_upp}^{(t)}(j_t)\) and \(b_t =
+\mathrm{pf\_low}^{(t)}(j_t)\) gives the separable overbound
+
+\[
+\mathrm{lg\_ind}(j_1,j_2) := \sum_t \max\!\bigl(\mathrm{pf\_upp}^{(t)}(j_t),\;\mathrm{pf\_low}^{(t)}(j_t)\bigr)
+= \sum_t \mathrm{lg\_prob\_factor}_t(j_t)
+\;\geq\;
+\mathrm{lg\_joint}(j_1,j_2).
+\]
+
+These are exactly the per-block `lg_prob_factor` vectors already stored in
+`block_dispersion[[t]]$lg_prob_factor` by `block_edb_one`.
+
+**Lemma A2 (min of a separable sum ≥ sum of per-factor mins).**
+For any non-negative \(a_t, b_t\):
+
+\[
+\min\!\Bigl(\sum_t a_t,\;\sum_t b_t\Bigr)
+\;\geq\;
+\sum_t \min(a_t, b_t).
+\]
+
+*Proof.* WLOG \(\sum a_t \leq \sum b_t\). Then the left side equals \(\sum a_t
+\geq \sum \min(a_t,b_t)\), since \(\min(a_t,b_t) \leq a_t\) term by term. □
+
+Applying this gives
+
+\[
+\mathrm{ub2min\_ind}(j_1,j_2) := \sum_t \min\!\bigl(\mathrm{ub2\_low}^{(t)}(j_t),\;\mathrm{ub2\_upp}^{(t)}(j_t)\bigr)
+= \sum_t \mathrm{UB2min}_t(j_t)
+\;\leq\;
+\mathrm{ub2min\_joint}(j_1,j_2).
+\]
+
+### A.3 The independent log-weight is separable and the proposal factorises
+
+Substituting the overbounds into the log-weight gives
+
+\[
+\log w_{\text{ind}}(j_1,j_2)
+= \sum_{t=1}^{k}\Bigl[\log P^{(t)}(j_t) + \tfrac12\|\bar c^{(t)}_{j_t}\|^2
+  + \mathrm{lg\_prob\_factor}_t(j_t) - \mathrm{UB2min}_t(j_t)\Bigr]
+=: \sum_{t=1}^k \log w_t(j_t).
+\]
+
+This is **exactly separable**. After softmax normalization over the
+\(\prod_t g_{s,t}\) product faces:
+
+\[
+\mathrm{PLSD}_{\text{ind}}(j_1,j_2)
+= \frac{\exp(\log w_1(j_1))\cdot\exp(\log w_2(j_2))}{\sum_{j_1}\exp(\log w_1(j_1))\cdot\sum_{j_2}\exp(\log w_2(j_2))}
+= \mathrm{PLSD}_1(j_1)\cdot\mathrm{PLSD}_2(j_2),
+\]
+
+i.e., the per-block PLSD vectors already produced by each block's own EDB call.
+**Drawing faces independently from these per-block PLSDs is the unique independent
+proposal consistent with the separable log-weight.**
+
+### A.4 Why the resulting sampler is still valid
+
+A block-envelope acceptance test at drawn `(j_1,j_2,β,σ²)` is:
+
+```
+accept if  LL_test − UB1 − UB2_ind − UB3A_ind − UB3B ≥ log(U)
+```
+
+where the independent scheme uses
+
+\[
+\mathrm{UB3A\_ind}(j_1,j_2,\sigma^2)
+= \mathrm{lg\_ind}(j_1,j_2) + \mathrm{lmc1} + \mathrm{lmc2}\,\sigma^2,
+\qquad
+\mathrm{UB2\_ind}(j_1,j_2,\sigma^2)
+= \tfrac{1}{2\sigma^2}\bigl(\mathrm{RSS\_face} - \mathrm{RSS\_Min}\bigr)
+  - \mathrm{ub2min\_ind}(j_1,j_2).
+\]
+
+By Lemmas A1 and A2:
+
+- \(\mathrm{UB3A\_ind} \geq \mathrm{UB3A\_joint} \geq 0\) — the UB3A correction term
+  is still non-negative (valid upper bound in the acceptance test).
+- \(\mathrm{ub2min\_ind} \leq \mathrm{ub2min\_joint}\), so
+  \(\mathrm{UB2\_ind} \geq \mathrm{UB2\_joint} \geq 0\) — UB2 remains non-negative.
+
+Since all correction terms remain valid upper bounds on the true posterior gap,
+the acceptance probability is always in \([0,1]\) and the **sampler produces
+exact draws from the target**. The `lmc1`, `lmc2`, `lm_log1`, `lm_log2`,
+`shape3`, `rate2` and other global Gamma-proposal constants are unchanged — only
+the face-draw proposal and the per-draw UB3A/UB2min inputs change.
+
+### A.5 What would need to change in the code
+
+1. **`BlockEnvelopeDispersionBuild`** — `build_joint_product_face_slack` and the
+   81-face `joint_PLSD`, `joint_lg_prob_factor`, `joint_ub2min_product` tables are
+   *not needed*. All per-block `lg_prob_factor` and `UB2min` vectors (already
+   computed by `block_edb_one`) are sufficient.
+
+2. **`BlockEnvelopeSim`** — inside the `while (accept == 0)` loop, replace the
+   current joint path with:
+   - for each identifiable block `t`: draw `j_t ~ PLSD_t` (from the block's own
+     `Env_t["PLSD"]`), O(log gs_t) via the precomputed per-block CDF,
+   - compute `ub3a_block_sum = Σ_t lg_prob_factor_t[j_t]`,
+   - compute `UB2min_used = Σ_t UB2min_t[j_t]`.
+
+   This makes both the build step and every draw step
+   \(O\!\left(\sum_t g_{s,t}\right)\) rather than \(O\!\left(\prod_t
+   g_{s,t}\right)\).
+
+3. **No face-index encoding/decoding** — `product_face_flat_index` and
+   `decode_product_face_flat_index` are no longer needed for face draws.
+
+### A.6 Efficiency loss: where does it come from?
+
+Define the **slack** at a drawn product face as
+
+\[
+\Delta_{\mathrm{LG}}(j_1,j_2)
+= \mathrm{lg\_ind}(j_1,j_2) - \mathrm{lg\_joint}(j_1,j_2)
+= \sum_t\max(\mathrm{pf\_upp}_t,\mathrm{pf\_low}_t)
+  - \max\!\Bigl(\sum_t\mathrm{pf\_upp}_t,\sum_t\mathrm{pf\_low}_t\Bigr)
+\;\geq\; 0.
+\]
+
+\[
+\Delta_{\mathrm{UB2}}(j_1,j_2)
+= \mathrm{ub2min\_joint}(j_1,j_2) - \mathrm{ub2min\_ind}(j_1,j_2)
+= \min\!\Bigl(\sum_t a_t,\sum_t b_t\Bigr) - \sum_t\min(a_t,b_t)
+\;\geq\; 0.
+\]
+
+The total excess correction that the independent sampler pays on every draw is
+\(\Delta_{\mathrm{LG}} + \Delta_{\mathrm{UB2}}\). The acceptance probability is
+reduced by a factor of order \(\exp(-\Delta_{\mathrm{LG}} - \Delta_{\mathrm{UB2}})\).
+
+**When is the slack zero?** Both slacks vanish if and only if all blocks choose
+the *same* binding endpoint — i.e., for every `t`,
+\(\mathrm{pf\_upp}^{(t)}(j_t) \geq \mathrm{pf\_low}^{(t)}(j_t)\) (all `upp`-bound)
+or all choose `low`. This happens when:
+
+- All blocks draw the **same face index** from the same distribution *and* that
+  face is unambiguously `upp`-bound or `low`-bound across all blocks.
+
+  Note: even for **identical blocks** (same data, design, prior), the independent
+  sampler draws each block's face independently, so block 1 can draw an
+  `upp`-bound face while block 2 draws a `low`-bound face. The slack is then
+  non-zero at that product draw, and the acceptance rate is worse than the joint
+  sampler. In a two-block empirical trial on the stacked Dobson fixture,
+  independent draws required approximately 1.4× more iterations than the joint
+  sampler, confirming that identical blocks are *not* sufficient to eliminate the
+  penalty.
+- The dispersion range `[low, upp]` is **narrow** — both endpoint extrapolations
+  are nearly equal, so the `max` is nearly the sum. As `[low, upp]` contracts
+  to a point the independent sampler converges to the joint one.
+
+**When is the slack large?** The maximum possible slack is
+
+\[
+\Delta_{\mathrm{LG}}(j_1,j_2)
+\leq \sum_t \tfrac12\bigl|\mathrm{pf\_upp}^{(t)}(j_t) - \mathrm{pf\_low}^{(t)}(j_t)\bigr|,
+\]
+
+which grows when blocks have very different dispersion sensitivities — e.g. one
+block whose face energy tilts steeply upward across `[low, upp]` (`pf_upp >> pf_low`)
+while another tilts steeply downward. In that case block 1 always "wants" the
+`upp` endpoint and block 2 always "wants" `low`; the independent overbound
+systematically adds both per-block max-gaps to every drawn product face.
+
+**In practice** the magnitude is also bounded by how far any single block's face
+energy tilts across `[low, upp]`, which is controlled by the slope `g'_{1j}(d_1^*)`.
+For well-calibrated dispersion ranges (tight enough that the linear approximation
+is accurate) the per-block `|pf_upp - pf_low|` values are small fractions of the
+total face energy, so the acceptance-rate loss is modest.
+
+### A.7 Why the pre-fix "independent PLSD + joint acceptance test" was a distributional mismatch
+
+The state of the code before the `joint_PLSD` fix drew faces independently from
+per-block PLSDs (`j_t \sim \mathrm{PLSD}_t`) but evaluated the acceptance test
+with **joint** constants (`lg\_joint`, `ub2min\_joint`) as if the joint PLSD had
+been used. This is neither the joint scheme nor the valid independent scheme; it
+is an **inconsistent mixture**:
+
+- The proposal is `PLSD_1(j_1) \cdot \mathrm{PLSD}_2(j_2)`.
+- The acceptance bound was calibrated for `joint\_PLSD(j_1,j_2)`.
+
+Since `lg\_joint \leq \mathrm{lg\_ind}` we have `UB3A\_joint \leq
+UB3A\_ind`, so the bound used was *less conservative* than what the independent
+proposal requires. This does not cause the acceptance probability to
+exceed 1 (the envelope is still formally an upper bound at every point), but
+because the effective proposal density at each `(j_1,j_2)` is
+`PLSD_{\text{ind}}` rather than `PLSD_{\text{joint}}`, the ratio
+`target / (constant × proposal)` is no longer the correct importance weight.
+The consequence is a systematically **overdispersed sampling distribution** —
+the coefficient posterior SDs were observed to be ~8% wider than legacy before
+the fix, without any corresponding increase in acceptance rate.
+
+The valid independent scheme of §A.3–A.5 avoids this by keeping proposal and
+acceptance bounds consistent: both use the separable overbounds throughout.
+
+### A.8 Summary
+
+| Property | Joint (current) | Valid independent | Pre-fix (inconsistent) |
+|---|---|---|---|
+| Proposal | `joint_PLSD(j1,j2)` | `PLSD_1(j1)·PLSD_2(j2)` | `PLSD_1(j1)·PLSD_2(j2)` |
+| UB3A slack | `lg_joint` | `Σ lg_prob_factor_t` (≥ lg_joint) | `lg_joint` |
+| UB2min | `ub2min_joint` | `Σ ub2min_t` (≤ ub2min_joint) | `ub2min_joint` |
+| Validity | ✓ exact | ✓ valid overbound | ✗ inconsistent (biased) |
+| Build cost | O(∏ gs_t) | O(Σ gs_t) | O(Σ gs_t) |
+| Draw cost | O(log ∏ gs_t) | O(k log gs_t) | O(k log gs_t) |
+| Acceptance rate | optimal | ≤ joint, gap = 0 when blocks identical | artificially high on some faces |
+| Identical-block fixture | baseline | ~1.4× more iters (non-zero slack from independent face draws) | biased (8% wider SD) |
