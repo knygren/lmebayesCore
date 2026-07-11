@@ -1240,6 +1240,15 @@ rBeta_reg <- function(
   ev  <- eigen(P, symmetric = TRUE)$values
   stopifnot(all(ev >= -tol * abs(ev[1L])))
   
+  ## NOTE: this used to require a (numerically) Zellner g-prior for the
+  ## coefficient covariance, working around a gap in Chapter A07's Claim 7 /
+  ## Remark 5.5.7 (endpoint-only minimization of UB2_j(d) is only exact when
+  ## K = Q^{-1/2} P Q^{-1/2} is isotropic). That guard has been removed: the
+  ## gap is now fixed directly via exact root-finding for UB2_Min_j in
+  ## src/EnvelopeDispersionBuild.cpp::bound_ub2_over_dispersion(), which is
+  ## correct for anisotropic priors too. See
+  ## data-raw/README_ub2_rootfinding_fix.md.
+  
   # dispersion must be numeric scalar or NULL
   if (!is.null(dispersion)) {
     dispersion <- as.numeric(dispersion)

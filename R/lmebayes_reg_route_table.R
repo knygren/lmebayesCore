@@ -7,7 +7,7 @@
   is_gaussian <- is.null(family) || identical(family$family, "gaussian")
   est_suffix  <- if (isTRUE(any_non_normal)) "estimated" else "known"
   if (is_gaussian) {
-    if (identical(disp_mode, "gamma")) {
+    if (disp_mode %in% c("gamma", "gamma_list")) {
       paste0("lmm_gamma_", est_suffix)
     } else {
       paste0("lmm_fixed_", est_suffix)

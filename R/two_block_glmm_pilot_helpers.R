@@ -194,7 +194,8 @@
     pfamily_list,
     family,
     tv_tol,
-    dispersion = NULL
+    dispersion = NULL,
+    weights = NULL
 ) {
   n_grp        <- length(group_levels)
   re_col_names <- re_names
@@ -216,21 +217,29 @@
       b_i <- as.matrix(block_df[, re_col_names, drop = FALSE])
     }
     rownames(b_i) <- group_levels
-    mode_w_i <- two_block_mode_weights(
-      x            = x,
-      block        = block,
-      b_mode       = b_i,
-      family       = family,
-      dispersion   = dispersion,
-      group_levels = group_levels
-    )
+    # Explicit 'weights' (e.g. per-group precision from disp_upper_group)
+    # bypasses the mode-dependent curvature weights entirely; for the
+    # gaussian() likelihood these are mode-independent anyway (constant
+    # across b_i draws), so this is exact, not an approximation.
+    weights_i <- if (!is.null(weights)) {
+      weights
+    } else {
+      two_block_mode_weights(
+        x            = x,
+        block        = block,
+        b_mode       = b_i,
+        family       = family,
+        dispersion   = dispersion,
+        group_levels = group_levels
+      )$weights
+    }
     rate_i <- two_block_rate_from_pfamily_list(
       x                 = x,
       block             = block,
       x_hyper           = x_hyper,
       prior_list_block1 = prior_list,
       pfamily_list      = pfamily_list,
-      weights           = mode_w_i$weights,
+      weights           = weights_i,
       family            = family,
       group_levels      = group_levels
     )

@@ -1,4 +1,4 @@
-﻿#' Matrix-level replicate-chain Gibbs engines for Bayesian LMMs
+#' Matrix-level replicate-chain Gibbs engines for Bayesian LMMs
 #'
 #' @description
 #' Gaussian two-block LMM samplers at matrix level (\code{y}, \code{Z},
@@ -244,7 +244,26 @@ NULL
     prior_list,
     fn_name = "rLMM_reg"
 ) {
-  if (!is.list(prior_list) || is.null(prior_list$shape) || is.null(prior_list$rate)) {
+  if (!is.list(prior_list)) {
+    stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
+  }
+  if (!is.null(prior_list$shape_group) || !is.null(prior_list$rate_group)) {
+    shape_group <- as.numeric(prior_list$shape_group)
+    rate_group  <- as.numeric(prior_list$rate_group)
+    if (length(shape_group) < 1L || length(shape_group) != length(rate_group) ||
+        any(!is.finite(shape_group)) || any(shape_group <= 0) ||
+        any(!is.finite(rate_group)) || any(rate_group <= 0)) {
+      stop(
+        fn_name, "(): 'prior_list$shape_group' and 'prior_list$rate_group' ",
+        "must be positive, finite, and of the same length.",
+        call. = FALSE
+      )
+    }
+    # Pooled reference (mean of per-group prior means); used only as an ICM
+    # plug-in starting point, not as the sampler's actual per-group prior.
+    return(mean(shape_group / rate_group))
+  }
+  if (is.null(prior_list$shape) || is.null(prior_list$rate)) {
     stop(
       fn_name, "(): 'prior_list' must contain 'shape' and 'rate' ",
       "(plug-in sigma^2 = shape / rate is derived internally).",
@@ -433,21 +452,30 @@ NULL
   )
 }
 #' Validate a shared ING measurement prior for per-group Block~1 updates
+#'
+#' Accepts either a single pooled \code{shape}/\code{rate}/\code{disp_lower}/
+#' \code{disp_upper} (scalar) prior, or a per-group prior carrying
+#' \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
+#' \code{disp_upper_group} named vectors (one entry per \code{group_levels}).
+#' The two are mutually exclusive; which one is present determines the
+#' dispersion mode used by the Block~1 sweep (see
+#' \code{.two_block_block1_ing_one_chain()}).
 #' @noRd
 .rLMM_validate_ing_measurement_prior_list <- function(
     prior_list,
     p_re,
-    fn_name = "rLMMindepNormalGamma_reg"
+    fn_name = "rLMMindepNormalGamma_reg",
+    group_levels = NULL
 ) {
   if (!is.list(prior_list)) {
     stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
   }
-  req <- c("mu", "Sigma", "shape", "rate")
-  miss <- req[!req %in% names(prior_list)]
+  req_common <- c("mu", "Sigma")
+  miss <- req_common[!req_common %in% names(prior_list)]
   if (length(miss)) {
     stop(
       fn_name, "(): 'prior_list' must contain ",
-      paste(req, collapse = ", "),
+      paste(req_common, collapse = ", "),
       " (from dIndependent_Normal_Gamma()).",
       call. = FALSE
     )
@@ -463,6 +491,65 @@ NULL
   if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
     stop(
       fn_name, "(): 'prior_list$Sigma' must be ", p_re, " x ", p_re, ".",
+      call. = FALSE
+    )
+  }
+
+  is_group <- !is.null(prior_list$shape_group) || !is.null(prior_list$rate_group)
+  if (is_group) {
+    if (is.null(group_levels)) {
+      stop(
+        fn_name, "(): 'group_levels' is required to validate a per-group ",
+        "measurement dispersion prior_list.",
+        call. = FALSE
+      )
+    }
+    req_grp <- c("shape_group", "rate_group", "disp_lower_group", "disp_upper_group")
+    miss <- req_grp[!req_grp %in% names(prior_list)]
+    if (length(miss)) {
+      stop(
+        fn_name, "(): per-group 'prior_list' must contain ",
+        paste(req_grp, collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+    for (nm in req_grp) {
+      v <- prior_list[[nm]]
+      if (!is.numeric(v) || is.null(names(v)) ||
+          !setequal(names(v), group_levels)) {
+        stop(
+          fn_name, "(): 'prior_list$", nm, "' must be a numeric vector ",
+          "named by every group level (", paste(group_levels, collapse = ", "),
+          ").",
+          call. = FALSE
+        )
+      }
+      if (any(!is.finite(v)) || any(v <= 0)) {
+        stop(
+          fn_name, "(): 'prior_list$", nm, "' must be positive and finite ",
+          "for every group.",
+          call. = FALSE
+        )
+      }
+    }
+    if (any(prior_list$disp_upper_group[group_levels] <=
+            prior_list$disp_lower_group[group_levels])) {
+      stop(
+        fn_name, "(): 'prior_list$disp_upper_group' must exceed ",
+        "'disp_lower_group' for every group.",
+        call. = FALSE
+      )
+    }
+    return(prior_list)
+  }
+
+  req <- c("shape", "rate")
+  miss <- req[!req %in% names(prior_list)]
+  if (length(miss)) {
+    stop(
+      fn_name, "(): 'prior_list' must contain ",
+      paste(req, collapse = ", "),
+      " (from dIndependent_Normal_Gamma()).",
       call. = FALSE
     )
   }
@@ -517,6 +604,51 @@ NULL
     )
   }
   as.numeric(d)
+}
+
+#' Conservative measurement-dispersion inputs for lambda* calibration
+#'
+#' Scalar \code{shape}/\code{rate} priors plug in a single \code{disp_upper};
+#' per-group priors instead build a per-observation precision \code{weights}
+#' vector (\code{1 / disp_upper_group[group]}), so that groups with a wider
+#' truncation window do not drag down the conservative rate bound for groups
+#' with a tighter one. \code{dispersion_scalar} is a pooled fallback, used
+#' only to satisfy generic \code{prior_list_block1} validation and as the
+#' fixed \code{dispersion} plug-in when \code{weights} is not used downstream.
+#' @noRd
+.rLMM_measurement_rate_inputs <- function(
+    ing_prior_list,
+    block,
+    group_levels,
+    fn_name
+) {
+  if (!is.null(ing_prior_list$disp_upper_group)) {
+    du <- ing_prior_list$disp_upper_group
+    miss <- setdiff(group_levels, names(du))
+    if (length(miss)) {
+      stop(
+        fn_name, "(): 'prior_list$disp_upper_group' is missing group ",
+        "level(s): ", paste(miss, collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+    w <- 1 / as.numeric(du[as.character(block)])
+    if (any(!is.finite(w))) {
+      stop(
+        fn_name, "(): non-finite per-observation weights derived from ",
+        "'prior_list$disp_upper_group'.",
+        call. = FALSE
+      )
+    }
+    return(list(
+      weights           = w,
+      dispersion_scalar = mean(as.numeric(du))
+    ))
+  }
+  list(
+    weights           = NULL,
+    dispersion_scalar = .rLMM_measurement_disp_upper_for_rate(ing_prior_list, fn_name)
+  )
 }
 
 #' Truncated Gamma draw for ING measurement dispersion (prior-only path)
@@ -595,12 +727,12 @@ NULL
 #'
 #' Three paths (mutually exclusive after rank is resolved):
 #' \describe{
-#'   \item[Path A — standard]{Full column rank and \code{n_j >= p_re}: one
+#'   \item[Path A ? standard]{Full column rank and \code{n_j >= p_re}: one
 #'     \code{rindepNormalGamma_reg(n = 1)} on all RE columns.}
-#'   \item[Path B — prior only]{\code{rank(Z_j) == 0}: no likelihood information;
+#'   \item[Path B ? prior only]{\code{rank(Z_j) == 0}: no likelihood information;
 #'     draw \code{(b_j, sigma2_j)} from the ING prior only
 #'     (\code{.rLMM_ing_prior_draw_one_group}).}
-#'   \item[Path C — partial rank]{Some but not all columns identified: ING on the
+#'   \item[Path C ? partial rank]{Some but not all columns identified: ING on the
 #'     QR-identifiable columns, then impute the remaining coordinates from the
 #'     prior given the drawn \code{sigma2_j}.}
 #' }
@@ -626,7 +758,7 @@ NULL
     as.integer(Matrix::rankMatrix(Z_j, method = "qr")[1L])
   }
 
-  # Path A: data identify all RE columns — direct ING envelope on full Z_j.
+  # Path A: data identify all RE columns ? direct ING envelope on full Z_j.
   if (rk >= p_re && n_j >= p_re) {
     ing <- rindepNormalGamma_reg(
       n            = 1L,
@@ -645,12 +777,12 @@ NULL
     ))
   }
 
-  # Path B: no identifiable column — skip likelihood; prior draw only.
+  # Path B: no identifiable column ? skip likelihood; prior draw only.
   if (rk < 1L) {
     return(.rLMM_ing_prior_draw_one_group(pl_j, re_names))
   }
 
-  # Path C: rank 1 .. p_re-1 — ING on identifiable columns, impute the rest.
+  # Path C: rank 1 .. p_re-1 ? ING on identifiable columns, impute the rest.
   qr_j  <- qr(Z_j)
   keep  <- qr_j$pivot[seq_len(qr_j$rank)]
   pl_sub <- .rLMM_ing_prior_list_subset(pl_j, keep, re_names)
@@ -773,7 +905,7 @@ NULL
 }
 
 #' Block~1 one chain: block ING envelope update via \code{rIndepNormalGammaRegBlock}
-#' (Centering → Build → DispersionBuild → Sim in one C++ call).
+#' (Centering ? Build ? DispersionBuild ? Sim in one C++ call).
 #' @noRd
 .two_block_block1_envelope_draw_one_chain <- function(
     y,
@@ -785,7 +917,7 @@ NULL
     group_levels
 ) {
   nobs <- length(y)
-  # Joint sampler (gs^k product-face table — only feasible for very few groups;
+  # Joint sampler (gs^k product-face table ? only feasible for very few groups;
   # for k groups with gs faces each the table has gs^k entries, exponential in k):
   # .rIndepNormalGammaRegBlock_cpp(
   #   n             = 1L,
@@ -831,7 +963,85 @@ NULL
   )[c("b", "dispersion_ranef", "iters_mean")]
 }
 
+#' Block~1 one chain: independent per-group ING draws for a list of
+#' per-group \code{dGamma()} measurement dispersion priors.
+#'
+#' Reuses \code{.rLMM_ing_one_group_draw()} (rank paths A/B/C) once per group,
+#' each with its own \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
+#' \code{disp_upper_group}. Unlike the shared-\eqn{\sigma^2} joint envelope
+#' path, groups are conditionally independent given the current Block~2
+#' fixef/tau2 (no joint acceptance across groups).
+#' @noRd
+.two_block_block1_ing_group_draw_one_chain <- function(
+    y,
+    Z,
+    groups,
+    ing_prior_list,
+    mu_all,
+    re_names,
+    group_levels,
+    family,
+    full_rank = TRUE
+) {
+  p_re  <- length(re_names)
+  g_chr <- as.character(groups)
+
+  b_mat <- matrix(
+    NA_real_,
+    nrow = length(group_levels),
+    ncol = p_re,
+    dimnames = list(group_levels, re_names)
+  )
+  dispersion_ranef <- stats::setNames(numeric(length(group_levels)), group_levels)
+  iters_j <- numeric(length(group_levels))
+
+  for (j in seq_along(group_levels)) {
+    lev  <- group_levels[j]
+    rows <- which(g_chr == lev)
+
+    pl_group_j <- list(
+      Sigma         = ing_prior_list$Sigma,
+      shape         = ing_prior_list$shape_group[[lev]],
+      rate          = ing_prior_list$rate_group[[lev]],
+      max_disp_perc = ing_prior_list$max_disp_perc,
+      disp_lower    = ing_prior_list$disp_lower_group[[lev]],
+      disp_upper    = ing_prior_list$disp_upper_group[[lev]]
+    )
+    pl_j <- .rLMM_ing_prior_list_for_group(
+      ing_prior_list = pl_group_j,
+      mu_j           = mu_all[, lev],
+      re_names       = re_names
+    )
+    draw_j <- .rLMM_ing_one_group_draw(
+      y_j       = y[rows],
+      Z_j       = Z[rows, , drop = FALSE],
+      pl_j      = pl_j,
+      re_names  = re_names,
+      family    = family,
+      full_rank = full_rank
+    )
+
+    b_mat[lev, ]            <- draw_j$coefficients[re_names]
+    dispersion_ranef[[lev]] <- draw_j$dispersion
+    iters_j[j]              <- draw_j$iters
+  }
+
+  list(
+    b                = b_mat,
+    dispersion_ranef = dispersion_ranef,
+    iters_mean       = mean(iters_j)
+  )
+}
+
 #' Block~1 one chain: block ING envelope update for all groups
+#'
+#' Dispatches on the shape of \code{ing_prior_list}: a shared (pooled)
+#' \code{shape}/\code{rate} routes through the joint C++ envelope
+#' (\code{.two_block_block1_envelope_draw_one_chain()}, one shared
+#' \eqn{\sigma^2} for all groups); a per-group \code{shape_group}/
+#' \code{rate_group} (from a list of \code{dGamma()} pfamilies, one per
+#' group) routes through \code{.two_block_block1_ing_group_draw_one_chain()}
+#' instead (independent \eqn{\sigma^2_j} per group).
 #' @noRd
 .two_block_block1_ing_one_chain <- function(
     batch,
@@ -859,24 +1069,37 @@ NULL
   y <- design$y
   Z <- as.matrix(design$Z)
 
-  prior_list <- .two_block_block1_ing_prior_list_one_chain(
-    mu_all, ing_prior_list
-  )
+  if (!is.null(ing_prior_list$shape_group)) {
+    out <- .two_block_block1_ing_group_draw_one_chain(
+      y              = y,
+      Z              = Z,
+      groups         = design$groups,
+      ing_prior_list = ing_prior_list,
+      mu_all         = mu_all,
+      re_names       = re_names,
+      group_levels   = group_levels,
+      family         = family
+    )
+  } else {
+    prior_list <- .two_block_block1_ing_prior_list_one_chain(
+      mu_all, ing_prior_list
+    )
 
-  out <- .two_block_block1_envelope_draw_one_chain(
-    y            = y,
-    Z            = Z,
-    groups       = design$groups,
-    prior_list   = prior_list,
-    p_re         = p_re,
-    re_names     = re_names,
-    group_levels = group_levels
-  )
+    out <- .two_block_block1_envelope_draw_one_chain(
+      y            = y,
+      Z            = Z,
+      groups       = design$groups,
+      prior_list   = prior_list,
+      p_re         = p_re,
+      re_names     = re_names,
+      group_levels = group_levels
+    )
+  }
 
   if (isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))) {
     cat(sprintf(
-      "  [Block1 ING debug] chain %d/%d: envelope sim dispersion=%.6g\n",
-      i, batch$n, out$dispersion_ranef
+      "  [Block1 ING debug] chain %d/%d: envelope sim dispersion=%s\n",
+      i, batch$n, paste(signif(out$dispersion_ranef, 6), collapse = ", ")
     ))
     utils::flush.console()
   }
@@ -913,7 +1136,15 @@ NULL
     b            = .two_block_ensure_batch_b_dimnames(b, group_levels, re_names, n),
     iters_ranef  = iters_ranef + 0
   )
-  dispersion_ranef <- numeric(n)
+  group_mode <- !is.null(ing_prior_list$shape_group)
+  dispersion_ranef <- if (group_mode) {
+    matrix(
+      NA_real_, nrow = n, ncol = length(group_levels),
+      dimnames = list(NULL, group_levels)
+    )
+  } else {
+    numeric(n)
+  }
   debug_b1 <- isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))
 
   for (i in seq_len(n)) {
@@ -937,7 +1168,11 @@ NULL
     batch$iters_ranef <- .two_block_batch_iters_ranef_add(
       batch$iters_ranef, i, out$iters_mean, use_cpp_iters_ranef_add = FALSE
     )
-    dispersion_ranef[i] <- out$dispersion_ranef
+    if (group_mode) {
+      dispersion_ranef[i, ] <- out$dispersion_ranef[group_levels]
+    } else {
+      dispersion_ranef[i] <- out$dispersion_ranef
+    }
   }
   if (show_bar) {
     .two_block_progress_bar_finish(newline = progbar_finish_newline)
@@ -1155,7 +1390,11 @@ NULL
     fixef_init   = fixef_init
   )
   staged$dispersion_ranef      <- sweep_out$dispersion_ranef
-  staged$dispersion_ranef.mean <- mean(sweep_out$dispersion_ranef)
+  staged$dispersion_ranef.mean <- if (is.matrix(sweep_out$dispersion_ranef)) {
+    colMeans(sweep_out$dispersion_ranef)
+  } else {
+    mean(sweep_out$dispersion_ranef)
+  }
   staged$sweep_history         <- sweep_out$sweep_history
   staged
 }
@@ -1200,11 +1439,11 @@ NULL
     ing_prior_list, fn_name = engine_label
   )
 
-  disp_upper_rate <- .rLMM_measurement_disp_upper_for_rate(
-    ing_prior_list, engine_label
+  rate_inputs <- .rLMM_measurement_rate_inputs(
+    ing_prior_list, block, group_levels, engine_label
   )
   prior_list_block1_icm <- .rLMM_block1_prior_gaussian(P, dispersion_fix)
-  prior_list_block1_rate <- .rLMM_block1_prior_gaussian(P, disp_upper_rate)
+  prior_list_block1_rate <- .rLMM_block1_prior_gaussian(P, rate_inputs$dispersion_scalar)
   .two_block_validate_block1_prior(prior_list_block1_icm, family = family)
   .two_block_validate_block1_prior(prior_list_block1_rate, family = family)
 
@@ -1294,6 +1533,7 @@ NULL
     x_hyper           = inp$x_hyper,
     prior_list_block1 = prior_list_block1_rate,
     pfamily_list      = pfamily_list,
+    weights           = rate_inputs$weights,
     family            = family,
     group_levels      = group_levels
   )
@@ -1492,7 +1732,8 @@ NULL
         pfamily_list       = pfamily_list,
         family             = family,
         tv_tol             = tv_tol,
-        dispersion         = disp_upper_rate
+        dispersion         = rate_inputs$dispersion_scalar,
+        weights            = rate_inputs$weights
       )
       if (pilot_ub$m_min_upper > m_convergence_used) {
         m_convergence_used <- pilot_ub$m_min_upper
@@ -2167,7 +2408,8 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
-    prior_list, length(inp$re_names), fn_name = fn_name
+    prior_list, length(inp$re_names), fn_name = fn_name,
+    group_levels = inp$group_levels
   )
 
   pfamily_list <- .two_block_validate_pfamily_list(
@@ -2236,7 +2478,8 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
-    prior_list, length(inp$re_names), fn_name = fn_name
+    prior_list, length(inp$re_names), fn_name = fn_name,
+    group_levels = inp$group_levels
   )
 
   pfamily_list <- .two_block_validate_pfamily_list(

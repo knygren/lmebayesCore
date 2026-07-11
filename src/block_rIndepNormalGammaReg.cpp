@@ -868,6 +868,87 @@ List gamma_ub_from_joint_geometry(
   );
 }
 
+// O(sum gs_t) scalar-only reduction of global UB3 geometry for the Ind path.
+// Exact by the same additivity argument as ub3_geometry_from_joint_faces:
+//   max(sum_t f_t(j_t)) = sum_t max_t f_t  and  mean = sum_t mean_t
+// for separable sums over product faces.  The Ind path does not need the
+// full joint_upp_apprx / joint_low_apprx arrays, so we pass empty vectors.
+List build_global_dispersion_constants_scalar(
+    int n_identifiable,
+    const List& single_gamma_list,
+    const List& single_ub_list,
+    const IntegerVector& identifiable_idx,
+    const List& block_envelopes,
+    const List& block_standardization,
+    double shape2_global,
+    double rate_prior,
+    double rate3_global,
+    double n_w_global,
+    double RSS_Min_global,
+    double RSS_ML_global,
+    double low,
+    double upp,
+    double RSS_post_global
+) {
+  if (n_identifiable == 1) {
+    return List::create(
+      Rcpp::Named("gamma_list") = single_gamma_list,
+      Rcpp::Named("UB_list") = single_ub_list,
+      Rcpp::Named("source") = "single_block_edb"
+    );
+  }
+
+  const int n_blocks = identifiable_idx.size();
+  const double d1_star = rate3_global / (shape2_global - 1.0);
+
+  double max_upp = 0.0;
+  double mean_slope = 0.0;
+  for (int t = 0; t < n_blocks; ++t) {
+    const int j = identifiable_idx[t];
+    List Env = block_envelopes[j];
+    List std_j = block_standardization[j];
+    NumericMatrix cbars = Env["cbars"];
+    NumericMatrix thetabars = Env["thetabars"];
+    NumericMatrix x2 = std_j["x2"];
+    NumericMatrix P2 = std_j["P2"];
+    NumericVector alpha = std_j["alpha"];
+    NumericVector y = std_j["y"];
+
+    NumericVector slope = EnvBuildLinBound_cpp(
+      thetabars, cbars, y, x2, P2, alpha, d1_star
+    );
+    NumericVector const_base = thetabar_const_cpp(P2, cbars, thetabars);
+    const int gs = slope.size();
+    double max_upp_t = R_NegInf;
+    for (int f = 0; f < gs; ++f) {
+      double v = const_base[f] + (upp - d1_star) * slope[f];
+      if (v > max_upp_t) max_upp_t = v;
+    }
+    max_upp += max_upp_t;
+    mean_slope += static_cast<double>(Rcpp::mean(slope));
+  }
+
+  List geom = ub3_geometry_from_joint_faces(
+    max_upp, mean_slope,
+    NumericVector(0), NumericVector(0),
+    n_w_global, low, upp
+  );
+
+  List out = gamma_ub_from_joint_geometry(
+    geom, shape2_global, rate_prior,
+    RSS_Min_global, RSS_ML_global, low, upp
+  );
+
+  const double max_low = max_upp - mean_slope * (upp - low);
+  return List::create(
+    Rcpp::Named("gamma_list") = out["gamma_list"],
+    Rcpp::Named("UB_list") = out["UB_list"],
+    Rcpp::Named("source") = "joint_face_scalar_edb",
+    Rcpp::Named("RSS_post") = RSS_post_global,
+    Rcpp::Named("prob_max_low") = max_low
+  );
+}
+
 List build_joint_face_product_geometry(
     const IntegerVector& identifiable_idx,
     const List& block_envelopes,
@@ -3051,14 +3132,15 @@ List BlockEnvelopeDispersionBuildInd(
     Rcpp::stop("BlockEnvelopeDispersionBuildInd: no identifiable blocks.");
   }
 
-  List global_constants = build_global_dispersion_constants(
+  // Ind path: use O(sum gs_t) scalar shortcut — avoids materializing the
+  // O(prod gs_t) product-face arrays that overflow for large k.
+  List global_constants = build_global_dispersion_constants_scalar(
     identifiable_idx.size(),
     single_gamma_list,
     single_ub_list,
     identifiable_idx,
     block_envelopes,
     block_standardization,
-    block_dispersion,
     shape2_global,
     rate,
     rate3_global,

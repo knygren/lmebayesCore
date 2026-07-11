@@ -14,6 +14,7 @@ Prior_Setup_lmebayes(
   n_prior_dispersion = NULL,
   pwt_measurement = NULL,
   n_prior_measurement = NULL,
+  max_disp_perc = 0.99,
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model")
 )
@@ -78,6 +79,19 @@ when neither is, \code{pwt_measurement = 0.01} is used.}
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 not groups).  See \code{pwt_measurement}.}
 
+\item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
+Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
+\eqn{\tau^2_k} (Block~2) truncation windows stored in
+\code{ing_prior_measurement} and \code{ing_prior} respectively.
+The window is the central \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+mass interval: \code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc})}
+quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc}} quantile
+of the relevant Gamma (precision) distribution, inverted to the
+dispersion scale.  Tighter values (e.g.\ \code{0.95}) shrink the
+truncation window and typically improve Block~1 acceptance rates at the
+cost of slightly less envelope coverage; looser values (e.g.\ \code{0.999})
+widen the window.  Passed to \code{\link{dGamma}()} as \code{max_disp_perc}.}
+
 \item{intercept_source}{Character string controlling the prior mean for the
 global intercept hyperparameter \code{(Intercept)::(Intercept)} only.
 One of \code{"null_model"} (default) or \code{"full_model"}.  When
@@ -121,6 +135,8 @@ calibrate \code{dIndependent_Normal_Gamma} components).}
 prior weight for Block~1 \eqn{\sigma^2} (independent of \code{pwt}).}
 \item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
 prior sample size for Block~1 \eqn{\sigma^2} on the observation scale.}
+\item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
+the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
 \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 \item{\code{fit_ref}}{Reference \code{lmer}/\code{glmer} fit on all
 groups (the full-formula fit from \code{\link{model_setup}}).}
@@ -136,15 +152,17 @@ calibration with \eqn{n_0 =} \code{n_prior_dispersion}; since
 \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
 \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
-window \code{disp_lower} / \code{disp_upper}: the 0.01 / 0.99
+window \code{disp_lower} / \code{disp_upper}: the
+\eqn{(1-\mathrm{max\_disp\_perc})} / \eqn{\mathrm{max\_disp\_perc}}
 quantiles of the \emph{limiting posterior}
 \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
 precision (glmbayesCore Chapter A12, Theorem 2; inverted to a
 \eqn{\tau^2} interval).  This window is identical for all
-\eqn{n_0}, covers \eqn{\ge} ~98\\% of the exact posterior for every
-prior strength, and keeps the envelope sampler's cost stable as
-priors weaken; see \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
+\eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+of the exact posterior for every prior strength, and keeps the
+envelope sampler's cost stable as priors weaken; see
+\code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} when
 \code{ptypes = "dIndependent_Normal_Gamma"}; ignored for
 \code{dNormal} priors.}
@@ -156,9 +174,10 @@ mean-matched \code{shape} / \code{rate} with
 \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
 \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
 \eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
-\code{disp_lower} / \code{disp_upper} as the central 98\% prior-mass
-interval from the same calibrated \code{shape}/\code{rate}.  Pass these
-fields to \code{\link{dGamma}()}.}
+\code{disp_lower} / \code{disp_upper} as the central
+\eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
+the same calibrated \code{shape}/\code{rate}.  Pass these fields to
+\code{\link{dGamma}()}.}
 }
 
 \code{x} invisibly.

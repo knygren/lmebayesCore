@@ -74,6 +74,18 @@
 #' @param n_prior_measurement Optional positive scalar: absolute effective
 #'   prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 #'   not groups).  See \code{pwt_measurement}.
+#' @param max_disp_perc Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
+#'   Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
+#'   \eqn{\tau^2_k} (Block~2) truncation windows stored in
+#'   \code{ing_prior_measurement} and \code{ing_prior} respectively.
+#'   The window is the central \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+#'   mass interval: \code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc})}
+#'   quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc}} quantile
+#'   of the relevant Gamma (precision) distribution, inverted to the
+#'   dispersion scale.  Tighter values (e.g.\ \code{0.95}) shrink the
+#'   truncation window and typically improve Block~1 acceptance rates at the
+#'   cost of slightly less envelope coverage; looser values (e.g.\ \code{0.999})
+#'   widen the window.  Passed to \code{\link{dGamma}()} as \code{max_disp_perc}.
 #' @param n_prior_dispersion Optional \emph{absolute} effective prior sample
 #'   size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion prior.
 #'   A positive scalar, or a list / numeric vector with one value per
@@ -113,6 +125,8 @@
 #'       prior weight for Block~1 \eqn{\sigma^2} (independent of \code{pwt}).}
 #'     \item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
 #'       prior sample size for Block~1 \eqn{\sigma^2} on the observation scale.}
+#'     \item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
+#'       the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
 #'     \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 #'     \item{\code{fit_ref}}{Reference \code{lmer}/\code{glmer} fit on all
 #'       groups (the full-formula fit from \code{\link{model_setup}}).}
@@ -128,15 +142,17 @@
 #'       \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 #'       inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
 #'       \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
-#'       window \code{disp_lower} / \code{disp_upper}: the 0.01 / 0.99
+#'       window \code{disp_lower} / \code{disp_upper}: the
+#'       \eqn{(1-\mathrm{max\_disp\_perc})} / \eqn{\mathrm{max\_disp\_perc}}
 #'       quantiles of the \emph{limiting posterior}
 #'       \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 #'       (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
 #'       precision (glmbayesCore Chapter A12, Theorem 2; inverted to a
 #'       \eqn{\tau^2} interval).  This window is identical for all
-#'       \eqn{n_0}, covers \eqn{\ge} ~98\% of the exact posterior for every
-#'       prior strength, and keeps the envelope sampler's cost stable as
-#'       priors weaken; see \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
+#'       \eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+#'       of the exact posterior for every prior strength, and keeps the
+#'       envelope sampler's cost stable as priors weaken; see
+#'       \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
 #'       \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} when
 #'       \code{ptypes = "dIndependent_Normal_Gamma"}; ignored for
 #'       \code{dNormal} priors.}
@@ -148,9 +164,10 @@
 #'       \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
 #'       \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
 #'       \eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
-#'       \code{disp_lower} / \code{disp_upper} as the central 98% prior-mass
-#'       interval from the same calibrated \code{shape}/\code{rate}.  Pass these
-#'       fields to \code{\link{dGamma}()}.}
+#'       \code{disp_lower} / \code{disp_upper} as the central
+#'       \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
+#'       the same calibrated \code{shape}/\code{rate}.  Pass these fields to
+#'       \code{\link{dGamma}()}.}
 #'   }
 #' @details
 #' \strong{Why default calibration depends on classical estimates.}
@@ -179,11 +196,20 @@ Prior_Setup_lmebayes <- function(formula,
                                  n_prior_dispersion = NULL,
                                  pwt_measurement = NULL,
                                  n_prior_measurement = NULL,
+                                 max_disp_perc = 0.99,
                                  intercept_source = c("null_model", "full_model"),
                                  effects_source   = c("null_effects", "full_model")) {
 
   intercept_source <- match.arg(intercept_source)
   effects_source   <- match.arg(effects_source)
+
+  if (!is.numeric(max_disp_perc) || length(max_disp_perc) != 1L ||
+      is.na(max_disp_perc) || max_disp_perc <= 0.5 || max_disp_perc >= 1) {
+    stop(
+      "'max_disp_perc' must be a scalar in (0.5, 1).",
+      call. = FALSE
+    )
+  }
 
   if (!inherits(formula, "formula")) {
     stop("'formula' must be a formula.", call. = FALSE)
@@ -478,13 +504,14 @@ Prior_Setup_lmebayes <- function(formula,
   ## weak-prior (n0 -> 0) limit of the Block 2 posterior Gamma:
   ##   a_inf = (J + 1)/2,  b_inf = tau2_k * (J - 1)/2
   ## (so b_inf/(a_inf - 1) = tau2_k: mean-matched, like the prior).  The
-  ## window is its central 98% mass (0.01/0.99 quantiles).  Quantiles of the
-  ## *prior* would stretch without bound as n0 -> 0 (posterior coverage ->
-  ## 100%, envelope acceptance -> 0); the limiting-posterior window instead
-  ## has coverage >= ~98% of the exact posterior for every n0 (the finite-n0
-  ## posterior is strictly more concentrated than the limit), is identical
-  ## for all n0, and keeps the envelope sampler's candidates-per-draw
-  ## roughly constant as priors weaken.  See inst/ING_TRUNCATION_WINDOW.md.
+  ## window uses max_disp_perc (default 0.99) for the central
+  ## (2*max_disp_perc - 1) mass interval.  Quantiles of the *prior* would
+  ## stretch without bound as n0 -> 0 (posterior coverage -> 100%, envelope
+  ## acceptance -> 0); the limiting-posterior window instead has coverage >=
+  ## (2*max_disp_perc - 1) of the exact posterior for every n0 (the finite-n0
+  ## posterior is strictly more concentrated than the limit), is identical for
+  ## all n0, and keeps the envelope sampler's candidates-per-draw roughly
+  ## constant as priors weaken.  See inst/ING_TRUNCATION_WINDOW.md.
   ## Stored here so print() can display the window and pfamily_list()
   ## consumes one source of truth.
   ing_prior <- stats::setNames(
@@ -494,12 +521,14 @@ Prior_Setup_lmebayes <- function(formula,
       tau2_k  <- unname(prior_list[[k]]$dispersion_fixef)
       shape_k <- (n0_k + 1) / 2 + p_k / 2
       rate_k  <- tau2_k * (n0_k + p_k - 1) / 2
-      win_k <- .lmebayes_ing_limiting_posterior_window(tau2_k, J_groups)
+      win_k <- .lmebayes_ing_limiting_posterior_window(tau2_k, J_groups,
+                                                       max_disp_perc)
       list(
-        shape      = shape_k,
-        rate       = rate_k,
-        disp_lower = win_k$disp_lower,
-        disp_upper = win_k$disp_upper
+        shape         = shape_k,
+        rate          = rate_k,
+        disp_lower    = win_k$disp_lower,
+        disp_upper    = win_k$disp_upper,
+        max_disp_perc = max_disp_perc
       )
     }),
     re_names
@@ -515,7 +544,8 @@ Prior_Setup_lmebayes <- function(formula,
     .lmebayes_calibrate_ing_prior_measurement(
       design           = design,
       dispersion_ranef = dispersion_ranef,
-      n_prior          = meas$n_prior_measurement
+      n_prior          = meas$n_prior_measurement,
+      max_disp_perc    = max_disp_perc
     )
   } else {
     NULL
@@ -545,6 +575,7 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_dispersion = disp$n_prior_dispersion,
       pwt_measurement    = pwt_measurement_out,
       n_prior_measurement = n_prior_measurement_out,
+      max_disp_perc      = max_disp_perc,
       intercept_source   = intercept_source,
       effects_source     = effects_source,
       design             = design,
@@ -759,13 +790,15 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
     ))
     ing_m <- x$ing_prior_measurement
     if (!is.null(ing_m)) {
+      mdp <- if (!is.null(ing_m$max_disp_perc)) ing_m$max_disp_perc else 0.99
       cat(sprintf(
         paste0(
           "  ING sigma^2 window: [%.4g, %.4g]  ",
-          "(0.01/0.99 prior quantiles from calibrated shape/rate; ",
+          "(%.4g/%.4g quantiles from calibrated shape/rate; ",
           "upper/sigma2 = %.3g)\n"
         ),
         ing_m$disp_lower, ing_m$disp_upper,
+        1 - mdp, mdp,
         ing_m$disp_upper / unname(ing_m$sigma2_hat)
       ))
       cat(sprintf(
@@ -845,9 +878,11 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
       pl$dispersion_fixef))
     ing_k <- x$ing_prior[[nm]]
     if (!is.null(ing_k)) {
+      mdp_k <- if (!is.null(ing_k$max_disp_perc)) ing_k$max_disp_perc else 0.99
       cat(sprintf(
-        "  ING tau^2 window: [%.4g, %.4g]  (0.01/0.99 limiting-posterior quantiles; upper/tau2 = %.3g)\n",
+        "  ING tau^2 window: [%.4g, %.4g]  (%.4g/%.4g limiting-posterior quantiles; upper/tau2 = %.3g)\n",
         ing_k$disp_lower, ing_k$disp_upper,
+        1 - mdp_k, mdp_k,
         ing_k$disp_upper / unname(pl$dispersion_fixef)
       ))
       cat(sprintf(

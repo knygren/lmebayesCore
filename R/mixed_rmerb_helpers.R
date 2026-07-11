@@ -27,6 +27,14 @@
     ))
   }
 
+  if (is.list(dispersion_ranef) && !inherits(dispersion_ranef, "pfamily")) {
+    return(.lmebayes_resolve_dispersion_ranef_group_list(
+      dispersion_ranef = dispersion_ranef,
+      design           = design,
+      fn_name          = fn_name
+    ))
+  }
+
   if (inherits(dispersion_ranef, "pfamily")) {
     if (!identical(dispersion_ranef$pfamily, "dGamma")) {
       stop(
@@ -64,8 +72,9 @@
       length(dispersion_ranef) != 1L || !is.finite(dispersion_ranef) ||
       dispersion_ranef <= 0) {
     stop(
-      "'dispersion_ranef' must be a single positive number or a dGamma() ",
-      "pfamily for family = ", family$family, "().",
+      "'dispersion_ranef' must be a single positive number, a dGamma() ",
+      "pfamily, or a named list of dGamma() pfamilies (one per group) for ",
+      "family = ", family$family, "().",
       call. = FALSE
     )
   }
@@ -74,6 +83,130 @@
     dispersion_fix        = as.numeric(dispersion_ranef),
     dispersion_prior_list = NULL,
     dispersion_pfamily    = NULL
+  )
+}
+
+#' Resolve a per-group list of \code{dGamma()} pfamilies for \code{dispersion_ranef}
+#'
+#' Third \code{dispersion_ranef} option alongside a fixed scalar and a single
+#' (pooled) \code{dGamma()}: a named list with one \code{dGamma()} pfamily per
+#' group level. Each entry keeps its own \code{shape}/\code{rate}/\code{disp_lower}/
+#' \code{disp_upper} -- there is no requirement that groups share the same
+#' \code{shape}/\code{rate} (\code{Prior_Setup_lmebayes()} may choose to build
+#' them from a shared hyperprior, but the engine itself is agnostic).
+#' Requires every group to be full column rank (rank-deficient groups are not
+#' yet supported for this option).
+#' @noRd
+.lmebayes_resolve_dispersion_ranef_group_list <- function(
+    dispersion_ranef,
+    design,
+    fn_name = "lmerb"
+) {
+  if (is.null(design) || is.null(design$groups)) {
+    stop(
+      fn_name, "(): a list of dGamma() priors for 'dispersion_ranef' requires ",
+      "'design' with grouping information.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(design$groups)
+  J <- length(group_levels)
+
+  if (length(dispersion_ranef) != J) {
+    stop(
+      fn_name, "(): 'dispersion_ranef' is a list of length ",
+      length(dispersion_ranef), " but there are ", J, " group level(s) (",
+      paste(group_levels, collapse = ", "), "). Supply exactly one dGamma() ",
+      "pfamily per group.",
+      call. = FALSE
+    )
+  }
+  nms <- names(dispersion_ranef)
+  if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
+    stop(
+      fn_name, "(): names(dispersion_ranef) must match the group levels (",
+      paste(group_levels, collapse = ", "), ") exactly.",
+      call. = FALSE
+    )
+  }
+  dispersion_ranef <- dispersion_ranef[group_levels]
+
+  if (is.null(design$re_rank) || !all(design$re_rank[group_levels])) {
+    deficient <- if (!is.null(design$re_rank)) {
+      group_levels[!design$re_rank[group_levels]]
+    } else {
+      group_levels
+    }
+    stop(
+      fn_name, "(): a list of per-group dGamma() dispersion priors currently ",
+      "requires every group to be full column rank; rank-deficient group(s): ",
+      paste(deficient, collapse = ", "), ". Use a single dGamma() or a fixed ",
+      "scalar 'dispersion_ranef' for models with rank-deficient groups.",
+      call. = FALSE
+    )
+  }
+
+  shape_group      <- stats::setNames(numeric(J), group_levels)
+  rate_group       <- stats::setNames(numeric(J), group_levels)
+  disp_lower_group <- stats::setNames(numeric(J), group_levels)
+  disp_upper_group <- stats::setNames(numeric(J), group_levels)
+
+  for (lev in group_levels) {
+    pf <- dispersion_ranef[[lev]]
+    if (!inherits(pf, "pfamily") || !identical(pf$pfamily, "dGamma")) {
+      stop(
+        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must be a dGamma() ",
+        "pfamily.",
+        call. = FALSE
+      )
+    }
+    pl <- pf$prior_list
+    if (!isTRUE(pl$Inv_Dispersion)) {
+      stop(
+        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] dGamma() prior ",
+        "requires Inv_Dispersion = TRUE.",
+        call. = FALSE
+      )
+    }
+    shape <- as.numeric(pl$shape[1L])
+    rate  <- as.numeric(pl$rate[1L])
+    if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
+      stop(
+        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must have positive, ",
+        "finite 'shape' and 'rate'.",
+        call. = FALSE
+      )
+    }
+    lo <- pl$disp_lower
+    hi <- pl$disp_upper
+    if (is.null(lo) || is.null(hi) ||
+        !is.numeric(lo) || !is.numeric(hi) ||
+        length(lo) != 1L || length(hi) != 1L ||
+        !is.finite(lo) || !is.finite(hi) ||
+        lo <= 0 || hi <= lo) {
+      stop(
+        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must supply finite ",
+        "'disp_lower' and 'disp_upper' with 0 < disp_lower < disp_upper -- a ",
+        "list of dGamma() priors requires explicit per-group truncation bounds.",
+        call. = FALSE
+      )
+    }
+    shape_group[[lev]]      <- shape
+    rate_group[[lev]]       <- rate
+    disp_lower_group[[lev]] <- as.numeric(lo)
+    disp_upper_group[[lev]] <- as.numeric(hi)
+  }
+
+  list(
+    mode                  = "gamma_list",
+    dispersion_fix        = mean(shape_group / rate_group),
+    dispersion_prior_list = list(
+      shape_group      = shape_group,
+      rate_group       = rate_group,
+      disp_lower_group = disp_lower_group,
+      disp_upper_group = disp_upper_group
+    ),
+    dispersion_pfamily    = dispersion_ranef
   )
 }
 
@@ -322,7 +455,7 @@
 #' Precision \eqn{1/\sigma^2 \sim \mathrm{Gamma}(\code{shape}, \code{rate})};
 #' bounds are 0.01/0.99 quantiles inverted to the variance scale.
 #' @noRd
-.lmebayes_ing_prior_quantile_window <- function(shape, rate) {
+.lmebayes_ing_prior_quantile_window <- function(shape, rate, max_disp_perc = 0.99) {
   if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
     stop(
       "ING prior quantile window requires positive finite shape and rate.",
@@ -330,8 +463,8 @@
     )
   }
   list(
-    disp_lower = 1 / stats::qgamma(0.99, shape = shape, rate = rate),
-    disp_upper = 1 / stats::qgamma(0.01, shape = shape, rate = rate)
+    disp_lower = 1 / stats::qgamma(max_disp_perc,       shape = shape, rate = rate),
+    disp_upper = 1 / stats::qgamma(1 - max_disp_perc,   shape = shape, rate = rate)
   )
 }
 
@@ -347,7 +480,8 @@
 .lmebayes_calibrate_ing_prior_measurement <- function(
     design,
     dispersion_ranef,
-    n_prior
+    n_prior,
+    max_disp_perc = 0.99
 ) {
   p_re <- length(design$re_coef_names)
   n    <- length(design$y)
@@ -382,15 +516,16 @@
     )
   }
 
-  win <- .lmebayes_ing_prior_quantile_window(shape, rate)
+  win <- .lmebayes_ing_prior_quantile_window(shape, rate, max_disp_perc)
 
   list(
-    sigma2_hat  = dispersion_ranef,
-    shape       = shape,
-    rate        = rate,
-    disp_lower  = win$disp_lower,
-    disp_upper  = win$disp_upper,
-    n_prior     = n_prior,
+    sigma2_hat    = dispersion_ranef,
+    shape         = shape,
+    rate          = rate,
+    disp_lower    = win$disp_lower,
+    disp_upper    = win$disp_upper,
+    max_disp_perc = max_disp_perc,
+    n_prior       = n_prior,
     n_effective = n,
     p_re        = p_re
   )
@@ -401,7 +536,7 @@
 #' Central 98% mass of \code{Gamma((J+1)/2, d_hat*(J-1)/2)} inverted to the
 #' variance scale; see \code{inst/ING_TRUNCATION_WINDOW.md} in \pkg{lmebayes}.
 #' @noRd
-.lmebayes_ing_limiting_posterior_window <- function(d_hat, J) {
+.lmebayes_ing_limiting_posterior_window <- function(d_hat, J, max_disp_perc = 0.99) {
   if (!is.numeric(d_hat) || length(d_hat) != 1L || !is.finite(d_hat) ||
       d_hat <= 0) {
     stop(
@@ -422,8 +557,8 @@
     )
   }
   list(
-    disp_lower = 1 / stats::qgamma(0.99, shape = a_inf, rate = b_inf),
-    disp_upper = 1 / stats::qgamma(0.01, shape = a_inf, rate = b_inf)
+    disp_lower = 1 / stats::qgamma(max_disp_perc,     shape = a_inf, rate = b_inf),
+    disp_upper = 1 / stats::qgamma(1 - max_disp_perc, shape = a_inf, rate = b_inf)
   )
 }
 
@@ -478,6 +613,50 @@
   out
 }
 
+#' Build per-group ING Block~1 measurement \code{prior_list} for lmebayes glue
+#'
+#' Third \code{dispersion_ranef} option: a named list of \code{dGamma()}
+#' pfamilies, one per group. Unlike \code{.lmebayes_ing_measurement_prior_list()}
+#' (single pooled \code{shape}/\code{rate}), each group keeps its own
+#' \code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper}.
+#' @noRd
+.lmebayes_ing_measurement_prior_list_group <- function(prior, disp_info, design) {
+  re_names <- design$re_coef_names
+  p_re     <- length(re_names)
+  pl       <- disp_info$dispersion_prior_list
+  req <- c("shape_group", "rate_group", "disp_lower_group", "disp_upper_group")
+  miss <- req[!req %in% names(pl)]
+  if (length(miss)) {
+    stop(
+      "Internal error: per-group dGamma() dispersion_ranef prior_list must ",
+      "contain ", paste(req, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+  mu <- matrix(
+    0,
+    nrow = p_re,
+    ncol = 1L,
+    dimnames = list(re_names, NULL)
+  )
+  Sigma <- as.matrix(prior$Sigma_ranef)
+  if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
+    stop(
+      "prior$Sigma_ranef must be ", p_re, " x ", p_re, ".",
+      call. = FALSE
+    )
+  }
+  list(
+    mu               = mu,
+    Sigma            = Sigma,
+    shape_group      = pl$shape_group,
+    rate_group       = pl$rate_group,
+    disp_lower_group = pl$disp_lower_group,
+    disp_upper_group = pl$disp_upper_group,
+    max_disp_perc    = if (!is.null(pl$max_disp_perc)) pl$max_disp_perc else 0.99
+  )
+}
+
 #' Shared matrix-level arguments for LMM reg routes
 #' @noRd
 .lmebayes_matrix_args_lmm <- function(
@@ -514,6 +693,12 @@
 
   if (identical(disp_info$mode, "gamma")) {
     args$prior_list <- .lmebayes_ing_measurement_prior_list(
+      prior     = prior,
+      disp_info = disp_info,
+      design    = design
+    )
+  } else if (identical(disp_info$mode, "gamma_list")) {
+    args$prior_list <- .lmebayes_ing_measurement_prior_list_group(
       prior     = prior,
       disp_info = disp_info,
       design    = design
@@ -666,9 +851,11 @@
 
 #' Attach \code{sigma2} / \code{sigma2.mean} from dispersion mode and sampler draws.
 #'
-#' Fixed measurement dispersion returns a scalar; \code{dGamma()} returns the
-#' length-\code{n} vector from the final inner sweep (\code{dispersion_ranef});
-#' families without observation-level dispersion get \code{NULL}.
+#' Fixed measurement dispersion returns a scalar; a single \code{dGamma()}
+#' returns the length-\code{n} vector from the final inner sweep
+#' (\code{dispersion_ranef}); a list of per-group \code{dGamma()} pfamilies
+#' returns an \code{n x J} matrix (one column per group); families without
+#' observation-level dispersion get \code{NULL}.
 #' @noRd
 .lmebayes_attach_sigma2 <- function(out, disp_info) {
   mode <- disp_info$mode
@@ -694,6 +881,19 @@
     }
     out$sigma2 <- as.numeric(dr)
     out$sigma2.mean <- mean(out$sigma2)
+    return(out)
+  }
+  if (identical(mode, "gamma_list")) {
+    dr <- out$dispersion_ranef
+    if (is.null(dr)) {
+      stop(
+        "Internal error: per-group dGamma() measurement dispersion requires ",
+        "'dispersion_ranef' draws on the sampler output.",
+        call. = FALSE
+      )
+    }
+    out$sigma2 <- as.matrix(dr)
+    out$sigma2.mean <- colMeans(out$sigma2)
     return(out)
   }
   stop("Unknown dispersion mode: ", mode, call. = FALSE)
