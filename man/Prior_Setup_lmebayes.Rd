@@ -66,14 +66,21 @@ size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion prior.
 A positive scalar, or a list / numeric vector with one value per
 random-effect component (named or positional).  See \code{pwt_dispersion}.}
 
-\item{pwt_measurement}{Optional scalar in \eqn{(0, 1)}: relative prior
-weight for the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian
-models only), decoupled from \code{pwt} (Block~2 fixef) and from
-\code{pwt_dispersion} (Block~2 \eqn{\tau^2_k}).  Converted to
-\eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n}
-on the total observation count \eqn{n}.  At most one of
-\code{pwt_measurement} and \code{n_prior_measurement} may be supplied;
-when neither is, \code{pwt_measurement = 0.01} is used.}
+\item{pwt_measurement}{Optional relative prior weight(s) in \eqn{(0, 1)} for
+the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian models only),
+decoupled from \code{pwt} (Block~2 fixef) and from \code{pwt_dispersion}
+(Block~2 \eqn{\tau^2_k}).  Either a \strong{scalar} converted to
+\eqn{n_{\mathrm{prior}} = w/(1-w)\times n} on the total observation count
+\eqn{n} (pooled \code{ing_prior_measurement}), or a \strong{named or
+positional vector of length \eqn{J}} (\eqn{J =} \code{nlevels(groups)})
+with one weight per group level for per-group \code{dGamma_list()}
+calibration (\eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j}).  When
+\code{pwt_measurement} is a vector, the pooled
+\code{ing_prior_measurement} continues to use the default
+\code{w = 0.01} on total \eqn{n} (unless \code{n_prior_measurement} is
+supplied explicitly).  At most one of \code{pwt_measurement} and
+\code{n_prior_measurement} may be supplied; when neither is, scalar
+\code{pwt_measurement = 0.01} is used for both pooled and per-group paths.}
 
 \item{n_prior_measurement}{Optional positive scalar: absolute effective
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
@@ -131,10 +138,24 @@ effective prior sample sizes for the Block~2 dispersion prior
 (always present; used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
 calibrate \code{dIndependent_Normal_Gamma} components).}
-\item{\code{pwt_measurement}}{Gaussian models only: scalar relative
-prior weight for Block~1 \eqn{\sigma^2} (independent of \code{pwt}).}
+\item{\code{pwt_measurement}}{Gaussian models only: scalar or length-\eqn{J}
+vector of relative prior weights for Block~1 \eqn{\sigma^2}.}
 \item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
-prior sample size for Block~1 \eqn{\sigma^2} on the observation scale.}
+prior sample size for pooled Block~1 \eqn{\sigma^2} on the observation
+scale.}
+\item{\code{pwt_measurement_group}}{Gaussian models only: named length-\eqn{J}
+vector of resolved per-group measurement prior weights (see
+\code{dGamma_list()}).}
+\item{\code{n_prior_measurement_group}}{Gaussian models only: named
+length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}.}
+\item{\code{block_formula}}{Within-group Block~1 formula: response
+regressed on the random-coefficient structure only (columns of
+\code{design$re_coef_names}); level-2 hyper covariates are excluded.
+Used by \code{dGamma_list()}.}
+\item{\code{sd_tau}}{Named vector \code{sqrt(vcov_re)} from the reference
+fit; shared population RE standard deviations for per-group calibration.}
+\item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
+(reference for \code{dGamma_list()} diagnostics).}
 \item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
 the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
 \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
@@ -178,6 +199,11 @@ mean-matched \code{shape} / \code{rate} with
 \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
 the same calibrated \code{shape}/\code{rate}.  Pass these fields to
 \code{\link{dGamma}()}.}
+\item{\code{ing_prior_measurement_group}}{Gaussian models only: named
+list (one entry per group level) of per-group \code{dGamma()} density
+calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate_gamma},
+\code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  Used by
+\code{\link{dGamma_list}()}; truncation bounds are assembled there.}
 }
 
 \code{x} invisibly.

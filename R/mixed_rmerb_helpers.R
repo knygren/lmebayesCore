@@ -406,8 +406,15 @@
   }
 
   if (!is.null(pwt_measurement)) {
-    if (!is.numeric(pwt_measurement) || length(pwt_measurement) != 1L ||
-        is.na(pwt_measurement) || pwt_measurement <= 0 || pwt_measurement >= 1) {
+    if (!is.numeric(pwt_measurement) || length(pwt_measurement) != 1L) {
+      stop(
+        "'pwt_measurement' for the pooled Block~1 path must be a scalar; ",
+        "supply a length-J vector for per-group calibration via ",
+        "dGamma_list() only.",
+        call. = FALSE
+      )
+    }
+    if (is.na(pwt_measurement) || pwt_measurement <= 0 || pwt_measurement >= 1) {
       stop(
         "'pwt_measurement' must be a scalar in (0, 1).",
         call. = FALSE
@@ -447,6 +454,416 @@
     pwt_measurement     = w,
     n_prior_measurement = n_prior,
     source              = src
+  )
+}
+
+#' Resolve per-group Block~1 \eqn{\sigma^2} prior weights into \code{n_prior_j}
+#'
+#' \eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j} for each group level.
+#' When \code{pwt_measurement} is a scalar, the same weight applies to every
+#' group.  When it is a length-\eqn{J} vector, names must match
+#' \code{group_levels} if supplied.
+#' @noRd
+.lmebayes_resolve_measurement_disp_prior_group <- function(
+    pwt_measurement,
+    n_prior_measurement,
+    n_j,
+    group_levels
+) {
+  if (!is.null(pwt_measurement) && !is.null(n_prior_measurement)) {
+    stop(
+      "Supply at most one of 'pwt_measurement' and 'n_prior_measurement'.",
+      call. = FALSE
+    )
+  }
+
+  J <- length(group_levels)
+  n_j <- as.integer(n_j)
+  if (length(n_j) != J || anyNA(n_j) || any(n_j <= 0L)) {
+    stop(
+      "'n_j' must be a positive integer vector of length J (one per group level).",
+      call. = FALSE
+    )
+  }
+  names(n_j) <- group_levels
+
+  check_w <- function(v, what) {
+    if (!is.numeric(v) || anyNA(v) || any(v <= 0) || any(v >= 1)) {
+      stop(sprintf("%s must be numeric with all values in (0, 1).", what),
+           call. = FALSE)
+    }
+  }
+
+  if (!is.null(pwt_measurement)) {
+    if (length(pwt_measurement) == 1L) {
+      check_w(pwt_measurement, "'pwt_measurement'")
+      w <- rep(as.numeric(pwt_measurement), J)
+    } else {
+      if (length(pwt_measurement) != J) {
+        stop(
+          sprintf(
+            "'pwt_measurement' vector must have length J = %d (number of group levels).",
+            J
+          ),
+          call. = FALSE
+        )
+      }
+      check_w(pwt_measurement, "'pwt_measurement'")
+      w <- as.numeric(pwt_measurement)
+      nms <- names(pwt_measurement)
+      if (!is.null(nms) && any(nzchar(nms))) {
+        if (!setequal(nms, group_levels)) {
+          stop(
+            "Names of 'pwt_measurement' must match group levels: ",
+            paste(group_levels, collapse = ", "),
+            call. = FALSE
+          )
+        }
+        w <- w[group_levels]
+      } else {
+        names(w) <- group_levels
+      }
+    }
+    n_prior <- w / (1 - w) * n_j
+    src <- if (length(pwt_measurement) == 1L) {
+      "user-supplied scalar (pwt_measurement)"
+    } else {
+      "user-supplied vector (pwt_measurement)"
+    }
+  } else {
+    w <- rep(0.01, J)
+    n_prior <- w / (1 - w) * n_j
+    src <- if (!is.null(n_prior_measurement)) {
+      "default per group (pwt_measurement = 0.01; scalar n_prior_measurement applies to pooled path only)"
+    } else {
+      "default (pwt_measurement = 0.01 per group)"
+    }
+  }
+
+  names(w) <- group_levels
+  names(n_prior) <- group_levels
+
+  if (any(n_prior > n_j)) {
+    bad <- names(n_prior)[n_prior > n_j]
+    stop(
+      "Per-group measurement dispersion prior requires n_prior_j <= n_j for every group; ",
+      "failed for: ", paste(bad, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  list(
+    pwt_measurement     = w,
+    n_prior_measurement = n_prior,
+    source              = src
+  )
+}
+
+#' Within-group Block~1 formula from random-coefficient names
+#'
+#' Per-group \eqn{\sigma^2} calibration (\code{\link{Prior_Setup}} parity) fits
+#' only predictors that enter the within-group likelihood---the population-mean
+#' structure aligned with \code{design$re_coef_names}.  Level-2 hyper covariates
+#' and cross-level moderation terms in the full mixed-model formula are excluded.
+#' @noRd
+.lmebayes_block_formula_from_re <- function(formula, re_coef_names) {
+  if (!inherits(formula, "formula")) {
+    stop("'formula' must be a formula.", call. = FALSE)
+  }
+  if (length(re_coef_names) < 1L || anyNA(re_coef_names)) {
+    stop(
+      "'re_coef_names' must be a non-empty character vector.",
+      call. = FALSE
+    )
+  }
+
+  resp <- all.vars(formula)[1L]
+  slope_terms <- setdiff(re_coef_names, "(Intercept)")
+  rhs <- if (length(slope_terms) == 0L) {
+    "1"
+  } else {
+    paste(c("1", slope_terms), collapse = " + ")
+  }
+
+  stats::as.formula(paste(resp, "~", rhs))
+}
+
+#' Prior mean vector for block-formula Gaussian calibration (Prior_Setup parity)
+#'
+#' Matches \code{\link[glmbayesCore]{Prior_Setup}} defaults on a group subset:
+#' intercept from an intercept-only \code{lm()} when
+#' \code{intercept_source = "null_model"}, slopes zero when
+#' \code{effects_source = "null_effects"}.
+#' @noRd
+.lmebayes_block_formula_prior_mu <- function(
+    block_formula,
+    dat_j,
+    intercept_source = c("null_model", "full_model"),
+    effects_source = c("null_effects", "full_model")
+) {
+  intercept_source <- match.arg(intercept_source)
+  effects_source   <- match.arg(effects_source)
+
+  X         <- stats::model.matrix(block_formula, data = dat_j)
+  var_names <- colnames(X)
+  mu        <- rep(0, length(var_names))
+  names(mu) <- var_names
+
+  if ("(Intercept)" %in% var_names) {
+    if (intercept_source == "null_model") {
+      resp <- all.vars(block_formula)[1L]
+      null_fit <- stats::lm(
+        stats::as.formula(paste(resp, "~ 1")),
+        data = dat_j
+      )
+      mu["(Intercept)"] <- unname(stats::coef(null_fit)["(Intercept)"])
+    } else {
+      full_fit <- stats::lm(block_formula, data = dat_j)
+      mu["(Intercept)"] <- unname(stats::coef(full_fit)["(Intercept)"])
+    }
+  }
+
+  if (effects_source == "full_model") {
+    full_fit <- stats::lm(block_formula, data = dat_j)
+    for (nm in setdiff(var_names, "(Intercept)")) {
+      mu[nm] <- unname(stats::coef(full_fit)[nm])
+    }
+  }
+
+  matrix(mu, ncol = 1L, dimnames = list(var_names, "mu"))
+}
+
+#' Per-group Gaussian measurement-dispersion calibration (Block~1 dGamma density)
+#'
+#' Mirrors \code{\link{Prior_Setup}} on each group's subset with shared
+#' population \code{sd_tau} for coefficient shrinkage weights.
+#' @noRd
+.lmebayes_calibrate_ing_prior_measurement_group <- function(
+    design,
+    data,
+    block_formula,
+    sd_tau,
+    pwt_group,
+    n_prior_group,
+    group_levels,
+    family = gaussian(),
+    intercept_source = c("null_model", "full_model"),
+    effects_source = c("null_effects", "full_model")
+) {
+  intercept_source <- match.arg(intercept_source)
+  effects_source   <- match.arg(effects_source)
+  p_re <- length(design$re_coef_names)
+  if (p_re < 1L) {
+    stop(
+      "Per-group measurement dispersion calibration requires at least one random coefficient.",
+      call. = FALSE
+    )
+  }
+  if (length(sd_tau) != p_re || anyNA(sd_tau) || any(sd_tau <= 0)) {
+    stop(
+      "'sd_tau' must be a named numeric vector of positive RE standard deviations.",
+      call. = FALSE
+    )
+  }
+
+  stats::setNames(
+    lapply(group_levels, function(lev) {
+      idx   <- design$groups == lev
+      dat_j <- data[idx, , drop = FALSE]
+      n_j   <- sum(idx)
+      n_prior_j <- unname(n_prior_group[[lev]])
+
+      mf <- stats::model.frame(block_formula, data = dat_j)
+      X  <- stats::model.matrix(block_formula, data = dat_j)
+      Y  <- stats::model.response(mf)
+      var_names <- colnames(X)
+      nvar <- ncol(X)
+      weights <- rep(1, n_j)
+      offset  <- rep(0, n_j)
+
+      glm_full <- stats::glm.fit(
+        x = X,
+        y = Y,
+        weights = weights,
+        family = family
+      )
+      glm_full$weights <- weights
+      class(glm_full) <- c("glm", "lm")
+
+      V0 <- stats::vcov(glm_full)
+      if (anyNA(V0)) {
+        XtW <- sweep(X, 1, weights, `*`)
+        Gm  <- crossprod(XtW, X)
+        Ginv <- tryCatch(
+          solve(Gm),
+          error = function(e) {
+            stop(
+              "Group '", lev, "': vcov(glm) is NA and (X'WX) is singular.",
+              call. = FALSE
+            )
+          }
+        )
+        res <- Y - X %*% coef(glm_full)
+        rss <- sum(weights * res^2)
+        if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
+          stop(
+            "Group '", lev, "': cannot recover vcov for rank-deficient glm fit.",
+            call. = FALSE
+          )
+        }
+        d_v0 <- rss / (n_j - nvar)
+        V0 <- d_v0 * Ginv
+        dimnames(V0) <- list(var_names, var_names)
+      }
+
+      V0_diag <- diag(V0)
+      if (any(V0_diag <= 0)) {
+        stop(
+          "Group '", lev, "': diagonal entries of V0 must be positive.",
+          call. = FALSE
+        )
+      }
+
+      sd_vec <- sd_tau[var_names]
+      if (anyNA(sd_vec)) {
+        stop(
+          "Group '", lev, "': block_formula coefficients must align with sd_tau names.",
+          call. = FALSE
+        )
+      }
+      pwt_j <- V0_diag / (V0_diag + sd_vec^2)
+      names(pwt_j) <- var_names
+
+      if (length(pwt_j) == 1L) {
+        Sigma <- ((1 - pwt_j) / pwt_j) * V0
+      } else {
+        scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+        Sigma <- V0 * outer(scale_vec, scale_vec)
+      }
+
+      bhat <- coef(glm_full)
+      res  <- residuals(glm_full, type = "response")
+      rss  <- sum(weights * res^2)
+      if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
+        stop(
+          "Group '", lev, "': Gaussian dispersion requires n_j > p.",
+          call. = FALSE
+        )
+      }
+      dispersion_classical <- rss / (n_j - nvar)
+      mu <- .lmebayes_block_formula_prior_mu(
+        block_formula    = block_formula,
+        dat_j            = dat_j,
+        intercept_source = intercept_source,
+        effects_source   = effects_source
+      )
+      Sigma_0 <- Sigma / dispersion_classical
+      mu_vec  <- as.numeric(mu)
+
+      cal <- compute_gaussian_prior(
+        X           = X,
+        Y           = Y,
+        weights     = weights,
+        offset      = offset,
+        dispersion  = NULL,
+        n_effective = n_j,
+        bhat        = bhat,
+        mu          = mu_vec,
+        Sigma_0     = Sigma_0,
+        Sigma       = Sigma,
+        n_prior     = n_prior_j,
+        k           = 1
+      )
+
+      .ing_stop_if_prior_exceeds_data(
+        shape       = cal$shape_ING,
+        p           = nvar,
+        n_w         = n_j,
+        detail      = paste0("group '", lev, "' has n_j = ", n_j),
+        limit_label = "n_j",
+        prefix      = "Per-group measurement dispersion: "
+      )
+
+      list(
+        sigma2_hat  = cal$dispersion,
+        shape       = cal$shape,
+        shape_ING   = cal$shape_ING,
+        rate        = cal$rate,
+        rate_gamma  = cal$rate_gamma,
+        n_prior     = n_prior_j,
+        n_j         = n_j,
+        n_combined  = n_prior_j + n_j,
+        p_re        = p_re,
+        pwt         = pwt_j,
+        pwt_group   = unname(pwt_group[[lev]])
+      )
+    }),
+    group_levels
+  )
+}
+
+#' BLUP/OLS residual RSS inflation ratio per group (for dGamma upper bounds)
+#' @noRd
+.lmebayes_group_blup_rss_inflation <- function(
+    data,
+    block_formula,
+    fit_ref,
+    groups,
+    group_levels,
+    group_name
+) {
+  beta_blup <- coef(fit_ref)[[group_name]]
+  if (is.null(beta_blup)) {
+    stop(
+      "Reference fit has no random-effect levels for group '", group_name, "'.",
+      call. = FALSE
+    )
+  }
+
+  infl <- vapply(group_levels, function(lev) {
+    idx     <- groups == lev
+    dat_lev <- data[idx, , drop = FALSE]
+    Xg      <- stats::model.matrix(block_formula, data = dat_lev)
+    yg      <- stats::model.response(stats::model.frame(block_formula, data = dat_lev))
+    beta_lev <- as.numeric(beta_blup[lev, colnames(Xg), drop = FALSE])
+    resid_g  <- yg - Xg %*% beta_lev
+    RSS_blup <- sum(resid_g^2)
+    RSS_ols  <- sum(stats::residuals(stats::lm(block_formula, data = dat_lev))^2)
+    if (!is.finite(RSS_blup) || !is.finite(RSS_ols) || RSS_ols <= 0) {
+      stop(
+        "Group '", lev, "': non-finite or non-positive OLS RSS for BLUP inflation.",
+        call. = FALSE
+      )
+    }
+    if (RSS_blup < RSS_ols - sqrt(.Machine$double.eps) * max(RSS_ols, 1)) {
+      stop(
+        "Group '", lev, "': BLUP RSS (", RSS_blup, ") < OLS RSS (", RSS_ols,
+        "); inflation ratio must be >= 1.",
+        call. = FALSE
+      )
+    }
+    RSS_blup / RSS_ols
+  }, numeric(1))
+
+  stats::setNames(infl, group_levels)
+}
+
+#' Approximate-posterior truncation window for per-group Block~1 \eqn{\sigma^2}
+#' @noRd
+.lmebayes_ing_prior_quantile_window_asymmetric <- function(
+    shape,
+    rate_lower,
+    rate_upper,
+    max_disp_perc = 0.99
+) {
+  win_lo <- .lmebayes_ing_prior_quantile_window(shape, rate_lower, max_disp_perc)
+  list(
+    disp_lower = win_lo$disp_lower,
+    disp_upper = 1 / stats::qgamma(
+      1 - max_disp_perc,
+      shape = shape,
+      rate  = rate_upper
+    )
   )
 }
 
@@ -912,6 +1329,9 @@
   }
   if (!is.null(x$ranef.iters) && !is.null(x$m_convergence)) {
     x$ranef.iters.mean <- mean(x$ranef.iters) / x$m_convergence
+  }
+  if (!is.null(x$sigma2.iters) && !is.null(x$m_convergence)) {
+    x$sigma2.iters.mean <- colMeans(x$sigma2.iters) / x$m_convergence
   }
   x
 }

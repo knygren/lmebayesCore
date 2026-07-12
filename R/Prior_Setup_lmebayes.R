@@ -63,14 +63,21 @@
 #'   \code{dIndependent_Normal_Gamma} sampling: the \eqn{\tau^2} truncation
 #'   window comes from limiting-posterior quantiles independent of the
 #'   prior strength (see \code{ing_prior} below).
-#' @param pwt_measurement Optional scalar in \eqn{(0, 1)}: relative prior
-#'   weight for the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian
-#'   models only), decoupled from \code{pwt} (Block~2 fixef) and from
-#'   \code{pwt_dispersion} (Block~2 \eqn{\tau^2_k}).  Converted to
-#'   \eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n}
-#'   on the total observation count \eqn{n}.  At most one of
-#'   \code{pwt_measurement} and \code{n_prior_measurement} may be supplied;
-#'   when neither is, \code{pwt_measurement = 0.01} is used.
+#' @param pwt_measurement Optional relative prior weight(s) in \eqn{(0, 1)} for
+#'   the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian models only),
+#'   decoupled from \code{pwt} (Block~2 fixef) and from \code{pwt_dispersion}
+#'   (Block~2 \eqn{\tau^2_k}).  Either a \strong{scalar} converted to
+#'   \eqn{n_{\mathrm{prior}} = w/(1-w)\times n} on the total observation count
+#'   \eqn{n} (pooled \code{ing_prior_measurement}), or a \strong{named or
+#'   positional vector of length \eqn{J}} (\eqn{J =} \code{nlevels(groups)})
+#'   with one weight per group level for per-group \code{dGamma_list()}
+#'   calibration (\eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j}).  When
+#'   \code{pwt_measurement} is a vector, the pooled
+#'   \code{ing_prior_measurement} continues to use the default
+#'   \code{w = 0.01} on total \eqn{n} (unless \code{n_prior_measurement} is
+#'   supplied explicitly).  At most one of \code{pwt_measurement} and
+#'   \code{n_prior_measurement} may be supplied; when neither is, scalar
+#'   \code{pwt_measurement = 0.01} is used for both pooled and per-group paths.
 #' @param n_prior_measurement Optional positive scalar: absolute effective
 #'   prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 #'   not groups).  See \code{pwt_measurement}.
@@ -121,10 +128,24 @@
 #'       (always present; used by
 #'       \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
 #'       calibrate \code{dIndependent_Normal_Gamma} components).}
-#'     \item{\code{pwt_measurement}}{Gaussian models only: scalar relative
-#'       prior weight for Block~1 \eqn{\sigma^2} (independent of \code{pwt}).}
+#'     \item{\code{pwt_measurement}}{Gaussian models only: scalar or length-\eqn{J}
+#'       vector of relative prior weights for Block~1 \eqn{\sigma^2}.}
 #'     \item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
-#'       prior sample size for Block~1 \eqn{\sigma^2} on the observation scale.}
+#'       prior sample size for pooled Block~1 \eqn{\sigma^2} on the observation
+#'       scale.}
+#'     \item{\code{pwt_measurement_group}}{Gaussian models only: named length-\eqn{J}
+#'       vector of resolved per-group measurement prior weights (see
+#'       \code{dGamma_list()}).}
+#'     \item{\code{n_prior_measurement_group}}{Gaussian models only: named
+#'       length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}.}
+#'     \item{\code{block_formula}}{Within-group Block~1 formula: response
+#'       regressed on the random-coefficient structure only (columns of
+#'       \code{design$re_coef_names}); level-2 hyper covariates are excluded.
+#'       Used by \code{dGamma_list()}.}
+#'     \item{\code{sd_tau}}{Named vector \code{sqrt(vcov_re)} from the reference
+#'       fit; shared population RE standard deviations for per-group calibration.}
+#'     \item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
+#'       (reference for \code{dGamma_list()} diagnostics).}
 #'     \item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
 #'       the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
 #'     \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
@@ -168,6 +189,11 @@
 #'       \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
 #'       the same calibrated \code{shape}/\code{rate}.  Pass these fields to
 #'       \code{\link{dGamma}()}.}
+#'     \item{\code{ing_prior_measurement_group}}{Gaussian models only: named
+#'       list (one entry per group level) of per-group \code{dGamma()} density
+#'       calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate_gamma},
+#'       \code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  Used by
+#'       \code{\link{dGamma_list}()}; truncation bounds are assembled there.}
 #'   }
 #' @details
 #' \strong{Why default calibration depends on classical estimates.}
@@ -534,27 +560,78 @@ Prior_Setup_lmebayes <- function(formula,
     re_names
   )
 
-  ing_prior_measurement <- if (is_gaussian) {
+  ing_prior_measurement <- NULL
+  meas <- NULL
+  if (is_gaussian) {
     n_obs <- length(design$y)
-    meas  <- .lmebayes_resolve_measurement_disp_prior(
-      pwt_measurement     = pwt_measurement,
+    pwt_meas_vector <- !is.null(pwt_measurement) && length(pwt_measurement) > 1L
+    if (pwt_meas_vector && !is.numeric(pwt_measurement)) {
+      stop(
+        "'pwt_measurement' vector must be numeric.",
+        call. = FALSE
+      )
+    }
+    meas <- .lmebayes_resolve_measurement_disp_prior(
+      pwt_measurement     = if (pwt_meas_vector) NULL else pwt_measurement,
       n_prior_measurement = n_prior_measurement,
       n_obs               = n_obs
     )
-    .lmebayes_calibrate_ing_prior_measurement(
+    ing_prior_measurement <- .lmebayes_calibrate_ing_prior_measurement(
       design           = design,
       dispersion_ranef = dispersion_ranef,
       n_prior          = meas$n_prior_measurement,
       max_disp_perc    = max_disp_perc
+    )
+  }
+
+  group_levels <- levels(design$groups)
+  block_formula <- .lmebayes_block_formula_from_re(formula, re_names)
+  sd_tau_out <- if (is_gaussian) {
+    stats::setNames(sqrt(unname(tau2_vec)), re_names)
+  } else {
+    NULL
+  }
+
+  meas_group <- if (is_gaussian) {
+    n_j <- as.integer(table(design$groups))
+    names(n_j) <- group_levels
+    .lmebayes_resolve_measurement_disp_prior_group(
+      pwt_measurement     = pwt_measurement,
+      n_prior_measurement = NULL,
+      n_j                 = n_j,
+      group_levels        = group_levels
+    )
+  } else {
+    NULL
+  }
+
+  ing_prior_measurement_group <- if (is_gaussian) {
+    .lmebayes_calibrate_ing_prior_measurement_group(
+      design           = design,
+      data             = data,
+      block_formula    = block_formula,
+      sd_tau           = sd_tau_out,
+      pwt_group        = meas_group$pwt_measurement,
+      n_prior_group    = meas_group$n_prior_measurement,
+      group_levels     = group_levels,
+      family           = family,
+      intercept_source = intercept_source,
+      effects_source   = effects_source
     )
   } else {
     NULL
   }
 
   pwt_measurement_out <- if (is_gaussian) {
-    w <- meas$pwt_measurement
-    attr(w, "source") <- meas$source
-    w
+    if (!is.null(pwt_measurement) && length(pwt_measurement) > 1L) {
+      w <- meas_group$pwt_measurement
+      attr(w, "source") <- meas_group$source
+      w
+    } else {
+      w <- meas$pwt_measurement
+      attr(w, "source") <- meas$source
+      w
+    }
   } else {
     NULL
   }
@@ -575,16 +652,22 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_dispersion = disp$n_prior_dispersion,
       pwt_measurement    = pwt_measurement_out,
       n_prior_measurement = n_prior_measurement_out,
+      pwt_measurement_group = if (is_gaussian) meas_group$pwt_measurement else NULL,
+      n_prior_measurement_group = if (is_gaussian) meas_group$n_prior_measurement else NULL,
       max_disp_perc      = max_disp_perc,
       intercept_source   = intercept_source,
       effects_source     = effects_source,
+      data               = data,
+      block_formula      = block_formula,
+      sd_tau             = sd_tau_out,
       design             = design,
       fit_ref            = fit_ref,
       dispersion_ranef   = dispersion_ranef,
       Sigma_ranef        = Sigma_ranef,
       prior_list            = prior_list,
       ing_prior             = ing_prior,
-      ing_prior_measurement = ing_prior_measurement
+      ing_prior_measurement = ing_prior_measurement,
+      ing_prior_measurement_group = ing_prior_measurement_group
     ),
     class = "lmebayes_prior_setup"
   )
@@ -815,12 +898,34 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
       ))
       if (!is.null(x$pwt_measurement)) {
         meas_src <- attr(x$pwt_measurement, "source")
+        pwt_disp <- if (length(x$pwt_measurement) == 1L) {
+          sprintf("%.4g", x$pwt_measurement)
+        } else {
+          paste(
+            sprintf("%s=%.4g", names(x$pwt_measurement), x$pwt_measurement),
+            collapse = ", "
+          )
+        }
         cat(sprintf(
-          "  pwt_measurement : %.4g  [%s]\n",
-          x$pwt_measurement,
+          "  pwt_measurement : %s  [%s]\n",
+          pwt_disp,
           if (is.null(meas_src)) "unknown" else meas_src
         ))
       }
+    }
+    ing_grp <- x$ing_prior_measurement_group
+    if (!is.null(ing_grp)) {
+      grp_nms <- names(ing_grp)
+      guard_df <- data.frame(
+        group     = grp_nms,
+        n_j       = vapply(ing_grp, `[[`, 0, "n_j"),
+        n_prior   = vapply(ing_grp, `[[`, 0, "n_prior"),
+        sigma2_hat = vapply(ing_grp, `[[`, 0, "sigma2_hat"),
+        pwt_group = vapply(ing_grp, `[[`, 0, "pwt_group"),
+        stringsAsFactors = FALSE
+      )
+      cat("\n--- Per-group Block~1 sigma^2 calibration (dGamma_list) ---\n")
+      print(round(guard_df, digits))
     }
   } else {
     cat("  dispersion_ranef : NULL  (no observation-level dispersion)\n")

@@ -1029,7 +1029,8 @@ NULL
   list(
     b                = b_mat,
     dispersion_ranef = dispersion_ranef,
-    iters_mean       = mean(iters_j)
+    iters_mean       = mean(iters_j),
+    iters_group      = stats::setNames(iters_j, group_levels)
   )
 }
 
@@ -1122,6 +1123,7 @@ NULL
     ing_prior_list,
     family,
     ptypes,
+    iters_ranef_group = NULL,
     progbar = FALSE,
     progbar_prefix = "",
     progbar_finish_newline = TRUE
@@ -1144,6 +1146,18 @@ NULL
     )
   } else {
     numeric(n)
+  }
+  if (group_mode) {
+    if (is.null(iters_ranef_group)) {
+      iters_ranef_group <- matrix(
+        0,
+        nrow = n,
+        ncol = length(group_levels),
+        dimnames = list(NULL, group_levels)
+      )
+    } else {
+      iters_ranef_group <- iters_ranef_group + 0
+    }
   }
   debug_b1 <- isTRUE(getOption("glmbayesCore.debug_block1_ing_levels", FALSE))
 
@@ -1170,6 +1184,8 @@ NULL
     )
     if (group_mode) {
       dispersion_ranef[i, ] <- out$dispersion_ranef[group_levels]
+      iters_ranef_group[i, ] <- iters_ranef_group[i, ] +
+        out$iters_group[group_levels]
     } else {
       dispersion_ranef[i] <- out$dispersion_ranef
     }
@@ -1183,6 +1199,7 @@ NULL
       batch$b, group_levels, re_names, n
     ),
     iters_ranef      = batch$iters_ranef,
+    iters_ranef_group = if (group_mode) iters_ranef_group else NULL,
     dispersion_ranef = dispersion_ranef
   )
 }
@@ -1200,7 +1217,8 @@ NULL
     re_names,
     group_levels,
     design,
-    collect_block1 = TRUE
+    collect_block1 = TRUE,
+    iters_ranef_group = NULL
 ) {
   out <- .rGLMM_sweep_save(
     n              = n,
@@ -1215,6 +1233,9 @@ NULL
     collect_block1 = collect_block1
   )
   out$dispersion_ranef <- dispersion_ranef
+  if (!is.null(iters_ranef_group)) {
+    out$iters_sigma2_draws <- iters_ranef_group
+  }
   out
 }
 
@@ -1276,6 +1297,17 @@ NULL
   progbar_use <- isTRUE(progbar)
   sweep_stats <- vector("list", inner_sweeps)
   dispersion_ranef <- numeric(n_chains)
+  group_mode <- !is.null(ing_prior_list$shape_group)
+  iters_ranef_group <- if (group_mode) {
+    matrix(
+      0,
+      nrow = n_chains,
+      ncol = length(group_levels),
+      dimnames = list(NULL, group_levels)
+    )
+  } else {
+    NULL
+  }
 
   for (m in seq_len(inner_sweeps)) {
     prefix_b1 <- if (progbar_use) {
@@ -1302,6 +1334,7 @@ NULL
       ing_prior_list         = ing_prior_list,
       family                 = family,
       ptypes                 = ptypes,
+      iters_ranef_group      = iters_ranef_group,
       progbar                = progbar_use,
       progbar_prefix         = prefix_b1,
       progbar_finish_newline = FALSE
@@ -1310,6 +1343,9 @@ NULL
     batch$b           <- b1$b
     batch$iters_ranef <- b1$iters_ranef
     dispersion_ranef  <- b1$dispersion_ranef
+    if (group_mode) {
+      iters_ranef_group <- b1$iters_ranef_group
+    }
 
     b2 <- .two_block_block2_all_chains(
       n                      = batch$n,
@@ -1353,6 +1389,7 @@ NULL
     b              = batch$b,
     iters          = batch$iters,
     iters_ranef    = batch$iters_ranef,
+    iters_ranef_group = iters_ranef_group,
     dispersion_ranef = dispersion_ranef,
     re_names       = re_names,
     group_levels   = group_levels,
@@ -1394,6 +1431,9 @@ NULL
     colMeans(sweep_out$dispersion_ranef)
   } else {
     mean(sweep_out$dispersion_ranef)
+  }
+  if (!is.null(sweep_out$iters_sigma2_draws)) {
+    staged$sigma2.iters <- sweep_out$iters_sigma2_draws
   }
   staged$sweep_history         <- sweep_out$sweep_history
   staged
