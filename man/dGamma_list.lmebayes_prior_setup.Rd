@@ -62,7 +62,10 @@ shared population \code{sd_tau}).  Truncation bounds use an approximate
 posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j}:
 \code{disp_lower} is OLS-anchored at \code{sigma2_hat_j}; \code{disp_upper}
 widens by the BLUP/OLS residual RSS inflation ratio when
-\code{disp_upper_anchor = "blup"} (default).
+\code{disp_upper_anchor = "blup"} (default). See
+\code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation of
+the marginal Gamma prior and this truncation window, plus a proposed
+refinement and its empirical validation.
 
 The returned list carries attribute \code{"window_diagnostics"}: a data
 frame with cross-percentiles of the asymmetric truncation window and flag
