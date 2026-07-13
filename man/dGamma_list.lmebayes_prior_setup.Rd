@@ -8,6 +8,10 @@
   object,
   max_disp_perc = NULL,
   disp_upper_anchor = c("blup", "symmetric"),
+  warn_asymmetric = NULL,
+  print_asymmetric = NULL,
+  asymmetric_R_lo = NULL,
+  asymmetric_R_hi = NULL,
   ...
 )
 }
@@ -22,11 +26,28 @@ by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).}
 upper-bound rate by \eqn{\mathrm{RSS}_{\mathrm{blup}}/\mathrm{RSS}_{\mathrm{ols}}}
 per group; \code{"symmetric"} uses the same rate as the lower bound.}
 
+\item{warn_asymmetric}{If \code{TRUE} (default), warn when any group's
+truncation window is flagged as asymmetric.  Defaults to option
+\code{glmbayesCore.dgamma_window_warn} when \code{NULL}.}
+
+\item{print_asymmetric}{If \code{TRUE}, print a table of flagged groups
+after the warning.  Defaults to option
+\code{glmbayesCore.dgamma_window_print} when \code{NULL}.}
+
+\item{asymmetric_R_lo}{Flag when \code{R_lo = lo_pct_BLUP/lo_pct_OLS} is
+below this threshold (default \code{0.25}, or option
+\code{glmbayesCore.dgamma_window_R_lo}).}
+
+\item{asymmetric_R_hi}{Flag when \code{R_hi = hi_pct_OLS/hi_pct_BLUP} exceeds
+this threshold (default \code{4}, or option
+\code{glmbayesCore.dgamma_window_R_hi}).}
+
 \item{...}{Currently ignored.}
 }
 \value{
 A named list of \code{"pfamily"} objects keyed by group levels,
-suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}.
+suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
+attribute \code{"window_diagnostics"} (data frame, one row per group).
 }
 \description{
 Converts the per-group Block~1 measurement-dispersion calibration stored
@@ -42,6 +63,15 @@ posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j}:
 \code{disp_lower} is OLS-anchored at \code{sigma2_hat_j}; \code{disp_upper}
 widens by the BLUP/OLS residual RSS inflation ratio when
 \code{disp_upper_anchor = "blup"} (default).
+
+The returned list carries attribute \code{"window_diagnostics"}: a data
+frame with cross-percentiles of the asymmetric truncation window and flag
+\code{asymmetric_window} when
+\eqn{R_{\mathrm{lo}} = \mathrm{lo\_pct\_BLUP}/\mathrm{lo\_pct\_OLS} <}
+\code{asymmetric_R_lo} (default \code{0.25}) or
+\eqn{R_{\mathrm{hi}} = \mathrm{hi\_pct\_OLS}/\mathrm{hi\_pct\_BLUP} >}
+\code{asymmetric_R_hi} (default \code{4}).  A \code{\link[base]{warning}}
+is emitted for flagged groups when \code{warn_asymmetric = TRUE}.
 }
 \examples{
 \donttest{

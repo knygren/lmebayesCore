@@ -129,6 +129,7 @@
       call. = FALSE
     )
   }
+  window_diagnostics <- attr(dispersion_ranef, "window_diagnostics")
   dispersion_ranef <- dispersion_ranef[group_levels]
 
   if (is.null(design$re_rank) || !all(design$re_rank[group_levels])) {
@@ -206,7 +207,8 @@
       disp_lower_group = disp_lower_group,
       disp_upper_group = disp_upper_group
     ),
-    dispersion_pfamily    = dispersion_ranef
+    dispersion_pfamily    = dispersion_ranef,
+    window_diagnostics    = window_diagnostics
   )
 }
 
@@ -376,6 +378,7 @@
     dispersion_mode       = disp_res$mode,
     dispersion_pfamily    = disp_res$dispersion_pfamily,
     dispersion_prior_list = disp_res$dispersion_prior_list,
+    window_diagnostics    = disp_res$window_diagnostics,
     Sigma_ranef           = Sigma_ranef,
     prior_list            = prior_list,
     ptypes         = ptypes,
@@ -846,6 +849,119 @@
   }, numeric(1))
 
   stats::setNames(infl, group_levels)
+}
+
+#' \eqn{\sigma^2} CDF under precision \eqn{1/\sigma^2 \sim \mathrm{Gamma}(\code{shape}, \code{rate})}
+#' @noRd
+.lmebayes_dgamma_sigma2_pct_under_rate <- function(sigma2, shape, rate) {
+  if (!is.finite(sigma2) || sigma2 <= 0 ||
+      !is.finite(shape) || shape <= 0 ||
+      !is.finite(rate) || rate <= 0) {
+    return(NA_real_)
+  }
+  1 - stats::pgamma(1 / sigma2, shape = shape, rate = rate)
+}
+
+#' Cross-percentiles for asymmetric per-group \code{dGamma()} truncation windows
+#'
+#' \code{disp_lower} is the nominal lower quantile under the OLS-matched rate;
+#' \code{disp_upper} under the BLUP-scaled upper rate. Returns relative-tail
+#' ratios \code{R_lo = lo_pct_BLUP/lo_pct_OLS} and
+#' \code{R_hi = hi_pct_OLS/hi_pct_BLUP}.
+#' @noRd
+.lmebayes_dgamma_window_cross_percentiles <- function(
+    shape,
+    rate_w,
+    rate_u,
+    max_disp_perc = 0.99,
+    blup_infl = NA_real_,
+    sigma2_hat = NA_real_
+) {
+  win <- .lmebayes_ing_prior_quantile_window_asymmetric(
+    shape         = shape,
+    rate_lower    = rate_w,
+    rate_upper    = rate_u,
+    max_disp_perc = max_disp_perc
+  )
+  lo <- win$disp_lower
+  hi <- win$disp_upper
+  lo_pct_ols  <- 100 * (1 - max_disp_perc)
+  hi_pct_blup <- 100 * max_disp_perc
+  lo_pct_blup <- 100 * .lmebayes_dgamma_sigma2_pct_under_rate(lo, shape, rate_u)
+  hi_pct_ols  <- 100 * .lmebayes_dgamma_sigma2_pct_under_rate(hi, shape, rate_w)
+  R_lo <- lo_pct_blup / lo_pct_ols
+  R_hi <- hi_pct_ols / hi_pct_blup
+  list(
+    disp_lower  = lo,
+    disp_upper  = hi,
+    lo_pct_OLS  = lo_pct_ols,
+    lo_pct_BLUP = lo_pct_blup,
+    hi_pct_BLUP = hi_pct_blup,
+    hi_pct_OLS  = hi_pct_ols,
+    R_lo        = R_lo,
+    R_hi        = R_hi,
+    blup_infl   = blup_infl,
+    sigma2_hat  = sigma2_hat
+  )
+}
+
+#' Flag asymmetric per-group \code{dGamma()} truncation windows
+#' @noRd
+.lmebayes_dgamma_window_asymmetric_flag <- function(
+    R_lo,
+    R_hi,
+    asymmetric_R_lo = 0.25,
+    asymmetric_R_hi = 4
+) {
+  (is.finite(R_lo) && R_lo < asymmetric_R_lo) ||
+    (is.finite(R_hi) && R_hi > asymmetric_R_hi)
+}
+
+#' Warn when per-group \code{dGamma()} window cross-percentiles indicate asymmetry
+#' @noRd
+.lmebayes_warn_dgamma_window_asymmetry <- function(
+    diag,
+    asymmetric_R_lo = 0.25,
+    asymmetric_R_hi = 4,
+    print_table = FALSE
+) {
+  if (is.null(diag) || !is.data.frame(diag) || nrow(diag) < 1L) {
+    return(invisible(diag))
+  }
+  flagged <- diag[
+    !is.na(diag$asymmetric_window) & diag$asymmetric_window,
+    ,
+    drop = FALSE
+  ]
+  if (!nrow(flagged)) {
+    return(invisible(diag))
+  }
+  warning(
+    sprintf(
+      paste0(
+        "%d group(s) with asymmetric dGamma truncation window ",
+        "(R_lo = lo_pct_BLUP/lo_pct_OLS < %g or ",
+        "R_hi = hi_pct_OLS/hi_pct_BLUP > %g): %s."
+      ),
+      nrow(flagged),
+      asymmetric_R_lo,
+      asymmetric_R_hi,
+      paste(flagged$group, collapse = ", ")
+    ),
+    call. = FALSE
+  )
+  if (isTRUE(print_table)) {
+    show_cols <- c(
+      "group", "blup_infl", "R_lo", "R_hi", "lo_pct_BLUP", "hi_pct_OLS"
+    )
+    show_cols <- intersect(show_cols, names(flagged))
+    out <- flagged[, show_cols, drop = FALSE]
+    num_cols <- vapply(out, is.numeric, logical(1L))
+    out[num_cols] <- lapply(out[num_cols], function(x) round(x, 3))
+    cat("\n--- dGamma window asymmetry (flagged groups) ---\n")
+    print(out, row.names = FALSE)
+  }
+  invisible(diag)
 }
 
 #' Approximate-posterior truncation window for per-group Block~1 \eqn{\sigma^2}
