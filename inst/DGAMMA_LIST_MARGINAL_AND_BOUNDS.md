@@ -168,7 +168,11 @@ school  9: n_j=11  sigma2_hat=137.1  blup_infl=1.26  ->  disp_lower=  92.6  disp
 
 ---
 
-## Part III -- A proposed refinement: integrating over random-effect uncertainty
+## Part III -- Integrating over random-effect uncertainty (`disp_center = "dispersion2"`)
+
+Implemented as an opt-in argument: `dGamma_list(ps, disp_center = "dispersion2")`
+(default remains `disp_center = "sigma2_hat"`, i.e. Part II unchanged). See
+Part V for status.
 
 ### Motivation
 
@@ -305,13 +309,62 @@ penalty negligible), `nlme` instead lands slightly below both -- its own
 REML shrinkage-toward-pooled effect on noisy small-`n_j` variance estimates,
 unrelated to the quad penalty.
 
+### `glmmTMB` as the calibration reference itself, not just an external check
+
+The `nlme::lme()` fit above is an *external* validation: it never feeds back
+into `dGamma_list()`'s numbers. `Prior_Setup_lmebayes(..., dispformula =
+~<group_name>)` instead makes an equivalent `glmmTMB::glmmTMB()` fit --
+`glmmTMB(formula, data, dispformula = dispformula, REML = TRUE)` -- the
+*source* of every calibration quantity that would otherwise come from the
+pooled `lmer` fit: `fixef`, the RE variances `tau^2_k` (hence `sd_tau`), and
+the BLUP coefficients used for `blup_infl,j` (Part II). `dispformula = ~1`
+is unaffected (still pooled `lmer`/`glmer`); see `fit_ref`, `mer_fit`, and
+`calibration_source` on the returned object.
+
+Concretely, this changes *which* model's random-slope shrinkage produces
+`sd_tau` and the BLUP residuals in Part I/II above -- previously always
+`lmer`'s pooled-`sigma^2` fit, now `glmmTMB`'s per-group-`sigma^2` fit, which
+is the model whose assumptions actually match a heteroscedastic
+`dGamma_list()`. On the 39-school fixture used throughout this document the
+two references are close enough that Part I/II/IV's worked numbers are
+essentially unchanged (each group has a reasonably large `n_j`, so the
+random-slope variance is well identified by either optimizer). `fit_ref`
+also exposes `sigma2_group` -- `glmmTMB`'s own per-group observation-level
+dispersion (`predict(fit_ref, type = "disp")`, aggregated by group) -- as a
+further diagnostic cross-check against `sigma2_hat,j`, independent of the
+`nlme` comparison in Part IV.
+
+**Caution on small or weakly-identified groups.** Unlike `nlme::lme()`,
+which is only ever an external check here, `glmmTMB`'s fit directly drives
+`dGamma_list()`'s bounds when `dispformula` requests per-group dispersion.
+`glmmTMB` and `lmer` solve the same REML problem with different optimizers
+and can converge to different local optima for a nearly-singular RE
+covariance; on small fixtures (few groups or few observations per group) we
+have observed `glmmTMB` collapse a random-slope variance to a boundary value
+(`Std.Dev. approx 0`) where `lmer` finds a well-separated-from-zero estimate,
+with both fits reporting a converged, positive-definite Hessian (so
+`.lmebayes_glmmtmb_convergence_issues()` cannot flag it as a fitting
+failure -- it is a legitimate, if inconvenient, local optimum). A
+near-zero `tau^2_k` inflates that component's prior precision and can stop
+the `dIndependent_Normal_Gamma` sampler from converging. There is currently
+no automatic fallback for this; if `Prior_Setup_lmebayes(..., dispformula =
+~<group_name>)` produces an implausibly small `sd_tau` component, compare
+against the pooled (`dispformula = ~1`) fit's `Sigma_ranef` and consider
+whether the per-group model is over-parameterized for the available data.
+
 ---
 
 ## Part V -- Status and open questions
 
-- **Part III is not implemented in `dGamma_list()`.** This document records
-  the derivation and validation for a future change; `disp_upper_anchor =
-  "blup"` (Part II) remains the shipped default.
+- **Part III is implemented as `dGamma_list(ps, disp_center = "dispersion2")`**
+  (an R-level reproduction of `EnvelopeCentering()`'s trace correction, run
+  per group with the double-counting pitfall above avoided). The shipped
+  default remains `disp_center = "sigma2_hat"` with `disp_upper_anchor =
+  "blup"` (Part II) -- `disp_center = "dispersion2"` is opt-in and ignores
+  `disp_upper_anchor`. `.lmebayes_group_dispersion2_envelope_centering()`
+  (`R/mixed_rmerb_helpers.R`) is the underlying helper; it is numerically
+  verified against `data-raw/group_dgamma_bounds_derivation_check.R`'s
+  independent reproduction.
 - **Tension with `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md` §8.**
   That note argues the "consistent design" keeps **one shared prior** across
   all groups, varying only the truncation window per group, to avoid

@@ -1506,8 +1506,10 @@ List EnvelopeDispersionBuild(
   
 )
   {
-  
-  
+  glmbayes::env::check_disp_bounds_or_stop(
+    disp_lower, disp_upper, "EnvelopeDispersionBuild (entry)"
+  );
+
   // int disp_grid_type=2;
   // 
   // if(use_parallel) disp_grid_type=2;

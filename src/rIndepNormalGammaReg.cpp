@@ -1061,6 +1061,9 @@ Rcpp::List rIndepNormalGammaReg(
     bool progbar,
     bool return_envelope
 ){
+  glmbayes::env::check_disp_bounds_or_stop(
+    disp_lower, disp_upper, "rIndepNormalGammaReg (entry)"
+  );
   const int p = x.ncol();
   double n_w = 0.0;
   for (int i = 0; i < wt.size(); ++i) {
@@ -1279,6 +1282,34 @@ Rcpp::List rIndepNormalGammaReg(
   // Pass wt-Compute wt2 internally  
     
   // Call C++ envelope orchestrator
+  //
+  // NOTE on disp_lower/disp_upper/n_envopt PROTECT: EnvelopeOrchestrator() takes
+  // Nullable<double>/Nullable<int>, but our incoming disp_lower/disp_upper are
+  // Nullable<NumericVector> and n_envopt is a plain int, so we must materialize
+  // fresh scalar SEXPs via Rcpp::wrap() to pass along. A bare Rcpp::wrap(...)
+  // temporary sitting directly in a call's argument list is NOT protected from
+  // R's garbage collector by C++ temporary-lifetime rules alone -- GC only
+  // respects the PROTECT stack (or genuinely GC-reachable containers), and
+  // R's conservative C-stack scanner is not guaranteed to find such short-lived
+  // temporaries, especially under -O2 where they may live only in registers.
+  // EnvelopeOrchestrator() -> EnvelopeBuild() does a lot of R-level allocation,
+  // which is exactly the kind of GC-triggering work that can reclaim an
+  // unprotected temporary mid-call. We saw this manifest as disp_lower/disp_upper
+  // silently becoming corrupted (observed as exactly 1, 1) between
+  // EnvelopeOrchestrator's entry and its internal call into
+  // EnvelopeDispersionBuild(). Explicit PROTECT/UNPROTECT around the freshly
+  // wrapped SEXPs for the duration of the call removes any dependence on
+  // conservative stack scanning. We use Rcpp::Shield (RAII PROTECT/UNPROTECT)
+  // rather than raw PROTECT/UNPROTECT so the protect stack stays balanced even
+  // if EnvelopeOrchestrator() throws (e.g. via Rcpp::stop() diagnostics).
+  bool has_disp_bounds = !disp_lower.isNull() && !disp_upper.isNull();
+  double disp_lower_val = has_disp_bounds ? Rcpp::as<Rcpp::NumericVector>(disp_lower)[0] : NA_REAL;
+  double disp_upper_val = has_disp_bounds ? Rcpp::as<Rcpp::NumericVector>(disp_upper)[0] : NA_REAL;
+
+  Rcpp::Shield<SEXP> n_envopt_sexp(n_envopt < 0 ? R_NilValue : Rcpp::wrap(n_envopt));
+  Rcpp::Shield<SEXP> disp_lower_sexp(has_disp_bounds ? Rcpp::wrap(disp_lower_val) : R_NilValue);
+  Rcpp::Shield<SEXP> disp_upper_sexp(has_disp_bounds ? Rcpp::wrap(disp_upper_val) : R_NilValue);
+
   Rcpp::List env_out = EnvelopeOrchestrator(
     bstar2,
     A,
@@ -1291,29 +1322,17 @@ Rcpp::List rIndepNormalGammaReg(
     // wt2,
     n,
     Gridtype,
-    
-    // n_envopt: treat negative as NULL
-    (n_envopt < 0 ? R_NilValue : Rcpp::wrap(n_envopt)),
-                
-                shape,
-                rate,
-                RSS_Post2,
-                RSS_ML,
-                max_disp_perc,
-                
-                // disp_lower: Nullable<NumericVector> -> Nullable<double>
-                (disp_lower.isNull()
-                   ? R_NilValue
-                   : Rcpp::wrap(Rcpp::as<Rcpp::NumericVector>(disp_lower)[0])),
-                     
-                     // disp_upper: same logic
-                     (disp_upper.isNull()
-                        ? R_NilValue
-                        : Rcpp::wrap(Rcpp::as<Rcpp::NumericVector>(disp_upper)[0])),
-                          
-                          use_parallel,
-                          use_opencl,
-                          verbose
+    Rcpp::Nullable<int>(SEXP(n_envopt_sexp)),
+    shape,
+    rate,
+    RSS_Post2,
+    RSS_ML,
+    max_disp_perc,
+    Rcpp::Nullable<double>(SEXP(disp_lower_sexp)),
+    Rcpp::Nullable<double>(SEXP(disp_upper_sexp)),
+    use_parallel,
+    use_opencl,
+    verbose
   );
   
   

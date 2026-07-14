@@ -48,6 +48,7 @@ Suggests:
     bayesrules,
     bayestestR,
     LearnBayes,
+    glmmTMB,
     testthat (>= 3.0.0),
     spelling,
     knitr,

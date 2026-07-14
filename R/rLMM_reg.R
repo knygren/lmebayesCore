@@ -423,7 +423,9 @@ NULL
     family            = gaussian(),
     group_levels      = group_levels
   )
-  m_min <- two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+  m_min <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+  )
   m_convergence <- m_min
   calib_meta <- .rLMM_rate_calibration_meta(
     any_non_normal     = any_non_normal,
@@ -690,6 +692,30 @@ NULL
 }
 
 #' Subset an ING \code{prior_list} to identifiable \code{Z_j} columns
+#' Diagnostic-only guard for the disp_lower/disp_upper crash trace
+#'
+#' Fires \emph{only} on an invalid value (never on a legitimate \code{NULL},
+#' which is a valid "unset" state upstream); tagged with the function name
+#' where the invalid value was first observed, to bisect which hop in the
+#' R -> C++ call chain first sees a bad value.
+#' @noRd
+.lmebayes_check_disp_bounds_or_stop <- function(disp_lower, disp_upper, fn_name) {
+  if (is.null(disp_lower) || is.null(disp_upper)) {
+    return(invisible(NULL))
+  }
+  if (!is.numeric(disp_lower) || !is.numeric(disp_upper) ||
+      length(disp_lower) < 1L || length(disp_upper) < 1L ||
+      !is.finite(disp_lower[[1L]]) || !is.finite(disp_upper[[1L]]) ||
+      disp_lower[[1L]] <= 0 || disp_upper[[1L]] <= 0 ||
+      disp_upper[[1L]] <= disp_lower[[1L]]) {
+    stop(sprintf(
+      "invalid disp_lower or disp_upper in function %s. disp_lower=%s, disp_upper=%s",
+      fn_name, paste(disp_lower, collapse = ", "), paste(disp_upper, collapse = ", ")
+    ), call. = FALSE)
+  }
+  invisible(NULL)
+}
+
 #' @noRd
 .rLMM_ing_prior_list_subset <- function(pl_j, keep, re_names) {
   keep <- as.integer(keep)
@@ -749,6 +775,10 @@ NULL
   p_re <- length(re_names)
   n_j  <- nrow(Z_j)
 
+  .lmebayes_check_disp_bounds_or_stop(
+    pl_j$disp_lower, pl_j$disp_upper, ".rLMM_ing_one_group_draw"
+  )
+
   # Resolve effective rank of this school's design (cached or QR).
   rk   <- if (isTRUE(full_rank)) {
     p_re
@@ -786,6 +816,9 @@ NULL
   qr_j  <- qr(Z_j)
   keep  <- qr_j$pivot[seq_len(qr_j$rank)]
   pl_sub <- .rLMM_ing_prior_list_subset(pl_j, keep, re_names)
+  .lmebayes_check_disp_bounds_or_stop(
+    pl_sub$disp_lower, pl_sub$disp_upper, ".rLMM_ing_one_group_draw (Path C)"
+  )
   ing <- rindepNormalGamma_reg(
     n            = 1L,
     y            = y_j,
@@ -826,6 +859,10 @@ NULL
     mu_j,
     re_names
 ) {
+  .lmebayes_check_disp_bounds_or_stop(
+    ing_prior_list$disp_lower, ing_prior_list$disp_upper,
+    ".rLMM_ing_prior_list_for_group (entry)"
+  )
   mu_j <- as.numeric(mu_j)
   if (is.null(names(mu_j)) || !setequal(names(mu_j), re_names)) {
     names(mu_j) <- re_names
@@ -849,6 +886,9 @@ NULL
   if (!is.null(ing_prior_list$disp_upper)) {
     out$disp_upper <- ing_prior_list$disp_upper
   }
+  .lmebayes_check_disp_bounds_or_stop(
+    out$disp_lower, out$disp_upper, ".rLMM_ing_prior_list_for_group (exit)"
+  )
   out
 }
 
@@ -1006,6 +1046,10 @@ NULL
       max_disp_perc = ing_prior_list$max_disp_perc,
       disp_lower    = ing_prior_list$disp_lower_group[[lev]],
       disp_upper    = ing_prior_list$disp_upper_group[[lev]]
+    )
+    .lmebayes_check_disp_bounds_or_stop(
+      pl_group_j$disp_lower, pl_group_j$disp_upper,
+      sprintf(".two_block_block1_ing_group_draw_one_chain (group '%s')", lev)
     )
     pl_j <- .rLMM_ing_prior_list_for_group(
       ing_prior_list = pl_group_j,
@@ -1580,7 +1624,9 @@ NULL
 
   m_min <- NULL
   if (!is.null(tv_tol)) {
-    m_min <- two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+    m_min <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+  )
   }
 
   p_dim            <- sum(vapply(fixef_mode, length, integer(1L)))
@@ -1590,12 +1636,8 @@ NULL
   if (run_pilot && is.null(m_convergence_pilot) && !is.null(tv_tol)) {
     erf1_inv_tv <- stats::qnorm((tv_tol + 1) / 2) / sqrt(2)
     c_tol       <- erf1_inv_tv * 2 * sqrt(2)
-    m_pilot_from_gap <- if (D_max <= c_tol || rate$lambda_star <= 0) {
-      m_min
-    } else {
-      as.integer(ceiling(log(D_max / c_tol) / log(1 / rate$lambda_star)))
-    }
-    m_convergence_pilot <- max(m_min, m_pilot_from_gap)
+    m_pilot_from_gap <- .two_block_m_pilot_from_gap(rate, D_max, c_tol, m_min)
+    m_convergence_pilot <- m_pilot_from_gap
   }
 
   pilot_plan <- .two_block_resolve_pilot_plan(

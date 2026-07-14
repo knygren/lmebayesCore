@@ -12,7 +12,8 @@ two_block_l_for_tv(
   tol,
   method = c("theorem3", "corollary1"),
   D0 = 0,
-  l_max = 1000000L
+  l_max = 1000000L,
+  warn = TRUE
 )
 }
 \arguments{
@@ -30,13 +31,19 @@ from the posterior mean,
 
 \item{tol}{Target total-variation tolerance in (0, 1).}
 
-\item{l_max}{Search cap (error if the bound stays above \code{tol}).}
+\item{l_max}{Search cap for the doubling/bisection search only; not used
+as the returned sweep count when certification fails.}
+
+\item{warn}{If \code{TRUE} (default), emit a single warning when the
+fallback path is taken.  Set \code{FALSE} for repeated internal calls
+(e.g. pilot cost optimization) to avoid warning spam.}
 }
 \value{
 Numeric vector of TV bounds, one per element of \code{l}, capped
 at 1.
 
-Integer: the required number of sweeps.
+Integer: the required number of sweeps, or an uncertified
+fallback (see Details) with a warning when certification fails.
 }
 \description{
 Evaluates the bound on the total variation distance between the
@@ -68,7 +75,11 @@ a half-step, so evaluate at \code{l - 1} when calibrating
 \item \code{two_block_l_for_tv()}: Smallest \code{l} such that
 \code{two_block_tv_bound(rate, l, method, D0) <= tol}.  The bound is
 decreasing in \code{l}, so a doubling search followed by bisection is
-exact.
+exact.  If the bound does not reach \code{tol} within \code{l_max}
+sweeps (near-degenerate \code{rate$lambda_star}, close to 1), a
+\code{warning()} is issued (when \code{warn = TRUE}) and a practical
+uncertified fallback is returned (capped at 200 inner sweeps, i.e.
+\code{l <= 199}), not \code{l_max}.
 
 }}
 \references{

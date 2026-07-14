@@ -32,6 +32,69 @@
   (**`.two_block_tau2_plug_in_from_pfamily()`**, `rate/(shape−1)`). Removed
   joint posterior-mode τ² iteration (**`two_block_joint_posterior_mode()`** stack).
 
+* **Scale-invariant ICM stopping rule:** **`glmerb_posterior_mode()`** now
+  measures the Block~2 `delta` used for the `tol`/`converged` check as a
+  per-component Mahalanobis distance \(\sqrt{(\gamma_k^{new}-\gamma_k)^\top
+  P_{\gamma_k}^{\mathrm{post}} (\gamma_k^{new}-\gamma_k)}\) in each RE
+  component's own posterior-precision metric, maximized over components
+  \(k\) — not the previous raw \(\ell_\infty\) change in `fixef`. The old
+  criterion depended on the arbitrary units of each hyper-covariate, so
+  rescaling or whitening an `X_hyper[[k]]` column changed convergence
+  behavior even though the fitted model and posterior were unchanged; the
+  new one does not. The per-block posterior precision (`post_P_list`) is now
+  also hoisted out of the ICM loop since it does not depend on the iteration
+  state. (Superseded for **`lmerb_posterior_mean()`** by the exact closed-form
+  solve below, which has no stopping rule at all.)
+
+* **`lmerb_posterior_mean()` is now an exact closed-form solve, not ICM:**
+  the Gaussian Block~1/Block~2 target is exactly jointly Gaussian, and
+  Block~1's conditional mean per group is affine in the shared hyperparameter
+  vector \(\gamma\) with no direct coupling between groups. Substituting that
+  affine relationship into the Block~2 update eliminates every group's random
+  effect algebraically (a Schur-complement/Henderson-mixed-model-equations
+  elimination), leaving one small linear system in \(\gamma\) alone (dimension
+  = total hyperparameter count, independent of the number of groups \(J\)).
+  Solving it once gives the exact joint mean — no alternating iteration,
+  `tol`, `maxit`, or non-convergence warning is possible for this model, and
+  it costs \(O(J)\) (never a \(J \times J\) or \(J p_{re}\)-dimensional
+  matrix), so it scales to large numbers of groups. `tol`/`maxit` remain
+  accepted (for interface parity with **`glmerb_posterior_mode()`**, which is
+  unchanged and still iterates for non-Gaussian families) but are unused;
+  the return always has `converged = TRUE`, `iterations = 1L`, `delta = 0`.
+  This also restores the exact `D0 = 0` (start at the true posterior mean)
+  assumption that **`two_block_tv_bound()`**/**`two_block_l_for_tv()`**'s
+  sweep-count guarantee relies on, which a non-converged ICM start could
+  silently violate.
+
+* **`two_block_l_for_tv()` no longer errors when the search exceeds `l_max`:**
+  it now issues a single `warning()` (when `warn = TRUE`) and returns a
+  practical uncertified fallback capped at **200 inner sweeps**
+  (`l <= 199`), not `l_max = 1e6`.  The old `l_max` return caused integer
+  overflow in pilot cost optimization (`n_pilot * m_convergence_pilot`)
+  and invalid `n_pilot` values.  Internal repeated calls (pilot cost
+  search) pass `warn = FALSE` to avoid warning spam.  Mode-gap pilot sweep
+  calibration and inner-sweep counts are likewise capped at 200 via
+  `.two_block_cap_inner_sweeps()` / `.two_block_m_pilot_from_gap()`.
+  `l_max`/`m_min` calibration is inherently a best-effort setup step
+  (choosing a burn-in sweep count), not part of the returned draws, so a
+  near-degenerate `rate$lambda_star` (close to 1) should not abort the
+  whole **`lmerb()`**/**`rlmerb()`**/**`glmerb()`**/**`rglmerb()`**
+  call; all internal calibration call sites inherit this automatically.
+
+* **`dGamma_list()` gains `disp_center = c("sigma2_hat", "dispersion2")`:**
+  the default (`"sigma2_hat"`) reproduces the existing per-group truncation
+  window unchanged (mean-matched at `sigma2_hat_j`, upper tail widened by
+  `disp_upper_anchor`). The new opt-in `"dispersion2"` mean-matches both
+  bounds symmetrically at an `EnvelopeCentering()`-style dispersion estimate
+  that integrates over the random effect's own posterior uncertainty
+  (new `n_rss_iter` argument, default `10L`, controls its fixed-point
+  iteration count) instead of BLUP-inflating `sigma2_hat_j`; `disp_upper_anchor`
+  is ignored in this mode. Tends to produce narrower, better-centered upper
+  tails for groups with large BLUP/OLS RSS inflation. New helper
+  **`.lmebayes_group_dispersion2_envelope_centering()`**
+  (`R/mixed_rmerb_helpers.R`); `window_diagnostics` gains a `dispersion2`
+  column. See `inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md` Part III.
+
 * **Rate helper rename:** **`two_block_rate_v2()`** removed; use
   **`two_block_rate_from_pfamily_list()`** (`R/two_block_ergodicity.R`)
   for the `pfamily_list` adapter around **`two_block_rate()`**.

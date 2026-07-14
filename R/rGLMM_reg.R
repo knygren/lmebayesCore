@@ -358,9 +358,9 @@ NULL
 
   m_min <- NULL
   if (!is.null(tv_tol)) {
-    m_min <- two_block_l_for_tv(
-      rate, tv_tol, method = "theorem3"
-    ) + 1L
+    m_min <- .two_block_cap_inner_sweeps(
+      two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+    )
   }
 
   p_dim            <- sum(vapply(fixef_mode, length, integer(1L)))
@@ -370,12 +370,8 @@ NULL
   if (run_pilot && is.null(m_convergence_pilot) && !is.null(tv_tol)) {
     erf1_inv_tv <- stats::qnorm((tv_tol + 1) / 2) / sqrt(2)
     c_tol       <- erf1_inv_tv * 2 * sqrt(2)
-    m_pilot_from_gap <- if (D_max <= c_tol || rate$lambda_star <= 0) {
-      m_min
-    } else {
-      as.integer(ceiling(log(D_max / c_tol) / log(1 / rate$lambda_star)))
-    }
-    m_convergence_pilot <- max(m_min, m_pilot_from_gap)
+    m_pilot_from_gap <- .two_block_m_pilot_from_gap(rate, D_max, c_tol, m_min)
+    m_convergence_pilot <- m_pilot_from_gap
   }
 
   pilot_plan <- .two_block_resolve_pilot_plan(

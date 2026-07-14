@@ -7,11 +7,13 @@
 \method{dGamma_list}{lmebayes_prior_setup}(
   object,
   max_disp_perc = NULL,
+  disp_center = c("sigma2_hat", "dispersion2"),
   disp_upper_anchor = c("blup", "symmetric"),
   warn_asymmetric = NULL,
   print_asymmetric = NULL,
   asymmetric_R_lo = NULL,
   asymmetric_R_hi = NULL,
+  n_rss_iter = 10L,
   ...
 )
 }
@@ -22,9 +24,18 @@ by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).}
 \item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}; defaults to
 \code{object$max_disp_perc}.}
 
+\item{disp_center}{Character: \code{"sigma2_hat"} (default) mean-matches
+the truncation window at each group's calibrated point estimate
+(\code{disp_upper_anchor} controls upper-tail widening); \code{"dispersion2"}
+mean-matches symmetrically at an envelope-centering dispersion estimate
+that integrates over random-effect uncertainty instead (Part III of
+\code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md}; ignores
+\code{disp_upper_anchor}).}
+
 \item{disp_upper_anchor}{Character: \code{"blup"} (default) scales the
 upper-bound rate by \eqn{\mathrm{RSS}_{\mathrm{blup}}/\mathrm{RSS}_{\mathrm{ols}}}
-per group; \code{"symmetric"} uses the same rate as the lower bound.}
+per group; \code{"symmetric"} uses the same rate as the lower bound.
+Ignored when \code{disp_center = "dispersion2"}.}
 
 \item{warn_asymmetric}{If \code{TRUE} (default), warn when any group's
 truncation window is flagged as asymmetric.  Defaults to option
@@ -42,12 +53,21 @@ below this threshold (default \code{0.25}, or option
 this threshold (default \code{4}, or option
 \code{glmbayesCore.dgamma_window_R_hi}).}
 
+\item{n_rss_iter}{Positive integer; number of fixed-point iterations for
+the \code{disp_center = "dispersion2"} envelope-centering estimate
+(default \code{10L}). Ignored when \code{disp_center = "sigma2_hat"}.}
+
 \item{...}{Currently ignored.}
 }
 \value{
 A named list of \code{"pfamily"} objects keyed by group levels,
 suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
-attribute \code{"window_diagnostics"} (data frame, one row per group).
+attributes \code{"window_diagnostics"} (data frame, one row per group),
+\code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
+reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
+reuse it as their own \code{dispersion_fit} instead of re-fitting
+\code{glmmTMB} when \code{dispersion_ranef} carries this attribute), and
+\code{"calibration_source"} (\code{object$calibration_source}).
 }
 \description{
 Converts the per-group Block~1 measurement-dispersion calibration stored
@@ -59,13 +79,21 @@ Prior density (\code{shape_ING}, \code{rate_gamma}) comes from
 \code{object$ing_prior_measurement_group} (calibrated in
 \code{Prior_Setup_lmebayes()} via \code{\link{compute_gaussian_prior}} with
 shared population \code{sd_tau}).  Truncation bounds use an approximate
-posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j}:
-\code{disp_lower} is OLS-anchored at \code{sigma2_hat_j}; \code{disp_upper}
-widens by the BLUP/OLS residual RSS inflation ratio when
-\code{disp_upper_anchor = "blup"} (default). See
-\code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation of
-the marginal Gamma prior and this truncation window, plus a proposed
-refinement and its empirical validation.
+posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j},
+mean-matched at one of two per-group centers (\code{disp_center}):
+\describe{
+\item{\code{"sigma2_hat"} (default)}{\code{disp_lower} is OLS-anchored at
+\code{sigma2_hat_j}; \code{disp_upper} widens by the BLUP/OLS residual
+RSS inflation ratio when \code{disp_upper_anchor = "blup"} (default).}
+\item{\code{"dispersion2"}}{Both bounds are mean-matched, symmetrically,
+at a dispersion estimate that integrates over the random effect's own
+posterior uncertainty (an \code{EnvelopeCentering()}-style trace
+correction; \code{disp_upper_anchor} is ignored).  Tends to produce
+narrower, better-centered upper tails than \code{"sigma2_hat"} for
+groups with large BLUP/OLS inflation.}
+}
+See \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (Parts II and III) for
+the full derivation of both constructions and their empirical validation.
 
 The returned list carries attribute \code{"window_diagnostics"}: a data
 frame with cross-percentiles of the asymmetric truncation window and flag

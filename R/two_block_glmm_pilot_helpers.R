@@ -166,9 +166,9 @@
   rate_upper_eig$eigenvalues <- max_eigenvalues
   rate_upper_eig$lambda_star <- max_eigenvalues[1L]
 
-  m_min_upper <- two_block_l_for_tv(
-    rate_upper_eig, tv_tol, method = "theorem3"
-  ) + 1L
+  m_min_upper <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate_upper_eig, tv_tol, method = "theorem3") + 1L
+  )
 
   list(
     rate_upper        = rate_upper_eig,
@@ -259,9 +259,9 @@
   rate_upper_eig$eigenvalues <- max_eigenvalues
   rate_upper_eig$lambda_star <- max_eigenvalues[1L]
 
-  m_min_upper <- two_block_l_for_tv(
-    rate_upper_eig, tv_tol, method = "theorem3"
-  ) + 1L
+  m_min_upper <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate_upper_eig, tv_tol, method = "theorem3") + 1L
+  )
 
   list(
     rate_upper      = rate_upper_eig,

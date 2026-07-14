@@ -47,6 +47,8 @@ Rcpp::List EnvelopeOrchestrator(
     bool use_opencl,
     bool verbose
 ) {
+  check_disp_bounds_or_stop(disp_lower, disp_upper, "EnvelopeOrchestrator (entry)");
+
   // Unknown dispersion always uses full envelope size (3^p grid); smaller grids not supported.
   Gridtype = 3;
 

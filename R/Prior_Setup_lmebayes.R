@@ -161,10 +161,32 @@
 #'     \item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
 #'       the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
 #'     \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
-#'     \item{\code{fit_ref}}{Reference \code{lmer}/\code{glmer} fit on all
-#'       groups (the full-formula fit from \code{\link{model_setup}}).}
+#'     \item{\code{mer_fit}}{Reference \code{lmer}/\code{glmer} fit on all
+#'       groups (the full-formula fit from \code{\link{model_setup}}), always
+#'       present regardless of \code{dispformula} (backs
+#'       \code{dispersion_ranef} and \code{x$lmer}/\code{x$glmer} in
+#'       \code{lmerb()}/\code{glmerb()}).}
+#'     \item{\code{fit_ref}}{The calibration reference for Block~2
+#'       (\code{fixef}/\eqn{\tau^2_k}) and the per-group Block~1 inputs
+#'       (\code{sd_tau}, BLUP coefficients): identical to \code{mer_fit} when
+#'       \code{dispformula = ~1}; otherwise an equivalent \code{glmmTMB}
+#'       fit with the same \code{dispformula} (Gaussian models only). See
+#'       \code{calibration_source}.}
+#'     \item{\code{dispersion_fit}}{\code{NULL} when \code{dispformula = ~1};
+#'       otherwise the same \code{glmmTMB} object as \code{fit_ref}.}
+#'     \item{\code{sigma2_group}}{\code{NULL} when \code{dispformula = ~1};
+#'       otherwise a named length-\eqn{J} vector of per-group observation-level
+#'       dispersion read from \code{fit_ref}'s dispersion linear predictor
+#'       (\code{glmmTMB::predict(fit_ref, type = "disp")}, aggregated by
+#'       group). Diagnostic only -- not the value fed to the sampler; compare
+#'       against \code{ing_prior_measurement_group}'s \code{sigma2_hat}.}
+#'     \item{\code{calibration_source}}{\code{"lme4"} or \code{"glmmTMB"};
+#'       which reference fit produced \code{fit_ref} (and therefore
+#'       \code{prior_list}, \code{ing_prior}, \code{sd_tau}, and
+#'       \code{ing_prior_measurement_group}).}
 #'     \item{\code{dispersion_ranef}}{Scalar \eqn{\sigma^2} for Gaussian models
-#'       only; \code{NULL} otherwise.}
+#'       only; \code{NULL} otherwise. Always derived from \code{mer_fit}
+#'       (pooled), independent of \code{dispformula}.}
 #'     \item{\code{Sigma_ranef}}{Diagonal RE covariance matrix (Block~1).}
 #'     \item{\code{prior_list}}{Named Block~2 prior list per RE coefficient.}
 #'     \item{\code{ing_prior}}{Named per-component list of the prospective
@@ -214,7 +236,11 @@
 #' \strong{Why default calibration depends on classical estimates.}
 #' \code{Prior_Setup_lmebayes} scales Block~2 covariances from
 #' \code{vcov(fit_ref)} by \eqn{(1-\mathrm{pwt})/\mathrm{pwt}} and plugs in
-#' RE variances from the full reference fit.  By default the global intercept
+#' RE variances from the full reference fit, where \code{fit_ref} is the
+#' pooled \code{lmer}/\code{glmer} fit when \code{dispformula = ~1}, or an
+#' equivalent \code{glmmTMB} fit with the same \code{dispformula} when
+#' per-group dispersion is requested (see \code{calibration_source} and
+#' \code{mer_fit} above).  By default the global intercept
 #' prior mean comes from a random-intercept-only null fit; all other prior
 #' means are zero (\code{effects_source = "null_effects"}).  This requires:
 #' \enumerate{
@@ -346,11 +372,12 @@ Prior_Setup_lmebayes <- function(formula,
   design$re_glm_check <- glm_est$re_glm_check
 
   ## Full-rank status is a per-group DESIGN CHECK only (reported by print();
-  ## groups with rank-deficient Z_j are still fully used below).  All
-  ## calibration quantities come from the single reference fit on the full
-  ## formula (fixed effects, RE variances, residual variance).
-  fit_ref <- if (is_gaussian) design$lmer_fit else design$glmer_fit
-  if (is.null(fit_ref)) {
+  ## groups with rank-deficient Z_j are still fully used below).  The lme4
+  ## reference fit is always fit by model_setup() (backward-compat: it backs
+  ## x$lmer/x$glmer in lmerb()/glmerb() and the pooled dispersion_ranef
+  ## scalar, regardless of dispformula).
+  mer_fit <- if (is_gaussian) design$lmer_fit else design$glmer_fit
+  if (is.null(mer_fit)) {
     stop(
       "model_setup() did not return a reference ", mer_label, " fit.",
       call. = FALSE
@@ -358,7 +385,7 @@ Prior_Setup_lmebayes <- function(formula,
   }
 
   mer_issues <- .lmebayes_mer_convergence_issues(
-    fit_ref, sprintf("%s (full formula)", mer_label)
+    mer_fit, sprintf("%s (full formula)", mer_label)
   )
   if (length(mer_issues) > 0L) {
     stop(
@@ -372,14 +399,57 @@ Prior_Setup_lmebayes <- function(formula,
   }
 
   dispersion_ranef <- if (is_gaussian) design$residual_var else NULL
-  tau2_vec         <- design$vcov_re
+
+  ## Calibration reference: when dispformula requests per-group dispersion,
+  ## Block~2 (fixef/tau^2_k) and the per-group Block~1 inputs (sd_tau, BLUP
+  ## coefficients) come from an equivalent glmmTMB fit instead of the pooled
+  ## lme4 fit above, so the heteroscedastic structure that dispformula
+  ## requests is reflected in every calibrated quantity, not only in
+  ## dGamma_list()'s per-group densities. See
+  ## inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md.
+  calibration_source <- "lme4"
+  sigma2_group_ref   <- NULL
+  if (is_gaussian && identical(dispformula_kind, "group")) {
+    fit_ref <- .lmebayes_fit_glmmtmb_reference(
+      formula     = formula,
+      data        = data,
+      family      = family,
+      dispformula = dispformula,
+      REML        = TRUE
+    )
+    tmb_issues <- .lmebayes_glmmtmb_convergence_issues(
+      fit_ref, "glmmTMB (full formula, per-group dispersion)"
+    )
+    if (length(tmb_issues) > 0L) {
+      stop(
+        "Prior_Setup_lmebayes() requires a converged glmmTMB reference fit ",
+        "for dispformula = ~", design$group_name, ":\n  - ",
+        paste(tmb_issues, collapse = "\n  - "),
+        "\n\nRevise the model or supply hyperpriors manually without ",
+        "Prior_Setup_lmebayes().",
+        call. = FALSE
+      )
+    }
+    vc_ref   <- extract_glmmtmb_variance_components(
+      fit_ref, design$re_coef_names, design$group_name
+    )
+    tau2_vec <- vc_ref$vcov_re
+    sigma2_group_ref <- .lmebayes_glmmtmb_group_sigma2(
+      fit_ref, design$group_name, levels(design$groups)
+    )
+    calibration_source <- "glmmTMB"
+  } else {
+    fit_ref  <- mer_fit
+    tau2_vec <- design$vcov_re
+  }
+  ref_label <- if (identical(calibration_source, "glmmTMB")) "glmmTMB" else mer_label
 
   p_re        <- length(design$re_coef_names)
   Sigma_ranef <- diag(unname(tau2_vec), nrow = p_re, ncol = p_re)
   dimnames(Sigma_ranef) <- list(design$re_coef_names, design$re_coef_names)
 
-  fe   <- lme4::fixef(fit_ref)
-  V_fe <- as.matrix(stats::vcov(fit_ref))
+  fe   <- .lmebayes_reference_fixef(fit_ref)
+  V_fe <- .lmebayes_reference_vcov(fit_ref)
 
   fe_name_for <- function(k, col) {
     if (k == "(Intercept)") {
@@ -411,7 +481,7 @@ Prior_Setup_lmebayes <- function(formula,
           re_issues,
           sprintf(
             paste0(
-              "%s: random slope has no fixed main effect in ", mer_label,
+              "%s: random slope has no fixed main effect in ", ref_label,
               " (add '%s' to the fixed part of the formula)"
             ),
             k, k
@@ -432,7 +502,7 @@ Prior_Setup_lmebayes <- function(formula,
           re_issues,
           sprintf(
             "%s: no %s fixed effect for %s",
-            k, mer_label,
+            k, ref_label,
             paste(expected_fe[miss_idx], collapse = ", ")
           )
         )
@@ -484,26 +554,41 @@ Prior_Setup_lmebayes <- function(formula,
     null_formula <- stats::as.formula(
       paste(resp_nm, "~ 1 + (1 |", grp_nm, ")", sep = "")
     )
-    null_fit <- if (is_gaussian) {
-      lme4::lmer(null_formula, data = data, REML = TRUE, control = ctrl)
-    } else if (is.null(ctrl)) {
-      lme4::glmer(null_formula, family = family, data = data)
+    if (identical(calibration_source, "glmmTMB")) {
+      ## Match the heteroscedastic reference so the global intercept prior
+      ## mean is calibrated consistently with fit_ref above.
+      null_fit <- .lmebayes_fit_glmmtmb_reference(
+        formula     = null_formula,
+        data        = data,
+        family      = family,
+        dispformula = dispformula,
+        REML        = TRUE
+      )
+      null_issues <- .lmebayes_glmmtmb_convergence_issues(
+        null_fit, "glmmTMB (null intercept model, per-group dispersion)"
+      )
     } else {
-      lme4::glmer(null_formula, family = family, data = data, control = ctrl)
+      null_fit <- if (is_gaussian) {
+        lme4::lmer(null_formula, data = data, REML = TRUE, control = ctrl)
+      } else if (is.null(ctrl)) {
+        lme4::glmer(null_formula, family = family, data = data)
+      } else {
+        lme4::glmer(null_formula, family = family, data = data, control = ctrl)
+      }
+      null_issues <- .lmebayes_mer_convergence_issues(
+        null_fit, sprintf("%s (null intercept model)", mer_label)
+      )
     }
-    null_issues <- .lmebayes_mer_convergence_issues(
-      null_fit, sprintf("%s (null intercept model)", mer_label)
-    )
     if (length(null_issues) > 0L) {
       stop(
-        "Prior_Setup_lmebayes() requires a converged ", mer_label,
+        "Prior_Setup_lmebayes() requires a converged ", ref_label,
         " random-intercept-only null fit for intercept_source = \"null_model\":\n  - ",
         paste(null_issues, collapse = "\n  - "),
         "\n\nUse intercept_source = \"full_model\" or revise the model.",
         call. = FALSE
       )
     }
-    fe_null <- lme4::fixef(null_fit)
+    fe_null <- .lmebayes_reference_fixef(null_fit)
   }
 
   prior_list <- stats::setNames(
@@ -700,7 +785,11 @@ Prior_Setup_lmebayes <- function(formula,
       block_formula      = block_formula,
       sd_tau             = sd_tau_out,
       design             = design,
+      mer_fit            = mer_fit,
       fit_ref            = fit_ref,
+      dispersion_fit     = if (identical(calibration_source, "glmmTMB")) fit_ref else NULL,
+      sigma2_group       = sigma2_group_ref,
+      calibration_source = calibration_source,
       dispersion_ranef   = dispersion_ranef,
       Sigma_ranef        = Sigma_ranef,
       prior_list            = prior_list,
@@ -940,6 +1029,8 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
               if (!is.null(x$effects_source)) x$effects_source else "full_model"))
   cat(sprintf("  dispformula      : %s\n",
               if (!is.null(x$dispformula)) deparse(x$dispformula) else "~1"))
+  cat(sprintf("  calibration_source: %s  (fixef/tau2_k/sd_tau reference fit)\n",
+              if (!is.null(x$calibration_source)) x$calibration_source else "lme4"))
   if (!is.null(x$dispersion_ranef)) {
     cat(sprintf(
       "  dispersion_ranef : %.4f  (sigma2, fixed from all %d %s)\n",

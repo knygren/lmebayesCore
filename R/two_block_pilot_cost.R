@@ -89,8 +89,12 @@ two_block_m_convergence_for_pilot_start <- function(rate,
     stop("'n_pilot' must be a positive integer.", call. = FALSE)
   }
   D0 <- two_block_d0_pilot_start(n_pilot, p, pilot_start_tol)
-  m_min <- two_block_l_for_tv(rate, tv_tol, method = method, D0 = 0) + 1L
-  m_conv <- two_block_l_for_tv(rate, tv_tol, method = method, D0 = D0) + 1L
+  m_min <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate, tv_tol, method = method, D0 = 0, warn = FALSE) + 1L
+  )
+  m_conv <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(rate, tv_tol, method = method, D0 = D0, warn = FALSE) + 1L
+  )
   list(
     n_pilot         = n_pilot,
     D0              = D0,
@@ -133,8 +137,8 @@ two_block_pilot_sampling_cost <- function(n,
     pilot_start_tol = pilot_start_tol,
     method          = method
   )
-  pilot_cost <- n_pilot * m_convergence_pilot
-  main_cost  <- n * conv$m_convergence
+  pilot_cost <- as.numeric(n_pilot) * as.numeric(m_convergence_pilot)
+  main_cost  <- as.numeric(n) * as.numeric(conv$m_convergence)
   c(
     conv,
     list(
@@ -388,6 +392,11 @@ two_block_optimize_pilot_cost <- function(n,
       )
       m_convergence <- m_min
     }
+  }
+
+  m_convergence <- .two_block_cap_inner_sweeps(m_convergence)
+  if (!is.null(m_certificate)) {
+    m_certificate <- .two_block_cap_inner_sweeps(m_certificate)
   }
 
   list(

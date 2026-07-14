@@ -53,6 +53,55 @@ using namespace Rcpp;
 namespace glmbayes{
 
 namespace env{
+
+// --- Diagnostic-only guards for the disp_lower/disp_upper crash trace ---
+// Fire *only* on an invalid value (never on a legitimate NULL, which selects
+// the auto-compute-from-qgamma path in EnvelopeDispersionBuild()), tagged
+// with the function name where the invalid value was first observed. These
+// are cheap, always-on sanity checks (no debug flag) meant to bisect exactly
+// which hop in the R -> C++ call chain first sees a bad value.
+inline void check_disp_bounds_or_stop(
+    double disp_lower,
+    double disp_upper,
+    const char* fn_name
+) {
+  if (!R_finite(disp_lower) || !R_finite(disp_upper) ||
+      disp_lower <= 0.0 || disp_upper <= 0.0 || disp_upper <= disp_lower) {
+    Rcpp::stop(
+      "invalid disp_lower or disp_upper in function %s. disp_lower=%g, disp_upper=%g",
+      fn_name, disp_lower, disp_upper
+    );
+  }
+}
+
+inline void check_disp_bounds_or_stop(
+    Rcpp::Nullable<double> disp_lower,
+    Rcpp::Nullable<double> disp_upper,
+    const char* fn_name
+) {
+  if (disp_lower.isNull() || disp_upper.isNull()) return;
+  check_disp_bounds_or_stop(
+    Rcpp::as<double>(disp_lower), Rcpp::as<double>(disp_upper), fn_name
+  );
+}
+
+inline void check_disp_bounds_or_stop(
+    Rcpp::Nullable<Rcpp::NumericVector> disp_lower,
+    Rcpp::Nullable<Rcpp::NumericVector> disp_upper,
+    const char* fn_name
+) {
+  if (disp_lower.isNull() || disp_upper.isNull()) return;
+  Rcpp::NumericVector lo_v = Rcpp::as<Rcpp::NumericVector>(disp_lower);
+  Rcpp::NumericVector up_v = Rcpp::as<Rcpp::NumericVector>(disp_upper);
+  if (lo_v.size() < 1 || up_v.size() < 1) {
+    Rcpp::stop(
+      "invalid disp_lower or disp_upper in function %s. disp_lower=<empty>, disp_upper=<empty>",
+      fn_name
+    );
+  }
+  check_disp_bounds_or_stop(lo_v[0], up_v[0], fn_name);
+}
+
 Rcpp::List EnvelopeSize(const arma::vec& a,
                         const Rcpp::NumericMatrix& G1,
                         int Gridtype   = 2,

@@ -64,7 +64,7 @@ message(sprintf(
 ## ---------------------------------------------------------------------------
 ps <- Prior_Setup_lmebayes(
   form, data = dat, pwt = 0.01, pwt_measurement = 0.1,
-  max_disp_perc = max_disp_perc
+  max_disp_perc = max_disp_perc, dispformula = ~school_id
 )
 disp_pf_current <- dGamma_list(ps, max_disp_perc = max_disp_perc, warn_asymmetric = FALSE)
 window_diag <- attr(disp_pf_current, "window_diagnostics")
@@ -76,8 +76,12 @@ P             <- solve(Sigma_ranef)
 RA            <- chol(P)
 fit_ref       <- ps$fit_ref
 group_name    <- ps$design$group_name
-beta_blup     <- coef(fit_ref)[[group_name]]
-sigma2_pooled_lmer <- stats::sigma(fit_ref)^2
+## fit_ref is a glmmTMB fit here (dispformula = ~school_id); dispatch through
+## the same helper Prior_Setup_lmebayes()/dGamma_list() use internally rather
+## than calling coef()/sigma() directly (glmmTMB's own generics return a
+## $cond/$zi/$disp-nested structure, not a merMod-style named list).
+beta_blup     <- glmbayesCore:::.lmebayes_reference_coef(fit_ref)[[group_name]]
+sigma2_pooled_lmer <- ps$dispersion_ranef
 
 ## ---------------------------------------------------------------------------
 ## 2. Proposed refinement: mean-match at an EnvelopeCentering-style dispersion

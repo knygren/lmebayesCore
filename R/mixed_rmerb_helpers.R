@@ -815,7 +815,7 @@
     group_levels,
     group_name
 ) {
-  beta_blup <- coef(fit_ref)[[group_name]]
+  beta_blup <- .lmebayes_reference_coef(fit_ref)[[group_name]]
   if (is.null(beta_blup)) {
     stop(
       "Reference fit has no random-effect levels for group '", group_name, "'.",
@@ -849,6 +849,88 @@
   }, numeric(1))
 
   stats::setNames(infl, group_levels)
+}
+
+#' Per-group envelope-centering dispersion estimate (for \code{dGamma_list()}
+#' \code{disp_center = "dispersion2"})
+#'
+#' Pure-R replica of the \code{EnvelopeCentering()} trace-correction fixed
+#' point (\code{src/EnvelopeCentering.cpp}), run \strong{without} a dispersion
+#' prior contribution so the group's own \code{n_j} observations are used
+#' exactly once (see "double-counting pitfall",
+#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part III). At a working
+#' dispersion \code{dispersion2}, the posterior mean of \code{b_j} under
+#' \code{b_j ~ N(mu_j, Sigma_ranef)} and the Gaussian likelihood is the
+#' ridge/GLS estimator \code{b2 = (X'X/dispersion2 + P)^{-1} (X'Y/dispersion2
+#' + P mu_j)}; the expected RSS under its posterior
+#' (\code{RSS_precomputed = ||Y - X b2||^2 + tr(X'X Cov(b2))}) updates
+#' \code{dispersion2 <- RSS_precomputed / (n_j - p)} to a 10-iteration (by
+#' default) fixed point.
+#' @noRd
+.lmebayes_group_dispersion2_envelope_centering <- function(
+    data,
+    block_formula,
+    Sigma_ranef,
+    groups,
+    group_levels,
+    intercept_source = c("null_model", "full_model"),
+    effects_source   = c("null_effects", "full_model"),
+    n_rss_iter = 10L
+) {
+  intercept_source <- match.arg(intercept_source)
+  effects_source   <- match.arg(effects_source)
+
+  P  <- solve(Sigma_ranef)
+  RA <- chol(P)
+
+  out <- vapply(group_levels, function(lev) {
+    idx   <- groups == lev
+    dat_j <- data[idx, , drop = FALSE]
+    X <- stats::model.matrix(block_formula, data = dat_j)
+    Y <- stats::model.response(stats::model.frame(block_formula, data = dat_j))
+    n_j <- nrow(X)
+    p   <- ncol(X)
+
+    if (n_j <= p) {
+      stop(
+        "Group '", lev, "': disp_center = \"dispersion2\" requires n_j > p ",
+        "(n_j = ", n_j, ", p = ", p, ").",
+        call. = FALSE
+      )
+    }
+
+    mu_j <- .lmebayes_block_formula_prior_mu(
+      block_formula    = block_formula,
+      dat_j            = dat_j,
+      intercept_source = intercept_source,
+      effects_source   = effects_source
+    )
+    mu_vec <- as.numeric(mu_j)
+
+    fit0 <- stats::lm.fit(X, Y)
+    rss0 <- sum(fit0$residuals^2)
+    dispersion2 <- rss0 / (n_j - p)
+
+    z_bot <- RA %*% mu_vec
+    XtX   <- t(X) %*% X
+
+    for (iter in seq_len(n_rss_iter)) {
+      s <- 1 / sqrt(dispersion2)
+      W <- rbind(s * X, RA)
+      z <- c(s * Y, z_bot)
+      Sigma_post  <- solve(t(W) %*% W)
+      b2          <- Sigma_post %*% (t(W) %*% z)
+      r           <- Y - X %*% b2
+      rss_at_mean <- sum(r^2)
+      trace_term  <- sum(diag(XtX %*% Sigma_post))
+      RSS_precomputed <- rss_at_mean + trace_term
+      dispersion2 <- RSS_precomputed / (n_j - p)
+    }
+
+    dispersion2
+  }, numeric(1))
+
+  stats::setNames(out, group_levels)
 }
 
 #' \eqn{\sigma^2} CDF under precision \eqn{1/\sigma^2 \sim \mathrm{Gamma}(\code{shape}, \code{rate})}

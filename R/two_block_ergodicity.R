@@ -771,16 +771,26 @@ two_block_tv_bound <- function(rate,
 #' @describeIn two_block_tv_bound Smallest \code{l} such that
 #'   \code{two_block_tv_bound(rate, l, method, D0) <= tol}.  The bound is
 #'   decreasing in \code{l}, so a doubling search followed by bisection is
-#'   exact.
+#'   exact.  If the bound does not reach \code{tol} within \code{l_max}
+#'   sweeps (near-degenerate \code{rate$lambda_star}, close to 1), a
+#'   \code{warning()} is issued (when \code{warn = TRUE}) and a practical
+#'   uncertified fallback is returned (capped at 200 inner sweeps, i.e.
+#'   \code{l <= 199}), not \code{l_max}.
 #' @param tol Target total-variation tolerance in (0, 1).
-#' @param l_max Search cap (error if the bound stays above \code{tol}).
-#' @return Integer: the required number of sweeps.
+#' @param l_max Search cap for the doubling/bisection search only; not used
+#'   as the returned sweep count when certification fails.
+#' @param warn If \code{TRUE} (default), emit a single warning when the
+#'   fallback path is taken.  Set \code{FALSE} for repeated internal calls
+#'   (e.g. pilot cost optimization) to avoid warning spam.
+#' @return Integer: the required number of sweeps, or an uncertified
+#'   fallback (see Details) with a warning when certification fails.
 #' @export
 two_block_l_for_tv <- function(rate,
                                tol,
                                method = c("theorem3", "corollary1"),
                                D0 = 0,
-                               l_max = 1000000L) {
+                               l_max = 1000000L,
+                               warn = TRUE) {
   if (!is.numeric(tol) || length(tol) != 1L || tol <= 0 || tol >= 1) {
     stop("'tol' must be a single value in (0, 1).", call. = FALSE)
   }
@@ -793,8 +803,17 @@ two_block_l_for_tv <- function(rate,
   while (bnd(hi) > tol) {
     lo <- hi
     if (hi >= l_max) {
-      stop("bound does not reach tol = ", tol, " within l_max = ", l_max,
-           " sweeps.", call. = FALSE)
+      fallback <- .two_block_uncertified_l_fallback(rate, tol)
+      if (isTRUE(warn)) {
+        warning(
+          "TV bound does not reach tol = ", tol, " by ", l_max,
+          " sweeps (lambda* = ", signif(rate$lambda_star, 4),
+          "); using uncertified fallback l = ", fallback,
+          " (m_convergence <= ", .two_block_inner_sweep_cap(), ").",
+          call. = FALSE
+        )
+      }
+      return(fallback)
     }
     hi <- min(2L * hi, as.integer(l_max))
   }
@@ -803,4 +822,57 @@ two_block_l_for_tv <- function(rate,
     if (bnd(mid) <= tol) hi <- mid else lo <- mid
   }
   hi
+}
+
+#' Practical cap on inner Gibbs sweeps per stored draw (burn-in setup)
+#' @noRd
+.two_block_inner_sweep_cap <- function(cap_m = 200L) {
+  cap_m <- as.integer(cap_m[1L])
+  if (length(cap_m) < 1L || !is.finite(cap_m) || cap_m < 1L) 200L else cap_m
+}
+
+#' Clamp an inner-sweep count to a practical maximum
+#' @noRd
+.two_block_cap_inner_sweeps <- function(m, cap_m = 200L) {
+  cap_m <- .two_block_inner_sweep_cap(cap_m)
+  m <- as.integer(m[1L])
+  if (length(m) < 1L || !is.finite(m) || m < 1L) return(10L)
+  min(m, cap_m)
+}
+
+#' Fallback sweep count when the TV bound cannot certify \code{tol}
+#' @noRd
+.two_block_uncertified_l_fallback <- function(rate, tol, cap_m = 200L) {
+  cap_m <- .two_block_inner_sweep_cap(cap_m)
+  cap_l <- max(1L, cap_m - 1L)
+  lam <- rate$lambda_star
+  l_proxy <- 10L
+  if (is.finite(lam) && lam > 0 && lam < 1) {
+    m_proxy <- tryCatch(
+      as.integer(rate$m_for_tol(tol)),
+      error = function(e) NA_integer_
+    )
+    if (is.finite(m_proxy) && m_proxy >= 1L) {
+      l_proxy <- max(1L, m_proxy - 1L)
+    }
+  }
+  as.integer(min(cap_l, max(1L, l_proxy)))
+}
+
+#' Pilot-stage inner sweeps from mode-gap calibration (capped)
+#' @noRd
+.two_block_m_pilot_from_gap <- function(rate, D_max, c_tol, m_min, cap_m = 200L) {
+  m_min <- .two_block_cap_inner_sweeps(m_min, cap_m)
+  if (D_max <= c_tol || !is.finite(rate$lambda_star) || rate$lambda_star <= 0) {
+    return(m_min)
+  }
+  denom <- log(1 / rate$lambda_star)
+  if (!is.finite(denom) || denom <= 0) {
+    return(m_min)
+  }
+  gap_m <- as.integer(ceiling(log(D_max / c_tol) / denom))
+  if (length(gap_m) < 1L || !is.finite(gap_m) || gap_m < 1L) {
+    return(m_min)
+  }
+  .two_block_cap_inner_sweeps(max(m_min, gap_m), cap_m)
 }

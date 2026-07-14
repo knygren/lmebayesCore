@@ -678,6 +678,9 @@ Rcpp::List rIndepNormalGammaReg_cpp_export(
     bool verbose,
     bool progbar
 ) {
+  glmbayes::env::check_disp_bounds_or_stop(
+    disp_lower, disp_upper, "rIndepNormalGammaReg_cpp_export"
+  );
   return rIndepNormalGammaReg(
     n,
     y,

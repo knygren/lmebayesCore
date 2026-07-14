@@ -1258,7 +1258,10 @@ rBeta_reg <- function(
   if (is.null(n_envopt)) n_envopt <- n
   n_envopt <- as.integer(n_envopt)
 
-  
+  .lmebayes_check_disp_bounds_or_stop(
+    disp_lower, disp_upper, "rindepNormalGamma_reg (pre-.Call)"
+  )
+
   core_out <- if (isTRUE(return_envelope)) {
     .rIndepNormalGammaReg_with_envelope_cpp(
       n,

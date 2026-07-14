@@ -27,23 +27,40 @@ when \code{family = gaussian()}; omit for non-Gaussian GLMM families.
 Each \code{prior_list[[k]]} must contain \code{mu_fixef},
 \code{Sigma_fixef}, and \code{dispersion_fixef}.}
 
-\item{tol}{Convergence tolerance on the \eqn{\ell_\infty} change in
-\code{fixef} between successive iterations.  Default \code{1e-10}.}
+\item{tol}{Convergence tolerance for \code{glmerb_posterior_mode()}'s ICM
+loop, on the change in \code{fixef} between successive iterations,
+measured as a Mahalanobis distance in each RE component's own
+posterior-precision metric (\eqn{\sqrt{(\gamma_k^{new} - \gamma_k)^\top
+  P_{\gamma_k}^{\mathrm{post}} (\gamma_k^{new} - \gamma_k)}}, maximized
+over components \eqn{k}), not a raw coordinate-wise \eqn{\ell_\infty}
+change.  This makes convergence invariant to rescaling or whitening any
+\code{X_hyper[[k]]} column.  Default \code{1e-10}.  Accepted but unused
+by \code{lmerb_posterior_mean()}, which solves exactly (see Details) and
+always returns \code{converged = TRUE}, \code{iterations = 1L},
+\code{delta = 0}; kept for interface parity with
+\code{glmerb_posterior_mode()}.}
 
-\item{maxit}{Maximum number of ICM iterations.  Default \code{200L}.}
+\item{maxit}{Maximum number of ICM iterations for
+\code{glmerb_posterior_mode()}.  Default \code{200L}.  Accepted but
+unused by \code{lmerb_posterior_mean()} (see \code{tol}).}
 
 \item{family}{A \code{\link[stats]{family}} object. Defaults to
 \code{gaussian()}.}
 }
 \value{
 A list with components \code{fixef}, \code{b_mean}, \code{converged},
-\code{iterations}, and \code{delta}.
+\code{iterations}, and \code{delta} (the Mahalanobis-distance stopping
+statistic described under \code{tol}; always \code{0} for
+\code{lmerb_posterior_mean()}).
 }
 \description{
-Iterated conditional means/modes (ICM) for the two-block posterior targeted
-by \code{\link{two_block_rNormal_reg}} and \code{\link{rGLMM_reg}}.  Block~2
-hyperparameters \eqn{\gamma} and Block~1 random effects \eqn{b} are updated
-alternately until \code{fixef} stabilizes.
+Joint Block~1/Block~2 posterior location for the two-block posterior
+targeted by \code{\link{two_block_rNormal_reg}} and \code{\link{rGLMM_reg}}.
+\code{lmerb_posterior_mean()} solves for the \emph{exact} joint Gaussian
+mean in closed form (no iteration).  \code{glmerb_posterior_mode()} uses
+iterated conditional modes (ICM): Block~2 hyperparameters \eqn{\gamma} and
+Block~1 random effects \eqn{b} are updated alternately until \code{fixef}
+stabilizes.
 }
 \details{
 \strong{Shared Block~2 update.}
@@ -59,25 +76,36 @@ where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
 \eqn{P_{\gamma_k} = \Sigma_{\gamma_k}^{-1}} from \code{prior_list}.
 
 \strong{Block~1 update} differs by function; see \code{\link{lmerb_posterior_mean}}
-(closed-form Gaussian) vs \code{\link{glmerb_posterior_mode}}
-(\code{\link{rglmb}} mode for general GLMM families).
+(exact closed-form Gaussian solve) vs \code{\link{glmerb_posterior_mode}}
+(ICM using the \code{\link{rglmb}} mode for general GLMM families).
 
 When the response is Gaussian and variance components are fixed, the joint
 posterior is multivariate normal, so \code{glmerb_posterior_mode()} with
-\code{family = gaussian()} matches \code{lmerb_posterior_mean()}.
+\code{family = gaussian()} targets the same mean as
+\code{lmerb_posterior_mean()} (via ICM rather than the closed form).
 }
 \section{Functions}{
 \itemize{
 \item \code{lmerb_posterior_mean()}: Joint posterior \emph{mean} of the
-two-block Gaussian model (= joint mode when variance components are fixed).
-Block~1 uses the closed-form conditional mean update per group \eqn{j}:
+two-block Gaussian model (= joint mode when variance components are
+fixed), computed \emph{exactly} in closed form -- no ICM iteration.
+Block~1's conditional mean per group \eqn{j},
 \deqn{
     E[b_j \mid \gamma] =
     \bigl(Z_j^\top Z_j / \sigma^2 + P_b\bigr)^{-1}
-    \bigl(Z_j^\top y_j / \sigma^2 + P_b \,\mu_j(\gamma)\bigr)
+    \bigl(Z_j^\top y_j / \sigma^2 + P_b \,\mu_j(\gamma)\bigr),
   }
-with \eqn{P_b = \Sigma_b^{-1}} and \eqn{\mu_j(\gamma)} from
-\code{\link{build_mu_all}}.
+is affine in \eqn{\gamma} (via \eqn{\mu_j(\gamma)} from
+\code{\link{build_mu_all}}), and \eqn{b_j} couples only to the shared
+\eqn{\gamma} -- never to another group's \eqn{b_{j'}}.  Substituting this
+affine relationship into the Block~2 update (see Details) eliminates all
+\eqn{b_j} algebraically, leaving one linear system in \eqn{\gamma} alone
+(dimension = total hyperparameter count, independent of the number of
+groups \eqn{J}); solving it once gives the exact joint mean, and one
+back-substitution pass gives \code{b_mean}.  Forming this system costs
+\eqn{O(J)} (one \eqn{p_{re} \times p_{re}} solve per group plus a small
+accumulation), never a \eqn{J \times J} or \eqn{J p_{re}}-dimensional
+matrix, so it scales to large numbers of groups.
 
 \item \code{glmerb_posterior_mode()}: Joint posterior \emph{mode} of the
 two-block GLMM.  Block~1 uses \code{\link{rglmb}} with \code{n = 1L} and a
