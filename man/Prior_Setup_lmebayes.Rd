@@ -14,6 +14,7 @@ Prior_Setup_lmebayes(
   n_prior_dispersion = NULL,
   pwt_measurement = NULL,
   n_prior_measurement = NULL,
+  dispformula = ~1,
   max_disp_perc = 0.99,
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model")
@@ -85,6 +86,19 @@ supplied explicitly).  At most one of \code{pwt_measurement} and
 \item{n_prior_measurement}{Optional positive scalar: absolute effective
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 not groups).  See \code{pwt_measurement}.}
+
+\item{dispformula}{One-sided formula selecting the Block~1 measurement-
+dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
+(matching the random-effects grouping factor exactly, requesting
+per-group dispersion).  Gaussian models only compute the per-group
+\code{ing_prior_measurement_group} calibration (a within-group
+regression fit for every group level, used only by
+\code{\link{dGamma_list}()}) when \code{dispformula} is the group
+formula; \code{dispformula = ~1} skips it entirely, so \code{pwt_measurement}
+/ \code{n_prior_measurement} must then be scalar (pooled).  Mirrors the
+\code{dispformula} argument on \code{lmerb()}/\code{glmerb()} in
+\pkg{lmebayes}, which gates the analogous choice of sampler route; the
+two are independent arguments that must be kept consistent by the caller.}
 
 \item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
 Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
@@ -199,11 +213,14 @@ mean-matched \code{shape} / \code{rate} with
 \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
 the same calibrated \code{shape}/\code{rate}.  Pass these fields to
 \code{\link{dGamma}()}.}
-\item{\code{ing_prior_measurement_group}}{Gaussian models only: named
-list (one entry per group level) of per-group \code{dGamma()} density
+\item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
+when \code{dispformula} requests per-group dispersion: named list
+(one entry per group level) of per-group \code{dGamma()} density
 calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate_gamma},
-\code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  Used by
-\code{\link{dGamma_list}()}; truncation bounds are assembled there.}
+\code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  \code{NULL}
+when \code{dispformula = ~1}.  Used by \code{\link{dGamma_list}()};
+truncation bounds are assembled there.}
+\item{\code{dispformula}}{The \code{dispformula} supplied.}
 }
 
 \code{x} invisibly.

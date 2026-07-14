@@ -87,7 +87,8 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   ps <- Prior_Setup_lmebayes(
     score_ppvt ~ private_school + (1 | school_id),
     data = dat,
-    pwt_measurement = 0.01
+    pwt_measurement = 0.01,
+    dispformula = ~school_id
   )
   disp_pf <- dGamma_list(ps)
   print(disp_pf[[1L]])

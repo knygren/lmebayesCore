@@ -81,6 +81,18 @@
 #' @param n_prior_measurement Optional positive scalar: absolute effective
 #'   prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 #'   not groups).  See \code{pwt_measurement}.
+#' @param dispformula One-sided formula selecting the Block~1 measurement-
+#'   dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
+#'   (matching the random-effects grouping factor exactly, requesting
+#'   per-group dispersion).  Gaussian models only compute the per-group
+#'   \code{ing_prior_measurement_group} calibration (a within-group
+#'   regression fit for every group level, used only by
+#'   \code{\link{dGamma_list}()}) when \code{dispformula} is the group
+#'   formula; \code{dispformula = ~1} skips it entirely, so \code{pwt_measurement}
+#'   / \code{n_prior_measurement} must then be scalar (pooled).  Mirrors the
+#'   \code{dispformula} argument on \code{lmerb()}/\code{glmerb()} in
+#'   \pkg{lmebayes}, which gates the analogous choice of sampler route; the
+#'   two are independent arguments that must be kept consistent by the caller.
 #' @param max_disp_perc Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
 #'   Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
 #'   \eqn{\tau^2_k} (Block~2) truncation windows stored in
@@ -189,11 +201,14 @@
 #'       \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
 #'       the same calibrated \code{shape}/\code{rate}.  Pass these fields to
 #'       \code{\link{dGamma}()}.}
-#'     \item{\code{ing_prior_measurement_group}}{Gaussian models only: named
-#'       list (one entry per group level) of per-group \code{dGamma()} density
+#'     \item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
+#'       when \code{dispformula} requests per-group dispersion: named list
+#'       (one entry per group level) of per-group \code{dGamma()} density
 #'       calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate_gamma},
-#'       \code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  Used by
-#'       \code{\link{dGamma_list}()}; truncation bounds are assembled there.}
+#'       \code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  \code{NULL}
+#'       when \code{dispformula = ~1}.  Used by \code{\link{dGamma_list}()};
+#'       truncation bounds are assembled there.}
+#'     \item{\code{dispformula}}{The \code{dispformula} supplied.}
 #'   }
 #' @details
 #' \strong{Why default calibration depends on classical estimates.}
@@ -222,6 +237,7 @@ Prior_Setup_lmebayes <- function(formula,
                                  n_prior_dispersion = NULL,
                                  pwt_measurement = NULL,
                                  n_prior_measurement = NULL,
+                                 dispformula = ~1,
                                  max_disp_perc = 0.99,
                                  intercept_source = c("null_model", "full_model"),
                                  effects_source   = c("null_effects", "full_model")) {
@@ -296,6 +312,28 @@ Prior_Setup_lmebayes <- function(formula,
     family = family,
     control = ctrl
   )
+
+  dispformula_kind <- .lmebayes_prior_setup_dispformula_kind(
+    dispformula, design$group_name
+  )
+  if (identical(dispformula_kind, "group") && !is_gaussian) {
+    stop(
+      "'dispformula' must be ~1 for family = ", family$family,
+      "() (no observation-level dispersion parameter for per-group ",
+      "measurement-dispersion calibration).",
+      call. = FALSE
+    )
+  }
+  if (identical(dispformula_kind, "pooled") && is_gaussian &&
+      (length(pwt_measurement) > 1L || length(n_prior_measurement) > 1L)) {
+    stop(
+      "'pwt_measurement'/'n_prior_measurement' has more than one value ",
+      "(per-group), but dispformula = ~1 (pooled); use ",
+      "dispformula = ~", design$group_name, " to calibrate per-group ",
+      "measurement-dispersion priors for dGamma_list().",
+      call. = FALSE
+    )
+  }
 
   glm_est <- .lmebayes_block_glm_estimable(
     y       = design$y,
@@ -605,7 +643,7 @@ Prior_Setup_lmebayes <- function(formula,
     NULL
   }
 
-  ing_prior_measurement_group <- if (is_gaussian) {
+  ing_prior_measurement_group <- if (is_gaussian && identical(dispformula_kind, "group")) {
     .lmebayes_calibrate_ing_prior_measurement_group(
       design           = design,
       data             = data,
@@ -655,6 +693,7 @@ Prior_Setup_lmebayes <- function(formula,
       pwt_measurement_group = if (is_gaussian) meas_group$pwt_measurement else NULL,
       n_prior_measurement_group = if (is_gaussian) meas_group$n_prior_measurement else NULL,
       max_disp_perc      = max_disp_perc,
+      dispformula        = dispformula,
       intercept_source   = intercept_source,
       effects_source     = effects_source,
       data               = data,
@@ -672,6 +711,39 @@ Prior_Setup_lmebayes <- function(formula,
     class = "lmebayes_prior_setup"
   )
 }
+## Classify 'dispformula' as "pooled" (~1) or "group" (~<group_name>, matching
+## the random-effects grouping factor exactly).  Gates the (fragile, per-group
+## within-group regression) .lmebayes_calibrate_ing_prior_measurement_group()
+## call: it now runs only for "group", instead of unconditionally for every
+## Gaussian model.  Mirrors lmebayes:::.lmebayes_validate_dispformula(), which
+## performs the analogous check against the resolved dispersion_ranef mode at
+## lmerb()/glmerb() time; the two dispformula arguments are independent and
+## must be kept consistent by the caller.
+#' @keywords internal
+#' @noRd
+.lmebayes_prior_setup_dispformula_kind <- function(dispformula, group_name) {
+  if (!inherits(dispformula, "formula") || length(dispformula) != 2L) {
+    stop(
+      "'dispformula' must be a one-sided formula, either ~1 (pooled) or ~",
+      group_name, " (per-group).",
+      call. = FALSE
+    )
+  }
+  vars <- all.vars(dispformula)
+  if (length(vars) == 0L) {
+    return("pooled")
+  }
+  if (length(vars) == 1L && identical(vars, group_name)) {
+    return("group")
+  }
+  stop(
+    "'dispformula' must be ~1 (pooled) or ~", group_name,
+    " (per-group, matching the random-effects grouping factor); got ",
+    deparse(dispformula), ".",
+    call. = FALSE
+  )
+}
+
 ## Resolve 'pwt' (scalar or list) into a canonical named list with one named
 ## numeric vector per random-effect component, ordered like X_hyper[[k]].
 #' @keywords internal
@@ -866,6 +938,8 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
               if (!is.null(x$intercept_source)) x$intercept_source else "full_model"))
   cat(sprintf("  effects_source   : %s\n",
               if (!is.null(x$effects_source)) x$effects_source else "full_model"))
+  cat(sprintf("  dispformula      : %s\n",
+              if (!is.null(x$dispformula)) deparse(x$dispformula) else "~1"))
   if (!is.null(x$dispersion_ranef)) {
     cat(sprintf(
       "  dispersion_ranef : %.4f  (sigma2, fixed from all %d %s)\n",

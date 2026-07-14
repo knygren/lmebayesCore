@@ -64,7 +64,8 @@
 #'   ps <- Prior_Setup_lmebayes(
 #'     score_ppvt ~ private_school + (1 | school_id),
 #'     data = dat,
-#'     pwt_measurement = 0.01
+#'     pwt_measurement = 0.01,
+#'     dispformula = ~school_id
 #'   )
 #'   disp_pf <- dGamma_list(ps)
 #'   print(disp_pf[[1L]])
@@ -94,9 +95,12 @@ dGamma_list.lmebayes_prior_setup <- function(
 
   ing_grp <- object$ing_prior_measurement_group
   if (is.null(ing_grp)) {
+    grp_nm <- object$design$group_name
     stop(
-      "object has no ing_prior_measurement_group; ",
-      "call Prior_Setup_lmebayes() on a Gaussian model first.",
+      "object has no ing_prior_measurement_group; call Prior_Setup_lmebayes(",
+      "..., dispformula = ~", if (!is.null(grp_nm)) grp_nm else "<group_name>",
+      ") on a Gaussian model to calibrate per-group measurement-dispersion ",
+      "priors (dispformula = ~1, the default, skips this calibration).",
       call. = FALSE
     )
   }
