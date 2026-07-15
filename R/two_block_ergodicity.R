@@ -190,6 +190,7 @@
   )
 }
 
+#' Build Remark-8 joint precision blocks and \eqn{S = P_{12} P_{22}^{-1} P_{21}}
 #' @keywords internal
 .two_block_S_P11 <- function(inp) {
   p_re <- inp$dims$p_re
@@ -197,19 +198,34 @@
   q <- inp$q
   P_b <- inp$P_b
   cols <- inp$gamma_cols
+  b_names <- unlist(
+    lapply(inp$group_levels, function(g) paste(g, inp$re_names, sep = "::")),
+    use.names = FALSE
+  )
 
   S <- matrix(0, q, q)
   G <- matrix(0, q, q)
+  P22 <- matrix(0, J * p_re, J * p_re)
+  P12 <- matrix(0, q, J * p_re)
 
   for (j in seq_len(J)) {
     rows <- inp$row_idx[[j]]
     Z_j <- inp$x[rows, , drop = FALSE]
     w_j <- inp$w[rows]
     B_j <- crossprod(Z_j, Z_j * w_j) + P_b
+    B_j <- 0.5 * (B_j + t(B_j))
     C_j <- P_b %*% solve(B_j, P_b)
     C_j <- 0.5 * (C_j + t(C_j))
 
-    x_j <- lapply(seq_len(p_re), function(k) inp$X_hyper[[k]][j, ])
+    bc <- (j - 1L) * p_re + seq_len(p_re)
+    P22[bc, bc] <- B_j
+
+    x_j <- lapply(seq_len(p_re), function(k) inp$X_hyper[[k]][j, , drop = TRUE])
+    H_j <- matrix(0, p_re, q)
+    for (k in seq_len(p_re)) {
+      H_j[k, cols[[k]]] <- x_j[[k]]
+    }
+    P12[, bc] <- -t(H_j) %*% P_b
 
     for (i in seq_len(p_re)) {
       for (k in i:p_re) {
@@ -230,28 +246,160 @@
   }
   S <- 0.5 * (S + t(S))
   P11 <- 0.5 * (P11 + t(P11))
+  P22 <- 0.5 * (P22 + t(P22))
+  P21 <- t(P12)
+
   dimnames(S) <- list(inp$gamma_names, inp$gamma_names)
   dimnames(P11) <- list(inp$gamma_names, inp$gamma_names)
+  dimnames(P12) <- list(inp$gamma_names, b_names)
+  dimnames(P21) <- list(b_names, inp$gamma_names)
+  dimnames(P22) <- list(b_names, b_names)
 
-  list(S = S, P11 = P11)
+  list(S = S, P11 = P11, P12 = P12, P21 = P21, P22 = P22, P_b = P_b)
+}
+
+#' Print joint precision blocks when \code{lambda*} reaches the numerical ceiling
+#' @keywords internal
+.two_block_print_remark8_precision_stop <- function(
+    ev_raw,
+    blocks,
+    inp,
+    S,
+    tol = .two_block_lambda_star_one_tol()
+) {
+  lam_max <- max(ev_raw)
+  schur_ev <- eigen(
+    0.5 * ((S - blocks$P11) + t(S - blocks$P11)),
+    symmetric = TRUE,
+    only.values = TRUE
+  )$values
+
+  cat("\n=== two_block_rate: lambda* at ceiling (Remark 8 eigenvalue >= 1 - tol) ===\n\n")
+  cat(sprintf(
+    paste0(
+      "  stop tolerance: 1 - tol with tol = %s\n",
+      "  raw max eigenvalue of P11^{-1/2} S P11^{-1/2} = %s\n",
+      "  full raw spectrum (q = %d) = %s\n",
+      "  max eigenvalue of (S - P11) = %s  ",
+      "(should be <= 0 for a valid joint precision)\n\n"
+    ),
+    format(tol, digits = 3),
+    format(lam_max, digits = 17),
+    inp$q,
+    paste(format(sort(ev_raw, decreasing = TRUE), digits = 10), collapse = ", "),
+    format(max(schur_ev), digits = 10)
+  ))
+
+  cat("Rate-calibration context (working weights embed 1/dispersion):\n")
+  cat(sprintf(
+    "  family = %s, weights_source = %s, J = %d, p_re = %d, q = %d, n_obs = %d\n",
+    inp$family, inp$weights_source, inp$dims$J, inp$dims$p_re, inp$q, inp$dims$l2
+  ))
+  cat(sprintf(
+    "  working weights w: min = %s, max = %s, mean = %s\n",
+    format(min(inp$w), digits = 10),
+    format(max(inp$w), digits = 10),
+    format(mean(inp$w), digits = 10)
+  ))
+  if (identical(inp$weights_source, "user") && inp$dims$J >= 1L) {
+    w_by_group <- vapply(inp$row_idx, function(rows) mean(inp$w[rows]), numeric(1L))
+    names(w_by_group) <- inp$group_levels
+    cat("  mean working weight 1/sigma^2 plug-in by group:\n")
+    print(w_by_group)
+  }
+  cat("  P_b (random-effect prior precision, p_re x p_re):\n")
+  print(blocks$P_b)
+
+  cat("\nJoint precision blocks (Nygren 2020; gamma = x_1 updated second, b = x_2):\n\n")
+
+  cat("P11  (q x q; gamma-gamma block):\n")
+  print(blocks$P11)
+
+  cat("\nP12  (q x J*p_re; gamma-to-b cross block; one p_re-wide strip per group):\n")
+  print(blocks$P12)
+
+  cat("\nP21  (= t(P12); J*p_re x q):\n")
+  print(blocks$P21)
+
+  cat("\nP22  (J*p_re x J*p_re; block-diagonal with blocks B_j = Z_j' W_j Z_j + P_b):\n")
+  print(blocks$P22)
+
+  cat("\nS = P12 %*% solve(P22, P21)  (q x q; should match fast-path accumulation):\n")
+  print(S)
+
+  cat("\nPer-group B_j diagonal blocks on P22 (each embeds 1/dispersion via W_j):\n")
+  p_re <- inp$dims$p_re
+  for (j in seq_len(inp$dims$J)) {
+    bc <- (j - 1L) * p_re + seq_len(p_re)
+    cat(sprintf("  [%s]\n", inp$group_levels[[j]]))
+    print(blocks$P22[bc, bc, drop = FALSE])
+  }
+
+  invisible(NULL)
+}
+
+#' Practical tolerance for treating \code{lambda*} as numerically 1
+#'
+#' Values within this distance of 1 round to \code{1.0000} in calibration
+#' output and imply astronomically large TV sweep counts, but are far above
+#' \code{.Machine$double.eps} (e.g. \code{0.99999994} on the 5-school dGamma
+#' fixture). \code{two_block_rate()} stops when the raw maximum reaches this
+#' tolerance.
+#' @noRd
+.two_block_lambda_star_one_tol <- function() 1e-7
+
+#' Threshold above which cross-block coupling is treated as very strong.
+#' @noRd
+.two_block_lambda_star_slow_threshold <- function() 0.95
+
+#' Warn when Remark-8 \code{lambda*} indicates slow two-block mixing.
+#' @noRd
+.two_block_warn_lambda_star_slow <- function(lambda_star, warn = TRUE, call = NULL) {
+  if (!isTRUE(warn)) {
+    return(invisible(NULL))
+  }
+  thr <- .two_block_lambda_star_slow_threshold()
+  if (is.finite(lambda_star) && lambda_star > thr) {
+    warning(
+      "lambda* = ", signif(lambda_star, 4),
+      " exceeds ", thr,
+      ": correlation between the two Gibbs blocks is very high ",
+      "and convergence may be slow.",
+      call. = call
+    )
+  }
+  invisible(NULL)
 }
 
 #' @keywords internal
-.two_block_gen_eigen <- function(S, P11) {
+.two_block_gen_eigen <- function(S, P11, blocks = NULL, inp = NULL) {
   q <- nrow(P11)
   R <- chol(P11)
   Rinv <- backsolve(R, diag(q))
   M <- t(Rinv) %*% S %*% Rinv
   M <- 0.5 * (M + t(M))
-  ev <- eigen(M, symmetric = TRUE, only.values = TRUE)$values
+  ev_raw <- eigen(M, symmetric = TRUE, only.values = TRUE)$values
 
-  if (any(ev >= 1)) {
-    warning(
-      "eigenvalue(s) >= 1 (max = ", format(max(ev), digits = 6),
-      "); clamping to < 1. The joint precision may not be positive definite."
+  lam_max   <- max(ev_raw)
+  one_tol   <- .two_block_lambda_star_one_tol()
+  lam_stop  <- 1 - one_tol
+  lam_clamp <- 1 - .Machine$double.eps
+  if (lam_max >= lam_stop) {
+    if (!is.null(blocks) && !is.null(inp)) {
+      .two_block_print_remark8_precision_stop(
+        ev_raw, blocks, inp, S, tol = one_tol
+      )
+    }
+    stop(
+      "lambda_star equals 1 (raw Remark-8 eigenvalue ",
+      format(lam_max, digits = 17),
+      " >= 1 - ", format(one_tol, digits = 3),
+      "); see printed P11/P12/P21/P22 above.",
+      call. = FALSE
     )
   }
-  ev <- pmin(pmax(ev, 0), 1 - .Machine$double.eps)
+
+  ev <- pmin(pmax(ev_raw, 0), lam_clamp)
   sort(ev, decreasing = TRUE)
 }
 
@@ -298,6 +446,10 @@
 #' @param group_levels Character vector defining group order (default
 #'   \code{levels(block)}); must match the row order of \code{x_hyper}
 #'   when rownames are absent.
+#' @param warn_slow If \code{TRUE} (default), issue a \code{warning()} when
+#'   \code{lambda_star} exceeds \code{0.95} (strong cross-block coupling and
+#'   potentially slow convergence). Set \code{FALSE} for repeated internal
+#'   rate evaluations (e.g. pilot upper-bound scans).
 #' @return Object of class \code{"two_block_rate"}: a list with
 #'   \code{lambda_star} (the Remark 8 rate), \code{eigenvalues} (full
 #'   spectrum \eqn{a_1 \ge \dots \ge a_q} in \eqn{[0,1)}),
@@ -321,7 +473,8 @@ two_block_rate <- function(x,
                            prior_list_block2,
                            weights = NULL,
                            family = gaussian(),
-                           group_levels = levels(block)) {
+                           group_levels = levels(block),
+                           warn_slow = TRUE) {
   cl <- match.call()
   inp <- .two_block_rate_inputs(
     x = x, block = block, x_hyper = x_hyper,
@@ -330,8 +483,9 @@ two_block_rate <- function(x,
     weights = weights, family = family, group_levels = group_levels
   )
   sp <- .two_block_S_P11(inp)
-  ev <- .two_block_gen_eigen(sp$S, sp$P11)
+  ev <- .two_block_gen_eigen(sp$S, sp$P11, blocks = sp, inp = inp)
   lambda_star <- ev[1L]
+  .two_block_warn_lambda_star_slow(lambda_star, warn = warn_slow, call = cl)
 
   m_for_tol <- function(tol) {
     if (!is.numeric(tol) || length(tol) != 1L || tol <= 0 || tol >= 1) {
@@ -348,6 +502,9 @@ two_block_rate <- function(x,
       m_for_tol = m_for_tol,
       S = sp$S,
       P11 = sp$P11,
+      P12 = sp$P12,
+      P21 = sp$P21,
+      P22 = sp$P22,
       dims = inp$dims,
       re_names = inp$re_names,
       gamma_names = inp$gamma_names,
@@ -414,7 +571,8 @@ two_block_rate_from_pfamily_list <- function(x,
                                               pfamily_list,
                                               weights = NULL,
                                               family = gaussian(),
-                                              group_levels = levels(block)) {
+                                              group_levels = levels(block),
+                                              warn_slow = TRUE) {
   re_names <- names(x_hyper)
   pfamily_list <- .two_block_validate_pfamily_list(pfamily_list, re_names)
   prior_list_block2 <- lapply(pfamily_list, function(pf) {
@@ -433,7 +591,8 @@ two_block_rate_from_pfamily_list <- function(x,
     x = x, block = block, x_hyper = x_hyper,
     prior_list_block1 = prior_list_block1,
     prior_list_block2 = prior_list_block2,
-    weights = weights, family = family, group_levels = group_levels
+    weights = weights, family = family, group_levels = group_levels,
+    warn_slow = warn_slow
   )
 }
 ## Likelihood precision (IRLS/Fisher weights) at the random-effects posterior
@@ -773,9 +932,11 @@ two_block_tv_bound <- function(rate,
 #'   decreasing in \code{l}, so a doubling search followed by bisection is
 #'   exact.  If the bound does not reach \code{tol} within \code{l_max}
 #'   sweeps (near-degenerate \code{rate$lambda_star}, close to 1), a
-#'   \code{warning()} is issued (when \code{warn = TRUE}) and a practical
-#'   uncertified fallback is returned (capped at 200 inner sweeps, i.e.
-#'   \code{l <= 199}), not \code{l_max}.
+#'   \code{warning()} is issued (when \code{warn = TRUE}) and the
+#'   uncertified geometric proxy \code{l} from \code{rate$m_for_tol(tol)} is
+#'   returned (not \code{l_max}).  If \code{lambda_star >= 1 -
+#'   .two_block_lambda_star_one_tol()}, \code{\link{two_block_rate}} stops
+#'   before sweep calibration proceeds.
 #' @param tol Target total-variation tolerance in (0, 1).
 #' @param l_max Search cap for the doubling/bisection search only; not used
 #'   as the returned sweep count when certification fails.
@@ -808,8 +969,7 @@ two_block_l_for_tv <- function(rate,
         warning(
           "TV bound does not reach tol = ", tol, " by ", l_max,
           " sweeps (lambda* = ", signif(rate$lambda_star, 4),
-          "); using uncertified fallback l = ", fallback,
-          " (m_convergence <= ", .two_block_inner_sweep_cap(), ").",
+          "); using uncertified fallback l = ", fallback, ".",
           call. = FALSE
         )
       }
@@ -824,27 +984,17 @@ two_block_l_for_tv <- function(rate,
   hi
 }
 
-#' Practical cap on inner Gibbs sweeps per stored draw (burn-in setup)
+#' Coerce an inner-sweep count to a valid positive integer (no upper cap).
 #' @noRd
-.two_block_inner_sweep_cap <- function(cap_m = 200L) {
-  cap_m <- as.integer(cap_m[1L])
-  if (length(cap_m) < 1L || !is.finite(cap_m) || cap_m < 1L) 200L else cap_m
-}
-
-#' Clamp an inner-sweep count to a practical maximum
-#' @noRd
-.two_block_cap_inner_sweeps <- function(m, cap_m = 200L) {
-  cap_m <- .two_block_inner_sweep_cap(cap_m)
+.two_block_cap_inner_sweeps <- function(m) {
   m <- as.integer(m[1L])
   if (length(m) < 1L || !is.finite(m) || m < 1L) return(10L)
-  min(m, cap_m)
+  m
 }
 
 #' Fallback sweep count when the TV bound cannot certify \code{tol}
 #' @noRd
-.two_block_uncertified_l_fallback <- function(rate, tol, cap_m = 200L) {
-  cap_m <- .two_block_inner_sweep_cap(cap_m)
-  cap_l <- max(1L, cap_m - 1L)
+.two_block_uncertified_l_fallback <- function(rate, tol) {
   lam <- rate$lambda_star
   l_proxy <- 10L
   if (is.finite(lam) && lam > 0 && lam < 1) {
@@ -856,13 +1006,13 @@ two_block_l_for_tv <- function(rate,
       l_proxy <- max(1L, m_proxy - 1L)
     }
   }
-  as.integer(min(cap_l, max(1L, l_proxy)))
+  as.integer(max(1L, l_proxy))
 }
 
-#' Pilot-stage inner sweeps from mode-gap calibration (capped)
+#' Pilot-stage inner sweeps from mode-gap calibration
 #' @noRd
-.two_block_m_pilot_from_gap <- function(rate, D_max, c_tol, m_min, cap_m = 200L) {
-  m_min <- .two_block_cap_inner_sweeps(m_min, cap_m)
+.two_block_m_pilot_from_gap <- function(rate, D_max, c_tol, m_min) {
+  m_min <- .two_block_cap_inner_sweeps(m_min)
   if (D_max <= c_tol || !is.finite(rate$lambda_star) || rate$lambda_star <= 0) {
     return(m_min)
   }
@@ -874,5 +1024,5 @@ two_block_l_for_tv <- function(rate,
   if (length(gap_m) < 1L || !is.finite(gap_m) || gap_m < 1L) {
     return(m_min)
   }
-  .two_block_cap_inner_sweeps(max(m_min, gap_m), cap_m)
+  .two_block_cap_inner_sweeps(max(m_min, gap_m))
 }

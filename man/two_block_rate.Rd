@@ -14,7 +14,8 @@ two_block_rate(
   prior_list_block2,
   weights = NULL,
   family = gaussian(),
-  group_levels = levels(block)
+  group_levels = levels(block),
+  warn_slow = TRUE
 )
 
 \method{print}{two_block_rate}(x, tols = c(0.01, 0.001, 1e-06), ...)
@@ -27,7 +28,8 @@ two_block_rate_from_pfamily_list(
   pfamily_list,
   weights = NULL,
   family = gaussian(),
-  group_levels = levels(block)
+  group_levels = levels(block),
+  warn_slow = TRUE
 )
 }
 \arguments{
@@ -55,6 +57,11 @@ families.}
 \item{group_levels}{Character vector defining group order (default
 \code{levels(block)}); must match the row order of \code{x_hyper}
 when rownames are absent.}
+
+\item{warn_slow}{If \code{TRUE} (default), issue a \code{warning()} when
+\code{lambda_star} exceeds \code{0.95} (strong cross-block coupling and
+potentially slow convergence). Set \code{FALSE} for repeated internal
+rate evaluations (e.g. pilot upper-bound scans).}
 
 \item{tols}{Numeric vector of TV tolerances for the implied
 \code{m_convergence} table.}

@@ -148,7 +148,8 @@
       pfamily_list      = pfamily_list,
       weights           = mode_w_i$weights,
       family            = family,
-      group_levels      = group_levels
+      group_levels      = group_levels,
+      warn_slow         = FALSE
     )
     if (is.null(max_eigenvalues)) {
       max_eigenvalues <- rep(-Inf, length(rate_i$eigenvalues))
@@ -241,7 +242,8 @@
       pfamily_list      = pfamily_list,
       weights           = weights_i,
       family            = family,
-      group_levels      = group_levels
+      group_levels      = group_levels,
+      warn_slow         = FALSE
     )
     if (is.null(max_eigenvalues)) {
       max_eigenvalues <- rep(-Inf, length(rate_i$eigenvalues))

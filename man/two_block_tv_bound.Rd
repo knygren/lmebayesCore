@@ -77,9 +77,11 @@ a half-step, so evaluate at \code{l - 1} when calibrating
 decreasing in \code{l}, so a doubling search followed by bisection is
 exact.  If the bound does not reach \code{tol} within \code{l_max}
 sweeps (near-degenerate \code{rate$lambda_star}, close to 1), a
-\code{warning()} is issued (when \code{warn = TRUE}) and a practical
-uncertified fallback is returned (capped at 200 inner sweeps, i.e.
-\code{l <= 199}), not \code{l_max}.
+\code{warning()} is issued (when \code{warn = TRUE}) and the
+uncertified geometric proxy \code{l} from \code{rate$m_for_tol(tol)} is
+returned (not \code{l_max}).  If \code{lambda_star >= 1 -
+  .two_block_lambda_star_one_tol()}, \code{\link{two_block_rate}} stops
+before sweep calibration proceeds.
 
 }}
 \references{
