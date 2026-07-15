@@ -4,8 +4,8 @@
 #' in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
 #' \code{\link{dGamma}} \code{pfamily} objects, one per group level.
 #'
-#' Prior density (\code{shape_ING}, \code{rate_gamma}) comes from
-#' \code{object$ing_prior_measurement_group} (calibrated in
+#' Prior density (\code{shape_ING}, \code{rate} from \eqn{S_{\mathrm{marg}}}
+#' A12 3.3.4) comes from \code{object$ing_prior_measurement_group} (calibrated in
 #' \code{Prior_Setup_lmebayes()} via \code{\link{compute_gaussian_prior}} with
 #' shared population \code{sd_tau}).  Truncation bounds use an approximate
 #' posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j},
@@ -283,7 +283,7 @@ dGamma_list.lmebayes_prior_setup <- function(
 
       dGamma(
         shape          = g$shape_ING,
-        rate           = g$rate_gamma,
+        rate           = g$rate,
         beta           = matrix(0, 1, 1, dimnames = list("(Intercept)", NULL)),
         Inv_Dispersion = TRUE,
         max_disp_perc  = max_disp_perc,

@@ -1,5 +1,21 @@
 # glmbayesCore (development version)
 
+* **Per-group `dGamma_list()` prior now uses the §3.3.4 marginal rate:**
+  **`dGamma_list.lmebayes_prior_setup()`** feeds each group's `dGamma()` the
+  Chapter A12 **§3.3.4** marginal ING rate (`beta` integrated out) instead of
+  the **§3.3.5** fixed-`beta` `rate_gamma`. This is the theoretically correct
+  choice for the Block~1 ING sampler, which draws `sigma2_j` from the
+  marginal law and then `b_j | sigma2_j` (`beta` is never held fixed at a
+  point estimate during that draw). `rate_gamma` remains on
+  `ing_prior_measurement_group` for diagnostic comparison only (printed by
+  a dev-only table in **`Prior_Setup_lmebayes()`** whenever `dispformula`
+  requests per-group dispersion); nothing downstream consumes it. Truncation
+  bounds (`disp_lower`/`disp_upper`, `blup_infl`, `R_lo`/`R_hi`) are
+  unaffected -- they were already mean-matched at `sigma2_hat`, which is now
+  also the new rate's exact prior mean (previously it was not, for the
+  most BLUP-inflated groups). See `inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md`
+  Parts I-II.
+
 * **GLMM router (`.lmebayes_run_glmm_engine()`):** non-Gaussian **`rglmerb()`**
   dispatches through **`REG_ROUTE_TABLE`** to **`rGLMM_reg_known_vcov()`** or
   **`rGLMM_reg_estimated_vcov()`** (replacing a direct **`rGLMM_reg()`** call).

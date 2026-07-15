@@ -745,6 +745,14 @@ Prior_Setup_lmebayes <- function(formula,
     NULL
   }
 
+  ## Dev-only: print A12 3.3.4 rate vs A12 3.3.5 rate_gamma from same calibration; not stored.
+  if (is_gaussian && identical(dispformula_kind, "group") &&
+      !is.null(ing_prior_measurement_group)) {
+    .lmebayes_print_ing_prior_measurement_group_compare(
+      existing = ing_prior_measurement_group
+    )
+  }
+
   pwt_measurement_out <- if (is_gaussian) {
     if (!is.null(pwt_measurement) && length(pwt_measurement) > 1L) {
       w <- meas_group$pwt_measurement
@@ -1080,9 +1088,8 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
     }
     ing_grp <- x$ing_prior_measurement_group
     if (!is.null(ing_grp)) {
-      grp_nms <- names(ing_grp)
       guard_df <- data.frame(
-        group     = grp_nms,
+        group     = names(ing_grp),
         n_j       = vapply(ing_grp, `[[`, 0, "n_j"),
         n_prior   = vapply(ing_grp, `[[`, 0, "n_prior"),
         sigma2_hat = vapply(ing_grp, `[[`, 0, "sigma2_hat"),

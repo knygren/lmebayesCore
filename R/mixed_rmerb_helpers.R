@@ -638,8 +638,176 @@
 
 #' Per-group Gaussian measurement-dispersion calibration (Block~1 dGamma density)
 #'
-#' Mirrors \code{\link{Prior_Setup}} on each group's subset with shared
-#' population \code{sd_tau} for coefficient shrinkage weights.
+#' Within-group glm inputs for per-group measurement-dispersion ING calibration.
+#' @noRd
+.lmebayes_ing_prior_measurement_group_glm_inputs <- function(
+    lev,
+    dat_j,
+    block_formula,
+    sd_tau,
+    family = gaussian(),
+    intercept_source = c("null_model", "full_model"),
+    effects_source = c("null_effects", "full_model")
+) {
+  intercept_source <- match.arg(intercept_source)
+  effects_source   <- match.arg(effects_source)
+
+  mf <- stats::model.frame(block_formula, data = dat_j)
+  X  <- stats::model.matrix(block_formula, data = dat_j)
+  Y  <- stats::model.response(mf)
+  var_names <- colnames(X)
+  nvar <- ncol(X)
+  n_j  <- nrow(X)
+  weights <- rep(1, n_j)
+  offset  <- rep(0, n_j)
+
+  glm_full <- stats::glm.fit(
+    x = X,
+    y = Y,
+    weights = weights,
+    family = family
+  )
+  glm_full$weights <- weights
+  class(glm_full) <- c("glm", "lm")
+
+  V0 <- stats::vcov(glm_full)
+  if (anyNA(V0)) {
+    XtW <- sweep(X, 1, weights, `*`)
+    Gm  <- crossprod(XtW, X)
+    Ginv <- tryCatch(
+      solve(Gm),
+      error = function(e) {
+        stop(
+          "Group '", lev, "': vcov(glm) is NA and (X'WX) is singular.",
+          call. = FALSE
+        )
+      }
+    )
+    res <- Y - X %*% coef(glm_full)
+    rss <- sum(weights * res^2)
+    if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
+      stop(
+        "Group '", lev, "': cannot recover vcov for rank-deficient glm fit.",
+        call. = FALSE
+      )
+    }
+    d_v0 <- rss / (n_j - nvar)
+    V0 <- d_v0 * Ginv
+    dimnames(V0) <- list(var_names, var_names)
+  }
+
+  V0_diag <- diag(V0)
+  if (any(V0_diag <= 0)) {
+    stop(
+      "Group '", lev, "': diagonal entries of V0 must be positive.",
+      call. = FALSE
+    )
+  }
+
+  sd_vec <- sd_tau[var_names]
+  if (anyNA(sd_vec)) {
+    stop(
+      "Group '", lev, "': block_formula coefficients must align with sd_tau names.",
+      call. = FALSE
+    )
+  }
+
+  bhat <- coef(glm_full)
+  res  <- residuals(glm_full, type = "response")
+  rss  <- sum(weights * res^2)
+  if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
+    stop(
+      "Group '", lev, "': Gaussian dispersion requires n_j > p.",
+      call. = FALSE
+    )
+  }
+  dispersion_classical <- rss / (n_j - nvar)
+  mu <- .lmebayes_block_formula_prior_mu(
+    block_formula    = block_formula,
+    dat_j            = dat_j,
+    intercept_source = intercept_source,
+    effects_source   = effects_source
+  )
+
+  list(
+    X                    = X,
+    Y                    = Y,
+    weights              = weights,
+    offset               = offset,
+    V0                   = V0,
+    bhat                 = bhat,
+    dispersion_classical = dispersion_classical,
+    mu_vec               = as.numeric(mu),
+    var_names            = var_names,
+    nvar                 = nvar,
+    n_j                  = n_j,
+    sd_vec               = sd_vec
+  )
+}
+
+#' Pack \code{compute_gaussian_prior()} output for measurement-dispersion lists.
+#' @noRd
+.lmebayes_ing_prior_list_from_cal <- function(
+    cal,
+    n_prior_j,
+    n_j,
+    p_re,
+    pwt_record,
+    pwt_group_j
+) {
+  sh <- cal$shape_ING
+  rt <- cal$rate_gamma
+  list(
+    sigma2_hat  = cal$dispersion,
+    shape       = cal$shape,
+    shape_ING   = sh,
+    rate        = cal$rate,
+    rate_gamma  = rt,
+    E_sigma2    = if (is.finite(sh) && sh > 1 && is.finite(rt) && rt > 0) {
+      rt / (sh - 1)
+    } else {
+      NA_real_
+    },
+    inv_E       = if (is.finite(sh) && sh > 0 && is.finite(rt) && rt > 0) {
+      rt / sh
+    } else {
+      NA_real_
+    },
+    n_prior     = n_prior_j,
+    n_j         = n_j,
+    n_combined  = n_prior_j + n_j,
+    p_re        = p_re,
+    pwt         = pwt_record,
+    pwt_group   = pwt_group_j
+  )
+}
+
+#' \code{compute_gaussian_prior()} on within-group glm inputs and \code{Sigma}.
+#' @noRd
+.lmebayes_compute_ing_prior_cal_from_sigma <- function(inp, Sigma, n_prior_j) {
+  Sigma_0 <- Sigma / inp$dispersion_classical
+  compute_gaussian_prior(
+    X           = inp$X,
+    Y           = inp$Y,
+    weights     = inp$weights,
+    offset      = inp$offset,
+    dispersion  = NULL,
+    n_effective = inp$n_j,
+    bhat        = inp$bhat,
+    mu          = inp$mu_vec,
+    Sigma_0     = Sigma_0,
+    Sigma       = Sigma,
+    n_prior     = n_prior_j,
+    k           = 1
+  )
+}
+
+#' Per-group Block~1 measurement-dispersion calibration for \code{dGamma_list()}.
+#'
+#' \code{sigma2_hat}, \code{shape_ING}, and \code{rate_gamma} from shared
+#' population \code{sd_tau} coefficient shrinkage (\eqn{V_0} scaled by
+#' per-coefficient \code{pwt_j}). Also stores \code{rate} (A12 3.3.4
+#' \eqn{S_{\mathrm{marg}}}) for dev comparison only.
 #' @noRd
 .lmebayes_calibrate_ing_prior_measurement_group <- function(
     design,
@@ -673,136 +841,119 @@
     lapply(group_levels, function(lev) {
       idx   <- design$groups == lev
       dat_j <- data[idx, , drop = FALSE]
-      n_j   <- sum(idx)
       n_prior_j <- unname(n_prior_group[[lev]])
 
-      mf <- stats::model.frame(block_formula, data = dat_j)
-      X  <- stats::model.matrix(block_formula, data = dat_j)
-      Y  <- stats::model.response(mf)
-      var_names <- colnames(X)
-      nvar <- ncol(X)
-      weights <- rep(1, n_j)
-      offset  <- rep(0, n_j)
-
-      glm_full <- stats::glm.fit(
-        x = X,
-        y = Y,
-        weights = weights,
-        family = family
-      )
-      glm_full$weights <- weights
-      class(glm_full) <- c("glm", "lm")
-
-      V0 <- stats::vcov(glm_full)
-      if (anyNA(V0)) {
-        XtW <- sweep(X, 1, weights, `*`)
-        Gm  <- crossprod(XtW, X)
-        Ginv <- tryCatch(
-          solve(Gm),
-          error = function(e) {
-            stop(
-              "Group '", lev, "': vcov(glm) is NA and (X'WX) is singular.",
-              call. = FALSE
-            )
-          }
-        )
-        res <- Y - X %*% coef(glm_full)
-        rss <- sum(weights * res^2)
-        if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
-          stop(
-            "Group '", lev, "': cannot recover vcov for rank-deficient glm fit.",
-            call. = FALSE
-          )
-        }
-        d_v0 <- rss / (n_j - nvar)
-        V0 <- d_v0 * Ginv
-        dimnames(V0) <- list(var_names, var_names)
-      }
-
-      V0_diag <- diag(V0)
-      if (any(V0_diag <= 0)) {
-        stop(
-          "Group '", lev, "': diagonal entries of V0 must be positive.",
-          call. = FALSE
-        )
-      }
-
-      sd_vec <- sd_tau[var_names]
-      if (anyNA(sd_vec)) {
-        stop(
-          "Group '", lev, "': block_formula coefficients must align with sd_tau names.",
-          call. = FALSE
-        )
-      }
-      pwt_j <- V0_diag / (V0_diag + sd_vec^2)
-      names(pwt_j) <- var_names
-
-      if (length(pwt_j) == 1L) {
-        Sigma <- ((1 - pwt_j) / pwt_j) * V0
-      } else {
-        scale_vec <- sqrt((1 - pwt_j) / pwt_j)
-        Sigma <- V0 * outer(scale_vec, scale_vec)
-      }
-
-      bhat <- coef(glm_full)
-      res  <- residuals(glm_full, type = "response")
-      rss  <- sum(weights * res^2)
-      if (n_j <= nvar || !is.finite(rss) || rss <= 0) {
-        stop(
-          "Group '", lev, "': Gaussian dispersion requires n_j > p.",
-          call. = FALSE
-        )
-      }
-      dispersion_classical <- rss / (n_j - nvar)
-      mu <- .lmebayes_block_formula_prior_mu(
-        block_formula    = block_formula,
+      inp <- .lmebayes_ing_prior_measurement_group_glm_inputs(
+        lev              = lev,
         dat_j            = dat_j,
+        block_formula    = block_formula,
+        sd_tau           = sd_tau,
+        family           = family,
         intercept_source = intercept_source,
         effects_source   = effects_source
       )
-      Sigma_0 <- Sigma / dispersion_classical
-      mu_vec  <- as.numeric(mu)
 
-      cal <- compute_gaussian_prior(
-        X           = X,
-        Y           = Y,
-        weights     = weights,
-        offset      = offset,
-        dispersion  = NULL,
-        n_effective = n_j,
-        bhat        = bhat,
-        mu          = mu_vec,
-        Sigma_0     = Sigma_0,
-        Sigma       = Sigma,
-        n_prior     = n_prior_j,
-        k           = 1
+      pwt_j <- diag(inp$V0)
+      pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
+      names(pwt_j) <- inp$var_names
+
+      if (length(pwt_j) == 1L) {
+        Sigma <- ((1 - pwt_j) / pwt_j) * inp$V0
+      } else {
+        scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+        Sigma <- inp$V0 * outer(scale_vec, scale_vec)
+      }
+
+      cal <- .lmebayes_compute_ing_prior_cal_from_sigma(
+        inp, Sigma, n_prior_j
       )
 
       .ing_stop_if_prior_exceeds_data(
         shape       = cal$shape_ING,
-        p           = nvar,
-        n_w         = n_j,
-        detail      = paste0("group '", lev, "' has n_j = ", n_j),
+        p           = inp$nvar,
+        n_w         = inp$n_j,
+        detail      = paste0("group '", lev, "' has n_j = ", inp$n_j),
         limit_label = "n_j",
         prefix      = "Per-group measurement dispersion: "
       )
 
-      list(
-        sigma2_hat  = cal$dispersion,
-        shape       = cal$shape,
-        shape_ING   = cal$shape_ING,
-        rate        = cal$rate,
-        rate_gamma  = cal$rate_gamma,
-        n_prior     = n_prior_j,
-        n_j         = n_j,
-        n_combined  = n_prior_j + n_j,
+      .lmebayes_ing_prior_list_from_cal(
+        cal         = cal,
+        n_prior_j   = n_prior_j,
+        n_j         = inp$n_j,
         p_re        = p_re,
-        pwt         = pwt_j,
-        pwt_group   = unname(pwt_group[[lev]])
+        pwt_record  = pwt_j,
+        pwt_group_j = unname(pwt_group[[lev]])
       )
     }),
     group_levels
   )
+}
+
+#' Print \code{rate_gamma} (A12 3.3.5, downstream) vs \code{rate} (A12 3.3.4
+#' \eqn{S_{\mathrm{marg}}}) from the same per-group calibration.
+#' @noRd
+.lmebayes_print_ing_prior_measurement_group_compare <- function(
+    existing,
+    digits = 4
+) {
+  if (is.null(existing)) {
+    return(invisible(NULL))
+  }
+  grp <- names(existing)
+  if (is.null(grp) || length(grp) < 1L) {
+    return(invisible(NULL))
+  }
+
+  pct_diff <- function(new, old) {
+    if (!is.finite(old) || old == 0) {
+      return(NA_real_)
+    }
+    100 * (new - old) / old
+  }
+
+  inv_E_rate <- function(sh, rt) {
+    if (is.finite(sh) && sh > 0 && is.finite(rt) && rt > 0) {
+      rt / sh
+    } else {
+      NA_real_
+    }
+  }
+
+  tab <- do.call(rbind, lapply(grp, function(g) {
+    ex <- existing[[g]]
+    rt334 <- ex$rate
+    data.frame(
+      group          = g,
+      n_j            = ex$n_j,
+      n_prior        = ex$n_prior,
+      shape_ING      = ex$shape_ING,
+      rate_gamma     = ex$rate_gamma,
+      rate           = rt334,
+      pct_rate       = pct_diff(rt334, ex$rate_gamma),
+      inv_E_gamma    = ex$inv_E,
+      inv_E_rate     = inv_E_rate(ex$shape_ING, rt334),
+      pct_inv_E      = pct_diff(
+        inv_E_rate(ex$shape_ING, rt334),
+        ex$inv_E
+      ),
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(tab) <- NULL
+
+  cat(
+    "\n--- Per-group Block~1 gamma: rate_gamma (A12 3.3.5) vs rate (A12 3.3.4 S_marg) ---\n",
+    "  dGamma_list downstream uses rate (S_marg); rate_gamma retained for comparison.\n",
+    "  sigma2_hat and truncation bounds unchanged.\n\n",
+    sep = ""
+  )
+  num_cols <- vapply(tab, is.numeric, logical(1))
+  if (any(num_cols)) {
+    tab[num_cols] <- lapply(tab[num_cols], round, digits = digits)
+  }
+  print(tab, row.names = FALSE)
+  invisible(tab)
 }
 
 #' BLUP/OLS residual RSS inflation ratio per group (for dGamma upper bounds)
