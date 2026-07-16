@@ -204,7 +204,7 @@ only; \code{NULL} otherwise. Always derived from \code{mer_fit}
 \item{\code{ing_prior}}{Named per-component list of the prospective
 \code{dIndependent_Normal_Gamma} calibration: Gamma precision-prior
 \code{shape} \eqn{= (n_0 + 1 + p_k)/2} and \code{rate}
-\eqn{= \hat\tau^2_k (n_0 + p_k - 1)/2} (the glmbayesCore default
+\eqn{= \hat\tau^2_k (n_0 + p_k - 1)/2} (the lmebayesCore default
 calibration with \eqn{n_0 =} \code{n_prior_dispersion}; since
 \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
@@ -214,7 +214,7 @@ window \code{disp_lower} / \code{disp_upper}: the
 quantiles of the \emph{limiting posterior}
 \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
-precision (glmbayesCore Chapter A12, Theorem 2; inverted to a
+precision (lmebayesCore Chapter A12, Theorem 2; inverted to a
 \eqn{\tau^2} interval).  This window is identical for all
 \eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
 of the exact posterior for every prior strength, and keeps the

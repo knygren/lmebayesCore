@@ -50,7 +50,7 @@ Then
           rate = \tau^2_k \, (n_0 + p_k - 1)/2,}
 where \eqn{p_k} is the number of Block~2 coefficients for
 component \eqn{k} (the \code{shape_ING} convention with the
-glmbayesCore default rate \eqn{b_0}).  Because
+lmebayesCore default rate \eqn{b_0}).  Because
 \eqn{rate = \tau^2_k (shape - 1)}, the implied inverse-Gamma prior
 on the dispersion has mean exactly \eqn{\tau^2_k} for every
 \eqn{n_0} and \eqn{p_k}, while small \code{pwt_dispersion} keeps it

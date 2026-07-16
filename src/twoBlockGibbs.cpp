@@ -21,6 +21,7 @@
 #include "RcppArmadillo.h"
 #include "simfuncs.h"
 #include "progress_utils.h"
+#include "package_ns.h"
 
 #include <iomanip>
 
@@ -345,7 +346,7 @@ List two_block_rNormal_reg_cpp_export(
 // v2: pfamily-based Block 2 contract (development track).
 //
 // Differences vs the v1 driver above:
-//   * Block 2 priors arrive as glmbayesCore pfamily objects (dNormal or
+//   * Block 2 priors arrive as lmebayesCore pfamily objects (dNormal or
 //     dIndependent_Normal_Gamma); the type string in pf$pfamily selects the
 //     Block 2 update (native analogue of rglmb()'s simfun dispatch).
 //   * Block 2 priors are parsed once before the loop (no RNG is consumed in
@@ -520,7 +521,7 @@ void two_block_driver_banner_v3(
     int seed_offset,
     bool have_seed
 ) {
-  Rcpp::Rcout << "--- glmbayesCore two_block_rNormal_reg_v3 (C++ driver)"
+  Rcpp::Rcout << "--- lmebayesCore two_block_rNormal_reg_v3 (C++ driver)"
               << ": n=" << n
               << " m_convergence=" << m_convergence
               << " seed_offset=" << seed_offset
@@ -535,7 +536,7 @@ void two_block_driver_banner_v4(
     bool have_seed,
     int p_dim
 ) {
-  Rcpp::Rcout << "--- glmbayesCore two_block_rNormal_reg_v4 (C++ driver)"
+  Rcpp::Rcout << "--- lmebayesCore two_block_rNormal_reg_v4 (C++ driver)"
               << ": n=" << n
               << " m_convergence=" << m_convergence
               << " seed_offset=" << seed_offset
@@ -552,7 +553,7 @@ void two_block_driver_banner_v5(
     bool have_seed,
     int p_dim
 ) {
-  Rcpp::Rcout << "--- glmbayesCore two_block_rNormal_reg_v5 (C++ driver)"
+  Rcpp::Rcout << "--- lmebayesCore two_block_rNormal_reg_v5 (C++ driver)"
               << ": n=" << n
               << " m_convergence=" << m_convergence
               << " seed_offset=" << seed_offset
@@ -1186,7 +1187,7 @@ Rcpp::NumericVector two_block_block2_rglmb_gamma(
     double& tau2_j,
     double& iters_add
 ) {
-  Rcpp::Environment pkg = Rcpp::Environment::namespace_env("glmbayesCore");
+  Rcpp::Environment pkg = Rcpp::Environment::namespace_env(GLMBAYES_R_NS);
   Rcpp::Function rglmb = pkg["rglmb"];
 
   const int J = group_levels.size();
@@ -2214,7 +2215,7 @@ List two_block_rNormal_reg_v4_cpp_export(
       if (diag_sweeps && i == 0) {
         std::fill(fixef_sum.begin(), fixef_sum.end(), 0.0);
         std::fill(b_sum.begin(), b_sum.end(), 0.0);
-        Rcpp::Rcout << "--- glmbayesCore v4 sweep m=" << (m + 1)
+        Rcpp::Rcout << "--- lmebayesCore v4 sweep m=" << (m + 1)
                     << " / " << m_convergence << " ---\n";
         Rcpp::Rcout << "[" << stage_label << " sweep " << (m + 1)
                     << " / " << m_convergence << " BEFORE load (chain 1), n="

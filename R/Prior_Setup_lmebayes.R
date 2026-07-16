@@ -192,7 +192,7 @@
 #'     \item{\code{ing_prior}}{Named per-component list of the prospective
 #'       \code{dIndependent_Normal_Gamma} calibration: Gamma precision-prior
 #'       \code{shape} \eqn{= (n_0 + 1 + p_k)/2} and \code{rate}
-#'       \eqn{= \hat\tau^2_k (n_0 + p_k - 1)/2} (the glmbayesCore default
+#'       \eqn{= \hat\tau^2_k (n_0 + p_k - 1)/2} (the lmebayesCore default
 #'       calibration with \eqn{n_0 =} \code{n_prior_dispersion}; since
 #'       \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 #'       inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
@@ -202,7 +202,7 @@
 #'       quantiles of the \emph{limiting posterior}
 #'       \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 #'       (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
-#'       precision (glmbayesCore Chapter A12, Theorem 2; inverted to a
+#'       precision (lmebayesCore Chapter A12, Theorem 2; inverted to a
 #'       \eqn{\tau^2} interval).  This window is identical for all
 #'       \eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
 #'       of the exact posterior for every prior strength, and keeps the
@@ -642,14 +642,14 @@ Prior_Setup_lmebayes <- function(formula,
 
   ## Prospective dIndependent_Normal_Gamma calibration per component (used
   ## only when pfamily_list(ptypes = "dIndependent_Normal_Gamma") is chosen):
-  ## Gamma precision prior shape/rate from the glmbayesCore default
+  ## Gamma precision prior shape/rate from the lmebayesCore default
   ## calibration (compute_gaussian_prior() with k = 1):
   ##   shape_ING = (n0 + 1 + p_k)/2,  b_0 = tau2_k * (n0 + p_k - 1)/2.
   ## Since b_0 = tau2_k * (shape_ING - 1), the implied inverse-Gamma prior on
   ## tau^2_k has mean exactly tau2_k for every n0 and p_k.
   ##
   ## The tau^2 truncation window (disp_lower / disp_upper) uses the
-  ## *limiting posterior* of glmbayesCore Chapter A12, Theorem 2 -- the
+  ## *limiting posterior* of lmebayesCore Chapter A12, Theorem 2 -- the
   ## weak-prior (n0 -> 0) limit of the Block 2 posterior Gamma:
   ##   a_inf = (J + 1)/2,  b_inf = tau2_k * (J - 1)/2
   ## (so b_inf/(a_inf - 1) = tau2_k: mean-matched, like the prior).  The
