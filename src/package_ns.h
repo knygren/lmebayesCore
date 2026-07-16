@@ -5,7 +5,7 @@
 // glmbfamfunc, rNormal_reg.wfit, rgamma_ct), system.file("cl", ...), etc.
 // Override at compile time with -DGLMBAYES_R_NS=\"otherpack\" if needed.
 #ifndef GLMBAYES_R_NS
-#define GLMBAYES_R_NS "glmbayesCore"
+#define GLMBAYES_R_NS "lmebayesCore"
 #endif
 
 #endif

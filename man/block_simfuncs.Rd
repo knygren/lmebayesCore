@@ -211,7 +211,7 @@ outcome <- gl(3, 1, 9)
 treatment <- gl(3, 3)
 d.AD <- data.frame(outcome, treatment, counts)
 
-ps <- glmbayesCore::Prior_Setup(counts ~ treatment, family = poisson(), data = d.AD)
+ps <- Prior_Setup(counts ~ treatment, family = poisson(), data = d.AD)
 y <- ps$y
 x <- ps$x
 block <- outcome

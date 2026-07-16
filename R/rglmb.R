@@ -50,8 +50,8 @@
 #'
 #' The original R implementation of \code{glm} was written by Simon Davies (under Ross Ihaka at the University of Auckland) 
 #' and has since been extensively rewritten by members of the R Core Team; its design was inspired by the S function 
-#' described in \insertCite{Hastie1992}{glmbayesCore}, which in turn relies on the formula framework described in 
-#' \insertCite{WilkinsonRogers1973}{glmbayesCore}.
+#' described in \insertCite{Hastie1992}{lmebayesCore}, which in turn relies on the formula framework described in 
+#' \insertCite{WilkinsonRogers1973}{lmebayesCore}.
 #'
 #' The design of the \code{pfamily} family of functions was created by Kjell Nygren and is modeled on how 
 #' \code{glm} uses \code{family} to specify the likelihood. For any implemented combination of family, link, and 
@@ -59,7 +59,7 @@
 #'
 #' A helper, \code{\link{Prior_Setup}}, assists users in choosing prior parameters. It ships with sensible defaults 
 #' but also allows full customization. In particular, the default for \code{dNormal} is a reparameterization of 
-#' Zellner's g-prior \insertCite{zellner1986gprior}{glmbayesCore}.
+#' Zellner's g-prior \insertCite{zellner1986gprior}{lmebayesCore}.
 #'
 #' Currently supported response families are \code{gaussian} (identity link), \code{poisson} and \code{quasipoisson} 
 #' (log link), \code{gamma} (log link), and \code{binomial} and \code{quasibinomial} (logit, probit, cloglog). 
@@ -67,9 +67,9 @@
 #' \code{dIndependent_Normal_Gamma}.
 #'
 #' For the Gaussian family, draws under \code{dNormal} and \code{dNormalGamma} come from posterior distributions 
-#' resulting from conjugate prior distributions \insertCite{Raiffa1961}{glmbayesCore}. For all other priors or response families, 
+#' resulting from conjugate prior distributions \insertCite{Raiffa1961}{lmebayesCore}. For all other priors or response families, 
 #' we use an accept-reject sampler built on the likelihood-subgradient envelope method 
-#' \insertCite{Nygren2006}{glmbayesCore}. The \code{Gridtype} argument controls how many tangent points are used 
+#' \insertCite{Nygren2006}{lmebayesCore}. The \code{Gridtype} argument controls how many tangent points are used 
 #' in the envelope-trading off envelope tightness against construction cost-and \code{iters} reports candidate 
 #' counts before acceptance.
 #'
@@ -96,9 +96,9 @@
 #' 
 #' \code{\link{Prior_Setup}}, \code{\link{Prior_Check}} for functions used to initialize and to check priors,  
 #'
-#' Further reading: \insertCite{Nygren2006}{glmbayesCore};
-#' \insertCite{glmbayesSimmethods,glmbayesChapterA08}{glmbayesCore};
-#' OpenCL/GPU: \insertCite{glmbayesChapter12,glmbayesChapterA10}{glmbayesCore}.
+#' Further reading: \insertCite{Nygren2006}{lmebayesCore};
+#' \insertCite{glmbayesSimmethods,glmbayesChapterA08}{lmebayesCore};
+#' OpenCL/GPU: \insertCite{glmbayesChapter12,glmbayesChapterA10}{lmebayesCore}.
 #' \code{\link{summary.rglmb}} and \code{\link{residuals.rglmb}} provide posterior summaries for
 #' matrix-input fits; additional formula-based methods are in \pkg{glmbayes}.
 #' 

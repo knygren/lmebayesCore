@@ -26,7 +26,7 @@
 #'   \item \code{\link[opencltools:gpu_diagnostics]{get_opencl_core_count}()}
 #'   \item \code{\link[opencltools:load_kernel_source]{load_kernel_source}()},
 #'     \code{\link[opencltools:load_kernel_source]{load_kernel_library}()}
-#'     (pass \code{package = "glmbayesCore"} for kernels under \code{inst/cl/})
+#'     (pass \code{package = "lmebayesCore"} for kernels under \code{inst/cl/})
 #'   \item \code{\link[opencltools:add_to_path]{add_to_path_windows}()} and related PATH helpers
 #' }
 #'
@@ -38,7 +38,7 @@
 #' Start with \code{\link{diagnose_glmbayes}()} for a single readable report;
 #' use \code{\link{glmbayesCore_has_opencl}()} for a quick boolean when scripting. Full install
 #' notes: \code{vignette("Chapter-16", package = "glmbayes")}
-#' (\insertCite{glmbayesChapter12}{glmbayesCore}).
+#' (\insertCite{glmbayesChapter12}{lmebayesCore}).
 #'
 #' @seealso
 #' \code{\link{diagnose_glmbayes}}, \code{\link{glmbayesCore_has_opencl}}, \pkg{opencltools},

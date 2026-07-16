@@ -1,5 +1,5 @@
 ## Internal helpers for matrix-level mixed-model samplers (rlmerb / rglmerb).
-## lmebayes calls these via glmbayesCore::: from lmerb() / glmerb() only.
+## lmebayes calls these via lmebayesCore::: from lmerb() / glmerb() only.
 
 #' @noRd
 .lmebayes_resolve_dispersion_ranef <- function(
@@ -593,7 +593,7 @@
 
 #' Prior mean vector for block-formula Gaussian calibration (Prior_Setup parity)
 #'
-#' Matches \code{\link[glmbayesCore]{Prior_Setup}} defaults on a group subset:
+#' Matches \code{\link{Prior_Setup}} defaults on a group subset:
 #' intercept from an intercept-only \code{lm()} when
 #' \code{intercept_source = "null_model"}, slopes zero when
 #' \code{effects_source = "null_effects"}.

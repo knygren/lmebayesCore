@@ -1,12 +1,12 @@
-# glmbayesCore
+# lmebayesCore
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/knygren/glmbayesCore?label=version)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/knygren/lmebayesCore?label=version)
 ![License: GPL-2](https://img.shields.io/badge/license-GPL--2-blue.svg)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/knygren/glmbayesCore/R-CMD-check.yaml?label=R%20CMD%20Check)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/knygren/lmebayesCore/R-CMD-check.yaml?label=R%20CMD%20Check)
 
-**glmbayesCore** is the compiled sampling engine that powers the glmbayes ecosystem. It holds the C++/OpenCL samplers, the family-function infrastructure, and the R-level prior and simulation interfaces that downstream packages depend on. End users should install [glmbayes](https://github.com/knygren/glmbayes) rather than this package directly.
+**lmebayesCore** is the compiled sampling engine that powers [lmebayes](https://github.com/knygren/lmebayes). It is a full-featured, history-preserving fork of [glmbayesCore](https://github.com/knygren/glmbayesCore) that keeps both the glm/envelope engine *and* the two-block Gibbs mixed-model stack (`model_setup()`, `Prior_Setup_lmebayes()`, `rlmerb()`/`rglmerb()`, and the `rLMM_reg`/`rGLMM_reg` routes). `glmbayesCore` itself is being stripped down to only the glm/envelope engine needed by [glmbayes](https://github.com/knygren/glmbayes); the mixed-model layer now lives here. End users should install `lmebayes` rather than this package directly.
 
-The relationship to the broader ecosystem parallels how `StanHeaders` / `rstan` serve as the compiled backbone for `rstanarm`: glmbayesCore is the infrastructure layer; `glmbayes` (and the in-development `lmebayes`) are the user-facing packages built on top of it.
+The relationship to the broader ecosystem parallels how `StanHeaders` / `rstan` serve as the compiled backbone for `rstanarm`: lmebayesCore is the infrastructure layer for mixed models; `lmebayes` is the user-facing package built on top of it. (`glmbayesCore` plays the same role for the iid `glmbayes` package.)
 
 ---
 
@@ -349,7 +349,7 @@ Downstream packages such as `glmbayes` wrap this level with formula parsing, mod
 **GitHub / R-Universe** (recommended for developers):
 
 ```r
-install.packages("glmbayesCore",
+install.packages("lmebayesCore",
                  repos = c("https://cloud.r-project.org",
                            "https://knygren.r-universe.dev"))
 ```
@@ -358,7 +358,7 @@ install.packages("glmbayesCore",
 
 ```r
 # Ensure OpenCL development files are available on your system, then:
-install.packages("glmbayesCore", type = "source",
+install.packages("lmebayesCore", type = "source",
                  repos = "https://knygren.r-universe.dev")
 ```
 

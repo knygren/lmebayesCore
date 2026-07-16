@@ -1,4 +1,16 @@
-# glmbayesCore (development version)
+# lmebayesCore (development version)
+
+* **Forked from `glmbayesCore` as the full-featured backend for `lmebayes`:**
+  `lmebayesCore` is a history-preserving fork of `glmbayesCore` (created
+  2026-07-15) that keeps the complete glm/envelope engine *and* the
+  two-block Gibbs mixed-model stack (`model_setup()`, `Prior_Setup_lmebayes()`,
+  `rlmerb()`/`rglmerb()`, `rLMM_reg`/`rGLMM_reg` routes, etc.). `glmbayesCore`
+  itself is being stripped down to only the glm/envelope engine that
+  `glmbayes` needs; `lmebayes` now depends on `lmebayesCore` instead.
+  Package identity (DESCRIPTION, `NAMESPACE`, `GLMBAYES_R_NS`,
+  `.Call()`/DLL registration) was renamed accordingly; the internal C++
+  `glmbayes::` namespace was left unchanged as an implementation detail.
+
 
 * **Per-group `dGamma_list()` prior now uses the §3.3.4 marginal rate:**
   **`dGamma_list.lmebayes_prior_setup()`** feeds each group's `dGamma()` the

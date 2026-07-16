@@ -225,7 +225,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
     progbar = FALSE
   )
 
-  sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
+  sim_block <- lmebayesCore:::.rIndepNormalGammaRegBlock_cpp(
     n = n_draws,
     y = fix$y,
     x = fix$x_block,
@@ -307,7 +307,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
     progbar = FALSE
   )
   set.seed(360)
-  sim_block_ar <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
+  sim_block_ar <- lmebayesCore:::.rIndepNormalGammaRegBlock_cpp(
     n = 500L,
     y = fix$y,
     x = fix$x_block,
@@ -388,13 +388,13 @@ test_that("two-block Dobson: three-way means/SDs/acceptance — legacy, joint, i
 
   set.seed(2026)
   sim_joint <- do.call(
-    glmbayesCore:::.rIndepNormalGammaRegBlock_cpp,
+    lmebayesCore:::.rIndepNormalGammaRegBlock_cpp,
     c(list(n = n_draws), block_args)
   )
 
   set.seed(2026)
   sim_ind <- do.call(
-    glmbayesCore:::.rIndepNormalGammaRegBlockInd_cpp,
+    lmebayesCore:::.rIndepNormalGammaRegBlockInd_cpp,
     c(list(n = n_draws), block_args)
   )
 

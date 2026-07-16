@@ -65,7 +65,7 @@ These functions are primarily intended for use in hierarchical Bayesian
 models where precision parameters are updated under tight truncation
 constraints, and where numerical stability is essential for reliable sampling
 performance. They are used in envelope-based dispersion sampling
-\insertCite{Nygren2006}{glmbayesCore}.
+\insertCite{Nygren2006}{lmebayesCore}.
 }
 \examples{
 ############################### Start of Gamma_ct example ####################

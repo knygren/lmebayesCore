@@ -36,7 +36,7 @@
 #' between the upper and lower bounds \code{b-a} are small. In such cases,
 #' using \code{pnorm(b)-pnorm(a)} may result in 0 being returned even when the
 #' difference is supposed to be positive. They are used in envelope-based
-#' accept-reject sampling for Bayesian GLMs \insertCite{Nygren2006}{glmbayesCore}.
+#' accept-reject sampling for Bayesian GLMs \insertCite{Nygren2006}{lmebayesCore}.
 #' @seealso \code{\link{Gamma_ct}}, \code{\link{EnvelopeBuild}}
 #' @references
 #' \insertAllCited{}

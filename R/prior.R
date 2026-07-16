@@ -117,7 +117,7 @@
 #' \strong{Gaussian Normal–Gamma calibration and \eqn{S_{\mathrm{marg}}}}
 #'
 #' For \code{family = gaussian()}, the function performs the Normal–Gamma
-#' calibration described in \insertCite{glmbayesChapterA12}{glmbayesCore}. Let:
+#' calibration described in \insertCite{glmbayesChapterA12}{lmebayesCore}. Let:
 #' * \eqn{p = \texttt{ncol}(x)},
 #' * \eqn{n_{\mathrm{effective}} = \sum_i w_i},
 #' * \eqn{\hat\beta} the weighted least-squares estimator,
@@ -200,7 +200,7 @@
 #' posterior covariance is available in closed form; the posterior must be
 #' obtained by numerical integration or sampling (e.g.,
 #' \code{rindepNormalGamma_reg()}). Theorem 3 in
-#' \insertCite{glmbayesChapterA12}{glmbayesCore} shows that the ING posterior has
+#' \insertCite{glmbayesChapterA12}{lmebayesCore} shows that the ING posterior has
 #' the same weak-prior limit as the conjugate Normal–Gamma posterior:
 #' \deqn{
 #'   E[\beta \mid y] \to \hat\beta,\qquad
@@ -269,12 +269,12 @@
 #' use with \code{\link{rlmb}}
 #' \code{Prior_Setup} per column. 
 #'
-#' \insertCite{zellner1986gprior}{glmbayesCore};
-#' \insertCite{Raiffa1961}{glmbayesCore};
-#' \insertCite{Gelman2013}{glmbayesCore};
-#' \insertCite{McCullagh1989}{glmbayesCore};
-#' \insertCite{glmbayesChapter03}{glmbayesCore};
-#' \insertCite{glmbayesChapterA12}{glmbayesCore}.
+#' \insertCite{zellner1986gprior}{lmebayesCore};
+#' \insertCite{Raiffa1961}{lmebayesCore};
+#' \insertCite{Gelman2013}{lmebayesCore};
+#' \insertCite{McCullagh1989}{lmebayesCore};
+#' \insertCite{glmbayesChapter03}{lmebayesCore};
+#' \insertCite{glmbayesChapterA12}{lmebayesCore}.
 #'
 #' @references
 #' \insertAllCited{}
@@ -1279,7 +1279,7 @@ print.PriorSetup <- function(x, ...) {
 #'
 #' Checks if the credible intervals for the prior overlap with the implied confidence intervals
 #' from the classical model (obtained via \code{\link[stats]{glm}}). The approach relates to
-#' prior-data conflict checks \insertCite{EvansMoshonov2006}{glmbayesCore}.
+#' prior-data conflict checks \insertCite{EvansMoshonov2006}{lmebayesCore}.
 #'
 #' @param level the confidence level at which the Prior-data conflict should be checked.
 #' @param pfamily a \code{\link{pfamily}} object specifying the prior distribution to check against the data.
@@ -1287,8 +1287,8 @@ print.PriorSetup <- function(x, ...) {
 #' @return A vector where each item provided the ratio of the absolue value for the difference between the 
 #' prior and maximum likelihood estimate divided by the length of the sum of half of the two intervals 
 #' (where normality is assumed)
-#' @seealso \code{\link{Prior_Setup}}, \code{\link{rglmb}}; see \insertCite{glmbayesChapter03}{glmbayesCore} for prior tailoring;
-#' \insertCite{glmbayesChapterA12}{glmbayesCore} for full derivations.
+#' @seealso \code{\link{Prior_Setup}}, \code{\link{rglmb}}; see \insertCite{glmbayesChapter03}{lmebayesCore} for prior tailoring;
+#' \insertCite{glmbayesChapterA12}{lmebayesCore} for full derivations.
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt

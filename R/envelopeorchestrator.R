@@ -38,8 +38,8 @@
 #' (e.g., \code{\link{EnvelopeOrchestrator}}).
 #'
 #' This anchors the joint Normal--Gamma accept--reject construction in
-#' \insertCite{Nygren2006}{glmbayesCore}; see vignettes \code{Chapter-A07},
-#' \code{Chapter-A11}, and \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayesCore}.
+#' \insertCite{Nygren2006}{lmebayesCore}; see vignettes \code{Chapter-A07},
+#' \code{Chapter-A11}, and \insertCite{glmbayesChapterA08,glmbayesIndNormGammaVignette}{lmebayesCore}.
 #'
 #' @seealso
 #' \code{\link{EnvelopeOrchestrator}} for envelope construction;
@@ -157,7 +157,7 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #' accept--reject procedure over \eqn{(\beta, \phi)}. Theory for the dispersion
 #' envelope and bounding arguments is in vignette \code{Chapter-A07}; the
 #' end-to-end implementation map is in \code{Chapter-A11}. The coefficient-only
-#' likelihood-subgradient envelope (\insertCite{Nygren2006}{glmbayesCore}) is
+#' likelihood-subgradient envelope (\insertCite{Nygren2006}{lmebayesCore}) is
 #' documented under \code{\link{EnvelopeBuild}} and vignette \code{Chapter-A08}.
 #'
 #' The function does **not** perform simulation. Simulation is carried out
@@ -269,7 +269,7 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #'
 #' The orchestrator implements the **independent Normal--Gamma** envelope
 #' pipeline: first a **coefficient** envelope at a **dispersion anchor**
-#' (\insertCite{Nygren2006}{glmbayesCore}; vignette \code{Chapter-A08}), then
+#' (\insertCite{Nygren2006}{lmebayesCore}; vignette \code{Chapter-A08}), then
 #' **dispersion-aware** refinement (\code{Chapter-A07}), then sorting. Steps 3--8
 #' repeat the internal logic of \code{\link{EnvelopeBuild}} (same formulas on that
 #' help page); here the likelihood is **Gaussian** with **identity** link, weights
@@ -334,7 +334,7 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #'
 #' 6. **Evaluate negative log-likelihood and gradient at each grid point.**
 #'    Subgradients \eqn{c(\bar{\theta}_j)} and negative log-likelihoods define
-#'    the likelihood-subgradient envelope pieces (\insertCite{Nygren2006}{glmbayesCore};
+#'    the likelihood-subgradient envelope pieces (\insertCite{Nygren2006}{lmebayesCore};
 #'    \code{Chapter-A08}). CPU: \code{f2_f3_non_opencl}; GPU (optional):
 #'    \code{f2_f3_opencl}.
 #'
@@ -380,7 +380,7 @@ EnvelopeCentering <- function(y, x, mu, P, offset, wt, shape, rate,
 #' * \code{\link{rindepNormalGamma_reg}} – full Normal–Gamma workflow (R + C++)
 #' * \code{\link{rlmb}}, \code{\link{rglmb}}, \code{\link{simfuncs}} – higher-level sampling entry points
 #' * Vignettes \code{Chapter-A07}, \code{Chapter-A08}, \code{Chapter-A11}; cited as
-#'   \insertCite{Nygren2006,glmbayesChapterA08,glmbayesIndNormGammaVignette}{glmbayesCore}
+#'   \insertCite{Nygren2006,glmbayesChapterA08,glmbayesIndNormGammaVignette}{lmebayesCore}
 #'
 #' @example inst/examples/Ex_EnvelopeOrchestrator.R
 #'

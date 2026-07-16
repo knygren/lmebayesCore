@@ -35,7 +35,7 @@ test_that("BlockEnvelope iters_out matches rindepNormalGamma_reg draws per accep
   )
 
   set.seed(360)
-  sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
+  sim_block <- lmebayesCore:::.rIndepNormalGammaRegBlock_cpp(
     n = n_draws,
     y = y,
     x = x,

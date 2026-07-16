@@ -8,4 +8,4 @@
 
 library(testthat)
 
-test_check("glmbayesCore")
+test_check("lmebayesCore")

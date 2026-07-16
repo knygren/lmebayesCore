@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(glmbayesCore)
+library(lmebayesCore)
 ```
 
 # Chapter A02: Overview of Estimation Procedures

@@ -62,7 +62,7 @@ REG_ROUTE_TABLE <- list(
   fn <- get(
     entry$export,
     mode     = "function",
-    envir    = asNamespace("glmbayesCore"),
+    envir    = asNamespace("lmebayesCore"),
     inherits = FALSE
   )
   list(

@@ -17,7 +17,7 @@
 #' Each row is one overdose episode. Variables include total tricyclic antidepressant
 #' level, amitriptyline component, gender, reported amount ingested, and ECG-related
 #' measures (PR interval, QRS duration, diastolic blood pressure). The dataset is used
-#' in package examples for binomial and related regression; see \insertCite{Dobson1990}{glmbayesCore}
+#' in package examples for binomial and related regression; see \insertCite{Dobson1990}{lmebayesCore}
 #' for analogous generalized linear modelling of clinical outcomes.
 #'
 #' @references
