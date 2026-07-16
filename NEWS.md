@@ -10,6 +10,7 @@
   Package identity (DESCRIPTION, `NAMESPACE`, `GLMBAYES_R_NS`,
   `.Call()`/DLL registration) was renamed accordingly; the internal C++
   `glmbayes::` namespace was left unchanged as an implementation detail.
+  First time builds
 
 
 * **Per-group `dGamma_list()` prior now uses the §3.3.4 marginal rate:**
