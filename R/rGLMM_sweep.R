@@ -16,7 +16,7 @@
 #'   \code{X_hyper}, \code{re_coef_names}, and optional \code{group_name}.
 #' @param block1_prior Block~1 prior list (\code{P} or \code{Sigma},
 #'   \code{dispersion}, optional \code{ddef}).
-#' @param pfamily_list Named list of \code{\link{pfamily}} objects (one per
+#' @param pfamily_list Named list of \code{\link[glmbayesCore]{pfamily}} objects (one per
 #'   RE component).
 #' @param family A \code{\link[stats]{family}} object for the response model.
 #' @param re_names Character vector of RE coefficient names.

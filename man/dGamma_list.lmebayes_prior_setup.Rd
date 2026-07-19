@@ -72,12 +72,12 @@ reuse it as their own \code{dispersion_fit} instead of re-fitting
 \description{
 Converts the per-group Block~1 measurement-dispersion calibration stored
 in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
-\code{\link{dGamma}} \code{pfamily} objects, one per group level.
+\code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 }
 \details{
 Prior density (\code{shape_ING}, \code{rate} from \eqn{S_{\mathrm{marg}}}
 A12 3.3.4) comes from \code{object$ing_prior_measurement_group} (calibrated in
-\code{Prior_Setup_lmebayes()} via \code{\link{compute_gaussian_prior}} with
+\code{Prior_Setup_lmebayes()} via \code{\link[glmbayesCore]{compute_gaussian_prior}} with
 shared population \code{sd_tau}).  Truncation bounds use an approximate
 posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j},
 mean-matched at one of two per-group centers (\code{disp_center}):
@@ -126,5 +126,5 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
 }
 \seealso{
 \code{\link{Prior_Setup_lmebayes}}, \code{\link{dGamma_list}},
-\code{\link{dGamma}}
+\code{\link[glmbayesCore]{dGamma}}
 }

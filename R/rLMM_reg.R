@@ -52,7 +52,7 @@
 #' @param gap_tol,mode_gap_max,diag_sweeps,stage_verbose Pilot-stage controls for
 #'   \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
+#' @seealso \code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link[glmbayesCore]{rindepNormalGamma_reg}}
 #' @name rLMM_reg
 NULL
 
@@ -790,7 +790,7 @@ NULL
 
   # Path A: data identify all RE columns ? direct ING envelope on full Z_j.
   if (rk >= p_re && n_j >= p_re) {
-    ing <- rindepNormalGamma_reg(
+    ing <- glmbayesCore::rindepNormalGamma_reg(
       n            = 1L,
       y            = y_j,
       x            = Z_j,
@@ -819,7 +819,7 @@ NULL
   .lmebayes_check_disp_bounds_or_stop(
     pl_sub$disp_lower, pl_sub$disp_upper, ".rLMM_ing_one_group_draw (Path C)"
   )
-  ing <- rindepNormalGamma_reg(
+  ing <- glmbayesCore::rindepNormalGamma_reg(
     n            = 1L,
     y            = y_j,
     x            = Z_j[, keep, drop = FALSE],
@@ -2223,7 +2223,7 @@ rLMMNormal_reg_estimated_vcov <- function(
 }
 
 #' @describeIn rLMM_reg Legacy outer-loop engine: draws \eqn{\sigma^2} via
-#'   \code{\link{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
+#'   \code{\link[glmbayesCore]{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
 #'   replicate. Prefer \code{\link{rLMMindepNormalGamma_reg_known_vcov}} or
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING Block~1
 #'   sweep engine used by \code{\link{rlmerb}}.
@@ -2344,7 +2344,7 @@ rLMMindepNormalGamma_reg <- function(
     mu_hat <- .rLMM_observation_mu(
       inp$x, block, b_mat, inp$group_levels
     )
-    gamma_out <- rGamma_reg(
+    gamma_out <- glmbayesCore::rGamma_reg(
       n           = 1L,
       y           = inp$y,
       x           = x_disp,

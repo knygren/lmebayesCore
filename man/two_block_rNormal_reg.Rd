@@ -46,8 +46,8 @@ two_block_rNormal_reg(
 \code{mu} is updated internally.}
 
 \item{pfamily_list}{Named list of \code{pfamily} objects, one per column
-of \code{x}: \code{\link{dNormal}} or
-\code{\link{dIndependent_Normal_Gamma}}.}
+of \code{x}: \code{\link[glmbayesCore]{dNormal}} or
+\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}.}
 
 \item{fixef_start}{Named list of hyper-parameter vectors at which each inner
 chain is initialised.}
@@ -97,8 +97,8 @@ means \eqn{\gamma_k} via \code{pfamily$simfun} (always Gaussian).
 }
 \details{
 Each component of \code{pfamily_list} may be a
-\code{\link{dNormal}} prior (conjugate gamma_k draw at fixed dispersion)
-or a \code{\link{dIndependent_Normal_Gamma}} prior, in
+\code{\link[glmbayesCore]{dNormal}} prior (conjugate gamma_k draw at fixed dispersion)
+or a \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}} prior, in
 which case Block~2 makes a joint (gamma_k, tau^2_k) draw via the
 likelihood-subgradient envelope sampler (the same path as \code{rglmb}
 with an ING pfamily) and the sampled tau^2_k is fed back into the
@@ -112,18 +112,14 @@ the truncation state-dependent).
 \seealso{
 \code{\link{rGLMM_sweep}},
 \code{\link{rGLMM_reg}}, \code{\link{rLMMNormal_reg}},
-\code{\link{dNormal}},
-\code{\link{dIndependent_Normal_Gamma}}
+\code{\link[glmbayesCore]{dNormal}},
+\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
 
 glmbayes Simulation Functions
-\code{\link{multi_rNormal_reg}()},
-\code{\link{multi_rlmb}()},
 \code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
-\code{\link{rindepNormalGamma_reg_with_envelope}()},
-\code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rate}()},
 \code{\link{two_block_tv_bound}()}

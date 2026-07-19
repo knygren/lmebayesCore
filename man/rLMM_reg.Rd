@@ -194,7 +194,7 @@ use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
 Optional pilot stage; conservative \code{disp_lower} rate bound.
 
 \item \code{rLMMindepNormalGamma_reg()}: Legacy outer-loop engine: draws \eqn{\sigma^2} via
-\code{\link{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
+\code{\link[glmbayesCore]{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
 replicate. Prefer \code{\link{rLMMindepNormalGamma_reg_known_vcov}} or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING Block~1
 sweep engine used by \code{\link{rlmerb}}.
@@ -232,16 +232,12 @@ outer-loop \code{rLMMindepNormalGamma_reg}, draw \eqn{\sigma^2} then call
 }
 
 \seealso{
-\code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link{rindepNormalGamma_reg}}
+\code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link[glmbayesCore]{rindepNormalGamma_reg}}
 
 glmbayes Simulation Functions
-\code{\link{multi_rNormal_reg}()},
-\code{\link{multi_rlmb}()},
 \code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
-\code{\link{rindepNormalGamma_reg_with_envelope}()},
-\code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},

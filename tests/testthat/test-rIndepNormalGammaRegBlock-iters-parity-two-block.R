@@ -103,7 +103,7 @@
   group_stacked <- factor(c(group1, group1), levels = levels(group1))
   df_stacked <- data.frame(weight = weight, group = group_stacked)
 
-  p_setup <- Prior_Setup(
+  p_setup <- glmbayesCore::Prior_Setup(
     weight ~ group,
     data = df_stacked,
     family = gaussian()
@@ -177,7 +177,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
   n_envopt <- 10000L
   n_draws <- 1L
 
-  sim_std <- rindepNormalGamma_reg(
+  sim_std <- glmbayesCore::rindepNormalGamma_reg(
     n = n_draws,
     y = fix$y,
     x = fix$x_old,
@@ -194,25 +194,6 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
   expect_false("gamma_list" %in% names(sim_std))
   expect_false("UB_list" %in% names(sim_std))
   expect_false("diagnostics" %in% names(sim_std))
-
-  if (requireNamespace("glmbayes", quietly = TRUE)) {
-    sim_gb <- glmbayes::rindepNormalGamma_reg(
-      n = n_draws,
-      y = fix$y,
-      x = fix$x_old,
-      prior_list = fix$prior_list_old,
-      n_envopt = n_envopt,
-      Gridtype = 3L,
-      use_parallel = FALSE,
-      progbar = FALSE
-    )
-    expect_identical(names(sim_std), names(sim_gb))
-    expect_identical(class(sim_std), class(sim_gb))
-    expect_identical(
-      names(sim_std)[vapply(sim_std, is.null, logical(1))],
-      names(sim_gb)[vapply(sim_gb, is.null, logical(1))]
-    )
-  }
 
   sim_env <- rindepNormalGamma_reg_with_envelope(
     n = n_draws,
@@ -296,7 +277,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
 
   ## With matched globals, block resample-until-accept iters should track legacy.
   set.seed(360)
-  sim_legacy_ar <- rindepNormalGamma_reg(
+  sim_legacy_ar <- glmbayesCore::rindepNormalGamma_reg(
     n = 500L,
     y = fix$y,
     x = fix$x_old,
@@ -375,7 +356,7 @@ test_that("two-block Dobson: three-way means/SDs/acceptance — legacy, joint, i
   )
 
   set.seed(2026)
-  sim_legacy <- rindepNormalGamma_reg(
+  sim_legacy <- glmbayesCore::rindepNormalGamma_reg(
     n            = n_draws,
     y            = fix$y,
     x            = fix$x_old,

@@ -196,13 +196,9 @@ to the appropriate route.
 \code{\link{rglmerb}}
 
 glmbayes Simulation Functions
-\code{\link{multi_rNormal_reg}()},
-\code{\link{multi_rlmb}()},
 \code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_sweep}()},
 \code{\link{rLMM_reg}},
-\code{\link{rindepNormalGamma_reg_with_envelope}()},
-\code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},

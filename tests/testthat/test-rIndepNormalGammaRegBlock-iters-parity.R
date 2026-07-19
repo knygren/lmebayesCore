@@ -6,7 +6,7 @@ test_that("BlockEnvelope iters_out matches rindepNormalGamma_reg draws per accep
   trt <- c(4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69)
   group <- gl(2, 10, 20, labels = c("Ctl", "Trt"))
   weight <- c(ctl, trt)
-  p_setup <- Prior_Setup(weight ~ group, family = gaussian())
+  p_setup <- glmbayesCore::Prior_Setup(weight ~ group, family = gaussian())
 
   y <- p_setup$y
   x <- p_setup$x
@@ -26,7 +26,7 @@ test_that("BlockEnvelope iters_out matches rindepNormalGamma_reg draws per accep
   prior_list_block$dispersion <- NULL
 
   set.seed(360)
-  sim_old <- rindepNormalGamma_reg(
+  sim_old <- glmbayesCore::rindepNormalGamma_reg(
     n = n_draws,
     y = y,
     x = x,

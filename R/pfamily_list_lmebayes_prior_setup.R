@@ -2,7 +2,7 @@
 #'
 #' Converts the per-component Block~2 hyperprior parameters stored in a
 #' \code{\link{Prior_Setup_lmebayes}} object into a named list of
-#' \code{\link{pfamily}} objects, one per random-effect coefficient (e.g.
+#' \code{\link[glmbayesCore]{pfamily}} objects, one per random-effect coefficient (e.g.
 #' \code{"(Intercept)"}, slope names).
 #'
 #' For each random-effect coefficient \eqn{k}, the prior parameters come
@@ -15,7 +15,7 @@
 #'   \item \code{"dIndependent_Normal_Gamma"}: the same \code{mu} and
 #'     \code{Sigma}, plus a Gamma prior on the Block~2 precision
 #'     \eqn{1/\tau^2_k} calibrated with the same convention as
-#'     \code{\link{Prior_Setup}}.  The per-component effective prior sample
+#'     \code{\link[glmbayesCore]{Prior_Setup}}.  The per-component effective prior sample
 #'     size \eqn{n_0} is taken from \code{object$n_prior_dispersion[[k]]}
 #'     (set by \code{\link{Prior_Setup_lmebayes}} via \code{pwt_dispersion} /
 #'     \code{n_prior_dispersion}, derived from \code{pwt} by default).
@@ -70,7 +70,7 @@
 #'   names).
 #'
 #' @seealso \code{\link{Prior_Setup_lmebayes}}, \code{\link{pfamily_list}},
-#'   \code{\link{dNormal}}, \code{\link{dIndependent_Normal_Gamma}}
+#'   \code{\link[glmbayesCore]{dNormal}}, \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
 #'
 #' @examples
 #' \donttest{
@@ -178,7 +178,7 @@ pfamily_list.lmebayes_prior_setup <- function(object,
 
     out[[k]] <- switch(
       ptypes[[k]],
-      dNormal = dNormal(
+      dNormal = glmbayesCore::dNormal(
         mu         = mu_k,
         Sigma      = Sig_k,
         dispersion = d_k
@@ -208,7 +208,7 @@ pfamily_list.lmebayes_prior_setup <- function(object,
             disp_upper = win_k$disp_upper
           )
         }
-        dIndependent_Normal_Gamma(
+        glmbayesCore::dIndependent_Normal_Gamma(
           mu         = mu_k,
           Sigma      = Sig_k,
           shape      = ing_k$shape,

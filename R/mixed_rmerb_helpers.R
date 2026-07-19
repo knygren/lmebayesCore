@@ -564,7 +564,7 @@
 
 #' Within-group Block~1 formula from random-coefficient names
 #'
-#' Per-group \eqn{\sigma^2} calibration (\code{\link{Prior_Setup}} parity) fits
+#' Per-group \eqn{\sigma^2} calibration (\code{\link[glmbayesCore]{Prior_Setup}} parity) fits
 #' only predictors that enter the within-group likelihood---the population-mean
 #' structure aligned with \code{design$re_coef_names}.  Level-2 hyper covariates
 #' and cross-level moderation terms in the full mixed-model formula are excluded.
@@ -593,7 +593,7 @@
 
 #' Prior mean vector for block-formula Gaussian calibration (Prior_Setup parity)
 #'
-#' Matches \code{\link{Prior_Setup}} defaults on a group subset:
+#' Matches \code{\link[glmbayesCore]{Prior_Setup}} defaults on a group subset:
 #' intercept from an intercept-only \code{lm()} when
 #' \code{intercept_source = "null_model"}, slopes zero when
 #' \code{effects_source = "null_effects"}.
@@ -786,7 +786,7 @@
 #' @noRd
 .lmebayes_compute_ing_prior_cal_from_sigma <- function(inp, Sigma, n_prior_j) {
   Sigma_0 <- Sigma / inp$dispersion_classical
-  compute_gaussian_prior(
+  glmbayesCore::compute_gaussian_prior(
     X           = inp$X,
     Y           = inp$Y,
     weights     = inp$weights,

@@ -32,7 +32,7 @@ and related Block~2 fields (typically from \code{pfamily_list} and
 \code{lmerb()} workflow in lmebayes).}
 
 \item{dispersion_ranef}{Required observation-level dispersion: a positive
-scalar \eqn{\sigma^2} (fixed) or a \code{\link{dGamma}()} pfamily with
+scalar \eqn{\sigma^2} (fixed) or a \code{\link[glmbayesCore]{dGamma}()} pfamily with
 \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.}
 
 \item{tv_tol}{Single numeric in \code{(0, 1)}. Total variation tolerance
@@ -74,7 +74,7 @@ Bayesian linear mixed-effects model sampler (two-block Gibbs engine)
 }
 \details{
 Matrix-level sampling engine for Gaussian linear mixed models, parallel to
-\code{\link{rlmb}} and \code{\link{rglmerb}}. Takes structured \code{design}
+\code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. Takes structured \code{design}
 and \code{prior} objects, computes the ICM posterior mean internally, and
 delegates replicate-chain sampling to
 \code{\link{rLMMNormal_reg_known_vcov}},
@@ -91,5 +91,5 @@ For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sam
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},
 \code{\link{Prior_Setup_lmebayes}},
-\code{\link{rlmb}}
+\code{\link[glmbayesCore]{rlmb}}
 }

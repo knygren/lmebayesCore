@@ -1,5 +1,10 @@
 # lmebayesCore (development version)
 
+* **Stage 0 — `glmbayesCore` dependency wiring (deduplication prep):**
+  `DESCRIPTION` now `Imports: glmbayesCore (>= 0.5.1)`. `.onLoad()` fails
+  fast with an install hint if `glmbayesCore` is missing. No exports or
+  duplicate sources removed yet.
+
 * **Forked from `glmbayesCore` as the full-featured backend for `lmebayes`:**
   `lmebayesCore` is a history-preserving fork of `glmbayesCore` (created
   2026-07-15) that keeps the complete glm/envelope engine *and* the

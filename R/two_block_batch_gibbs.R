@@ -1087,7 +1087,7 @@ two_block_block2_one_chain <- function(
     )
     pf  <- pfamily_list[[k]]
 
-    fit_k <- rglmb(
+    fit_k <- glmbayesCore::rglmb(
       n            = 1L,
       y            = y_k,
       x            = X_k,
@@ -1319,8 +1319,8 @@ two_block_block2_one_chain_cpp <- function(
 #' @noRd
 .two_block_block1_glmbfamfunc <- function(family) {
   is_gaussian <- identical(family$family, "gaussian")
-  famfunc_block1 <- glmbfamfunc(if (is_gaussian) gaussian() else family)
-  famfunc_gauss <- glmbfamfunc(gaussian())
+  famfunc_block1 <- glmbayesCore::glmbfamfunc(if (is_gaussian) gaussian() else family)
+  famfunc_gauss <- glmbayesCore::glmbfamfunc(gaussian())
   list(
     f2       = famfunc_block1$f2,
     f3       = famfunc_block1$f3,

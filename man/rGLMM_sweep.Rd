@@ -43,7 +43,7 @@ named numeric vector per RE component (matches \code{re_names}).}
 \item{block1_prior}{Block~1 prior list (\code{P} or \code{Sigma},
 \code{dispersion}, optional \code{ddef}).}
 
-\item{pfamily_list}{Named list of \code{\link{pfamily}} objects (one per
+\item{pfamily_list}{Named list of \code{\link[glmbayesCore]{pfamily}} objects (one per
 RE component).}
 
 \item{family}{A \code{\link[stats]{family}} object for the response model.}
@@ -118,13 +118,9 @@ then all chains run Block~2. Each chain stores exactly one draw
 \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_reg}}
 
 glmbayes Simulation Functions
-\code{\link{multi_rNormal_reg}()},
-\code{\link{multi_rlmb}()},
 \code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_reg}()},
 \code{\link{rLMM_reg}},
-\code{\link{rindepNormalGamma_reg_with_envelope}()},
-\code{\link{simfuncs}},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},

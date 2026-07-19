@@ -10,10 +10,10 @@
 #'
 #' @details
 #' Low-level entry points include envelope construction
-#' (\code{\link{EnvelopeBuild}}, \code{\link{EnvelopeOrchestrator}}),
-#' registered simulation pipelines (\code{\link{rNormalGLM_std}},
-#' \code{\link{rIndepNormalGammaReg_std}}), matrix-input samplers
-#' (\code{\link{rglmb}}, \code{\link{rlmb}}), the two-block Gibbs
+#' (\code{\link[glmbayesCore]{EnvelopeBuild}}, \code{\link[glmbayesCore]{EnvelopeOrchestrator}}),
+#' registered simulation pipelines (\code{\link[glmbayesCore]{rNormalGLM_std}},
+#' \code{\link[glmbayesCore]{rIndepNormalGammaReg_std}}), matrix-input samplers
+#' (\code{\link[glmbayesCore]{rglmb}}, \code{\link[glmbayesCore]{rlmb}}), the two-block Gibbs
 #' mixed-model engines (\code{\link{rlmerb}}, \code{\link{rglmerb}}), and
 #' OpenCL kernel loaders. Formula interfaces \code{lmerb} and \code{glmerb}
 #' live in \pkg{lmebayes}; \pkg{lmebayesCore} supplies the sampling engine.
@@ -34,6 +34,7 @@
 #' @importFrom Rcpp evalCpp
 #' @importFrom MASS mvrnorm
 #' @importFrom RcppParallel RcppParallelLibs
+#' @importFrom Rdpack reprompt
 #' @importFrom utils flush.console
 #' @import opencltools
 #' @import nmathopencl

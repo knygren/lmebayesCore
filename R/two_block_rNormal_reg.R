@@ -90,8 +90,8 @@
 #' means \eqn{\gamma_k} via \code{pfamily$simfun} (always Gaussian).
 #'
 #' Each component of \code{pfamily_list} may be a
-#' \code{\link{dNormal}} prior (conjugate gamma_k draw at fixed dispersion)
-#' or a \code{\link{dIndependent_Normal_Gamma}} prior, in
+#' \code{\link[glmbayesCore]{dNormal}} prior (conjugate gamma_k draw at fixed dispersion)
+#' or a \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}} prior, in
 #' which case Block~2 makes a joint (gamma_k, tau^2_k) draw via the
 #' likelihood-subgradient envelope sampler (the same path as \code{rglmb}
 #' with an ING pfamily) and the sampled tau^2_k is fed back into the
@@ -112,8 +112,8 @@
 #'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
 #'   \code{mu} is updated internally.
 #' @param pfamily_list Named list of \code{pfamily} objects, one per column
-#'   of \code{x}: \code{\link{dNormal}} or
-#'   \code{\link{dIndependent_Normal_Gamma}}.
+#'   of \code{x}: \code{\link[glmbayesCore]{dNormal}} or
+#'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}.
 #' @param fixef_start Named list of hyper-parameter vectors at which each inner
 #'   chain is initialised.
 #' @param re_coef_names Character vector naming columns of \code{x}.
@@ -146,8 +146,8 @@
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}},
 #'   \code{\link{rGLMM_reg}}, \code{\link{rLMMNormal_reg}},
-#'   \code{\link{dNormal}},
-#'   \code{\link{dIndependent_Normal_Gamma}}
+#'   \code{\link[glmbayesCore]{dNormal}},
+#'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
 #' @export
 two_block_rNormal_reg <- function(
     n,
@@ -269,8 +269,8 @@ two_block_rNormal_reg <- function(
     stop("length(weights) must be 1 or length(y).", call. = FALSE)
   }
 
-  famfunc_block1 <- glmbfamfunc(if (is_gaussian) gaussian() else family)
-  famfunc_gauss <- glmbfamfunc(gaussian())
+  famfunc_block1 <- glmbayesCore::glmbfamfunc(if (is_gaussian) gaussian() else family)
+  famfunc_gauss <- glmbayesCore::glmbfamfunc(gaussian())
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
 
   x_hyper_mats <- lapply(x_hyper, as.matrix)

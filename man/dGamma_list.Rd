@@ -16,12 +16,12 @@ dGamma_list(object, ...)
 A named list whose elements are objects of class \code{"pfamily"}.
 }
 \description{
-Generic for constructing a named list of \code{\link{dGamma}} prior
+Generic for constructing a named list of \code{\link[glmbayesCore]{dGamma}} prior
 objects from a prior-specification object.  For mixed models, one
 \code{dGamma()} per group level supplies Block~1 observation-level
 \eqn{\sigma^2_j} priors for \code{lmerb(..., dispersion_ranef = ...)}.
 }
 \seealso{
-\code{\link{dGamma}}, \code{\link{Prior_Setup_lmebayes}},
+\code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_lmebayes}},
 \code{\link{pfamily_list}}
 }

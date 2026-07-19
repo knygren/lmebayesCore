@@ -16,13 +16,13 @@ A named list whose elements are objects of class
 \code{"pfamily"}.
 }
 \description{
-Generic for constructing a named list of \code{\link{pfamily}} prior
+Generic for constructing a named list of \code{\link[glmbayesCore]{pfamily}} prior
 objects from a prior-specification object.  Packages that define prior
 setup containers (e.g. \code{\link{Prior_Setup_lmebayes}}) provide methods
-that map each component of the container to a \code{pfamily} constructor such as \code{\link{dNormal}} or
-\code{\link{dIndependent_Normal_Gamma}}.
+that map each component of the container to a \code{pfamily} constructor such as \code{\link[glmbayesCore]{dNormal}} or
+\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}.
 }
 \seealso{
-\code{\link{pfamily}}, \code{\link{dNormal}},
-\code{\link{dIndependent_Normal_Gamma}}, \code{\link{Prior_Setup_lmebayes}}
+\code{\link[glmbayesCore]{pfamily}}, \code{\link[glmbayesCore]{dNormal}},
+\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}, \code{\link{Prior_Setup_lmebayes}}
 }

@@ -77,7 +77,7 @@ where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
 
 \strong{Block~1 update} differs by function; see \code{\link{lmerb_posterior_mean}}
 (exact closed-form Gaussian solve) vs \code{\link{glmerb_posterior_mode}}
-(ICM using the \code{\link{rglmb}} mode for general GLMM families).
+(ICM using the \code{\link[glmbayesCore]{rglmb}} mode for general GLMM families).
 
 When the response is Gaussian and variance components are fixed, the joint
 posterior is multivariate normal, so \code{glmerb_posterior_mode()} with
@@ -108,13 +108,13 @@ accumulation), never a \eqn{J \times J} or \eqn{J p_{re}}-dimensional
 matrix, so it scales to large numbers of groups.
 
 \item \code{glmerb_posterior_mode()}: Joint posterior \emph{mode} of the
-two-block GLMM.  Block~1 uses \code{\link{rglmb}} with \code{n = 1L} and a
-\code{\link{dNormal}} prior per group; the mode is read from
+two-block GLMM.  Block~1 uses \code{\link[glmbayesCore]{rglmb}} with \code{n = 1L} and a
+\code{\link[glmbayesCore]{dNormal}} prior per group; the mode is read from
 \code{coef.mode}.  For \code{family = gaussian()}, this matches the
 closed-form update in \code{\link{lmerb_posterior_mean}}.
 
 }}
 \seealso{
 \code{\link{build_mu_all}}, \code{\link{two_block_rNormal_reg}},
-\code{\link{rglmb}}
+\code{\link[glmbayesCore]{rglmb}}
 }

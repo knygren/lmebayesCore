@@ -38,7 +38,7 @@
   }
   options(glmbayes.opencl_startup_checked = TRUE)
 
-  if (isTRUE(tryCatch(glmbayesCore_has_opencl(), error = function(e) FALSE))) {
+  if (isTRUE(tryCatch(glmbayesCore::glmbayesCore_has_opencl(), error = function(e) FALSE))) {
     return(invisible())
   }
 
@@ -54,6 +54,19 @@
     "with OpenCL at compile time to enable it; see vignette(\"Chapter-16\", ",
     "\"glmbayes\") for install instructions."
   )
+  invisible()
+}
+
+.onLoad <- function(libname, pkgname) {
+  if (!requireNamespace("glmbayesCore", quietly = TRUE)) {
+    stop(
+      "Package 'glmbayesCore' (>= 0.5.1) is required by 'lmebayesCore' but is ",
+      "not installed. Install glmbayesCore first (e.g. ",
+      "devtools::install('path/to/glmbayesCore') or install.packages once ",
+      "on CRAN).",
+      call. = FALSE
+    )
+  }
   invisible()
 }
 

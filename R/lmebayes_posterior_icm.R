@@ -24,7 +24,7 @@
 #'
 #' \strong{Block~1 update} differs by function; see \code{\link{lmerb_posterior_mean}}
 #' (exact closed-form Gaussian solve) vs \code{\link{glmerb_posterior_mode}}
-#' (ICM using the \code{\link{rglmb}} mode for general GLMM families).
+#' (ICM using the \code{\link[glmbayesCore]{rglmb}} mode for general GLMM families).
 #'
 #' When the response is Gaussian and variance components are fixed, the joint
 #' posterior is multivariate normal, so \code{glmerb_posterior_mode()} with
@@ -59,7 +59,7 @@
 #'   statistic described under \code{tol}; always \code{0} for
 #'   \code{lmerb_posterior_mean()}).
 #' @seealso \code{\link{build_mu_all}}, \code{\link{two_block_rNormal_reg}},
-#'   \code{\link{rglmb}}
+#'   \code{\link[glmbayesCore]{rglmb}}
 #' @name lmebayes_posterior_icm
 #' @aliases lmerb_posterior_mean glmerb_posterior_mode
 NULL
@@ -251,8 +251,8 @@ lmerb_posterior_mean <- function(design,
 }
 
 #' @describeIn lmebayes_posterior_icm Joint posterior \emph{mode} of the
-#'   two-block GLMM.  Block~1 uses \code{\link{rglmb}} with \code{n = 1L} and a
-#'   \code{\link{dNormal}} prior per group; the mode is read from
+#'   two-block GLMM.  Block~1 uses \code{\link[glmbayesCore]{rglmb}} with \code{n = 1L} and a
+#'   \code{\link[glmbayesCore]{dNormal}} prior per group; the mode is read from
 #'   \code{coef.mode}.  For \code{family = gaussian()}, this matches the
 #'   closed-form update in \code{\link{lmerb_posterior_mean}}.
 #' @param family A \code{\link[stats]{family}} object. Defaults to
@@ -343,11 +343,11 @@ glmerb_posterior_mode <- function(design,
       mu_j <- mu_all[, jj]
 
       pf_j <- if (is.null(sigma2)) {
-        dNormal(mu = mu_j, Sigma = Sigma_b)
+        glmbayesCore::dNormal(mu = mu_j, Sigma = Sigma_b)
       } else {
-        dNormal(mu = mu_j, Sigma = Sigma_b, dispersion = sigma2)
+        glmbayesCore::dNormal(mu = mu_j, Sigma = Sigma_b, dispersion = sigma2)
       }
-      fit_j <- rglmb(
+      fit_j <- glmbayesCore::rglmb(
         n       = 1L,
         y       = y_j,
         x       = Z_j,

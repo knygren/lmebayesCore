@@ -27,7 +27,7 @@
 #' @param family A \code{\link[stats]{family}} object. Default \code{poisson()}.
 #' @param dispersion_ranef Observation-level measurement dispersion \eqn{\sigma^2}:
 #'   required positive scalar for \code{family = gaussian()}, or a
-#'   \code{\link{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
+#'   \code{\link[glmbayesCore]{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
 #'   \code{NULL} (default) for \code{poisson()} and \code{binomial()}.
 #' @param gap_tol Legacy mode--mean gap for deriving the pilot chain count when
 #'   \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING Block~2

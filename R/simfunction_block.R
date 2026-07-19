@@ -38,7 +38,7 @@
 #'     \item{block_info}{Block partition metadata.}
 #'     \item{block_results}{List of length \code{k} with each block's sampler output.}
 #'   }
-#' @seealso \code{\link{rNormal_reg}}, \code{\link{simfunction}},
+#' @seealso \code{\link[glmbayesCore]{rNormal_reg}}, \code{\link[glmbayesCore]{simfunction}},
 #'   \code{\link{normalize_block}}, \code{inst/DESIGN_RGLM_BLOCKS.md}
 #' @example inst/examples/Ex_block_rNormalGLM.R
 #' @name block_simfuncs
@@ -135,7 +135,7 @@ block_rNormalGLM <- function(n,
     )
   }
 
-  famfunc <- glmbfamfunc(family)
+  famfunc <- glmbayesCore::glmbfamfunc(family)
   n_envopt_use <- if (is.null(n_envopt)) 1L else as.integer(n_envopt)
 
   cpp_out <- .block_rNormalGLM_cpp(
@@ -248,7 +248,7 @@ block_rNormalReg <- function(n,
   if (length(wt) == 1L) wt <- rep(wt, l2)
   if (length(wt) != l2) stop("length(weights) must be 1 or length(y).", call. = FALSE)
 
-  famfunc <- glmbfamfunc(gaussian())
+  famfunc <- glmbayesCore::glmbfamfunc(gaussian())
 
   cpp_out <- .block_rNormalReg_cpp(
     n           = n,

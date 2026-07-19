@@ -29,6 +29,7 @@ License: GPL-2
 URL: https://github.com/knygren/lmebayesCore
 BugReports: https://github.com/knygren/lmebayesCore/issues
 Imports:
+    glmbayesCore (>= 0.5.1),
     stats,
     lme4,
     Matrix,

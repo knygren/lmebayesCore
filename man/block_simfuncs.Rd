@@ -211,7 +211,7 @@ outcome <- gl(3, 1, 9)
 treatment <- gl(3, 3)
 d.AD <- data.frame(outcome, treatment, counts)
 
-ps <- Prior_Setup(counts ~ treatment, family = poisson(), data = d.AD)
+ps <- glmbayesCore::Prior_Setup(counts ~ treatment, family = poisson(), data = d.AD)
 y <- ps$y
 x <- ps$x
 block <- outcome
@@ -328,7 +328,7 @@ normalize_block(c(4L, 6L), l2)
 normalize_block(list(A = 1:4, B = 5:10), l2)
 }
 \seealso{
-\code{\link{rNormal_reg}}, \code{\link{simfunction}},
+\code{\link[glmbayesCore]{rNormal_reg}}, \code{\link[glmbayesCore]{simfunction}},
 \code{\link{normalize_block}}, \code{inst/DESIGN_RGLM_BLOCKS.md}
 }
 \concept{block_simfuncs}

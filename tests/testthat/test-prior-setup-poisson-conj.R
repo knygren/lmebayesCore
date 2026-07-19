@@ -4,7 +4,7 @@ test_that("Prior_Setup conj_poisson matches pwt / n_prior conjugate identities",
   df <- data.frame(y = y)
 
   pwt <- 0.4
-  ps <- Prior_Setup(
+  ps <- glmbayesCore::Prior_Setup(
     y ~ 1,
     family = poisson(link = "identity"),
     data = df,
