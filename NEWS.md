@@ -1,5 +1,26 @@
 # lmebayesCore (development version)
 
+* **Stage 3a/3b — dead iid C++ removal (deduplication):** Following the
+  Stage 1a/1b/1c R-level removals, audited `lmebayesCore`'s C++ for iid
+  routines that are now unreachable from R. Confirmed `rNormalGammaReg()`,
+  `rGammaGaussian()`, and `rGammaGamma()` (in `src/rNormalGammaReg.cpp`,
+  `src/rGammaGaussian.cpp`, `src/rGammaGamma.cpp`) were dead: their only
+  callers were `rNormalGamma_reg()`, `rGamma_reg()`, and
+  `rGamma_Conjugate_reg()` in `R/simfunction.R`, which Stage 1b already
+  removed (those live on in `glmbayesCore`). Deleted the three `.cpp` files,
+  their `_cpp_export()` wrappers in `src/export_wrappers.cpp`, the matching
+  declarations in `src/simfuncs.h`, and the internal `.rNormalGammaReg_cpp()`
+  / `.rGammaGaussian_cpp()` / `.rGammaGamma_cpp()` `.Call()` shims in
+  `R/rcpp_wrappers.R`; regenerated `RcppExports.R`/`RcppExports.cpp` via
+  `Rcpp::compileAttributes()`. No NAMESPACE or public-API change (all were
+  internal, `@noRd`). The remaining mixed-model C++ (`twoBlockGibbs.cpp`,
+  `block_rIndepNormalGammaReg.cpp`, `rNormalRegBlocks.cpp`,
+  `rNormalGLMBlocks.cpp`, etc.) still directly links against the rest of the
+  iid envelope/sampler engine under `src/`, so most of that engine remains
+  compiled into this package; pruning it requires a `glmbayesCore`
+  C-callable bridge and is deferred to Stage 3c–3f pending `glmbayesCore`'s
+  CRAN review.
+
 * **Stage 1a/1b/1c — remove duplicate iid material; delegate to `glmbayesCore`
   (deduplication):** Following Stage 0's dependency wiring, removed 21 R files
   duplicating `glmbayesCore` functionality (~47 exports total: truncated-dist

@@ -14,10 +14,13 @@
  *     - rNormalRegBlocks.cpp
  *     - block_utils.cpp
  *     - rIndepNormalGammaReg.cpp
- *     - rNormalGammaReg.cpp
- *     - rGammaGaussian.cpp
- *     - rGammaGamma.cpp
  *     - glmb_Standardize_Model.cpp
+ *
+ *   rNormalGammaReg(), rGammaGaussian(), and rGammaGamma() were removed
+ *   (Stage 3b dedup -- dead code once R/simfunction.R's rNormalGamma_reg() /
+ *   rGamma_reg() / rGamma_Conjugate_reg() were removed in Stage 1b); call
+ *   glmbayesCore::rNormalGamma_reg() / rGamma_reg() / rGamma_Conjugate_reg()
+ *   instead.
  *
  * @section UsedBy
  *   These functions are consumed by:
@@ -638,23 +641,6 @@ Rcpp::List rIndepNormalGammaReg_std_parallel(
 );
 
 
-Rcpp::List rNormalGammaReg(
-    int n,
-    Rcpp::NumericVector y,
-    Rcpp::NumericMatrix x,
-    Rcpp::NumericVector mu,
-    Rcpp::NumericMatrix P,
-    Rcpp::NumericVector offset,
-    Rcpp::NumericVector wt,
-    double shape,
-    double rate,
-    Rcpp::Nullable<double> max_disp_perc,
-    Rcpp::Nullable<double> disp_lower,
-    Rcpp::Nullable<double> disp_upper,
-    bool verbose
-);
-
-
 Rcpp::List rIndepNormalGammaReg(
     int n,
     Rcpp::NumericVector y,
@@ -675,36 +661,6 @@ Rcpp::List rIndepNormalGammaReg(
     bool verbose,
     bool progbar,
     bool return_envelope = false
-);
-
-Rcpp::List rGammaGaussian(
-    int n,
-    Rcpp::NumericVector y,
-    Rcpp::NumericMatrix x,
-    Rcpp::NumericVector beta,
-    Rcpp::NumericVector wt,
-    Rcpp::NumericVector alpha,
-    double shape,
-    double rate,
-    Rcpp::Nullable<double> disp_lower,
-    Rcpp::Nullable<double> disp_upper,
-    bool verbose = false
-);
-
-
-Rcpp::List rGammaGamma(
-    int n,
-    Rcpp::NumericVector y,
-    Rcpp::NumericMatrix x,
-    Rcpp::NumericVector beta,
-    Rcpp::NumericVector wt,
-    Rcpp::NumericVector alpha,
-    double shape,
-    double rate,
-    double max_disp_perc,
-    Rcpp::Nullable<double> disp_lower,
-    Rcpp::Nullable<double> disp_upper,
-    bool verbose = false
 );
 
 Rcpp::List glmb_Standardize_Model(

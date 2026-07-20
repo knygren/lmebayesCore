@@ -748,83 +748,10 @@ Rcpp::List rIndepNormalGammaReg_with_envelope_cpp_export(
   );
 }
 
-// [[Rcpp::export]]
-Rcpp::List rNormalGammaReg_cpp_export(
-    int n,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& x,
-    const Rcpp::NumericVector& mu,
-    const Rcpp::NumericMatrix& P,
-    const Rcpp::NumericVector& offset,
-    const Rcpp::NumericVector& wt,
-    double shape,
-    double rate,
-    Rcpp::Nullable<double> max_disp_perc,
-    Rcpp::Nullable<double> disp_lower,
-    Rcpp::Nullable<double> disp_upper,
-    bool verbose = false
-) {
-  return glmbayes::sim::rNormalGammaReg(
-    n,
-    y,
-    x,
-    mu,
-    P,
-    offset,
-    wt,
-    shape,
-    rate,
-    max_disp_perc,
-    disp_lower,
-    disp_upper,
-    verbose
-  );
-}
-
-// [[Rcpp::export]]
-Rcpp::List rGammaGaussian_cpp_export(
-    int n,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& x,
-    const Rcpp::NumericVector& beta,
-    const Rcpp::NumericVector& wt,
-    const Rcpp::NumericVector& alpha,
-    double shape,
-    double rate,
-    Rcpp::Nullable<double> disp_lower = R_NilValue,
-    Rcpp::Nullable<double> disp_upper = R_NilValue,
-    bool verbose = false
-) {
-  return glmbayes::sim::rGammaGaussian(
-    n, y, x, beta, wt, alpha,
-    shape, rate,
-    disp_lower, disp_upper,
-    verbose
-  );
-}
-
-// [[Rcpp::export]]
-Rcpp::List rGammaGamma_cpp_export(
-    int n,
-    const Rcpp::NumericVector& y,
-    const Rcpp::NumericMatrix& x,
-    const Rcpp::NumericVector& beta,
-    const Rcpp::NumericVector& wt,
-    const Rcpp::NumericVector& alpha,
-    double shape,
-    double rate,
-    double max_disp_perc,
-    Rcpp::Nullable<double> disp_lower = R_NilValue,
-    Rcpp::Nullable<double> disp_upper = R_NilValue,
-    bool verbose = false
-) {
-  return glmbayes::sim::rGammaGamma(
-    n, y, x, beta, wt, alpha,
-    shape, rate, max_disp_perc,
-    disp_lower, disp_upper,
-    verbose
-  );
-}
+// rNormalGammaReg_cpp_export, rGammaGaussian_cpp_export, and rGammaGamma_cpp_export
+// were removed here (Stage 3b dedup): dead code once R/simfunction.R's
+// rNormalGamma_reg() / rGamma_reg() / rGamma_Conjugate_reg() were removed in
+// Stage 1b. Use glmbayesCore's versions of those R functions instead.
 
 
 // =============================================================================

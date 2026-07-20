@@ -365,35 +365,10 @@
   .Call(`_lmebayesCore_rIndepNormalGammaReg_with_envelope_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
 }
 
-#' @noRd
-#' @keywords internal
-.rNormalGammaReg_cpp <- function(n, y, x, mu, P, offset, wt, shape, rate,
-                                 max_disp_perc, disp_lower, disp_upper,
-                                 verbose = FALSE) {
-  .Call(`_lmebayesCore_rNormalGammaReg_cpp_export`,
-        n, y, x, mu, P, offset, wt, shape, rate,
-        max_disp_perc, disp_lower, disp_upper, verbose)
-}
-
-#' @noRd
-#' @keywords internal
-.rGammaGaussian_cpp <- function(n, y, x, beta, wt, alpha, shape, rate,
-                                disp_lower = NULL, disp_upper = NULL,
-                                verbose = FALSE) {
-  .Call(`_lmebayesCore_rGammaGaussian_cpp_export`,
-        n, y, x, beta, wt, alpha, shape, rate,
-        disp_lower, disp_upper, verbose)
-}
-
-#' @noRd
-#' @keywords internal
-.rGammaGamma_cpp <- function(n, y, x, beta, wt, alpha, shape, rate,
-                             max_disp_perc, disp_lower = NULL,
-                             disp_upper = NULL, verbose = FALSE) {
-  .Call(`_lmebayesCore_rGammaGamma_cpp_export`,
-        n, y, x, beta, wt, alpha, shape, rate,
-        max_disp_perc, disp_lower, disp_upper, verbose)
-}
+# .rNormalGammaReg_cpp, .rGammaGaussian_cpp, and .rGammaGamma_cpp were removed
+# here (Stage 3b dedup): dead code once R/simfunction.R's rNormalGamma_reg() /
+# rGamma_reg() / rGamma_Conjugate_reg() were removed in Stage 1b. Use
+# glmbayesCore's versions of those R functions instead.
 
 
 # =============================================================================

@@ -117,18 +117,6 @@ rIndepNormalGammaReg_with_envelope_cpp_export <- function(n, y, x, mu, P, offset
     .Call(`_lmebayesCore_rIndepNormalGammaReg_with_envelope_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
 }
 
-rNormalGammaReg_cpp_export <- function(n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose = FALSE) {
-    .Call(`_lmebayesCore_rNormalGammaReg_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose)
-}
-
-rGammaGaussian_cpp_export <- function(n, y, x, beta, wt, alpha, shape, rate, disp_lower = NULL, disp_upper = NULL, verbose = FALSE) {
-    .Call(`_lmebayesCore_rGammaGaussian_cpp_export`, n, y, x, beta, wt, alpha, shape, rate, disp_lower, disp_upper, verbose)
-}
-
-rGammaGamma_cpp_export <- function(n, y, x, beta, wt, alpha, shape, rate, max_disp_perc, disp_lower = NULL, disp_upper = NULL, verbose = FALSE) {
-    .Call(`_lmebayesCore_rGammaGamma_cpp_export`, n, y, x, beta, wt, alpha, shape, rate, max_disp_perc, disp_lower, disp_upper, verbose)
-}
-
 rNormalGLM_std_cpp_export <- function(n, y, x, mu, P, alpha, wt, f2, Envelope, family, link, progbar = 1L, verbose = FALSE) {
     .Call(`_lmebayesCore_rNormalGLM_std_cpp_export`, n, y, x, mu, P, alpha, wt, f2, Envelope, family, link, progbar, verbose)
 }
