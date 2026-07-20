@@ -1,5 +1,37 @@
 # lmebayesCore (development version)
 
+* **Stage 1a/1b/1c — remove duplicate iid material; delegate to `glmbayesCore`
+  (deduplication):** Following Stage 0's dependency wiring, removed 21 R files
+  duplicating `glmbayesCore` functionality (~47 exports total: truncated-dist
+  and envelope C++ callbacks, the `simfunction`/`multi_r*` iid sampler stack,
+  and the top-level `Prior_Setup`/`pfamily`/`rglmb`/`rlmb` prior API), along
+  with their 32 `man/` pages and 28 `inst/examples/` files. **Hard break, no
+  aliases:** callers that used `lmebayesCore::Prior_Setup()`,
+  `lmebayesCore::rglmb()`, `lmebayesCore::dNormal()`, etc. must switch to
+  `glmbayesCore::…` directly. Remaining internal call sites in
+  `lmebayesCore`'s own R/ (two-block engines, `Prior_Setup_lmebayes()`,
+  `lmebayes_posterior_icm.R`, etc.) were updated to call `glmbayesCore::…`
+  explicitly. `lmebayesCore` now exports **42 symbols + 6 S3 methods**
+  (mixed-model setup and two-block Gibbs sampling only).
+  `rindepNormalGamma_reg_with_envelope()` -- caught by the mass file removal
+  but actually `lmebayesCore`-specific, not a `glmbayesCore` duplicate -- was
+  restored as its own file.
+
+* **Stage 2 — C++ R-namespace retarget:** `src/package_ns.h`'s `GLMBAYES_R_NS`
+  macro (used by `src/R_interface.h` and `src/twoBlockGibbs.cpp` to resolve
+  R-level callbacks -- `EnvelopeOpt`, `EnvelopeSort`, `glmbfamfunc`,
+  `rNormal_reg.wfit`, `rgamma_ct`, and Block~2's `rglmb`) now points at
+  `"glmbayesCore"` instead of `"lmebayesCore"`, matching the R-level exports
+  removed above. Kept as a single macro rather than splitting into separate
+  iid (`glmbayesCore`) / mixed-model (`lmebayesCore`) namespace macros, since
+  nothing in the remaining mixed-model C++ needs a purely `lmebayesCore`-local
+  R callback today. **C++ object code itself is not yet deduplicated** -- the
+  full iid envelope/sampler engine under `src/` is still compiled into this
+  package alongside the mixed-model-only `.cpp` files that link against it
+  (Block~1 in `twoBlockGibbs.cpp`, `block_rIndepNormalGammaReg.cpp`,
+  `rNormalRegBlocks.cpp`, `rNormalGLMBlocks.cpp`); pruning that duplication is
+  a future Stage 3 effort.
+
 * **Stage 0 — `glmbayesCore` dependency wiring (deduplication prep):**
   `DESCRIPTION` now `Imports: glmbayesCore (>= 0.5.1)`. `.onLoad()` fails
   fast with an install hint if `glmbayesCore` is missing. No exports or
