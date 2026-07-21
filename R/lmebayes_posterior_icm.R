@@ -111,6 +111,14 @@ lmerb_posterior_mean <- function(design,
       call. = FALSE
     )
   }
+  sigma2 <- as.numeric(sigma2)
+  if (!(length(sigma2) %in% c(1L, J))) {
+    stop(
+      "'measurement_prior_list$dispersion_ranef' must have length 1 or the ",
+      "number of groups (", J, ").",
+      call. = FALSE
+    )
+  }
   P_b    <- solve(measurement_prior_list$Sigma_ranef)
 
   P_gamma  <- stats::setNames(
@@ -132,12 +140,17 @@ lmerb_posterior_mean <- function(design,
   Zty_scaled <- vector("list", J)
   names(ZtZ_scaled) <- names(Zty_scaled) <- group_levels
 
-  for (lev in group_levels) {
+  for (jj in seq_len(J)) {
+    lev  <- group_levels[jj]
     rows <- which(g_chr == lev)
     Z_j  <- design$Z[rows, , drop = FALSE]
     y_j  <- design$y[rows]
-    ZtZ_scaled[[lev]] <- crossprod(Z_j) / sigma2
-    Zty_scaled[[lev]] <- crossprod(Z_j, y_j) / sigma2
+    ## Per-group fixed dispersion vector (mode = "fixed_vector") is already
+    ## ordered to match group_levels by the resolver in mixed_rmerb_helpers.R;
+    ## the scalar "fixed" mode broadcasts the same value to every group.
+    sigma2_j <- if (length(sigma2) > 1L) sigma2[[jj]] else sigma2
+    ZtZ_scaled[[lev]] <- crossprod(Z_j) / sigma2_j
+    Zty_scaled[[lev]] <- crossprod(Z_j, y_j) / sigma2_j
   }
 
   ## --- Exact joint posterior mean via block (Schur-complement) elimination.
@@ -294,6 +307,27 @@ glmerb_posterior_mode <- function(design,
       call. = FALSE
     )
   }
+  if (!is.null(sigma2)) {
+    sigma2 <- as.numeric(sigma2)
+    if (!(length(sigma2) %in% c(1L, J))) {
+      stop(
+        "'measurement_prior_list$dispersion_ranef' must have length 1 or ",
+        "the number of groups (", J, ").",
+        call. = FALSE
+      )
+    }
+  }
+  ## Per-group fixed dispersion vector (mode = "fixed_vector") is already
+  ## ordered to match group_levels by the resolver in mixed_rmerb_helpers.R;
+  ## the scalar "fixed"/dGamma() modes broadcast the same value to every
+  ## group. Hoisted once since sigma2 is fixed/known across ICM iterations.
+  sigma2_per_group <- if (is.null(sigma2)) {
+    rep(list(NULL), J)
+  } else if (length(sigma2) > 1L) {
+    as.list(sigma2)
+  } else {
+    rep(list(sigma2), J)
+  }
 
   P_gamma  <- stats::setNames(
     lapply(re_names, function(k) {
@@ -342,10 +376,11 @@ glmerb_posterior_mode <- function(design,
       Z_j  <- design$Z[rows, , drop = FALSE]
       mu_j <- mu_all[, jj]
 
-      pf_j <- if (is.null(sigma2)) {
+      sigma2_j <- sigma2_per_group[[jj]]
+      pf_j <- if (is.null(sigma2_j)) {
         glmbayesCore::dNormal(mu = mu_j, Sigma = Sigma_b)
       } else {
-        glmbayesCore::dNormal(mu = mu_j, Sigma = Sigma_b, dispersion = sigma2)
+        glmbayesCore::dNormal(mu = mu_j, Sigma = Sigma_b, dispersion = sigma2_j)
       }
       fit_j <- glmbayesCore::rglmb(
         n       = 1L,

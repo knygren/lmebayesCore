@@ -38,5 +38,6 @@
 ^legacy_code$
 ^inst/DESIGN_RGLM_BLOCKS\.md$
 ^inst/DESIGN_RNORMALREG_BLOCKS\.md$
+^inst/DESIGN_GLMBAYESCORE_BRIDGE\.md$
 ^vignettes/
 ^_install_test$

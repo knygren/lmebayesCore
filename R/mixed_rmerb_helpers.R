@@ -68,19 +68,92 @@
     ))
   }
 
+  if (is.numeric(dispersion_ranef) && length(dispersion_ranef) > 1L) {
+    return(.lmebayes_resolve_dispersion_ranef_fixed_vector(
+      dispersion_ranef = dispersion_ranef,
+      design           = design,
+      fn_name          = fn_name
+    ))
+  }
+
   if (is.null(dispersion_ranef) || !is.numeric(dispersion_ranef) ||
       length(dispersion_ranef) != 1L || !is.finite(dispersion_ranef) ||
       dispersion_ranef <= 0) {
     stop(
-      "'dispersion_ranef' must be a single positive number, a dGamma() ",
-      "pfamily, or a named list of dGamma() pfamilies (one per group) for ",
-      "family = ", family$family, "().",
+      "'dispersion_ranef' must be a single positive number, a named numeric ",
+      "vector of positive per-group values, a dGamma() pfamily, or a named ",
+      "list of dGamma() pfamilies (one per group) for family = ",
+      family$family, "().",
       call. = FALSE
     )
   }
   list(
     mode                  = "fixed",
     dispersion_fix        = as.numeric(dispersion_ranef),
+    dispersion_prior_list = NULL,
+    dispersion_pfamily    = NULL
+  )
+}
+
+#' Resolve a fixed per-group numeric vector for \code{dispersion_ranef}
+#'
+#' Fourth \code{dispersion_ranef} option alongside a fixed scalar, a single
+#' (pooled) \code{dGamma()}, and a named list of \code{dGamma()} pfamilies: a
+#' plain named numeric vector with one known, fixed dispersion value per
+#' group. Unlike \code{dGamma_list(...)} (\code{"gamma_list"}), this is not a
+#' prior to be sampled -- each group's \eqn{\sigma^2_j} is treated as known
+#' for the duration of sampling, exactly like the pooled \code{"fixed"} mode
+#' but allowed to vary by group. No \code{glmmTMB} reference fit or full-rank
+#' requirement applies (there is no ING accept/reject envelope to build).
+#' @noRd
+.lmebayes_resolve_dispersion_ranef_fixed_vector <- function(
+    dispersion_ranef,
+    design,
+    fn_name = "lmerb"
+) {
+  if (is.null(design) || is.null(design$groups)) {
+    stop(
+      fn_name, "(): a named numeric vector for 'dispersion_ranef' requires ",
+      "'design' with grouping information.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(design$groups)
+  J <- length(group_levels)
+
+  if (length(dispersion_ranef) != J) {
+    stop(
+      fn_name, "(): 'dispersion_ranef' is a vector of length ",
+      length(dispersion_ranef), " but there are ", J, " group level(s) (",
+      paste(group_levels, collapse = ", "), "). Supply exactly one fixed ",
+      "dispersion value per group.",
+      call. = FALSE
+    )
+  }
+  nms <- names(dispersion_ranef)
+  if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
+    stop(
+      fn_name, "(): names(dispersion_ranef) must match the group levels (",
+      paste(group_levels, collapse = ", "), ") exactly.",
+      call. = FALSE
+    )
+  }
+  dispersion_ranef <- stats::setNames(
+    as.numeric(dispersion_ranef[group_levels]),
+    group_levels
+  )
+
+  if (any(!is.finite(dispersion_ranef)) || any(dispersion_ranef <= 0)) {
+    stop(
+      fn_name, "(): 'dispersion_ranef' values must all be positive and ",
+      "finite.",
+      call. = FALSE
+    )
+  }
+
+  list(
+    mode                  = "fixed_vector",
+    dispersion_fix        = dispersion_ranef,
     dispersion_prior_list = NULL,
     dispersion_pfamily    = NULL
   )
@@ -1617,11 +1690,12 @@
 
 #' Attach \code{sigma2} / \code{sigma2.mean} from dispersion mode and sampler draws.
 #'
-#' Fixed measurement dispersion returns a scalar; a single \code{dGamma()}
-#' returns the length-\code{n} vector from the final inner sweep
-#' (\code{dispersion_ranef}); a list of per-group \code{dGamma()} pfamilies
-#' returns an \code{n x J} matrix (one column per group); families without
-#' observation-level dispersion get \code{NULL}.
+#' Fixed measurement dispersion returns a scalar; a fixed per-group vector
+#' returns that same named length-\code{J} vector (constant, not sampled); a
+#' single \code{dGamma()} returns the length-\code{n} vector from the final
+#' inner sweep (\code{dispersion_ranef}); a list of per-group \code{dGamma()}
+#' pfamilies returns an \code{n x J} matrix (one column per group); families
+#' without observation-level dispersion get \code{NULL}.
 #' @noRd
 .lmebayes_attach_sigma2 <- function(out, disp_info) {
   mode <- disp_info$mode
@@ -1632,6 +1706,12 @@
   }
   if (identical(mode, "fixed")) {
     val <- as.numeric(disp_info$dispersion_fix)
+    out$sigma2 <- val
+    out$sigma2.mean <- val
+    return(out)
+  }
+  if (identical(mode, "fixed_vector")) {
+    val <- disp_info$dispersion_fix
     out$sigma2 <- val
     out$sigma2.mean <- val
     return(out)

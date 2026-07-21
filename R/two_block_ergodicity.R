@@ -92,7 +92,26 @@
         call. = FALSE
       )
     }
-    w <- rep(1 / as.numeric(disp)[1L], l2)
+    disp <- as.numeric(disp)
+    if (length(disp) == 1L) {
+      w <- rep(1 / disp, l2)
+    } else if (length(disp) == J) {
+      ## Fixed per-group dispersion vector, already ordered to match
+      ## `group_levels` (see .lmebayes_resolve_dispersion_ranef_fixed_vector()
+      ## in lmebayesCore's mixed_rmerb_helpers.R): expand to one weight per
+      ## observation via the same group->row mapping used everywhere else in
+      ## this function (row_idx, aligned to group_levels).
+      w <- numeric(l2)
+      for (g in seq_len(J)) {
+        w[row_idx[[g]]] <- 1 / disp[g]
+      }
+    } else {
+      stop(
+        "length(prior_list_block1$dispersion) must be 1 or the number of ",
+        "groups (", J, ").",
+        call. = FALSE
+      )
+    }
     weights_source <- "dispersion"
   } else {
     w <- as.numeric(weights)

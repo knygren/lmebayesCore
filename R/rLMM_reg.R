@@ -151,10 +151,21 @@ NULL
   P
 }
 
+#' Validate a fixed-\eqn{\sigma^2} \code{prior_list} for the LMM Block~1 route
+#'
+#' Accepts either a single positive scalar (pooled \eqn{\sigma^2}, the
+#' original contract) or, when \code{group_levels} is supplied, a numeric
+#' vector of length \code{length(group_levels)} giving one fixed, known
+#' dispersion per group. An unnamed length-\code{J} vector is accepted
+#' positionally (already in \code{group_levels} order); a named vector must
+#' match \code{group_levels} exactly (as a set) and is reordered accordingly.
+#' @param group_levels Character vector of group levels, or \code{NULL} to
+#'   only allow a pooled scalar (the original behavior).
 #' @noRd
 .rLMM_validate_fixed_dispersion_prior_list <- function(
     prior_list,
-    fn_name = "rLMMNormal_reg"
+    fn_name = "rLMMNormal_reg",
+    group_levels = NULL
 ) {
   if (!is.list(prior_list) || is.null(prior_list$dispersion)) {
     stop(
@@ -163,12 +174,10 @@ NULL
     )
   }
   d <- prior_list$dispersion
-  if (!is.numeric(d) || length(d) != 1L || !is.finite(d) || d <= 0) {
-    stop(
-      fn_name, "(): 'prior_list$dispersion' must be a single positive number.",
-      call. = FALSE
-    )
-  }
+  d <- .rLMM_validate_fixed_dispersion_vector(
+    d, group_levels = group_levels, fn_name = fn_name,
+    what = "prior_list$dispersion"
+  )
   extra <- setdiff(
     names(prior_list),
     c("dispersion", "ddef")
@@ -180,7 +189,50 @@ NULL
       call. = FALSE
     )
   }
-  as.numeric(d)
+  d
+}
+
+#' Shared positive-scalar-or-per-group-vector validator for fixed dispersion
+#' @noRd
+.rLMM_validate_fixed_dispersion_vector <- function(
+    d,
+    group_levels = NULL,
+    fn_name = "rLMMNormal_reg",
+    what = "dispersion"
+) {
+  J <- length(group_levels)
+  if (!is.numeric(d) || length(d) < 1L || any(!is.finite(d)) || any(d <= 0)) {
+    stop(
+      fn_name, "(): '", what, "' must be a single positive number",
+      if (J > 0L) paste0(" or a length-", J, " vector of positive per-group values"),
+      ".",
+      call. = FALSE
+    )
+  }
+  if (length(d) == 1L) {
+    return(as.numeric(d))
+  }
+  if (J < 1L || length(d) != J) {
+    stop(
+      fn_name, "(): '", what, "' must be a single positive number",
+      if (J > 0L) paste0(" or a length-", J, " vector (one per group level: ",
+                          paste(group_levels, collapse = ", "), ")"),
+      ".",
+      call. = FALSE
+    )
+  }
+  nms <- names(d)
+  if (!is.null(nms) && any(nzchar(nms))) {
+    if (!setequal(nms, group_levels)) {
+      stop(
+        fn_name, "(): names('", what, "') must match the group levels (",
+        paste(group_levels, collapse = ", "), ") exactly.",
+        call. = FALSE
+      )
+    }
+    d <- d[group_levels]
+  }
+  stats::setNames(as.numeric(d), group_levels)
 }
 
 #' @noRd
@@ -2072,7 +2124,9 @@ rLMMNormal_reg <- function(
     re_coef_names, group_levels, group_name, block
   )
   P <- .rLMM_validate_P(P, length(inp$re_names))
-  dispersion <- .rLMM_validate_fixed_dispersion_prior_list(prior_list)
+  dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
+    prior_list, group_levels = inp$group_levels
+  )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
@@ -2120,7 +2174,7 @@ rLMMNormal_reg_known_vcov <- function(
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, fn_name = fn_name
+    prior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2187,7 +2241,7 @@ rLMMNormal_reg_estimated_vcov <- function(
   )
   P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, fn_name = fn_name
+    prior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
