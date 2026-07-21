@@ -97,6 +97,52 @@ lmerb_posterior_mean <- function(design,
     stop("'design' must contain 'y' and 'Z'.", call. = FALSE)
   }
 
+  system <- .lmerb_posterior_normal_system(design, measurement_prior_list)
+  gamma_full <- as.vector(solve(system$M, system$v))
+
+  fixef <- stats::setNames(
+    lapply(system$re_names, function(k) {
+      g <- gamma_full[system$idx[[k]]]
+      names(g) <- colnames(design$X_hyper[[k]])
+      g
+    }),
+    system$re_names
+  )
+
+  b <- .lmerb_posterior_b_given_gamma(system, design, fixef)
+
+  list(
+    fixef      = fixef,
+    b_mean     = b$b,
+    converged  = TRUE,
+    iterations = 1L,
+    delta      = 0
+  )
+}
+
+#' Shared Schur-complement linear system for the exact two-block Gaussian posterior
+#'
+#' Builds the pieces of the exact joint Gaussian posterior over
+#' \code{(gamma, b_1, ..., b_J)} that do not depend on any particular value
+#' of \code{gamma}: the \eqn{P_{total} \times P_{total}} linear system
+#' \code{M \%*\% gamma_full = v} (\code{M} is the posterior \emph{precision}
+#' of the stacked Block~2 hyperparameter vector \code{gamma_full}, \code{v}
+#' its precision-weighted mean contribution) and, per group \eqn{j}, the
+#' Block~1 conditional precision \code{post_P_j} and \code{Zty_scaled}
+#' needed to recover \eqn{E[b_j \mid \gamma]} for any \code{gamma} via
+#' \code{.lmerb_posterior_b_given_gamma()}. Derived by eliminating
+#' \eqn{b_1, ..., b_J} algebraically from the joint posterior (see
+#' \code{\link{lmerb_posterior_mean}} Details) -- cost \code{O(J)}, no
+#' \eqn{J \times J} or \eqn{J p_{re}}-dimensional matrix is ever formed.
+#'
+#' Shared by \code{lmerb_posterior_mean()} (solves \code{M \%*\% gamma = v}
+#' once for the exact posterior mean) and
+#' \code{\link{rLMMNormal_joint_iid}} (Cholesky-factors \code{M} and each
+#' \code{post_P_j} once, then draws \code{n} iid samples from the same
+#' system -- no Gibbs sweeps, no burn-in, since the target is exactly
+#' Gaussian).
+#' @noRd
+.lmerb_posterior_normal_system <- function(design, measurement_prior_list) {
   re_names     <- design$re_coef_names
   group_levels <- levels(design$groups)
   J            <- length(group_levels)
@@ -107,7 +153,7 @@ lmerb_posterior_mean <- function(design,
   if (is.null(sigma2)) {
     stop(
       "'measurement_prior_list' must contain 'dispersion_ranef' ",
-      "for lmerb_posterior_mean().",
+      "for the exact two-block Gaussian posterior.",
       call. = FALSE
     )
   }
@@ -153,7 +199,7 @@ lmerb_posterior_mean <- function(design,
     Zty_scaled[[lev]] <- crossprod(Z_j, y_j) / sigma2_j
   }
 
-  ## --- Exact joint posterior mean via block (Schur-complement) elimination.
+  ## --- Exact joint posterior via block (Schur-complement) elimination.
   ##
   ## The target is exactly jointly Gaussian, so there is no need to alternate
   ## Block~1/Block~2 conditional means to a tolerance: eliminate Block~1
@@ -180,6 +226,9 @@ lmerb_posterior_mean <- function(design,
   ## hyperparameter counts, independent of J); solving it once yields the
   ## *exact* gamma_full, then one back-substitution pass gives b_mean.  No
   ## iteration, tolerance, or non-convergence is possible for this model.
+  ## M is exactly the posterior *precision* of gamma_full, and each
+  ## post_P_j the posterior precision of b_j | gamma -- this is what makes
+  ## the system directly re-usable for iid sampling, not just the mean.
   post_P_j_list <- stats::setNames(vector("list", J), group_levels)
   a_list        <- stats::setNames(vector("list", J), group_levels)
   D_list        <- stats::setNames(vector("list", J), group_levels)
@@ -231,36 +280,109 @@ lmerb_posterior_mean <- function(design,
     }
   }
 
-  gamma_full <- as.vector(solve(M, v))
-
-  fixef <- stats::setNames(
-    lapply(re_names, function(k) {
-      g <- gamma_full[idx[[k]]]
-      names(g) <- colnames(design$X_hyper[[k]])
-      g
-    }),
-    re_names
+  list(
+    M             = M,
+    v             = v,
+    idx           = idx,
+    p_k           = p_k,
+    P_total       = P_total,
+    post_P_j_list = post_P_j_list,
+    Zty_scaled    = Zty_scaled,
+    P_b           = P_b,
+    re_names      = re_names,
+    group_levels  = group_levels,
+    J             = J,
+    p_re          = p_re
   )
+}
 
-  mu_all <- as.matrix(build_mu_all(design, fixef)$mu_all)
-  b_mean <- matrix(
+#' Block~1 conditional mean given a Block~2 hyperparameter vector
+#'
+#' Back-substitution step of the exact two-block Gaussian posterior: given
+#' any \code{fixef} (a named list of Block~2 hyperparameter vectors, shaped
+#' like \code{lmerb_posterior_mean()}'s own \code{fixef} return value --
+#' either the exact posterior mean, or one iid draw from
+#' \code{\link{rLMMNormal_joint_iid}}), returns \eqn{E[b_j \mid \gamma]} for
+#' every group \eqn{j}, using the \code{post_P_j} / \code{Zty_scaled} /
+#' \code{P_b} already built by \code{.lmerb_posterior_normal_system()}.
+#' @noRd
+.lmerb_posterior_b_given_gamma <- function(system, design, fixef) {
+  group_levels <- system$group_levels
+  J    <- system$J
+  p_re <- system$p_re
+
+  mu_all <- as.matrix(
+    build_mu_all(design, fixef, group_levels = group_levels)$mu_all
+  )
+  b <- matrix(
     0.0, nrow = J, ncol = p_re,
-    dimnames = list(group_levels, re_names)
+    dimnames = list(group_levels, system$re_names)
   )
   for (jj in seq_len(J)) {
     lev      <- group_levels[jj]
     mu_j     <- mu_all[, jj]
-    post_v_j <- Zty_scaled[[lev]] + P_b %*% mu_j
-    b_mean[jj, ] <- solve(post_P_j_list[[lev]], post_v_j)
+    post_v_j <- system$Zty_scaled[[lev]] + system$P_b %*% mu_j
+    b[jj, ]  <- solve(system$post_P_j_list[[lev]], post_v_j)
   }
 
-  list(
-    fixef      = fixef,
-    b_mean     = b_mean,
-    converged  = TRUE,
-    iterations = 1L,
-    delta      = 0
+  list(b = b, mu_all = mu_all)
+}
+
+#' Cholesky factors of the exact two-block Gaussian posterior, for iid sampling
+#'
+#' \code{M} (posterior precision of \code{gamma_full}) and each
+#' \code{post_P_j} (posterior precision of \eqn{b_j \mid \gamma}) are always
+#' \emph{mathematically} symmetric -- but \code{.lmerb_posterior_normal_system()}
+#' assembles \code{M} one Block~2 component-row at a time using each
+#' component's own \eqn{\tau^2_k} (see that function's Details), which is
+#' only guaranteed to reproduce a symmetric \code{M} when
+#' \code{measurement_prior_list$Sigma_ranef} is diagonal \emph{and} its
+#' \eqn{k}-th diagonal entry equals component \eqn{k}'s \code{dispersion_fixef}
+#' (\eqn{\tau^2_k}) -- i.e. \code{Sigma_ranef = diag(tau2_k)}, exactly how
+#' \code{lmerb()}/\code{glmerb()} always construct it (see
+#' \code{lmebayes::lmerb} Details), but not a precondition enforced at this
+#' matrix level. \code{solve(M, v)} (the posterior \emph{mean}, used by
+#' \code{\link{lmerb_posterior_mean}}) is unaffected by this -- it is a
+#' correct linear-system solve regardless of \code{M}'s symmetry. Drawing
+#' \emph{samples} via \code{chol(M)}, however, is only valid when \code{M}
+#' actually is (the precision of) a symmetric covariance, so this check is
+#' required before any iid sampling (\code{\link{rLMMNormal_joint_iid}}).
+#'
+#' @param tol Maximum tolerated relative asymmetry
+#'   \code{max(abs(M - t(M))) / max(abs(M))} before erroring. Default
+#'   \code{1e-6} (well above floating-point roundoff, which is \code{~1e-16},
+#'   but far below the asymmetry produced by a genuinely inconsistent
+#'   \code{Sigma_ranef}/\code{pfamily_list} pairing).
+#' @return List with \code{R_M} (\code{chol(M)}, upper triangular) and
+#'   \code{R_j_list} (named list of \code{chol(post_P_j)} per group level).
+#' @noRd
+.lmerb_posterior_system_cholesky <- function(system, tol = 1e-6) {
+  M <- system$M
+  asym <- max(abs(M - t(M)))
+  scale <- max(abs(M))
+  if (scale > 0 && asym / scale > tol) {
+    stop(
+      "rLMMNormal_joint_iid(): the Block~2 posterior precision is not ",
+      "symmetric (relative asymmetry ", signif(asym / scale, 3), "). ",
+      "Exact iid sampling requires 'Sigma_ranef' (from 'prior_list_block1') ",
+      "to be diagonal with its k-th entry exactly equal to component k's ",
+      "dNormal() dispersion (tau2_k) in 'pfamily_list' -- i.e. ",
+      "Sigma_ranef = diag(tau2_k), as lmerb()/glmerb() always construct it. ",
+      "Use sim_method = \"TWO_BLOCK_GIBBS\" (or call ",
+      "rLMMNormal_reg_known_vcov_two_bg()/two_block_rNormal_reg() directly) ",
+      "for a 'Sigma_ranef' that is correlated or inconsistent with 'pfamily_list'.",
+      call. = FALSE
+    )
+  }
+  M_sym <- 0.5 * (M + t(M))
+
+  R_M <- chol(M_sym)
+  R_j_list <- stats::setNames(
+    lapply(system$group_levels, function(lev) chol(system$post_P_j_list[[lev]])),
+    system$group_levels
   )
+
+  list(R_M = R_M, R_j_list = R_j_list)
 }
 
 #' @describeIn lmebayes_posterior_icm Joint posterior \emph{mode} of the

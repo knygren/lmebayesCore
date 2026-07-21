@@ -1,5 +1,66 @@
 # lmebayesCore (development version)
 
+* **New `sim_method` argument: exact iid sampling for the fixed-dispersion /
+  known-variance-components route.** `rlmerb()`, `rglmerb()` (for
+  `family = gaussian()`), and `rLMMNormal_reg_known_vcov()`/`rLMMNormal_reg()`
+  gain a `sim_method` argument: `"DEFAULT"` or `"TWO_BLOCK_GIBBS"`. This only
+  changes behavior on the `lmm_fixed_known` route -- fixed (scalar or
+  per-group) observation dispersion **and** every Block~2 component
+  `dNormal()` (known/fixed variance components) -- where the joint posterior
+  over `(gamma, b_1, ..., b_J)` is exactly multivariate normal (see
+  `inst/README_KNOWN_VCOV_GAUSSIAN.md`). `sim_method = "DEFAULT"` now draws
+  directly, iid, from that closed-form Gaussian via a new
+  `rLMMNormal_reg_known_vcov_iid()`/`rLMMNormal_joint_iid()` engine -- no
+  Gibbs sweeps, no burn-in, no residual autocorrelation between draws.
+  `sim_method = "TWO_BLOCK_GIBBS"` keeps the previous two-block Gibbs engine,
+  now factored out unchanged as `rLMMNormal_reg_known_vcov_two_bg()`.
+  `rLMMNormal_reg_known_vcov()` itself becomes a thin dispatcher between the
+  two. Every other route (`dGamma()`/`dIndependent_Normal_Gamma` Block~2
+  components, or estimated variance components via
+  `rLMMNormal_reg_estimated_vcov()`) only has a two-block Gibbs engine, so
+  `sim_method` is a no-op there (both values behave identically). All
+  matrix-level exports and the sampler output (`sim_method_used`,
+  reflecting whichever engine actually ran) gain this field; no existing
+  argument was renamed or removed.
+
+  New building blocks behind this: `.lmerb_posterior_normal_system()` and
+  `.lmerb_posterior_b_given_gamma()` (extracted from `lmerb_posterior_mean()`
+  without changing its signature/return) build and back-substitute the exact
+  joint Gaussian posterior system; `.lmerb_posterior_system_cholesky()`
+  Cholesky-factors that system once per call (with a symmetry check/tolerance
+  on the Block~2 precision matrix `M` that `lmerb()`/`glmerb()` always
+  satisfy by construction, but direct matrix-level calls with an inconsistent
+  `Sigma_ranef`/`pfamily_list` may not).
+
+* **New `dispersion_ranef` shape: fixed per-group dispersion vector.**
+  `.lmebayes_resolve_dispersion_ranef()` (used by `rlmerb()`, and by
+  `rglmerb()` for `family = gaussian()`) now accepts a plain numeric vector
+  of length > 1 for `dispersion_ranef`, resolved to a new
+  `dispersion_mode = "fixed_vector"`: a named vector with one known, fixed
+  \eqn{\sigma^2_j} per group (names must match `levels(design$groups)`
+  exactly; reordered to `group_levels` order internally). Unlike the
+  existing `"gamma_list"` mode (a per-group `dGamma()` *prior*, sampled and
+  requiring full column rank for its ING envelope), a fixed vector is a
+  directly user-supplied constant -- no sampling, no rank restriction, and
+  no reference-fit dependency. Dispatches to the same
+  `rLMMNormal_reg_known_vcov()`/`rLMMNormal_reg_estimated_vcov()` routes as
+  the existing scalar `"fixed"` mode (`.rLMM_validate_fixed_dispersion_prior_list()`
+  now accepts `prior_list$dispersion` as a length-`J` vector, threaded
+  through a new `group_levels` parameter). The C++ engine
+  (`rNormalRegBlocks()`) already supported a per-group dispersion vector;
+  no `src/*.cpp` changes were needed.
+
+  Fixed two latent scalar-dispersion assumptions in the Gaussian rate-
+  calibration and ICM code paths, uncovered while verifying the new mode
+  end to end (both previously silently used only the *first* group's
+  dispersion for every group when handed a vector): the per-observation
+  working-weight derivation in `.two_block_rate_inputs()` (Theorem~3
+  convergence-rate calibration) now expands a per-group `dispersion`
+  vector via the same group-to-row mapping used elsewhere in that
+  function; and `lmerb_posterior_mean()`/`glmerb_posterior_mode()` now
+  index `measurement_prior_list$dispersion_ranef` per group inside their
+  per-group loops instead of dividing/passing the whole vector at once.
+
 * **Stage 3a/3b — dead iid C++ removal (deduplication):** Following the
   Stage 1a/1b/1c R-level removals, audited `lmebayesCore`'s C++ for iid
   routines that are now unreachable from R. Confirmed `rNormalGammaReg()`,

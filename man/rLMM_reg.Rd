@@ -4,6 +4,8 @@
 \alias{rLMM_reg}
 \alias{rLMMNormal_reg}
 \alias{rLMMNormal_reg_known_vcov}
+\alias{rLMMNormal_reg_known_vcov_iid}
+\alias{rLMMNormal_reg_known_vcov_two_bg}
 \alias{rLMMNormal_reg_estimated_vcov}
 \alias{rLMMindepNormalGamma_reg}
 \alias{rLMMindepNormalGamma_reg_known_vcov}
@@ -26,10 +28,50 @@ rLMMNormal_reg(
   group_levels = levels(block),
   group_name = NULL,
   progbar = TRUE,
-  verbose = FALSE
+  verbose = FALSE,
+  sim_method = "DEFAULT"
 )
 
 rLMMNormal_reg_known_vcov(
+  n,
+  y,
+  x,
+  block,
+  x_hyper,
+  P,
+  prior_list,
+  pfamily_list,
+  icm_tol = 1e-10,
+  icm_maxit = 200L,
+  tv_tol = 0.01,
+  re_coef_names = colnames(x),
+  group_levels = levels(block),
+  group_name = NULL,
+  progbar = TRUE,
+  verbose = FALSE,
+  sim_method = "DEFAULT"
+)
+
+rLMMNormal_reg_known_vcov_iid(
+  n,
+  y,
+  x,
+  block,
+  x_hyper,
+  P,
+  prior_list,
+  pfamily_list,
+  icm_tol = 1e-10,
+  icm_maxit = 200L,
+  tv_tol = 0.01,
+  re_coef_names = colnames(x),
+  group_levels = levels(block),
+  group_name = NULL,
+  progbar = TRUE,
+  verbose = FALSE
+)
+
+rLMMNormal_reg_known_vcov_two_bg(
   n,
   y,
   x,
@@ -68,7 +110,8 @@ rLMMNormal_reg_estimated_vcov(
   gap_tol = 0.0196,
   mode_gap_max = 1,
   diag_sweeps = FALSE,
-  stage_verbose = FALSE
+  stage_verbose = FALSE,
+  sim_method = "DEFAULT"
 )
 
 rLMMindepNormalGamma_reg(
@@ -147,10 +190,15 @@ one per column of \code{x}.}
 \item{P}{Random-effect prior precision matrix (\code{p_re x p_re}).}
 
 \item{prior_list}{Block~1 prior: \code{list(dispersion = sigma2)} for fixed
-\eqn{\sigma^2} routes, \code{dGamma()} fields for legacy
-\code{rLMMindepNormalGamma_reg}, or shared ING measurement prior
-(\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes
-(plug-in \eqn{\sigma^2 =} \code{shape/rate} for ICM/TV is derived internally).}
+\eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
+across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
+\code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
+\code{length(group_levels)} giving one fixed, known dispersion per
+group, matched to \code{group_levels} either positionally or by name),
+\code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or
+shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
+\code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
+\code{shape/rate} for ICM/TV is derived internally).}
 
 \item{pfamily_list}{Named list of Block~2 \code{pfamily} objects.}
 
@@ -170,6 +218,15 @@ Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.}
 
 \item{verbose}{Print convergence calibration / ICM lines.}
 
+\item{sim_method}{Sampling engine for \code{rLMMNormal_reg_known_vcov}:
+\code{"DEFAULT"} (exact iid draws, see
+\code{\link{rLMMNormal_reg_known_vcov_iid}}) or
+\code{"TWO_BLOCK_GIBBS"} (two-block Gibbs sweeps, see
+\code{\link{rLMMNormal_reg_known_vcov_two_bg}}). Accepted but has no
+effect on \code{rLMMNormal_reg_estimated_vcov} (only \code{TWO_BLOCK_GIBBS}
+is implemented there): kept as a formal purely so callers may pass the
+same argument to either route without branching.}
+
 \item{gap_tol, mode_gap_max, diag_sweeps, stage_verbose}{Pilot-stage controls for
 \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).}
 }
@@ -188,10 +245,29 @@ use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
 \code{\link{rLMMNormal_reg_estimated_vcov}} by Block~2 \code{pfamily_list}.
 
 \item \code{rLMMNormal_reg_known_vcov()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-\eqn{\tau^2_k}). Exact Theorem~3 rate calibration.
+\eqn{\tau^2_k}). Dispatches on \code{sim_method}: \code{"DEFAULT"} draws
+directly from the exact multivariate-normal posterior via
+\code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
+burn-in, no autocorrelation between draws); \code{"TWO_BLOCK_GIBBS"}
+runs \code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block
+Gibbs with Theorem~3 rate calibration -- the only engine available for
+\code{rLMMNormal_reg_estimated_vcov} and the GLMM routes).
+
+\item \code{rLMMNormal_reg_known_vcov_iid()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal};
+exact iid draws from the closed-form multivariate-normal posterior via
+\code{\link{rLMMNormal_joint_iid}} (\code{sim_method = "DEFAULT"} route
+of \code{\link{rLMMNormal_reg_known_vcov}}).
+
+\item \code{rLMMNormal_reg_known_vcov_two_bg()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
+\eqn{\tau^2_k}). Exact Theorem~3 rate calibration; two-block Gibbs
+sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
+\code{\link{rLMMNormal_reg_known_vcov}}).
 
 \item \code{rLMMNormal_reg_estimated_vcov()}: Fixed \eqn{\sigma^2}; ING Block~2 (estimated \eqn{\tau^2_k}).
 Optional pilot stage; conservative \code{disp_lower} rate bound.
+\code{sim_method} is accepted but has no effect: variance components
+are estimated here, so the joint posterior is not exactly Gaussian and
+only the two-block Gibbs engine is implemented.
 
 \item \code{rLMMindepNormalGamma_reg()}: Legacy outer-loop engine: draws \eqn{\sigma^2} via
 \code{\link[glmbayesCore]{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
@@ -238,6 +314,7 @@ glmbayes Simulation Functions
 \code{\link{rGLMM_Re_Draw}()},
 \code{\link{rGLMM_reg}()},
 \code{\link{rGLMM_sweep}()},
+\code{\link{rLMMNormal_joint_iid}()},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},

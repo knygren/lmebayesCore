@@ -1508,7 +1508,8 @@
     verbose       = FALSE,
     gap_tol       = 0.0196,
     mode_gap_max  = 1.0,
-    diag_sweeps   = FALSE
+    diag_sweeps   = FALSE,
+    sim_method    = "DEFAULT"
 ) {
   re_names     <- design$re_coef_names
   group_levels <- levels(design$groups)
@@ -1551,6 +1552,13 @@
     args$mode_gap_max  <- mode_gap_max
     args$diag_sweeps   <- diag_sweeps
     args$stage_verbose <- verbose
+  } else if (!identical(disp_info$mode, "gamma") &&
+             !identical(disp_info$mode, "gamma_list")) {
+    ## lmm_fixed_known route only: rLMMNormal_reg_known_vcov() is the only
+    ## export with a real sim_method dispatch (exact iid vs. two-block
+    ## Gibbs). Every other route accepts the argument (if at all) as a
+    ## no-op, so it is only forwarded here.
+    args$sim_method <- sim_method
   }
 
   args
@@ -1607,7 +1615,8 @@
     verbose       = FALSE,
     gap_tol             = 0.0196,
     mode_gap_max        = 1.0,
-    diag_sweeps         = FALSE
+    diag_sweeps         = FALSE,
+    sim_method          = "DEFAULT"
 ) {
   route_key <- .lmebayes_reg_route_key(
     family         = gaussian(),
@@ -1625,9 +1634,13 @@
     verbose       = verbose,
     gap_tol       = gap_tol,
     mode_gap_max  = mode_gap_max,
-    diag_sweeps   = diag_sweeps
+    diag_sweeps   = diag_sweeps,
+    sim_method    = sim_method
   )
   out <- do.call(route$export_fn, args)
+  if (is.null(out$sim_method_used)) {
+    out$sim_method_used <- "TWO_BLOCK_GIBBS"
+  }
   .lmebayes_attach_sigma2(out, disp_info)
 }
 

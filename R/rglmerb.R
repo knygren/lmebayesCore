@@ -40,6 +40,9 @@
 #'   (non-Gaussian only).
 #' @param verbose Print stage headers and diagnostics.
 #' @param progbar Progress bars when \code{verbose} is \code{FALSE}.
+#' @param sim_method Sampling engine for \code{family = gaussian()}:
+#'   \code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"}; see \code{\link{rlmerb}}.
+#'   Ignored (two-block Gibbs is the only engine) for non-Gaussian families.
 #' @return Object of class \code{c("rglmerb", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{sigma2}
 #'   (Gaussian only: scalar or length-\code{n} vector as for \code{\link{rlmerb}}),
@@ -69,13 +72,16 @@ rglmerb <- function(
     mode_gap_max        = 1.0,
     collect_block1      = TRUE,
     verbose             = TRUE,
-    progbar             = FALSE
+    progbar             = FALSE,
+    sim_method          = "DEFAULT"
 ) {
   cl <- match.call()
 
   if (length(n) > 1L) n <- length(n)
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
+
+  sim_method <- .rLMM_validate_sim_method(sim_method, fn_name = "rglmerb")
 
   if (!inherits(design, "model_setup")) {
     stop("'design' must be a model_setup object.", call. = FALSE)
@@ -117,7 +123,8 @@ rglmerb <- function(
       progbar       = progbar,
       verbose       = verbose,
       gap_tol       = gap_tol,
-      mode_gap_max  = mode_gap_max
+      mode_gap_max  = mode_gap_max,
+      sim_method    = sim_method
     )
 
     icm_lbl <- .lmebayes_block2_icm_labels(prior, family)

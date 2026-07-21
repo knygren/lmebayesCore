@@ -43,12 +43,24 @@
 #'   When \code{TRUE}, auto-print one combined Block~2 chain-mean table per
 #'   stage when each stage finishes; \code{sweep_history} is always stored on
 #'   the fit. Default \code{FALSE}.
+#' @param sim_method Sampling engine: \code{"DEFAULT"} or
+#'   \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
+#'   known-variance-components route (scalar or per-group fixed
+#'   \code{dispersion_ranef}, all Block~2 \code{dNormal()}): \code{"DEFAULT"}
+#'   draws directly from the exact multivariate-normal posterior via
+#'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
+#'   burn-in); \code{"TWO_BLOCK_GIBBS"} forces the two-block Gibbs engine
+#'   (\code{\link{rLMMNormal_reg_known_vcov_two_bg}}) instead. Every other
+#'   route (\code{dGamma()}/\code{dIndependent_Normal_Gamma} components,
+#'   variance components estimated) only has a two-block Gibbs engine, so
+#'   both values behave identically there.
 #' @return An object of class \code{c("rlmerb", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
 #'   \code{ranef.mode}, \code{sigma2} (scalar when \eqn{\sigma^2} is fixed,
 #'   length-\code{n} vector when \code{dispersion_ranef} is \code{dGamma()}),
-#'   \code{sigma2.mean}, \code{m_convergence}, \code{convergence}, \code{Prior},
-#'   and \code{design}.
+#'   \code{sigma2.mean}, \code{m_convergence}, \code{convergence},
+#'   \code{sim_method_used} (\code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"},
+#'   whichever engine actually ran), \code{Prior}, and \code{design}.
 #' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
@@ -68,13 +80,16 @@ rlmerb <- function(
     print_icm_table = TRUE,
     gap_tol             = 0.0196,
     mode_gap_max        = 1.0,
-    diag_sweeps         = FALSE
+    diag_sweeps         = FALSE,
+    sim_method          = "DEFAULT"
 ) {
   cl <- match.call()
 
   if (length(n) > 1L) n <- length(n)
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
+
+  sim_method <- .rLMM_validate_sim_method(sim_method, fn_name = "rlmerb")
 
   if (!inherits(design, "model_setup")) {
     stop("'design' must be a model_setup object.", call. = FALSE)
@@ -125,7 +140,8 @@ rlmerb <- function(
     verbose         = verbose,
     gap_tol             = gap_tol,
     mode_gap_max        = mode_gap_max,
-    diag_sweeps         = diag_sweeps
+    diag_sweeps         = diag_sweeps,
+    sim_method          = sim_method
   )
 
   if (isTRUE(print_icm_table)) {

@@ -35,10 +35,15 @@
 #'   one per column of \code{x}.
 #' @param P Random-effect prior precision matrix (\code{p_re x p_re}).
 #' @param prior_list Block~1 prior: \code{list(dispersion = sigma2)} for fixed
-#'   \eqn{\sigma^2} routes, \code{dGamma()} fields for legacy
-#'   \code{rLMMindepNormalGamma_reg}, or shared ING measurement prior
-#'   (\code{mu}, \code{Sigma}, \code{shape}, \code{rate}, \ldots) for ING routes
-#'   (plug-in \eqn{\sigma^2 =} \code{shape/rate} for ICM/TV is derived internally).
+#'   \eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
+#'   across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
+#'   \code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
+#'   \code{length(group_levels)} giving one fixed, known dispersion per
+#'   group, matched to \code{group_levels} either positionally or by name),
+#'   \code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or
+#'   shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
+#'   \code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
+#'   \code{shape/rate} for ICM/TV is derived internally).
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
 #' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
 #' @param tv_tol Total-variation tolerance in \code{(0, 1)} for calibration.
@@ -134,6 +139,27 @@ NULL
     group_levels  = group_levels,
     group_name    = group_name
   )
+}
+
+#' Validate the \code{sim_method} argument shared by LMM reg engines
+#'
+#' \code{"DEFAULT"} lets each route pick its own engine (exact iid sampling
+#' for \code{rLMMNormal_reg_known_vcov}; two-block Gibbs everywhere else,
+#' since it is the only engine available there). \code{"TWO_BLOCK_GIBBS"}
+#' forces the two-block Gibbs engine even on routes where iid sampling would
+#' otherwise be available.
+#' @noRd
+.rLMM_validate_sim_method <- function(sim_method, fn_name = "rLMMNormal_reg") {
+  allowed <- c("DEFAULT", "TWO_BLOCK_GIBBS")
+  if (!is.character(sim_method) || length(sim_method) != 1L ||
+      is.na(sim_method) || !(sim_method %in% allowed)) {
+    stop(
+      fn_name, "(): 'sim_method' must be one of ",
+      paste(paste0('"', allowed, '"'), collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+  sim_method
 }
 
 #' @noRd
@@ -2090,6 +2116,83 @@ NULL
   staged$icm_info         <- icm_info
   staged$ptypes           <- pf_summary$ptypes
   staged$any_non_normal   <- any_non_normal
+  staged$sim_method_used  <- "TWO_BLOCK_GIBBS"
+
+  class(staged) <- c(result_class, "rLMMNormal_reg", "list")
+  staged
+}
+
+#' Shared exact-iid sampling pipeline for \code{rLMMNormal_reg_known_vcov_iid}
+#'
+#' Counterpart to \code{.rLMMNormal_reg_run()} that draws directly from
+#' the exact multivariate-normal posterior via
+#' \code{\link{rLMMNormal_joint_iid}} instead of running ICM + Theorem~3
+#' calibration + two-block Gibbs sweeps. No pilot stage, calibration, or
+#' \code{icm_tol}/\code{icm_maxit} are needed: every draw is already exact,
+#' so \code{m_convergence} is fixed at \code{1L}.
+#' @noRd
+.rLMMNormal_reg_run_iid <- function(
+    inp,
+    block,
+    P,
+    dispersion,
+    pfamily_list,
+    pf_summary,
+    progbar,
+    verbose,
+    engine_label,
+    result_class,
+    cl
+) {
+  prior_list_block1 <- list(
+    P          = P,
+    dispersion = dispersion,
+    ddef       = FALSE
+  )
+
+  out <- rLMMNormal_joint_iid(
+    n                 = inp$n,
+    y                 = inp$y,
+    x                 = inp$x,
+    block             = block,
+    x_hyper           = inp$x_hyper,
+    prior_list_block1 = prior_list_block1,
+    pfamily_list      = pfamily_list,
+    re_coef_names     = inp$re_names,
+    group_levels      = inp$group_levels,
+    group_name        = inp$group_name,
+    progbar           = progbar,
+    verbose           = verbose
+  )
+
+  staged <- .rLMM_format_v2_out(
+    v2_out       = out,
+    n            = inp$n,
+    re_names     = inp$re_names,
+    group_levels = inp$group_levels,
+    fixef_mode   = out$fixef_mean,
+    fixef_init   = out$fixef_mean
+  )
+
+  staged$call             <- cl
+  staged$m_convergence    <- 1L
+  staged$convergence_info <- list(
+    method        = "exact_iid",
+    m_convergence = 1L,
+    m_min         = 0L,
+    lambda_star   = 0,
+    eigenvalues   = NULL,
+    draw_engine   = "rLMMNormal_joint_iid"
+  )
+  staged$draw_engine     <- "rLMMNormal_joint_iid"
+  staged$pfamily_list    <- pfamily_list
+  staged$prior_list      <- prior_list_block1
+  staged$family          <- gaussian()
+  staged$ranef.mode      <- out$b_last
+  staged$icm_info        <- list(converged = TRUE, iterations = 1L, delta = 0)
+  staged$ptypes          <- pf_summary$ptypes
+  staged$any_non_normal  <- FALSE
+  staged$sim_method_used <- "DEFAULT"
 
   class(staged) <- c(result_class, "rLMMNormal_reg", "list")
   staged
@@ -2098,6 +2201,14 @@ NULL
 #' @describeIn rLMM_reg Dispatcher for fixed \eqn{\sigma^2}: routes to
 #'   \code{\link{rLMMNormal_reg_known_vcov}} or
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}} by Block~2 \code{pfamily_list}.
+#' @param sim_method Sampling engine for \code{rLMMNormal_reg_known_vcov}:
+#'   \code{"DEFAULT"} (exact iid draws, see
+#'   \code{\link{rLMMNormal_reg_known_vcov_iid}}) or
+#'   \code{"TWO_BLOCK_GIBBS"} (two-block Gibbs sweeps, see
+#'   \code{\link{rLMMNormal_reg_known_vcov_two_bg}}). Accepted but has no
+#'   effect on \code{rLMMNormal_reg_estimated_vcov} (only \code{TWO_BLOCK_GIBBS}
+#'   is implemented there): kept as a formal purely so callers may pass the
+#'   same argument to either route without branching.
 #' @export
 rLMMNormal_reg <- function(
     n,
@@ -2115,7 +2226,8 @@ rLMMNormal_reg <- function(
     group_levels    = levels(block),
     group_name      = NULL,
     progbar         = TRUE,
-    verbose         = FALSE
+    verbose         = FALSE,
+    sim_method      = "DEFAULT"
 ) {
   cl <- match.call()
 
@@ -2145,9 +2257,56 @@ rLMMNormal_reg <- function(
 }
 
 #' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-#'   \eqn{\tau^2_k}). Exact Theorem~3 rate calibration.
+#'   \eqn{\tau^2_k}). Dispatches on \code{sim_method}: \code{"DEFAULT"} draws
+#'   directly from the exact multivariate-normal posterior via
+#'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
+#'   burn-in, no autocorrelation between draws); \code{"TWO_BLOCK_GIBBS"}
+#'   runs \code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block
+#'   Gibbs with Theorem~3 rate calibration -- the only engine available for
+#'   \code{rLMMNormal_reg_estimated_vcov} and the GLMM routes).
 #' @export
 rLMMNormal_reg_known_vcov <- function(
+    n,
+    y,
+    x,
+    block,
+    x_hyper,
+    P,
+    prior_list,
+    pfamily_list,
+    icm_tol         = 1e-10,
+    icm_maxit       = 200L,
+    tv_tol          = 0.01,
+    re_coef_names   = colnames(x),
+    group_levels    = levels(block),
+    group_name      = NULL,
+    progbar         = TRUE,
+    verbose         = FALSE,
+    sim_method      = "DEFAULT"
+) {
+  cl <- match.call()
+  fn_name <- "rLMMNormal_reg_known_vcov"
+  sim_method <- .rLMM_validate_sim_method(sim_method, fn_name = fn_name)
+
+  route_fn <- if (identical(sim_method, "TWO_BLOCK_GIBBS")) {
+    rLMMNormal_reg_known_vcov_two_bg
+  } else {
+    rLMMNormal_reg_known_vcov_iid
+  }
+  mc <- match.call(expand.dots = FALSE)
+  mc[[1L]] <- route_fn
+  mc$sim_method <- NULL
+  out <- eval(mc, parent.frame())
+  out$call <- cl
+  out
+}
+
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal};
+#'   exact iid draws from the closed-form multivariate-normal posterior via
+#'   \code{\link{rLMMNormal_joint_iid}} (\code{sim_method = "DEFAULT"} route
+#'   of \code{\link{rLMMNormal_reg_known_vcov}}).
+#' @export
+rLMMNormal_reg_known_vcov_iid <- function(
     n,
     y,
     x,
@@ -2166,7 +2325,68 @@ rLMMNormal_reg_known_vcov <- function(
     verbose         = FALSE
 ) {
   cl <- match.call()
-  fn_name <- "rLMMNormal_reg_known_vcov"
+  fn_name <- "rLMMNormal_reg_known_vcov_iid"
+
+  inp <- .rLMM_validate_matrix_inputs(
+    n, y, x, x_hyper, tv_tol,
+    re_coef_names, group_levels, group_name, block
+  )
+  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
+  dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
+    prior_list, fn_name = fn_name, group_levels = inp$group_levels
+  )
+  pfamily_list <- .two_block_validate_pfamily_list(
+    pfamily_list, inp$re_names, J = length(inp$group_levels)
+  )
+  pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
+  if (!pf_summary$all_dNormal) {
+    stop(
+      fn_name, "(): all Block~2 components must be dNormal(); ",
+      "use rLMMNormal_reg_estimated_vcov() or rLMMNormal_reg().",
+      call. = FALSE
+    )
+  }
+
+  .rLMMNormal_reg_run_iid(
+    inp              = inp,
+    block            = block,
+    P                = P,
+    dispersion       = dispersion,
+    pfamily_list     = pfamily_list,
+    pf_summary       = pf_summary,
+    progbar          = progbar,
+    verbose          = verbose,
+    engine_label     = fn_name,
+    result_class     = "rLMMNormal_reg_known_vcov",
+    cl               = cl
+  )
+}
+
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
+#'   \eqn{\tau^2_k}). Exact Theorem~3 rate calibration; two-block Gibbs
+#'   sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
+#'   \code{\link{rLMMNormal_reg_known_vcov}}).
+#' @export
+rLMMNormal_reg_known_vcov_two_bg <- function(
+    n,
+    y,
+    x,
+    block,
+    x_hyper,
+    P,
+    prior_list,
+    pfamily_list,
+    icm_tol         = 1e-10,
+    icm_maxit       = 200L,
+    tv_tol          = 0.01,
+    re_coef_names   = colnames(x),
+    group_levels    = levels(block),
+    group_name      = NULL,
+    progbar         = TRUE,
+    verbose         = FALSE
+) {
+  cl <- match.call()
+  fn_name <- "rLMMNormal_reg_known_vcov_two_bg"
 
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
@@ -2209,6 +2429,9 @@ rLMMNormal_reg_known_vcov <- function(
 
 #' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; ING Block~2 (estimated \eqn{\tau^2_k}).
 #'   Optional pilot stage; conservative \code{disp_lower} rate bound.
+#'   \code{sim_method} is accepted but has no effect: variance components
+#'   are estimated here, so the joint posterior is not exactly Gaussian and
+#'   only the two-block Gibbs engine is implemented.
 #' @export
 rLMMNormal_reg_estimated_vcov <- function(
     n,
@@ -2230,10 +2453,12 @@ rLMMNormal_reg_estimated_vcov <- function(
     gap_tol         = 0.0196,
     mode_gap_max    = 1.0,
     diag_sweeps     = FALSE,
-    stage_verbose   = FALSE
+    stage_verbose   = FALSE,
+    sim_method      = "DEFAULT"
 ) {
   cl <- match.call()
   fn_name <- "rLMMNormal_reg_estimated_vcov"
+  .rLMM_validate_sim_method(sim_method, fn_name = fn_name)
 
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
