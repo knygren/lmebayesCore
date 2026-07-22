@@ -8,7 +8,7 @@ two_block_rNormal_reg(
   n,
   y,
   x,
-  block,
+  group,
   x_hyper,
   prior_list_block1,
   pfamily_list,
@@ -36,17 +36,17 @@ non-empty \code{colnames(x)}: these are the random-effect coefficient
 names used to key \code{x_hyper} and \code{pfamily_list} (there is no
 separate \code{re_coef_names} argument to override them).}
 
-\item{block}{Grouping factor of length \code{l2} (must be a \code{factor};
-\code{levels(block)} fixes the row order of Block~1 draws -- there is no
+\item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
+\code{levels(group)} fixes the row order of Block~1 draws -- there is no
 separate \code{group_levels} argument. To use a level order/superset not
-present in the observed data, construct \code{block} as
-\code{factor(observed_block, levels = full_superset)} yourself. The name
+present in the observed data, construct \code{group} as
+\code{factor(observed_group, levels = full_superset)} yourself. The name
 used for the grouping column in \code{coefficients} (\code{group_name})
-is resolved from \code{attr(block, "group_name")} if set, otherwise from
-\code{block}'s own variable name via \code{substitute()} -- this only
-works when \code{block} is passed as a bare variable (e.g.
-\code{block = school_id}); otherwise attach the name yourself via
-\code{attr(block, "group_name") <- "school_id"}.}
+is resolved from \code{attr(group, "group_name")} if set, otherwise from
+\code{group}'s own variable name via \code{substitute()} -- this only
+works when \code{group} is passed as a bare variable (e.g.
+\code{group = school_id}); otherwise attach the name yourself via
+\code{attr(group, "group_name") <- "school_id"}.}
 
 \item{x_hyper}{Named list of group-level design matrices \code{X_k}
 (\code{J x q_k}), one per column of \code{x}.}

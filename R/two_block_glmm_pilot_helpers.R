@@ -113,7 +113,7 @@
     re_names,
     group_levels,
     x,
-    block,
+    group,
     x_hyper,
     prior_list,
     pfamily_list,
@@ -134,7 +134,7 @@
     dimnames(b_i) <- list(group_levels, re_names)
     mode_w_i <- two_block_mode_weights(
       x            = x,
-      block        = block,
+      block        = group,
       b_mode       = b_i,
       family       = family,
       dispersion   = dispersion_block1,
@@ -142,7 +142,7 @@
     )
     rate_i <- two_block_rate_from_pfamily_list(
       x                 = x,
-      block             = block,
+      block             = group,
       x_hyper           = x_hyper,
       prior_list_block1 = prior_list,
       pfamily_list      = pfamily_list,
@@ -189,7 +189,7 @@
     group_levels,
     group_name,
     x,
-    block,
+    group,
     x_hyper,
     prior_list,
     pfamily_list,
@@ -227,7 +227,7 @@
     } else {
       two_block_mode_weights(
         x            = x,
-        block        = block,
+        block        = group,
         b_mode       = b_i,
         family       = family,
         dispersion   = dispersion,
@@ -236,7 +236,7 @@
     }
     rate_i <- two_block_rate_from_pfamily_list(
       x                 = x,
-      block             = block,
+      block             = group,
       x_hyper           = x_hyper,
       prior_list_block1 = prior_list,
       pfamily_list      = pfamily_list,

@@ -84,32 +84,32 @@
   list(ddef = ddef, dispersion = dispersion)
 }
 
-#' Resolve group_name from block's own attribute or the caller's expression
+#' Resolve group_name from group's own attribute or the caller's expression
 #'
 #' @description
-#' \code{group_name} cannot be derived from \code{block}'s \emph{value} (R
+#' \code{group_name} cannot be derived from \code{group}'s \emph{value} (R
 #' variable names are not part of an object's data). It is resolved from,
-#' in order: (1) \code{attr(block, "group_name")}, set internally when
-#' \code{block} is threaded through a call chain that no longer has a
+#' in order: (1) \code{attr(group, "group_name")}, set internally when
+#' \code{group} is threaded through a call chain that no longer has a
 #' \code{group_name} formal to carry it (e.g. \code{lmerb()}/\code{glmerb()}
 #' via \code{do.call()}, or the private-helper calls into
 #' \code{\link{two_block_rNormal_reg}}/\code{\link{rLMMNormal_joint_iid}});
-#' (2) \code{substitute(block)} in the caller's own frame, when \code{block}
+#' (2) \code{substitute(group)} in the caller's own frame, when \code{group}
 #' was passed as a bare variable.
 #' @noRd
-.lmebayes_resolve_group_name <- function(block, blk_expr, fn_name) {
-  gn <- attr(block, "group_name", exact = TRUE)
+.lmebayes_resolve_group_name <- function(group, group_expr, fn_name) {
+  gn <- attr(group, "group_name", exact = TRUE)
   if (!is.null(gn) && length(gn) == 1L && !is.na(gn) && nzchar(gn)) {
     return(as.character(gn))
   }
-  if (is.symbol(blk_expr)) {
-    return(deparse(blk_expr))
+  if (is.symbol(group_expr)) {
+    return(deparse(group_expr))
   }
   stop(
-    fn_name, "(): cannot derive 'group_name': 'block' is neither a plain ",
-    "variable nor carries a 'group_name' attribute. Pass 'block' as a bare ",
-    "variable (e.g. block = school_id), or attach one via ",
-    "attr(block, \"group_name\") <- \"school_id\" beforehand.",
+    fn_name, "(): cannot derive 'group_name': 'group' is neither a plain ",
+    "variable nor carries a 'group_name' attribute. Pass 'group' as a bare ",
+    "variable (e.g. group = school_id), or attach one via ",
+    "attr(group, \"group_name\") <- \"school_id\" beforehand.",
     call. = FALSE
   )
 }
@@ -139,17 +139,17 @@
 #'   non-empty \code{colnames(x)}: these are the random-effect coefficient
 #'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
 #'   separate \code{re_coef_names} argument to override them).
-#' @param block Grouping factor of length \code{l2} (must be a \code{factor};
-#'   \code{levels(block)} fixes the row order of Block~1 draws -- there is no
+#' @param group Grouping factor of length \code{l2} (must be a \code{factor};
+#'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
 #'   separate \code{group_levels} argument. To use a level order/superset not
-#'   present in the observed data, construct \code{block} as
-#'   \code{factor(observed_block, levels = full_superset)} yourself. The name
+#'   present in the observed data, construct \code{group} as
+#'   \code{factor(observed_group, levels = full_superset)} yourself. The name
 #'   used for the grouping column in \code{coefficients} (\code{group_name})
-#'   is resolved from \code{attr(block, "group_name")} if set, otherwise from
-#'   \code{block}'s own variable name via \code{substitute()} -- this only
-#'   works when \code{block} is passed as a bare variable (e.g.
-#'   \code{block = school_id}); otherwise attach the name yourself via
-#'   \code{attr(block, "group_name") <- "school_id"}.
+#'   is resolved from \code{attr(group, "group_name")} if set, otherwise from
+#'   \code{group}'s own variable name via \code{substitute()} -- this only
+#'   works when \code{group} is passed as a bare variable (e.g.
+#'   \code{group = school_id}); otherwise attach the name yourself via
+#'   \code{attr(group, "group_name") <- "school_id"}.
 #' @param x_hyper Named list of group-level design matrices \code{X_k}
 #'   (\code{J x q_k}), one per column of \code{x}.
 #' @param prior_list_block1 Prior for Block~1: \code{dispersion} (required for
@@ -201,7 +201,7 @@ two_block_rNormal_reg <- function(
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     prior_list_block1,
     pfamily_list,
@@ -225,7 +225,7 @@ two_block_rNormal_reg <- function(
   }
 
   group_name <- .lmebayes_resolve_group_name(
-    block, substitute(block), fn_name = "two_block_rNormal_reg"
+    group, substitute(group), fn_name = "two_block_rNormal_reg"
   )
 
   family <- .two_block_normalize_family(family)
@@ -257,17 +257,17 @@ two_block_rNormal_reg <- function(
     )
   }
 
-  if (!is.factor(block)) {
+  if (!is.factor(group)) {
     stop(
-      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "'group' must be a factor (wrap with factor(group, levels = ...) ",
       "to control level order or supply a fixed superset of levels); ",
       "there is no 'group_levels' argument to override this.",
       call. = FALSE
     )
   }
-  group_levels <- levels(block)
+  group_levels <- levels(group)
   if (length(group_levels) < 1L) {
-    stop("'block' must have at least one level.", call. = FALSE)
+    stop("'group' must have at least one level.", call. = FALSE)
   }
 
   if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
@@ -342,7 +342,7 @@ two_block_rNormal_reg <- function(
     m_convergence     = m_convergence,
     y                 = y,
     x                 = x,
-    block             = block,
+    block             = group,
     x_hyper           = x_hyper_mats,
     prior_list_block1 = prior_list_block1,
     dispersion_block1 = block1_prior_meta$dispersion,

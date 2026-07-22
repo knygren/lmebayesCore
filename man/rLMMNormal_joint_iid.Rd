@@ -8,7 +8,7 @@ rLMMNormal_joint_iid(
   n,
   y,
   x,
-  block,
+  group,
   x_hyper,
   prior_list_block1,
   pfamily_list,
@@ -19,14 +19,14 @@ rLMMNormal_joint_iid(
 \arguments{
 \item{n}{Number of iid draws (integer, at least 1).}
 
-\item{y, x, block, x_hyper, pfamily_list}{Same meaning as in \code{\link{two_block_rNormal_reg}}; every
+\item{y, x, group, x_hyper, pfamily_list}{Same meaning as in \code{\link{two_block_rNormal_reg}}; every
 \code{pfamily_list} component must be \code{dNormal()}. \code{x} must
-have unique, non-empty \code{colnames(x)} and \code{block} must be a
+have unique, non-empty \code{colnames(x)} and \code{group} must be a
 factor (there are no separate \code{re_coef_names}/\code{group_levels}
 arguments). The grouping-column name (\code{group_name}) is resolved
-from \code{attr(block, "group_name")} if set, otherwise from
-\code{block}'s own variable name via \code{substitute()} (see
-\code{\link{two_block_rNormal_reg}}'s \code{@param block}).}
+from \code{attr(group, "group_name")} if set, otherwise from
+\code{group}'s own variable name via \code{substitute()} (see
+\code{\link{two_block_rNormal_reg}}'s \code{@param group}).}
 
 \item{prior_list_block1}{Block~1 prior: a fixed \code{dispersion} (a
 single positive scalar, or a numeric vector of length

@@ -1,5 +1,30 @@
 # lmebayesCore (development version)
 
+* **Renamed the grouping-factor argument `block` to `group` on all 13
+  matrix-level LMM/GLMM exports.** `rLMMNormal_reg()`,
+  `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,
+  `rLMMNormal_reg_known_vcov_two_bg()`, `rLMMNormal_reg_estimated_vcov()`,
+  `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`,
+  `rLMMindepNormalGamma_reg_estimated_vcov()`, `rGLMM_reg()`,
+  `rGLMM_reg_known_vcov()`, `rGLMM_reg_estimated_vcov()`,
+  `two_block_rNormal_reg()`, and `rLMMNormal_joint_iid()` now take `group`
+  instead of `block` as their grouping-factor formal (still required to be a
+  `factor`, as above). This is purely a rename: everything below describing
+  `block`'s behavior (factor requirement, `group_levels`/`group_name`
+  derivation, etc.) applies unchanged to `group`; in particular
+  `attr(group, "group_name")` replaces `attr(block, "group_name")` as the
+  attribute checked when the caller does not pass `group` as a bare
+  variable. `matrix_args_lmm()`'s returned argument list also now uses a
+  `group` element instead of `block` (matching the renamed formal on the
+  routed export it targets via `do.call()`). The Gibbs "two-block"
+  terminology (`Block~1`/`Block~2`, `two_block_rNormal_reg()`,
+  `two_block_rate()`, etc.), the generic `block_rNormalReg()`/
+  `block_rNormalGLM()` block-partition family, and the compiled Rcpp/C++
+  boundary are unrelated and unaffected by this rename. This is a breaking
+  change for any direct caller of these 13 matrix-level exports passing
+  `block =` by keyword; `lmerb()`/`glmerb()`/`rlmerb()`/`rglmerb()` callers
+  are unaffected.
+
 * **Removed the `re_coef_names` and `group_levels` arguments from all 13
   matrix-level LMM/GLMM exports; `block` must now be a factor; fixed
   `group_name` auto-derivation.** `re_coef_names` and `group_levels` were

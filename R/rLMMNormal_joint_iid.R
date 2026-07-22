@@ -27,15 +27,15 @@
 #' non-convergence is possible.
 #'
 #' @param n Number of iid draws (integer, at least 1).
-#' @param y,x,block,x_hyper,pfamily_list
+#' @param y,x,group,x_hyper,pfamily_list
 #'   Same meaning as in \code{\link{two_block_rNormal_reg}}; every
 #'   \code{pfamily_list} component must be \code{dNormal()}. \code{x} must
-#'   have unique, non-empty \code{colnames(x)} and \code{block} must be a
+#'   have unique, non-empty \code{colnames(x)} and \code{group} must be a
 #'   factor (there are no separate \code{re_coef_names}/\code{group_levels}
 #'   arguments). The grouping-column name (\code{group_name}) is resolved
-#'   from \code{attr(block, "group_name")} if set, otherwise from
-#'   \code{block}'s own variable name via \code{substitute()} (see
-#'   \code{\link{two_block_rNormal_reg}}'s \code{@param block}).
+#'   from \code{attr(group, "group_name")} if set, otherwise from
+#'   \code{group}'s own variable name via \code{substitute()} (see
+#'   \code{\link{two_block_rNormal_reg}}'s \code{@param group}).
 #' @param prior_list_block1 Block~1 prior: a fixed \code{dispersion} (a
 #'   single positive scalar, or a numeric vector of length
 #'   \code{length(group_levels)} giving one fixed, known dispersion per
@@ -65,7 +65,7 @@ rLMMNormal_joint_iid <- function(
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     prior_list_block1,
     pfamily_list,
@@ -75,7 +75,7 @@ rLMMNormal_joint_iid <- function(
   cl <- match.call()
 
   group_name <- .lmebayes_resolve_group_name(
-    block, substitute(block), fn_name = "rLMMNormal_joint_iid"
+    group, substitute(group), fn_name = "rLMMNormal_joint_iid"
   )
 
   n <- as.integer(n[1L])
@@ -101,17 +101,17 @@ rLMMNormal_joint_iid <- function(
   }
   p_re <- length(re_names)
 
-  if (!is.factor(block)) {
+  if (!is.factor(group)) {
     stop(
-      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "'group' must be a factor (wrap with factor(group, levels = ...) ",
       "to control level order or supply a fixed superset of levels); ",
       "there is no 'group_levels' argument to override this.",
       call. = FALSE
     )
   }
-  group_levels <- levels(block)
+  group_levels <- levels(group)
   if (length(group_levels) < 1L) {
-    stop("'block' must have at least one level.", call. = FALSE)
+    stop("'group' must have at least one level.", call. = FALSE)
   }
   J <- length(group_levels)
 
@@ -163,7 +163,7 @@ rLMMNormal_joint_iid <- function(
   design <- list(
     y             = y,
     Z             = x,
-    groups        = factor(block, levels = group_levels),
+    groups        = factor(group, levels = group_levels),
     X_hyper       = x_hyper,
     re_coef_names = re_names,
     group_name    = group_name

@@ -51,8 +51,8 @@ argument.}
 \item{\code{y}}{\code{design$y}, the response vector.}
 \item{\code{x}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
 random-effect design matrix.}
-\item{\code{block}}{\code{design$groups}, the grouping factor, with
-\code{attr(block, "group_name")} set to \code{design$group_name}
+\item{\code{group}}{\code{design$groups}, the grouping factor, with
+\code{attr(group, "group_name")} set to \code{design$group_name}
 (the routed export has no \code{group_name} formal and resolves it
 from this attribute, since \code{design$groups} is never a bare
 variable at the routed export's call site).}
@@ -121,7 +121,7 @@ the response/design matrices and grouping structure taken from
 derives its own Block~2 random-effect prior precision from
 \code{pfamily_list} internally, so it is not built here), and
 the naming/control arguments (\code{tv_tol}, \code{progbar},
-\code{verbose}), with \code{group_name} attached to \code{block} as
+\code{verbose}), with \code{group_name} attached to \code{group} as
 an attribute rather than a separate argument.
 \item Builds \code{args$prior_list} (the Block~1/measurement prior),
 whose \emph{shape} depends on \code{disp_info$mode}: a plain known

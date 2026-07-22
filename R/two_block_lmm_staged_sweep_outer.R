@@ -31,7 +31,7 @@
 #' @noRd
 .rLMMNormal_reg_run_with_pilot <- function(
     inp,
-    block,
+    group,
     P,
     dispersion,
     pfamily_list,
@@ -92,7 +92,7 @@
   icm <- .rLMM_icm_at_start(
     y                 = inp$y,
     x                 = inp$x,
-    block             = block,
+    group             = group,
     x_hyper           = inp$x_hyper,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
@@ -121,7 +121,7 @@
   design <- list(
     y             = inp$y,
     Z             = inp$x,
-    groups        = factor(block, levels = group_levels),
+    groups        = factor(group, levels = group_levels),
     X_hyper       = inp$x_hyper,
     re_coef_names = re_names,
     group_name    = group_name
@@ -133,7 +133,7 @@
 
   rate <- two_block_rate_from_pfamily_list(
     x                 = inp$x,
-    block             = block,
+    block             = group,
     x_hyper           = inp$x_hyper,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
@@ -317,7 +317,7 @@
         group_levels       = group_levels,
         group_name         = group_name,
         x                  = inp$x,
-        block              = block,
+        group              = group,
         x_hyper            = inp$x_hyper,
         prior_list         = prior_list_block1,
         pfamily_list       = pfamily_list,

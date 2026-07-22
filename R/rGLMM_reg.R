@@ -35,17 +35,17 @@
 #'   non-empty \code{colnames(x)}: these are the random-effect coefficient
 #'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
 #'   separate \code{re_coef_names} argument to override them).
-#' @param block Grouping factor of length \code{l2} (must be a \code{factor};
-#'   \code{levels(block)} fixes the row order of Block~1 draws -- there is no
+#' @param group Grouping factor of length \code{l2} (must be a \code{factor};
+#'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
 #'   separate \code{group_levels} argument. To use a level order/superset not
-#'   present in the observed data, construct \code{block} as
-#'   \code{factor(observed_block, levels = full_superset)} yourself. The name
+#'   present in the observed data, construct \code{group} as
+#'   \code{factor(observed_group, levels = full_superset)} yourself. The name
 #'   used for the grouping column in \code{coefficients} (\code{group_name})
-#'   is resolved from \code{attr(block, "group_name")} if set, otherwise from
-#'   \code{block}'s own variable name via \code{substitute()} -- this only
-#'   works when \code{block} is passed as a bare variable (e.g.
-#'   \code{block = school_id}); otherwise attach the name yourself via
-#'   \code{attr(block, "group_name") <- "school_id"}.
+#'   is resolved from \code{attr(group, "group_name")} if set, otherwise from
+#'   \code{group}'s own variable name via \code{substitute()} -- this only
+#'   works when \code{group} is passed as a bare variable (e.g.
+#'   \code{group = school_id}); otherwise attach the name yourself via
+#'   \code{attr(group, "group_name") <- "school_id"}.
 #' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
 #'   one per column of \code{x}.
 #' @param prior_list Prior for Block~1: \code{dispersion} (required for
@@ -82,7 +82,7 @@ NULL
 #' Shared matrix-level validation for GLMM replicate-chain engines
 #'
 #' \code{re_coef_names} and \code{group_levels} are no longer separate
-#' arguments: they are always \code{colnames(x)} and \code{levels(block)}
+#' arguments: they are always \code{colnames(x)} and \code{levels(group)}
 #' respectively. \code{group_name} must already be resolved by the caller
 #' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
 #' sanity-checks it. \code{prior_list} must not contain \code{P}/
@@ -93,7 +93,7 @@ NULL
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     tv_tol,
     group_name,
@@ -137,17 +137,17 @@ NULL
     )
   }
 
-  if (!is.factor(block)) {
+  if (!is.factor(group)) {
     stop(
-      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "'group' must be a factor (wrap with factor(group, levels = ...) ",
       "to control level order or supply a fixed superset of levels); ",
       "there is no 'group_levels' argument to override this.",
       call. = FALSE
     )
   }
-  group_levels <- levels(block)
+  group_levels <- levels(group)
   if (length(group_levels) < 1L) {
-    stop("'block' must have at least one level.", call. = FALSE)
+    stop("'group' must have at least one level.", call. = FALSE)
   }
 
   if (is.null(group_name) || !nzchar(group_name)) {
@@ -200,7 +200,7 @@ NULL
     n              = n,
     y              = y,
     x              = x,
-    block          = block,
+    group          = group,
     x_hyper        = x_hyper,
     re_names       = re_names,
     group_levels   = group_levels,
@@ -301,7 +301,7 @@ NULL
   n              <- inp$n
   y              <- inp$y
   x              <- inp$x
-  block          <- inp$block
+  group          <- inp$group
   x_hyper        <- inp$x_hyper
   re_names       <- inp$re_names
   group_levels   <- inp$group_levels
@@ -337,7 +337,7 @@ NULL
   design_icm <- list(
     y             = y,
     Z             = x,
-    groups        = factor(block, levels = group_levels),
+    groups        = factor(group, levels = group_levels),
     X_hyper       = x_hyper,
     re_coef_names = re_names,
     group_name    = group_name
@@ -376,7 +376,7 @@ NULL
   design <- list(
     y             = y,
     Z             = x,
-    groups        = factor(block, levels = group_levels),
+    groups        = factor(group, levels = group_levels),
     X_hyper       = x_hyper,
     re_coef_names = re_names,
     group_name    = group_name
@@ -581,7 +581,7 @@ NULL
         group_levels       = group_levels,
         group_name         = group_name,
         x                  = x,
-        block              = block,
+        group              = group,
         x_hyper            = x_hyper,
         prior_list         = prior_list,
         pfamily_list       = pfamily_list,
@@ -787,7 +787,7 @@ rGLMM_reg_known_vcov <- function(
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     prior_list,
     pfamily_list,
@@ -813,11 +813,11 @@ rGLMM_reg_known_vcov <- function(
   fn_name <- "rGLMM_reg_known_vcov"
 
   group_name <- .lmebayes_resolve_group_name(
-    block, substitute(block), fn_name = fn_name
+    group, substitute(group), fn_name = fn_name
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol,
+    n, y, x, group, x_hyper, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -853,7 +853,7 @@ rGLMM_reg_estimated_vcov <- function(
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     prior_list,
     pfamily_list,
@@ -879,11 +879,11 @@ rGLMM_reg_estimated_vcov <- function(
   fn_name <- "rGLMM_reg_estimated_vcov"
 
   group_name <- .lmebayes_resolve_group_name(
-    block, substitute(block), fn_name = fn_name
+    group, substitute(group), fn_name = fn_name
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol,
+    n, y, x, group, x_hyper, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -918,7 +918,7 @@ rGLMM_reg <- function(
     n,
     y,
     x,
-    block,
+    group,
     x_hyper,
     prior_list,
     pfamily_list,
@@ -943,11 +943,11 @@ rGLMM_reg <- function(
   cl <- match.call()
 
   group_name <- .lmebayes_resolve_group_name(
-    block, substitute(block), fn_name = "rGLMM_reg"
+    group, substitute(group), fn_name = "rGLMM_reg"
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, block, x_hyper, tv_tol,
+    n, y, x, group, x_hyper, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
