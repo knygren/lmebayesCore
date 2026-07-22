@@ -1,5 +1,72 @@
 # lmebayesCore (development version)
 
+* **Removed the `re_coef_names` and `group_levels` arguments from all 13
+  matrix-level LMM/GLMM exports; `block` must now be a factor; fixed
+  `group_name` auto-derivation.** `re_coef_names` and `group_levels` were
+  always derivable from `colnames(x)`/`levels(block)`, but were accepted as
+  separate, never-cross-checked arguments (with a silent "synthesize RE1,
+  RE2, ..." fallback when `x` had no column names). `rLMMNormal_reg()`,
+  `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,
+  `rLMMNormal_reg_known_vcov_two_bg()`, `rLMMNormal_reg_estimated_vcov()`,
+  `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`,
+  `rLMMindepNormalGamma_reg_estimated_vcov()`, `rGLMM_reg()`,
+  `rGLMM_reg_known_vcov()`, `rGLMM_reg_estimated_vcov()`,
+  `two_block_rNormal_reg()`, and `rLMMNormal_joint_iid()` all drop both
+  formals: `x` must now have unique, non-empty `colnames(x)`, and `block`
+  must now be a `factor` (there is no `group_levels` override -- use
+  `factor(block, levels = full_superset)` to control level order or supply
+  a level superset not present in the observed data). This also fixes a
+  latent bug where `x_hyper` was silently reordered (risking `NULL`
+  entries) only when `names(x_hyper)` did **not** match `colnames(x)`; it
+  now errors on a mismatch and reorders only when the name sets agree.
+  Separately, `group_name` auto-derivation was fixed: it previously lived
+  one call-frame too deep and always resolved to the literal text
+  `"block"`; it is now captured via `substitute()` in each export's own
+  frame, correctly resolving to the caller's actual `block` variable name
+  (erroring, instead of guessing, when `block` is not a plain variable,
+  e.g. `block = df$school_id`). This is a breaking change for any direct
+  caller of these 13 matrix-level exports; `lmerb()`/`glmerb()`/`rlmerb()`/
+  `rglmerb()` callers are unaffected (`matrix_args_lmm()`/
+  `.lmebayes_matrix_args_glmm()` already sourced these from a `design`
+  object with a factor `groups` and named `Z`/`re_coef_names`, and no
+  longer forward `re_coef_names`/`group_levels` at all).
+
+* **Removed the `group_name` argument from all 13 matrix-level LMM/GLMM
+  exports.** `group_name` cannot be derived from `block`'s *value* (R
+  variable names are not part of an object's data), so it is now resolved
+  from, in order: (1) `attr(block, "group_name")`, if set; (2)
+  `substitute(block)` in the caller's own frame, when `block` is passed as
+  a bare variable (e.g. `block = school_id`). Direct callers that pass
+  `block` as a non-symbol expression (e.g. `block = df$school_id`) must now
+  attach the name themselves via
+  `attr(block, "group_name") <- "school_id"` beforehand, instead of passing
+  a separate `group_name` argument; calling with an explicit `group_name =`
+  argument now errors with "unused argument". `lmerb()`/`glmerb()`/
+  `rlmerb()`/`rglmerb()` callers are unaffected (`matrix_args_lmm()`/
+  `.lmebayes_matrix_args_glmm()` now attach the attribute internally
+  instead of forwarding `group_name`).
+
+* **Removed the required `P`/`Sigma` field from `prior_list`/
+  `prior_list_block1` for `rGLMM_reg()`, `rGLMM_reg_known_vcov()`,
+  `rGLMM_reg_estimated_vcov()`, `two_block_rNormal_reg()`, and
+  `rLMMNormal_joint_iid()`.** Extends the `rLMMNormal_reg`-family `P`
+  removal (below) to these five exports: the Block~1 random-effect prior
+  precision was always exactly `diag(tau2_k)` from `pfamily_list` (the same
+  plug-in `priors_from_pfamily_list()` already computes), but was required
+  as a `prior_list$P`/`prior_list$Sigma` field, never cross-checked against
+  `pfamily_list`. These five exports now derive it internally via
+  `.rLMM_P_from_pfamily_list()` right after validating `pfamily_list`/
+  `re_names`, and `stop()` if a caller supplies `prior_list$P`/`$Sigma` (or
+  `prior_list_block1$P`/`$Sigma`) themselves. This is a breaking change for
+  any direct caller of these five exports; `lmerb()`/`glmerb()`/`rlmerb()`/
+  `rglmerb()` callers are unaffected -- `.lmebayes_block1_prior_list()` no
+  longer builds a `P` either (dropping the informational, and since the
+  earlier `matrix_args_lmm()` fix, stale `P` previously shown in
+  `rlmerb()`/`rglmerb()`'s returned `$Prior$block1_prior` field).
+  `two_block_rate()`/`two_block_rate_from_pfamily_list()` (diagnostic rate
+  calibration, not a regression engine) and `rGLMM_sweep()` are unaffected
+  and still require `P`/`Sigma` directly.
+
 * **Removed the `P` argument from all eight `rLMMNormal_reg`/
   `rLMMindepNormalGamma_reg` exports.** `P` (the Block~2 random-effect prior
   precision matrix) was always mechanically derivable from `pfamily_list`

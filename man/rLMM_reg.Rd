@@ -23,9 +23,6 @@ rLMMNormal_reg(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE,
   sim_method = "DEFAULT"
@@ -42,9 +39,6 @@ rLMMNormal_reg_known_vcov(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE,
   sim_method = "DEFAULT"
@@ -61,9 +55,6 @@ rLMMNormal_reg_known_vcov_iid(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -79,9 +70,6 @@ rLMMNormal_reg_known_vcov_two_bg(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -97,9 +85,6 @@ rLMMNormal_reg_estimated_vcov(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE,
   gap_tol = 0.0196,
@@ -120,9 +105,6 @@ rLMMindepNormalGamma_reg(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -138,9 +120,6 @@ rLMMindepNormalGamma_reg_known_vcov(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -156,9 +135,6 @@ rLMMindepNormalGamma_reg_estimated_vcov(
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE,
   gap_tol = 0.0196,
@@ -172,9 +148,22 @@ rLMMindepNormalGamma_reg_estimated_vcov(
 
 \item{y}{Response vector of length \code{nrow(x)}.}
 
-\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}).}
+\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+non-empty \code{colnames(x)}: these are the random-effect coefficient
+names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+separate \code{re_coef_names} argument to override them).}
 
-\item{block}{Grouping factor or block partition of length \code{l2}.}
+\item{block}{Grouping factor of length \code{l2} (must be a \code{factor};
+\code{levels(block)} fixes the row order of Block~1 draws -- there is no
+separate \code{group_levels} argument. To use a level order/superset not
+present in the observed data, construct \code{block} as
+\code{factor(observed_block, levels = full_superset)} yourself. The name
+used for the grouping column in \code{coefficients} (\code{group_name})
+is resolved from \code{attr(block, "group_name")} if set, otherwise from
+\code{block}'s own variable name via \code{substitute()} -- this only
+works when \code{block} is passed as a bare variable (e.g.
+\code{block = school_id}); otherwise attach the name yourself via
+\code{attr(block, "group_name") <- "school_id"}.}
 
 \item{x_hyper}{Named list of group-level design matrices (\code{J x q_k}),
 one per column of \code{x}.}
@@ -204,12 +193,6 @@ matrix. There is no way to supply a precision inconsistent with
 \item{tv_tol}{Total-variation tolerance in \code{(0, 1)} for calibration.
 Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
 Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.}
-
-\item{re_coef_names}{Names for columns of \code{x}.}
-
-\item{group_levels}{Character vector defining row order of Block~1 draws.}
-
-\item{group_name}{Name for the grouping column in \code{coefficients}.}
 
 \item{progbar}{Show a text progress bar during sampling.}
 

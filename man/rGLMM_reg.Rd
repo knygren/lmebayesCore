@@ -19,9 +19,6 @@ rGLMM_reg_known_vcov(
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   gap_tol = 0.0196,
   tv_tol = 0.01,
   mode_gap_max = 1,
@@ -49,9 +46,6 @@ rGLMM_reg_estimated_vcov(
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   gap_tol = 0.0196,
   tv_tol = 0.01,
   mode_gap_max = 1,
@@ -79,9 +73,6 @@ rGLMM_reg(
   offset = NULL,
   weights = 1,
   family = gaussian(),
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   gap_tol = 0.0196,
   tv_tol = 0.01,
   mode_gap_max = 1,
@@ -102,27 +93,42 @@ length is used.}
 
 \item{y}{Response vector of length \code{nrow(x)}.}
 
-\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}).}
+\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+non-empty \code{colnames(x)}: these are the random-effect coefficient
+names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+separate \code{re_coef_names} argument to override them).}
 
-\item{block}{Grouping factor or block partition of length \code{l2}.}
+\item{block}{Grouping factor of length \code{l2} (must be a \code{factor};
+\code{levels(block)} fixes the row order of Block~1 draws -- there is no
+separate \code{group_levels} argument. To use a level order/superset not
+present in the observed data, construct \code{block} as
+\code{factor(observed_block, levels = full_superset)} yourself. The name
+used for the grouping column in \code{coefficients} (\code{group_name})
+is resolved from \code{attr(block, "group_name")} if set, otherwise from
+\code{block}'s own variable name via \code{substitute()} -- this only
+works when \code{block} is passed as a bare variable (e.g.
+\code{block = school_id}); otherwise attach the name yourself via
+\code{attr(block, "group_name") <- "school_id"}.}
 
 \item{x_hyper}{Named list of group-level design matrices (\code{J x q_k}),
 one per column of \code{x}.}
 
-\item{prior_list}{Prior for Block~1: \code{P} or \code{Sigma},
-\code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.}
+\item{prior_list}{Prior for Block~1: \code{dispersion} (required for
+\code{gaussian()}), optional \code{ddef}. The Block~1 random-effect
+prior precision (formerly a separate \code{P}/\code{Sigma} field) is
+always derived internally from \code{pfamily_list} (see
+\code{pfamily_list} below); \code{prior_list} must not contain
+\code{P} or \code{Sigma}.}
 
-\item{pfamily_list}{Named list of \code{pfamily} objects for Block~2.}
+\item{pfamily_list}{Named list of \code{pfamily} objects for Block~2. One
+\eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+\code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+\code{dIndependent_Normal_Gamma}) is assembled into the diagonal Block~1
+precision used for \code{prior_list}.}
 
 \item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
 
 \item{offset, weights, family}{Passed to Block~1 (length \code{l2} or recycled).}
-
-\item{re_coef_names}{Character vector naming columns of \code{x}.}
-
-\item{group_levels}{Character vector defining row order of Block~1 draws.}
-
-\item{group_name}{Name for the grouping column in \code{coefficients}.}
 
 \item{gap_tol}{Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 is \code{NULL}.}

@@ -1645,9 +1645,9 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     \code{design}, \code{prior$pfamily_list} unchanged (the routed export
 #'     derives its own Block~2 random-effect prior precision from
 #'     \code{pfamily_list} internally, so it is not built here), and
-#'     the naming/control arguments (\code{tv_tol}, \code{re_coef_names},
-#'     \code{group_levels}, \code{group_name}, \code{progbar},
-#'     \code{verbose}).
+#'     the naming/control arguments (\code{tv_tol}, \code{progbar},
+#'     \code{verbose}), with \code{group_name} attached to \code{block} as
+#'     an attribute rather than a separate argument.
 #'   \item Builds \code{args$prior_list} (the Block~1/measurement prior),
 #'     whose \emph{shape} depends on \code{disp_info$mode}: a plain known
 #'     \code{dispersion} value for \code{"none"}/\code{"fixed"}/
@@ -1691,7 +1691,11 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     \item{\code{y}}{\code{design$y}, the response vector.}
 #'     \item{\code{x}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
 #'       random-effect design matrix.}
-#'     \item{\code{block}}{\code{design$groups}, the grouping factor.}
+#'     \item{\code{block}}{\code{design$groups}, the grouping factor, with
+#'       \code{attr(block, "group_name")} set to \code{design$group_name}
+#'       (the routed export has no \code{group_name} formal and resolves it
+#'       from this attribute, since \code{design$groups} is never a bare
+#'       variable at the routed export's call site).}
 #'     \item{\code{x_hyper}}{\code{design$X_hyper}, the named list of
 #'       group-level hyper-design matrices (one per random-effect
 #'       coefficient).}
@@ -1699,9 +1703,6 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'       routed export derives its own Block~2 random-effect prior
 #'       precision from this internally; it is not built or passed here.}
 #'     \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
-#'     \item{\code{re_coef_names}}{\code{design$re_coef_names}.}
-#'     \item{\code{group_levels}}{\code{levels(design$groups)}.}
-#'     \item{\code{group_name}}{\code{design$group_name}.}
 #'     \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
 #'       arguments, unchanged.}
 #'     \item{\code{prior_list}}{Always present, but its shape depends on
@@ -1751,20 +1752,20 @@ matrix_args_lmm <- function(
     diag_sweeps   = FALSE,
     sim_method    = "DEFAULT"
 ) {
-  re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
+  ## The routed export has no 'group_name' formal: attach it to 'block'
+  ## itself (design$groups is never a bare variable here, so the export's
+  ## substitute()-based fallback could not resolve it anyway).
+  blk <- design$groups
+  attr(blk, "group_name") <- design$group_name
 
   args <- list(
     n             = n,
     y             = design$y,
     x             = design$Z,
-    block         = design$groups,
+    block         = blk,
     x_hyper       = design$X_hyper,
     pfamily_list  = prior$pfamily_list,
     tv_tol        = tv_tol,
-    re_coef_names = re_names,
-    group_levels  = group_levels,
-    group_name    = design$group_name,
     progbar       = progbar,
     verbose       = verbose
   )
@@ -1816,22 +1817,23 @@ matrix_args_lmm <- function(
     progbar       = FALSE,
     collect_block1 = TRUE
 ) {
-  re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
   block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
+
+  ## The routed export has no 'group_name' formal: attach it to 'block'
+  ## itself (design$groups is never a bare variable here, so the export's
+  ## substitute()-based fallback could not resolve it anyway).
+  blk <- design$groups
+  attr(blk, "group_name") <- design$group_name
 
   list(
     n               = n,
     y               = design$y,
     x               = design$Z,
-    block           = design$groups,
+    block           = blk,
     x_hyper         = design$X_hyper,
     prior_list      = block1_prior,
     pfamily_list    = prior$pfamily_list,
     family          = family,
-    re_coef_names   = re_names,
-    group_levels    = group_levels,
-    group_name      = design$group_name,
     gap_tol         = gap_tol,
     tv_tol          = tv_tol,
     mode_gap_max    = mode_gap_max,
@@ -1918,24 +1920,27 @@ matrix_args_lmm <- function(
   .lmebayes_attach_sigma2(out, disp_none)
 }
 
+#' Build a P/Sigma-free Block~1 prior list (\code{dispersion}/\code{ddef} only)
+#'
+#' The Block~1 random-effect prior precision is now always derived
+#' internally (from \code{pfamily_list}) by the routed \code{rGLMM_reg}/
+#' \code{rLMM_reg} exports, which reject a caller-supplied \code{P}/
+#' \code{Sigma}; this helper therefore no longer computes or returns one
+#' (previously \code{solve(measurement_prior_list$Sigma_ranef)}).
 #' @noRd
 .lmebayes_block1_prior_list <- function(
     measurement_prior_list,
     dispersion_ranef = NULL
 ) {
-  if (is.null(measurement_prior_list$Sigma_ranef)) {
-    stop("measurement_prior_list must contain 'Sigma_ranef'.", call. = FALSE)
-  }
-  P <- solve(measurement_prior_list$Sigma_ranef)
   dispersion <- if (!is.null(dispersion_ranef)) {
     dispersion_ranef
   } else {
     measurement_prior_list$dispersion_ranef
   }
   if (is.null(dispersion)) {
-    list(P = P, ddef = TRUE)
+    list(ddef = TRUE)
   } else {
-    list(P = P, dispersion = dispersion, ddef = FALSE)
+    list(dispersion = dispersion, ddef = FALSE)
   }
 }
 

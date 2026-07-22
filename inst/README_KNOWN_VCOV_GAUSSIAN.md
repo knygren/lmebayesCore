@@ -97,7 +97,8 @@ rglmerb(..., family = gaussian())                              [lmebayesCore/R/r
   +-- .lmebayes_resolve_dispersion_ranef()                     [mixed_rmerb_helpers.R]
   |     +-- .lmebayes_resolve_dispersion_ranef_fixed_vector()  [named-vector branch only]
   |
-  +-- .lmebayes_block1_prior_list()                            [Block~1 P + dispersion glue]
+  +-- .lmebayes_block1_prior_list()                            [Block~1 dispersion glue; no longer
+  |                                                               builds P -- routed exports derive it]
   |
   v
 .lmebayes_run_lmm_engine()                                     [mixed_rmerb_helpers.R]
@@ -119,32 +120,34 @@ rLMMNormal_reg_known_vcov_iid()                    rLMMNormal_reg_known_vcov_two
   [rLMM_reg.R -- \S4.4a]                              [rLMM_reg.R -- \S4.4/4.5, identical body to the
   +-- .rLMM_validate_matrix_inputs(),                             pre-sim_method rLMMNormal_reg_known_vcov()]
   |     .rLMM_validate_fixed_dispersion_prior_list(), +-- .rLMM_validate_matrix_inputs(),
-  |     .two_block_validate_pfamily_list(),           |     .rLMM_validate_fixed_dispersion_prior_list()
-  |     .rLMM_P_from_pfamily_list()                   |     +-- .rLMM_validate_fixed_dispersion_vector()
-  |     [P derived from pfamily_list, not an arg]      +-- .two_block_validate_pfamily_list(),
+  |     .two_block_validate_pfamily_list()            |     .rLMM_validate_fixed_dispersion_prior_list()
+  |     [no P here -- rLMMNormal_joint_iid() below     |     +-- .rLMM_validate_fixed_dispersion_vector()
+  |      derives+validates its own P internally]       +-- .two_block_validate_pfamily_list(),
   +-- .rLMMNormal_reg_run_iid()                        |     .two_block_summarize_pfamily_list(),
-  |     +-- rLMMNormal_joint_iid()  *** exact iid ***  |     .rLMM_P_from_pfamily_list()
-  |           [rLMMNormal_joint_iid.R]                 |     (stop()s here if any component is not
-  |     +-- .rLMM_format_v2_out()                      |     dNormal -- wrong route)
-  |                                                      |
-  |                                                      v
-  |                                                   .rLMMNormal_reg_run()   [shared run body, no pilot]
-  |                                                     +-- .two_block_validate_block1_prior()
-  |                                                     +-- .rLMM_icm_at_start()  [EXACT joint posterior mean]
-  |                                                     |     +-- .two_block_icm_at_start()
-  |                                                     |           +-- .two_block_measurement_prior_list()
-  |                                                     |           +-- lmerb_posterior_mean()  *** exact ***
-  |                                                     |                 +-- build_mu_all()
-  |                                                     +-- .rLMM_calibrate_m_convergence()  [EXACT Theorem~3]
-  |                                                     |     +-- two_block_rate_from_pfamily_list() -> ...
-  |                                                     |           -> .two_block_rate_inputs(),
-  |                                                     |              .two_block_S_P11(), .two_block_gen_eigen()
-  |                                                     |     +-- two_block_l_for_tv(method = "theorem3")
-  |                                                     |     +-- .two_block_cap_inner_sweeps()
-  |                                                     +-- two_block_rNormal_reg(..., m_convergence = ...)
-  |                                                     |     +-- .two_block_rNormal_reg_cpp()  [C++ bridge]
-  |                                                     +-- .rLMM_format_v2_out()
-  |                                                           +-- .two_block_as_staged_names()
+  |     [prior_list_block1 = list(dispersion, ddef);   |     .rLMM_P_from_pfamily_list()
+  |      no P]                                         |     (stop()s here if any component is not
+  |     +-- rLMMNormal_joint_iid()  *** exact iid ***  |     dNormal -- wrong route)
+  |           [rLMMNormal_joint_iid.R]                 |
+  |           re-validates matrix inputs, then          v
+  |           .rLMM_P_from_pfamily_list() derives     .rLMMNormal_reg_run()   [shared run body, no pilot]
+  |           + injects P (stop()s if caller           +-- .two_block_validate_block1_prior()
+  |           supplied P/Sigma)                        +-- .rLMM_icm_at_start()  [EXACT joint posterior mean]
+  |     +-- .rLMM_format_v2_out()                      |     +-- .two_block_icm_at_start()
+  |                                                      |           +-- .two_block_measurement_prior_list()
+  |                                                      |           +-- lmerb_posterior_mean()  *** exact ***
+  |                                                      |                 +-- build_mu_all()
+  |                                                      +-- .rLMM_calibrate_m_convergence()  [EXACT Theorem~3]
+  |                                                      |     +-- two_block_rate_from_pfamily_list() -> ...
+  |                                                      |           -> .two_block_rate_inputs(),
+  |                                                      |              .two_block_S_P11(), .two_block_gen_eigen()
+  |                                                      |     +-- two_block_l_for_tv(method = "theorem3")
+  |                                                      |     +-- .two_block_cap_inner_sweeps()
+  |                                                      +-- two_block_rNormal_reg(..., m_convergence = ...)
+  |                                                      |     [called with a P-free prior_list_block1;
+  |                                                      |      two_block_rNormal_reg() derives its own P]
+  |                                                      |     +-- .two_block_rNormal_reg_cpp()  [C++ bridge]
+  |                                                      +-- .rLMM_format_v2_out()
+  |                                                            +-- .two_block_as_staged_names()
   |                                                                                                        |
   +-------------------------- both branches set staged$sim_method_used and return -----------------------+
 
@@ -182,7 +185,7 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 |---|---|---|
 | `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Dispatches `dispersion_ranef` by shape: `NULL`/scalar -> `"fixed"`; named numeric vector (`length > 1`) -> `"fixed_vector"`; `dGamma()` pfamily -> `"gamma"`; named list of pfamilies -> `"gamma_list"`. |
 | `.lmebayes_resolve_dispersion_ranef_fixed_vector()` | `mixed_rmerb_helpers.R` | Validates the named vector has length `J`, names exactly matching `levels(design$groups)`, all-positive/finite; reorders to `group_levels`; returns `list(mode = "fixed_vector", dispersion_fix = <named vector>, ...)`. |
-| `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Builds `list(P = solve(Sigma_ranef), dispersion = <scalar-or-vector>, ddef = FALSE)` -- the `prior_list_block1` shape consumed throughout \S4.3-4.5. |
+| `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Builds `list(dispersion = <scalar-or-vector>, ddef = FALSE)` -- the `prior_list_block1`/`prior_list` shape consumed throughout \S4.3-4.5. No longer builds `P`: every routed export (`rLMMNormal_reg*`, `rGLMM_reg*`, `two_block_rNormal_reg()`, `rLMMNormal_joint_iid()`) derives its own Block~1 precision from `pfamily_list` and rejects a caller-supplied `P`/`Sigma`. |
 
 ### 4.3 Routing
 
@@ -201,7 +204,7 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 | `rLMMNormal_reg()` | `rLMM_reg.R` | Dispatcher: validates inputs once, then re-dispatches (via `match.call()`) to `rLMMNormal_reg_known_vcov()` or `_estimated_vcov()` depending on whether `pf_summary$all_dNormal`. Has a `sim_method` formal that it forwards unchanged. |
 | **`rLMMNormal_reg_known_vcov()`** | `rLMM_reg.R` | The route's named export -- now a **thin `sim_method` dispatcher** (via `match.call()` re-dispatch, `.rLMM_validate_sim_method()` first): `"DEFAULT"` -> `rLMMNormal_reg_known_vcov_iid()` (\S4.4a); `"TWO_BLOCK_GIBBS"` -> `rLMMNormal_reg_known_vcov_two_bg()` (below). Neither branch re-validates twice; each callee runs its own full validation. |
 | `rLMMNormal_reg_known_vcov_two_bg()` | `rLMM_reg.R` | The pre-`sim_method` `rLMMNormal_reg_known_vcov()` body, factored out unchanged: validates matrix inputs/dispersion/`pfamily_list`, derives `P` from `pfamily_list` (`.rLMM_P_from_pfamily_list()`), **requires all-`dNormal`** (else `stop()`s, pointing at `_estimated_vcov()`/`rLMMNormal_reg()`), then delegates to `.rLMMNormal_reg_run()` (\S4.5-4.7, two-block Gibbs). |
-| `.rLMM_validate_matrix_inputs()` | `rLMM_reg.R` | Shape/type checks on `n, y, x, x_hyper, tv_tol, re_coef_names, group_levels, group_name, block`. |
+| `.rLMM_validate_matrix_inputs()` | `rLMM_reg.R` | Shape/type checks on `n, y, x, x_hyper, tv_tol, group_name, block`. `re_names`/`group_levels` are no longer separate arguments -- they are always `colnames(x)` (must be unique, non-empty) and `levels(block)` (`block` must be a factor); `group_name` is resolved by the caller via `.lmebayes_resolve_group_name()` (attribute-on-`block` first, then `substitute(block)`) before this function is called, and this function only sanity-checks the resolved value. |
 | `.rLMM_validate_fixed_dispersion_prior_list()` | `rLMM_reg.R` | Requires `prior_list$dispersion` and no unexpected fields; delegates numeric validation to the shared vector validator below. |
 | `.rLMM_validate_fixed_dispersion_vector()` | `rLMM_reg.R` | Shared scalar-or-length-`J` validator (also used by `rLMMNormal_reg_estimated_vcov()`): accepts a single positive scalar (broadcast) **or** a length-`J` vector, optionally named -- if named, requires an exact set-match to `group_levels` and reorders accordingly. |
 | `.two_block_validate_pfamily_list()` | `two_block_rNormal_reg.R` | Structural validation of the Block~2 `pfamily_list` (one pfamily per RE component, dimensions vs. `x_hyper`/`re_names`). |
@@ -213,9 +216,9 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 
 | Function | File | Role |
 |---|---|---|
-| **`rLMMNormal_reg_known_vcov_iid()`** | `rLMM_reg.R` | Same validation as `_two_bg()` (matrix inputs/dispersion/`pfamily_list`, derives `P` from `pfamily_list`, requires all-`dNormal`), then delegates to `.rLMMNormal_reg_run_iid()`. |
-| `.rLMMNormal_reg_run_iid()` | `rLMM_reg.R` | Builds `prior_list_block1`, calls `rLMMNormal_joint_iid()`, reshapes its output through the *same* `.rLMM_format_v2_out()` used by the Gibbs path (so downstream `fixef.*`/`coefficients`/`ranef.mode` staging is identical either way), then sets `m_convergence <- 1L`, `convergence_info$method <- "exact_iid"`, `draw_engine <- "rLMMNormal_joint_iid"`, and `sim_method_used <- "DEFAULT"`. |
-| **`rLMMNormal_joint_iid()`** | `rLMMNormal_joint_iid.R` | Matrix-level export with the same `y, x, block, x_hyper, pfamily_list, prior_list_block1` signature as `two_block_rNormal_reg()`. Builds the same `design`/`measurement_prior_list` shapes `.two_block_icm_at_start()` uses, then (1) `.lmerb_posterior_normal_system(design, measurement_prior_list)` builds `M` (posterior precision of the stacked Block~2 `gamma_full`) and, per group, `post_P_j` (conditional precision of `b_j \mid \gamma`), both independent of `gamma` (\S5); (2) `.lmerb_posterior_system_cholesky(system)` Cholesky-factors `M` and every `post_P_j` **once** (symmetry precondition below); (3) for each of the `n` draws, one `backsolve()` against `chol(M)` gives `gamma_full`, and one `backsolve()` per group against `chol(post_P_j)` gives `b_j` -- no iteration, no burn-in, no autocorrelation between draws. Returns `fixef_mean` (the same posterior mean `lmerb_posterior_mean()` would return) plus draw arrays in the shape `.two_block_format_cpp_out()` produces, so `.rLMM_format_v2_out()` (used by *both* engines) needs no engine-specific branching. |
+| **`rLMMNormal_reg_known_vcov_iid()`** | `rLMM_reg.R` | Same matrix-input/dispersion/`pfamily_list` validation as `_two_bg()`, requires all-`dNormal`, then delegates to `.rLMMNormal_reg_run_iid()`. Unlike `_two_bg()`, it does **not** derive `P` itself -- `rLMMNormal_joint_iid()` below does that. |
+| `.rLMMNormal_reg_run_iid()` | `rLMM_reg.R` | Builds a `P`-free `prior_list_block1 = list(dispersion, ddef = FALSE)`, calls `rLMMNormal_joint_iid()`, reshapes its output through the *same* `.rLMM_format_v2_out()` used by the Gibbs path (so downstream `fixef.*`/`coefficients`/`ranef.mode` staging is identical either way), then sets `m_convergence <- 1L`, `convergence_info$method <- "exact_iid"`, `draw_engine <- "rLMMNormal_joint_iid"`, and `sim_method_used <- "DEFAULT"`. |
+| **`rLMMNormal_joint_iid()`** | `rLMMNormal_joint_iid.R` | Matrix-level export with the same `y, x, block, x_hyper, pfamily_list, prior_list_block1` signature as `two_block_rNormal_reg()`. Re-validates matrix inputs (`colnames(x)`, factor `block`) itself, then derives and injects `P` into `prior_list_block1` via `.rLMM_P_from_pfamily_list()` (`stop()`s if the caller already supplied `P`/`Sigma`) before `.two_block_validate_block1_prior()`. Builds the same `design`/`measurement_prior_list` shapes `.two_block_icm_at_start()` uses, then (1) `.lmerb_posterior_normal_system(design, measurement_prior_list)` builds `M` (posterior precision of the stacked Block~2 `gamma_full`) and, per group, `post_P_j` (conditional precision of `b_j \mid \gamma`), both independent of `gamma` (\S5); (2) `.lmerb_posterior_system_cholesky(system)` Cholesky-factors `M` and every `post_P_j` **once** (symmetry precondition below); (3) for each of the `n` draws, one `backsolve()` against `chol(M)` gives `gamma_full`, and one `backsolve()` per group against `chol(post_P_j)` gives `b_j` -- no iteration, no burn-in, no autocorrelation between draws. Returns `fixef_mean` (the same posterior mean `lmerb_posterior_mean()` would return) plus draw arrays in the shape `.two_block_format_cpp_out()` produces, so `.rLMM_format_v2_out()` (used by *both* engines) needs no engine-specific branching. |
 | `.lmerb_posterior_normal_system()` | `lmebayes_posterior_icm.R` | Shared with `lmerb_posterior_mean()` (\S4.5) -- extracted from it without changing that function's signature/return. Same per-group `sigma2_j` indexing (\S5), so `"fixed_vector"` works identically on both engines. |
 | `.lmerb_posterior_b_given_gamma()` | `lmebayes_posterior_icm.R` | Back-substitution step (mean of `b_j \mid \gamma`), also shared with `lmerb_posterior_mean()`; not needed for iid *sampling* itself (which draws `b_j` directly, \S4.4a step 3) but reused by `lmerb_posterior_mean()` for the posterior *mean*. |
 | **`.lmerb_posterior_system_cholesky()`** | `lmebayes_posterior_icm.R` | Cholesky-factors `M` and every `post_P_j` from `.lmerb_posterior_normal_system()`'s output. **Validates `M` is numerically symmetric first** (within a relative tolerance) and defensively symmetrizes before factoring; `stop()`s with a message pointing at `sim_method = "TWO_BLOCK_GIBBS"` if the asymmetry is too large to safely ignore. `M` is only guaranteed exactly symmetric when `Sigma_ranef` (from `prior_list_block1`) is diagonal *and* its \eqn{k}-th diagonal entry equals component \eqn{k}'s `dNormal()` dispersion (\eqn{\tau^2_k}) in `pfamily_list` -- exactly how `lmerb()`/`glmerb()` always construct it, but not a precondition enforced at this matrix level, hence the runtime check. |
@@ -224,8 +227,8 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 
 | Function | File | Role |
 |---|---|---|
-| `.rLMMNormal_reg_run()` | `rLMM_reg.R` | Shared body for the `known_vcov` route (`estimated_vcov` uses the pilot-augmented `.rLMMNormal_reg_run_with_pilot()` instead). Builds `prior_list_block1`, validates it, computes the ICM start, calibrates `m_convergence`, calls `two_block_rNormal_reg()`, stages output. |
-| `.two_block_validate_block1_prior()` | `two_block_rNormal_reg.R` | Confirms `prior_list_block1` has `P`/`Sigma` and (for `gaussian()`) `dispersion`. |
+| `.rLMMNormal_reg_run()` | `rLMM_reg.R` | Shared body for the `known_vcov` route (`estimated_vcov` uses the pilot-augmented `.rLMMNormal_reg_run_with_pilot()` instead). Builds `prior_list_block1` (with `P`, needed by `.rLMM_icm_at_start()`/`.rLM_calibrate_m_convergence()`), validates it, computes the ICM start, calibrates `m_convergence`, then calls `two_block_rNormal_reg()` with a **`P`-free** copy of `prior_list_block1` (that export derives its own `P`), stages output. |
+| `.two_block_validate_block1_prior()` | `two_block_rNormal_reg.R` | Confirms `prior_list_block1` has `P`/`Sigma` and (for `gaussian()`) `dispersion`. Callers of the 5 matrix-level exports (`rLMMNormal_reg*`, `rGLMM_reg*`, `two_block_rNormal_reg()`, `rLMMNormal_joint_iid()`) must not pass `P`/`Sigma` themselves -- each export injects its own derived `P` right before calling this validator; internal-only callers (`.rLMM_icm_at_start()`, `.rLM_calibrate_m_convergence()`) still pass it directly. |
 | `.rLMM_icm_at_start()` | `rLMM_reg.R` | Thin wrapper: builds the `design` list (`y, Z, groups, X_hyper, re_coef_names, group_name`) and calls `.two_block_icm_at_start()`; prints the "ICM posterior mean" verbose line. |
 | `.two_block_icm_at_start()` | `two_block_measurement_prior.R` | Builds the `measurement_prior_list` (\S4.6) then, for `family = gaussian()`, calls **`lmerb_posterior_mean()`** (exact) instead of `glmerb_posterior_mode()` (ICM iteration, used for non-Gaussian families). |
 | `.two_block_measurement_prior_list()` | `two_block_measurement_prior.R` | Converts `prior_list_block1$P`/`Sigma` + `dispersion` and each Block~2 `pfamily_list[[k]]$prior_list` into `list(dispersion_ranef, Sigma_ranef, prior_list)` -- `dispersion_ranef` here is exactly `prior_list_block1$dispersion` (scalar or named `J`-vector), passed straight through with `as.numeric()`. |

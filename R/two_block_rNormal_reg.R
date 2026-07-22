@@ -83,6 +83,37 @@
 
   list(ddef = ddef, dispersion = dispersion)
 }
+
+#' Resolve group_name from block's own attribute or the caller's expression
+#'
+#' @description
+#' \code{group_name} cannot be derived from \code{block}'s \emph{value} (R
+#' variable names are not part of an object's data). It is resolved from,
+#' in order: (1) \code{attr(block, "group_name")}, set internally when
+#' \code{block} is threaded through a call chain that no longer has a
+#' \code{group_name} formal to carry it (e.g. \code{lmerb()}/\code{glmerb()}
+#' via \code{do.call()}, or the private-helper calls into
+#' \code{\link{two_block_rNormal_reg}}/\code{\link{rLMMNormal_joint_iid}});
+#' (2) \code{substitute(block)} in the caller's own frame, when \code{block}
+#' was passed as a bare variable.
+#' @noRd
+.lmebayes_resolve_group_name <- function(block, blk_expr, fn_name) {
+  gn <- attr(block, "group_name", exact = TRUE)
+  if (!is.null(gn) && length(gn) == 1L && !is.na(gn) && nzchar(gn)) {
+    return(as.character(gn))
+  }
+  if (is.symbol(blk_expr)) {
+    return(deparse(blk_expr))
+  }
+  stop(
+    fn_name, "(): cannot derive 'group_name': 'block' is neither a plain ",
+    "variable nor carries a 'group_name' attribute. Pass 'block' as a bare ",
+    "variable (e.g. block = school_id), or attach one via ",
+    "attr(block, \"group_name\") <- \"school_id\" beforehand.",
+    call. = FALSE
+  )
+}
+
 #' Two-block Gibbs sampler with pfamily Block 2 priors
 #'
 #' Runs the coupled Block~1 / Block~2 Gibbs sampler for two-block mixed models.
@@ -104,21 +135,38 @@
 #'
 #' @param n Number of stored draws.
 #' @param y Response vector of length \code{nrow(x)}.
-#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}).
-#' @param block Grouping factor or block partition of length \code{l2}.
+#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+#'   non-empty \code{colnames(x)}: these are the random-effect coefficient
+#'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+#'   separate \code{re_coef_names} argument to override them).
+#' @param block Grouping factor of length \code{l2} (must be a \code{factor};
+#'   \code{levels(block)} fixes the row order of Block~1 draws -- there is no
+#'   separate \code{group_levels} argument. To use a level order/superset not
+#'   present in the observed data, construct \code{block} as
+#'   \code{factor(observed_block, levels = full_superset)} yourself. The name
+#'   used for the grouping column in \code{coefficients} (\code{group_name})
+#'   is resolved from \code{attr(block, "group_name")} if set, otherwise from
+#'   \code{block}'s own variable name via \code{substitute()} -- this only
+#'   works when \code{block} is passed as a bare variable (e.g.
+#'   \code{block = school_id}); otherwise attach the name yourself via
+#'   \code{attr(block, "group_name") <- "school_id"}.
 #' @param x_hyper Named list of group-level design matrices \code{X_k}
 #'   (\code{J x q_k}), one per column of \code{x}.
-#' @param prior_list_block1 Prior for Block~1: \code{P} or \code{Sigma},
-#'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
-#'   \code{mu} is updated internally.
+#' @param prior_list_block1 Prior for Block~1: \code{dispersion} (required for
+#'   \code{gaussian()}), optional \code{ddef}. \code{mu} is updated
+#'   internally. The Block~1 random-effect prior precision (formerly a
+#'   separate \code{P}/\code{Sigma} field) is always derived internally from
+#'   \code{pfamily_list} (see \code{pfamily_list} below);
+#'   \code{prior_list_block1} must not contain \code{P} or \code{Sigma}.
 #' @param pfamily_list Named list of \code{pfamily} objects, one per column
 #'   of \code{x}: \code{\link[glmbayesCore]{dNormal}} or
-#'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}.
+#'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}. One
+#'   \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+#'   \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+#'   \code{dIndependent_Normal_Gamma}) is assembled into the diagonal
+#'   Block~1 precision used for \code{prior_list_block1}.
 #' @param fixef_start Named list of hyper-parameter vectors at which each inner
 #'   chain is initialised.
-#' @param re_coef_names Character vector naming columns of \code{x}.
-#' @param group_levels Character vector defining row order of Block~1 draws.
-#' @param group_name Name for the grouping column in \code{coefficients}.
 #' @param m_convergence Number of inner Gibbs steps per stored draw.
 #' @param sampling Sampling scheme; only \code{"replicate"} is implemented.
 #' @param family Response \code{\link[stats]{family}} for Block~1 (default
@@ -158,9 +206,6 @@ two_block_rNormal_reg <- function(
     prior_list_block1,
     pfamily_list,
     fixef_start,
-    re_coef_names = colnames(x),
-    group_levels = levels(block),
-    group_name = NULL,
     m_convergence = 10L,
     sampling = c("replicate", "chain"),
     family = gaussian(),
@@ -178,6 +223,10 @@ two_block_rNormal_reg <- function(
   if (!identical(sampling, "replicate")) {
     stop("Only sampling = \"replicate\" is implemented.", call. = FALSE)
   }
+
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = "two_block_rNormal_reg"
+  )
 
   family <- .two_block_normalize_family(family)
   is_gaussian <- identical(family$family, "gaussian")
@@ -198,28 +247,27 @@ two_block_rNormal_reg <- function(
     stop("length(y) must equal nrow(x).", call. = FALSE)
   }
 
-  if (is.null(re_coef_names) || length(re_coef_names) != ncol(x)) {
-    re_coef_names <- if (ncol(x) >= 1L) {
-      cn <- colnames(x)
-      if (is.null(cn) || length(cn) != ncol(x)) paste0("RE", seq_len(ncol(x))) else cn
-    } else {
-      stop("'x' must have at least one column.", call. = FALSE)
-    }
-  }
-  colnames(x) <- re_coef_names
-  re_names <- re_coef_names
-
-  group_levels <- as.character(group_levels)
-  if (length(group_levels) < 1L) {
-    stop("'group_levels' must contain at least one level.", call. = FALSE)
-  }
-
-  if (is.null(group_name) || !nzchar(group_name)) {
-    group_name <- tryCatch(
-      deparse(substitute(block))[1L],
-      error = function(e) "group"
+  re_names <- colnames(x)
+  if (is.null(re_names) || length(re_names) != ncol(x) || anyNA(re_names) ||
+      any(!nzchar(re_names)) || anyDuplicated(re_names)) {
+    stop(
+      "'x' must have unique, non-empty column names (colnames(x)); ",
+      "there is no 're_coef_names' argument to override this.",
+      call. = FALSE
     )
-    if (!nzchar(group_name)) group_name <- "group"
+  }
+
+  if (!is.factor(block)) {
+    stop(
+      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "to control level order or supply a fixed superset of levels); ",
+      "there is no 'group_levels' argument to override this.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(block)
+  if (length(group_levels) < 1L) {
+    stop("'block' must have at least one level.", call. = FALSE)
   }
 
   if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
@@ -232,8 +280,12 @@ two_block_rNormal_reg <- function(
     )
   }
   if (!setequal(names(x_hyper), re_names)) {
-    x_hyper <- x_hyper[re_names]
+    stop(
+      "names(x_hyper) must match colnames(x): ",
+      paste(re_names, collapse = ", "), ".", call. = FALSE
+    )
   }
+  x_hyper <- x_hyper[re_names]
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, re_names,
@@ -247,6 +299,16 @@ two_block_rNormal_reg <- function(
     stop("names(fixef_start) must match re_coef_names.", call. = FALSE)
   }
   fixef_start <- fixef_start[re_names]
+
+  if (!is.null(prior_list_block1$P) || !is.null(prior_list_block1$Sigma)) {
+    stop(
+      "'prior_list_block1' must not contain 'P'/'Sigma'; the Block~1 ",
+      "random-effect prior precision is derived internally from ",
+      "'pfamily_list'.",
+      call. = FALSE
+    )
+  }
+  prior_list_block1$P <- .rLMM_P_from_pfamily_list(pfamily_list, re_names)
 
   block1_prior_meta <- .two_block_validate_block1_prior(
     prior_list_block1,

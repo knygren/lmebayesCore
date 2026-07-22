@@ -29,8 +29,21 @@
 #'
 #' @param n Number of stored draws. If \code{length(n) > 1}, the length is used.
 #' @param y Response vector of length \code{nrow(x)}.
-#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}).
-#' @param block Grouping factor or block partition of length \code{l2}.
+#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+#'   non-empty \code{colnames(x)}: these are the random-effect coefficient
+#'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+#'   separate \code{re_coef_names} argument to override them).
+#' @param block Grouping factor of length \code{l2} (must be a \code{factor};
+#'   \code{levels(block)} fixes the row order of Block~1 draws -- there is no
+#'   separate \code{group_levels} argument. To use a level order/superset not
+#'   present in the observed data, construct \code{block} as
+#'   \code{factor(observed_block, levels = full_superset)} yourself. The name
+#'   used for the grouping column in \code{coefficients} (\code{group_name})
+#'   is resolved from \code{attr(block, "group_name")} if set, otherwise from
+#'   \code{block}'s own variable name via \code{substitute()} -- this only
+#'   works when \code{block} is passed as a bare variable (e.g.
+#'   \code{block = school_id}); otherwise attach the name yourself via
+#'   \code{attr(block, "group_name") <- "school_id"}.
 #' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
 #'   one per column of \code{x}.
 #' @param prior_list Block~1 prior: \code{list(dispersion = sigma2)} for fixed
@@ -55,9 +68,6 @@
 #' @param tv_tol Total-variation tolerance in \code{(0, 1)} for calibration.
 #'   Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
 #'   Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.
-#' @param re_coef_names Names for columns of \code{x}.
-#' @param group_levels Character vector defining row order of Block~1 draws.
-#' @param group_name Name for the grouping column in \code{coefficients}.
 #' @param progbar Show a text progress bar during sampling.
 #' @param verbose Print convergence calibration / ICM lines.
 #' @param gap_tol,mode_gap_max,diag_sweeps,stage_verbose Pilot-stage controls for
@@ -68,6 +78,12 @@
 NULL
 
 #' Shared matrix-level validation for LMM replicate-chain engines
+#'
+#' \code{re_coef_names} and \code{group_levels} are no longer separate
+#' arguments: they are always \code{colnames(x)} and \code{levels(block)}
+#' respectively. \code{group_name} must already be resolved by the caller
+#' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
+#' sanity-checks it.
 #' @noRd
 .rLMM_validate_matrix_inputs <- function(
     n,
@@ -75,8 +91,6 @@ NULL
     x,
     x_hyper,
     tv_tol,
-    re_coef_names,
-    group_levels,
     group_name,
     block
 ) {
@@ -96,32 +110,35 @@ NULL
     stop("length(y) must equal nrow(x).", call. = FALSE)
   }
 
-  if (is.null(re_coef_names) || length(re_coef_names) != ncol(x)) {
-    re_coef_names <- if (ncol(x) >= 1L) {
-      cn <- colnames(x)
-      if (is.null(cn) || length(cn) != ncol(x)) {
-        paste0("RE", seq_len(ncol(x)))
-      } else {
-        cn
-      }
-    } else {
-      stop("'x' must have at least one column.", call. = FALSE)
-    }
+  re_names <- colnames(x)
+  if (is.null(re_names) || length(re_names) != ncol(x) || anyNA(re_names) ||
+      any(!nzchar(re_names)) || anyDuplicated(re_names)) {
+    stop(
+      "'x' must have unique, non-empty column names (colnames(x)); ",
+      "there is no 're_coef_names' argument to override this.",
+      call. = FALSE
+    )
   }
-  colnames(x) <- re_coef_names
-  re_names <- re_coef_names
 
-  group_levels <- as.character(group_levels)
+  if (!is.factor(block)) {
+    stop(
+      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "to control level order or supply a fixed superset of levels); ",
+      "there is no 'group_levels' argument to override this.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(block)
   if (length(group_levels) < 1L) {
-    stop("'group_levels' must contain at least one level.", call. = FALSE)
+    stop("'block' must have at least one level.", call. = FALSE)
   }
 
   if (is.null(group_name) || !nzchar(group_name)) {
-    group_name <- tryCatch(
-      deparse(substitute(block))[1L],
-      error = function(e) "group"
+    stop(
+      "'group_name' could not be derived and was not supplied; ",
+      "pass 'group_name' explicitly.",
+      call. = FALSE
     )
-    if (!nzchar(group_name)) group_name <- "group"
   }
 
   if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
@@ -132,8 +149,12 @@ NULL
          call. = FALSE)
   }
   if (!setequal(names(x_hyper), re_names)) {
-    x_hyper <- x_hyper[re_names]
+    stop(
+      "names(x_hyper) must match colnames(x): ",
+      paste(re_names, collapse = ", "), ".", call. = FALSE
+    )
   }
+  x_hyper <- x_hyper[re_names]
 
   list(
     n             = n,
@@ -2070,18 +2091,22 @@ NULL
   convergence_info <- calib$convergence_info
   convergence_info$draw_engine <- draw_engine
 
+  ## two_block_rNormal_reg() derives its own Block~1 P from pfamily_list
+  ## internally (and rejects a caller-supplied P/Sigma); the P-bearing
+  ## prior_list_block1 above is only needed by .rLMM_icm_at_start()/
+  ## .rLMM_calibrate_m_convergence(), which still require it directly.
+  ## two_block_rNormal_reg() has no 'group_name' formal: attach it to
+  ## 'block' itself so .lmebayes_resolve_group_name() picks it up there.
+  attr(block, "group_name") <- inp$group_name
   out <- two_block_rNormal_reg(
     n                 = inp$n,
     y                 = inp$y,
     x                 = inp$x,
     block             = block,
     x_hyper           = inp$x_hyper,
-    prior_list_block1 = prior_list_block1,
+    prior_list_block1 = list(dispersion = dispersion, ddef = FALSE),
     pfamily_list      = pfamily_list,
     fixef_start       = fixef_mode,
-    re_coef_names     = inp$re_names,
-    group_levels      = inp$group_levels,
-    group_name        = inp$group_name,
     family            = gaussian(),
     m_convergence     = m_convergence,
     progbar           = progbar
@@ -2125,7 +2150,6 @@ NULL
 .rLMMNormal_reg_run_iid <- function(
     inp,
     block,
-    P,
     dispersion,
     pfamily_list,
     pf_summary,
@@ -2135,12 +2159,16 @@ NULL
     result_class,
     cl
 ) {
+  ## rLMMNormal_joint_iid() derives its own Block~1 P from pfamily_list
+  ## internally (and rejects a caller-supplied P/Sigma).
   prior_list_block1 <- list(
-    P          = P,
     dispersion = dispersion,
     ddef       = FALSE
   )
 
+  ## rLMMNormal_joint_iid() has no 'group_name' formal: attach it to
+  ## 'block' itself so .lmebayes_resolve_group_name() picks it up there.
+  attr(block, "group_name") <- inp$group_name
   out <- rLMMNormal_joint_iid(
     n                 = inp$n,
     y                 = inp$y,
@@ -2149,9 +2177,6 @@ NULL
     x_hyper           = inp$x_hyper,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
-    re_coef_names     = inp$re_names,
-    group_levels      = inp$group_levels,
-    group_name        = inp$group_name,
     progbar           = progbar,
     verbose           = verbose
   )
@@ -2212,18 +2237,19 @@ rLMMNormal_reg <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE,
     sim_method      = "DEFAULT"
 ) {
   cl <- match.call()
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = "rLMMNormal_reg"
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, group_levels = inp$group_levels
@@ -2265,9 +2291,6 @@ rLMMNormal_reg_known_vcov <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE,
     sim_method      = "DEFAULT"
@@ -2305,18 +2328,19 @@ rLMMNormal_reg_known_vcov_iid <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
   cl <- match.call()
   fn_name <- "rLMMNormal_reg_known_vcov_iid"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
@@ -2324,7 +2348,6 @@ rLMMNormal_reg_known_vcov_iid <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
-  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
@@ -2337,7 +2360,6 @@ rLMMNormal_reg_known_vcov_iid <- function(
   .rLMMNormal_reg_run_iid(
     inp              = inp,
     block            = block,
-    P                = P,
     dispersion       = dispersion,
     pfamily_list     = pfamily_list,
     pf_summary       = pf_summary,
@@ -2365,18 +2387,19 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
   cl <- match.call()
   fn_name <- "rLMMNormal_reg_known_vcov_two_bg"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
@@ -2430,9 +2453,6 @@ rLMMNormal_reg_estimated_vcov <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE,
     gap_tol         = 0.0196,
@@ -2445,9 +2465,13 @@ rLMMNormal_reg_estimated_vcov <- function(
   fn_name <- "rLMMNormal_reg_estimated_vcov"
   .rLMM_validate_sim_method(sim_method, fn_name = fn_name)
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
@@ -2503,16 +2527,18 @@ rLMMindepNormalGamma_reg <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
   cl <- match.call()
+
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = "rLMMindepNormalGamma_reg"
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   prior_list <- .rLMM_validate_dGamma_dispersion_prior_list(prior_list)
   dispersion_fix <- .rLMM_dispersion_fix_from_prior_list(
@@ -2737,18 +2763,19 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE
 ) {
   cl <- match.call()
   fn_name <- "rLMMindepNormalGamma_reg_known_vcov"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name,
@@ -2802,9 +2829,6 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
-    re_coef_names   = colnames(x),
-    group_levels    = levels(block),
-    group_name      = NULL,
     progbar         = TRUE,
     verbose         = FALSE,
     gap_tol         = 0.0196,
@@ -2815,9 +2839,13 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
   cl <- match.call()
   fn_name <- "rLMMindepNormalGamma_reg_estimated_vcov"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rLMM_validate_matrix_inputs(
     n, y, x, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, block
+    group_name, block
   )
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name,

@@ -14,6 +14,7 @@
   n_obs <- J * n_j
   group_levels <- paste0("g", seq_len(J))
   block <- factor(rep(group_levels, each = n_j), levels = group_levels)
+  attr(block, "group_name") <- "group"
 
   tau2_true   <- 0.7
   sigma2_true <- stats::setNames(c(0.3, 0.6, 0.9, 1.2, 1.5), group_levels)
@@ -25,7 +26,6 @@
   x_hyper <- list(
     "(Intercept)" = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)"))
   )
-  P <- matrix(1 / 100, 1, 1)
   prior_list <- list(dispersion = unname(sigma2_true))
   pfamily_list <- list(
     "(Intercept)" = glmbayesCore::dNormal(
@@ -35,7 +35,7 @@
 
   list(
     n_obs = n_obs, J = J, block = block, y = y,
-    x = x, x_hyper = x_hyper, P = P,
+    x = x, x_hyper = x_hyper,
     prior_list = prior_list, pfamily_list = pfamily_list,
     sigma2_true = sigma2_true, tau2_true = tau2_true
   )
@@ -105,7 +105,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
   fit_iid <- rLMMNormal_joint_iid(
     n = 50L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
     prior_list_block1 = list(
-      P = fx$P, dispersion = unname(fx$sigma2_true), ddef = FALSE
+      dispersion = unname(fx$sigma2_true), ddef = FALSE
     ),
     pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
@@ -115,8 +115,11 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
     y = fx$y, Z = fx$x, groups = fx$block, X_hyper = fx$x_hyper,
     re_coef_names = "(Intercept)", group_name = "group"
   )
+  ## Sigma_ranef must match what rLMMNormal_joint_iid() now derives
+  ## internally from pfamily_list (diag(tau2_k), here tau2_true), not an
+  ## independently-supplied P/Sigma.
   mpl <- list(
-    Sigma_ranef      = solve(fx$P),
+    Sigma_ranef      = matrix(fx$tau2_true, 1, 1),
     dispersion_ranef = unname(fx$sigma2_true),
     prior_list       = list(
       "(Intercept)" = list(

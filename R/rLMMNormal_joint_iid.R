@@ -27,14 +27,23 @@
 #' non-convergence is possible.
 #'
 #' @param n Number of iid draws (integer, at least 1).
-#' @param y,x,block,x_hyper,pfamily_list,re_coef_names,group_levels,group_name
+#' @param y,x,block,x_hyper,pfamily_list
 #'   Same meaning as in \code{\link{two_block_rNormal_reg}}; every
-#'   \code{pfamily_list} component must be \code{dNormal()}.
-#' @param prior_list_block1 Block~1 prior: \code{P} or \code{Sigma} plus a
-#'   fixed \code{dispersion} (a single positive scalar, or a numeric vector
-#'   of length \code{length(group_levels)} giving one fixed, known
-#'   dispersion per group). Random (\code{dIndependent_Normal_Gamma})
-#'   measurement dispersion is not supported.
+#'   \code{pfamily_list} component must be \code{dNormal()}. \code{x} must
+#'   have unique, non-empty \code{colnames(x)} and \code{block} must be a
+#'   factor (there are no separate \code{re_coef_names}/\code{group_levels}
+#'   arguments). The grouping-column name (\code{group_name}) is resolved
+#'   from \code{attr(block, "group_name")} if set, otherwise from
+#'   \code{block}'s own variable name via \code{substitute()} (see
+#'   \code{\link{two_block_rNormal_reg}}'s \code{@param block}).
+#' @param prior_list_block1 Block~1 prior: a fixed \code{dispersion} (a
+#'   single positive scalar, or a numeric vector of length
+#'   \code{length(group_levels)} giving one fixed, known dispersion per
+#'   group). Random (\code{dIndependent_Normal_Gamma}) measurement
+#'   dispersion is not supported. The Block~1 random-effect prior precision
+#'   (formerly a separate \code{P}/\code{Sigma} field) is always derived
+#'   internally from \code{pfamily_list}; \code{prior_list_block1} must not
+#'   contain \code{P} or \code{Sigma}.
 #' @param progbar Show a text progress bar while drawing.
 #' @param verbose Currently unused; accepted for interface parity with
 #'   \code{\link{two_block_rNormal_reg}}.
@@ -60,13 +69,14 @@ rLMMNormal_joint_iid <- function(
     x_hyper,
     prior_list_block1,
     pfamily_list,
-    re_coef_names = colnames(x),
-    group_levels  = levels(block),
-    group_name    = NULL,
     progbar       = TRUE,
     verbose       = FALSE
 ) {
   cl <- match.call()
+
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = "rLMMNormal_joint_iid"
+  )
 
   n <- as.integer(n[1L])
   if (n < 1L) {
@@ -80,35 +90,30 @@ rLMMNormal_joint_iid <- function(
     stop("length(y) must equal nrow(x).", call. = FALSE)
   }
 
-  if (is.null(re_coef_names) || length(re_coef_names) != ncol(x)) {
-    re_coef_names <- if (ncol(x) >= 1L) {
-      cn <- colnames(x)
-      if (is.null(cn) || length(cn) != ncol(x)) {
-        paste0("RE", seq_len(ncol(x)))
-      } else {
-        cn
-      }
-    } else {
-      stop("'x' must have at least one column.", call. = FALSE)
-    }
+  re_names <- colnames(x)
+  if (is.null(re_names) || length(re_names) != ncol(x) || anyNA(re_names) ||
+      any(!nzchar(re_names)) || anyDuplicated(re_names)) {
+    stop(
+      "'x' must have unique, non-empty column names (colnames(x)); ",
+      "there is no 're_coef_names' argument to override this.",
+      call. = FALSE
+    )
   }
-  colnames(x) <- re_coef_names
-  re_names <- re_coef_names
   p_re <- length(re_names)
 
-  group_levels <- as.character(group_levels)
+  if (!is.factor(block)) {
+    stop(
+      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "to control level order or supply a fixed superset of levels); ",
+      "there is no 'group_levels' argument to override this.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(block)
   if (length(group_levels) < 1L) {
-    stop("'group_levels' must contain at least one level.", call. = FALSE)
+    stop("'block' must have at least one level.", call. = FALSE)
   }
   J <- length(group_levels)
-
-  if (is.null(group_name) || !nzchar(group_name)) {
-    group_name <- tryCatch(
-      deparse(substitute(block))[1L],
-      error = function(e) "group"
-    )
-    if (!nzchar(group_name)) group_name <- "group"
-  }
 
   if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
     stop("'x_hyper' must be a list of design matrices.", call. = FALSE)
@@ -120,8 +125,12 @@ rLMMNormal_joint_iid <- function(
     )
   }
   if (!setequal(names(x_hyper), re_names)) {
-    x_hyper <- x_hyper[re_names]
+    stop(
+      "names(x_hyper) must match colnames(x): ",
+      paste(re_names, collapse = ", "), ".", call. = FALSE
+    )
   }
+  x_hyper <- x_hyper[re_names]
   x_hyper <- lapply(x_hyper, as.matrix)
 
   pfamily_list <- .two_block_validate_pfamily_list(
@@ -138,6 +147,16 @@ rLMMNormal_joint_iid <- function(
       call. = FALSE
     )
   }
+
+  if (!is.null(prior_list_block1$P) || !is.null(prior_list_block1$Sigma)) {
+    stop(
+      "'prior_list_block1' must not contain 'P'/'Sigma'; the Block~1 ",
+      "random-effect prior precision is derived internally from ",
+      "'pfamily_list'.",
+      call. = FALSE
+    )
+  }
+  prior_list_block1$P <- .rLMM_P_from_pfamily_list(pfamily_list, re_names)
 
   .two_block_validate_block1_prior(prior_list_block1, family = gaussian())
 

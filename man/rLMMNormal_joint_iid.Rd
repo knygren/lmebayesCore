@@ -12,9 +12,6 @@ rLMMNormal_joint_iid(
   x_hyper,
   prior_list_block1,
   pfamily_list,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   progbar = TRUE,
   verbose = FALSE
 )
@@ -22,14 +19,23 @@ rLMMNormal_joint_iid(
 \arguments{
 \item{n}{Number of iid draws (integer, at least 1).}
 
-\item{y, x, block, x_hyper, pfamily_list, re_coef_names, group_levels, group_name}{Same meaning as in \code{\link{two_block_rNormal_reg}}; every
-\code{pfamily_list} component must be \code{dNormal()}.}
+\item{y, x, block, x_hyper, pfamily_list}{Same meaning as in \code{\link{two_block_rNormal_reg}}; every
+\code{pfamily_list} component must be \code{dNormal()}. \code{x} must
+have unique, non-empty \code{colnames(x)} and \code{block} must be a
+factor (there are no separate \code{re_coef_names}/\code{group_levels}
+arguments). The grouping-column name (\code{group_name}) is resolved
+from \code{attr(block, "group_name")} if set, otherwise from
+\code{block}'s own variable name via \code{substitute()} (see
+\code{\link{two_block_rNormal_reg}}'s \code{@param block}).}
 
-\item{prior_list_block1}{Block~1 prior: \code{P} or \code{Sigma} plus a
-fixed \code{dispersion} (a single positive scalar, or a numeric vector
-of length \code{length(group_levels)} giving one fixed, known
-dispersion per group). Random (\code{dIndependent_Normal_Gamma})
-measurement dispersion is not supported.}
+\item{prior_list_block1}{Block~1 prior: a fixed \code{dispersion} (a
+single positive scalar, or a numeric vector of length
+\code{length(group_levels)} giving one fixed, known dispersion per
+group). Random (\code{dIndependent_Normal_Gamma}) measurement
+dispersion is not supported. The Block~1 random-effect prior precision
+(formerly a separate \code{P}/\code{Sigma} field) is always derived
+internally from \code{pfamily_list}; \code{prior_list_block1} must not
+contain \code{P} or \code{Sigma}.}
 
 \item{progbar}{Show a text progress bar while drawing.}
 

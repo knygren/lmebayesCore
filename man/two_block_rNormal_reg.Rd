@@ -13,9 +13,6 @@ two_block_rNormal_reg(
   prior_list_block1,
   pfamily_list,
   fixef_start,
-  re_coef_names = colnames(x),
-  group_levels = levels(block),
-  group_name = NULL,
   m_convergence = 10L,
   sampling = c("replicate", "chain"),
   family = gaussian(),
@@ -34,29 +31,43 @@ two_block_rNormal_reg(
 
 \item{y}{Response vector of length \code{nrow(x)}.}
 
-\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}).}
+\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+non-empty \code{colnames(x)}: these are the random-effect coefficient
+names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+separate \code{re_coef_names} argument to override them).}
 
-\item{block}{Grouping factor or block partition of length \code{l2}.}
+\item{block}{Grouping factor of length \code{l2} (must be a \code{factor};
+\code{levels(block)} fixes the row order of Block~1 draws -- there is no
+separate \code{group_levels} argument. To use a level order/superset not
+present in the observed data, construct \code{block} as
+\code{factor(observed_block, levels = full_superset)} yourself. The name
+used for the grouping column in \code{coefficients} (\code{group_name})
+is resolved from \code{attr(block, "group_name")} if set, otherwise from
+\code{block}'s own variable name via \code{substitute()} -- this only
+works when \code{block} is passed as a bare variable (e.g.
+\code{block = school_id}); otherwise attach the name yourself via
+\code{attr(block, "group_name") <- "school_id"}.}
 
 \item{x_hyper}{Named list of group-level design matrices \code{X_k}
 (\code{J x q_k}), one per column of \code{x}.}
 
-\item{prior_list_block1}{Prior for Block~1: \code{P} or \code{Sigma},
-\code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
-\code{mu} is updated internally.}
+\item{prior_list_block1}{Prior for Block~1: \code{dispersion} (required for
+\code{gaussian()}), optional \code{ddef}. \code{mu} is updated
+internally. The Block~1 random-effect prior precision (formerly a
+separate \code{P}/\code{Sigma} field) is always derived internally from
+\code{pfamily_list} (see \code{pfamily_list} below);
+\code{prior_list_block1} must not contain \code{P} or \code{Sigma}.}
 
 \item{pfamily_list}{Named list of \code{pfamily} objects, one per column
 of \code{x}: \code{\link[glmbayesCore]{dNormal}} or
-\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}.}
+\code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}. One
+\eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+\code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+\code{dIndependent_Normal_Gamma}) is assembled into the diagonal
+Block~1 precision used for \code{prior_list_block1}.}
 
 \item{fixef_start}{Named list of hyper-parameter vectors at which each inner
 chain is initialised.}
-
-\item{re_coef_names}{Character vector naming columns of \code{x}.}
-
-\item{group_levels}{Character vector defining row order of Block~1 draws.}
-
-\item{group_name}{Name for the grouping column in \code{coefficients}.}
 
 \item{m_convergence}{Number of inner Gibbs steps per stored draw.}
 

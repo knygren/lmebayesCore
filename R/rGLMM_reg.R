@@ -31,18 +31,36 @@
 #' @param n Number of stored main-stage draws. If \code{length(n) > 1}, the
 #'   length is used.
 #' @param y Response vector of length \code{nrow(x)}.
-#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}).
-#' @param block Grouping factor or block partition of length \code{l2}.
+#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
+#'   non-empty \code{colnames(x)}: these are the random-effect coefficient
+#'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+#'   separate \code{re_coef_names} argument to override them).
+#' @param block Grouping factor of length \code{l2} (must be a \code{factor};
+#'   \code{levels(block)} fixes the row order of Block~1 draws -- there is no
+#'   separate \code{group_levels} argument. To use a level order/superset not
+#'   present in the observed data, construct \code{block} as
+#'   \code{factor(observed_block, levels = full_superset)} yourself. The name
+#'   used for the grouping column in \code{coefficients} (\code{group_name})
+#'   is resolved from \code{attr(block, "group_name")} if set, otherwise from
+#'   \code{block}'s own variable name via \code{substitute()} -- this only
+#'   works when \code{block} is passed as a bare variable (e.g.
+#'   \code{block = school_id}); otherwise attach the name yourself via
+#'   \code{attr(block, "group_name") <- "school_id"}.
 #' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
 #'   one per column of \code{x}.
-#' @param prior_list Prior for Block~1: \code{P} or \code{Sigma},
-#'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
-#' @param pfamily_list Named list of \code{pfamily} objects for Block~2.
+#' @param prior_list Prior for Block~1: \code{dispersion} (required for
+#'   \code{gaussian()}), optional \code{ddef}. The Block~1 random-effect
+#'   prior precision (formerly a separate \code{P}/\code{Sigma} field) is
+#'   always derived internally from \code{pfamily_list} (see
+#'   \code{pfamily_list} below); \code{prior_list} must not contain
+#'   \code{P} or \code{Sigma}.
+#' @param pfamily_list Named list of \code{pfamily} objects for Block~2. One
+#'   \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+#'   \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+#'   \code{dIndependent_Normal_Gamma}) is assembled into the diagonal Block~1
+#'   precision used for \code{prior_list}.
 #' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
 #' @param offset,weights,family Passed to Block~1 (length \code{l2} or recycled).
-#' @param re_coef_names Character vector naming columns of \code{x}.
-#' @param group_levels Character vector defining row order of Block~1 draws.
-#' @param group_name Name for the grouping column in \code{coefficients}.
 #' @param gap_tol Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 #'   is \code{NULL}.
 #' @param tv_tol Total-variation tolerance for Theorem~3 calibration.
@@ -62,6 +80,14 @@
 NULL
 
 #' Shared matrix-level validation for GLMM replicate-chain engines
+#'
+#' \code{re_coef_names} and \code{group_levels} are no longer separate
+#' arguments: they are always \code{colnames(x)} and \code{levels(block)}
+#' respectively. \code{group_name} must already be resolved by the caller
+#' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
+#' sanity-checks it. \code{prior_list} must not contain \code{P}/
+#' \code{Sigma}: the Block~1 random-effect prior precision is derived
+#' internally from \code{pfamily_list} and injected here.
 #' @noRd
 .rGLMM_validate_matrix_inputs <- function(
     n,
@@ -70,8 +96,6 @@ NULL
     block,
     x_hyper,
     tv_tol,
-    re_coef_names,
-    group_levels,
     group_name,
     family,
     mode_gap_max,
@@ -103,32 +127,35 @@ NULL
     stop("length(y) must equal nrow(x).", call. = FALSE)
   }
 
-  if (is.null(re_coef_names) || length(re_coef_names) != ncol(x)) {
-    re_coef_names <- if (ncol(x) >= 1L) {
-      cn <- colnames(x)
-      if (is.null(cn) || length(cn) != ncol(x)) {
-        paste0("RE", seq_len(ncol(x)))
-      } else {
-        cn
-      }
-    } else {
-      stop("'x' must have at least 1 column.", call. = FALSE)
-    }
+  re_names <- colnames(x)
+  if (is.null(re_names) || length(re_names) != ncol(x) || anyNA(re_names) ||
+      any(!nzchar(re_names)) || anyDuplicated(re_names)) {
+    stop(
+      "'x' must have unique, non-empty column names (colnames(x)); ",
+      "there is no 're_coef_names' argument to override this.",
+      call. = FALSE
+    )
   }
-  colnames(x) <- re_coef_names
-  re_names <- re_coef_names
 
-  group_levels <- as.character(group_levels)
+  if (!is.factor(block)) {
+    stop(
+      "'block' must be a factor (wrap with factor(block, levels = ...) ",
+      "to control level order or supply a fixed superset of levels); ",
+      "there is no 'group_levels' argument to override this.",
+      call. = FALSE
+    )
+  }
+  group_levels <- levels(block)
   if (length(group_levels) < 1L) {
-    stop("'group_levels' must contain at least one level.", call. = FALSE)
+    stop("'block' must have at least one level.", call. = FALSE)
   }
 
   if (is.null(group_name) || !nzchar(group_name)) {
-    group_name <- tryCatch(
-      deparse(substitute(block))[1L],
-      error = function(e) "group"
+    stop(
+      "'group_name' could not be derived and was not supplied; ",
+      "pass 'group_name' explicitly.",
+      call. = FALSE
     )
-    if (!nzchar(group_name)) group_name <- "group"
   }
 
   if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
@@ -139,8 +166,12 @@ NULL
          call. = FALSE)
   }
   if (!setequal(names(x_hyper), re_names)) {
-    x_hyper <- x_hyper[re_names]
+    stop(
+      "names(x_hyper) must match colnames(x): ",
+      paste(re_names, collapse = ", "), ".", call. = FALSE
+    )
   }
+  x_hyper <- x_hyper[re_names]
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, re_names, J = length(group_levels)
@@ -153,6 +184,15 @@ NULL
       stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
     }
   }
+
+  if (!is.null(prior_list$P) || !is.null(prior_list$Sigma)) {
+    stop(
+      "'prior_list' must not contain 'P'/'Sigma'; the Block~1 random-effect ",
+      "prior precision is derived internally from 'pfamily_list'.",
+      call. = FALSE
+    )
+  }
+  prior_list$P <- .rLMM_P_from_pfamily_list(pfamily_list, re_names)
 
   .two_block_validate_block1_prior(prior_list, family = family)
 
@@ -756,9 +796,6 @@ rGLMM_reg_known_vcov <- function(
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    re_coef_names       = colnames(x),
-    group_levels        = levels(block),
-    group_name          = NULL,
     gap_tol             = 0.0196,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
@@ -775,9 +812,13 @@ rGLMM_reg_known_vcov <- function(
   cl <- match.call()
   fn_name <- "rGLMM_reg_known_vcov"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, x, block, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
   if (!inp$pf_summary$all_dNormal) {
@@ -821,9 +862,6 @@ rGLMM_reg_estimated_vcov <- function(
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    re_coef_names       = colnames(x),
-    group_levels        = levels(block),
-    group_name          = NULL,
     gap_tol             = 0.0196,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
@@ -840,9 +878,13 @@ rGLMM_reg_estimated_vcov <- function(
   cl <- match.call()
   fn_name <- "rGLMM_reg_estimated_vcov"
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = fn_name
+  )
+
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, x, block, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
   if (inp$pf_summary$all_dNormal) {
@@ -885,9 +927,6 @@ rGLMM_reg <- function(
     offset              = NULL,
     weights             = 1,
     family              = gaussian(),
-    re_coef_names       = colnames(x),
-    group_levels        = levels(block),
-    group_name          = NULL,
     gap_tol             = 0.0196,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
@@ -903,9 +942,13 @@ rGLMM_reg <- function(
 ) {
   cl <- match.call()
 
+  group_name <- .lmebayes_resolve_group_name(
+    block, substitute(block), fn_name = "rGLMM_reg"
+  )
+
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, x, block, x_hyper, tv_tol,
-    re_coef_names, group_levels, group_name, family, mode_gap_max,
+    group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
 
