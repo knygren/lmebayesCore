@@ -1,5 +1,29 @@
 # lmebayesCore (development version)
 
+* **Renamed the `x` argument to `D` and `x_hyper` to `W` on the 11
+  `rLMM_reg`/`rGLMM_reg`-family matrix-level exports.** `rLMMNormal_reg()`,
+  `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,
+  `rLMMNormal_reg_known_vcov_two_bg()`, `rLMMNormal_reg_estimated_vcov()`,
+  `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`,
+  `rLMMindepNormalGamma_reg_estimated_vcov()`, `rGLMM_reg()`,
+  `rGLMM_reg_known_vcov()`, and `rGLMM_reg_estimated_vcov()` now take `D`
+  instead of `x` (the level-1, `l2 x p_re` random-effect design matrix) and
+  `W` instead of `x_hyper` (the named list of group-level hyper-design
+  matrices), matching the \eqn{D}/\eqn{\mathcal{W}} notation documented in
+  `inst/notation.md` and in `?rLMM_reg`'s "Model and notation" section. This
+  is purely a rename: everything previously documented for `x`/`x_hyper`
+  (unique/non-empty `colnames(x)` requirement, `names(x_hyper)` matching
+  `colnames(x)`, etc.) applies unchanged to `D`/`W`. `matrix_args_lmm()`'s
+  and the internal `.lmebayes_matrix_args_glmm()`'s returned argument lists
+  also now use `D`/`W` elements instead of `x`/`x_hyper` (matching the
+  renamed formals on the routed exports they target via `do.call()`). This
+  is a breaking change for any direct caller of these 11 exports passing
+  `x =`/`x_hyper =` by keyword; `lmerb()`/`glmerb()`/`rlmerb()`/`rglmerb()`
+  callers are unaffected. `two_block_rNormal_reg()`, `rLMMNormal_joint_iid()`,
+  `two_block_rate()`, `two_block_rate_from_pfamily_list()`,
+  `two_block_mode_weights()`, and `build_mu_all()` are unrelated and keep
+  their existing `x`/`x_hyper` formals.
+
 * **Renamed the grouping-factor argument `block` to `group` on all 13
   matrix-level LMM/GLMM exports.** `rLMMNormal_reg()`,
   `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,

@@ -22,8 +22,8 @@
   y <- 2 + b_true[as.character(group)] +
     stats::rnorm(n_obs, sd = sqrt(sigma2_true[as.character(group)]))
 
-  x <- matrix(1, n_obs, 1, dimnames = list(NULL, "(Intercept)"))
-  x_hyper <- list(
+  D <- matrix(1, n_obs, 1, dimnames = list(NULL, "(Intercept)"))
+  W <- list(
     "(Intercept)" = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)"))
   )
   prior_list <- list(dispersion = unname(sigma2_true))
@@ -35,7 +35,7 @@
 
   list(
     n_obs = n_obs, J = J, group = group, y = y,
-    x = x, x_hyper = x_hyper,
+    D = D, W = W,
     prior_list = prior_list, pfamily_list = pfamily_list,
     sigma2_true = sigma2_true, tau2_true = tau2_true
   )
@@ -46,7 +46,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
 
   set.seed(1)
   fit_default <- rLMMNormal_reg_known_vcov(
-    n = 20L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
@@ -57,7 +57,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
 
   set.seed(1)
   fit_iid <- rLMMNormal_reg_known_vcov(
-    n = 20L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
@@ -66,7 +66,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
 
   set.seed(1)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
-    n = 20L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
@@ -77,7 +77,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   ## Direct calls to the two named engines behind the dispatcher.
   set.seed(1)
   fit_iid_direct <- rLMMNormal_reg_known_vcov_iid(
-    n = 20L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
@@ -86,7 +86,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
 
   set.seed(1)
   fit_bg_direct <- rLMMNormal_reg_known_vcov_two_bg(
-    n = 20L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
@@ -103,7 +103,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
   fx <- .sim_method_fixture()
 
   fit_iid <- rLMMNormal_joint_iid(
-    n = 50L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 50L, y = fx$y, x = fx$D, group = fx$group, x_hyper = fx$W,
     prior_list_block1 = list(
       dispersion = unname(fx$sigma2_true), ddef = FALSE
     ),
@@ -112,7 +112,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
   )
 
   design <- list(
-    y = fx$y, Z = fx$x, groups = fx$group, X_hyper = fx$x_hyper,
+    y = fx$y, Z = fx$D, groups = fx$group, X_hyper = fx$W,
     re_coef_names = "(Intercept)", group_name = "group"
   )
   ## Sigma_ranef must match what rLMMNormal_joint_iid() now derives
@@ -143,13 +143,13 @@ test_that("iid and two-block Gibbs engines agree on the posterior mean (Monte Ca
 
   set.seed(2026)
   fit_iid <- rLMMNormal_reg_known_vcov(
-    n = 2000L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 2000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
   set.seed(2026)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
-    n = 2000L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+    n = 2000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
@@ -173,7 +173,7 @@ test_that("sim_method validation rejects unknown values", {
 
   expect_error(
     rLMMNormal_reg_known_vcov(
-      n = 5L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+      n = 5L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
       prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
       progbar = FALSE, sim_method = "bogus"
     ),
@@ -210,7 +210,7 @@ test_that("sim_method is accepted-but-inert on routes with only a two-block Gibb
   fx <- .sim_method_fixture()
   expect_error(
     rLMMNormal_reg_estimated_vcov(
-      n = 5L, y = fx$y, x = fx$x, group = fx$group, x_hyper = fx$x_hyper,
+      n = 5L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
       prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
       progbar = FALSE, sim_method = "bogus"
     ),

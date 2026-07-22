@@ -49,14 +49,14 @@ A flat named list (\code{args}) suitable for
 \item{\code{n}}{Number of stored draws, unchanged from the \code{n}
 argument.}
 \item{\code{y}}{\code{design$y}, the response vector.}
-\item{\code{x}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
+\item{\code{D}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
 random-effect design matrix.}
 \item{\code{group}}{\code{design$groups}, the grouping factor, with
 \code{attr(group, "group_name")} set to \code{design$group_name}
 (the routed export has no \code{group_name} formal and resolves it
 from this attribute, since \code{design$groups} is never a bare
 variable at the routed export's call site).}
-\item{\code{x_hyper}}{\code{design$X_hyper}, the named list of
+\item{\code{W}}{\code{design$X_hyper}, the named list of
 group-level hyper-design matrices (one per random-effect
 coefficient).}
 \item{\code{pfamily_list}}{\code{prior$pfamily_list} unchanged. The

@@ -9,9 +9,9 @@
 rGLMM_reg_known_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -36,9 +36,9 @@ rGLMM_reg_known_vcov(
 rGLMM_reg_estimated_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -63,9 +63,9 @@ rGLMM_reg_estimated_vcov(
 rGLMM_reg(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -91,11 +91,11 @@ rGLMM_reg(
 \item{n}{Number of stored main-stage draws. If \code{length(n) > 1}, the
 length is used.}
 
-\item{y}{Response vector of length \code{nrow(x)}.}
+\item{y}{Response vector of length \code{l2} (\code{= nrow(D)}).}
 
-\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
-non-empty \code{colnames(x)}: these are the random-effect coefficient
-names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+\item{D}{Level-1 design matrix (\code{l2 x p_re}). Must have unique,
+non-empty \code{colnames(D)}: these are the random-effect coefficient
+names used to key \code{W} and \code{pfamily_list} (there is no
 separate \code{re_coef_names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
@@ -110,8 +110,8 @@ works when \code{group} is passed as a bare variable (e.g.
 \code{group = school_id}); otherwise attach the name yourself via
 \code{attr(group, "group_name") <- "school_id"}.}
 
-\item{x_hyper}{Named list of group-level design matrices (\code{J x q_k}),
-one per column of \code{x}.}
+\item{W}{Named list of group-level design matrices (\code{J x q_k}),
+one per column of \code{D}.}
 
 \item{prior_list}{Prior for Block~1: \code{dispersion} (required for
 \code{gaussian()}), optional \code{ddef}. The Block~1 random-effect

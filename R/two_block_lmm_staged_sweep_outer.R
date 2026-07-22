@@ -91,9 +91,9 @@
 
   icm <- .rLMM_icm_at_start(
     y                 = inp$y,
-    x                 = inp$x,
+    D                 = inp$D,
     group             = group,
-    x_hyper           = inp$x_hyper,
+    W                 = inp$W,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
     re_names          = re_names,
@@ -120,9 +120,9 @@
 
   design <- list(
     y             = inp$y,
-    Z             = inp$x,
+    Z             = inp$D,
     groups        = factor(group, levels = group_levels),
-    X_hyper       = inp$x_hyper,
+    X_hyper       = inp$W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -132,9 +132,9 @@
   progbar_use    <- isTRUE(progbar) || isTRUE(verbose) || isTRUE(stage_verbose)
 
   rate <- two_block_rate_from_pfamily_list(
-    x                 = inp$x,
+    x                 = inp$D,
     block             = group,
-    x_hyper           = inp$x_hyper,
+    x_hyper           = inp$W,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
     family            = family,
@@ -316,9 +316,9 @@
         re_names           = re_names,
         group_levels       = group_levels,
         group_name         = group_name,
-        x                  = inp$x,
+        x                  = inp$D,
         group              = group,
-        x_hyper            = inp$x_hyper,
+        x_hyper            = inp$W,
         prior_list         = prior_list_block1,
         pfamily_list       = pfamily_list,
         family             = family,

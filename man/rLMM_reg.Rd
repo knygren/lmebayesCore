@@ -15,9 +15,9 @@
 rLMMNormal_reg(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -31,9 +31,9 @@ rLMMNormal_reg(
 rLMMNormal_reg_known_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -47,9 +47,9 @@ rLMMNormal_reg_known_vcov(
 rLMMNormal_reg_known_vcov_iid(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -62,9 +62,9 @@ rLMMNormal_reg_known_vcov_iid(
 rLMMNormal_reg_known_vcov_two_bg(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -77,9 +77,9 @@ rLMMNormal_reg_known_vcov_two_bg(
 rLMMNormal_reg_estimated_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -97,9 +97,9 @@ rLMMNormal_reg_estimated_vcov(
 rLMMindepNormalGamma_reg(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -112,9 +112,9 @@ rLMMindepNormalGamma_reg(
 rLMMindepNormalGamma_reg_known_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -127,9 +127,9 @@ rLMMindepNormalGamma_reg_known_vcov(
 rLMMindepNormalGamma_reg_estimated_vcov(
   n,
   y,
-  x,
+  D,
   group,
-  x_hyper,
+  W,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -146,12 +146,13 @@ rLMMindepNormalGamma_reg_estimated_vcov(
 \arguments{
 \item{n}{Number of stored draws. If \code{length(n) > 1}, the length is used.}
 
-\item{y}{Response vector of length \code{nrow(x)}.}
+\item{y}{Response vector of length \code{l2} (\code{= nrow(D)}).}
 
-\item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
-non-empty \code{colnames(x)}: these are the random-effect coefficient
-names used to key \code{x_hyper} and \code{pfamily_list} (there is no
-separate \code{re_coef_names} argument to override them).}
+\item{D}{Level-1 design matrix (\code{l2 x p_re}); this is \eqn{D}
+(row-stacked \eqn{D_j}) in \dQuote{Model and notation} below. Must have
+unique, non-empty \code{colnames(D)}: these are the random-effect
+coefficient names used to key \code{W} and \code{pfamily_list}
+(there is no separate \code{re_coef_names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
 \code{levels(group)} fixes the row order of Block~1 draws -- there is no
@@ -165,8 +166,10 @@ works when \code{group} is passed as a bare variable (e.g.
 \code{group = school_id}); otherwise attach the name yourself via
 \code{attr(group, "group_name") <- "school_id"}.}
 
-\item{x_hyper}{Named list of group-level design matrices (\code{J x q_k}),
-one per column of \code{x}.}
+\item{W}{Named list of group-level design matrices (\code{J x q_k}),
+one per column of \code{D}; this is \eqn{\mathcal{W}} in \dQuote{Model
+and notation} below: \code{W[[k]]} is \eqn{W_k} and \code{W[[k]][j, ]}
+is the block \eqn{W_{kj}} of \eqn{\mathcal{W}_j}.}
 
 \item{prior_list}{Block~1 prior: \code{list(dispersion = sigma2)} for fixed
 \eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
@@ -185,7 +188,8 @@ argument) is always derived internally from \code{pfamily_list}: one
 \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
 \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
 \code{dIndependent_Normal_Gamma}), assembled into a diagonal precision
-matrix. There is no way to supply a precision inconsistent with
+matrix -- this is \eqn{\Psi^{-1}} in \dQuote{Model and notation} below.
+There is no way to supply a precision inconsistent with
 \code{pfamily_list}.}
 
 \item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
@@ -211,8 +215,8 @@ same argument to either route without branching.}
 \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).}
 }
 \description{
-Gaussian two-block LMM samplers at matrix level (\code{y}, \code{Z},
-\code{x_hyper}, \code{pfamily_list}). Each stored draw runs
+Gaussian two-block LMM samplers at matrix level (\code{y}, \code{D},
+\code{W}, \code{pfamily_list}). Each stored draw runs
 \code{m_convergence} inner Gibbs sweeps (Block~1 random effects, then
 Block~2 hyperparameters). There is no standalone \code{rLMM()} function;
 use the \code{\link{rGLMM_reg}} routes via \code{\link{rglmerb}}; Gaussian LMMs
@@ -264,6 +268,81 @@ Pilot/UB calibration via sweep-outer engine. Default path for
 \code{\link{rlmerb}} with dGamma \code{dispersion_ranef} and ING Block~2.
 
 }}
+\section{Model and notation}{
+
+For group \eqn{j = 1, \ldots, J} (\eqn{J = }\code{length(group_levels)}),
+with \eqn{n_j} observations in group \eqn{j} and \eqn{p_{re} = }
+\code{ncol(D)} group-varying coefficients:
+
+\strong{Likelihood (stage 1):}
+\deqn{y_j \mid \beta_j, \sigma_j^2 \ \sim\ N\bigl(D_j\beta_j,\ \sigma_j^2 I_{n_j}\bigr)}
+\strong{Hierarchical prior (stage 2):}
+\deqn{\beta_j \mid \gamma, \Psi \ \sim\ N\bigl(\mathcal{W}_j\gamma,\ \Psi\bigr)}
+
+The full, non-centered coefficient vector \eqn{\beta_j} -- not a mean-zero
+deviation -- appears directly in the likelihood. This is a \emph{centered
+parameterization} in the sense of \insertCite{LindleySmith1972}{lmebayesCore}:
+\eqn{\beta_j} is the first-stage parameter, \eqn{\gamma} the second-stage
+(population/hyper-mean) parameter, and \eqn{\Psi} the second-stage
+covariance. \eqn{\mathcal{W}_j} is block-diagonal across the \eqn{p_{re}}
+coefficient dimensions,
+\deqn{\mathcal{W}_j = \mathrm{blockdiag}\bigl(W_{1j}, \ldots, W_{p_{re}j}\bigr),
+  \qquad W_{kj} \in \mathbb{R}^{1 \times q_k},}
+and each coefficient \eqn{k} may have its own number of level-2 predictors
+\eqn{q_k} (no padding needed, unlike a 3-index array).
+
+\strong{Correspondence to these functions' arguments/return values:}
+\describe{
+\item{\eqn{D} (row-stacked \eqn{D_j})}{\code{D}: the \eqn{l_2 \times p_{re}}
+level-1 design matrix, one row per observation; \eqn{D_j} is the
+submatrix \code{D[group == } \eqn{j}\code{, ]}.}
+\item{\eqn{\mathcal{W}_j}}{Assembled on demand from \code{W}: block
+\eqn{W_{kj}} is row \eqn{j} of \code{W[[k]]}, so \code{W} \emph{is}
+\code{list(}\eqn{W_1, \ldots, W_{p_{re}}}\code{)}, one
+\eqn{J \times q_k} matrix per RE column \eqn{k}.}
+\item{\eqn{\gamma}}{\code{fixef}/\code{fixef.mode} in the returned object
+(one entry per RE column, named by \code{colnames(W[[k]])}).}
+\item{\eqn{\beta_j}}{The group-\eqn{j} row of \code{coefficients}/
+\code{ranef.mode} -- \strong{not} \code{lme4}'s mean-zero \eqn{b_j}
+(see below).}
+\item{\eqn{\Psi}}{Diagonal, \eqn{\Psi = \mathrm{diag}(\tau^2_1, \ldots,
+    \tau^2_{p_{re}})}, one \eqn{\tau^2_k} plug-in per \code{pfamily_list}
+component (see \code{pfamily_list} below); \eqn{\Psi^{-1}} is exactly
+the internally-derived Block~2 precision referred to as \code{P}
+elsewhere in this file's internals/history.}
+\item{group index \eqn{j}}{\code{group} (\code{levels(group)} fixes the
+order \eqn{j = 1, \ldots, J}).}
+}
+
+\strong{Correspondence to \code{lme4}/Laird-Ware:} marginalizing (substituting
+the stage-2 equation into stage 1) recovers the standard \code{lme4} form
+\deqn{y_j = D_j(\mathcal{W}_j\gamma + u_j) + \varepsilon_j =
+  \underbrace{(D_j\mathcal{W}_j)}_{X_j}\gamma + \underbrace{D_j}_{Z_j}u_j + \varepsilon_j,}
+where \eqn{u_j := \beta_j - \mathcal{W}_j\gamma} is the mean-zero deviation
+\code{lme4} calls \eqn{b_j}. \eqn{D_j} itself has no single \code{lme4}
+counterpart: it is the common ancestor of both \eqn{X_j} (fixed-effects
+design, after right-multiplying by \eqn{\mathcal{W}_j}) and \eqn{Z_j}
+(random-effects design, used as-is). \eqn{\gamma} corresponds to
+\code{lme4}'s \eqn{\beta} (fixed effects), and \eqn{\Psi} to the per-group
+block of \code{lme4}'s \eqn{G} matrix (\eqn{G = I_J \otimes \Psi}); the
+engines documented here never materialize \eqn{u_j}/\eqn{b_j} -- \eqn{\beta_j}
+is sampled directly against \eqn{y_j} at every Block~1 Gibbs sweep (the
+per-group/shared-\eqn{\gamma} conjugate updates for \eqn{\beta_j} and
+\eqn{\gamma} are the \eqn{Z_j}/\eqn{b_j}-lettered formulas in
+\code{\link{lmebayes_posterior_icm}}, with \eqn{Z_j \equiv D_j} and
+\eqn{b_j \equiv \beta_j} there). When every \eqn{\mathcal{W}_j} is
+intercept-only (\eqn{q_k = 1} for all \eqn{k}, i.e. no level-2 predictors),
+the model reduces to a standard random-intercept/random-slope \code{lmer}
+model: \eqn{\hat\gamma} should then recover \code{lme4}'s fixed effects and
+\eqn{\hat\beta_j} should track \code{lme4::coef()} (\code{lme4::ranef()}
+tracks \eqn{\hat\beta_j - \hat\gamma}), giving a natural automated
+equivalence check.
+
+For the full write-up (including the block-diagonal Gibbs full-conditional
+derivation) see \code{notation.md} in \code{system.file(package =
+"lmebayesCore")} (source: \code{inst/notation.md}).
+}
+
 \section{Four route engines}{
 
 \describe{
@@ -287,8 +366,12 @@ outer-loop \code{rLMMindepNormalGamma_reg}, draw \eqn{\sigma^2} then call
 \code{rLMMNormal_reg}).
 }
 
+\references{
+\insertAllCited{}
+}
 \seealso{
-\code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link[glmbayesCore]{rindepNormalGamma_reg}}
+\code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link[glmbayesCore]{rindepNormalGamma_reg}},
+\code{\link{lmebayes_posterior_icm}}
 
 glmbayes Simulation Functions
 \code{\link{rGLMM_Re_Draw}()},

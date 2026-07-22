@@ -30,10 +30,10 @@
 #'
 #' @param n Number of stored main-stage draws. If \code{length(n) > 1}, the
 #'   length is used.
-#' @param y Response vector of length \code{nrow(x)}.
-#' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
-#'   non-empty \code{colnames(x)}: these are the random-effect coefficient
-#'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
+#' @param y Response vector of length \code{l2} (\code{= nrow(D)}).
+#' @param D Level-1 design matrix (\code{l2 x p_re}). Must have unique,
+#'   non-empty \code{colnames(D)}: these are the random-effect coefficient
+#'   names used to key \code{W} and \code{pfamily_list} (there is no
 #'   separate \code{re_coef_names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
 #'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
@@ -46,8 +46,8 @@
 #'   works when \code{group} is passed as a bare variable (e.g.
 #'   \code{group = school_id}); otherwise attach the name yourself via
 #'   \code{attr(group, "group_name") <- "school_id"}.
-#' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
-#'   one per column of \code{x}.
+#' @param W Named list of group-level design matrices (\code{J x q_k}),
+#'   one per column of \code{D}.
 #' @param prior_list Prior for Block~1: \code{dispersion} (required for
 #'   \code{gaussian()}), optional \code{ddef}. The Block~1 random-effect
 #'   prior precision (formerly a separate \code{P}/\code{Sigma} field) is
@@ -82,7 +82,7 @@ NULL
 #' Shared matrix-level validation for GLMM replicate-chain engines
 #'
 #' \code{re_coef_names} and \code{group_levels} are no longer separate
-#' arguments: they are always \code{colnames(x)} and \code{levels(group)}
+#' arguments: they are always \code{colnames(D)} and \code{levels(group)}
 #' respectively. \code{group_name} must already be resolved by the caller
 #' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
 #' sanity-checks it. \code{prior_list} must not contain \code{P}/
@@ -92,9 +92,9 @@ NULL
 .rGLMM_validate_matrix_inputs <- function(
     n,
     y,
-    x,
+    D,
     group,
-    x_hyper,
+    W,
     tv_tol,
     group_name,
     family,
@@ -121,17 +121,17 @@ NULL
   }
 
   y <- as.vector(y)
-  x <- as.matrix(x)
-  l2 <- nrow(x)
+  D <- as.matrix(D)
+  l2 <- nrow(D)
   if (length(y) != l2) {
-    stop("length(y) must equal nrow(x).", call. = FALSE)
+    stop("length(y) must equal nrow(D).", call. = FALSE)
   }
 
-  re_names <- colnames(x)
-  if (is.null(re_names) || length(re_names) != ncol(x) || anyNA(re_names) ||
+  re_names <- colnames(D)
+  if (is.null(re_names) || length(re_names) != ncol(D) || anyNA(re_names) ||
       any(!nzchar(re_names)) || anyDuplicated(re_names)) {
     stop(
-      "'x' must have unique, non-empty column names (colnames(x)); ",
+      "'D' must have unique, non-empty column names (colnames(D)); ",
       "there is no 're_coef_names' argument to override this.",
       call. = FALSE
     )
@@ -158,20 +158,20 @@ NULL
     )
   }
 
-  if (!is.list(x_hyper) || is.data.frame(x_hyper)) {
-    stop("'x_hyper' must be a list of design matrices.", call. = FALSE)
+  if (!is.list(W) || is.data.frame(W)) {
+    stop("'W' must be a list of design matrices.", call. = FALSE)
   }
-  if (length(x_hyper) != length(re_names)) {
-    stop("length(x_hyper) must equal ncol(x) = ", length(re_names), ".",
+  if (length(W) != length(re_names)) {
+    stop("length(W) must equal ncol(D) = ", length(re_names), ".",
          call. = FALSE)
   }
-  if (!setequal(names(x_hyper), re_names)) {
+  if (!setequal(names(W), re_names)) {
     stop(
-      "names(x_hyper) must match colnames(x): ",
+      "names(W) must match colnames(D): ",
       paste(re_names, collapse = ", "), ".", call. = FALSE
     )
   }
-  x_hyper <- x_hyper[re_names]
+  W <- W[re_names]
 
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, re_names, J = length(group_levels)
@@ -199,9 +199,9 @@ NULL
   list(
     n              = n,
     y              = y,
-    x              = x,
+    D              = D,
     group          = group,
-    x_hyper        = x_hyper,
+    W              = W,
     re_names       = re_names,
     group_levels   = group_levels,
     group_name     = group_name,
@@ -300,9 +300,9 @@ NULL
 ) {
   n              <- inp$n
   y              <- inp$y
-  x              <- inp$x
+  D              <- inp$D
   group          <- inp$group
-  x_hyper        <- inp$x_hyper
+  W              <- inp$W
   re_names       <- inp$re_names
   group_levels   <- inp$group_levels
   group_name     <- inp$group_name
@@ -336,9 +336,9 @@ NULL
   icm_info <- NULL
   design_icm <- list(
     y             = y,
-    Z             = x,
+    Z             = D,
     groups        = factor(group, levels = group_levels),
-    X_hyper       = x_hyper,
+    X_hyper       = W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -375,9 +375,9 @@ NULL
 
   design <- list(
     y             = y,
-    Z             = x,
+    Z             = D,
     groups        = factor(group, levels = group_levels),
-    X_hyper       = x_hyper,
+    X_hyper       = W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -580,9 +580,9 @@ NULL
         re_names           = re_names,
         group_levels       = group_levels,
         group_name         = group_name,
-        x                  = x,
+        x                  = D,
         group              = group,
-        x_hyper            = x_hyper,
+        x_hyper            = W,
         prior_list         = prior_list,
         pfamily_list       = pfamily_list,
         family             = family,
@@ -786,9 +786,9 @@ NULL
 rGLMM_reg_known_vcov <- function(
     n,
     y,
-    x,
+    D,
     group,
-    x_hyper,
+    W,
     prior_list,
     pfamily_list,
     icm_tol             = 1e-10,
@@ -817,7 +817,7 @@ rGLMM_reg_known_vcov <- function(
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, group, x_hyper, tv_tol,
+    n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -852,9 +852,9 @@ rGLMM_reg_known_vcov <- function(
 rGLMM_reg_estimated_vcov <- function(
     n,
     y,
-    x,
+    D,
     group,
-    x_hyper,
+    W,
     prior_list,
     pfamily_list,
     icm_tol             = 1e-10,
@@ -883,7 +883,7 @@ rGLMM_reg_estimated_vcov <- function(
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, group, x_hyper, tv_tol,
+    n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )
@@ -917,9 +917,9 @@ rGLMM_reg_estimated_vcov <- function(
 rGLMM_reg <- function(
     n,
     y,
-    x,
+    D,
     group,
-    x_hyper,
+    W,
     prior_list,
     pfamily_list,
     icm_tol             = 1e-10,
@@ -947,7 +947,7 @@ rGLMM_reg <- function(
   )
 
   inp <- .rGLMM_validate_matrix_inputs(
-    n, y, x, group, x_hyper, tv_tol,
+    n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
     gap_tol, prior_list, pfamily_list
   )

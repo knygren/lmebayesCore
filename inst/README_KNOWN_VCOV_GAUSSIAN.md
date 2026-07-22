@@ -108,7 +108,7 @@ rglmerb(..., family = gaussian())                              [lmebayesCore/R/r
   |                                                               args$sim_method <- sim_method on this route only]
   |
   v
-rLMMNormal_reg_known_vcov(n, y, x, group, x_hyper, prior_list, pfamily_list, sim_method, ...)
+rLMMNormal_reg_known_vcov(n, y, D, group, W, prior_list, pfamily_list, sim_method, ...)
   [rLMM_reg.R]  <-- also reachable via rLMMNormal_reg() dispatcher when it
                     detects an all-dNormal pfamily_list
   +-- .rLMM_validate_sim_method()                                ["DEFAULT" | "TWO_BLOCK_GIBBS"]
@@ -204,7 +204,7 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 | `rLMMNormal_reg()` | `rLMM_reg.R` | Dispatcher: validates inputs once, then re-dispatches (via `match.call()`) to `rLMMNormal_reg_known_vcov()` or `_estimated_vcov()` depending on whether `pf_summary$all_dNormal`. Has a `sim_method` formal that it forwards unchanged. |
 | **`rLMMNormal_reg_known_vcov()`** | `rLMM_reg.R` | The route's named export -- now a **thin `sim_method` dispatcher** (via `match.call()` re-dispatch, `.rLMM_validate_sim_method()` first): `"DEFAULT"` -> `rLMMNormal_reg_known_vcov_iid()` (\S4.4a); `"TWO_BLOCK_GIBBS"` -> `rLMMNormal_reg_known_vcov_two_bg()` (below). Neither branch re-validates twice; each callee runs its own full validation. |
 | `rLMMNormal_reg_known_vcov_two_bg()` | `rLMM_reg.R` | The pre-`sim_method` `rLMMNormal_reg_known_vcov()` body, factored out unchanged: validates matrix inputs/dispersion/`pfamily_list`, derives `P` from `pfamily_list` (`.rLMM_P_from_pfamily_list()`), **requires all-`dNormal`** (else `stop()`s, pointing at `_estimated_vcov()`/`rLMMNormal_reg()`), then delegates to `.rLMMNormal_reg_run()` (\S4.5-4.7, two-block Gibbs). |
-| `.rLMM_validate_matrix_inputs()` | `rLMM_reg.R` | Shape/type checks on `n, y, x, x_hyper, tv_tol, group_name, group`. `re_names`/`group_levels` are no longer separate arguments -- they are always `colnames(x)` (must be unique, non-empty) and `levels(group)` (`group` must be a factor); `group_name` is resolved by the caller via `.lmebayes_resolve_group_name()` (attribute-on-`group` first, then `substitute(group)`) before this function is called, and this function only sanity-checks the resolved value. |
+| `.rLMM_validate_matrix_inputs()` | `rLMM_reg.R` | Shape/type checks on `n, y, D, W, tv_tol, group_name, group`. `re_names`/`group_levels` are no longer separate arguments -- they are always `colnames(D)` (must be unique, non-empty) and `levels(group)` (`group` must be a factor); `group_name` is resolved by the caller via `.lmebayes_resolve_group_name()` (attribute-on-`group` first, then `substitute(group)`) before this function is called, and this function only sanity-checks the resolved value. |
 | `.rLMM_validate_fixed_dispersion_prior_list()` | `rLMM_reg.R` | Requires `prior_list$dispersion` and no unexpected fields; delegates numeric validation to the shared vector validator below. |
 | `.rLMM_validate_fixed_dispersion_vector()` | `rLMM_reg.R` | Shared scalar-or-length-`J` validator (also used by `rLMMNormal_reg_estimated_vcov()`): accepts a single positive scalar (broadcast) **or** a length-`J` vector, optionally named -- if named, requires an exact set-match to `group_levels` and reorders accordingly. |
 | `.two_block_validate_pfamily_list()` | `two_block_rNormal_reg.R` | Structural validation of the Block~2 `pfamily_list` (one pfamily per RE component, dimensions vs. `x_hyper`/`re_names`). |
