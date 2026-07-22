@@ -14,7 +14,7 @@ design <- model_setup(
 ps <- Prior_Setup_lmebayes(
   removed_i ~ violent_i + (1 + violent_i || state), dat, binomial(), pwt = 0.01
 )
-prior <- lmebayes:::.lmebayes_priors_from_pfamily_list(
+prior <- lmebayesCore::priors_from_pfamily_list(
   pfamily_list(ps), ps$dispersion_ranef, design, binomial(), "glmerb"
 )
 block1 <- lmebayes:::.lmebayes_block1_prior_list(prior)

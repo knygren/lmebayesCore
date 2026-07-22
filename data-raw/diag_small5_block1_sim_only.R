@@ -22,7 +22,7 @@ m_disp <- ps$ing_prior_measurement
 disp_lower <- m_disp$disp_lower + 0.25 * (m_disp$disp_upper - m_disp$disp_lower)
 disp_upper <- m_disp$disp_upper - 0.25 * (m_disp$disp_upper - m_disp$disp_lower)
 
-prior_container <- glmbayesCore:::.lmebayes_priors_from_pfamily_list(
+prior_container <- lmebayesCore::priors_from_pfamily_list(
   pfamily_list = pf,
   dispersion_ranef = dGamma(
     shape = m_disp$shape, rate = m_disp$rate,

@@ -47,7 +47,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_default <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
   expect_identical(fit_default$sim_method_used, "DEFAULT")
@@ -58,7 +58,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_iid <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
   expect_identical(fit_iid$sim_method_used, "DEFAULT")
@@ -67,7 +67,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
   expect_identical(fit_gibbs$sim_method_used, "TWO_BLOCK_GIBBS")
@@ -78,7 +78,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_iid_direct <- rLMMNormal_reg_known_vcov_iid(
     n = 20L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
   expect_identical(fit_iid_direct$sim_method_used, "DEFAULT")
@@ -87,7 +87,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_bg_direct <- rLMMNormal_reg_known_vcov_two_bg(
     n = 20L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE
   )
   expect_identical(fit_bg_direct$sim_method_used, "TWO_BLOCK_GIBBS")
@@ -141,13 +141,13 @@ test_that("iid and two-block Gibbs engines agree on the posterior mean (Monte Ca
   set.seed(2026)
   fit_iid <- rLMMNormal_reg_known_vcov(
     n = 2000L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
   set.seed(2026)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
     n = 2000L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-    P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
 
@@ -171,7 +171,7 @@ test_that("sim_method validation rejects unknown values", {
   expect_error(
     rLMMNormal_reg_known_vcov(
       n = 5L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-      P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+      prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
       progbar = FALSE, sim_method = "bogus"
     ),
     "sim_method"
@@ -208,7 +208,7 @@ test_that("sim_method is accepted-but-inert on routes with only a two-block Gibb
   expect_error(
     rLMMNormal_reg_estimated_vcov(
       n = 5L, y = fx$y, x = fx$x, block = fx$block, x_hyper = fx$x_hyper,
-      P = fx$P, prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+      prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
       progbar = FALSE, sim_method = "bogus"
     ),
     "sim_method"

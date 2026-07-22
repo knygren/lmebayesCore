@@ -18,7 +18,6 @@ rLMMNormal_reg(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -38,7 +37,6 @@ rLMMNormal_reg_known_vcov(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -58,7 +56,6 @@ rLMMNormal_reg_known_vcov_iid(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -77,7 +74,6 @@ rLMMNormal_reg_known_vcov_two_bg(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -96,7 +92,6 @@ rLMMNormal_reg_estimated_vcov(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -120,7 +115,6 @@ rLMMindepNormalGamma_reg(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -139,7 +133,6 @@ rLMMindepNormalGamma_reg_known_vcov(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -158,7 +151,6 @@ rLMMindepNormalGamma_reg_estimated_vcov(
   x,
   block,
   x_hyper,
-  P,
   prior_list,
   pfamily_list,
   icm_tol = 1e-10,
@@ -187,8 +179,6 @@ rLMMindepNormalGamma_reg_estimated_vcov(
 \item{x_hyper}{Named list of group-level design matrices (\code{J x q_k}),
 one per column of \code{x}.}
 
-\item{P}{Random-effect prior precision matrix (\code{p_re x p_re}).}
-
 \item{prior_list}{Block~1 prior: \code{list(dispersion = sigma2)} for fixed
 \eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
 across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
@@ -200,7 +190,14 @@ shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
 \code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
 \code{shape/rate} for ICM/TV is derived internally).}
 
-\item{pfamily_list}{Named list of Block~2 \code{pfamily} objects.}
+\item{pfamily_list}{Named list of Block~2 \code{pfamily} objects. The
+Block~2 random-effect prior precision (formerly a separate \code{P}
+argument) is always derived internally from \code{pfamily_list}: one
+\eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+\code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+\code{dIndependent_Normal_Gamma}), assembled into a diagonal precision
+matrix. There is no way to supply a precision inconsistent with
+\code{pfamily_list}.}
 
 \item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
 

@@ -42,6 +42,26 @@
   )
 }
 
+#' Random-effect prior precision matrix derived from a Block~2 pfamily_list
+#'
+#' \code{P = solve(diag(tau2_k))}, where each \eqn{\tau^2_k} is the same
+#' ICM/joint-mode plug-in \code{.two_block_tau2_plug_in_vector()} returns
+#' (fixed \code{dispersion} for \code{dNormal}, prior mean
+#' \eqn{rate/(shape - 1)} for \code{dIndependent_Normal_Gamma}). Used by the
+#' \code{rLMMNormal_reg}/\code{rLMMindepNormalGamma_reg} exports so \code{P}
+#' is always consistent with \code{pfamily_list} instead of being supplied
+#' (and never cross-checked) separately.
+#' @noRd
+.rLMM_P_from_pfamily_list <- function(pfamily_list, re_names) {
+  p_re <- length(re_names)
+  tau2 <- .two_block_tau2_plug_in_vector(pfamily_list, re_names)
+  Sigma_ranef <- diag(tau2, nrow = p_re, ncol = p_re)
+  dimnames(Sigma_ranef) <- list(re_names, re_names)
+  P <- solve(Sigma_ranef)
+  dimnames(P) <- list(re_names, re_names)
+  P
+}
+
 #' Rate-calibration plug-in tau^2_k from a Block~2 pfamily (not ICM starts)
 #'
 #' For \code{dNormal}, returns fixed \code{dispersion}.  For ING, returns

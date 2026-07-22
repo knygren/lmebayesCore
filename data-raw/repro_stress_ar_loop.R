@@ -25,7 +25,7 @@ disp_pf <- dGamma(
   beta = matrix(0, 1, 1), Inv_Dispersion = TRUE,
   disp_lower = m_disp$disp_lower, disp_upper = m_disp$disp_upper
 )
-prior_container <- glmbayesCore:::.lmebayes_priors_from_pfamily_list(
+prior_container <- lmebayesCore::priors_from_pfamily_list(
   pfamily_list = pf, dispersion_ranef = disp_pf,
   design = fx$design, family = gaussian(), fn_name = "diag"
 )

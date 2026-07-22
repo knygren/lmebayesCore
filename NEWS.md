@@ -1,5 +1,37 @@
 # lmebayesCore (development version)
 
+* **Removed the `P` argument from all eight `rLMMNormal_reg`/
+  `rLMMindepNormalGamma_reg` exports.** `P` (the Block~2 random-effect prior
+  precision matrix) was always mechanically derivable from `pfamily_list`
+  (one \eqn{\tau^2_k} plug-in per component -- fixed `dispersion` for
+  `dNormal()`, prior mean `rate/(shape - 1)` for
+  `dIndependent_Normal_Gamma()`), but was accepted as a separate,
+  never-cross-checked argument, so a caller could silently pass a `P`
+  inconsistent with `pfamily_list`. `rLMMNormal_reg()`,
+  `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,
+  `rLMMNormal_reg_known_vcov_two_bg()`, `rLMMNormal_reg_estimated_vcov()`,
+  `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`, and
+  `rLMMindepNormalGamma_reg_estimated_vcov()` all drop the `P` formal; each
+  now derives it internally via a new `.rLMM_P_from_pfamily_list()` helper
+  right after validating `pfamily_list`. This is a breaking change for any
+  direct caller of these matrix-level exports (`lmerb()`/`glmerb()`/
+  `rlmerb()`/`rglmerb()` callers are unaffected -- `matrix_args_lmm()` no
+  longer builds or forwards `P` either). `rLMMNormal_joint_iid()` and the
+  GLMM Block~1 `prior_list_block1$P` shape are unrelated and unchanged.
+
+* **Exported (and renamed) two internal helpers used by `lmerb()`/`glmerb()`:
+  `priors_from_pfamily_list()` (was `.lmebayes_priors_from_pfamily_list()`)
+  and `matrix_args_lmm()` (was `.lmebayes_matrix_args_lmm()`).** Both were
+  previously only reachable from **lmebayes** via `:::`; they are now
+  ordinary exports (marked `@keywords internal`, so they stay out of the
+  default help index) with `@param`/`@return` documentation. Their
+  argument lists and return shapes are unchanged and are still considered
+  refactor candidates -- both currently bundle several responsibilities
+  (dispersion resolution, `pfamily_list` validation, route-specific argument
+  branching) that will likely be simplified/split in a follow-up; treat
+  the current signatures as provisional. All in-package and **lmebayes**
+  call sites were updated to the new names.
+
 * **New `sim_method` argument: exact iid sampling for the fixed-dispersion /
   known-variance-components route.** `rlmerb()`, `rglmerb()` (for
   `family = gaussian()`), and `rLMMNormal_reg_known_vcov()`/`rLMMNormal_reg()`

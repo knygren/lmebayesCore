@@ -33,7 +33,6 @@
 #' @param block Grouping factor or block partition of length \code{l2}.
 #' @param x_hyper Named list of group-level design matrices (\code{J x q_k}),
 #'   one per column of \code{x}.
-#' @param P Random-effect prior precision matrix (\code{p_re x p_re}).
 #' @param prior_list Block~1 prior: \code{list(dispersion = sigma2)} for fixed
 #'   \eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
 #'   across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
@@ -44,7 +43,14 @@
 #'   shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
 #'   \code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
 #'   \code{shape/rate} for ICM/TV is derived internally).
-#' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects. The
+#'   Block~2 random-effect prior precision (formerly a separate \code{P}
+#'   argument) is always derived internally from \code{pfamily_list}: one
+#'   \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
+#'   \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
+#'   \code{dIndependent_Normal_Gamma}), assembled into a diagonal precision
+#'   matrix. There is no way to supply a precision inconsistent with
+#'   \code{pfamily_list}.
 #' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
 #' @param tv_tol Total-variation tolerance in \code{(0, 1)} for calibration.
 #'   Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
@@ -160,21 +166,6 @@ NULL
     )
   }
   sim_method
-}
-
-#' @noRd
-.rLMM_validate_P <- function(P, p_re, fn_name = "rLMMNormal_reg") {
-  P <- as.matrix(P)
-  if (!is.matrix(P) || nrow(P) != p_re || ncol(P) != p_re) {
-    stop(
-      fn_name, "(): 'P' must be a ", p_re, " x ", p_re, " matrix.",
-      call. = FALSE
-    )
-  }
-  if (!isSymmetric(P)) {
-    stop(fn_name, "(): 'P' must be symmetric.", call. = FALSE)
-  }
-  P
 }
 
 #' Validate a fixed-\eqn{\sigma^2} \code{prior_list} for the LMM Block~1 route
@@ -2216,7 +2207,6 @@ rLMMNormal_reg <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2235,7 +2225,6 @@ rLMMNormal_reg <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names))
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, group_levels = inp$group_levels
   )
@@ -2271,7 +2260,6 @@ rLMMNormal_reg_known_vcov <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2312,7 +2300,6 @@ rLMMNormal_reg_known_vcov_iid <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2331,13 +2318,13 @@ rLMMNormal_reg_known_vcov_iid <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
@@ -2373,7 +2360,6 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2392,13 +2378,13 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
@@ -2439,7 +2425,6 @@ rLMMNormal_reg_estimated_vcov <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2464,13 +2449,13 @@ rLMMNormal_reg_estimated_vcov <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
     prior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (pf_summary$all_dNormal) {
     stop(
@@ -2513,7 +2498,6 @@ rLMMindepNormalGamma_reg <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2530,7 +2514,6 @@ rLMMindepNormalGamma_reg <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names))
   prior_list <- .rLMM_validate_dGamma_dispersion_prior_list(prior_list)
   dispersion_fix <- .rLMM_dispersion_fix_from_prior_list(
     prior_list, fn_name = "rLMMindepNormalGamma_reg"
@@ -2539,6 +2522,7 @@ rLMMindepNormalGamma_reg <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
 
   prior_list_block1_cal <- list(
@@ -2748,7 +2732,6 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2767,7 +2750,6 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name,
     group_levels = inp$group_levels
@@ -2776,6 +2758,7 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
@@ -2814,7 +2797,6 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     x,
     block,
     x_hyper,
-    P,
     prior_list,
     pfamily_list,
     icm_tol         = 1e-10,
@@ -2837,7 +2819,6 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     n, y, x, x_hyper, tv_tol,
     re_coef_names, group_levels, group_name, block
   )
-  P <- .rLMM_validate_P(P, length(inp$re_names), fn_name = fn_name)
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
     prior_list, length(inp$re_names), fn_name = fn_name,
     group_levels = inp$group_levels
@@ -2846,6 +2827,7 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
+  P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (pf_summary$all_dNormal) {
     stop(

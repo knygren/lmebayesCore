@@ -300,12 +300,137 @@
   resolved$dispersion_fix
 }
 
-#' @noRd
-.lmebayes_priors_from_pfamily_list <- function(pfamily_list,
-                                               dispersion_ranef,
-                                               design,
-                                               family,
-                                               fn_name = "lmerb") {
+#' Normalize a Block~2 \code{pfamily_list} (+ \code{dispersion_ranef}) into a sampler \code{prior}
+#'
+#' @description
+#' Shared front-door normalizer used by \code{lmerb()}/\code{glmerb()} (via
+#' \code{lmebayesCore::priors_from_pfamily_list()} in \strong{lmebayes}) to
+#' turn the two independent user-supplied prior specs -- the Block~2
+#' \code{pfamily_list} (one prior per random-effect coefficient) and the
+#' Block~1 \code{dispersion_ranef} (observation-level dispersion) -- into the
+#' single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}},
+#' by \code{rlmerb()}/\code{rglmerb()}'s ICM/reporting code, and by the
+#' routed \code{rLMM_reg}/\code{rGLMM_reg} exports.
+#'
+#' @details
+#' Concretely, this function:
+#' \enumerate{
+#'   \item Resolves \code{dispersion_ranef} via
+#'     \code{.lmebayes_resolve_dispersion_ranef()} (dispatches on its type/
+#'     length to one of the \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}/
+#'     \code{"gamma"}/\code{"gamma_list"} Block~1 dispersion modes described
+#'     under \code{dispersion_mode} below).
+#'   \item Validates that \code{pfamily_list} has exactly one entry per
+#'     random-effect coefficient in \code{design$re_coef_names} (by name, not
+#'     position) and reorders it to that canonical order.
+#'   \item For each random-effect component, checks that its \code{pfamily}
+#'     is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other
+#'     \code{pfamily} is rejected), checks that \code{prior_list$mu}/
+#'     \code{prior_list$Sigma} conform to the corresponding per-group
+#'     hyper-design \code{design$X_hyper[[k]]}, and reorders/relabels them to
+#'     that hyper-design's column order (so the \code{pfamily} objects
+#'     returned in \code{pfamily_list} are safe to pass straight to the
+#'     matrix-level samplers).
+#'   \item Computes each component's Block~2 variance-component plug-in
+#'     \eqn{\tau^2_k} via \code{.two_block_tau2_plug_in_from_pfamily()} (the
+#'     \code{dNormal()} dispersion for \code{dNormal} components, or an
+#'     ICM-style plug-in for \code{dIndependent_Normal_Gamma} components) and
+#'     assembles \code{Sigma_ranef} and \code{prior_list} from those.
+#' }
+#' It currently combines all of the above (dispersion resolution,
+#' \code{pfamily_list} validation/reordering, and deriving
+#' \code{Sigma_ranef}/\code{prior_list}/\code{ptypes}) into one function and
+#' is a refactor candidate; its argument list and return shape are not yet
+#' considered stable.
+#'
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
+#'   random-effect coefficient in \code{design$re_coef_names}.
+#' @param dispersion_ranef Block~1 dispersion spec, as accepted by
+#'   \code{.lmebayes_resolve_dispersion_ranef()} (\code{NULL}, a single
+#'   scalar, a named/unnamed numeric vector, a \code{dGamma()} pfamily, or a
+#'   named list of \code{dGamma()} pfamily objects).
+#' @param design A \code{model_setup} object.
+#' @param family A \code{\link[stats]{family}} object.
+#' @param fn_name Character scalar used to prefix error messages
+#'   (e.g. \code{"lmerb"} or \code{"glmerb"}).
+#' @return A list (the \code{prior} object) with elements:
+#'   \describe{
+#'     \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
+#'       \code{design$re_coef_names} and with each component's
+#'       \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
+#'       column order of the corresponding \code{design$X_hyper[[k]]}. Safe
+#'       to pass straight through to the matrix-level samplers.}
+#'     \item{\code{dispersion_ranef}}{The \emph{resolved} Block~1 dispersion
+#'       value (i.e. \code{disp_res$dispersion_fix}, not the raw input):
+#'       \code{NULL} when \code{family} has no dispersion parameter
+#'       (\code{dispersion_mode == "none"}); a single positive scalar for
+#'       \code{"fixed"} (the value supplied) or for \code{"gamma"}/
+#'       \code{"gamma_list"} (a plug-in point estimate -- \code{shape/rate},
+#'       or the across-group mean of \code{shape_group/rate_group} --
+#'       \emph{not} the prior itself, see \code{dispersion_prior_list}); or a
+#'       named numeric vector, one entry per group level, for
+#'       \code{"fixed_vector"}.}
+#'     \item{\code{dispersion_mode}}{Character scalar: one of \code{"none"}
+#'       (no observation-level dispersion for this \code{family}),
+#'       \code{"fixed"} (single known scalar \eqn{\sigma^2}),
+#'       \code{"fixed_vector"} (one known, fixed \eqn{\sigma^2_j} per group,
+#'       from a named numeric vector), \code{"gamma"} (a single pooled
+#'       \code{dGamma()} prior on the observation precision/dispersion, to be
+#'       estimated -- ING), or \code{"gamma_list"} (one \code{dGamma()} prior
+#'       per group, to be estimated -- ING).}
+#'     \item{\code{dispersion_pfamily}}{\code{NULL} for
+#'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}. For
+#'       \code{"gamma"}, the original \code{dGamma()} pfamily object passed
+#'       as \code{dispersion_ranef}. For \code{"gamma_list"}, the original
+#'       named list of per-group \code{dGamma()} pfamily objects.}
+#'     \item{\code{dispersion_prior_list}}{\code{NULL} for
+#'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"} (there is no
+#'       Block~1 prior to carry -- the dispersion is a known constant). For
+#'       \code{"gamma"}, the pooled \code{dGamma()} prior's
+#'       \code{prior_list} (\code{shape}, \code{rate}, \code{disp_lower},
+#'       \code{disp_upper}, \code{Inv_Dispersion}, \ldots). For
+#'       \code{"gamma_list"}, a list with named numeric vectors
+#'       \code{shape_group}, \code{rate_group}, \code{disp_lower_group}, and
+#'       \code{disp_upper_group} (one value per group level).}
+#'     \item{\code{window_diagnostics}}{Usually \code{NULL}. For
+#'       \code{"gamma_list"}, the \code{"window_diagnostics"} attribute
+#'       carried on the \code{dispersion_ranef} list (if any), describing how
+#'       each group's \code{disp_lower}/\code{disp_upper} truncation window
+#'       was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
+#'     \item{\code{Sigma_ranef}}{A \code{p_re x p_re} diagonal matrix (row/
+#'       column names \code{design$re_coef_names}) holding each component's
+#'       Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
+#'       the random-effect prior covariance implied by \code{pfamily_list}.
+#'       Its inverse is the Block~2 random-effect prior precision the
+#'       matrix-level samplers derive internally from \code{pfamily_list}
+#'       (there is no separate \code{P} argument).}
+#'     \item{\code{prior_list}}{A named list (one entry per
+#'       \code{design$re_coef_names}), each a list with \code{mu_fixef}
+#'       (numeric vector, the Block~2 hyperparameter prior mean),
+#'       \code{Sigma_fixef} (matrix, the Block~2 hyperparameter prior
+#'       covariance), and \code{dispersion_fixef} (scalar, the same
+#'       \eqn{\tau^2_k} plug-in stored on the diagonal of
+#'       \code{Sigma_ranef}). A restructured, per-component echo of
+#'       \code{pfamily_list}'s contents keyed for direct use elsewhere (e.g.
+#'       ICM reporting).}
+#'     \item{\code{ptypes}}{A named character vector (names
+#'       \code{design$re_coef_names}), each entry either \code{"dNormal"} or
+#'       \code{"dIndependent_Normal_Gamma"} -- the \code{pfamily} type of the
+#'       corresponding Block~2 component.}
+#'     \item{\code{any_non_normal}}{Logical scalar: \code{TRUE} if any
+#'       \code{ptypes} entry is not \code{"dNormal"} (i.e. at least one
+#'       Block~2 component is \code{dIndependent_Normal_Gamma} and must be
+#'       estimated rather than known). Drives the \code{"known"} vs.
+#'       \code{"estimated"} route choice in \code{\link{matrix_args_lmm}} /
+#'       \code{.lmebayes_reg_route_key()}.}
+#'   }
+#' @keywords internal
+#' @export
+priors_from_pfamily_list <- function(pfamily_list,
+                                      dispersion_ranef,
+                                      design,
+                                      family,
+                                      fn_name = "lmerb") {
 
   re_names <- design$re_coef_names
   p_re     <- length(re_names)
@@ -1496,9 +1621,124 @@
   )
 }
 
-#' Shared matrix-level arguments for LMM reg routes
-#' @noRd
-.lmebayes_matrix_args_lmm <- function(
+#' Assemble the flat argument list for the routed LMM \code{rLMM_reg} export
+#'
+#' @description
+#' Shared front-door helper that turns \code{design} + the \code{prior}
+#' returned by \code{\link{priors_from_pfamily_list}} + \code{disp_info}
+#' (from \code{.lmebayes_resolve_dispersion_ranef()}) into the flat,
+#' named argument list passed via \code{do.call()} to whichever
+#' \code{rLMM_reg} export \code{.lmebayes_reg_route_fn()} resolves to. There
+#' are exactly four possible targets, chosen by \code{disp_info$mode} and
+#' \code{prior$any_non_normal}: \code{\link{rLMMNormal_reg_known_vcov}},
+#' \code{rLMMNormal_reg_estimated_vcov}, \code{rLMMindepNormalGamma_reg_known_vcov},
+#' or \code{rLMMindepNormalGamma_reg_estimated_vcov} (the actual dispatch
+#' happens one level up, in \code{.lmebayes_run_lmm_engine()} via
+#' \code{.lmebayes_reg_route_key()}/\code{.lmebayes_reg_route_fn()} --
+#' this function only builds the argument list, it does not pick the route).
+#'
+#' @details
+#' Concretely, this function does three things:
+#' \enumerate{
+#'   \item Builds a base argument list that is always the same shape:
+#'     the response/design matrices and grouping structure taken from
+#'     \code{design}, \code{prior$pfamily_list} unchanged (the routed export
+#'     derives its own Block~2 random-effect prior precision from
+#'     \code{pfamily_list} internally, so it is not built here), and
+#'     the naming/control arguments (\code{tv_tol}, \code{re_coef_names},
+#'     \code{group_levels}, \code{group_name}, \code{progbar},
+#'     \code{verbose}).
+#'   \item Builds \code{args$prior_list} (the Block~1/measurement prior),
+#'     whose \emph{shape} depends on \code{disp_info$mode}: a plain known
+#'     \code{dispersion} value for \code{"none"}/\code{"fixed"}/
+#'     \code{"fixed_vector"}, or a shared/per-group ING measurement prior
+#'     (built by \code{.lmebayes_ing_measurement_prior_list()}/
+#'     \code{.lmebayes_ing_measurement_prior_list_group()}) for
+#'     \code{"gamma"}/\code{"gamma_list"}.
+#'   \item Conditionally adds route-specific controls: pilot-stage controls
+#'     (\code{gap_tol}, \code{mode_gap_max}, \code{diag_sweeps},
+#'     \code{stage_verbose}) when \code{prior$any_non_normal} is
+#'     \code{TRUE} (an ING route, which needs a pilot chain), or
+#'     \code{sim_method} when the route is fixed \emph{and} known-vcov
+#'     (the only route with more than one sampling engine).
+#' }
+#' It currently combines all of the above (base argument assembly,
+#' route-specific \code{prior_list} branching, and conditional pilot-stage/
+#' \code{sim_method} fields) into a single flat list and is a refactor
+#' candidate; its argument list and return shape are not yet considered
+#' stable.
+#'
+#' @param n Number of stored draws.
+#' @param design A \code{model_setup} object.
+#' @param prior The list returned by \code{\link{priors_from_pfamily_list}}.
+#' @param disp_info Resolved dispersion info, as returned by
+#'   \code{.lmebayes_resolve_dispersion_ranef()} (must supply
+#'   \code{mode} and \code{dispersion_fix}).
+#' @param tv_tol Total-variation tolerance passed through to the routed
+#'   export.
+#' @param progbar,verbose Passed through to the routed export.
+#' @param gap_tol,mode_gap_max,diag_sweeps Pilot-stage controls, added to the
+#'   argument list only when \code{prior$any_non_normal} is \code{TRUE}
+#'   (i.e. an ING route).
+#' @param sim_method Sampling engine (\code{"DEFAULT"} or
+#'   \code{"TWO_BLOCK_GIBBS"}), added to the argument list only on the
+#'   fixed+known-vcov (\code{rLMMNormal_reg_known_vcov}) route.
+#' @return A flat named list (\code{args}) suitable for
+#'   \code{do.call(route$export_fn, args)}, with elements:
+#'   \describe{
+#'     \item{\code{n}}{Number of stored draws, unchanged from the \code{n}
+#'       argument.}
+#'     \item{\code{y}}{\code{design$y}, the response vector.}
+#'     \item{\code{x}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
+#'       random-effect design matrix.}
+#'     \item{\code{block}}{\code{design$groups}, the grouping factor.}
+#'     \item{\code{x_hyper}}{\code{design$X_hyper}, the named list of
+#'       group-level hyper-design matrices (one per random-effect
+#'       coefficient).}
+#'     \item{\code{pfamily_list}}{\code{prior$pfamily_list} unchanged. The
+#'       routed export derives its own Block~2 random-effect prior
+#'       precision from this internally; it is not built or passed here.}
+#'     \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
+#'     \item{\code{re_coef_names}}{\code{design$re_coef_names}.}
+#'     \item{\code{group_levels}}{\code{levels(design$groups)}.}
+#'     \item{\code{group_name}}{\code{design$group_name}.}
+#'     \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
+#'       arguments, unchanged.}
+#'     \item{\code{prior_list}}{Always present, but its shape depends on
+#'       \code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
+#'       \code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
+#'       (a scalar or named per-group numeric vector, passed through
+#'       unchanged -- a \emph{known}, fixed observation dispersion); for
+#'       \code{"gamma"} it is the pooled ING measurement prior list from
+#'       \code{.lmebayes_ing_measurement_prior_list()} (\code{mu},
+#'       \code{Sigma}, \code{shape}, \code{rate}, \code{max_disp_perc},
+#'       \code{disp_lower}, \code{disp_upper}); for \code{"gamma_list"} it
+#'       is the per-group ING measurement prior list from
+#'       \code{.lmebayes_ing_measurement_prior_list_group()} (\code{mu},
+#'       \code{Sigma}, \code{shape_group}, \code{rate_group},
+#'       \code{disp_lower_group}, \code{disp_upper_group},
+#'       \code{max_disp_perc}).}
+#'     \item{\code{gap_tol}, \code{mode_gap_max}, \code{diag_sweeps},
+#'       \code{stage_verbose}}{Present \strong{only} when
+#'       \code{prior$any_non_normal} is \code{TRUE} (an ING/estimated-vcov
+#'       route that needs a pilot chain): the \code{gap_tol}/
+#'       \code{mode_gap_max}/\code{diag_sweeps} arguments unchanged, and
+#'       \code{stage_verbose} set to \code{verbose}. Absent for
+#'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"} dispersion
+#'       modes.}
+#'     \item{\code{sim_method}}{Present \strong{only} when
+#'       \code{prior$any_non_normal} is \code{FALSE} \emph{and}
+#'       \code{disp_info$mode} is not \code{"gamma"}/\code{"gamma_list"}
+#'       (i.e. only on the route that resolves to
+#'       \code{\link{rLMMNormal_reg_known_vcov}}, the only export with a
+#'       real \code{sim_method} dispatch between exact iid draws and
+#'       two-block Gibbs sweeps): the \code{sim_method} argument, unchanged.
+#'       Every other route ignores \code{sim_method} (if it even accepts
+#'       it), so it is only forwarded here.}
+#'   }
+#' @keywords internal
+#' @export
+matrix_args_lmm <- function(
     n,
     design,
     prior,
@@ -1513,7 +1753,6 @@
 ) {
   re_names     <- design$re_coef_names
   group_levels <- levels(design$groups)
-  P            <- solve(prior$Sigma_ranef)
 
   args <- list(
     n             = n,
@@ -1521,7 +1760,6 @@
     x             = design$Z,
     block         = design$groups,
     x_hyper       = design$X_hyper,
-    P             = P,
     pfamily_list  = prior$pfamily_list,
     tv_tol        = tv_tol,
     re_coef_names = re_names,
@@ -1624,7 +1862,7 @@
     any_non_normal = prior$any_non_normal
   )
   route <- .lmebayes_reg_route_fn(route_key)
-  args  <- .lmebayes_matrix_args_lmm(
+  args  <- matrix_args_lmm(
     n             = n,
     design        = design,
     prior         = prior,

@@ -226,7 +226,7 @@ outer loop — not the default **`rlmerb()`** path).
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
 | `.rLMM_validate_matrix_inputs` | `rLMM_reg.R` | Shared matrix-level validation | all six exports |
-| `.rLMM_validate_P` | `rLMM_reg.R` | Validate RE prior precision `P` | `rLMM_reg.R` |
+| `.rLMM_P_from_pfamily_list` | `two_block_tau2_ref.R` | Derive RE prior precision `P` from `pfamily_list` (no longer a caller-supplied argument) | `rLMM_reg.R` |
 | `.rLMM_validate_fixed_dispersion_prior_list` | `rLMM_reg.R` | Fixed σ² Block~1 prior | fixed-σ² routes |
 | `.rLMM_validate_dGamma_dispersion_prior_list` | `rLMM_reg.R` | dGamma σ² prior (legacy outer loop) | `rLMMindepNormalGamma_reg()` |
 | `.rLMM_validate_ing_measurement_prior_list` | `rLMM_reg.R` | Shared ING measurement prior for Block~1 | ING σ² routes |
