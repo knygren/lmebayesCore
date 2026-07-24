@@ -1,7 +1,7 @@
 devtools::load_all(".", quiet = TRUE)
 
 ## --- Numeric sanity checks on the band helper itself -----------------
-band_fn <- lmebayesCore:::.sweep_var_ratio_naive_band
+band_fn <- lmebayesCore:::.convergence_var_band
 n_chains_chk <- 40L
 b_exact <- band_fn(n_chains_chk, 0.95, exact_ref = TRUE)
 b_empir <- band_fn(n_chains_chk, 0.95, exact_ref = FALSE)
@@ -49,18 +49,18 @@ hist <- .two_block_build_sweep_history(
 )
 
 grDevices::png(file.path(out_dir, "band_base_nonwhitened.png"), width = 900, height = 700)
-plot_sweep_history_var_ratio(hist, whitened = FALSE, n_chains = n_chains)
+plot_var_convergence(hist, whitened = FALSE, n_chains = n_chains)
 grDevices::dev.off()
 cat("wrote", file.path(out_dir, "band_base_nonwhitened.png"), "\n")
 
 grDevices::png(file.path(out_dir, "band_base_whitened.png"), width = 900, height = 700)
-plot_sweep_history_var_ratio(hist, whitened = TRUE, n_chains = n_chains)
+plot_var_convergence(hist, whitened = TRUE, n_chains = n_chains)
 grDevices::dev.off()
 cat("wrote", file.path(out_dir, "band_base_whitened.png"), "\n")
 
 ## Single-series case (has_legend == FALSE path)
 grDevices::png(file.path(out_dir, "band_base_singleseries.png"), width = 900, height = 700)
-plot_sweep_history_var_ratio(
+plot_var_convergence(
   hist, whitened = FALSE, n_chains = n_chains,
   coef_focus = list(c("k1", "x1"))
 )
@@ -69,31 +69,31 @@ cat("wrote", file.path(out_dir, "band_base_singleseries.png"), "\n")
 
 ## conf_level override
 grDevices::png(file.path(out_dir, "band_base_conf99.png"), width = 900, height = 700)
-plot_sweep_history_var_ratio(hist, whitened = FALSE, n_chains = n_chains, conf_level = 0.99)
+plot_var_convergence(hist, whitened = FALSE, n_chains = n_chains, conf_level = 0.99)
 grDevices::dev.off()
 cat("wrote", file.path(out_dir, "band_base_conf99.png"), "\n")
 
 ## No band (n_chains = NULL) -- confirm nothing changes / no error
 grDevices::png(file.path(out_dir, "band_base_noband.png"), width = 900, height = 700)
-plot_sweep_history_var_ratio(hist, whitened = FALSE)
+plot_var_convergence(hist, whitened = FALSE)
 grDevices::dev.off()
 cat("wrote", file.path(out_dir, "band_base_noband.png"), "\n")
 
 ## ggplot engine, if available
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   grDevices::png(file.path(out_dir, "band_ggplot_nonwhitened.png"), width = 900, height = 700)
-  plot_sweep_history_var_ratio(hist, whitened = FALSE, n_chains = n_chains, engine = "ggplot")
+  plot_var_convergence(hist, whitened = FALSE, n_chains = n_chains, engine = "ggplot")
   grDevices::dev.off()
   cat("wrote", file.path(out_dir, "band_ggplot_nonwhitened.png"), "\n")
 }
 
 ## Error handling checks
 tryCatch(
-  plot_sweep_history_var_ratio(hist, n_chains = 1),
+  plot_var_convergence(hist, n_chains = 1),
   error = function(e) cat("OK, expected error for n_chains=1:", conditionMessage(e), "\n")
 )
 tryCatch(
-  plot_sweep_history_var_ratio(hist, n_chains = n_chains, conf_level = 1.2),
+  plot_var_convergence(hist, n_chains = n_chains, conf_level = 1.2),
   error = function(e) cat("OK, expected error for conf_level=1.2:", conditionMessage(e), "\n")
 )
 

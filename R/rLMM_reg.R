@@ -2089,6 +2089,7 @@ NULL
   main_res$icm_info            <- icm_info
   main_res$ptypes              <- pf_summary$ptypes
   main_res$any_non_normal      <- any_non_normal
+  main_res$design              <- design
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res
@@ -2178,29 +2179,58 @@ NULL
   convergence_info <- calib$convergence_info
   convergence_info$draw_engine <- draw_engine
 
-  ## two_block_rNormal_reg() derives its own Block~1 P from pfamily_list
-  ## internally (and rejects a caller-supplied P/Sigma); the P-bearing
-  ## prior_list_block1 above is only needed by .rLMM_icm_at_start()/
-  ## .rLMM_calibrate_m_convergence(), which still require it directly.
-  ## two_block_rNormal_reg() has no 'group_name' formal: attach it to
-  ## 'group' itself so .lmebayes_resolve_group_name() picks it up there.
-  attr(group, "group_name") <- inp$group_name
-  out <- two_block_rNormal_reg(
-    n                 = inp$n,
-    y                 = inp$y,
-    x                 = inp$D,
-    group             = group,
-    x_hyper           = inp$W,
-    prior_list_block1 = list(dispersion = dispersion, ddef = FALSE),
-    pfamily_list      = pfamily_list,
-    fixef_start       = fixef_mode,
-    family            = gaussian(),
-    m_convergence     = m_convergence,
-    progbar           = progbar
+  if (is.null(ranef_mode)) {
+    ## fixef_start supplied directly (e.g. legacy rLMMindepNormalGamma_reg()
+    ## outer loop): no ICM b-mode available. Block~1 draws b from its exact
+    ## full conditional given fixef/tau2 each sweep, so any placeholder here
+    ## only matters for array shape/dimnames, not for the sampled values.
+    ranef_mode <- matrix(
+      0,
+      nrow = length(inp$group_levels),
+      ncol = length(inp$re_names),
+      dimnames = list(inp$group_levels, inp$re_names)
+    )
+  }
+
+  design <- list(
+    y             = inp$y,
+    Z             = inp$D,
+    groups        = factor(group, levels = inp$group_levels),
+    X_hyper       = inp$W,
+    re_coef_names = inp$re_names,
+    group_name    = inp$group_name
   )
 
-  staged <- .rLMM_format_v2_out(
-    v2_out       = out,
+  ## Consistent with the other sweep-outer engines (.rLMMNormal_reg_run_with_pilot(),
+  ## .rGLMM_sweep_ing_block1()): 'verbose' alone also enables the progress bar.
+  progbar_use <- isTRUE(progbar) || isTRUE(verbose)
+
+  ## Known vcov: tau2 is fixed at the pfamily plug-in values throughout (all
+  ## Block~2 components are dNormal(), so .two_block_block2_all_chains() never
+  ## resamples tau2).
+  tau2_start <- .two_block_tau2_start_from_pfamily(pfamily_list, inp$re_names)
+
+  raw <- rGLMM_sweep(
+    n_chains       = inp$n,
+    start_fixef    = fixef_mode,
+    inner_sweeps   = m_convergence,
+    design         = design,
+    block1_prior   = prior_list_block1,
+    pfamily_list   = pfamily_list,
+    family         = gaussian(),
+    re_names       = inp$re_names,
+    group_levels   = inp$group_levels,
+    collect_block1 = TRUE,
+    progbar        = progbar_use,
+    stage_label    = "main",
+    fixef_mode     = fixef_mode,
+    b_mode         = ranef_mode,
+    b_start        = ranef_mode,
+    tau2_start     = tau2_start
+  )
+
+  staged <- .rLMM_format_sweep_out(
+    v6_out       = raw,
     n            = inp$n,
     re_names     = inp$re_names,
     group_levels = inp$group_levels,
@@ -2220,6 +2250,7 @@ NULL
   staged$ptypes           <- pf_summary$ptypes
   staged$any_non_normal   <- any_non_normal
   staged$sim_method_used  <- "TWO_BLOCK_GIBBS"
+  staged$design           <- design
 
   class(staged) <- c(result_class, "rLMMNormal_reg", "list")
   staged
@@ -2296,6 +2327,14 @@ NULL
   staged$ptypes          <- pf_summary$ptypes
   staged$any_non_normal  <- FALSE
   staged$sim_method_used <- "DEFAULT"
+  staged$design          <- list(
+    y             = inp$y,
+    Z             = inp$D,
+    groups        = factor(group, levels = inp$group_levels),
+    X_hyper       = inp$W,
+    re_coef_names = inp$re_names,
+    group_name    = inp$group_name
+  )
 
   class(staged) <- c(result_class, "rLMMNormal_reg", "list")
   staged

@@ -283,7 +283,33 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 7. Random effects: glmmTMB "full" coefficient vs sampler ranef.mode (both
+## 7. Combined cross-chain mean-bias (Claim 1) and variance-ratio (Claim 3)
+##    charts, two-block Gibbs ergodicity reference
+##    (inst/BLOCK_GIBBS_ERGODICITY.md), for fit_gibbs's
+##    (sim_method = "TWO_BLOCK_GIBBS") Block~2 fixed effects.
+##
+## Both the per-group observation dispersion vector (disp_known) and
+## Sigma_ranef are *known* here (the point of this demo) --
+## rLMMNormal_reg_known_vcov()'s TWO_BLOCK_GIBBS route now runs its sweeps via
+## rGLMM_sweep() (sweeps-outer/chains-inner), so fit_gibbs$sweep_history
+## carries cov_by_sweep. plot_mean_convergence()/plot_var_convergence()
+## dispatch on fit_gibbs's own class (rLMMNormal_reg_known_vcov(): both
+## dispersion and vcov fixed) and resolve the exact reference mean/covariance
+## (via lmerb_posterior_mean()/lmerb_posterior_covariance()) from
+## fit_gibbs$design/$prior_list/$pfamily_list automatically --
+## fit_gibbs$prior_list$dispersion is already the length-J disp_known vector
+## passed to rLMMNormal_reg_known_vcov() above. n_chains defaults to
+## fit_gibbs$n. There is no pilot stage for this route (single main stage
+## only), so the mean-bias chart is shown mainly for symmetry with
+## plot_var_convergence() (see Ex_12/Ex_13/Ex_14 for the pilot-stage case).
+## ---------------------------------------------------------------------------
+plot_mean_convergence(fit_gibbs, whitened = FALSE)
+plot_mean_convergence(fit_gibbs, whitened = TRUE)
+plot_var_convergence(fit_gibbs, whitened = FALSE)
+plot_var_convergence(fit_gibbs, whitened = TRUE)
+
+## ---------------------------------------------------------------------------
+## 8. Random effects: glmmTMB "full" coefficient vs sampler ranef.mode (both
 ##    engines), all groups -- same column layout as Section 6's fixed-effects
 ##    table (iid mean/SD, gibbs mean/SD, ICM mean, glmmTMB, diff(SE)), except
 ##    glmmTMB has no per-group random-effect standard error to report here
@@ -292,7 +318,7 @@ cat(
 ##    across the iid engine's own draws) is used as the uncertainty scale for
 ##    'diff(SE)' instead.
 ##
-## Mirrors Ex_10's Section 7 (build_mu_all()-based reconstruction, needed
+## Mirrors Ex_10's Section 8 (build_mu_all()-based reconstruction, needed
 ## because glmmTMB::coef()[[k]], like lme4::coef()[[k]], omits any cross-
 ## level covariate's contribution to RE component k whenever W_k has
 ## non-intercept columns), but sourced from the glmmTMB reference fit_ref
@@ -416,7 +442,7 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 8. Known per-group sigma^2_j: the exact input fed to both samplers,
+## 9. Known per-group sigma^2_j: the exact input fed to both samplers,
 ##    reproduced here for reference (identical to Prior_Setup_lmebayes()'s
 ##    printed 'ps$sigma2_group', by construction -- shown for completeness,
 ##    not a new estimate).

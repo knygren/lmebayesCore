@@ -1,6 +1,123 @@
 # lmebayesCore (development version)
 
-* **Enhancement: `plot_sweep_history_var_ratio()` gains an optional
+* **New: `plot_mean_convergence()`, and fit-object (S3) methods for
+  `plot_var_convergence()`/`plot_mean_convergence()`/`plot_sweep_history_diag()`.**
+    - `plot_mean_convergence()` is the mean-bias companion to
+      `plot_var_convergence()`, implementing Claim~1 of the two-block Gibbs
+      ergodicity reference (`inst/BLOCK_GIBBS_ERGODICITY.md`): after `l`
+      inner sweeps, each chain's mean is biased toward its start by
+      `A^l`, so `(mean(l) - mean_ref) / sd(l)` shrinks toward 0 as `l`
+      grows. Same two modes as `plot_var_convergence()`
+      (named-coefficient `coef_focus` traces, or `whitened = TRUE`
+      eigenvalue traces of the whitened mean-deviation vector), the same
+      automatic exact-vs-empirical reference resolution (`lmerb_posterior_mean()`
+      when `design`/`measurement_prior_list` are supplied and both dispersion
+      and the RE vcov are fixed; the empirical last-sweep cross-chain mean
+      otherwise), and an analogous `n_chains`/`conf_level` confidence band
+      (Gaussian/`qt()`-based, vs. `plot_var_convergence()`'s chi-squared/`qf()`).
+    - `plot_var_convergence()`, `plot_mean_convergence()`, and
+      `plot_sweep_history_diag()` are now S3 generics. The previous
+      `hist`-first-argument behavior is preserved as each generic's
+      `.default` method (unchanged signature/behavior). New fit-object
+      methods let you call any of the three directly on a fitted object --
+      `rlmerb()`, `rglmerb()`, `rLMMNormal_reg_known_vcov()`/
+      `rLMMNormal_reg_estimated_vcov()`, `rLMMindepNormalGamma_reg_known_vcov()`/
+      `rLMMindepNormalGamma_reg_estimated_vcov()`, and
+      `rGLMM_reg_known_vcov()`/`rGLMM_reg_estimated_vcov()` -- instead of
+      manually extracting `fit$sweep_history`/`fit$design` and building a
+      `measurement_prior_list` by hand. A new `stage = c("main", "pilot")`
+      argument selects `fit$sweep_history` or `fit$pilot$sweep_history`;
+      `n_chains` defaults to the *correct* count for that stage (`fit$n` for
+      `"main"`, `fit$pilot_chisq$n_pilot` for `"pilot"` -- these can differ,
+      e.g. when `n_pilot` is calibrated from `gap_tol`). The exact reference
+      (vs. the empirical `Var_final`/`mean_final` fallback) is resolved
+      automatically per fit: available only for Gaussian fits with *both*
+      dispersion and the Block~2 vcov fixed (`rLMMNormal_reg_known_vcov()`
+      and `rlmerb()`/`rglmerb()` routed there); never available for
+      `rLMMindepNormalGamma_reg_*()` (dispersion always estimated per group)
+      or `rGLMM_reg_*()` (non-Gaussian in every real `glmerb()` call path).
+    - Bug fix uncovered while wiring this up: `rLMMNormal_reg_known_vcov()`'s
+      exact-iid engine (`sim_method = "DEFAULT"`, the function's actual
+      default) was missing `$design` on the returned fit -- only the
+      `sim_method = "TWO_BLOCK_GIBBS"` route had it. Fixed (`.rLMMNormal_reg_run_iid()`
+      now attaches the same `design` list the Gibbs route does), though this
+      route still has no `sweep_history` (no Gibbs sweeps to plot at all;
+      the new fit-object plotting methods now error with a clear message
+      pointing at `sim_method = "TWO_BLOCK_GIBBS"` instead of failing on a
+      missing field).
+    - Demo simplification: `Ex_10`/`Ex_11` (`rLMMNormal_reg_known_vcov()`,
+      the fully-known case) now call `plot_mean_convergence(fit_gibbs, ...)`/
+      `plot_var_convergence(fit_gibbs, ...)` directly instead of building
+      `measurement_prior_list` by hand via `.two_block_measurement_prior_list()`/
+      `.rLMM_P_from_pfamily_list()`. `Ex_12`/`Ex_13`/`Ex_14` (estimated
+      vcov and/or estimated dispersion) now loop
+      `for (stg in c("pilot", "main")) plot_mean_convergence(fit, stage = stg); plot_var_convergence(fit, stage = stg)`
+      instead of a hand-built `list(fit$pilot$sweep_history, fit$sweep_history)`
+      -- as a side effect this also fixes `Ex_12`'s pilot-stage confidence
+      band, which had hardcoded the main-stage `n_chains = 3000` for both
+      stages even though its pilot stage actually runs a different,
+      `gap_tol`-calibrated chain count.
+
+* **Bug fix: `plot_var_convergence(..., engine = "base")` could error
+  with `Error in graphics::par(old_par) : invalid value specified for
+  graphical parameter "pin"`** when restoring its plotting parameters on
+  exit. The legend-panel `layout()` helper (`.convergence_plot_base()`)
+  captured a full `graphics::par(no.readonly = TRUE)` snapshot -- including
+  device-geometry-derived entries like `pin` -- and force-restored all of it
+  afterward; if the plotting device's actual geometry at restore time no
+  longer matched what was captured (e.g. a resized RStudio Plots pane, or
+  simply a small device), restoring the old absolute-inches `pin` value
+  could conflict with the device's current size and error. Only `mar` (plus
+  the layout panel structure, already reset via `layout(1L)`) is ever
+  changed by this function, so only `mar` is now saved/restored -- the same
+  pattern `plot_sweep_history_diag()` already used for its own `par()` calls
+  in this file.
+
+* **Demo: `Ex_10_rLMM_known_dispersion_known_vcov_BigWordClub` and
+  `Ex_11_rLMM_known_dispersion_vector_known_vcov_BigWordClub` now include
+  `plot_mean_convergence()`/`plot_var_convergence()` (non-whitened and
+  whitened) for the `sim_method = "TWO_BLOCK_GIBBS"` fit**, right after each
+  demo's Block~2 fixed-effects comparison table -- enabled by the
+  `rGLMM_sweep()` engine swap below, which is what makes
+  `fit_gibbs$sweep_history` non-`NULL` for this route in the first place.
+  Both demos are the fully-known (dispersion *and* Sigma_ranef fixed) case,
+  so the exact reference mean/covariance (via `lmerb_posterior_mean()`/
+  `lmerb_posterior_covariance()`) is resolved automatically by the
+  fit-object plotting methods (see above).
+
+* **Internal: `rLMMNormal_reg_known_vcov_two_bg()` (the
+  `sim_method = "TWO_BLOCK_GIBBS"` route of `rLMMNormal_reg_known_vcov()`,
+  including its known per-group dispersion *vector* case) now runs its
+  two-block Gibbs sweeps sweeps-outer/chains-inner via `rGLMM_sweep()`**,
+  the same batch engine already used by `rLMMNormal_reg_estimated_vcov()`
+  and the ING routes, instead of the old chains-outer/sweeps-inner C++
+  driver (`two_block_rNormal_reg()` / `two_block_rNormal_reg_v2_cpp_export()`).
+  User-visible consequences:
+    - `$sweep_history` is now populated on the returned object (previously
+      always `NULL` for this route), enabling
+      `plot_sweep_history_diag()`/`plot_var_convergence()` and
+      `print()` on the sweep-by-sweep Block~2 fixef table -- mirroring the
+      estimated-vcov/ING routes.
+    - Progress bars are now the same nested
+      `"[main] sweep m/M RE:"` / `"[main] sweep m/M fixef:"` bars used by
+      the other sweep-outer engines (previously a single bar advancing
+      over chains, with no per-sweep breakdown). As with those engines,
+      `verbose = TRUE` alone now also enables the progress bar (previously
+      `verbose` only affected ICM/calibration `cat()` messages for this
+      route).
+    - `fixef.mu` (`mu_all_last` internally) is now the fitted mean
+      response evaluated at the **across-chains mean** of the final-sweep
+      fixed effects, rather than an arbitrary single chain's (the last
+      one's) final draw.
+  Draws themselves are statistically unchanged (same exact-conditional
+  two-block Gibbs kernel, same ICM start and Theorem~3 `m_convergence`
+  calibration); this is purely an implementation/engine change, covered by
+  `test-sim-method-iid.R`'s existing iid-vs-Gibbs Monte Carlo agreement
+  checks. The legacy `rLMMindepNormalGamma_reg()` outer-loop driver, which
+  also calls this shared pipeline internally (`n = 1` chain per outer
+  draw), is unaffected in behavior.
+
+* **Enhancement: `plot_var_convergence()` gains an optional
   `n_chains` argument (with `conf_level`, default `0.95`) that draws a pair
   of horizontal dotted reference lines**: a naive confidence band around 1
   for `Ratio(l)`, under the null that the true ratio at that sweep already
@@ -31,7 +148,7 @@
   history. Omitting `n_chains` (the default) skips the band entirely, so
   existing calls are unaffected.
 
-* **Enhancement: `plot_sweep_history_var_ratio()` now varies point *shape*
+* **Enhancement: `plot_var_convergence()` now varies point *shape*
   (in addition to colour) across series/eigenvalue traces**, in both the
   `"base"` engine (`pch`) and the `"ggplot"` engine (`shape`, via a shared
   `scale_shape_manual()`), recycling a 12-shape palette
@@ -40,7 +157,7 @@
   adjacent series, especially with many Block~2 fixed effects or whitened
   eigen-components; shape gives a second, easier-to-distinguish channel.
 
-* **Bug fix: `plot_sweep_history_var_ratio(..., engine = "base")`'s legend
+* **Bug fix: `plot_var_convergence(..., engine = "base")`'s legend
   was never displayed correctly**, in two separate ways:
     1. It was originally positioned via `par("usr")` data-range arithmetic
        (a fixed fraction of the plot's own y-range below `usr[3]`), which
@@ -62,7 +179,7 @@
   y-range, the device size, and the length of the coefficient labels being
   plotted, not just the count of series.
 
-* **New: `plot_sweep_history_var_ratio()`**, a combined (single-chart)
+* **New: `plot_var_convergence()`**, a combined (single-chart)
   `Var(l) / Var_ref` convergence plot for a `two_block_sweep_history` object's
   Block~2 fixed effects, implementing Claim~3 of the two-block Gibbs
   ergodicity reference (`inst/BLOCK_GIBBS_ERGODICITY.md`): after `l` inner
@@ -95,15 +212,13 @@
     - `two_block_sweep_history` objects built by the sweeps-outer/chains-inner
       engines (the `_run_with_pilot()` family: `rLMMNormal_reg_estimated_vcov()`,
       `rLMMindepNormalGamma_reg_known_vcov()`,
-      `rLMMindepNormalGamma_reg_estimated_vcov()`) now also carry
+      `rLMMindepNormalGamma_reg_estimated_vcov()`, and -- since the
+      `rGLMM_sweep()` engine swap below -- `rLMMNormal_reg_known_vcov()`'s
+      `sim_method = "TWO_BLOCK_GIBBS"` route too) now also carry
       `cov_by_sweep` (the full per-sweep cross-chain covariance matrix of the
       stacked fixed effects, not just the marginal `sd` already in `table`)
       and `coef_index` (its row/column stacking order) -- purely additive
       fields, required for `whitened = TRUE`.
-    `rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")` does not yet
-    capture `cov_by_sweep` (its engine runs entirely inside compiled code with
-    `n` draws as the outer loop, not sweeps); this is expected to change in a
-    later refactor.
 
 * **Bug fix: `Prior_Setup_lmebayes(..., dispformula = ~<group>)`'s internal
   `glmmTMB` reference fit (`$fit_ref`/`$dispersion_fit`) printed its entire

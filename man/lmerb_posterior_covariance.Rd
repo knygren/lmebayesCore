@@ -31,7 +31,7 @@ posterior mean of the stacked Block~2 hyperparameter vector
 posterior precision of \code{gamma_full}) is built by the package-internal
 \code{.lmerb_posterior_normal_system()}. This is the \eqn{\Sigma_{11}}
 of Claim~3 in the two-block Gibbs ergodicity reference (see
-\code{\link{plot_sweep_history_var_ratio}}): the exact target covariance
+\code{\link{plot_var_convergence}}): the exact target covariance
 that a two-block Gibbs sampler's cross-chain covariance converges to as the
 number of inner sweeps grows.
 
@@ -42,7 +42,7 @@ sampled) -- i.e. the same restriction as
 estimated dispersion or estimated random-effect variance components, no
 single exact \eqn{\Sigma_{11}} exists (it would vary by posterior draw);
 use the empirical cross-chain covariance instead (see
-\code{\link{plot_sweep_history_var_ratio}}'s fallback).
+\code{\link{plot_var_convergence}}'s fallback).
 }
 \seealso{
 \code{\link{lmerb_posterior_mean}}

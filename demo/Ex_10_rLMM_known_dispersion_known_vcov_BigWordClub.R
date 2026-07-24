@@ -96,10 +96,15 @@ print(summary(fit_lmer))
 ## progbar/verbose match demo("Ex_12_lmerb_BigWordClub", package = "lmebayes"):
 ## that demo calls lmerb() without overriding progbar/verbose, and lmerb()'s
 ## own formals are progbar = NULL (falsy -- no bar shown) and a hardcoded
-## verbose = TRUE passed to rlmerb().
+## verbose = TRUE passed to rlmerb() -- both calls below use verbose = TRUE
+## for the same reason (matches Ex_11/Ex_12/Ex_13/Ex_14's own fit calls): for
+## every sweeps-outer/chains-inner engine (which the TWO_BLOCK_GIBBS route
+## now is too, see NEWS.md), verbose = TRUE alone also turns on the nested
+## "[main] sweep m/M ..." progress bar and the ICM/calibration cat() messages,
+## even with progbar = FALSE.
 ## ---------------------------------------------------------------------------
 fit <- rLMMNormal_reg_known_vcov(
-  n            = 10000L,
+  n            = 1000L,
   y            = design$y,
   D            = design$Z,
   group        = grp,
@@ -112,7 +117,7 @@ fit <- rLMMNormal_reg_known_vcov(
 cat(sprintf("\nsim_method_used: %s\n", fit$sim_method_used))
 
 fit_gibbs <- rLMMNormal_reg_known_vcov(
-  n            = 10000L,
+  n            = 1000L,
   y            = design$y,
   D            = design$Z,
   group        = grp,
@@ -120,7 +125,7 @@ fit_gibbs <- rLMMNormal_reg_known_vcov(
   prior_list   = prior_list,
   pfamily_list = pf,
   progbar      = FALSE,
-  verbose      = FALSE,
+  verbose      = TRUE,
   sim_method   = "TWO_BLOCK_GIBBS"
 )
 cat(sprintf("sim_method_used: %s (m_convergence = %d)\n",
@@ -198,7 +203,33 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 6. Random effects: MCMC mean (per group, per draw average) vs exact ICM
+## 6. Combined cross-chain mean-bias (Claim 1) and variance-ratio (Claim 3)
+##    charts, two-block Gibbs ergodicity reference
+##    (inst/BLOCK_GIBBS_ERGODICITY.md), for fit_gibbs's
+##    (sim_method = "TWO_BLOCK_GIBBS") Block~2 fixed effects.
+##
+## Both observation dispersion and Sigma_ranef (the RE variance-covariance)
+## are *known* here (the point of this demo) -- rLMMNormal_reg_known_vcov()'s
+## TWO_BLOCK_GIBBS route now runs its sweeps via rGLMM_sweep()
+## (sweeps-outer/chains-inner), so fit_gibbs$sweep_history carries
+## cov_by_sweep. plot_mean_convergence()/plot_var_convergence() dispatch on
+## fit_gibbs's own class (rLMMNormal_reg_known_vcov(): both dispersion and
+## vcov fixed) and resolve the exact reference mean/covariance (via
+## lmerb_posterior_mean()/lmerb_posterior_covariance()) from
+## fit_gibbs$design/$prior_list/$pfamily_list automatically -- no design/
+## measurement_prior_list to build by hand. n_chains defaults to
+## fit_gibbs$n. There is no pilot stage for this route (single main stage
+## only), so unlike Ex_12/Ex_13/Ex_14 there is no "is the pilot recentering
+## working" question to answer with the mean-bias chart here -- it is shown
+## mainly for symmetry with plot_var_convergence().
+## ---------------------------------------------------------------------------
+plot_mean_convergence(fit_gibbs, whitened = FALSE)
+plot_mean_convergence(fit_gibbs, whitened = TRUE)
+plot_var_convergence(fit_gibbs, whitened = FALSE)
+plot_var_convergence(fit_gibbs, whitened = TRUE)
+
+## ---------------------------------------------------------------------------
+## 7. Random effects: MCMC mean (per group, per draw average) vs exact ICM
 ##
 ## fit$coefficients: long data.frame with one row per (draw, group), columns
 ## 'draw', the group-name column, and one column per RE component -- these
@@ -268,7 +299,7 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 7. Random effects: lmer "full" coefficient vs sampler ranef.mode
+## 8. Random effects: lmer "full" coefficient vs sampler ranef.mode
 ##
 ## fit$ranef.mode is beta_j = W_j %*% gamma + u_j (see ?rLMM_reg's "Model and
 ## notation"). lme4::coef()[[k]] is NOT beta_j whenever RE component k's
@@ -358,7 +389,7 @@ cat(
 print(round(cmp[, c("lmer_full", "sampler_icm")], 4), row.names = paste(cmp$group, cmp$re_coef, sep = "::"))
 
 ## ---------------------------------------------------------------------------
-## 8. Cross-check: sim_method = "DEFAULT" (exact iid) vs "TWO_BLOCK_GIBBS"
+## 9. Cross-check: sim_method = "DEFAULT" (exact iid) vs "TWO_BLOCK_GIBBS"
 ##    random effects (fixed effects are already cross-checked in Section 5)
 ##
 ## fit/fit_gibbs's ranef.mode should agree closely -- this is exactly the

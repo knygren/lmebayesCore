@@ -176,7 +176,7 @@
 #' \code{.lmerb_posterior_normal_system()}'s \code{idx}: loop over
 #' \code{re_names}, then \code{colnames(fixef[[k]])}) and returns its
 #' cross-chain covariance -- the empirical analogue of Claim 3's
-#' \eqn{\Sigma^{(l)}_{11}} (see \code{\link{plot_sweep_history_var_ratio}}).
+#' \eqn{\Sigma^{(l)}_{11}} (see \code{\link{plot_var_convergence}}).
 #' Companion to \code{\link{.two_block_snapshot_fixef_stats}}, which only
 #' keeps the marginal (diagonal) mean/sd.
 #' @param fixef Named list of fixed-effect matrices (\code{n_chains x p_k} per

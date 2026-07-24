@@ -433,6 +433,7 @@
   main_res$icm_info            <- icm_info
   main_res$ptypes              <- pf_summary$ptypes
   main_res$any_non_normal      <- TRUE
+  main_res$design              <- design
 
   if (run_pilot) {
     main_res$pilot       <- pilot_res

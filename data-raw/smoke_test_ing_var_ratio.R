@@ -1,4 +1,4 @@
-## Fast, fully-synthetic smoke test of plot_sweep_history_var_ratio() wired
+## Fast, fully-synthetic smoke test of plot_var_convergence() wired
 ## against the REAL rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov()
 ## sweeps-outer/chains-inner engines (same code path as Ex_13/Ex_14), bypassing
 ## Prior_Setup_lmebayes()/dGamma_list() calibration (and bayesrules::big_word_club)
@@ -59,13 +59,13 @@ cat("has sweep_history:", !is.null(fit_known$sweep_history), "\n")
 cat("has pilot sweep_history:", !is.null(fit_known$pilot$sweep_history), "\n")
 cat("has cov_by_sweep (main):", !is.null(fit_known$sweep_history$cov_by_sweep), "\n")
 
-cat("\nplot_sweep_history_var_ratio(main, whitened = FALSE)...\n")
-plot_sweep_history_var_ratio(fit_known$sweep_history, whitened = FALSE)
-cat("plot_sweep_history_var_ratio(main, whitened = TRUE)...\n")
-plot_sweep_history_var_ratio(fit_known$sweep_history, whitened = TRUE)
+cat("\nplot_var_convergence(main, whitened = FALSE)...\n")
+plot_var_convergence(fit_known$sweep_history, whitened = FALSE)
+cat("plot_var_convergence(main, whitened = TRUE)...\n")
+plot_var_convergence(fit_known$sweep_history, whitened = TRUE)
 if (!is.null(fit_known$pilot$sweep_history)) {
-  cat("plot_sweep_history_var_ratio(pilot, whitened = TRUE)...\n")
-  plot_sweep_history_var_ratio(fit_known$pilot$sweep_history, whitened = TRUE)
+  cat("plot_var_convergence(pilot, whitened = TRUE)...\n")
+  plot_var_convergence(fit_known$pilot$sweep_history, whitened = TRUE)
 }
 cat("Case A OK\n")
 
@@ -87,13 +87,13 @@ cat("has sweep_history:", !is.null(fit_est$sweep_history), "\n")
 cat("has pilot sweep_history:", !is.null(fit_est$pilot$sweep_history), "\n")
 cat("has cov_by_sweep (main):", !is.null(fit_est$sweep_history$cov_by_sweep), "\n")
 
-cat("\nplot_sweep_history_var_ratio(main, whitened = FALSE)...\n")
-plot_sweep_history_var_ratio(fit_est$sweep_history, whitened = FALSE)
-cat("plot_sweep_history_var_ratio(main, whitened = TRUE)...\n")
-plot_sweep_history_var_ratio(fit_est$sweep_history, whitened = TRUE)
+cat("\nplot_var_convergence(main, whitened = FALSE)...\n")
+plot_var_convergence(fit_est$sweep_history, whitened = FALSE)
+cat("plot_var_convergence(main, whitened = TRUE)...\n")
+plot_var_convergence(fit_est$sweep_history, whitened = TRUE)
 if (!is.null(fit_est$pilot$sweep_history)) {
-  cat("plot_sweep_history_var_ratio(pilot, whitened = TRUE)...\n")
-  plot_sweep_history_var_ratio(fit_est$pilot$sweep_history, whitened = TRUE)
+  cat("plot_var_convergence(pilot, whitened = TRUE)...\n")
+  plot_var_convergence(fit_est$pilot$sweep_history, whitened = TRUE)
 }
 cat("Case B OK\n")
 

@@ -7,7 +7,7 @@
 #'   \code{.two_block_snapshot_fixef_cov()} results, one per inner sweep. When
 #'   supplied, stored as \code{cov_by_sweep} (list of covariance matrices) and
 #'   \code{coef_index} (data frame of stacking order) on the returned object,
-#'   enabling \code{\link{plot_sweep_history_var_ratio}}'s whitened mode.
+#'   enabling \code{\link{plot_var_convergence}}'s whitened mode.
 #' @return Object of class \code{"two_block_sweep_history"}.
 #' @noRd
 .two_block_build_sweep_history <- function(

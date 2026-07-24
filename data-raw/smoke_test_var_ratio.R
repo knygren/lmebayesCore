@@ -33,12 +33,12 @@ hist <- .two_block_build_sweep_history(
 cat("built hist OK; cov_by_sweep len =", length(hist$cov_by_sweep), "\n")
 print(hist$coef_index)
 
-cat("calling plot_sweep_history_var_ratio (non-whitened)...\n")
-plot_sweep_history_var_ratio(hist, whitened = FALSE)
+cat("calling plot_var_convergence (non-whitened)...\n")
+plot_var_convergence(hist, whitened = FALSE)
 cat("non-whitened OK\n")
 
-cat("calling plot_sweep_history_var_ratio (whitened)...\n")
-plot_sweep_history_var_ratio(hist, whitened = TRUE)
+cat("calling plot_var_convergence (whitened)...\n")
+plot_var_convergence(hist, whitened = TRUE)
 cat("whitened OK\n")
 
 grDevices::dev.off()

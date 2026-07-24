@@ -1,4 +1,4 @@
-## Sanity check: does plot_sweep_history_var_ratio(whitened=TRUE) correctly
+## Sanity check: does plot_var_convergence(whitened=TRUE) correctly
 ## recover eigenvalues <= 1 (up to small sampling noise) for DATA THAT
 ## ACTUALLY FOLLOWS Claim 3's growth structure (chains start coincident,
 ## cross-chain covariance grows monotonically toward Sigma_ref), as opposed
@@ -29,7 +29,7 @@ fixef_mode <- list(k1 = setNames(rep(0, P), paste0("x", seq_len(P))))
 hist <- .two_block_build_sweep_history("main", sweep_stats, fixef_mode, re_names, sweep_cov = sweep_cov)
 
 grDevices::png("data-raw/claim3_check.png", width = 900, height = 700)
-plot_sweep_history_var_ratio(hist, whitened = TRUE, n_chains = n_chains)
+plot_var_convergence(hist, whitened = TRUE, n_chains = n_chains)
 grDevices::dev.off()
 cat("DONE -- if the implementation is correct, all eigenvalue traces should stay\n")
 cat("at or just barely above/below 1 (small n_chains=3000 sampling noise only),\n")

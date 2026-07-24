@@ -212,19 +212,34 @@ cat(
   sep = ""
 )
 
-## Combined Var/Var_final ratio chart (Claim 3 of the two-block Gibbs
-## ergodicity reference): rLMMNormal_reg_estimated_vcov() goes through the
-## sweeps-outer/chains-inner pilot/main engine, so both fit$pilot$sweep_history
-## and fit$sweep_history carry cov_by_sweep -- unlike rLMMNormal_reg_known_vcov(
-## sim_method = "TWO_BLOCK_GIBBS"), which does not capture sweep history yet.
+## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
+## Gibbs ergodicity reference): rLMMNormal_reg_estimated_vcov() goes through
+## the sweeps-outer/chains-inner pilot/main engine, so both
+## fit$pilot$sweep_history and fit$sweep_history carry cov_by_sweep (as does
+## rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")'s single main
+## stage now that its engine is rGLMM_sweep()-based too -- see
+## demo("Ex_10_rLMM_known_dispersion_known_vcov_BigWordClub", package =
+## "lmebayesCore")'s Section 6 for that fully-known case, which unlike here
+## *does* have an exact reference mean/covariance available).
 ## dispersion and Sigma_ranef are both *estimated* here (that is the point of
-## this demo), so no exact reference covariance is available: 'design'/
-## 'measurement_prior_list' are intentionally omitted below and the plot falls
-## back to the empirical Var_final (last-sweep cross-chain covariance).
-for (st in list(fit$pilot$sweep_history, fit$sweep_history)) {
-  if (is.null(st)) next
-  plot_sweep_history_var_ratio(st, whitened = FALSE,n_chains = 3000)
-  plot_sweep_history_var_ratio(st, whitened = TRUE,n_chains=3000)
+## this demo), so plot_mean_convergence()/plot_var_convergence()'s fit-object
+## methods automatically find no exact reference available and fall back to
+## the empirical mean_final/Var_final (last-sweep cross-chain mean/
+## covariance). 'stage' selects fit$pilot$sweep_history ("pilot") or
+## fit$sweep_history ("main"); n_chains defaults to the correct chain count
+## for each stage (fit$pilot_chisq$n_pilot vs fit$n -- these can differ, e.g.
+## n_pilot is calibrated from gap_tol while n = 3000L above is the
+## main-stage count). The pilot stage's whole job is to *recenter* the main
+## stage's starting point away from the ICM mode, so the mean-bias chart is
+## the more direct diagnostic there (did the pilot's chain means settle down
+## before recentering?); the main stage is where the variance/uncertainty
+## calibration check matters most -- both charts are shown for both stages
+## for consistency.
+for (stg in c("pilot", "main")) {
+  plot_mean_convergence(fit, whitened = FALSE, stage = stg)
+  plot_mean_convergence(fit, whitened = TRUE, stage = stg)
+  plot_var_convergence(fit, whitened = FALSE, stage = stg)
+  plot_var_convergence(fit, whitened = TRUE, stage = stg)
 }
 
 ## ---------------------------------------------------------------------------
@@ -288,10 +303,9 @@ coef_focus_batches <- list(
   coef_focus_all[5:7]
 )
 
-for (st in list(fit$pilot$sweep_history, fit$sweep_history)) {
-  if (is.null(st)) next
+for (stg in c("pilot", "main")) {
   for (batch in coef_focus_batches) {
-    plot_sweep_history_diag(st, batch)
+    plot_sweep_history_diag(fit, batch, stage = stg)
   }
 }
 
