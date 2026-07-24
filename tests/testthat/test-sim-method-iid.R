@@ -197,6 +197,86 @@ test_that("sim_method validation rejects unknown values", {
   )
 })
 
+test_that("rLMMNormal_joint_iid()'s b_mean is the exact posterior mean of beta_j (not b_last)", {
+  fx <- .sim_method_fixture()
+
+  out <- rLMMNormal_joint_iid(
+    n = 2000L, y = fx$y, x = fx$D, group = fx$group, x_hyper = fx$W,
+    prior_list_block1 = list(dispersion = unname(fx$sigma2_true), ddef = FALSE),
+    pfamily_list = fx$pfamily_list,
+    progbar = FALSE, verbose = FALSE
+  )
+
+  ## Manual closed-form E[beta_j | data] using fx's known sigma2_j/tau2 and
+  ## rLMMNormal_joint_iid()'s own exact gamma_mean (out$fixef_mean) -- the
+  ## same "plug fixef_mean into the conditional-mean map" identity b_mean
+  ## itself relies on, computed independently here from first principles.
+  group_levels <- levels(fx$group)
+  n_j    <- as.integer(table(fx$group)[group_levels])
+  ybar_j <- tapply(fx$y, fx$group, mean)[group_levels]
+  gamma_hat <- out$fixef_mean[["(Intercept)"]][["(Intercept)"]]
+  prec_prior_bj <- 1 / fx$tau2_true
+  prec_lik_j    <- n_j / fx$sigma2_true[group_levels]
+  exact_beta_mean <- (prec_prior_bj * gamma_hat + prec_lik_j * ybar_j) /
+    (prec_prior_bj + prec_lik_j)
+
+  expect_equal(
+    unname(out$b_mean[group_levels, "(Intercept)"]),
+    as.numeric(exact_beta_mean),
+    tolerance = 1e-8
+  )
+
+  ## b_mean must be a stable point estimate: it should be far closer to the
+  ## across-draw average of fit$coefficients than the single last draw
+  ## (b_last) is, on average across groups.
+  mcmc_mean_j <- tapply(
+    out$coefficients[["(Intercept)"]], out$coefficients$group, mean
+  )[group_levels]
+  err_b_mean <- mean(abs(out$b_mean[group_levels, "(Intercept)"] - mcmc_mean_j))
+  err_b_last <- mean(abs(out$b_last[group_levels, "(Intercept)"] - mcmc_mean_j))
+  expect_lt(err_b_mean, err_b_last)
+  expect_lt(err_b_mean, 0.05)
+})
+
+test_that("rLMMNormal_reg_known_vcov()'s ranef.mode is a stable point estimate for both engines", {
+  fx <- .sim_method_fixture()
+
+  set.seed(2026)
+  fit_iid <- rLMMNormal_reg_known_vcov(
+    n = 3000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
+  )
+  set.seed(2026)
+  fit_gibbs <- rLMMNormal_reg_known_vcov(
+    n = 3000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
+    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
+  )
+
+  ## The two engines target the same exact posterior, so their ranef.mode
+  ## (iid: exact b_mean; two-block Gibbs: ICM mode, which coincides with the
+  ## exact posterior mean for this fully Gaussian-conjugate model) should
+  ## agree closely -- unlike a raw last-draw comparison, which would not.
+  expect_equal(
+    fit_iid$ranef.mode[, "(Intercept)"],
+    fit_gibbs$ranef.mode[, "(Intercept)"],
+    tolerance = 1e-6
+  )
+
+  ## And each engine's own ranef.mode should track its own MCMC mean.
+  for (fit in list(fit_iid, fit_gibbs)) {
+    mcmc_mean_j <- tapply(
+      fit$coefficients[["(Intercept)"]], fit$coefficients$group, mean
+    )[rownames(fit$ranef.mode)]
+    expect_equal(
+      unname(fit$ranef.mode[, "(Intercept)"]),
+      as.numeric(mcmc_mean_j),
+      tolerance = 0.05
+    )
+  }
+})
+
 test_that("sim_method is accepted-but-inert on routes with only a two-block Gibbs engine", {
   ## rLMMNormal_reg_estimated_vcov() (estimated variance components -- always
   ## requires at least one non-dNormal Block~2 component, so it can never hit

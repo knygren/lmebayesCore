@@ -3,13 +3,19 @@
 #' @param sweep_stats Nested list from \code{.two_block_snapshot_fixef_stats}.
 #' @param fixef_mode Named list of ICM mode vectors per RE component.
 #' @param re_names Character vector of RE component names.
+#' @param sweep_cov Optional list (length \code{length(sweep_stats)}) of
+#'   \code{.two_block_snapshot_fixef_cov()} results, one per inner sweep. When
+#'   supplied, stored as \code{cov_by_sweep} (list of covariance matrices) and
+#'   \code{coef_index} (data frame of stacking order) on the returned object,
+#'   enabling \code{\link{plot_sweep_history_var_ratio}}'s whitened mode.
 #' @return Object of class \code{"two_block_sweep_history"}.
 #' @noRd
 .two_block_build_sweep_history <- function(
     stage_label,
     sweep_stats,
     fixef_mode,
-    re_names
+    re_names,
+    sweep_cov = NULL
 ) {
   stage_label <- as.character(stage_label)[1L]
   if (!nzchar(stage_label)) {
@@ -66,13 +72,22 @@
     )
   }
 
+  cov_by_sweep <- NULL
+  coef_index   <- NULL
+  if (!is.null(sweep_cov) && length(sweep_cov)) {
+    cov_by_sweep <- lapply(sweep_cov, function(sc) sc$cov)
+    coef_index   <- sweep_cov[[1L]]$coef_index
+  }
+
   structure(
     list(
-      stage      = stage_label,
-      n_sweeps   = as.integer(n_sweep),
-      re_names   = re_names,
-      fixef_mode = fixef_mode,
-      table      = table
+      stage        = stage_label,
+      n_sweeps     = as.integer(n_sweep),
+      re_names     = re_names,
+      fixef_mode   = fixef_mode,
+      table        = table,
+      cov_by_sweep = cov_by_sweep,
+      coef_index   = coef_index
     ),
     class = c("two_block_sweep_history", "list")
   )

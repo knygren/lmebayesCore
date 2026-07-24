@@ -1,5 +1,169 @@
 # lmebayesCore (development version)
 
+* **Enhancement: `plot_sweep_history_var_ratio()` gains an optional
+  `n_chains` argument (with `conf_level`, default `0.95`) that draws a pair
+  of horizontal dotted reference lines**: a naive confidence band around 1
+  for `Ratio(l)`, under the null that the true ratio at that sweep already
+  equals 1. The band's distribution depends on whether `Var_ref` is exact
+  (`design`/`measurement_prior_list` supplied) or empirical (`Var_final`):
+    - Exact `Var_ref` (a fixed/known number): only the numerator `Var(l)`
+      has sampling error, so
+      \eqn{\mathrm{Ratio}(l) \sim \chi^2_{n_{chains}-1} / (n_{chains}-1)}.
+    - Empirical `Var_ref` (itself a sample variance across the same
+      `n_chains` chains, at the final sweep): both numerator and
+      denominator carry sampling error, so the classic two-sample
+      variance-ratio result applies instead --
+      \eqn{\mathrm{Ratio}(l) \sim F(n_{chains}-1,\, n_{chains}-1)}, which is
+      *wider* than the chi-squared band. Both cases are computed via a
+      single `stats::qf()` call (`df2 = Inf` for the exact case, which
+      reduces exactly to `qchisq(p, df1) / df1`).
+
+  This is exact for the non-whitened (named-coefficient) series and only an
+  approximation for `whitened = TRUE` (whitened eigenvalues are Wishart-,
+  not marginally chi-squared/F, distributed, and tend to spread out more
+  than this band implies); also a further approximation in the empirical
+  case since `Var(l)` and `Var_final` come from the same chains at two
+  sweep indices, not independent samples as a textbook two-sample F-test
+  assumes. Not supplied automatically: `n_chains` is not stored on the
+  `two_block_sweep_history` object and must be pulled from the fitted
+  object that produced it -- `nrow(fit$fixef[[k]])` (any RE component `k`)
+  for the main-stage history, `fit$pilot_chisq$n_pilot` for the pilot-stage
+  history. Omitting `n_chains` (the default) skips the band entirely, so
+  existing calls are unaffected.
+
+* **Enhancement: `plot_sweep_history_var_ratio()` now varies point *shape*
+  (in addition to colour) across series/eigenvalue traces**, in both the
+  `"base"` engine (`pch`) and the `"ggplot"` engine (`shape`, via a shared
+  `scale_shape_manual()`), recycling a 12-shape palette
+  (filled/open circle, triangle, square, diamond, plus, cross, asterisk).
+  Colour alone (`grDevices::hcl.colors()`) can have similar hues for
+  adjacent series, especially with many Block~2 fixed effects or whitened
+  eigen-components; shape gives a second, easier-to-distinguish channel.
+
+* **Bug fix: `plot_sweep_history_var_ratio(..., engine = "base")`'s legend
+  was never displayed correctly**, in two separate ways:
+    1. It was originally positioned via `par("usr")` data-range arithmetic
+       (a fixed fraction of the plot's own y-range below `usr[3]`), which
+       for any y-range larger than a couple of units lands well outside the
+       figure/device area and is silently clipped -- i.e. the legend box
+       itself was computed but rendered off-screen every time.
+    2. After moving the legend into its own `graphics::layout()` panel below
+       the main plot, it used a hardcoded `ncol = min(n_series, 6)` --
+       `graphics::legend()` does not auto-wrap based on available width, so
+       long `"re_component | covariate"` labels (e.g. `"distracted_a1 |
+       free_reduced_lunch"`) didn't fit six-across on an ordinary device,
+       and the overflow columns ended up positioned outside the plot area
+       (e.g. "Ex_12"'s 7 Block~2 fixed effects).
+
+  The legend now lives in its own layout panel sized to the number of rows
+  actually needed, and its column count is chosen by measuring the widest
+  label's rendered width against the current device width
+  (`graphics::strwidth()`/`par("din")`), so it is robust to the data's
+  y-range, the device size, and the length of the coefficient labels being
+  plotted, not just the count of series.
+
+* **New: `plot_sweep_history_var_ratio()`**, a combined (single-chart)
+  `Var(l) / Var_ref` convergence plot for a `two_block_sweep_history` object's
+  Block~2 fixed effects, implementing Claim~3 of the two-block Gibbs
+  ergodicity reference (`inst/BLOCK_GIBBS_ERGODICITY.md`): after `l` inner
+  sweeps, the cross-chain covariance \eqn{\Sigma^{(l)}_{11}} satisfies
+  \eqn{\Sigma_{11}^{-1/2} \Sigma^{(l)}_{11} \Sigma_{11}^{-1/2} = I - A^{2l}}
+  for a convergent matrix `A`, so `Var(l) / Var_ref` ratios are bounded above
+  by 1 and increase toward it as `l` grows. Two modes:
+    - Default (`whitened = FALSE`): one named-coefficient trace per
+      `coef_focus` entry.
+    - `whitened = TRUE`: whitens each sweep's full cross-chain covariance by
+      the reference covariance and plots its (basis-invariant) eigenvalues,
+      labeled `var1, var2, ...` instead of named coefficients, since the
+      whitening/eigen-rotation mixes the original coefficients together.
+
+  The reference variance/covariance is resolved automatically, not as an
+  opt-in toggle: when `design` and `measurement_prior_list` are both
+  supplied, the *exact* reference covariance is computed via the new
+  `lmerb_posterior_covariance()` (valid only when dispersion and the
+  random-effect variance-covariance are both fixed, not sampled); otherwise
+  it falls back to the empirical last-sweep cross-chain covariance
+  (`"Var_final"`) -- the only option for estimated-dispersion or
+  estimated-vcov models.
+
+  Two supporting pieces:
+    - New exported `lmerb_posterior_covariance(design, measurement_prior_list)`:
+      companion to `lmerb_posterior_mean()`, returning the exact posterior
+      covariance of the stacked Block~2 hyperparameter vector (\eqn{M^{-1}},
+      where `M` is the same Schur-complement posterior precision
+      `lmerb_posterior_mean()` already solves against).
+    - `two_block_sweep_history` objects built by the sweeps-outer/chains-inner
+      engines (the `_run_with_pilot()` family: `rLMMNormal_reg_estimated_vcov()`,
+      `rLMMindepNormalGamma_reg_known_vcov()`,
+      `rLMMindepNormalGamma_reg_estimated_vcov()`) now also carry
+      `cov_by_sweep` (the full per-sweep cross-chain covariance matrix of the
+      stacked fixed effects, not just the marginal `sd` already in `table`)
+      and `coef_index` (its row/column stacking order) -- purely additive
+      fields, required for `whitened = TRUE`.
+    `rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")` does not yet
+    capture `cov_by_sweep` (its engine runs entirely inside compiled code with
+    `n` draws as the outer loop, not sweeps); this is expected to change in a
+    later refactor.
+
+* **Bug fix: `Prior_Setup_lmebayes(..., dispformula = ~<group>)`'s internal
+  `glmmTMB` reference fit (`$fit_ref`/`$dispersion_fit`) printed its entire
+  training data inline whenever a caller ran `print(summary(fit_ref))` or
+  `summary(fit_ref)$call`.** Root cause: `.lmebayes_fit_glmmtmb_reference()`
+  builds its `glmmTMB::glmmTMB()` call via `do.call()` with `data`/`family`
+  bound to already-realized R objects (not symbols referencing a variable in
+  some calling frame); `glmmTMB()`'s own `match.call()`-based `$call` then
+  embeds those literal objects, and `print.summary.glmmTMB()`'s `"Data:
+  "`/family header lines deparse `fit$call$data`/`fit$call$family` verbatim
+  -- for a literal data frame, this dumps the whole data set as text. The
+  returned `glmmTMB` fit's `$call$data`/`$call$family` are now overwritten
+  with placeholder symbols (`quote(data)`/`quote(family)`) right after
+  fitting; this only changes what is *displayed* for that fit's call --
+  `fixef()`, `vcov()`, `predict()`, `sigma2_group`, and every other
+  downstream calibration quantity are computed from the fit's actual data
+  (not from `$call`) and are unaffected.
+
+* **Bug fix: `Prior_Setup_lmebayes()`'s per-RE-component `Sigma_fixef`
+  (Block~2 hyperparameter prior covariance) could be numerically
+  non-symmetric to floating-point precision**, causing
+  `pfamily_list()`/`dGamma_list()` to fail downstream with `"matrix Sigma
+  must be symmetric"` from `dNormal()`/`dIndependent_Normal_Gamma()`'s
+  `isSymmetric()` validation. Root cause: `Sigma_fixef` is a column/row
+  submatrix of `vcov(fit_ref)` (an `lme4`/`glmmTMB` reference fit), and
+  `glmmTMB`'s Hessian-based `vcov()` is not always exactly symmetric (seen at
+  the `1e-12`-ish absolute scale on a `big_word_club` `dispformula =
+  ~school_id` fit with `max(abs(V - t(V)))` \eqn{\approx} \code{1.3e-12}).
+  `Sigma_fixef` is now explicitly symmetrized (`(Sigma_fixef +
+  t(Sigma_fixef)) / 2`) right after construction; this only removes
+  floating-point noise and does not change any calibration math.
+
+* **Bug fix: `print.lmebayes_prior_setup()` errored on R \eqn{\ge} 4.6 when
+  printing per-group Block~1 dispersion calibration** (i.e. after
+  `Prior_Setup_lmebayes(..., dispformula = ~<group_name>)`). It called
+  `round()` on a data frame with a non-numeric `group` column, which R 4.6's
+  stricter `Math.data.frame` group generic now rejects
+  (`"non-numeric-alike variable(s) in data frame: group"`). Now rounds only
+  the numeric columns before printing.
+
+* **Bug fix: `rLMMNormal_reg_known_vcov()`'s exact-iid engine
+  (`sim_method = "DEFAULT"`, i.e. `rLMMNormal_reg_known_vcov_iid()` /
+  `rLMMNormal_joint_iid()`) returned the wrong `ranef.mode`.** It was set
+  from `rLMMNormal_joint_iid()`'s `b_last` field -- the random effects
+  \eqn{\beta_j} from the *last stored draw only* -- instead of a stable
+  point estimate. This made `ranef.mode` from the iid route inconsistent
+  with the meaning of `ranef.mode` everywhere else (the two-block Gibbs
+  routes' ICM mode, which -- for these fully Gaussian-conjugate models --
+  coincides with the exact posterior mean of \eqn{\beta_j}, verified against
+  `mean(fit$coefficients)`); comparisons against `lme4::coef()` or against
+  the mean of `fit$coefficients` could be off by many posterior standard
+  deviations. `rLMMNormal_joint_iid()` now also returns `b_mean` -- the
+  exact posterior mean of \eqn{\beta_j} (the group-\eqn{b_j} analogue of its
+  existing `fixef_mean`), computed directly from `fixef_mean` with no Monte
+  Carlo noise -- and `rLMMNormal_reg_known_vcov_iid()`'s `ranef.mode` is now
+  populated from `b_mean` instead of `b_last`. `b_last` is unchanged and
+  still available for callers that want the final draw specifically.
+  `rLMMNormal_reg_known_vcov_two_bg()` and every other route were unaffected
+  (their `ranef.mode` was already the ICM mode, not a raw draw).
+
 * **Renamed the `x` argument to `D` and `x_hyper` to `W` on the 11
   `rLMM_reg`/`rGLMM_reg`-family matrix-level exports.** `rLMMNormal_reg()`,
   `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_known_vcov_iid()`,

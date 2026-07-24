@@ -52,7 +52,13 @@ same as \code{\link{two_block_rNormal_reg}}'s return value
 \code{fixef_start}, \code{re_coef_names}, \code{group_levels},
 \code{group_name}, \code{call}), plus \code{fixef_mean} -- the exact
 posterior mean that every draw is centered on (what
-\code{\link{lmerb_posterior_mean}} would return as \code{fixef}).
+\code{\link{lmerb_posterior_mean}} would return as \code{fixef}) -- and
+\code{b_mean} (\code{J x p_re}, dimnamed by \code{group_levels}/
+\code{re_names}) -- the exact posterior mean of \eqn{\beta_j}, the
+group-\eqn{b_j} analogue of \code{fixef_mean}. Unlike \code{b_last}
+(the random effects from the final stored draw only), \code{b_mean} is
+a stable point estimate: it is computed once, directly from
+\code{fixef_mean}, with no Monte Carlo noise.
 }
 \description{
 Matrix-level sampler for the same target as

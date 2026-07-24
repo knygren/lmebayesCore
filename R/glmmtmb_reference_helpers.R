@@ -47,7 +47,25 @@
     if (!is.null(control)) list(control = control),
     list(...)
   )
-  do.call(glmmTMB::glmmTMB, tmb_args)
+  fit <- do.call(glmmTMB::glmmTMB, tmb_args)
+
+  ## do.call() builds fit$call with 'data'/'family' bound to the *literal*
+  ## objects passed in tmb_args (not symbols referencing a variable in some
+  ## calling frame), because tmb_args$data/tmb_args$family are already-
+  ## realized R objects, not unevaluated expressions. glmmTMB's own
+  ## print.summary.glmmTMB() deparses fit$call$data (and $family) to build
+  ## its "Data:"/family header lines, so without this, printing summary()
+  ## on the returned fit dumps the *entire* data.frame (and the full
+  ## family() object) inline instead of showing a short symbol. Overwrite
+  ## just the display-facing 'call' slot with placeholder symbols; this
+  ## does not touch fit$frame or any other component actually used for
+  ## inference (vcov(), fixef(), predict(), etc. all read from those, not
+  ## from fit$call).
+  if (!is.null(fit$call)) {
+    fit$call$data   <- quote(data)
+    fit$call$family <- quote(family)
+  }
+  fit
 }
 
 ## Return character issue messages when a glmmTMB fit failed to converge

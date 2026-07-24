@@ -1,3 +1,8 @@
 Ex_07_Schools              Rubin/Gelman hierarchical 8 Schools model (rlmb block Gibbs)
 Ex_09_BikeSharingPoisson   Hierarchical Poisson (BikeSharing) two-block Gibbs with rglmb
+Ex_10_rLMM_known_dispersion_known_vcov_BigWordClub         rLMMNormal_reg_known_vcov() called directly (known dispersion, known vcov)
+Ex_11_rLMM_known_dispersion_vector_known_vcov_BigWordClub  rLMMNormal_reg_known_vcov() called directly (known per-group dispersion vector, known vcov)
+Ex_12_rLMM_known_dispersion_estimated_vcov_BigWordClub     rLMMNormal_reg_estimated_vcov() called directly (known dispersion, estimated vcov)
+Ex_13_rLMM_estimated_dispersion_known_vcov_BigWordClub     rLMMindepNormalGamma_reg_known_vcov() called directly (estimated per-group dispersion, known vcov)
+Ex_14_rLMM_estimated_dispersion_estimated_vcov_BigWordClub rLMMindepNormalGamma_reg_estimated_vcov() called directly (estimated per-group dispersion, estimated vcov)
 Ex_A1_Methods              Envelope construction and rglmb sampling (menarche)

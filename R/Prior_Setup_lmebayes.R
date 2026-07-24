@@ -627,6 +627,13 @@ Prior_Setup_lmebayes <- function(formula,
       ## reduces to the scalar (1-pwt)/pwt factor when all weights are equal.
       sc_k <- sqrt((1 - pwt_list[[k]]) / pwt_list[[k]])
       Sigma_fixef <- V_fe[fe_idx, fe_idx, drop = FALSE] * outer(sc_k, sc_k)
+      ## V_fe (vcov(fit_ref)) is not always exactly symmetric to floating-point
+      ## precision (sandwich-type covariance estimators, glmmTMB's optimizer,
+      ## etc.); force exact symmetry so downstream dNormal()/
+      ## dIndependent_Normal_Gamma() (which validate Sigma with isSymmetric())
+      ## do not spuriously reject a submatrix whose asymmetry is pure
+      ## floating-point noise.
+      Sigma_fixef <- (Sigma_fixef + t(Sigma_fixef)) / 2
       dimnames(Sigma_fixef) <- list(cols_k, cols_k)
 
       list(
@@ -1097,7 +1104,9 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
         stringsAsFactors = FALSE
       )
       cat("\n--- Per-group Block~1 sigma^2 calibration (dGamma_list) ---\n")
-      print(round(guard_df, digits))
+      num_cols <- vapply(guard_df, is.numeric, logical(1L))
+      guard_df[num_cols] <- lapply(guard_df[num_cols], round, digits = digits)
+      print(guard_df, row.names = FALSE)
     }
   } else {
     cat("  dispersion_ranef : NULL  (no observation-level dispersion)\n")

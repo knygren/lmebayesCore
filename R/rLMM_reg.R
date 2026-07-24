@@ -1511,6 +1511,7 @@ NULL
 
   progbar_use <- isTRUE(progbar)
   sweep_stats <- vector("list", inner_sweeps)
+  sweep_cov   <- vector("list", inner_sweeps)
   dispersion_ranef <- numeric(n_chains)
   group_mode <- !is.null(ing_prior_list$shape_group)
   iters_ranef_group <- if (group_mode) {
@@ -1586,6 +1587,10 @@ NULL
       fixef    = batch$fixef,
       re_names = re_names
     )
+    sweep_cov[[m]] <- .two_block_snapshot_fixef_cov(
+      fixef    = batch$fixef,
+      re_names = re_names
+    )
     if (progbar_use && n_chains <= 1L) {
       prefix_sweep <- if (nzchar(stage_label)) {
         sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
@@ -1615,7 +1620,8 @@ NULL
     stage_label = stage_label,
     sweep_stats = sweep_stats,
     fixef_mode  = fixef_mode,
-    re_names    = re_names
+    re_names    = re_names,
+    sweep_cov   = sweep_cov
   )
   if (isTRUE(diag_sweeps)) {
     print(out$sweep_history)
@@ -2285,7 +2291,7 @@ NULL
   staged$pfamily_list    <- pfamily_list
   staged$prior_list      <- prior_list_block1
   staged$family          <- gaussian()
-  staged$ranef.mode      <- out$b_last
+  staged$ranef.mode      <- out$b_mean
   staged$icm_info        <- list(converged = TRUE, iterations = 1L, delta = 0)
   staged$ptypes          <- pf_summary$ptypes
   staged$any_non_normal  <- FALSE

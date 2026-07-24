@@ -56,7 +56,13 @@
 #'   \code{fixef_start}, \code{re_coef_names}, \code{group_levels},
 #'   \code{group_name}, \code{call}), plus \code{fixef_mean} -- the exact
 #'   posterior mean that every draw is centered on (what
-#'   \code{\link{lmerb_posterior_mean}} would return as \code{fixef}).
+#'   \code{\link{lmerb_posterior_mean}} would return as \code{fixef}) -- and
+#'   \code{b_mean} (\code{J x p_re}, dimnamed by \code{group_levels}/
+#'   \code{re_names}) -- the exact posterior mean of \eqn{\beta_j}, the
+#'   group-\eqn{b_j} analogue of \code{fixef_mean}. Unlike \code{b_last}
+#'   (the random effects from the final stored draw only), \code{b_mean} is
+#'   a stable point estimate: it is computed once, directly from
+#'   \code{fixef_mean}, with no Monte Carlo noise.
 #' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{lmerb_posterior_mean}},
 #'   \code{\link{rLMMNormal_reg_known_vcov}}
 #' @family simfuncs
@@ -190,6 +196,26 @@ rLMMNormal_joint_iid <- function(
     re_names
   )
 
+  ## Exact posterior mean of beta_j (b_mean), the group-b_j analogue of
+  ## fixef_mean/gamma_mean above: since (gamma, b_1, ..., b_J) is jointly
+  ## Gaussian, E[b_j | data] = E[b_j | gamma = gamma_mean, data] (the
+  ## conditional-mean map is linear in gamma), so this reuses the same
+  ## per-group conjugate-mean formula as the sampling loop below, evaluated
+  ## at fixef_mean instead of a random gamma draw -- no Monte Carlo needed.
+  mu_all_mean <- as.matrix(
+    build_mu_all(design, fixef_mean, group_levels = group_levels)$mu_all
+  )
+  b_mean <- matrix(
+    NA_real_, nrow = J, ncol = p_re,
+    dimnames = list(group_levels, re_names)
+  )
+  for (jj in seq_len(J)) {
+    lev          <- group_levels[jj]
+    mu_j         <- mu_all_mean[, jj]
+    post_v_j     <- system$Zty_scaled[[lev]] + system$P_b %*% mu_j
+    b_mean[jj, ] <- as.numeric(solve(system$post_P_j_list[[lev]], post_v_j))
+  }
+
   tau2 <- vapply(re_names, function(k) {
     as.numeric(measurement_prior_list$prior_list[[k]]$dispersion_fixef)
   }, numeric(1L))
@@ -282,6 +308,7 @@ rLMMNormal_joint_iid <- function(
       fixef_last             = fixef_last,
       fixef_mean             = fixef_mean,
       b_last                 = b_last,
+      b_mean                 = b_mean,
       mu_all_last            = mu_all_last,
       dispersion_fixef_draws = dispersion_fixef_draws,
       iters_fixef_draws      = iters_fixef_draws,

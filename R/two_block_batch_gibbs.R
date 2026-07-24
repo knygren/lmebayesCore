@@ -169,6 +169,50 @@
   out
 }
 
+#' Snapshot the full cross-chain covariance of stacked Block 2 fixef after one sweep
+#'
+#' Stacks \code{fixef[[k]]} (\code{n_chains x p_k}, one per RE component) into
+#' a single \code{n_chains x P_total} matrix (same column order as
+#' \code{.lmerb_posterior_normal_system()}'s \code{idx}: loop over
+#' \code{re_names}, then \code{colnames(fixef[[k]])}) and returns its
+#' cross-chain covariance -- the empirical analogue of Claim 3's
+#' \eqn{\Sigma^{(l)}_{11}} (see \code{\link{plot_sweep_history_var_ratio}}).
+#' Companion to \code{\link{.two_block_snapshot_fixef_stats}}, which only
+#' keeps the marginal (diagonal) mean/sd.
+#' @param fixef Named list of fixed-effect matrices (\code{n_chains x p_k} per
+#'   RE block).
+#' @param re_names Character vector of RE component names (defines stacking
+#'   order).
+#' @return List with \code{cov} (\code{P_total x P_total} matrix, dimnamed
+#'   \code{"re_component | covariate"}) and \code{coef_index} (a data frame
+#'   with one row per column of \code{cov}, giving \code{re_component} and
+#'   \code{covariate} in stacking order).
+#' @noRd
+.two_block_snapshot_fixef_cov <- function(fixef, re_names) {
+  mats <- lapply(re_names, function(k) {
+    mat <- fixef[[k]]
+    cn  <- colnames(mat)
+    if (is.null(cn)) {
+      cn <- paste0("V", seq_len(ncol(mat)))
+    }
+    colnames(mat) <- cn
+    mat
+  })
+  coef_index <- do.call(rbind, lapply(seq_along(re_names), function(i) {
+    data.frame(
+      re_component = re_names[[i]],
+      covariate    = colnames(mats[[i]]),
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(coef_index) <- NULL
+  stacked <- do.call(cbind, mats)
+  lbl <- paste(coef_index$re_component, coef_index$covariate, sep = " | ")
+  cov_mat <- stats::cov(stacked)
+  dimnames(cov_mat) <- list(lbl, lbl)
+  list(cov = cov_mat, coef_index = coef_index)
+}
+
 #' Chain-mean Block~1 \code{b} by state (\code{J x p_re})
 #' @noRd
 .two_block_sweep_ranef_chain_mean <- function(b, group_levels, re_names) {

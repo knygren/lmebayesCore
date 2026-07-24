@@ -120,6 +120,50 @@ lmerb_posterior_mean <- function(design,
   )
 }
 
+#' Exact posterior covariance of the stacked Block~2 hyperparameter vector
+#'
+#' @description
+#' Companion to \code{\link{lmerb_posterior_mean}}: instead of solving for the
+#' posterior mean of the stacked Block~2 hyperparameter vector
+#' \code{gamma_full}, returns its exact posterior \emph{covariance}
+#' \eqn{\Sigma_{11} = M^{-1}}, where \code{M} (the Schur-complement system's
+#' posterior precision of \code{gamma_full}) is built by the package-internal
+#' \code{.lmerb_posterior_normal_system()}. This is the \eqn{\Sigma_{11}}
+#' of Claim~3 in the two-block Gibbs ergodicity reference (see
+#' \code{\link{plot_sweep_history_var_ratio}}): the exact target covariance
+#' that a two-block Gibbs sampler's cross-chain covariance converges to as the
+#' number of inner sweeps grows.
+#'
+#' Only meaningful when \code{measurement_prior_list$dispersion_ranef} and
+#' \code{measurement_prior_list$Sigma_ranef} are both \emph{fixed} (not
+#' sampled) -- i.e. the same restriction as
+#' \code{.lmerb_posterior_normal_system()} itself. For models with
+#' estimated dispersion or estimated random-effect variance components, no
+#' single exact \eqn{\Sigma_{11}} exists (it would vary by posterior draw);
+#' use the empirical cross-chain covariance instead (see
+#' \code{\link{plot_sweep_history_var_ratio}}'s fallback).
+#'
+#' @inheritParams lmerb_posterior_mean
+#' @return A \code{P_total x P_total} covariance matrix (\code{P_total} = the
+#'   total Block~2 hyperparameter count, summed over RE components), dimnamed
+#'   \code{"re_component | covariate"} in the same stacking order as the
+#'   package-internal \code{.two_block_snapshot_fixef_cov()}'s \code{coef_index}.
+#' @seealso \code{\link{lmerb_posterior_mean}}
+#' @export
+lmerb_posterior_covariance <- function(design, measurement_prior_list) {
+  .lmerb_validate_design(design)
+  .lmerb_validate_measurement_prior_list(measurement_prior_list)
+
+  system <- .lmerb_posterior_normal_system(design, measurement_prior_list)
+  Sigma  <- solve(system$M)
+
+  lbl <- unlist(lapply(system$re_names, function(k) {
+    paste(k, colnames(design$X_hyper[[k]]), sep = " | ")
+  }), use.names = FALSE)
+  dimnames(Sigma) <- list(lbl, lbl)
+  Sigma
+}
+
 #' Shared Schur-complement linear system for the exact two-block Gaussian posterior
 #'
 #' Builds the pieces of the exact joint Gaussian posterior over
