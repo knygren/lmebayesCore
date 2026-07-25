@@ -23,6 +23,8 @@ plot_mean_convergence(hist, ...)
   n_chains = NULL,
   conf_level = 0.95,
   stage_label = hist$stage,
+  split = c("auto", "none"),
+  max_whitened = 4L,
   ...
 )
 
@@ -87,7 +89,7 @@ plot_mean_convergence(hist, ...)
 )
 }
 \arguments{
-\item{hist, coef_focus, engine, n_chains, conf_level}{Same meaning as in \code{\link{plot_var_convergence}}.}
+\item{hist, coef_focus, engine, n_chains, conf_level, split, max_whitened}{Same meaning as in \code{\link{plot_var_convergence}}.}
 
 \item{...}{Passed to methods; see \code{\link{plot_mean_convergence.default}}.}
 

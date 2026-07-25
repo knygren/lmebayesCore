@@ -118,11 +118,13 @@
 #' when the caller omits it entirely (\code{missing(n_chains)}); explicitly
 #' passing \code{n_chains = NULL} still means "no band" (forwarded as-is to
 #' \code{default_fn}), matching \code{\link{plot_var_convergence.default}}'s
-#' own convention.
+#' own convention. \code{...} (e.g. \code{split}, \code{max_whitened}) is
+#' forwarded to \code{default_fn} as-is, so fit-object methods need not
+#' repeat every \code{.default}-only formal in their own signature.
 #' @noRd
 .lmebayes_convergence_from_fit <- function(
     fit, default_fn, coef_focus, whitened, engine, n_chains, has_n_chains,
-    conf_level, stage, stage_label
+    conf_level, stage, stage_label, ...
 ) {
   inputs <- .lmebayes_convergence_inputs(fit, stage = stage)
   if (!has_n_chains) {
@@ -140,7 +142,8 @@
     engine                 = engine,
     n_chains               = n_chains,
     conf_level             = conf_level,
-    stage_label            = stage_label
+    stage_label            = stage_label,
+    ...
   )
 }
 
@@ -172,7 +175,8 @@ plot_var_convergence.rLMMNormal_reg <- function(
     coef_focus = coef_focus, whitened = whitened, engine = engine,
     n_chains = if (missing(n_chains)) NULL else n_chains,
     has_n_chains = !missing(n_chains),
-    conf_level = conf_level, stage = stage, stage_label = stage_label
+    conf_level = conf_level, stage = stage, stage_label = stage_label,
+    ...
   )
 }
 
@@ -221,7 +225,8 @@ plot_mean_convergence.rLMMNormal_reg <- function(
     coef_focus = coef_focus, whitened = whitened, engine = engine,
     n_chains = if (missing(n_chains)) NULL else n_chains,
     has_n_chains = !missing(n_chains),
-    conf_level = conf_level, stage = stage, stage_label = stage_label
+    conf_level = conf_level, stage = stage, stage_label = stage_label,
+    ...
   )
 }
 

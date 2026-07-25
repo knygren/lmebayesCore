@@ -1,6 +1,10 @@
 ## Smoke test: plot_var_convergence()/plot_mean_convergence()/
 ## plot_sweep_history_diag() fit-object S3 methods (rLMMNormal_reg,
-## rLMMindepNormalGamma_reg, rGLMM_reg, rlmerb, rglmerb).
+## rLMMindepNormalGamma_reg, rGLMM_reg, rlmerb, rglmerb), plus the
+## split/max_whitened per-group-plot behaviour (each split group is its own
+## chart/page, never stacked via layout()/mfrow across groups) and its
+## '...' forwarding from the fit-object methods down to the .default
+## methods via .lmebayes_convergence_from_fit().
 devtools::load_all(".", quiet = TRUE)
 
 set.seed(42)
@@ -46,6 +50,55 @@ plot_sweep_history_diag(fit1, coef_focus = list(c("(Intercept)", "(Intercept)"),
 grDevices::dev.off()
 cat("fit1 (rLMMNormal_reg_known_vcov, exact ref) OK\n\n")
 
+## --- split = "auto" (default) vs split = "none": fit1 has one
+## Intercept-side and one slope-side Block-2 fixed effect, so the default
+## split produces two separate chart pages (via .lmebayes_convergence_
+## from_fit()'s '...' forwarding down to plot_var_convergence.default()),
+## while split = "none" restores the single-combined-chart page. Uses a
+## multi-page pdf() device (unlike png()) so both pages are actually kept.
+pdf(file.path(out_dir, "s3_var_fit1_split_auto.pdf"))
+plot_var_convergence(fit1)                  # split = "auto" (default) -> 2 pages
+grDevices::dev.off()
+pdf(file.path(out_dir, "s3_var_fit1_split_none.pdf"))
+plot_var_convergence(fit1, split = "none")  # single combined chart -> 1 page
+grDevices::dev.off()
+pdf(file.path(out_dir, "s3_mean_fit1_split_auto.pdf"))
+plot_mean_convergence(fit1)
+grDevices::dev.off()
+cat("fit1 split = 'auto' vs 'none' (via '...' forwarding on the S3 method) OK\n\n")
+
+## --- .convergence_split_coef_focus(): grouping logic on synthetic keys ---
+split_coef_focus <- lmebayesCore:::.convergence_split_coef_focus
+keys_mixed <- data.frame(
+  re_component = c("(Intercept)", "(Intercept)", "x1", "x2"),
+  covariate    = c("(Intercept)", "z1", "(Intercept)", "(Intercept)"),
+  stringsAsFactors = FALSE
+)
+g_mixed <- split_coef_focus(keys_mixed)
+stopifnot(
+  identical(names(g_mixed), c("Intercept predictors", "Slope predictors")),
+  length(g_mixed[["Intercept predictors"]]) == 2L,
+  length(g_mixed[["Slope predictors"]]) == 2L
+)
+keys_icpt_only <- keys_mixed[keys_mixed$re_component == "(Intercept)", , drop = FALSE]
+g_icpt_only <- split_coef_focus(keys_icpt_only)
+stopifnot(identical(names(g_icpt_only), ""), length(g_icpt_only[[1L]]) == 2L)
+cat(".convergence_split_coef_focus() grouping OK\n\n")
+
+## --- .convergence_split_whitened(): batches of at most max_per_plot -----
+split_whitened <- lmebayesCore:::.convergence_split_whitened
+series7 <- stats::setNames(as.list(seq_len(7L)), paste0("var", seq_len(7L)))
+g7 <- split_whitened(series7, 4L)
+stopifnot(
+  identical(names(g7), c("var1-var4", "var5-var7")),
+  length(g7[["var1-var4"]]) == 4L,
+  length(g7[["var5-var7"]]) == 3L
+)
+series3 <- stats::setNames(as.list(seq_len(3L)), paste0("var", seq_len(3L)))
+g3 <- split_whitened(series3, 4L)
+stopifnot(identical(names(g3), ""), length(g3[[1L]]) == 3L)
+cat(".convergence_split_whitened() batching OK\n\n")
+
 ## --- rLMMNormal_reg_known_vcov(DEFAULT): no sweep_history -> clear error --
 fit1b <- rLMMNormal_reg_known_vcov(
   n = 30L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
@@ -66,6 +119,14 @@ fit2 <- rLMMNormal_reg_estimated_vcov(
 stopifnot(!lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit2))
 png_dev("s3_var_fit2.png"); plot_var_convergence(fit2, n_chains = 5L); grDevices::dev.off()
 cat("fit2 (rLMMNormal_reg_estimated_vcov, empirical fallback) OK\n\n")
+
+## --- whitened = TRUE end-to-end, forcing a split via max_whitened (P = 2
+## Block-2 fixed effects here, so max_whitened = 1 forces exactly 2 pages,
+## each its own separate chart -- never one page with two stacked panels). -
+pdf(file.path(out_dir, "s3_var_fit2_whitened_split.pdf"))
+plot_var_convergence(fit2, whitened = TRUE, n_chains = 5L, max_whitened = 1L)
+grDevices::dev.off()
+cat("fit2 whitened = TRUE, max_whitened = 1 (forced split) OK\n\n")
 
 ## --- rlmerb(): same underlying engine as fit1, via the model_setup()/
 ## Prior_Setup_lmebayes() pipeline; result_class is lost (class == "rlmerb")

@@ -86,6 +86,20 @@
 #' @param conf_level Confidence level for the \code{n_chains} band (default
 #'   \code{0.95}); ignored when \code{n_chains} is \code{NULL}.
 #' @param stage_label Character label for the title; defaults to \code{hist$stage}.
+#' @param split \code{"auto"} (default) or \code{"none"}. \code{"auto"} draws
+#'   one \emph{separate} chart -- its own plot page/window, never stacked via
+#'   \code{\link[graphics]{layout}}/\code{par(mfrow = ...)} on top of another
+#'   -- per group: for \code{whitened = FALSE}, one chart for every
+#'   coefficient whose \code{re_component} is \code{"(Intercept)"}
+#'   ("Intercept predictors") and one for every other \code{re_component}
+#'   combined ("Slope predictors"), whichever of the two is non-empty; for
+#'   \code{whitened = TRUE}, consecutive batches of at most
+#'   \code{max_whitened} eigenvalues each. \code{"none"} restores the
+#'   single-combined-chart behaviour (every tracked coefficient/eigenvalue
+#'   overlaid on one panel), same as before \code{split} existed.
+#' @param max_whitened Maximum number of eigenvalue series per chart when
+#'   \code{whitened = TRUE} and \code{split = "auto"} (default \code{4});
+#'   ignored otherwise.
 #' @return \code{hist} invisibly.
 #' @details
 #' \code{n_chains} is not stored on \code{hist} itself, so it must be
@@ -118,6 +132,8 @@ plot_var_convergence.default <- function(
     n_chains = NULL,
     conf_level = 0.95,
     stage_label = hist$stage,
+    split = c("auto", "none"),
+    max_whitened = 4L,
     ...
 ) {
   if (!inherits(hist, "two_block_sweep_history")) {
@@ -128,6 +144,7 @@ plot_var_convergence.default <- function(
     )
   }
   engine <- match.arg(engine)
+  split  <- match.arg(split)
   stage_label <- as.character(stage_label)[1L]
   if (!nzchar(stage_label)) {
     stage_label <- if (!is.null(hist$stage)) hist$stage else "stage"
@@ -158,20 +175,23 @@ plot_var_convergence.default <- function(
   band <- .convergence_var_band(n_chains, conf_level, identical(ref_source, "exact"))
 
   if (isTRUE(whitened)) {
-    var_ratio <- .convergence_var_whitened_series(hist, coef_focus, exact_ref)
+    var_ratio_full <- .convergence_var_whitened_series(hist, coef_focus, exact_ref)
     ylab <- "Whitened variance ratio (eigenvalue)"
     sub <- sprintf(
       "(whitened cross-chain covariance eigenvalues; reference = %s; Claim 3: I - A^(2l))",
       ref_source
     )
+    groups <- .convergence_whitened_groups(var_ratio_full, split, max_whitened)
   } else {
-    var_ratio <- .convergence_var_named_series(sh_sweeps, coef_focus, exact_ref)
     ylab <- if (identical(ref_source, "exact")) {
       "Var / Var_exact ratio"
     } else {
       "Var / Var_final ratio"
     }
     sub <- sprintf("(cross-chain variance from sweep history; reference = %s)", ref_source)
+    groups <- .convergence_named_groups(
+      sh_sweeps, coef_focus, exact_ref, .convergence_var_named_series, split
+    )
   }
   if (!is.null(band)) {
     ref_note <- if (identical(ref_source, "exact")) {
@@ -189,8 +209,9 @@ plot_var_convergence.default <- function(
     )
   }
 
-  cat(sprintf("\n=== %s sweep history (%s; %s) ===\n\n", stage_label, ylab, engine))
-  .convergence_render(var_ratio, stage_label, ylab, sub, engine, band, ref_line = 1, floor_at_ref = TRUE)
+  .convergence_render_groups(
+    groups, stage_label, ylab, sub, engine, band, ref_line = 1, floor_at_ref = TRUE
+  )
 
   invisible(hist)
 }
@@ -210,7 +231,7 @@ plot_var_convergence.default <- function(
 #' on one chart and \code{Z(l)} is expected to shrink toward 0 as \code{l}
 #' grows.
 #'
-#' @param hist,coef_focus,engine,n_chains,conf_level
+#' @param hist,coef_focus,engine,n_chains,conf_level,split,max_whitened
 #'   Same meaning as in \code{\link{plot_var_convergence}}.
 #' @param design,measurement_prior_list When both are supplied, the exact
 #'   reference \emph{mean} is resolved automatically via
@@ -249,6 +270,8 @@ plot_mean_convergence.default <- function(
     n_chains = NULL,
     conf_level = 0.95,
     stage_label = hist$stage,
+    split = c("auto", "none"),
+    max_whitened = 4L,
     ...
 ) {
   if (!inherits(hist, "two_block_sweep_history")) {
@@ -259,6 +282,7 @@ plot_mean_convergence.default <- function(
     )
   }
   engine <- match.arg(engine)
+  split  <- match.arg(split)
   stage_label <- as.character(stage_label)[1L]
   if (!nzchar(stage_label)) {
     stage_label <- if (!is.null(hist$stage)) hist$stage else "stage"
@@ -295,16 +319,15 @@ plot_mean_convergence.default <- function(
   band <- .convergence_mean_band(n_chains, conf_level, identical(ref_source, "exact"))
 
   if (isTRUE(whitened)) {
-    z_series <- .convergence_mean_whitened_series(hist, coef_focus, exact_ref)
+    z_series_full <- .convergence_mean_whitened_series(hist, coef_focus, exact_ref)
     ylab <- "Whitened mean deviation (z-score)"
     sub <- sprintf(
       "(whitened cross-chain mean deviation; reference = %s; Claim 1: A^l bias decay)",
       ref_source
     )
+    groups <- .convergence_whitened_groups(z_series_full, split, max_whitened)
   } else {
-    z_series <- .convergence_mean_named_series(
-      sh_sweeps, coef_focus, if (!is.null(exact_ref)) exact_ref$mean else NULL
-    )
+    exact_ref_mean <- if (!is.null(exact_ref)) exact_ref$mean else NULL
     ylab <- if (identical(ref_source, "exact")) {
       "(mean - mean_exact) / SD"
     } else {
@@ -313,6 +336,9 @@ plot_mean_convergence.default <- function(
     sub <- sprintf(
       "(cross-chain mean deviation, standardized by cross-chain SD; reference = %s)",
       ref_source
+    )
+    groups <- .convergence_named_groups(
+      sh_sweeps, coef_focus, exact_ref_mean, .convergence_mean_named_series, split
     )
   }
   if (!is.null(band)) {
@@ -331,8 +357,9 @@ plot_mean_convergence.default <- function(
     )
   }
 
-  cat(sprintf("\n=== %s sweep history (%s; %s) ===\n\n", stage_label, ylab, engine))
-  .convergence_render(z_series, stage_label, ylab, sub, engine, band, ref_line = 0, floor_at_ref = FALSE)
+  .convergence_render_groups(
+    groups, stage_label, ylab, sub, engine, band, ref_line = 0, floor_at_ref = FALSE
+  )
 
   invisible(hist)
 }
@@ -690,6 +717,121 @@ plot_mean_convergence.default <- function(
     }),
     z_names
   )
+}
+
+#' Split resolved \code{(re_component, covariate)} keys into per-plot groups
+#'
+#' Two-block Gibbs models with a random intercept plus one or more random
+#' slopes naturally split into (a) the intercept's own hyper-predictors and
+#' (b) every slope's hyper-predictors combined -- keeping each chart's
+#' traces/legend legible instead of cramming every coefficient (e.g. 7+
+#' series) onto one panel. Returns a named list of \code{coef_focus}-style
+#' lists (one \code{c(re_component, covariate)} pair per row of that
+#' group's keys); the name is the group's plot-title suffix. When every key
+#' already shares the same intercept/non-intercept status (so there is only
+#' one non-empty group), returns a single unnamed (\code{""}) group,
+#' signalling "no real split" to the caller.
+#' @noRd
+.convergence_split_coef_focus <- function(keys) {
+  to_coef_focus <- function(k) {
+    lapply(seq_len(nrow(k)), function(i) c(k$re_component[i], k$covariate[i]))
+  }
+  is_icpt <- keys$re_component == "(Intercept)"
+  groups <- list()
+  if (any(is_icpt)) {
+    groups[["Intercept predictors"]] <- to_coef_focus(keys[is_icpt, , drop = FALSE])
+  }
+  if (any(!is_icpt)) {
+    groups[["Slope predictors"]] <- to_coef_focus(keys[!is_icpt, , drop = FALSE])
+  }
+  if (length(groups) <= 1L) {
+    return(stats::setNames(list(to_coef_focus(keys)), ""))
+  }
+  groups
+}
+
+#' Chunk a whitened series list (\code{var1, var2, ...}/\code{z1, z2, ...})
+#' into consecutive groups of at most \code{max_per_plot} components
+#'
+#' Unlike \code{\link{.convergence_split_coef_focus}}, splitting happens
+#' \emph{after} the full eigen-decomposition (over every tracked coefficient
+#' jointly, as Claim~3/Claim~1 require) rather than by re-running it on a
+#' subset -- this only chunks the already-computed eigenvalue/whitened-
+#' component series for legibility, it never changes their values. Returns
+#' \code{list(series)} unnamed (\code{""}, "no real split") when
+#' \code{length(series) <= max_per_plot}.
+#' @noRd
+.convergence_split_whitened <- function(series, max_per_plot) {
+  p <- length(series)
+  if (!p) {
+    return(list())
+  }
+  if (p <= max_per_plot) {
+    return(stats::setNames(list(series), ""))
+  }
+  idx <- split(seq_len(p), ceiling(seq_len(p) / max_per_plot))
+  groups <- lapply(idx, function(ix) series[ix])
+  labels <- vapply(idx, function(ix) {
+    if (length(ix) > 1L) {
+      paste0(names(series)[ix[1L]], "-", names(series)[ix[length(ix)]])
+    } else {
+      names(series)[ix]
+    }
+  }, character(1L))
+  stats::setNames(groups, labels)
+}
+
+#' Build the named-coefficient series for every split group (shared by
+#' \code{\link{plot_var_convergence.default}}/
+#' \code{\link{plot_mean_convergence.default}})
+#'
+#' \code{split = "none"} skips grouping entirely and calls \code{series_fn}
+#' once on the original (unsplit) \code{coef_focus}, i.e. the pre-\code{split}
+#' single-combined-chart behaviour.
+#' @noRd
+.convergence_named_groups <- function(sh_sweeps, coef_focus, exact_ref, series_fn, split) {
+  if (identical(split, "none")) {
+    return(stats::setNames(list(series_fn(sh_sweeps, coef_focus, exact_ref)), ""))
+  }
+  keys <- .convergence_resolve_keys(coef_focus, sh_sweeps)
+  coef_focus_groups <- .convergence_split_coef_focus(keys)
+  stats::setNames(
+    lapply(coef_focus_groups, function(cf) series_fn(sh_sweeps, cf, exact_ref)),
+    names(coef_focus_groups)
+  )
+}
+
+#' Split an already-computed whitened series list into per-plot groups
+#' (shared by \code{\link{plot_var_convergence.default}}/
+#' \code{\link{plot_mean_convergence.default}})
+#' @noRd
+.convergence_whitened_groups <- function(series_full, split, max_whitened) {
+  if (identical(split, "none")) {
+    return(stats::setNames(list(series_full), ""))
+  }
+  .convergence_split_whitened(series_full, max_whitened)
+}
+
+#' Render every split group as its own separate combined chart
+#'
+#' Each group gets its own \code{\link{.convergence_render}} call in
+#' sequence -- never wrapped in a shared \code{\link[graphics]{layout}}/
+#' \code{par(mfrow = ...)} across groups -- so on an interactive/on-screen
+#' device each group's chart lands on its own plot page (never stacked
+#' underneath another group's chart on the same page), and on a multi-page
+#' file device (e.g. \code{\link[grDevices]{pdf}}) each group becomes its
+#' own page.
+#' @noRd
+.convergence_render_groups <- function(groups, stage_label, ylab, sub, engine, band,
+                                        ref_line, floor_at_ref) {
+  for (g in names(groups)) {
+    stage_label_g <- if (nzchar(g)) paste0(stage_label, " -- ", g) else stage_label
+    cat(sprintf("\n=== %s sweep history (%s; %s) ===\n\n", stage_label_g, ylab, engine))
+    .convergence_render(
+      groups[[g]], stage_label_g, ylab, sub, engine, band, ref_line, floor_at_ref
+    )
+  }
+  invisible(NULL)
 }
 
 #' Render one combined convergence chart (base or ggplot)

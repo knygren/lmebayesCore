@@ -57,6 +57,18 @@
       band, which had hardcoded the main-stage `n_chains = 3000` for both
       stages even though its pilot stage actually runs a different,
       `gap_tol`-calibrated chain count.
+    - New `split`/`max_whitened` arguments on `plot_var_convergence()`/
+      `plot_mean_convergence()` (and forwarded through `...` on every
+      fit-object method above). `split = "auto"` (the new default) draws
+      one *separate* chart per group -- its own plot page/window, never
+      combined via `layout()`/`par(mfrow = ...)` into one page -- instead
+      of a single chart with every coefficient/eigenvalue overlaid:
+      for named-coefficient mode, one chart for the intercept's own
+      hyper-predictors ("Intercept predictors") and one for every other
+      random-effect component's hyper-predictors combined ("Slope
+      predictors"); for `whitened = TRUE`, consecutive batches of at most
+      `max_whitened` eigenvalues each (default `4`). `split = "none"`
+      restores the previous single-combined-chart behavior.
 
 * **Bug fix: `plot_var_convergence(..., engine = "base")` could error
   with `Error in graphics::par(old_par) : invalid value specified for

@@ -23,6 +23,8 @@ plot_var_convergence(hist, ...)
   n_chains = NULL,
   conf_level = 0.95,
   stage_label = hist$stage,
+  split = c("auto", "none"),
+  max_whitened = 4L,
   ...
 )
 
@@ -173,6 +175,22 @@ default, \code{NULL}) to skip the band entirely.}
 
 \item{stage_label}{Defaults to the resolved \code{hist$stage}; pass
 explicitly to override.}
+
+\item{split}{\code{"auto"} (default) or \code{"none"}. \code{"auto"} draws
+one \emph{separate} chart -- its own plot page/window, never stacked via
+\code{\link[graphics]{layout}}/\code{par(mfrow = ...)} on top of another
+-- per group: for \code{whitened = FALSE}, one chart for every
+coefficient whose \code{re_component} is \code{"(Intercept)"}
+("Intercept predictors") and one for every other \code{re_component}
+combined ("Slope predictors"), whichever of the two is non-empty; for
+\code{whitened = TRUE}, consecutive batches of at most
+\code{max_whitened} eigenvalues each. \code{"none"} restores the
+single-combined-chart behaviour (every tracked coefficient/eigenvalue
+overlaid on one panel), same as before \code{split} existed.}
+
+\item{max_whitened}{Maximum number of eigenvalue series per chart when
+\code{whitened = TRUE} and \code{split = "auto"} (default \code{4});
+ignored otherwise.}
 
 \item{stage}{\code{"main"} (default) or \code{"pilot"} -- which sweep
 history to plot (\code{fit$sweep_history} or
