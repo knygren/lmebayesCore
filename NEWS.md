@@ -33,6 +33,37 @@
       "Hyper-Design Rank" section now labels the restriction set "estimable"
       rather than "full-rank".
 
+* **The per-group estimability check (`re_estimable`/`re_glm_check`) now
+  also covers `poisson()` and `Gamma()`, and `gaussian()` gains a
+  residual-degrees-of-freedom check.**
+    - `poisson()`: an algebraically full-rank group with an all-zero count
+      response is flagged `re_estimable = FALSE` (log-link intercept MLE
+      diverges to `-Inf`), otherwise the usual classical-`glm`
+      fit/coefficient/`vcov` finiteness checks apply (as for `binomial()`).
+    - `Gamma()`: a group with any non-positive response value is flagged
+      `re_estimable = FALSE` (invalid domain for `Gamma()`); a group with
+      `n_j <= p_j` (no residual degrees of freedom) is also flagged
+      `re_estimable = FALSE`, since the dispersion/shape parameter would not
+      be estimable even though the mean-model MLE exists.
+    - `gaussian()`: **behavior change.** Previously `re_estimable` was set
+      equal to `re_rank` unconditionally. A classical OLS coefficient MLE
+      always exists given full column rank, but the group-level residual
+      *dispersion* additionally requires `n_j > p_j`; a full-rank group with
+      `n_j <= p_j` (a perfect/saturated fit) is now flagged
+      `re_estimable = FALSE`. No `lm()`/`glm()` fit is attempted for
+      `gaussian()` -- this is a cheap arithmetic check on already-known
+      `n_j`/`p_j`. `re_glm_check` is therefore no longer always `NULL` for
+      `gaussian()`.
+    - This can change `hyper_rank`/`hyper_deficient`/`rank_ok` for
+      `Gamma()`/`gaussian()` models with small per-group sample sizes
+      relative to the number of random-effect predictors, since
+      non-estimable groups no longer count toward Level~2 identifiability.
+    - `print.model_setup()`/`print.lmebayes_prior_setup()`'s "Full-rank with
+      glm MLE" line is renamed "Full-rank & estimable" and now fires for any
+      family with a non-`NULL` `re_glm_check` (not just `binomial()`).
+    - `quasipoisson()`/`quasibinomial()` and other families are unchanged
+      (`re_estimable == re_rank`, `re_glm_check = NULL`).
+
 * **New: `plot_mean_convergence()`, and fit-object (S3) methods for
   `plot_var_convergence()`/`plot_mean_convergence()`/`plot_sweep_history_diag()`.**
     - `plot_mean_convergence()` is the mean-bias companion to

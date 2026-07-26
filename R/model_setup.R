@@ -44,25 +44,38 @@
 #'     checked for full column rank (\code{re_rank}).  A rank-deficient group
 #'     has too few distinct observations to estimate all random slopes
 #'     independently; its BLUPs are identified through the prior rather than
-#'     the data alone.  For \code{family = binomial()}, algebraically
-#'     full-rank groups are additionally checked for classical-\code{glm} MLE
-#'     existence (\code{re_estimable}, with per-group detail in
-#'     \code{re_glm_check}): a group can be full column rank yet have no
-#'     finite MLE under complete or quasi-complete separation, in which case
-#'     it likewise supplies no real information from the data alone. Other
-#'     families currently set \code{re_estimable} equal to \code{re_rank} (no
-#'     glm check yet). Such groups are flagged but retained in the
+#'     the data alone.  Algebraically full-rank groups are then additionally
+#'     checked for estimability (\code{re_estimable}, with per-group detail
+#'     in \code{re_glm_check}), with the specific check depending on
+#'     \code{family}:
+#'     \itemize{
+#'       \item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a
+#'         classical \code{glm(y ~ Z_j - 1, family)} fit is attempted; a
+#'         group can be full column rank yet have no finite MLE under
+#'         complete or quasi-complete separation (\code{binomial}), an
+#'         all-zero count response (\code{poisson}), or a non-positive
+#'         response (\code{Gamma}) -- \code{Gamma} groups are additionally
+#'         required to have \code{n_j > p_j} so the dispersion/shape
+#'         parameter is estimable.
+#'       \item \code{gaussian()}: no fit is attempted (the OLS coefficient
+#'         MLE always exists given full column rank), but the group must
+#'         still have \code{n_j > p_j} so the residual variance/dispersion
+#'         is estimable (otherwise the group achieves a perfect/saturated
+#'         fit with zero residual degrees of freedom).
+#'       \item other families: \code{re_estimable} is set equal to
+#'         \code{re_rank} (no additional check yet).
+#'     }
+#'     Non-estimable groups are flagged but retained in the
 #'     \code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
 #'     excludes them when calibrating priors.
 #'
 #'   \item \emph{Level 2 (across-group):}  Restricting to the \strong{estimable}
-#'     groups from Step 1 (\code{re_estimable} -- full column rank, and for
-#'     \code{family = binomial()} a finite classical-glm MLE), each
-#'     hyper-design matrix \code{X_hyper[[k]]} is checked for full column rank
-#'     (\code{hyper_rank}).  Rank deficiency at this level means the level-2
-#'     hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior means for
-#'     random-effect coefficient \eqn{k} across groups---are not identified by
-#'     the data, even as the number of estimable groups grows.
+#'     groups from Step 1 (\code{re_estimable}), each hyper-design matrix
+#'     \code{X_hyper[[k]]} is checked for full column rank (\code{hyper_rank}).
+#'     Rank deficiency at this level means the level-2 hyperparameters
+#'     \eqn{\boldsymbol{\mu}_k}---the prior means for random-effect
+#'     coefficient \eqn{k} across groups---are not identified by the data,
+#'     even as the number of estimable groups grows.
 #' }
 #'
 #' The scalar \code{rank_ok} is \code{TRUE} only when every
@@ -109,10 +122,12 @@
 #'   \code{varcorr}, \code{vcov_re}, \code{residual_var}; \code{re_rank}
 #'   (named logical vector: \code{TRUE} if \code{Z_j} is full column rank for
 #'   that group); \code{re_estimable} (named logical vector: \code{TRUE} if
-#'   the group is additionally classical-glm estimable -- equal to
-#'   \code{re_rank} except for \code{family = binomial()}) and
-#'   \code{re_glm_check} (per-group binomial glm diagnostic data frame, or
-#'   \code{NULL} for other families); \code{hyper_rank} (named logical vector
+#'   the group is additionally estimable -- classical-glm MLE existence for
+#'   \code{binomial()}/\code{poisson()}/\code{Gamma()}, residual degrees of
+#'   freedom (\code{n_j > p_j}) for \code{gaussian()}, and equal to
+#'   \code{re_rank} for other families) and \code{re_glm_check} (per-group
+#'   diagnostic data frame for the families above, or \code{NULL} otherwise);
+#'   \code{hyper_rank} (named logical vector
 #'   per RE coefficient, restricted to \code{re_estimable} groups),
 #'   \code{hyper_deficient} (its negation), and \code{rank_ok} (scalar,
 #'   \code{TRUE} only when every \code{hyper_rank} entry is \code{TRUE}).
@@ -229,13 +244,16 @@ model_setup <- function(
     logical(1L)
   )
 
-  # Per-group classical-glm MLE existence (binomial only for now; other
-  # families mirror re_rank -- see .lmebayes_block_glm_estimable()). Must run
-  # before the hyper-design check below, since Level 2 restricts to
-  # *estimable* groups, not merely algebraically full-rank ones: a group can
-  # be full column rank yet still have no finite classical-glm MLE (complete
-  # or quasi-complete separation), in which case it supplies no real
-  # information about its random-effect coefficients either.
+  # Per-group estimability: classical-glm MLE existence for
+  # binomial/poisson/Gamma, residual-df-for-dispersion for gaussian, and
+  # re_rank passthrough for other families -- see
+  # .lmebayes_block_glm_estimable(). Must run before the hyper-design check
+  # below, since Level 2 restricts to *estimable* groups, not merely
+  # algebraically full-rank ones: a group can be full column rank yet still
+  # not be estimable (complete/quasi-complete separation, an invalid
+  # response domain, or too few residual degrees of freedom for its
+  # dispersion), in which case it supplies no real information about its
+  # random-effect coefficients either.
   glm_est <- .lmebayes_block_glm_estimable(
     y       = design$y,
     groups  = design$groups,
@@ -248,10 +266,11 @@ model_setup <- function(
 
   # Hyper-design rank check: for each RE coefficient, is the level-2 design
   # matrix X_hyper[[nm]] full column rank when restricted to the *estimable*
-  # groups from Step 1?  Groups that are rank-deficient, or (for binomial)
-  # algebraically full-rank but without a finite classical-glm MLE, are
-  # excluded here as well -- the check reflects only groups that actually
-  # supply information about each RE.
+  # groups from Step 1?  Groups that are rank-deficient, or algebraically
+  # full-rank but not estimable (e.g. separation, invalid response domain,
+  # or too few residual degrees of freedom for dispersion), are excluded
+  # here as well -- the check reflects only groups that actually supply
+  # information about each RE.
   estimable_levs <- names(design$re_estimable)[design$re_estimable]
   design$hyper_rank <- vapply(
     design$re_coef_names,
@@ -280,12 +299,57 @@ model_setup <- function(
   design
 }
 
-#' Per-group classical glm MLE existence for binomial Block-1 design
+## Family-specific "quick reject" pre-check for classical GLM MLE existence
+## (or, for Gamma, dispersion estimability), evaluated *before* attempting
+## the per-group glm() fit.  Returns a single note string, or character(0)
+## if the group passes.  @noRd
+.lmebayes_glm_estimable_precheck <- function(fam_name, y_j, n_j, p_j) {
+  switch(
+    fam_name,
+    binomial = if (length(unique(y_j)) < 2L) "single outcome level",
+    poisson  = if (all(y_j == 0)) {
+      "all-zero response (MLE diverges under log link)"
+    },
+    Gamma = {
+      if (any(y_j <= 0)) {
+        "non-positive response (invalid for Gamma family)"
+      } else if (n_j <= p_j) {
+        "zero residual degrees of freedom for dispersion (n_j <= p_j)"
+      }
+    },
+    NULL
+  )
+}
+
+## Families for which a per-group glm() fit is attempted (mean-model MLE
+## existence, plus family-specific pre-checks above).
+.lmebayes_glm_fit_families <- c("binomial", "poisson", "Gamma")
+
+#' Per-group classical-GLM MLE / dispersion-estimability check for Block-1
 #'
-#' For each group with algebraically full-rank \code{Z_j}, fits
-#' \code{glm(y ~ Z_j - 1, family = binomial)} and marks the group estimable
-#' when all coefficients and \code{vcov} entries are finite.  Non-binomial
-#' families return \code{re_estimable = re_rank} (no glm check).
+#' For \code{binomial}, \code{poisson}, and \code{Gamma} families, fits
+#' \code{glm(y ~ Z_j - 1, family = family)} on each group with algebraically
+#' full-rank \code{Z_j} and marks the group estimable when a family-specific
+#' pre-check passes (see below) \emph{and} all coefficients and \code{vcov}
+#' entries from the fit are finite.  For \code{gaussian}, no fit is
+#' attempted -- the coefficient MLE (OLS) always exists given full column
+#' rank, but the group-level residual \emph{dispersion} additionally
+#' requires strictly more observations than parameters (\code{n_j > p_j});
+#' this is checked directly via arithmetic on \code{n_j}/\code{p_j}. Other
+#' families return \code{re_estimable = re_rank} (no check).
+#'
+#' Family-specific pre-checks (before any fit is attempted):
+#' \itemize{
+#'   \item \code{binomial}: single outcome level (complete/quasi-complete
+#'     separation).
+#'   \item \code{poisson}: all-zero response (log-link intercept MLE
+#'     diverges to \eqn{-\infty}).
+#'   \item \code{Gamma}: non-positive response (invalid domain), or
+#'     \code{n_j <= p_j} (no residual degrees of freedom for the
+#'     dispersion/shape parameter).
+#'   \item \code{gaussian}: \code{n_j <= p_j} (no residual degrees of
+#'     freedom for the variance).
+#' }
 #' @noRd
 .lmebayes_block_glm_estimable <- function(y, groups, Z, re_rank, family) {
   g_levs <- names(re_rank)
@@ -295,8 +359,12 @@ model_setup <- function(
   }
 
   re_estimable <- stats::setNames(rep(FALSE, length(g_levs)), g_levs)
+  fam_name <- family$family
 
-  if (!identical(family$family, "binomial")) {
+  is_fit_family <- fam_name %in% .lmebayes_glm_fit_families
+  is_gaussian   <- identical(fam_name, "gaussian")
+
+  if (!is_fit_family && !is_gaussian) {
     re_estimable[re_rank] <- TRUE
     return(list(
       re_estimable = re_estimable,
@@ -323,46 +391,56 @@ model_setup <- function(
 
     if (n_j < 2L) {
       note <- "fewer than 2 observations"
-    } else if (length(unique(y_j)) < 2L) {
-      note <- "single outcome level"
-    } else {
-      df_j <- data.frame(y = y_j, X_j, check.names = FALSE)
-      fit <- tryCatch(
-        suppressWarnings(
-          stats::glm(
-            y ~ . - 1,
-            data    = df_j,
-            family  = family,
-            control = stats::glm.control(maxit = 50L)
-          )
-        ),
-        error = function(e) e
-      )
-      if (inherits(fit, "error")) {
-        note <- conditionMessage(fit)
+    } else if (is_gaussian) {
+      ## OLS coefficient MLE always exists given full column rank; only the
+      ## residual degrees of freedom for the dispersion is at issue here --
+      ## no fit is attempted.
+      if (n_j <= p_j) {
+        note <- "zero residual degrees of freedom for dispersion (n_j <= p_j)"
       } else {
-        cf <- stats::coef(fit)
-        if (length(cf) != p_j) {
-          note <- sprintf(
-            "glm returned %d coefficient(s), expected %d",
-            length(cf), p_j
-          )
-        } else if (!isTRUE(fit$rank == p_j)) {
-          note <- sprintf("rank-deficient glm fit (rank %d, expected %d)",
-                          fit$rank, p_j)
-        } else if (any(is.na(cf))) {
-          note <- "NA coefficient(s)"
-        } else if (any(!is.finite(cf))) {
-          note <- "non-finite coefficient(s) (possible separation)"
+        estimable <- TRUE
+      }
+    } else {
+      note <- .lmebayes_glm_estimable_precheck(fam_name, y_j, n_j, p_j)
+      if (length(note) == 0L) {
+        df_j <- data.frame(y = y_j, X_j, check.names = FALSE)
+        fit <- tryCatch(
+          suppressWarnings(
+            stats::glm(
+              y ~ . - 1,
+              data    = df_j,
+              family  = family,
+              control = stats::glm.control(maxit = 50L)
+            )
+          ),
+          error = function(e) e
+        )
+        if (inherits(fit, "error")) {
+          note <- conditionMessage(fit)
         } else {
-          V_ok <- tryCatch({
-            V <- stats::vcov(fit)
-            is.matrix(V) && all(is.finite(V))
-          }, error = function(e) FALSE)
-          if (!isTRUE(V_ok)) {
-            note <- "vcov not finite (possible separation)"
+          cf <- stats::coef(fit)
+          if (length(cf) != p_j) {
+            note <- sprintf(
+              "glm returned %d coefficient(s), expected %d",
+              length(cf), p_j
+            )
+          } else if (!isTRUE(fit$rank == p_j)) {
+            note <- sprintf("rank-deficient glm fit (rank %d, expected %d)",
+                            fit$rank, p_j)
+          } else if (any(is.na(cf))) {
+            note <- "NA coefficient(s)"
+          } else if (any(!is.finite(cf))) {
+            note <- "non-finite coefficient(s) (possible separation)"
           } else {
-            estimable <- TRUE
+            V_ok <- tryCatch({
+              V <- stats::vcov(fit)
+              is.matrix(V) && all(is.finite(V))
+            }, error = function(e) FALSE)
+            if (!isTRUE(V_ok)) {
+              note <- "vcov not finite (possible separation)"
+            } else {
+              estimable <- TRUE
+            }
           }
         }
       }
@@ -518,10 +596,10 @@ print.model_setup <- function(x, ...) {
                   paste(shown, collapse = ", "), suffix))
     }
   }
-  if (identical(x$family$family, "binomial") && !is.null(x$re_estimable)) {
+  if (!is.null(x$re_glm_check) && !is.null(x$re_estimable)) {
     n_est <- sum(x$re_estimable[x$re_rank])
     cat(sprintf(
-      "  Full-rank with glm MLE: %d of %d full-rank (%d of %d total %s)\n",
+      "  Full-rank & estimable: %d of %d full-rank (%d of %d total %s)\n",
       n_est, n_full, n_est, n_lev, grp
     ))
     if (n_est < n_full) {
@@ -529,7 +607,7 @@ print.model_setup <- function(x, ...) {
       shown   <- not_est[seq_len(min(10L, length(not_est)))]
       suffix  <- if (length(not_est) > 10L)
         sprintf(", ... (%d more)", length(not_est) - 10L) else ""
-      cat(sprintf("    full-rank but not glm-estimable (separation): %s%s\n",
+      cat(sprintf("    full-rank but not estimable: %s%s\n",
                   paste(shown, collapse = ", "), suffix))
     }
   }

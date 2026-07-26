@@ -74,10 +74,12 @@ Object of class \code{"model_setup"}: \code{y}, \code{Z},
 \code{varcorr}, \code{vcov_re}, \code{residual_var}; \code{re_rank}
 (named logical vector: \code{TRUE} if \code{Z_j} is full column rank for
 that group); \code{re_estimable} (named logical vector: \code{TRUE} if
-the group is additionally classical-glm estimable -- equal to
-\code{re_rank} except for \code{family = binomial()}) and
-\code{re_glm_check} (per-group binomial glm diagnostic data frame, or
-\code{NULL} for other families); \code{hyper_rank} (named logical vector
+the group is additionally estimable -- classical-glm MLE existence for
+\code{binomial()}/\code{poisson()}/\code{Gamma()}, residual degrees of
+freedom (\code{n_j > p_j}) for \code{gaussian()}, and equal to
+\code{re_rank} for other families) and \code{re_glm_check} (per-group
+diagnostic data frame for the families above, or \code{NULL} otherwise);
+\code{hyper_rank} (named logical vector
 per RE coefficient, restricted to \code{re_estimable} groups),
 \code{hyper_deficient} (its negation), and \code{rank_ok} (scalar,
 \code{TRUE} only when every \code{hyper_rank} entry is \code{TRUE}).
@@ -127,25 +129,38 @@ within-group random-effects design submatrix \eqn{\mathbf{Z}_j} is
 checked for full column rank (\code{re_rank}).  A rank-deficient group
 has too few distinct observations to estimate all random slopes
 independently; its BLUPs are identified through the prior rather than
-the data alone.  For \code{family = binomial()}, algebraically
-full-rank groups are additionally checked for classical-\code{glm} MLE
-existence (\code{re_estimable}, with per-group detail in
-\code{re_glm_check}): a group can be full column rank yet have no
-finite MLE under complete or quasi-complete separation, in which case
-it likewise supplies no real information from the data alone. Other
-families currently set \code{re_estimable} equal to \code{re_rank} (no
-glm check yet). Such groups are flagged but retained in the
+the data alone.  Algebraically full-rank groups are then additionally
+checked for estimability (\code{re_estimable}, with per-group detail
+in \code{re_glm_check}), with the specific check depending on
+\code{family}:
+\itemize{
+\item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a
+classical \code{glm(y ~ Z_j - 1, family)} fit is attempted; a
+group can be full column rank yet have no finite MLE under
+complete or quasi-complete separation (\code{binomial}), an
+all-zero count response (\code{poisson}), or a non-positive
+response (\code{Gamma}) -- \code{Gamma} groups are additionally
+required to have \code{n_j > p_j} so the dispersion/shape
+parameter is estimable.
+\item \code{gaussian()}: no fit is attempted (the OLS coefficient
+MLE always exists given full column rank), but the group must
+still have \code{n_j > p_j} so the residual variance/dispersion
+is estimable (otherwise the group achieves a perfect/saturated
+fit with zero residual degrees of freedom).
+\item other families: \code{re_estimable} is set equal to
+\code{re_rank} (no additional check yet).
+}
+Non-estimable groups are flagged but retained in the
 \code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
 excludes them when calibrating priors.
 
 \item \emph{Level 2 (across-group):}  Restricting to the \strong{estimable}
-groups from Step 1 (\code{re_estimable} -- full column rank, and for
-\code{family = binomial()} a finite classical-glm MLE), each
-hyper-design matrix \code{X_hyper[[k]]} is checked for full column rank
-(\code{hyper_rank}).  Rank deficiency at this level means the level-2
-hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior means for
-random-effect coefficient \eqn{k} across groups---are not identified by
-the data, even as the number of estimable groups grows.
+groups from Step 1 (\code{re_estimable}), each hyper-design matrix
+\code{X_hyper[[k]]} is checked for full column rank (\code{hyper_rank}).
+Rank deficiency at this level means the level-2 hyperparameters
+\eqn{\boldsymbol{\mu}_k}---the prior means for random-effect
+coefficient \eqn{k} across groups---are not identified by the data,
+even as the number of estimable groups grows.
 }
 
 The scalar \code{rank_ok} is \code{TRUE} only when every

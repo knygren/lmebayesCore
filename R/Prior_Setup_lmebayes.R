@@ -3,10 +3,12 @@
 #' Calibrates priors for the level-2 fixed effects (\code{fixef}) of a
 #' hierarchical mixed model using the reference \code{lmer}/\code{glmer} fits
 #' on \strong{all} groups (from \code{\link{model_setup}}).  Per-group design
-#' rank (\code{re_rank}) and, for \code{family = binomial()}, per-group
-#' classical-\code{glm} MLE existence (\code{re_estimable}) are diagnostic
-#' checks computed by \code{\link{model_setup}} and do not subset the data or
-#' the reference \code{glmer} fit.  Random-effect variances are
+#' rank (\code{re_rank}) and estimability (\code{re_estimable} --
+#' classical-\code{glm} MLE existence for \code{family =
+#' binomial()}/\code{poisson()}/\code{Gamma()}, residual degrees of freedom
+#' for \code{family = gaussian()}) are diagnostic checks computed by
+#' \code{\link{model_setup}} and do not subset the data or the reference
+#' \code{glmer} fit.  Random-effect variances are
 #' treated as fixed at their mixed-model estimates.  The returned object
 #' two-block Gibbs sampler:
 #'
@@ -361,8 +363,9 @@ Prior_Setup_lmebayes <- function(formula,
   }
 
   ## design$re_estimable / design$re_glm_check are already populated by
-  ## model_setup() (binomial-only classical-glm MLE existence check; other
-  ## families mirror design$re_rank) -- no need to recompute them here.
+  ## model_setup() (classical-glm MLE existence check for
+  ## binomial/poisson/Gamma, residual-df-for-dispersion check for gaussian;
+  ## other families mirror design$re_rank) -- no need to recompute them here.
 
   ## Full-rank status is a per-group DESIGN CHECK only (reported by print();
   ## groups with rank-deficient Z_j are still fully used below).  The lme4
@@ -1108,12 +1111,12 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
     "  Full-rank groups (algebraic Z_j): %d of %d %s  (design check only)\n",
     n_fr, n_all, x$design$group_name
   ))
-  if (identical(x$family$family, "binomial") &&
+  if (!is.null(x$design$re_glm_check) &&
       !is.null(x$design$re_estimable)) {
     n_est <- sum(x$design$re_estimable[x$design$re_rank])
     cat(sprintf(
       paste0(
-        "  Full-rank with glm MLE          : %d of %d full-rank ",
+        "  Full-rank & estimable           : %d of %d full-rank ",
         "(%d of %d total %s)\n"
       ),
       n_est, n_fr, n_est, n_all, x$design$group_name
