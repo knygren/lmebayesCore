@@ -120,8 +120,8 @@
 
 #' Iterated conditional means/modes at matrix-level two-block inputs
 #'
-#' @param design Design list for ICM (\code{y}, \code{Z}, \code{groups},
-#'   \code{X_hyper}, \code{re_coef_names}).
+#' @param design Design list for ICM (\code{y}, \code{D}, \code{group},
+#'   \code{W}, \code{re_coef_names}).
 #' @param prior_list Block~1 prior list.
 #' @param pfamily_list Validated Block~2 \code{pfamily_list}.
 #' @param re_names Random-effect component names.

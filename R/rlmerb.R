@@ -15,7 +15,7 @@
 #' @param n Integer. Number of stored draws (each draw is one full pass through
 #'   \code{m_convergence} inner Gibbs sweeps).
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}})
-#'   supplying \code{y}, \code{Z}, \code{groups}, \code{X_hyper},
+#'   supplying \code{y}, \code{D}, \code{group}, \code{W},
 #'   \code{group_name}, and \code{re_coef_names}.
 #' @param prior Normalized prior container with \code{Sigma_ranef}, \code{prior_list},
 #'   and related Block~2 fields (typically from \code{pfamily_list} and
