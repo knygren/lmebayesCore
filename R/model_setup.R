@@ -192,13 +192,12 @@ model_setup <- function(
   # groups) -- see check_identifiability() for the full algorithm
   # description; model_setup() just copies its fields onto design.
   ident <- check_identifiability(
-    y             = design$y,
-    Z             = design$Z,
-    groups        = design$groups,
-    X_hyper       = design$X_hyper,
-    family        = family,
-    re_coef_names = design$re_coef_names,
-    group_name    = design$group_name
+    y          = design$y,
+    D          = design$Z,
+    group      = design$groups,
+    W          = design$X_hyper,
+    family     = family,
+    group_name = design$group_name
   )
   design$re_rank         <- ident$re_rank
   design$re_estimable    <- ident$re_estimable

@@ -219,7 +219,7 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 
 | Function | File | Role |
 |----------|------|------|
-| `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, Z, groups, X_hyper)`; used internally by `model_setup()`. |
+| `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, D, group, W)` (same naming as `rLMM_reg()`/`rGLMM_reg()`); used internally by `model_setup()` (called with `D = design$Z`, `group = design$groups`, `W = design$X_hyper`). |
 | `block_rNormalReg()` | `simfunction_block.R` | Row-block Normal regression sampler. |
 | `block_rNormalGLM()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
 | `block_rNormalReg_update()` | `simfunction_block.R` | Block~1 Normal reg draw given `mu_all`. |

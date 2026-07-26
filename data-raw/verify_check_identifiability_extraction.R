@@ -1,9 +1,13 @@
-## Scratch verification for the check_identifiability() extraction.
+## Scratch verification for the check_identifiability() extraction, and for
+## its D/group/W argument renaming to match rLMM_reg()/rGLMM_reg() naming
+## conventions.
 ## Confirms:
 ##   1. check_identifiability()'s roxygen example runs standalone.
 ##   2. model_setup()'s re_rank/re_estimable/re_glm_check/hyper_rank/
 ##      hyper_deficient/rank_ok are unchanged (same values as calling
-##      check_identifiability() directly on the extracted design fields).
+##      check_identifiability() directly on the extracted design fields,
+##      keyword-remapped D = design$Z, group = design$groups,
+##      W = design$X_hyper).
 ##   3. Input-validation errors fire as documented.
 
 devtools::load_all(quiet = TRUE)
@@ -11,16 +15,16 @@ devtools::load_all(quiet = TRUE)
 cat("=== 1. Standalone example ===\n")
 set.seed(1)
 J <- 8L; n_j <- 6L
-groups <- factor(rep(paste0("g", seq_len(J)), each = n_j))
+group <- factor(rep(paste0("g", seq_len(J)), each = n_j))
 x1 <- rnorm(J * n_j)
-Z <- cbind("(Intercept)" = 1, x1 = x1)
+D <- cbind("(Intercept)" = 1, x1 = x1)
 y <- 1 + x1 + rnorm(J * n_j)
-X_hyper <- list(
-  "(Intercept)" = matrix(1, J, 1, dimnames = list(levels(groups), "(Intercept)")),
-  x1            = matrix(1, J, 1, dimnames = list(levels(groups), "(Intercept)"))
+W <- list(
+  "(Intercept)" = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)")),
+  x1            = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)"))
 )
 ident <- check_identifiability(
-  y = y, Z = Z, groups = groups, X_hyper = X_hyper,
+  y = y, D = D, group = group, W = W,
   family = gaussian(), group_name = "group", verbose = TRUE
 )
 stopifnot(isTRUE(ident$rank_ok))
@@ -39,9 +43,8 @@ df  <- data.frame(y = y2, x1 = x1, grp = grp)
 ms <- model_setup(y ~ x1 + (1 + x1 || grp), data = df, family = gaussian())
 
 ident2 <- check_identifiability(
-  y = ms$y, Z = ms$Z, groups = ms$groups, X_hyper = ms$X_hyper,
-  family = gaussian(), re_coef_names = ms$re_coef_names,
-  group_name = ms$group_name
+  y = ms$y, D = ms$Z, group = ms$groups, W = ms$X_hyper,
+  family = gaussian(), group_name = ms$group_name
 )
 
 stopifnot(identical(ms$re_rank, ident2$re_rank))
@@ -65,9 +68,8 @@ df3 <- data.frame(y = yb, x1 = x1b, grp = grp3)
 
 ms3 <- model_setup(y ~ x1 + (1 + x1 || grp), data = df3, family = binomial())
 ident3 <- check_identifiability(
-  y = ms3$y, Z = ms3$Z, groups = ms3$groups, X_hyper = ms3$X_hyper,
-  family = binomial(), re_coef_names = ms3$re_coef_names,
-  group_name = ms3$group_name
+  y = ms3$y, D = ms3$Z, group = ms3$groups, W = ms3$X_hyper,
+  family = binomial(), group_name = ms3$group_name
 )
 stopifnot(identical(ms3$re_estimable, ident3$re_estimable))
 stopifnot(identical(ms3$re_glm_check, ident3$re_glm_check))
@@ -81,26 +83,26 @@ cat("\n")
 cat("=== 4. Input validation errors ===\n")
 err <- function(expr) tryCatch({ expr; "NO ERROR" }, error = function(e) conditionMessage(e))
 
-cat("- groups not a factor: ",
-    err(check_identifiability(y = y, Z = Z, groups = as.character(groups),
-                               X_hyper = X_hyper, group_name = "group")),
+cat("- group not a factor: ",
+    err(check_identifiability(y = y, D = D, group = as.character(group),
+                               W = W, group_name = "group")),
     "\n")
 
 cat("- unresolvable group_name: ",
-    err(check_identifiability(y = y, Z = Z, groups = groups, X_hyper = X_hyper)),
+    err(check_identifiability(y = y, D = D, group = group, W = W)),
     "\n")
 
-X_hyper_bad_names <- X_hyper
-names(X_hyper_bad_names) <- c("(Intercept)", "not_x1")
-cat("- re_coef_names/X_hyper mismatch: ",
-    err(check_identifiability(y = y, Z = Z, groups = groups, X_hyper = X_hyper_bad_names,
-                               re_coef_names = c("(Intercept)", "x1"), group_name = "group")),
+D_bad_names <- D
+colnames(D_bad_names) <- c("(Intercept)", "not_x1")
+cat("- colnames(D)/names(W) mismatch: ",
+    err(check_identifiability(y = y, D = D_bad_names, group = group, W = W,
+                               group_name = "group")),
     "\n")
 
-X_hyper_bad_rownames <- X_hyper
-rownames(X_hyper_bad_rownames[["x1"]]) <- paste0("zzz", seq_len(nrow(X_hyper[["x1"]])))
-cat("- X_hyper rownames mismatch: ",
-    err(check_identifiability(y = y, Z = Z, groups = groups, X_hyper = X_hyper_bad_rownames,
+W_bad_nrow <- W
+W_bad_nrow[["x1"]] <- W[["x1"]][seq_len(nrow(W[["x1"]]) - 1L), , drop = FALSE]
+cat("- W[[k]] wrong nrow: ",
+    err(check_identifiability(y = y, D = D, group = group, W = W_bad_nrow,
                                group_name = "group")),
     "\n")
 

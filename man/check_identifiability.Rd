@@ -6,44 +6,48 @@
 \usage{
 check_identifiability(
   y,
-  Z,
-  groups,
-  X_hyper,
+  D,
+  group,
+  W,
   family = gaussian(),
-  re_coef_names = names(X_hyper),
-  group_name = attr(groups, "group_name"),
+  group_name = attr(group, "group_name"),
   verbose = FALSE
 )
 }
 \arguments{
-\item{y}{Numeric response vector, length \code{nrow(Z)}.}
+\item{y}{Response vector of length \code{l2} (\code{= nrow(D)}).}
 
-\item{Z}{Numeric (or \code{\link[Matrix]{Matrix}}) random-effects design
-matrix, stacked across observations (\code{design$Z} from
-\code{\link{extract_re_hyper_matrices}}).}
+\item{D}{Level-1 design matrix (\code{l2 x p_re}); this is \eqn{D}
+(row-stacked \eqn{D_j}) in \dQuote{Model and notation} below. Must have
+unique, non-empty \code{colnames(D)}: these are the random-effect
+coefficient names used to key \code{W} and \code{pfamily_list}
+(there is no separate \code{re_coef_names} argument to override them).}
 
-\item{groups}{Factor of length \code{nrow(Z)} giving each observation's
-group membership. Must be a \code{factor}; \code{levels(groups)} name
-\code{re_rank}/\code{re_estimable} in the return value.}
+\item{group}{Grouping factor of length \code{nrow(D)} (must be a
+\code{factor}); \code{levels(group)} fixes the row order assumed by
+\code{W} and names \code{re_rank}/\code{re_estimable} in the return
+value -- there is no separate \code{group_levels} argument. Unlike
+\code{\link{rLMM_reg}}, \code{group_name} is a separate argument here
+(see below) rather than derived from \code{group} via
+\code{substitute()}.}
 
-\item{X_hyper}{Named list of per-RE-coefficient level-2 design matrices
-(one row per group level; \code{rownames} must equal
-\code{levels(groups)}).}
+\item{W}{Named list of group-level design matrices (\code{J x q_k}),
+one per column of \code{D}; this is \eqn{\mathcal{W}} in \dQuote{Model
+and notation} below: \code{W[[k]]} is \eqn{W_k} and \code{W[[k]][j, ]}
+is the block \eqn{W_{kj}} of \eqn{\mathcal{W}_j}.}
 
 \item{family}{A \code{\link[stats]{family}} object (or a string/function
 accepted by \code{\link[stats]{family}}); normalized internally via the
 same logic \code{\link{model_setup}} uses. Defaults to \code{gaussian()}.}
 
-\item{re_coef_names}{Character vector of random-effects coefficient names;
-defaults to \code{names(X_hyper)}. If supplied explicitly, must match
-\code{names(X_hyper)} exactly (as sets).}
-
 \item{group_name}{Display name of the grouping factor (e.g.
 \code{"school_id"}), used only in error and \code{verbose} messages
-(not in any computation). Defaults to \code{attr(groups, "group_name")}
+(not in any computation). Defaults to \code{attr(group, "group_name")}
 (the convention already used by \code{\link{rLMM_reg}}); must be
 resolvable to a non-empty string, either this way or by passing it
-explicitly.}
+explicitly. Unlike \code{\link{rLMM_reg}}, there is no fallback to
+\code{substitute(group)} -- this function may be called on matrices that
+are not bare variables.}
 
 \item{verbose}{If \code{TRUE}, emit \code{message()}s summarizing the
 Level 1 and Level 2 outcomes. Default \code{FALSE} (silent), so calling
@@ -53,7 +57,7 @@ this from \code{\link{model_setup}} introduces no new console output.}
 A list with:
 \describe{
 \item{\code{re_rank}}{Named logical, one entry per group (names
-\code{levels(groups)}): \code{TRUE} if \code{Z_j} is full column
+\code{levels(group)}): \code{TRUE} if \eqn{D_j} is full column
 rank.}
 \item{\code{re_estimable}}{Named logical, same names as
 \code{re_rank}: \code{TRUE} if the group is additionally estimable
@@ -62,12 +66,12 @@ rank.}
 \code{binomial()}/\code{poisson()}/\code{Gamma()}/\code{gaussian()},
 or \code{NULL} for other families.}
 \item{\code{hyper_rank}}{Named logical, one entry per RE coefficient
-(names \code{re_coef_names}): \code{TRUE} if \code{X_hyper[[k]]} is
-full column rank when restricted to \code{re_estimable} groups.}
+(names \code{colnames(D)}): \code{TRUE} if \code{W[[k]]} is full
+column rank when restricted to \code{re_estimable} groups.}
 \item{\code{hyper_deficient}}{Negation of \code{hyper_rank}.}
 \item{\code{rank_ok}}{Scalar \code{TRUE} only when every
 \code{hyper_rank} entry is \code{TRUE}.}
-\item{\code{group_levels}}{\code{levels(groups)}, i.e. the exact
+\item{\code{group_levels}}{\code{levels(group)}, i.e. the exact
 names used on \code{re_rank}/\code{re_estimable}.}
 \item{\code{group_name}}{The resolved grouping-factor display name.}
 }
@@ -75,25 +79,28 @@ names used on \code{re_rank}/\code{re_estimable}.}
 \description{
 Runs the "two-step identifiability assessment" used internally by
 \code{\link{model_setup}}: a Level~1 (within-group) rank/estimability
-check on the random-effects design \code{Z}, followed by a Level~2
-(across-group) rank check on the level-2 hyper-design matrices
-\code{X_hyper}, restricted to the Level-1-estimable groups. Exposed as a
-standalone, documented function so it can be run directly on hand-built
-\code{Z}/\code{X_hyper} matrices (e.g. matrix-level \code{rLMM_reg()}/
-\code{rGLMM_reg()} workflows) without requiring a full \code{lmer}/
-\code{glmer} reference fit.
+check on the level-1 design \code{D}, followed by a Level~2 (across-group)
+rank check on the level-2 design matrices \code{W}, restricted to the
+Level-1-estimable groups. Takes the same \code{D}/\code{group}/\code{W}
+matrix inputs (and the same conventions -- see Details) as
+\code{\link{rLMM_reg}}/\code{\link{rGLMM_reg}}, so it can be run directly
+on hand-built matrices from those matrix-level workflows, or on
+\code{model_setup()}'s \code{design$Z}/\code{design$groups}/
+\code{design$X_hyper} (\code{D}\eqn{\equiv}\code{Z} exactly; see
+\code{\link{rLMM_reg}}'s \dQuote{Model and notation} section), without
+requiring a full \code{lmer}/\code{glmer} reference fit.
 }
 \details{
 \strong{Level 1 (within-group).} For each group \eqn{j}, the within-group
-random-effects design submatrix \eqn{\mathbf{Z}_j} is checked for full
-column rank (\code{re_rank}). A rank-deficient group has too few distinct
-observations to estimate all random slopes independently. Algebraically
-full-rank groups are then additionally checked for estimability
-(\code{re_estimable}, with per-group detail in \code{re_glm_check}), with
-the specific check depending on \code{family}:
+submatrix \eqn{D_j} (\code{D[group == } \eqn{j}\code{, ]}) is checked for
+full column rank (\code{re_rank}). A rank-deficient group has too few
+distinct observations to estimate all random slopes independently.
+Algebraically full-rank groups are then additionally checked for
+estimability (\code{re_estimable}, with per-group detail in
+\code{re_glm_check}), with the specific check depending on \code{family}:
 \itemize{
 \item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a classical
-\code{glm(y ~ Z_j - 1, family)} fit is attempted; a group can be full
+\code{glm(y ~ D_j - 1, family)} fit is attempted; a group can be full
 column rank yet have no finite MLE under complete or quasi-complete
 separation (\code{binomial}), an all-zero count response
 (\code{poisson}), or a non-positive response (\code{Gamma}) --
@@ -109,50 +116,54 @@ residual degrees of freedom).
 }
 
 \strong{Level 2 (across-group).} Restricting to the \strong{estimable}
-groups from Level 1 (\code{re_estimable}), each hyper-design matrix
-\code{X_hyper[[k]]} is checked for full column rank (\code{hyper_rank}).
-Rank deficiency at this level means the level-2 hyperparameters are not
-identified by the data, even as the number of estimable groups grows. The
-scalar \code{rank_ok} is \code{TRUE} only when every \code{hyper_rank}
-entry is \code{TRUE}.
+groups from Level 1 (\code{re_estimable}), each level-2 design matrix
+\code{W[[k]]} is checked for full column rank (\code{hyper_rank}), using
+only the rows at the estimable positions (row \eqn{j} of \code{W[[k]]}
+corresponds to \code{levels(group)[j]}, exactly as in
+\code{\link{rLMM_reg}}). Rank deficiency at this level means the level-2
+hyperparameters are not identified by the data, even as the number of
+estimable groups grows. The scalar \code{rank_ok} is \code{TRUE} only when
+every \code{hyper_rank} entry is \code{TRUE}.
 
-\strong{Inputs must already be consistently named.} This function does
+\strong{Inputs must already be consistently keyed.} This function does
 \emph{not} infer or coerce missing names -- it validates them up front and
 errors immediately on a mismatch, rather than risking a silently wrong
 match deeper in the rank/estimability computation:
 \itemize{
-\item \code{groups} must be a \code{factor} (not coerced from a
-character vector).
-\item \code{X_hyper} must be a named list, with names covering
-\code{re_coef_names} exactly (no missing, empty, or duplicate names).
-\item Every \code{X_hyper[[k]]} must already have \code{rownames()} set,
-and those row names must equal \code{levels(groups)} (as sets) -- this
-is how \code{hyper_rank} restricts to estimable groups by name, not
-position.
+\item \code{D} must have unique, non-empty \code{colnames(D)}: these are
+the random-effect coefficient names used to key \code{W} (there is no
+separate \code{re_coef_names} argument to override them, matching
+\code{\link{rLMM_reg}}).
+\item \code{group} must be a \code{factor} (not coerced from a character
+vector); \code{levels(group)} fixes the row order assumed by
+\code{W} (there is no separate \code{group_levels} argument).
+\item \code{W} must be a named list, with names matching
+\code{colnames(D)} exactly (as sets; no missing, empty, or duplicate
+names), and each \code{W[[k]]} must have exactly
+\code{length(levels(group))} rows.
 \item \code{group_name}, used only for error/verbose messages, must be
 resolvable from either the \code{group_name} argument or
-\code{attr(groups, "group_name")}.
+\code{attr(group, "group_name")}.
 }
 }
 \examples{
 set.seed(1)
 J <- 8L; n_j <- 6L
-groups <- factor(rep(paste0("g", seq_len(J)), each = n_j))
+group <- factor(rep(paste0("g", seq_len(J)), each = n_j))
 x1 <- rnorm(J * n_j)
-Z <- cbind("(Intercept)" = 1, x1 = x1)
+D <- cbind("(Intercept)" = 1, x1 = x1)
 y <- 1 + x1 + rnorm(J * n_j)
-X_hyper <- list(
-  "(Intercept)" = matrix(
-    1, J, 1, dimnames = list(levels(groups), "(Intercept)")
-  ),
-  x1 = matrix(1, J, 1, dimnames = list(levels(groups), "(Intercept)"))
+W <- list(
+  "(Intercept)" = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)")),
+  x1            = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)"))
 )
 ident <- check_identifiability(
-  y = y, Z = Z, groups = groups, X_hyper = X_hyper,
+  y = y, D = D, group = group, W = W,
   family = gaussian(), group_name = "group"
 )
 ident$rank_ok
 }
 \seealso{
-\code{\link{model_setup}}, \code{\link{extract_re_hyper_matrices}}
+\code{\link{model_setup}}, \code{\link{rLMM_reg}},
+\code{\link{rGLMM_reg}}, \code{\link{extract_re_hyper_matrices}}
 }

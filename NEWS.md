@@ -3,18 +3,26 @@
 * **New: `check_identifiability()`, exported standalone Level-1/Level-2
   identifiability and estimability check.**
     - Extracted from `model_setup()`'s inline rank/estimability block (the
-      "two-step identifiability assessment": per-group `Z_j` rank and
-      estimability, then per-RE-coefficient `X_hyper[[k]]` rank restricted to
+      "two-step identifiability assessment": per-group `D_j` rank and
+      estimability, then per-RE-coefficient `W[[k]]` rank restricted to
       estimable groups). `model_setup()` now calls `check_identifiability()`
-      and copies its fields onto the returned design object; its behavior is
-      unchanged.
-    - Runs directly on hand-built `(y, Z, groups, X_hyper)` without a
-      `lmer`/`glmer` reference fit, so matrix-level `rLMM_reg()`/
-      `rGLMM_reg()` callers can check identifiability before sampling.
-    - Validates its inputs strictly: `groups` must be a `factor`; `X_hyper`
-      must be a named list whose names match `re_coef_names` (as sets) and
-      whose `rownames()` match `levels(groups)` (as sets); `group_name` must
-      be resolvable from the argument or `attr(groups, "group_name")`.
+      and copies its fields onto the returned design object (keyword-mapped
+      `D = design$Z`, `group = design$groups`, `W = design$X_hyper`); its
+      behavior is unchanged.
+    - Argument names (`D`, `group`, `W`) match the recently-renamed
+      `rLMM_reg()`/`rGLMM_reg()` matrix-level conventions -- `y`/`D`/`group`/
+      `W` share their `@param` documentation with `rLMM_reg()` via
+      `@inheritParams`, and `W[[k]]` uses the same row-`j`-\eqn{\leftrightarrow}
+      -`levels(group)[j]` positional convention (no `rownames()` requirement).
+    - Runs directly on hand-built `(y, D, group, W)` without a `lmer`/
+      `glmer` reference fit, so matrix-level `rLMM_reg()`/`rGLMM_reg()`
+      callers can check identifiability before sampling.
+    - Validates its inputs strictly: `D` must have unique, non-empty
+      `colnames(D)` (there is no separate `re_coef_names` argument); `group`
+      must be a `factor` (no separate `group_levels` argument); `W` must be
+      a named list whose names match `colnames(D)` exactly (as sets) and
+      whose elements each have `length(levels(group))` rows; `group_name`
+      must be resolvable from the argument or `attr(group, "group_name")`.
       Mismatches raise an informative error immediately.
     - Returns `re_rank`, `re_estimable`, `re_glm_check`, `hyper_rank`,
       `hyper_deficient`, `rank_ok`, plus `group_levels` and `group_name`.
