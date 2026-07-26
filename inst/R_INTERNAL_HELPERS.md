@@ -44,6 +44,7 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 | `.lmebayes_normalize_family()` | `model_setup.R` | Coerce `family` argument | `model_setup()` |
 | `.lmebayes_mer_convergence_issues()` | `model_setup.R` | Collect lme4 convergence warnings | `Prior_Setup_lmebayes()` |
 | `.lmebayes_mer_optional_args()` | `model_setup.R` | Optional `lmer` / `glmer` call args | `model_setup()`, **lmebayes** `glmerb()` |
+| `.lmebayes_block_glm_estimable()` | `model_setup.R` | Block-GLM estimability check for binomial | `model_setup()` |
 
 ---
 
@@ -53,7 +54,6 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 |----------|------|------|-------------|
 | `.lmebayes_resolve_pwt()` | `Prior_Setup_lmebayes.R` | Resolve `pwt` / per-RE weights | `Prior_Setup_lmebayes()` |
 | `.lmebayes_resolve_disp_prior()` | `Prior_Setup_lmebayes.R` | Resolve dispersion hyperprior fields | `Prior_Setup_lmebayes()` |
-| `.lmebayes_block_glm_estimable()` | `Prior_Setup_lmebayes.R` | Block-GLM estimability check for binomial | `Prior_Setup_lmebayes()` |
 
 ---
 

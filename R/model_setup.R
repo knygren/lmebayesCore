@@ -34,9 +34,9 @@
 #' moderation interaction---are rejected with an informative error.
 #'
 #' \strong{Two-step identifiability assessment.}
-#' After fitting \code{lmer}, \code{model_setup} performs a two-step rank
-#' check that assesses whether the model is empirically identified at both the
-#' within-group and across-group levels:
+#' After fitting \code{lmer}/\code{glmer}, \code{model_setup} performs a
+#' two-step check that assesses whether the model is empirically identified at
+#' both the within-group and across-group levels:
 #'
 #' \enumerate{
 #'   \item \emph{Level 1 (within-group):}  For each group \eqn{j}, the
@@ -44,16 +44,25 @@
 #'     checked for full column rank (\code{re_rank}).  A rank-deficient group
 #'     has too few distinct observations to estimate all random slopes
 #'     independently; its BLUPs are identified through the prior rather than
-#'     the data alone.  Such groups are flagged in \code{re_rank} but are
-#'     retained in the \code{lmer} fit; \code{\link{Prior_Setup_lmebayes}}
+#'     the data alone.  For \code{family = binomial()}, algebraically
+#'     full-rank groups are additionally checked for classical-\code{glm} MLE
+#'     existence (\code{re_estimable}, with per-group detail in
+#'     \code{re_glm_check}): a group can be full column rank yet have no
+#'     finite MLE under complete or quasi-complete separation, in which case
+#'     it likewise supplies no real information from the data alone. Other
+#'     families currently set \code{re_estimable} equal to \code{re_rank} (no
+#'     glm check yet). Such groups are flagged but retained in the
+#'     \code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
 #'     excludes them when calibrating priors.
 #'
-#'   \item \emph{Level 2 (across-group):}  Restricting to the full-rank groups
-#'     from Step 1, each hyper-design matrix \code{X_hyper[[k]]} is checked
-#'     for full column rank (\code{hyper_rank}).  Rank deficiency at this level
-#'     means the level-2 hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior
-#'     means for random-effect coefficient \eqn{k} across groups---are not
-#'     identified by the data, even as the number of full-rank groups grows.
+#'   \item \emph{Level 2 (across-group):}  Restricting to the \strong{estimable}
+#'     groups from Step 1 (\code{re_estimable} -- full column rank, and for
+#'     \code{family = binomial()} a finite classical-glm MLE), each
+#'     hyper-design matrix \code{X_hyper[[k]]} is checked for full column rank
+#'     (\code{hyper_rank}).  Rank deficiency at this level means the level-2
+#'     hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior means for
+#'     random-effect coefficient \eqn{k} across groups---are not identified by
+#'     the data, even as the number of estimable groups grows.
 #' }
 #'
 #' The scalar \code{rank_ok} is \code{TRUE} only when every
@@ -97,8 +106,16 @@
 #'   \code{vcov_formula} (deprecated alias of \code{formula}),
 #'   \code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
 #'   \code{glmer_vcov_fit} (same object as the full-formula fit),
-#'   \code{varcorr}, \code{vcov_re}, \code{residual_var}, and \code{re_rank} (named logical
-#'   vector: \code{TRUE} if \code{Z_j} is full column rank for that group).
+#'   \code{varcorr}, \code{vcov_re}, \code{residual_var}; \code{re_rank}
+#'   (named logical vector: \code{TRUE} if \code{Z_j} is full column rank for
+#'   that group); \code{re_estimable} (named logical vector: \code{TRUE} if
+#'   the group is additionally classical-glm estimable -- equal to
+#'   \code{re_rank} except for \code{family = binomial()}) and
+#'   \code{re_glm_check} (per-group binomial glm diagnostic data frame, or
+#'   \code{NULL} for other families); \code{hyper_rank} (named logical vector
+#'   per RE coefficient, restricted to \code{re_estimable} groups),
+#'   \code{hyper_deficient} (its negation), and \code{rank_ok} (scalar,
+#'   \code{TRUE} only when every \code{hyper_rank} entry is \code{TRUE}).
 #' @seealso \code{\link{extract_re_hyper_matrices}},
 #'   \code{\link{lmerb_default_vcov_formula}},
 #'   \code{\link{extract_lmer_variance_components}}
@@ -212,16 +229,34 @@ model_setup <- function(
     logical(1L)
   )
 
+  # Per-group classical-glm MLE existence (binomial only for now; other
+  # families mirror re_rank -- see .lmebayes_block_glm_estimable()). Must run
+  # before the hyper-design check below, since Level 2 restricts to
+  # *estimable* groups, not merely algebraically full-rank ones: a group can
+  # be full column rank yet still have no finite classical-glm MLE (complete
+  # or quasi-complete separation), in which case it supplies no real
+  # information about its random-effect coefficients either.
+  glm_est <- .lmebayes_block_glm_estimable(
+    y       = design$y,
+    groups  = design$groups,
+    Z       = design$Z,
+    re_rank = design$re_rank,
+    family  = family
+  )
+  design$re_estimable <- glm_est$re_estimable
+  design$re_glm_check <- glm_est$re_glm_check
+
   # Hyper-design rank check: for each RE coefficient, is the level-2 design
-  # matrix X_hyper[[nm]] full column rank when restricted to the full-rank
-  # groups?  Rank-deficient groups contribute a zero BLUP for the missing
-  # slope and are excluded here so the check reflects only groups that
-  # actually supply information about each RE.
-  full_rank_levs <- names(design$re_rank)[design$re_rank]
+  # matrix X_hyper[[nm]] full column rank when restricted to the *estimable*
+  # groups from Step 1?  Groups that are rank-deficient, or (for binomial)
+  # algebraically full-rank but without a finite classical-glm MLE, are
+  # excluded here as well -- the check reflects only groups that actually
+  # supply information about each RE.
+  estimable_levs <- names(design$re_estimable)[design$re_estimable]
   design$hyper_rank <- vapply(
     design$re_coef_names,
     function(nm) {
-      Xh <- design$X_hyper[[nm]][full_rank_levs, , drop = FALSE]
+      Xh <- design$X_hyper[[nm]][estimable_levs, , drop = FALSE]
       p  <- ncol(Xh)
       nrow(Xh) >= p && Matrix::rankMatrix(Xh, method = "qr")[1L] == p
     },
@@ -236,13 +271,130 @@ model_setup <- function(
   design$hyper_deficient <- !design$hyper_rank
 
   # rank_ok reflects only the hyper-design matrices (level-2 estimability):
-  # TRUE  = all X_hyper are full-rank after restricting to full-rank groups
+  # TRUE  = all X_hyper are full-rank after restricting to estimable groups
   #         => the random-effects model can be estimated
   # FALSE = at least one X_hyper is rank-deficient => hyper parameters are
   #         not identified; Z_j rank deficiency is reported separately above
   design$rank_ok <- all(design$hyper_rank)
 
   design
+}
+
+#' Per-group classical glm MLE existence for binomial Block-1 design
+#'
+#' For each group with algebraically full-rank \code{Z_j}, fits
+#' \code{glm(y ~ Z_j - 1, family = binomial)} and marks the group estimable
+#' when all coefficients and \code{vcov} entries are finite.  Non-binomial
+#' families return \code{re_estimable = re_rank} (no glm check).
+#' @noRd
+.lmebayes_block_glm_estimable <- function(y, groups, Z, re_rank, family) {
+  g_levs <- names(re_rank)
+  if (is.null(g_levs)) {
+    g_levs <- levels(groups)
+    names(re_rank) <- g_levs
+  }
+
+  re_estimable <- stats::setNames(rep(FALSE, length(g_levs)), g_levs)
+
+  if (!identical(family$family, "binomial")) {
+    re_estimable[re_rank] <- TRUE
+    return(list(
+      re_estimable = re_estimable,
+      re_glm_check = NULL
+    ))
+  }
+
+  y <- as.numeric(y)
+  g_chr <- as.character(groups)
+  fr_levs <- g_levs[re_rank]
+
+  rows_out <- vector("list", length(fr_levs))
+
+  for (ii in seq_along(fr_levs)) {
+    lev <- fr_levs[ii]
+    rows <- which(g_chr == lev)
+    y_j  <- y[rows]
+    X_j  <- Z[rows, , drop = FALSE]
+    n_j  <- length(y_j)
+    p_j  <- ncol(X_j)
+
+    estimable <- FALSE
+    note      <- character(0)
+
+    if (n_j < 2L) {
+      note <- "fewer than 2 observations"
+    } else if (length(unique(y_j)) < 2L) {
+      note <- "single outcome level"
+    } else {
+      df_j <- data.frame(y = y_j, X_j, check.names = FALSE)
+      fit <- tryCatch(
+        suppressWarnings(
+          stats::glm(
+            y ~ . - 1,
+            data    = df_j,
+            family  = family,
+            control = stats::glm.control(maxit = 50L)
+          )
+        ),
+        error = function(e) e
+      )
+      if (inherits(fit, "error")) {
+        note <- conditionMessage(fit)
+      } else {
+        cf <- stats::coef(fit)
+        if (length(cf) != p_j) {
+          note <- sprintf(
+            "glm returned %d coefficient(s), expected %d",
+            length(cf), p_j
+          )
+        } else if (!isTRUE(fit$rank == p_j)) {
+          note <- sprintf("rank-deficient glm fit (rank %d, expected %d)",
+                          fit$rank, p_j)
+        } else if (any(is.na(cf))) {
+          note <- "NA coefficient(s)"
+        } else if (any(!is.finite(cf))) {
+          note <- "non-finite coefficient(s) (possible separation)"
+        } else {
+          V_ok <- tryCatch({
+            V <- stats::vcov(fit)
+            is.matrix(V) && all(is.finite(V))
+          }, error = function(e) FALSE)
+          if (!isTRUE(V_ok)) {
+            note <- "vcov not finite (possible separation)"
+          } else {
+            estimable <- TRUE
+          }
+        }
+      }
+    }
+
+    re_estimable[[lev]] <- estimable
+    rows_out[[ii]] <- data.frame(
+      group     = lev,
+      n         = n_j,
+      p         = p_j,
+      re_rank   = TRUE,
+      estimable = estimable,
+      note      = if (length(note)) paste(note, collapse = "; ") else "",
+      stringsAsFactors = FALSE
+    )
+  }
+
+  re_glm_check <- if (length(rows_out)) {
+    do.call(rbind, rows_out)
+  } else {
+    data.frame(
+      group = character(0),
+      n = integer(0),
+      p = integer(0),
+      re_rank = logical(0),
+      estimable = logical(0),
+      note = character(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  list(re_estimable = re_estimable, re_glm_check = re_glm_check)
 }
 
 ## Return character issue messages when an lme4 merMod fit failed checkConv
@@ -366,6 +518,21 @@ print.model_setup <- function(x, ...) {
                   paste(shown, collapse = ", "), suffix))
     }
   }
+  if (identical(x$family$family, "binomial") && !is.null(x$re_estimable)) {
+    n_est <- sum(x$re_estimable[x$re_rank])
+    cat(sprintf(
+      "  Full-rank with glm MLE: %d of %d full-rank (%d of %d total %s)\n",
+      n_est, n_full, n_est, n_lev, grp
+    ))
+    if (n_est < n_full) {
+      not_est <- names(x$re_estimable)[x$re_rank & !x$re_estimable]
+      shown   <- not_est[seq_len(min(10L, length(not_est)))]
+      suffix  <- if (length(not_est) > 10L)
+        sprintf(", ... (%d more)", length(not_est) - 10L) else ""
+      cat(sprintf("    full-rank but not glm-estimable (separation): %s%s\n",
+                  paste(shown, collapse = ", "), suffix))
+    }
+  }
   cat("\n")
 
   # ---- Section 2: Random Effects Model --------------------------------------
@@ -383,11 +550,11 @@ print.model_setup <- function(x, ...) {
   }
   cat("\n")
 
-  # ---- Section 3: Hyper-design rank (full-rank groups only) -----------------
-  if (!is.null(x$hyper_rank) && !is.null(x$re_rank)) {
-    n_full_groups <- sum(x$re_rank)
+  # ---- Section 3: Hyper-design rank (estimable groups only) -----------------
+  if (!is.null(x$hyper_rank) && !is.null(x$re_estimable)) {
+    n_est_groups <- sum(x$re_estimable)
     cat("--- Random Effects Model: Hyper-Design Rank ---\n")
-    cat(sprintf("  (Restricted to %d full-rank %s)\n\n", n_full_groups, grp))
+    cat(sprintf("  (Restricted to %d estimable %s)\n\n", n_est_groups, grp))
     deficient_nms <- character(0)
     for (nm in re_names) {
       Xh      <- x$X_hyper[[nm]]
@@ -395,7 +562,7 @@ print.model_setup <- function(x, ...) {
       is_fr   <- if (nm %in% names(x$hyper_rank)) x$hyper_rank[[nm]] else NA
       status  <- if (isTRUE(is_fr)) "full-rank" else if (isFALSE(is_fr)) "RANK-DEFICIENT" else "unknown"
       cat(sprintf("  %-*s  groups=%-3d  predictors=%-2d  %s\n",
-                  w, nm, n_full_groups, p_hyper, status))
+                  w, nm, n_est_groups, p_hyper, status))
       if (isFALSE(is_fr)) deficient_nms <- c(deficient_nms, nm)
     }
     # Per-RE deficient flags
@@ -418,8 +585,8 @@ print.model_setup <- function(x, ...) {
           "  NOTE: X_hyper for '%s' is rank-deficient after restricting to\n",
           nm))
         cat(sprintf(
-          "  %d full-rank %s. Consider removing predictors or merging\n",
-          n_full_groups, grp))
+          "  %d estimable %s. Consider removing predictors or merging\n",
+          n_est_groups, grp))
         cat("  factor levels.\n")
       }
     }

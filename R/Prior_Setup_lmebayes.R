@@ -3,11 +3,10 @@
 #' Calibrates priors for the level-2 fixed effects (\code{fixef}) of a
 #' hierarchical mixed model using the reference \code{lmer}/\code{glmer} fits
 #' on \strong{all} groups (from \code{\link{model_setup}}).  Per-group design
-#' rank (\code{re_rank}) is a diagnostic check only and does not subset the
-#' data.  For \code{family = binomial()}, \code{Prior_Setup_lmebayes()} also
-#' fits a classical \code{glm} within each algebraically full-rank group and
-#' records \code{design$re_estimable} (whether a finite MLE exists); this does
-#' not subset the reference \code{glmer} fit.  Random-effect variances are
+#' rank (\code{re_rank}) and, for \code{family = binomial()}, per-group
+#' classical-\code{glm} MLE existence (\code{re_estimable}) are diagnostic
+#' checks computed by \code{\link{model_setup}} and do not subset the data or
+#' the reference \code{glmer} fit.  Random-effect variances are
 #' treated as fixed at their mixed-model estimates.  The returned object
 #' two-block Gibbs sampler:
 #'
@@ -361,15 +360,9 @@ Prior_Setup_lmebayes <- function(formula,
     )
   }
 
-  glm_est <- .lmebayes_block_glm_estimable(
-    y       = design$y,
-    groups  = design$groups,
-    Z       = design$Z,
-    re_rank = design$re_rank,
-    family  = family
-  )
-  design$re_estimable <- glm_est$re_estimable
-  design$re_glm_check <- glm_est$re_glm_check
+  ## design$re_estimable / design$re_glm_check are already populated by
+  ## model_setup() (binomial-only classical-glm MLE existence check; other
+  ## families mirror design$re_rank) -- no need to recompute them here.
 
   ## Full-rank status is a per-group DESIGN CHECK only (reported by print();
   ## groups with rank-deficient Z_j are still fully used below).  The lme4
@@ -1179,121 +1172,4 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
   }
 
   invisible(x)
-}
-
-#' Per-group classical glm MLE existence for binomial Block-1 design
-#'
-#' For each group with algebraically full-rank \code{Z_j}, fits
-#' \code{glm(y ~ Z_j - 1, family = binomial)} and marks the group estimable
-#' when all coefficients and \code{vcov} entries are finite.  Non-binomial
-#' families return \code{re_estimable = re_rank} (no glm check).
-#' @noRd
-.lmebayes_block_glm_estimable <- function(y, groups, Z, re_rank, family) {
-  g_levs <- names(re_rank)
-  if (is.null(g_levs)) {
-    g_levs <- levels(groups)
-    names(re_rank) <- g_levs
-  }
-
-  re_estimable <- stats::setNames(rep(FALSE, length(g_levs)), g_levs)
-
-  if (!identical(family$family, "binomial")) {
-    re_estimable[re_rank] <- TRUE
-    return(list(
-      re_estimable = re_estimable,
-      re_glm_check = NULL
-    ))
-  }
-
-  y <- as.numeric(y)
-  g_chr <- as.character(groups)
-  fr_levs <- g_levs[re_rank]
-
-  rows_out <- vector("list", length(fr_levs))
-
-  for (ii in seq_along(fr_levs)) {
-    lev <- fr_levs[ii]
-    rows <- which(g_chr == lev)
-    y_j  <- y[rows]
-    X_j  <- Z[rows, , drop = FALSE]
-    n_j  <- length(y_j)
-    p_j  <- ncol(X_j)
-
-    estimable <- FALSE
-    note      <- character(0)
-
-    if (n_j < 2L) {
-      note <- "fewer than 2 observations"
-    } else if (length(unique(y_j)) < 2L) {
-      note <- "single outcome level"
-    } else {
-      df_j <- data.frame(y = y_j, X_j, check.names = FALSE)
-      fit <- tryCatch(
-        suppressWarnings(
-          stats::glm(
-            y ~ . - 1,
-            data    = df_j,
-            family  = family,
-            control = stats::glm.control(maxit = 50L)
-          )
-        ),
-        error = function(e) e
-      )
-      if (inherits(fit, "error")) {
-        note <- conditionMessage(fit)
-      } else {
-        cf <- stats::coef(fit)
-        if (length(cf) != p_j) {
-          note <- sprintf(
-            "glm returned %d coefficient(s), expected %d",
-            length(cf), p_j
-          )
-        } else if (!isTRUE(fit$rank == p_j)) {
-          note <- sprintf("rank-deficient glm fit (rank %d, expected %d)",
-                          fit$rank, p_j)
-        } else if (any(is.na(cf))) {
-          note <- "NA coefficient(s)"
-        } else if (any(!is.finite(cf))) {
-          note <- "non-finite coefficient(s) (possible separation)"
-        } else {
-          V_ok <- tryCatch({
-            V <- stats::vcov(fit)
-            is.matrix(V) && all(is.finite(V))
-          }, error = function(e) FALSE)
-          if (!isTRUE(V_ok)) {
-            note <- "vcov not finite (possible separation)"
-          } else {
-            estimable <- TRUE
-          }
-        }
-      }
-    }
-
-    re_estimable[[lev]] <- estimable
-    rows_out[[ii]] <- data.frame(
-      group     = lev,
-      n         = n_j,
-      p         = p_j,
-      re_rank   = TRUE,
-      estimable = estimable,
-      note      = if (length(note)) paste(note, collapse = "; ") else "",
-      stringsAsFactors = FALSE
-    )
-  }
-
-  re_glm_check <- if (length(rows_out)) {
-    do.call(rbind, rows_out)
-  } else {
-    data.frame(
-      group = character(0),
-      n = integer(0),
-      p = integer(0),
-      re_rank = logical(0),
-      estimable = logical(0),
-      note = character(0),
-      stringsAsFactors = FALSE
-    )
-  }
-
-  list(re_estimable = re_estimable, re_glm_check = re_glm_check)
 }

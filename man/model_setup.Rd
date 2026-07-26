@@ -71,8 +71,16 @@ Object of class \code{"model_setup"}: \code{y}, \code{Z},
 \code{vcov_formula} (deprecated alias of \code{formula}),
 \code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
 \code{glmer_vcov_fit} (same object as the full-formula fit),
-\code{varcorr}, \code{vcov_re}, \code{residual_var}, and \code{re_rank} (named logical
-vector: \code{TRUE} if \code{Z_j} is full column rank for that group).
+\code{varcorr}, \code{vcov_re}, \code{residual_var}; \code{re_rank}
+(named logical vector: \code{TRUE} if \code{Z_j} is full column rank for
+that group); \code{re_estimable} (named logical vector: \code{TRUE} if
+the group is additionally classical-glm estimable -- equal to
+\code{re_rank} except for \code{family = binomial()}) and
+\code{re_glm_check} (per-group binomial glm diagnostic data frame, or
+\code{NULL} for other families); \code{hyper_rank} (named logical vector
+per RE coefficient, restricted to \code{re_estimable} groups),
+\code{hyper_deficient} (its negation), and \code{rank_ok} (scalar,
+\code{TRUE} only when every \code{hyper_rank} entry is \code{TRUE}).
 }
 \description{
 Wrapper around \code{\link[lme4]{lmer}} or \code{\link[lme4]{glmer}} for
@@ -109,9 +117,9 @@ these three types---level-2 covariate, population mean slope, or cross-level
 moderation interaction---are rejected with an informative error.
 
 \strong{Two-step identifiability assessment.}
-After fitting \code{lmer}, \code{model_setup} performs a two-step rank
-check that assesses whether the model is empirically identified at both the
-within-group and across-group levels:
+After fitting \code{lmer}/\code{glmer}, \code{model_setup} performs a
+two-step check that assesses whether the model is empirically identified at
+both the within-group and across-group levels:
 
 \enumerate{
 \item \emph{Level 1 (within-group):}  For each group \eqn{j}, the
@@ -119,16 +127,25 @@ within-group random-effects design submatrix \eqn{\mathbf{Z}_j} is
 checked for full column rank (\code{re_rank}).  A rank-deficient group
 has too few distinct observations to estimate all random slopes
 independently; its BLUPs are identified through the prior rather than
-the data alone.  Such groups are flagged in \code{re_rank} but are
-retained in the \code{lmer} fit; \code{\link{Prior_Setup_lmebayes}}
+the data alone.  For \code{family = binomial()}, algebraically
+full-rank groups are additionally checked for classical-\code{glm} MLE
+existence (\code{re_estimable}, with per-group detail in
+\code{re_glm_check}): a group can be full column rank yet have no
+finite MLE under complete or quasi-complete separation, in which case
+it likewise supplies no real information from the data alone. Other
+families currently set \code{re_estimable} equal to \code{re_rank} (no
+glm check yet). Such groups are flagged but retained in the
+\code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
 excludes them when calibrating priors.
 
-\item \emph{Level 2 (across-group):}  Restricting to the full-rank groups
-from Step 1, each hyper-design matrix \code{X_hyper[[k]]} is checked
-for full column rank (\code{hyper_rank}).  Rank deficiency at this level
-means the level-2 hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior
-means for random-effect coefficient \eqn{k} across groups---are not
-identified by the data, even as the number of full-rank groups grows.
+\item \emph{Level 2 (across-group):}  Restricting to the \strong{estimable}
+groups from Step 1 (\code{re_estimable} -- full column rank, and for
+\code{family = binomial()} a finite classical-glm MLE), each
+hyper-design matrix \code{X_hyper[[k]]} is checked for full column rank
+(\code{hyper_rank}).  Rank deficiency at this level means the level-2
+hyperparameters \eqn{\boldsymbol{\mu}_k}---the prior means for
+random-effect coefficient \eqn{k} across groups---are not identified by
+the data, even as the number of estimable groups grows.
 }
 
 The scalar \code{rank_ok} is \code{TRUE} only when every

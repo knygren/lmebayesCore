@@ -1,5 +1,38 @@
 # lmebayesCore (development version)
 
+* **`model_setup()` now performs the binomial classical-glm MLE-existence
+  check itself, and the Level~2 hyper-design rank check is restricted to
+  *estimable* groups (not merely full-rank ones).**
+    - `model_setup()`'s return value gains `re_estimable` (named logical,
+      per group) and `re_glm_check` (per-group diagnostic data frame, or
+      `NULL` for non-binomial families). For `family = binomial()`, a group
+      that is algebraically full-rank (`re_rank`) but has no finite
+      classical-`glm(y ~ Z_j - 1, family = binomial)` MLE (complete or
+      quasi-complete separation) is now flagged `re_estimable = FALSE`; other
+      families currently set `re_estimable` equal to `re_rank` (no glm check
+      yet -- Poisson and other families are a planned follow-up).
+    - This check previously lived inside `Prior_Setup_lmebayes()`
+      (`.lmebayes_block_glm_estimable()`, attached post-hoc to the `design`
+      object `model_setup()` had already returned). It has moved into
+      `model_setup()` itself; `Prior_Setup_lmebayes()` now just reads
+      `design$re_estimable`/`design$re_glm_check` instead of recomputing
+      them. No argument was added to opt out -- for `family = binomial()`
+      this check always runs.
+    - **Behavior change:** `model_setup()`'s Level~2 `hyper_rank` check (is
+      `X_hyper[[k]]` full column rank?) now restricts to `re_estimable`
+      groups instead of `re_rank` groups. For `family = binomial()` with any
+      full-rank-but-non-estimable (separated) group, this can change
+      `hyper_rank`/`hyper_deficient`/`rank_ok` relative to previous versions,
+      since such groups no longer count toward Level~2 identifiability (a
+      group without a finite classical MLE supplies no real information
+      about its random-effect coefficients, so it shouldn't count as
+      identifying the level-2 hyperparameters either). For non-binomial
+      families `re_estimable == re_rank`, so `hyper_rank` is unchanged.
+    - `print.model_setup()` now reports the glm-MLE count and any
+      full-rank-but-not-estimable groups for `family = binomial()`, and its
+      "Hyper-Design Rank" section now labels the restriction set "estimable"
+      rather than "full-rank".
+
 * **New: `plot_mean_convergence()`, and fit-object (S3) methods for
   `plot_var_convergence()`/`plot_mean_convergence()`/`plot_sweep_history_diag()`.**
     - `plot_mean_convergence()` is the mean-bias companion to
