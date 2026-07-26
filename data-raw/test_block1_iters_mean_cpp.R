@@ -55,8 +55,8 @@ if (requireNamespace("lmebayes", quietly = TRUE)) {
   block_out <- glmbayesCore::block_rNormalGLM(
     n = 1L,
     y = design$y,
-    x = design$Z,
-    block = design$groups,
+    x = design$D,
+    block = design$group,
     prior_list = prior_list,
     family = binomial(),
     use_parallel = FALSE,

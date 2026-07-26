@@ -27,8 +27,8 @@
 #' Per-group classical-GLM MLE / dispersion-estimability check for Block-1
 #'
 #' For \code{binomial}, \code{poisson}, and \code{Gamma} families, fits
-#' \code{glm(y ~ Z_j - 1, family = family)} on each group with algebraically
-#' full-rank \code{Z_j} and marks the group estimable when a family-specific
+#' \code{glm(y ~ D_j - 1, family = family)} on each group with algebraically
+#' full-rank \code{D_j} and marks the group estimable when a family-specific
 #' pre-check passes (see below) \emph{and} all coefficients and \code{vcov}
 #' entries from the fit are finite.  For \code{gaussian}, no fit is
 #' attempted -- the coefficient MLE (OLS) always exists given full column
@@ -185,10 +185,9 @@
 #' matrix inputs (and the same conventions -- see Details) as
 #' \code{\link{rLMM_reg}}/\code{\link{rGLMM_reg}}, so it can be run directly
 #' on hand-built matrices from those matrix-level workflows, or on
-#' \code{model_setup()}'s \code{design$Z}/\code{design$groups}/
-#' \code{design$X_hyper} (\code{D}\eqn{\equiv}\code{Z} exactly; see
-#' \code{\link{rLMM_reg}}'s \dQuote{Model and notation} section), without
-#' requiring a full \code{lmer}/\code{glmer} reference fit.
+#' \code{model_setup()}'s \code{design$D}/\code{design$group}/
+#' \code{design$W} directly, without requiring a full \code{lmer}/\code{glmer}
+#' reference fit.
 #'
 #' @details
 #' \strong{Level 1 (within-group).} For each group \eqn{j}, the within-group

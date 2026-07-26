@@ -19,7 +19,7 @@ form <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 design <- model_setup(form, data = dat)
-gl <- levels(design$groups)
+gl <- levels(design$group)
 J <- length(gl)
 fit <- lmer(form, data = dat, REML = TRUE)
 sigma2 <- summary(fit)$sigma^2
@@ -43,7 +43,7 @@ cat(strrep("-", nchar(trimws(hdr))), "\n", sep = "")
 
 for (k in re) {
   tau_vc <- unname(vc[k])
-  rss <- rss_k_from_mer_fit(b_cal[, k], mu_all[k, ], design$X_hyper[[k]], gl)
+  rss <- rss_k_from_mer_fit(b_cal[, k], mu_all[k, ], design$W[[k]], gl)
   tau_rss <- rss / (J - 1)
   vb <- var(b_cal[, k])
   vu <- var(re_mat[[k]])
@@ -69,7 +69,7 @@ cat(strrep("-", 78), "\n", sep = "")
 for (k in re) {
   tau_vc <- unname(vc[k])
   tau_rss <- rss_k_from_mer_fit(
-    b_cal[, k], mu_all[k, ], design$X_hyper[[k]], gl
+    b_cal[, k], mu_all[k, ], design$W[[k]], gl
   ) / (J - 1)
   cat(sprintf(
     "%-18s %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n",
@@ -86,7 +86,7 @@ cat("  tau2_rss * (VarCorr/var(BLUP)) should ≈ VarCorr when var(BLUP)=tau2_rss
 for (k in re) {
   tau_vc <- unname(vc[k])
   tau_rss <- rss_k_from_mer_fit(
-    b_cal[, k], mu_all[k, ], design$X_hyper[[k]], gl
+    b_cal[, k], mu_all[k, ], design$W[[k]], gl
   ) / (J - 1)
   vb <- var(b_cal[, k])
   vu <- var(re_mat[[k]])
@@ -107,7 +107,7 @@ for (k in re) {
   var_cond <- vapply(seq_len(J), function(j) pv[[idx, idx, j]], numeric(1))
   lam <- 1 - var_cond / tau_vc
   tau_rss <- rss_k_from_mer_fit(
-    b_cal[, k], mu_all[k, ], design$X_hyper[[k]], gl
+    b_cal[, k], mu_all[k, ], design$W[[k]], gl
   ) / (J - 1)
   deshrink <- tau_rss / mean(1 - lam)
   cat(sprintf(

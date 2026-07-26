@@ -85,10 +85,9 @@ Level-1-estimable groups. Takes the same \code{D}/\code{group}/\code{W}
 matrix inputs (and the same conventions -- see Details) as
 \code{\link{rLMM_reg}}/\code{\link{rGLMM_reg}}, so it can be run directly
 on hand-built matrices from those matrix-level workflows, or on
-\code{model_setup()}'s \code{design$Z}/\code{design$groups}/
-\code{design$X_hyper} (\code{D}\eqn{\equiv}\code{Z} exactly; see
-\code{\link{rLMM_reg}}'s \dQuote{Model and notation} section), without
-requiring a full \code{lmer}/\code{glmer} reference fit.
+\code{model_setup()}'s \code{design$D}/\code{design$group}/
+\code{design$W} directly, without requiring a full \code{lmer}/\code{glmer}
+reference fit.
 }
 \details{
 \strong{Level 1 (within-group).} For each group \eqn{j}, the within-group

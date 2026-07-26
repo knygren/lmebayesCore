@@ -23,7 +23,7 @@ form <- score_ppvt ~
 design <- model_setup(form, data = dat)
 ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
-gl <- levels(design$groups)
+gl <- levels(design$group)
 J <- length(gl)
 
 lmer_fit <- lmer(form, data = dat, REML = TRUE)
@@ -36,7 +36,7 @@ lmer_coef <- coef(lmer_fit)[["school_id"]]
 lmer_ranef <- ranef(lmer_fit)[["school_id"]]
 
 lmer_gamma_k <- function(k) {
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   par <- colnames(Xk)
   if (k == "(Intercept)") {
     lmer_fixef[par]
@@ -68,7 +68,7 @@ for (k in design$re_coef_names) {
   names(b_tot) <- rownames(lmer_coef)
   b_ran <- lmer_ranef[, k]
   gk <- lmer_gamma_k(k)
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   pl <- pf_ing[[k]]$prior_list
   rss <- sum((
     b_tot - as.numeric(Xk[gl, , drop = FALSE] %*% gk)

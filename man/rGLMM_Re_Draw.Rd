@@ -25,8 +25,8 @@ rGLMM_Re_Draw(
 optional \code{ddef}. Typically built by the prep step that pairs
 \code{fixef[[k]][i, ]} with \code{tau2[i, k]} for chain \code{i}.}
 
-\item{design}{List with at least \code{y} (response), \code{Z} (level-1
-design, \code{l2 x p_re}), and \code{groups} (block partition of length
+\item{design}{List with at least \code{y} (response), \code{D} (level-1
+design, \code{l2 x p_re}), and \code{group} (block partition of length
 \code{l2}). Same layout as the \code{design} argument to
 \code{\link{rGLMM_sweep}}.}
 

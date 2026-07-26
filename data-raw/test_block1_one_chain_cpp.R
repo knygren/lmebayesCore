@@ -24,8 +24,8 @@ one_chain_cpp_args <- function(i) {
       batch_fixef  = batch$fixef,
       tau2_i       = batch$tau2[i, ],
       y            = as.numeric(design$y),
-      Z            = as.matrix(design$Z),
-      groups       = design$groups,
+      Z            = as.matrix(design$D),
+      groups       = design$group,
       offset       = offset,
       wt           = wt,
       x_hyper      = x_hyper,
@@ -59,9 +59,9 @@ design_Z <- matrix(rnorm(J * 2L * 2L), ncol = 2L)
 colnames(design_Z) <- re_names
 design <- list(
   y = rbinom(J * 2L, 1, 0.3),
-  Z = design_Z,
-  groups = factor(rep(group_levels, each = 2L), levels = sort(unique(group_levels))),
-  X_hyper = list("(Intercept)" = X_int, "x" = X_slope),
+  D = design_Z,
+  group = factor(rep(group_levels, each = 2L), levels = sort(unique(group_levels))),
+  W = list("(Intercept)" = X_int, "x" = X_slope),
   re_coef_names = re_names
 )
 block1_prior <- list(P = diag(c(10, 20)), ddef = TRUE)
@@ -81,7 +81,7 @@ batch <- glmbayesCore:::.rGLMM_sweep_initialize(
 l2 <- length(design$y)
 offset <- rep(0, l2)
 wt <- rep(1, l2)
-x_hyper <- lapply(design$X_hyper, as.matrix)
+x_hyper <- lapply(design$W, as.matrix)
 fam <- glmbayesCore::glmbfamfunc(stats::binomial())
 fam_g <- glmbayesCore::glmbfamfunc(stats::gaussian())
 family <- stats::binomial()

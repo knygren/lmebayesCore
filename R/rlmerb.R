@@ -124,7 +124,7 @@ rlmerb <- function(
   }
 
   re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   block1_prior <- .lmebayes_block1_prior_list(
     prior,
     dispersion_ranef = disp_info$dispersion_fix

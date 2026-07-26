@@ -111,14 +111,14 @@
     design,
     fn_name = "lmerb"
 ) {
-  if (is.null(design) || is.null(design$groups)) {
+  if (is.null(design) || is.null(design$group)) {
     stop(
       fn_name, "(): a named numeric vector for 'dispersion_ranef' requires ",
       "'design' with grouping information.",
       call. = FALSE
     )
   }
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   J <- length(group_levels)
 
   if (length(dispersion_ranef) != J) {
@@ -175,14 +175,14 @@
     design,
     fn_name = "lmerb"
 ) {
-  if (is.null(design) || is.null(design$groups)) {
+  if (is.null(design) || is.null(design$group)) {
     stop(
       fn_name, "(): a list of dGamma() priors for 'dispersion_ranef' requires ",
       "'design' with grouping information.",
       call. = FALSE
     )
   }
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   J <- length(group_levels)
 
   if (length(dispersion_ranef) != J) {
@@ -327,7 +327,7 @@
 #'     is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other
 #'     \code{pfamily} is rejected), checks that \code{prior_list$mu}/
 #'     \code{prior_list$Sigma} conform to the corresponding per-group
-#'     hyper-design \code{design$X_hyper[[k]]}, and reorders/relabels them to
+#'     hyper-design \code{design$W[[k]]}, and reorders/relabels them to
 #'     that hyper-design's column order (so the \code{pfamily} objects
 #'     returned in \code{pfamily_list} are safe to pass straight to the
 #'     matrix-level samplers).
@@ -358,7 +358,7 @@
 #'     \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
 #'       \code{design$re_coef_names} and with each component's
 #'       \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
-#'       column order of the corresponding \code{design$X_hyper[[k]]}. Safe
+#'       column order of the corresponding \code{design$W[[k]]}. Safe
 #'       to pass straight through to the matrix-level samplers.}
 #'     \item{\code{dispersion_ranef}}{The \emph{resolved} Block~1 dispersion
 #'       value (i.e. \code{disp_res$dispersion_fix}, not the raw input):
@@ -482,7 +482,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     ptypes[[k]] <- pf$pfamily
 
-    par_names <- colnames(design$X_hyper[[k]])
+    par_names <- colnames(design$W[[k]])
     q_k <- length(par_names)
 
     mu_k <- as.numeric(pf$prior_list$mu)
@@ -1037,7 +1037,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 
   stats::setNames(
     lapply(group_levels, function(lev) {
-      idx   <- design$groups == lev
+      idx   <- design$group == lev
       dat_j <- data[idx, , drop = FALSE]
       n_prior_j <- unname(n_prior_group[[lev]])
 
@@ -1689,14 +1689,14 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     \item{\code{n}}{Number of stored draws, unchanged from the \code{n}
 #'       argument.}
 #'     \item{\code{y}}{\code{design$y}, the response vector.}
-#'     \item{\code{D}}{\code{design$Z}, the level-1 (\eqn{l_2 \times p_{re}})
+#'     \item{\code{D}}{\code{design$D}, the level-1 (\eqn{l_2 \times p_{re}})
 #'       random-effect design matrix.}
-#'     \item{\code{group}}{\code{design$groups}, the grouping factor, with
+#'     \item{\code{group}}{\code{design$group}, the grouping factor, with
 #'       \code{attr(group, "group_name")} set to \code{design$group_name}
 #'       (the routed export has no \code{group_name} formal and resolves it
-#'       from this attribute, since \code{design$groups} is never a bare
+#'       from this attribute, since \code{design$group} is never a bare
 #'       variable at the routed export's call site).}
-#'     \item{\code{W}}{\code{design$X_hyper}, the named list of
+#'     \item{\code{W}}{\code{design$W}, the named list of
 #'       group-level hyper-design matrices (one per random-effect
 #'       coefficient).}
 #'     \item{\code{pfamily_list}}{\code{prior$pfamily_list} unchanged. The
@@ -1753,17 +1753,17 @@ matrix_args_lmm <- function(
     sim_method    = "DEFAULT"
 ) {
   ## The routed export has no 'group_name' formal: attach it to 'group'
-  ## itself (design$groups is never a bare variable here, so the export's
+  ## itself (design$group is never a bare variable here, so the export's
   ## substitute()-based fallback could not resolve it anyway).
-  grp <- design$groups
+  grp <- design$group
   attr(grp, "group_name") <- design$group_name
 
   args <- list(
     n             = n,
     y             = design$y,
-    D             = design$Z,
+    D             = design$D,
     group         = grp,
-    W             = design$X_hyper,
+    W             = design$W,
     pfamily_list  = prior$pfamily_list,
     tv_tol        = tv_tol,
     progbar       = progbar,
@@ -1820,17 +1820,17 @@ matrix_args_lmm <- function(
   block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
 
   ## The routed export has no 'group_name' formal: attach it to 'group'
-  ## itself (design$groups is never a bare variable here, so the export's
+  ## itself (design$group is never a bare variable here, so the export's
   ## substitute()-based fallback could not resolve it anyway).
-  grp <- design$groups
+  grp <- design$group
   attr(grp, "group_name") <- design$group_name
 
   list(
     n               = n,
     y               = design$y,
-    D               = design$Z,
+    D               = design$D,
     group           = grp,
-    W               = design$X_hyper,
+    W               = design$W,
     prior_list      = block1_prior,
     pfamily_list    = prior$pfamily_list,
     family          = family,

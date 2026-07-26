@@ -16,11 +16,11 @@ prior <- lmebayesCore::priors_from_pfamily_list(
 )
 block1 <- lmebayes:::.lmebayes_block1_prior_list(prior)
 re_names <- design$re_coef_names
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 pm <- glmerb_posterior_mode(design, binomial(), prior)
 
 cat("re_names:", paste(re_names, collapse = ", "), "\n")
-cat("Z colnames:", paste(colnames(design$Z), collapse = ", "), "\n")
+cat("Z colnames:", paste(colnames(design$D), collapse = ", "), "\n")
 cat("fixef names:", paste(names(pm$fixef), collapse = ", "), "\n")
 cat("ICM:\n")
 print(unlist(pm$fixef))

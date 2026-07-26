@@ -77,8 +77,8 @@
 #'   \code{lmer} fits only).
 #' @param ... Passed to design extraction and, when \code{fit_mer = TRUE}, to the
 #'   reference \code{lmer}/\code{glmer} fit.
-#' @return Object of class \code{"model_setup"}: \code{y}, \code{Z},
-#'   \code{groups}, \code{X_hyper}, \code{formula}, \code{family},
+#' @return Object of class \code{"model_setup"}: \code{y}, \code{D},
+#'   \code{group}, \code{W}, \code{formula}, \code{family},
 #'   \code{vcov_formula} (deprecated alias of \code{formula}),
 #'   \code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
 #'   \code{glmer_vcov_fit} (same object as the full-formula fit),
@@ -188,14 +188,14 @@ model_setup <- function(
   }
 
   # Two-step identifiability/estimability assessment (Level 1 rank +
-  # estimability on Z_j, Level 2 rank on X_hyper restricted to estimable
+  # estimability on D_j, Level 2 rank on W restricted to estimable
   # groups) -- see check_identifiability() for the full algorithm
   # description; model_setup() just copies its fields onto design.
   ident <- check_identifiability(
     y          = design$y,
-    D          = design$Z,
-    group      = design$groups,
-    W          = design$X_hyper,
+    D          = design$D,
+    group      = design$group,
+    W          = design$W,
     family     = family,
     group_name = design$group_name
   )
@@ -305,7 +305,7 @@ print.model_setup <- function(x, ...) {
   re_names <- x$re_coef_names
   grp      <- x$group_name
   n_obs    <- length(x$y)
-  n_lev    <- nlevels(x$groups)
+  n_lev    <- nlevels(x$group)
 
   # ---- Call ------------------------------------------------------------------
   if (!is.null(x$call)) {
@@ -320,7 +320,7 @@ print.model_setup <- function(x, ...) {
   cat(sprintf("  Group        : %s  [%d levels]\n", grp, n_lev))
   if (!is.null(x$re_rank)) {
     n_full <- sum(x$re_rank)
-    cat(sprintf("  Full-rank Z_j: %d of %d groups\n", n_full, n_lev))
+    cat(sprintf("  Full-rank D_j: %d of %d groups\n", n_full, n_lev))
     if (n_full < n_lev) {
       deficient <- names(x$re_rank)[!x$re_rank]
       shown     <- deficient[seq_len(min(10L, length(deficient)))]
@@ -353,7 +353,7 @@ print.model_setup <- function(x, ...) {
   w <- max(nchar(re_names))
 
   for (nm in re_names) {
-    Xj    <- x$X_hyper[[nm]]
+    Xj    <- x$W[[nm]]
     other <- setdiff(colnames(Xj), "(Intercept)")
 
     hyper_rhs <- if (length(other) == 0L) "1" else paste(c("1", other), collapse = " + ")
@@ -369,7 +369,7 @@ print.model_setup <- function(x, ...) {
     cat(sprintf("  (Restricted to %d estimable %s)\n\n", n_est_groups, grp))
     deficient_nms <- character(0)
     for (nm in re_names) {
-      Xh      <- x$X_hyper[[nm]]
+      Xh      <- x$W[[nm]]
       p_hyper <- ncol(Xh)
       is_fr   <- if (nm %in% names(x$hyper_rank)) x$hyper_rank[[nm]] else NA
       status  <- if (isTRUE(is_fr)) "full-rank" else if (isFALSE(is_fr)) "RANK-DEFICIENT" else "unknown"
@@ -394,7 +394,7 @@ print.model_setup <- function(x, ...) {
       cat("\n")
       for (nm in deficient_nms) {
         cat(sprintf(
-          "  NOTE: X_hyper for '%s' is rank-deficient after restricting to\n",
+          "  NOTE: W for '%s' is rank-deficient after restricting to\n",
           nm))
         cat(sprintf(
           "  %d estimable %s. Consider removing predictors or merging\n",

@@ -112,7 +112,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
   )
 
   design <- list(
-    y = fx$y, Z = fx$D, groups = fx$group, X_hyper = fx$W,
+    y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     re_coef_names = "(Intercept)", group_name = "group"
   )
   ## Sigma_ranef must match what rLMMNormal_joint_iid() now derives

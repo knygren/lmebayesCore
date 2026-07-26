@@ -20,7 +20,7 @@ form_lmer <- score_ppvt ~
 design <- model_setup(form_lmer, data = dat)
 ps <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.01)
 pf <- pfamily_list(ps)
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 re_names <- design$re_coef_names
 prior_list_block1 <- list(
@@ -38,9 +38,9 @@ cat(sprintf(
 
 ## (a) FULL model: all 47 groups (exactly what Ex_10 actually samples).
 rate_full <- two_block_rate_from_pfamily_list(
-  x                 = design$Z,
+  x                 = design$D,
   block             = grp,
-  x_hyper           = design$X_hyper,
+  x_hyper           = design$W,
   prior_list_block1 = prior_list_block1,
   pfamily_list      = pf,
   family            = gaussian(),
@@ -57,13 +57,13 @@ dat_fr <- subset(dat, school_id %in% full_rank_levs)
 dat_fr$school_id <- droplevels(dat_fr$school_id)
 design_fr <- model_setup(form_lmer, data = dat_fr)
 stopifnot(all(design_fr$re_rank))
-grp_fr <- design_fr$groups
+grp_fr <- design_fr$group
 attr(grp_fr, "group_name") <- design_fr$group_name
 
 rate_fr <- two_block_rate_from_pfamily_list(
-  x                 = design_fr$Z,
+  x                 = design_fr$D,
   block             = grp_fr,
-  x_hyper           = design_fr$X_hyper,
+  x_hyper           = design_fr$W,
   prior_list_block1 = list(
     P          = prior_list_block1$P,
     dispersion = prior_list_block1$dispersion,

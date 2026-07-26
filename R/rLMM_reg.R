@@ -511,9 +511,9 @@ NULL
 ) {
   design_icm <- list(
     y             = y,
-    Z             = D,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = W,
+    D             = D,
+    group         = factor(group, levels = group_levels),
+    W             = W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -1283,13 +1283,13 @@ NULL
   group_levels <- batch$group_levels
 
   y <- design$y
-  Z <- as.matrix(design$Z)
+  Z <- as.matrix(design$D)
 
   if (!is.null(ing_prior_list$shape_group)) {
     out <- .two_block_block1_ing_group_draw_one_chain(
       y              = y,
       Z              = Z,
-      groups         = design$groups,
+      groups         = design$group,
       ing_prior_list = ing_prior_list,
       mu_all         = mu_all,
       re_names       = re_names,
@@ -1304,7 +1304,7 @@ NULL
     out <- .two_block_block1_envelope_draw_one_chain(
       y            = y,
       Z            = Z,
-      groups       = design$groups,
+      groups       = design$group,
       prior_list   = prior_list,
       p_re         = p_re,
       re_names     = re_names,
@@ -1772,9 +1772,9 @@ NULL
 
   design <- list(
     y             = inp$y,
-    Z             = inp$D,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = inp$W,
+    D             = inp$D,
+    group         = factor(group, levels = group_levels),
+    W             = inp$W,
     re_coef_names = re_names,
     group_name    = group_name,
     re_rank       = .lmebayes_re_rank_from_Z(
@@ -2201,9 +2201,9 @@ NULL
 
   design <- list(
     y             = inp$y,
-    Z             = inp$D,
-    groups        = factor(group, levels = inp$group_levels),
-    X_hyper       = inp$W,
+    D             = inp$D,
+    group         = factor(group, levels = inp$group_levels),
+    W             = inp$W,
     re_coef_names = inp$re_names,
     group_name    = inp$group_name
   )
@@ -2336,9 +2336,9 @@ NULL
   staged$sim_method_used <- "DEFAULT"
   staged$design          <- list(
     y             = inp$y,
-    Z             = inp$D,
-    groups        = factor(group, levels = inp$group_levels),
-    X_hyper       = inp$W,
+    D             = inp$D,
+    group         = factor(group, levels = inp$group_levels),
+    W             = inp$W,
     re_coef_names = inp$re_names,
     group_name    = inp$group_name
   )
@@ -2842,9 +2842,9 @@ rLMMindepNormalGamma_reg <- function(
     iters_fixef_draws      = iters_fixef_draws,
     mu_all_last            = build_mu_all(
       list(
-        X_hyper       = inp$W,
+        W             = inp$W,
         re_coef_names = re_names,
-        groups        = factor(group, levels = inp$group_levels)
+        group         = factor(group, levels = inp$group_levels)
       ),
       fixef_cur,
       group_levels = inp$group_levels

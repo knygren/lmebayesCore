@@ -32,7 +32,7 @@ dat$y <- 2 + b0_true[as.character(dat$group)] +
 form_lmer <- y ~ x1 + (1 + x1 || group)
 
 design <- model_setup(form_lmer, data = dat)
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 re_names <- design$re_coef_names
 
@@ -73,7 +73,7 @@ check_design <- function(fit, label, expect_classes) {
   has_design <- !is.null(fit$design)
   cat("has $design:", has_design, "\n")
   stopifnot(has_design)
-  stopifnot(all(c("y", "Z", "groups", "X_hyper", "re_coef_names") %in% names(fit$design)))
+  stopifnot(all(c("y", "D", "group", "W", "re_coef_names") %in% names(fit$design)))
   for (cls in expect_classes) {
     stopifnot(cls %in% class(fit))
   }
@@ -82,7 +82,7 @@ check_design <- function(fit, label, expect_classes) {
 
 ## --- rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS") --------
 fit1 <- rLMMNormal_reg_known_vcov(
-  n = 20L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
 )
@@ -93,7 +93,7 @@ check_design(fit1, "rLMMNormal_reg_known_vcov(TWO_BLOCK_GIBBS)", c("rLMMNormal_r
 ## missing 'design' -- only the "TWO_BLOCK_GIBBS" route (.rLMMNormal_reg_run())
 ## had it. Exercise this route explicitly so a regression here is caught.
 fit1b <- rLMMNormal_reg_known_vcov(
-  n = 20L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
 )
@@ -101,7 +101,7 @@ check_design(fit1b, "rLMMNormal_reg_known_vcov(DEFAULT)", c("rLMMNormal_reg_know
 
 ## --- rLMMNormal_reg_estimated_vcov() ----------------------------------
 fit2 <- rLMMNormal_reg_estimated_vcov(
-  n = 20L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_est_vcov,
   progbar = FALSE, verbose = FALSE
 )
@@ -109,14 +109,14 @@ check_design(fit2, "rLMMNormal_reg_estimated_vcov()", c("rLMMNormal_reg_estimate
 
 ## --- rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov() ----------
 fit3 <- rLMMindepNormalGamma_reg_known_vcov(
-  n = 20L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp_group, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE
 )
 check_design(fit3, "rLMMindepNormalGamma_reg_known_vcov()", c("rLMMindepNormalGamma_reg_known_vcov", "rLMMindepNormalGamma_reg"))
 
 fit4 <- rLMMindepNormalGamma_reg_estimated_vcov(
-  n = 20L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp_group, pfamily_list = pf_est_vcov,
   progbar = FALSE, verbose = FALSE
 )
@@ -139,7 +139,7 @@ eta_pois <- 1.5 + b0_pois[as.character(dat_pois$group)] +
 dat_pois$y <- stats::rpois(nrow(dat_pois), lambda = exp(eta_pois))
 
 design_pois <- model_setup(form_lmer, data = dat_pois)
-grp_pois <- design_pois$groups
+grp_pois <- design_pois$group
 attr(grp_pois, "group_name") <- design_pois$group_name
 
 ps_pois        <- Prior_Setup_lmebayes(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
@@ -147,14 +147,14 @@ pf_known_pois  <- pfamily_list(ps_pois)
 pf_est_pois    <- pfamily_list(ps_pois, ptypes = "dIndependent_Normal_Gamma")
 
 fit5 <- rGLMM_reg_known_vcov(
-  n = 20L, y = design_pois$y, D = design_pois$Z, group = grp_pois, W = design_pois$X_hyper,
+  n = 20L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
   prior_list = list(), pfamily_list = pf_known_pois,
   family = poisson(), progbar = FALSE, verbose = FALSE
 )
 check_design(fit5, "rGLMM_reg_known_vcov(poisson)", c("rGLMM_reg_known_vcov", "rGLMM_reg"))
 
 fit6 <- rGLMM_reg_estimated_vcov(
-  n = 20L, y = design_pois$y, D = design_pois$Z, group = grp_pois, W = design_pois$X_hyper,
+  n = 20L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
   prior_list = list(), pfamily_list = pf_est_pois,
   family = poisson(), progbar = FALSE, verbose = FALSE
 )

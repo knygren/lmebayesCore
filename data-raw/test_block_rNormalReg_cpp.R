@@ -143,8 +143,8 @@ if (requireNamespace("bayesrules", quietly = TRUE) &&
     b1 <- block_rNormalReg(
       n = 1L,
       y = design$y,
-      x = design$Z,
-      block = design$groups,
+      x = design$D,
+      block = design$group,
       prior_list = list(
         mu = mu_all,
         Sigma = ps$Sigma_ranef,
@@ -152,7 +152,7 @@ if (requireNamespace("bayesrules", quietly = TRUE) &&
         ddef = FALSE
       )
     )
-    stopifnot(nrow(b1$coefficients) == nlevels(design$groups))
+    stopifnot(nrow(b1$coefficients) == nlevels(design$group))
     stopifnot(all(is.finite(b1$coef.mode)))
     cat("5. big_word_club Block 1: OK (", nrow(b1$coefficients), " schools)\n", sep = "")
   } else {

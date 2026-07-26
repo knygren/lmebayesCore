@@ -25,7 +25,7 @@ design <- model_setup(form, data = dat)
 ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 re <- design$re_coef_names
-gl <- levels(design$groups)
+gl <- levels(design$group)
 
 lmer_fit <- lme4::lmer(form, data = dat, REML = TRUE)
 vc <- extract_mer_variance_components(lmer_fit, re)
@@ -35,7 +35,7 @@ tau2_plug <- two_block_tau2_plug_in_list(pf_ing, re)
 
 ## Map lmer fixef to Block~2 gamma_k per RE component (X_hyper column names).
 lmer_gamma_k <- function(k, fe = lmer_fixef) {
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   par <- colnames(Xk)
   if (k == "(Intercept)") {
     fe[par]
@@ -63,7 +63,7 @@ cat(sprintf(
 ))
 cat(strrep("-", 62), "\n", sep = "")
 for (k in re) {
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   pl <- pf_ing[[k]]$prior_list
   b_k <- lmer_coef[, k]
   names(b_k) <- rownames(lmer_coef)

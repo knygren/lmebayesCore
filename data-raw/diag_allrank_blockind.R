@@ -26,9 +26,9 @@ disp_pf <- dGamma(
 )
 
 design <- ps$design
-Z <- as.matrix(design$Z)
+Z <- as.matrix(design$D)
 y <- design$y
-groups <- design$groups
+groups <- design$group
 re_names <- design$re_coef_names
 group_levels <- levels(groups)
 p_re <- length(re_names)

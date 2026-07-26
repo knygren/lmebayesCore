@@ -106,7 +106,7 @@ rglmerb <- function(
   )
 
   re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
 
   if (is_gaussian) {
     block1_prior <- .lmebayes_block1_prior_list(

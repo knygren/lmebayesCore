@@ -130,7 +130,7 @@ disp_pf_list <- dGamma_list(ps)
 
 ## group_name is not a formal on the routed export; attach it to 'group'
 ## instead of relying on substitute() (see .lmebayes_resolve_group_name()).
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 group_levels <- levels(grp)
@@ -193,9 +193,9 @@ cat(sprintf(
 fit <- rLMMindepNormalGamma_reg_estimated_vcov(
   n            = 3000L,
   y            = design$y,
-  D            = design$Z,
+  D            = design$D,
   group        = grp,
-  W            = design$X_hyper,
+  W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
   gap_tol      = 0.05,

@@ -3,21 +3,21 @@
 #' Forms the \code{mu_all} matrix passed to
 #' \code{\link{block_rNormalReg_update}}: for each grouping level
 #' \eqn{j} and each random-effect column \eqn{k} of the level-1 design
-#' \code{Z},
+#' \code{D},
 #' \deqn{\mu\_\text{all}[k, j] = X_{\text{hyper},k}[j,]^\top \gamma_k,}
 #' where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 #' (Block 2 state).
 #'
-#' @param design List with components \code{X_hyper}, \code{re_coef_names},
-#'   and \code{groups} (typically supplied by a downstream mixed-effects
+#' @param design List with components \code{W}, \code{re_coef_names},
+#'   and \code{group} (typically supplied by a downstream mixed-effects
 #'   model setup step).
 #' @param fixef Named list of hyper-parameter vectors, one entry per RE column
-#'   of \code{Z}. Names must match \code{design$re_coef_names}. Each
-#'   \code{fixef[[k]]} is a numeric vector of length \code{ncol(X_hyper[[k]])}
-#'   with names matching \code{colnames(X_hyper[[k]])}.
+#'   of \code{D}. Names must match \code{design$re_coef_names}. Each
+#'   \code{fixef[[k]]} is a numeric vector of length \code{ncol(W[[k]])}
+#'   with names matching \code{colnames(W[[k]])}.
 #' @param group_levels Character vector of grouping levels defining the
 #'   \emph{column order} of \code{mu_all}.  Defaults to
-#'   \code{levels(design$groups)}, which is the canonical ordering used in
+#'   \code{levels(design$group)}, which is the canonical ordering used in
 #'   two-block mixed models and consistent with \code{lmer} and
 #'   \code{\link{block_rNormalReg}} (which preserves the input factor's level
 #'   order).
@@ -41,11 +41,11 @@ build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
   if (isTRUE(use_cpp)) {
     .lmerb_validate_design(design)
     if (is.null(group_levels)) {
-      group_levels <- levels(design$groups)
+      group_levels <- levels(design$group)
     } else {
       group_levels <- as.character(group_levels)
     }
-    x_hyper <- lapply(design$X_hyper, as.matrix)
+    x_hyper <- lapply(design$W, as.matrix)
     mu_all <- .two_block_build_mu_all_cpp(
       x_hyper, fixef, design$re_coef_names, group_levels
     )
@@ -69,7 +69,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
   }
 
   re <- design$re_coef_names
-  Xh <- design$X_hyper
+  Xh <- design$W
 
   if (length(re) < 1L) {
     stop("'design' has no random-effect columns.", call. = FALSE)
@@ -90,7 +90,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
   fixef <- fixef[re]
 
   if (is.null(group_levels)) {
-    group_levels <- levels(design$groups)
+    group_levels <- levels(design$group)
   } else {
     group_levels <- as.character(group_levels)
   }
@@ -109,7 +109,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
     X_k     <- Xh[[k]]
 
     if (is.null(X_k)) {
-      stop("design$X_hyper[[", k, "]] is missing.", call. = FALSE)
+      stop("design$W[[", k, "]] is missing.", call. = FALSE)
     }
     if (!is.numeric(gamma_k) || length(gamma_k) < 1L) {
       stop("fixef[[", k, "]] must be a numeric vector.", call. = FALSE)
@@ -118,7 +118,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
     if (length(gamma_k) != p_k) {
       stop(
         "length(fixef[[", k, "]]) (", length(gamma_k),
-        ") must equal ncol(X_hyper[[", k, "]]) (", p_k, ").",
+        ") must equal ncol(W[[", k, "]]) (", p_k, ").",
         call. = FALSE
       )
     }
@@ -129,7 +129,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
       }
       if (!identical(names(gamma_k), cn)) {
         stop(
-          "names(fixef[[", k, "]]) must match colnames(X_hyper[[", k, "]]).",
+          "names(fixef[[", k, "]]) must match colnames(W[[", k, "]]).",
           call. = FALSE
         )
       }
@@ -139,7 +139,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
     if (is.null(rn)) {
       if (nrow(X_k) != J) {
         stop(
-          "nrow(X_hyper[[", k, "]]) (", nrow(X_k),
+          "nrow(W[[", k, "]]) (", nrow(X_k),
           ") must equal length(group_levels) (", J, ").",
           call. = FALSE
         )
@@ -151,7 +151,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
       miss <- setdiff(group_levels, rn)
       if (length(miss) > 0L) {
         stop(
-          "group level(s) not found in rownames(X_hyper[[", k, "]]): ",
+          "group level(s) not found in rownames(W[[", k, "]]): ",
           paste(miss, collapse = ", "),
           call. = FALSE
         )
@@ -174,7 +174,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
   if (!is.list(design)) {
     stop("'design' must be a list.", call. = FALSE)
   }
-  for (nm in c("X_hyper", "re_coef_names", "groups")) {
+  for (nm in c("W", "re_coef_names", "group")) {
     if (is.null(design[[nm]])) {
       stop("'design' must contain '", nm, "'.", call. = FALSE)
     }

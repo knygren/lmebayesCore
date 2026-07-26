@@ -22,7 +22,7 @@ form <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 design <- model_setup(form, data = dat)
-gl <- levels(design$groups)
+gl <- levels(design$group)
 J <- length(gl)
 k <- "distracted_ppvt"
 
@@ -34,8 +34,8 @@ lmer_fixef <- fixef(lmer_fit)
 lmer_coef <- coef(lmer_fit)[["school_id"]]
 lmer_ranef <- ranef(lmer_fit)[["school_id"]]
 
-Xk <- design$X_hyper[[k]]
-Zk <- design$Z[, k, drop = FALSE]
+Xk <- design$W[[k]]
+Zk <- design$D[, k, drop = FALSE]
 cat("X_hyper ppvt col names:", colnames(Xk), "\n")
 cat("Z ppvt col name:", colnames(Zk), "\n\n")
 

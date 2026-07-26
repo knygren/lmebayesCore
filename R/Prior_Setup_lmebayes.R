@@ -431,7 +431,7 @@ Prior_Setup_lmebayes <- function(formula,
     )
     tau2_vec <- vc_ref$vcov_re
     sigma2_group_ref <- .lmebayes_glmmtmb_group_sigma2(
-      fit_ref, design$group_name, levels(design$groups)
+      fit_ref, design$group_name, levels(design$group)
     )
     calibration_source <- "glmmTMB"
   } else {
@@ -464,7 +464,7 @@ Prior_Setup_lmebayes <- function(formula,
   re_issues <- character(0)
 
   for (k in re_names) {
-    X_k    <- design$X_hyper[[k]]
+    X_k    <- design$W[[k]]
     cols_k <- colnames(X_k)
     fe_nms <- vapply(cols_k, fe_name_for, character(1L), k = k)
     miss_idx <- is.na(fe_nms) | !fe_nms %in% names(fe)
@@ -533,7 +533,7 @@ Prior_Setup_lmebayes <- function(formula,
 
   pwt_list <- .lmebayes_resolve_pwt(pwt, design)
 
-  J_groups <- nlevels(design$groups)
+  J_groups <- nlevels(design$group)
   disp     <- .lmebayes_resolve_disp_prior(
     pwt_dispersion     = pwt_dispersion,
     n_prior_dispersion = n_prior_dispersion,
@@ -589,7 +589,7 @@ Prior_Setup_lmebayes <- function(formula,
 
   prior_list <- stats::setNames(
     lapply(re_names, function(k) {
-      X_k    <- design$X_hyper[[k]]
+      X_k    <- design$W[[k]]
       cols_k <- colnames(X_k)
       p_k    <- length(cols_k)
       tau2_k <- tau2_vec[[k]]
@@ -710,7 +710,7 @@ Prior_Setup_lmebayes <- function(formula,
     )
   }
 
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   block_formula <- .lmebayes_block_formula_from_re(formula, re_names)
   sd_tau_out <- if (is_gaussian) {
     stats::setNames(sqrt(unname(tau2_vec)), re_names)
@@ -719,7 +719,7 @@ Prior_Setup_lmebayes <- function(formula,
   }
 
   meas_group <- if (is_gaussian) {
-    n_j <- as.integer(table(design$groups))
+    n_j <- as.integer(table(design$group))
     names(n_j) <- group_levels
     .lmebayes_resolve_measurement_disp_prior_group(
       pwt_measurement     = pwt_measurement,
@@ -864,7 +864,7 @@ Prior_Setup_lmebayes <- function(formula,
     check_range(pwt, "'pwt'")
     return(stats::setNames(
       lapply(re_names, function(k) {
-        cols_k <- colnames(design$X_hyper[[k]])
+        cols_k <- colnames(design$W[[k]])
         stats::setNames(rep(as.numeric(pwt), length(cols_k)), cols_k)
       }),
       re_names
@@ -895,7 +895,7 @@ Prior_Setup_lmebayes <- function(formula,
 
   out <- stats::setNames(vector("list", p_re), re_names)
   for (k in re_names) {
-    cols_k <- colnames(design$X_hyper[[k]])
+    cols_k <- colnames(design$W[[k]])
     p_k    <- length(cols_k)
     v      <- pwt[[k]]
     what   <- sprintf("'pwt[[\"%s\"]]'", k)
@@ -1027,7 +1027,7 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
 
   re_names <- x$design$re_coef_names
   n_fr     <- sum(x$design$re_rank)
-  n_all    <- nlevels(x$design$groups)
+  n_all    <- nlevels(x$design$group)
 
   disp_src <- attr(x$pwt_dispersion, "source")
 
@@ -1108,7 +1108,7 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
     cat("  dispersion_ranef : NULL  (no observation-level dispersion)\n")
   }
   cat(sprintf(
-    "  Full-rank groups (algebraic Z_j): %d of %d %s  (design check only)\n",
+    "  Full-rank groups (algebraic D_j): %d of %d %s  (design check only)\n",
     n_fr, n_all, x$design$group_name
   ))
   if (!is.null(x$design$re_glm_check) &&

@@ -14,9 +14,9 @@ source(file.path(root, "tests/manual/_small5_lmerb_fixture.R"))
 
 fx <- .prepare_small5_lmerb_manual(n_schools = 5L)
 ps <- Prior_Setup_lmebayes(fx$form, data = fx$dat, pwt = 0.01)
-Z <- as.matrix(fx$design$Z)
+Z <- as.matrix(fx$design$D)
 y <- fx$design$y
-groups <- fx$design$groups
+groups <- fx$design$group
 re_names <- fx$design$re_coef_names
 group_levels <- levels(groups)
 p_re <- length(re_names)

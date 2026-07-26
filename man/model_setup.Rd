@@ -66,8 +66,8 @@ matrices and rank diagnostics only (used by \code{glmerb()} in lmebayes).}
 \item{x}{A \code{model_setup} object.}
 }
 \value{
-Object of class \code{"model_setup"}: \code{y}, \code{Z},
-\code{groups}, \code{X_hyper}, \code{formula}, \code{family},
+Object of class \code{"model_setup"}: \code{y}, \code{D},
+\code{group}, \code{W}, \code{formula}, \code{family},
 \code{vcov_formula} (deprecated alias of \code{formula}),
 \code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
 \code{glmer_vcov_fit} (same object as the full-formula fit),
@@ -201,7 +201,7 @@ print(utils::head(re_df, 10))
 ## ---------------------------------------------------------------------------
 ## 4. Gamma estimates organised to match the Random Effects Model above
 ##
-##    Mapping (intercept RE): X_hyper columns map directly to fixef() names.
+##    Mapping (intercept RE): W columns map directly to fixef() names.
 ##    Mapping (slope RE, hyper ~ 1): (Intercept) column -> fixef[slope_name].
 ## ---------------------------------------------------------------------------
 cat("\n--- Random effects model (gamma estimates) ---\n")
@@ -214,7 +214,7 @@ coef_sds   <- sqrt(coef_vars)
 w          <- max(nchar(design$re_coef_names))
 
 for (nm in design$re_coef_names) {
-  Xj    <- design$X_hyper[[nm]]
+  Xj    <- design$W[[nm]]
   other <- setdiff(colnames(Xj), "(Intercept)")
   hyper_rhs <- if (length(other) == 0L) "1" else paste(c("1", other), collapse = " + ")
 
@@ -265,7 +265,7 @@ cat("\n--- lmer refit: full-rank schools only ---\n")
 full_rank_schools <- names(design$re_rank)[design$re_rank]
 cat(sprintf("  Using \%d of \%d schools (dropping rank-deficient: \%s)\n\n",
             length(full_rank_schools),
-            nlevels(design$groups),
+            nlevels(design$group),
             paste(names(design$re_rank)[!design$re_rank], collapse = ", ")))
 
 dat_fr <- subset(dat, school_id \%in\% full_rank_schools)

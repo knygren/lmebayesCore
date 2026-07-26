@@ -15,12 +15,12 @@ ing <- pf$ing_prior_list
 
 # Minimal batch like pilot chain 1
 re_names <- design$re_coef_names
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 p_re <- length(re_names)
 n_chains <- 4L
 
 fixef <- lapply(re_names, function(r) {
-  setNames(rep(0, ncol(design$X_hyper[[r]])), colnames(design$X_hyper[[r]]))
+  setNames(rep(0, ncol(design$W[[r]])), colnames(design$W[[r]]))
 })
 names(fixef) <- re_names
 tau2 <- matrix(1, n_chains, p_re, dimnames = list(NULL, re_names))
@@ -48,8 +48,8 @@ for (i in seq_len(n_chains)) {
   tryCatch({
     out <- glmbayesCore:::.two_block_block1_envelope_draw_one_chain(
       y = design$y,
-      Z = as.matrix(design$Z),
-      groups = design$groups,
+      Z = as.matrix(design$D),
+      groups = design$group,
       prior_list = prior_list,
       p_re = p_re,
       re_names = re_names,

@@ -168,9 +168,9 @@ rLMMNormal_joint_iid <- function(
 
   design <- list(
     y             = y,
-    Z             = x,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = x_hyper,
+    D             = x,
+    group         = factor(group, levels = group_levels),
+    W             = x_hyper,
     re_coef_names = re_names,
     group_name    = group_name
   )

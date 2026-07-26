@@ -34,7 +34,7 @@ A list (the \code{prior} object) with elements:
 \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
 \code{design$re_coef_names} and with each component's
 \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
-column order of the corresponding \code{design$X_hyper[[k]]}. Safe
+column order of the corresponding \code{design$W[[k]]}. Safe
 to pass straight through to the matrix-level samplers.}
 \item{\code{dispersion_ranef}}{The \emph{resolved} Block~1 dispersion
 value (i.e. \code{disp_res$dispersion_fix}, not the raw input):
@@ -126,7 +126,7 @@ position) and reorders it to that canonical order.
 is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other
 \code{pfamily} is rejected), checks that \code{prior_list$mu}/
 \code{prior_list$Sigma} conform to the corresponding per-group
-hyper-design \code{design$X_hyper[[k]]}, and reorders/relabels them to
+hyper-design \code{design$W[[k]]}, and reorders/relabels them to
 that hyper-design's column order (so the \code{pfamily} objects
 returned in \code{pfamily_list} are safe to pass straight to the
 matrix-level samplers).

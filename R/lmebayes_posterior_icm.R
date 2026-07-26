@@ -18,7 +18,7 @@
 #'   \bigl(X_k^\top b_k / \tau^2_k + P_{\gamma_k} \mu_{\gamma_k}\bigr)
 #' }
 #' where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
-#' \eqn{X_k =} \code{design$X_hyper[[k]]},
+#' \eqn{X_k =} \code{design$W[[k]]},
 #' \eqn{\tau^2_k =} \code{dispersion_fixef}, and
 #' \eqn{P_{\gamma_k} = \Sigma_{\gamma_k}^{-1}} from \code{prior_list}.
 #'
@@ -31,8 +31,8 @@
 #' \code{family = gaussian()} targets the same mean as
 #' \code{lmerb_posterior_mean()} (via ICM rather than the closed form).
 #'
-#' @param design Design list with \code{y}, \code{Z}, \code{groups},
-#'   \code{X_hyper}, and \code{re_coef_names}.
+#' @param design Design list with \code{y}, \code{D}, \code{group},
+#'   \code{W}, and \code{re_coef_names}.
 #' @param measurement_prior_list List with \code{Sigma_ranef} and
 #'   \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
 #'   for \code{lmerb_posterior_mean()} and for \code{glmerb_posterior_mode()}
@@ -93,8 +93,8 @@ lmerb_posterior_mean <- function(design,
   .lmerb_validate_design(design)
   .lmerb_validate_measurement_prior_list(measurement_prior_list)
 
-  if (is.null(design$y) || is.null(design$Z)) {
-    stop("'design' must contain 'y' and 'Z'.", call. = FALSE)
+  if (is.null(design$y) || is.null(design$D)) {
+    stop("'design' must contain 'y' and 'D'.", call. = FALSE)
   }
 
   system <- .lmerb_posterior_normal_system(design, measurement_prior_list)
@@ -103,7 +103,7 @@ lmerb_posterior_mean <- function(design,
   fixef <- stats::setNames(
     lapply(system$re_names, function(k) {
       g <- gamma_full[system$idx[[k]]]
-      names(g) <- colnames(design$X_hyper[[k]])
+      names(g) <- colnames(design$W[[k]])
       g
     }),
     system$re_names
@@ -158,7 +158,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
   Sigma  <- solve(system$M)
 
   lbl <- unlist(lapply(system$re_names, function(k) {
-    paste(k, colnames(design$X_hyper[[k]]), sep = " | ")
+    paste(k, colnames(design$W[[k]]), sep = " | ")
   }), use.names = FALSE)
   dimnames(Sigma) <- list(lbl, lbl)
   Sigma
@@ -188,10 +188,10 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 #' @noRd
 .lmerb_posterior_normal_system <- function(design, measurement_prior_list) {
   re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   J            <- length(group_levels)
   p_re         <- length(re_names)
-  g_chr        <- as.character(design$groups)
+  g_chr        <- as.character(design$group)
 
   sigma2 <- measurement_prior_list$dispersion_ranef
   if (is.null(sigma2)) {
@@ -233,7 +233,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
   for (jj in seq_len(J)) {
     lev  <- group_levels[jj]
     rows <- which(g_chr == lev)
-    Z_j  <- design$Z[rows, , drop = FALSE]
+    Z_j  <- design$D[rows, , drop = FALSE]
     y_j  <- design$y[rows]
     ## Per-group fixed dispersion vector (mode = "fixed_vector") is already
     ## ordered to match group_levels by the resolver in mixed_rmerb_helpers.R;
@@ -284,7 +284,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
     D_list[[lev]] <- solve(post_P_j, P_b)
   }
 
-  p_k     <- vapply(re_names, function(k) ncol(design$X_hyper[[k]]), integer(1L))
+  p_k     <- vapply(re_names, function(k) ncol(design$W[[k]]), integer(1L))
   P_total <- sum(p_k)
   idx     <- stats::setNames(vector("list", p_re), re_names)
   cursor  <- 0L
@@ -295,7 +295,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 
   post_P_gamma_list <- stats::setNames(
     lapply(re_names, function(k) {
-      crossprod(design$X_hyper[[k]]) / tau2[[k]] + P_gamma[[k]]
+      crossprod(design$W[[k]]) / tau2[[k]] + P_gamma[[k]]
     }),
     re_names
   )
@@ -308,7 +308,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 
   for (ik in seq_len(p_re)) {
     k    <- re_names[[ik]]
-    X_k  <- design$X_hyper[[k]]
+    X_k  <- design$W[[k]]
     a_k  <- a_mat[ik, ]
     s_k  <- as.vector(crossprod(X_k, a_k))
 
@@ -317,7 +317,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 
     for (ik2 in seq_len(p_re)) {
       k2    <- re_names[[ik2]]
-      X_k2  <- design$X_hyper[[k2]]
+      X_k2  <- design$W[[k2]]
       d_vec <- vapply(group_levels, function(lev) D_list[[lev]][ik, ik2], numeric(1L))
       T_kk2 <- crossprod(X_k, X_k2 * d_vec)
       M[idx[[k]], idx[[k2]]] <- M[idx[[k]], idx[[k2]]] - T_kk2 / tau2[[k]]
@@ -446,15 +446,15 @@ glmerb_posterior_mode <- function(design,
   .lmerb_validate_design(design)
   .lmerb_validate_measurement_prior_list(measurement_prior_list)
 
-  if (is.null(design$y) || is.null(design$Z)) {
-    stop("'design' must contain 'y' and 'Z'.", call. = FALSE)
+  if (is.null(design$y) || is.null(design$D)) {
+    stop("'design' must contain 'y' and 'D'.", call. = FALSE)
   }
 
   re_names     <- design$re_coef_names
-  group_levels <- levels(design$groups)
+  group_levels <- levels(design$group)
   J            <- length(group_levels)
   p_re         <- length(re_names)
-  g_chr        <- as.character(design$groups)
+  g_chr        <- as.character(design$group)
 
   sigma2   <- measurement_prior_list$dispersion_ranef
   Sigma_b  <- measurement_prior_list$Sigma_ranef
@@ -523,7 +523,7 @@ glmerb_posterior_mode <- function(design,
   ## convergence check below (see lmerb_posterior_mean()).
   post_P_list <- stats::setNames(
     lapply(re_names, function(k) {
-      crossprod(design$X_hyper[[k]]) / tau2[[k]] + P_gamma[[k]]
+      crossprod(design$W[[k]]) / tau2[[k]] + P_gamma[[k]]
     }),
     re_names
   )
@@ -539,7 +539,7 @@ glmerb_posterior_mode <- function(design,
       lev  <- group_levels[jj]
       rows <- which(g_chr == lev)
       y_j  <- design$y[rows]
-      Z_j  <- design$Z[rows, , drop = FALSE]
+      Z_j  <- design$D[rows, , drop = FALSE]
       mu_j <- mu_all[, jj]
 
       sigma2_j <- sigma2_per_group[[jj]]
@@ -563,7 +563,7 @@ glmerb_posterior_mode <- function(design,
     names(fixef_new) <- re_names
 
     for (k in re_names) {
-      X_k      <- design$X_hyper[[k]]
+      X_k      <- design$W[[k]]
       b_k      <- b_mean[, k]
       tau2_k   <- tau2[[k]]
       P_gam_k  <- P_gamma[[k]]

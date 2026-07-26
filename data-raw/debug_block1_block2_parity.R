@@ -15,7 +15,7 @@ prior <- lmebayesCore::priors_from_pfamily_list(
   pfamily_list(ps), ps$dispersion_ranef, design, binomial(), "glmerb"
 )
 block1 <- lmebayes:::.lmebayes_block1_prior_list(prior)
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 pm <- glmerb_posterior_mode(design, binomial(), prior)
 fixef <- pm$fixef
 
@@ -33,7 +33,7 @@ ss <- sample.int(.Machine$integer.max - 1L, 1L)
 set.seed(ss + 1L)
 
 b1_r <- block_rNormalGLM(
-  n = 1L, y = design$y, x = design$Z, block = design$groups,
+  n = 1L, y = design$y, x = design$D, block = design$group,
   prior_list = prior_list, family = binomial(),
   use_parallel = FALSE, verbose = FALSE, progbar = FALSE
 )
@@ -44,7 +44,7 @@ b_r <- b_r[ord, , drop = FALSE]
 
 set.seed(ss + 1L)
 b1_cpp <- glmbayesCore:::.block_rNormalGLM_cpp(
-  n = 1L, y = design$y, x = design$Z, block = design$groups,
+  n = 1L, y = design$y, x = design$D, block = design$group,
   prior_list = prior_list, prior_lists = NULL,
   offset = rep(0, length(design$y)), wt = rep(1, length(design$y)),
   f2 = glmbfamfunc(binomial())$f2, f3 = glmbfamfunc(binomial())$f3,
@@ -61,7 +61,7 @@ cat("ids match group_levels:", identical(as.character(ids[ord2]), group_levels),
 
 # Block 2 component 1
 k <- design$re_coef_names[1]
-X_k <- as.matrix(design$X_hyper[[k]])
+X_k <- as.matrix(design$W[[k]])
 y_k <- glmbayesCore:::.two_block_align_b_to_xhyper(b_r[, k], X_k, group_levels)
 pf <- prior$pfamily_list[[k]]
 set.seed(999L)

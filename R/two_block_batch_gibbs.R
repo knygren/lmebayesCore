@@ -739,16 +739,16 @@
     return(block_rNormalReg(
       n          = 1L,
       y          = design$y,
-      x          = design$Z,
-      block      = design$groups,
+      x          = design$D,
+      block      = design$group,
       prior_list = prior_list
     ))
   }
   block_rNormalGLM(
     n            = 1L,
     y            = design$y,
-    x            = design$Z,
-    block        = design$groups,
+    x            = design$D,
+    block        = design$group,
     prior_list   = prior_list,
     family       = family,
     use_parallel = FALSE,
@@ -798,8 +798,8 @@
 #'   \code{P} (\code{p_re x p_re} precision matrix), \code{dispersion}, and
 #'   optional \code{ddef}. Typically built by the prep step that pairs
 #'   \code{fixef[[k]][i, ]} with \code{tau2[i, k]} for chain \code{i}.
-#' @param design List with at least \code{y} (response), \code{Z} (level-1
-#'   design, \code{l2 x p_re}), and \code{groups} (block partition of length
+#' @param design List with at least \code{y} (response), \code{D} (level-1
+#'   design, \code{l2 x p_re}), and \code{group} (block partition of length
 #'   \code{l2}). Same layout as the \code{design} argument to
 #'   \code{\link{rGLMM_sweep}}.
 #' @param family A \code{\link[stats]{family}} object. When \code{gaussian()},
@@ -886,7 +886,7 @@ rGLMM_Re_Draw <- function(
 #' @param P \code{p_re x p_re} prior precision matrix for this chain.
 #' @param dispersion Block~1 dispersion (from \code{block1_prior} meta).
 #' @param ddef Block~1 default-prior flag (from \code{block1_prior} meta).
-#' @param design Shared design list (\code{y}, \code{Z}, \code{groups}, \ldots).
+#' @param design Shared design list (\code{y}, \code{D}, \code{group}, \ldots).
 #' @param family GLM family object.
 #' @param group_levels Target row order for \code{b}.
 #' @param re_names Random-effect block names (column order for \code{b}).
@@ -1134,7 +1134,7 @@ two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
 #' @param iters \code{n x p_re} matrix of Block~2 iteration counts.
 #' @param re_names Character vector of random-effect block names.
 #' @param group_levels Character vector of group level labels.
-#' @param design Model design list (\code{X_hyper}, etc.).
+#' @param design Model design list (\code{W}, etc.).
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects.
 #' @param ptypes Named character vector of \code{pfamily} types.
 #' @return List with \code{fixef}, \code{tau2}, and \code{iters} (each fully
@@ -1163,7 +1163,7 @@ two_block_block2_one_chain <- function(
   iters_out <- iters
 
   for (k in re_names) {
-    X_k <- as.matrix(design$X_hyper[[k]])
+    X_k <- as.matrix(design$W[[k]])
     y_k <- .two_block_align_b_to_xhyper(
       b_vec        = b_i[, k],
       X_k          = X_k,
@@ -1238,7 +1238,7 @@ two_block_block2_one_chain_cpp <- function(
   )
   fixef_rows <- lapply(re_names, function(k) fixef[[k]][i, ])
   names(fixef_rows) <- re_names
-  x_hyper <- lapply(design$X_hyper, as.matrix)
+  x_hyper <- lapply(design$W, as.matrix)
   out <- .two_block_block2_one_chain_cpp(
     b_i            = b_i,
     fixef_rows     = fixef_rows,

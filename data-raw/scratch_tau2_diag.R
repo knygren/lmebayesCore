@@ -22,9 +22,9 @@ ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 re <- design$re_coef_names
 for (k in re) {
-  cat(k, "X_hyper dim", paste(dim(design$X_hyper[[k]]), collapse = "x"), "\n")
+  cat(k, "X_hyper dim", paste(dim(design$W[[k]]), collapse = "x"), "\n")
 }
-cat("J groups", nlevels(design$groups), "\n")
+cat("J groups", nlevels(design$group), "\n")
 
 fit1 <- lmerb(form, dat, pfamily_list(ps), ps$dispersion_ranef, simulate = FALSE)
 fit2 <- lmerb(form, dat, pf_ing, ps$dispersion_ranef, simulate = FALSE)
@@ -32,11 +32,11 @@ b <- fit2$ranef.mode
 g <- fit2$fixef.mode
 b1 <- fit1$ranef.mode
 g1 <- fit1$fixef.mode
-gl <- levels(design$groups)
+gl <- levels(design$group)
 
 for (k in re) {
   pl <- pf_ing[[k]]$prior_list
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   bk <- b[, k]
   gk <- g[[k]]
   bal <- glmbayesCore:::.two_block_align_b_to_xhyper(bk, Xk, gl)
@@ -56,7 +56,7 @@ for (k in re) {
 
 cat("\n--- rglmb Block2 mode at case1 b (Gibbs path) ---\n")
 for (k in re) {
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   yk <- glmbayesCore:::.two_block_align_b_to_xhyper(b1[, k], Xk, gl)
   fit_k <- rglmb(
     n = 1L, y = yk, x = Xk, family = stats::gaussian(),
@@ -68,7 +68,7 @@ for (k in re) {
 
 cat("\n--- rglmb Block2 mode at case2 converged b ---\n")
 for (k in re) {
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   yk <- glmbayesCore:::.two_block_align_b_to_xhyper(b[, k], Xk, gl)
   fit_k <- rglmb(
     n = 1L, y = yk, x = Xk, family = stats::gaussian(),

@@ -22,7 +22,7 @@ ps <- Prior_Setup_lmebayes(
   pwt_dispersion = 0.2
 )
 pf <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
-J <- nlevels(ps$design$groups)
+J <- nlevels(ps$design$group)
 cat("J =", J, "\n\n")
 for (k in names(pf)) {
   pl <- pf[[k]]$prior_list
@@ -40,7 +40,7 @@ for (k in names(pf)) {
 ## One Block-2 hyper-regression draw (school random intercepts as y)
 design <- ps$design
 k <- "(Intercept)"
-X_k <- design$X_hyper[[k]]
+X_k <- design$W[[k]]
 set.seed(1)
 b_fake <- rnorm(nrow(X_k), mean = 100, sd = 10)
 cat("=== test rglmb on", k, "===\n")

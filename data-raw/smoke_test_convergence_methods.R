@@ -23,7 +23,7 @@ dat$y <- 2 + b0_true[as.character(dat$group)] +
 form_lmer <- y ~ x1 + (1 + x1 || group)
 
 design <- model_setup(form_lmer, data = dat)
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 re_names <- design$re_coef_names
 
@@ -38,7 +38,7 @@ png_dev <- function(name) grDevices::png(file.path(out_dir, name), width = 900, 
 ## --- rLMMNormal_reg_known_vcov(TWO_BLOCK_GIBBS): has sweep_history AND
 ## qualifies for the *exact* reference (dispersion fixed, vcov known). ------
 fit1 <- rLMMNormal_reg_known_vcov(
-  n = 30L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
 )
@@ -101,7 +101,7 @@ cat(".convergence_split_whitened() batching OK\n\n")
 
 ## --- rLMMNormal_reg_known_vcov(DEFAULT): no sweep_history -> clear error --
 fit1b <- rLMMNormal_reg_known_vcov(
-  n = 30L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
 )
@@ -112,7 +112,7 @@ cat("fit1b (DEFAULT/iid, no sweep_history) -> clear error OK:\n  ", conditionMes
 ## --- rLMMNormal_reg_estimated_vcov(): sweep_history present but vcov
 ## estimated -> empirical fallback (no exact reference). --------------------
 fit2 <- rLMMNormal_reg_estimated_vcov(
-  n = 30L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp, pfamily_list = pf_est_vcov,
   progbar = FALSE, verbose = FALSE
 )
@@ -220,7 +220,7 @@ prior_list_disp_group <- list(
   disp_upper_group = disp_upper_group
 )
 fit4 <- rLMMindepNormalGamma_reg_known_vcov(
-  n = 15L, y = design$y, D = design$Z, group = grp, W = design$X_hyper,
+  n = 15L, y = design$y, D = design$D, group = grp, W = design$W,
   prior_list = prior_list_disp_group, pfamily_list = pf_known_vcov,
   progbar = FALSE, verbose = FALSE
 )
@@ -241,12 +241,12 @@ eta_pois <- 1.5 + b0_pois[as.character(dat_pois$group)] +
 dat_pois$y <- stats::rpois(nrow(dat_pois), lambda = exp(eta_pois))
 
 design_pois <- model_setup(form_lmer, data = dat_pois)
-grp_pois <- design_pois$groups
+grp_pois <- design_pois$group
 attr(grp_pois, "group_name") <- design_pois$group_name
 ps_pois <- Prior_Setup_lmebayes(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
 pf_pois <- pfamily_list(ps_pois)
 fit5 <- rGLMM_reg_known_vcov(
-  n = 15L, y = design_pois$y, D = design_pois$Z, group = grp_pois, W = design_pois$X_hyper,
+  n = 15L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
   prior_list = list(), pfamily_list = pf_pois, family = poisson(),
   progbar = FALSE, verbose = FALSE
 )

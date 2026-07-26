@@ -7,18 +7,18 @@
 build_mu_all(design, fixef, group_levels = NULL, use_cpp = TRUE)
 }
 \arguments{
-\item{design}{List with components \code{X_hyper}, \code{re_coef_names},
-and \code{groups} (typically supplied by a downstream mixed-effects
+\item{design}{List with components \code{W}, \code{re_coef_names},
+and \code{group} (typically supplied by a downstream mixed-effects
 model setup step).}
 
 \item{fixef}{Named list of hyper-parameter vectors, one entry per RE column
-of \code{Z}. Names must match \code{design$re_coef_names}. Each
-\code{fixef[[k]]} is a numeric vector of length \code{ncol(X_hyper[[k]])}
-with names matching \code{colnames(X_hyper[[k]])}.}
+of \code{D}. Names must match \code{design$re_coef_names}. Each
+\code{fixef[[k]]} is a numeric vector of length \code{ncol(W[[k]])}
+with names matching \code{colnames(W[[k]])}.}
 
 \item{group_levels}{Character vector of grouping levels defining the
 \emph{column order} of \code{mu_all}.  Defaults to
-\code{levels(design$groups)}, which is the canonical ordering used in
+\code{levels(design$group)}, which is the canonical ordering used in
 two-block mixed models and consistent with \code{lmer} and
 \code{\link{block_rNormalReg}} (which preserves the input factor's level
 order).}
@@ -42,7 +42,7 @@ the order supplied.}
 Forms the \code{mu_all} matrix passed to
 \code{\link{block_rNormalReg_update}}: for each grouping level
 \eqn{j} and each random-effect column \eqn{k} of the level-1 design
-\code{Z},
+\code{D},
 \deqn{\mu\_\text{all}[k, j] = X_{\text{hyper},k}[j,]^\top \gamma_k,}
 where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 (Block 2 state).

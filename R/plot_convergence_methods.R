@@ -104,7 +104,7 @@
     prior_list_block1 = prior_list_block1,
     pfamily_list       = fit$pfamily_list,
     re_names           = re_names,
-    x_hyper            = design$X_hyper,
+    x_hyper            = design$W,
     family             = fit$family
   )
 }

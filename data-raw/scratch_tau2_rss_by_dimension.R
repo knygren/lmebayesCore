@@ -24,7 +24,7 @@ design <- model_setup(form, data = dat)
 ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 re <- design$re_coef_names
-gl <- levels(design$groups)
+gl <- levels(design$group)
 J <- length(gl)
 n_obs <- nrow(dat)
 
@@ -42,7 +42,7 @@ tau2_lmer <- c(
 )
 
 lmer_gamma_k <- function(k) {
-  par <- colnames(design$X_hyper[[k]])
+  par <- colnames(design$W[[k]])
   if (k == "(Intercept)") {
     lmer_fixef[par]
   } else if (k == "distracted_ppvt") {
@@ -61,7 +61,7 @@ lmer_gamma_k <- function(k) {
 rss_empirical <- function(k) {
   b_k <- lmer_coef[, k]
   names(b_k) <- rownames(lmer_coef)
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   gk <- lmer_gamma_k(k)
   b_al <- glmbayesCore:::.two_block_align_b_to_xhyper(b_k, Xk, gl)
   eta <- as.numeric(Xk[gl, , drop = FALSE] %*% gk)
@@ -105,7 +105,7 @@ for (k in re) {
   names(b_k) <- rownames(lmer_coef)
   closed <- two_block_tau2_mode_ing(
     b_k = b_k,
-    X_k = design$X_hyper[[k]],
+    X_k = design$W[[k]],
     gamma_k = lmer_gamma_k(k),
     shape = pl$shape,
     rate = pl$rate,

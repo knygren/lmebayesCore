@@ -21,7 +21,7 @@ form <- fx$form
 expected_re <- fx$design$re_coef_names
 
 stopifnot(identical(expected_re, c("(Intercept)", "distracted_ppvt")))
-stopifnot(nlevels(fx$design$groups) == 5L)
+stopifnot(nlevels(fx$design$group) == 5L)
 
 cat("\n=== lmer reference fit ===\n\n")
 fit_lmer <- lme4::lmer(form, data = dat, REML = TRUE)

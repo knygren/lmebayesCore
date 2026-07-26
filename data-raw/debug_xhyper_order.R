@@ -11,11 +11,11 @@ dat$violent_i <- as.integer(
 design <- model_setup(
   removed_i ~ violent_i + (1 + violent_i || state), dat, binomial(), fit_mer = FALSE
 )
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 re_names <- design$re_coef_names
 
 for (k in re_names) {
-  X_k <- as.matrix(design$X_hyper[[k]])
+  X_k <- as.matrix(design$W[[k]])
   rn <- rownames(X_k)
   cat("\nComponent:", k, "\n")
   cat("  nrow:", nrow(X_k), " group_levels:", length(group_levels), "\n")

@@ -57,7 +57,7 @@ Fix a random-effect **column** `k` (e.g. `distracted_ppvt`):
 |--------|------|---------|
 | J | `length(levels(groups))` | Number of groups (schools) |
 | b_jk | `b_mean[j, k]` or `b_k[j]` | Random effect for group j, component k |
-| X_k | `design$X_hyper[[k]]` | J × p_k hyper design (rows = schools) |
+| X_k | `design$W[[k]]` | J × p_k hyper design (rows = schools) |
 | γ_k | `fixef[[k]]` | p_k vector of hyper-regression coefficients |
 | τ²_k | `tau2[[k]]` | Variance of b_jk around X_k[j,·] γ_k |
 | shape, rate | `pfamily$prior_list$shape/rate` | ING Gamma prior on **precision** λ_k = 1/τ²_k |

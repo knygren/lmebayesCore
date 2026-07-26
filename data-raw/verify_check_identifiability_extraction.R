@@ -6,8 +6,8 @@
 ##   2. model_setup()'s re_rank/re_estimable/re_glm_check/hyper_rank/
 ##      hyper_deficient/rank_ok are unchanged (same values as calling
 ##      check_identifiability() directly on the extracted design fields,
-##      keyword-remapped D = design$Z, group = design$groups,
-##      W = design$X_hyper).
+##      keyword-remapped D = design$D, group = design$group,
+##      W = design$W).
 ##   3. Input-validation errors fire as documented.
 
 devtools::load_all(quiet = TRUE)
@@ -43,7 +43,7 @@ df  <- data.frame(y = y2, x1 = x1, grp = grp)
 ms <- model_setup(y ~ x1 + (1 + x1 || grp), data = df, family = gaussian())
 
 ident2 <- check_identifiability(
-  y = ms$y, D = ms$Z, group = ms$groups, W = ms$X_hyper,
+  y = ms$y, D = ms$D, group = ms$group, W = ms$W,
   family = gaussian(), group_name = ms$group_name
 )
 
@@ -68,7 +68,7 @@ df3 <- data.frame(y = yb, x1 = x1b, grp = grp3)
 
 ms3 <- model_setup(y ~ x1 + (1 + x1 || grp), data = df3, family = binomial())
 ident3 <- check_identifiability(
-  y = ms3$y, D = ms3$Z, group = ms3$groups, W = ms3$X_hyper,
+  y = ms3$y, D = ms3$D, group = ms3$group, W = ms3$W,
   family = binomial(), group_name = ms3$group_name
 )
 stopifnot(identical(ms3$re_estimable, ident3$re_estimable))

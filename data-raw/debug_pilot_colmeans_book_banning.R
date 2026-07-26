@@ -16,7 +16,7 @@ prior <- lmebayesCore::priors_from_pfamily_list(
 )
 block1_prior <- lmebayes:::.lmebayes_block1_prior_list(prior)
 re_names <- design$re_coef_names
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 pm <- glmerb_posterior_mode(design, binomial(), prior)
 fixef_start <- pm$fixef
 b_mode <- pm$b_mean
@@ -38,8 +38,8 @@ run_pilot <- function(engine) {
     set.seed(42L)
     sample.int(.Machine$integer.max - 1L, 1L)
     out <- glmbayesCore::two_block_rNormal_reg_v5(
-      n = n_pilot, y = design$y, x = design$Z, block = design$groups,
-      x_hyper = design$X_hyper, prior_list_block1 = block1_prior,
+      n = n_pilot, y = design$y, x = design$D, block = design$group,
+      x_hyper = design$W, prior_list_block1 = block1_prior,
       pfamily_list = prior$pfamily_list, fixef_start = fixef_start,
       re_coef_names = re_names, group_levels = group_levels,
       group_name = design$group_name, family = binomial(),

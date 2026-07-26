@@ -17,8 +17,8 @@ glmerb_posterior_mode(
 )
 }
 \arguments{
-\item{design}{Design list with \code{y}, \code{Z}, \code{groups},
-\code{X_hyper}, and \code{re_coef_names}.}
+\item{design}{Design list with \code{y}, \code{D}, \code{group},
+\code{W}, and \code{re_coef_names}.}
 
 \item{measurement_prior_list}{List with \code{Sigma_ranef} and
 \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
@@ -71,7 +71,7 @@ For each RE component \eqn{k}:
   \bigl(X_k^\top b_k / \tau^2_k + P_{\gamma_k} \mu_{\gamma_k}\bigr)
 }
 where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
-\eqn{X_k =} \code{design$X_hyper[[k]]},
+\eqn{X_k =} \code{design$W[[k]]},
 \eqn{\tau^2_k =} \code{dispersion_fixef}, and
 \eqn{P_{\gamma_k} = \Sigma_{\gamma_k}^{-1}} from \code{prior_list}.
 

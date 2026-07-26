@@ -156,7 +156,7 @@ pfamily_list.lmebayes_prior_setup <- function(object,
     }
   }
 
-  J   <- nlevels(object$design$groups)
+  J   <- nlevels(object$design$group)
   npd <- object$n_prior_dispersion
 
   n_prior_for <- function(k) {

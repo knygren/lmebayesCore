@@ -13,7 +13,7 @@ fx <- .prepare_small5_lmerb_manual(5L)
 dat <- fx$dat
 form <- fx$form
 ms <- model_setup(form, data = dat)
-block <- ms$groups
+block <- ms$group
 group_levels <- levels(block)
 
 raw_lambda <- function(ps) {
@@ -35,7 +35,7 @@ raw_lambda <- function(ps) {
     ing_prior_list, block, group_levels, "diag"
   )
   pl1_rate <- glmbayesCore:::.rLMM_block1_prior_gaussian(P, rate_inputs$dispersion_scalar)
-  re_names <- names(ms$X_hyper)
+  re_names <- names(ms$W)
   pfamily_list <- glmbayesCore:::.two_block_validate_pfamily_list(pf, re_names)
   prior_list_block2 <- lapply(pfamily_list, function(pf_i) {
     pl <- pf_i$prior_list
@@ -46,7 +46,7 @@ raw_lambda <- function(ps) {
     )
   })
   inp <- glmbayesCore:::.two_block_rate_inputs(
-    ms$Z, block, ms$X_hyper, pl1_rate, prior_list_block2,
+    ms$D, block, ms$W, pl1_rate, prior_list_block2,
     rate_inputs$weights, gaussian(), group_levels
   )
   sp <- glmbayesCore:::.two_block_S_P11(inp)

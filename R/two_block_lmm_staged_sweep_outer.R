@@ -120,9 +120,9 @@
 
   design <- list(
     y             = inp$y,
-    Z             = inp$D,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = inp$W,
+    D             = inp$D,
+    group         = factor(group, levels = group_levels),
+    W             = inp$W,
     re_coef_names = re_names,
     group_name    = group_name
   )

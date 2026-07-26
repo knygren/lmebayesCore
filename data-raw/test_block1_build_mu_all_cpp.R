@@ -44,11 +44,11 @@ compare_mu_all(design, fixef, group_levels)
 ## Synthetic: named X_hyper rows (lookup by group level)
 rownames(X_int) <- sort(unique(group_levels))
 rownames(X_slope) <- sort(unique(group_levels))
-design$X_hyper <- list("(Intercept)" = X_int, "x" = X_slope)
+design$W <- list("(Intercept)" = X_int, "x" = X_slope)
 compare_mu_all(design, fixef, group_levels)
 
 ## Direct export vs R reference (same inputs as build_mu_all C++ path)
-x_hyper <- lapply(design$X_hyper, as.matrix)
+x_hyper <- lapply(design$W, as.matrix)
 mu_r <- build_mu_all_r(design, fixef, group_levels)$mu_all
 mu_cpp <- glmbayesCore:::.two_block_build_mu_all_cpp(
   x_hyper, fixef, design$re_coef_names, group_levels

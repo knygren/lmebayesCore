@@ -1,14 +1,38 @@
 # lmebayesCore (development version)
 
+* **Breaking: `model_setup()`'s (and `extract_re_hyper_matrices()`'s)
+  returned `"model_setup"` object renames its design-matrix fields to match
+  the `rLMM_reg()`/`rGLMM_reg()`/`check_identifiability()` `D`/`W`/`group`
+  convention.**
+    - `Z` -> `D` (level-1 random-effect design matrix), `X_hyper` -> `W`
+      (named list of level-2 hyper-design matrices), `groups` -> `group`
+      (grouping factor). `re_coef_names` and `group_name` are unchanged.
+    - This is a clean rename with no deprecated alias: code that read
+      `design$Z`, `design$X_hyper`, or `design$groups` (from `model_setup()`,
+      `extract_re_hyper_matrices()`, or the matching internal "design" lists
+      built by `rLMM_reg()`/`rGLMM_reg()`/`rLMMNormal_joint_iid()`/staged
+      sweep engines) must switch to `design$D`, `design$W`, `design$group`.
+    - Downstream consumers updated to match: `matrix_args_lmm()`/
+      `matrix_args_glmm()`, `priors_from_pfamily_list()`, `build_mu_all()`
+      (and its `.lmerb_validate_design()` field check), `lmerb_posterior_mean()`
+      / `glmerb_posterior_mode()` / `lmerb_posterior_covariance()`,
+      `two_block_block2_one_chain()` / `two_block_block2_one_chain_cpp()`,
+      `Prior_Setup_lmebayes()`, `dGamma_list()`, `pfamily_list()`,
+      `rlmerb()`/`rglmerb()`, and the `plot_var_convergence()`/
+      `plot_mean_convergence()` fit-object methods. The C++ boundary in
+      `src/two_block_block1.cpp` (`design["Z"]`/`design["groups"]`/
+      `design["X_hyper"]`) was updated to match, though its only current
+      caller in R (`.two_block_block1_one_chain_cpp()`) is not on any live
+      call path.
+
 * **New: `check_identifiability()`, exported standalone Level-1/Level-2
   identifiability and estimability check.**
     - Extracted from `model_setup()`'s inline rank/estimability block (the
       "two-step identifiability assessment": per-group `D_j` rank and
       estimability, then per-RE-coefficient `W[[k]]` rank restricted to
       estimable groups). `model_setup()` now calls `check_identifiability()`
-      and copies its fields onto the returned design object (keyword-mapped
-      `D = design$Z`, `group = design$groups`, `W = design$X_hyper`); its
-      behavior is unchanged.
+      and copies its fields onto the returned design object (`D = design$D`,
+      `group = design$group`, `W = design$W`); its behavior is unchanged.
     - Argument names (`D`, `group`, `W`) match the recently-renamed
       `rLMM_reg()`/`rGLMM_reg()` matrix-level conventions -- `y`/`D`/`group`/
       `W` share their `@param` documentation with `rLMM_reg()` via

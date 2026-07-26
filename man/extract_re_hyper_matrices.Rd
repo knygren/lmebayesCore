@@ -17,14 +17,14 @@ extract_re_hyper_matrices(formula, data = NULL, ...)
 Object of class \code{"model_setup"} with:
 \describe{
 \item{\code{group_name}}{Grouping factor name.}
-\item{\code{groups}}{Factor of length \code{nrow(Z)} for block subsetting.}
+\item{\code{group}}{Factor of length \code{nrow(D)} for block subsetting.}
 \item{\code{re_coef_names}}{Random coefficient names from \code{lme4}.}
-\item{\code{y}}{Response vector, length \code{nrow(Z)} (aligned with
-\code{Z} and \code{groups}).}
-\item{\code{Z}}{Random-effects model matrix (\code{n_obs} x \code{p_re}):
+\item{\code{y}}{Response vector, length \code{nrow(D)} (aligned with
+\code{D} and \code{group}).}
+\item{\code{D}}{Random-effects model matrix (\code{n_obs} x \code{p_re}):
 per-observation loadings on the within-group random coefficient
 vector (columns \code{re_coef_names}).}
-\item{\code{X_hyper}}{Named list of matrices (one row per group level),
+\item{\code{W}}{Named list of matrices (one row per group level),
 keyed by \code{re_coef_names}.}
 \item{\code{re_slope_moderation}}{Cross-level moderation metadata.}
 }

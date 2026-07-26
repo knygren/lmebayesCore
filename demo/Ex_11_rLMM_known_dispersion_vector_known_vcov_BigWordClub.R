@@ -120,7 +120,7 @@ pf <- pfamily_list(ps)
 ##    an attached 'group_name' (matrix_args_lmm()'s usual pattern), and a
 ##    per-group KNOWN dispersion vector.
 ## ---------------------------------------------------------------------------
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 group_levels <- levels(grp)
 re_names     <- design$re_coef_names
@@ -180,9 +180,9 @@ print(summary(fit_ref))
 fit_iid <- rLMMNormal_reg_known_vcov(
   n            = 10000L,
   y            = design$y,
-  D            = design$Z,
+  D            = design$D,
   group        = grp,
-  W            = design$X_hyper,
+  W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
   progbar      = FALSE,
@@ -194,9 +194,9 @@ cat(sprintf("\nsim_method_used (fit_iid): %s\n", fit_iid$sim_method_used))
 fit_gibbs <- rLMMNormal_reg_known_vcov(
   n            = 10000L,
   y            = design$y,
-  D            = design$Z,
+  D            = design$D,
   group        = grp,
-  W            = design$X_hyper,
+  W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
   progbar      = FALSE,
@@ -373,7 +373,7 @@ if (!identical(names(coef_raw), re_names) && all(re_names %in% names(coef_raw)))
 }
 
 fixef_ref <- lapply(re_names, function(k) {
-  cols_k <- colnames(design$X_hyper[[k]])
+  cols_k <- colnames(design$W[[k]])
   fe_nms <- vapply(cols_k, .fe_name_for_ref, character(1L), k = k, fe = fe_ref)
   miss <- is.na(fe_nms) | !fe_nms %in% names(fe_ref)
   if (any(miss)) {

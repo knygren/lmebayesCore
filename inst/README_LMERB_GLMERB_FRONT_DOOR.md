@@ -89,7 +89,7 @@ the Gaussian family it is routed through the identical
 |---|---|---|---|
 | `.lmebayes_mer_optional_args()` | `R/model_setup.R` | Builds optional-argument list forwarded to `lmer()`/`glmer()` for the reference fit inside `model_setup()`. | -- |
 | `.lmebayes_resolve_dispersion_ranef()` | `R/mixed_rmerb_helpers.R` | Dispatches `dispersion_ranef` to one of `none`/`fixed`/`fixed_vector`/`gamma`/`gamma_list` modes. | `.lmebayes_resolve_dispersion_ranef_fixed_vector()` (named-vector case) |
-| `.lmebayes_resolve_dispersion_ranef_fixed_vector()` | `R/mixed_rmerb_helpers.R` | Validates/aligns a named per-group fixed-dispersion vector against `design$groups` levels. | -- |
+| `.lmebayes_resolve_dispersion_ranef_fixed_vector()` | `R/mixed_rmerb_helpers.R` | Validates/aligns a named per-group fixed-dispersion vector against `design$group` levels. | -- |
 | `.lmebayes_priors_from_pfamily_list()` | `R/mixed_rmerb_helpers.R` | Normalizes `pfamily_list` + `dispersion_ranef` into the `prior` object (`Sigma_ranef`, `prior_list`, `ptypes`, `any_non_normal`, ...). | `.lmebayes_resolve_dispersion_ranef()` |
 | `.lmebayes_matrix_args_lmm()` | `R/mixed_rmerb_helpers.R` | Assembles the flat argument list passed to the routed export (incl. setting `sim_method` only for the `lmm_fixed_known` route). | -- |
 | `.lmebayes_run_lmm_engine()` | `R/mixed_rmerb_helpers.R` | Resolves the route key, builds args, `do.call()`s the route export, attaches `sigma2`/`sigma2.mean` and a default `sim_method_used`. | `.lmebayes_reg_route_key()`, `.lmebayes_reg_route_fn()`, `.lmebayes_matrix_args_lmm()`, `.lmebayes_attach_sigma2()` |

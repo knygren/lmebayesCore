@@ -20,7 +20,7 @@ form <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 design <- model_setup(form, data = dat)
-gl <- levels(design$groups)
+gl <- levels(design$group)
 J <- length(gl)
 n_obs <- nrow(dat)
 
@@ -30,8 +30,8 @@ lmer_fixef <- fixef(lmer_fit)
 lmer_coef <- coef(lmer_fit)[["school_id"]]
 lmer_ranef <- ranef(lmer_fit)[["school_id"]]
 
-Z <- design$Z
-groups <- design$groups
+Z <- design$D
+groups <- design$group
 g_idx <- match(as.character(groups), gl)
 
 cat(sprintf("n_obs = %d, J = %d\n\n", n_obs, J))
@@ -42,16 +42,16 @@ for (k in design$re_coef_names) {
   b_j <- lmer_coef[gl, k]
   u_j <- lmer_ranef[gl, k]
   gk <- if (k == "(Intercept)") {
-    lmer_fixef[colnames(design$X_hyper[[k]])]
+    lmer_fixef[colnames(design$W[[k]])]
   } else if (k == "distracted_ppvt") {
     setNames(lmer_fixef["distracted_ppvt"], "(Intercept)")
   } else {
     setNames(c(
       lmer_fixef["distracted_a1"],
       lmer_fixef["free_reduced_lunch:distracted_a1"]
-    ), colnames(design$X_hyper[[k]]))
+    ), colnames(design$W[[k]]))
   }
-  Xk <- design$X_hyper[[k]]
+  Xk <- design$W[[k]]
   eta_j <- as.numeric(Xk[gl, , drop = FALSE] %*% gk)
 
   ## Group-level RSS (current code)

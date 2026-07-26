@@ -184,7 +184,7 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 | Function | File | Role |
 |---|---|---|
 | `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Dispatches `dispersion_ranef` by shape: `NULL`/scalar -> `"fixed"`; named numeric vector (`length > 1`) -> `"fixed_vector"`; `dGamma()` pfamily -> `"gamma"`; named list of pfamilies -> `"gamma_list"`. |
-| `.lmebayes_resolve_dispersion_ranef_fixed_vector()` | `mixed_rmerb_helpers.R` | Validates the named vector has length `J`, names exactly matching `levels(design$groups)`, all-positive/finite; reorders to `group_levels`; returns `list(mode = "fixed_vector", dispersion_fix = <named vector>, ...)`. |
+| `.lmebayes_resolve_dispersion_ranef_fixed_vector()` | `mixed_rmerb_helpers.R` | Validates the named vector has length `J`, names exactly matching `levels(design$group)`, all-positive/finite; reorders to `group_levels`; returns `list(mode = "fixed_vector", dispersion_fix = <named vector>, ...)`. |
 | `.lmebayes_block1_prior_list()` | `mixed_rmerb_helpers.R` | Builds `list(dispersion = <scalar-or-vector>, ddef = FALSE)` -- the `prior_list_block1`/`prior_list` shape consumed throughout \S4.3-4.5. No longer builds `P`: every routed export (`rLMMNormal_reg*`, `rGLMM_reg*`, `two_block_rNormal_reg()`, `rLMMNormal_joint_iid()`) derives its own Block~1 precision from `pfamily_list` and rejects a caller-supplied `P`/`Sigma`. |
 
 ### 4.3 Routing

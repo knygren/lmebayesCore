@@ -50,13 +50,13 @@ if (length(dropped)) {
 
 design <- model_setup(form, data = dat)
 stopifnot(all(design$re_rank))
-group_levels <- levels(design$groups)
+group_levels <- levels(design$group)
 p_re <- length(design$re_coef_names)
 max_disp_perc <- 0.8
 
 message(sprintf(
   "%d schools, %d obs (mean %.1f obs/school)",
-  nlevels(design$groups), nrow(dat), mean(table(dat$school_id))
+  nlevels(design$group), nrow(dat), mean(table(dat$school_id))
 ))
 
 ## ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ sigma2_pooled_lmer <- ps$dispersion_ranef
 ##    push at least one group's BLUP point estimate outside its own window).
 ## ---------------------------------------------------------------------------
 group_calc <- function(lev) {
-  idx   <- design$groups == lev
+  idx   <- design$group == lev
   dat_j <- dat[idx, , drop = FALSE]
   X <- stats::model.matrix(block_formula, data = dat_j)
   Y <- stats::model.response(stats::model.frame(block_formula, data = dat_j))

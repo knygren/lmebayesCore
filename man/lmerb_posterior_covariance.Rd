@@ -7,8 +7,8 @@
 lmerb_posterior_covariance(design, measurement_prior_list)
 }
 \arguments{
-\item{design}{Design list with \code{y}, \code{Z}, \code{groups},
-\code{X_hyper}, and \code{re_coef_names}.}
+\item{design}{Design list with \code{y}, \code{D}, \code{group},
+\code{W}, and \code{re_coef_names}.}
 
 \item{measurement_prior_list}{List with \code{Sigma_ranef} and
 \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required

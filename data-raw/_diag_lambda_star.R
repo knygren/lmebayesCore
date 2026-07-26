@@ -19,7 +19,7 @@ dat <- fx$dat
 form <- fx$form
 
 ms <- lmebayes::model_setup(form, data = dat)
-block <- ms$groups
+block <- ms$group
 group_levels <- levels(block)
 
 for (pwt_meas in c(0.05, 0.1, 0.49)) {
@@ -51,7 +51,7 @@ for (pwt_meas in c(0.05, 0.1, 0.49)) {
 
   rate <- tryCatch(
     glmbayesCore::two_block_rate_from_pfamily_list(
-      x = ms$Z, block = block, x_hyper = ms$X_hyper,
+      x = ms$D, block = block, x_hyper = ms$W,
       prior_list_block1 = pl1_rate, pfamily_list = pf,
       weights = rate_inputs$weights, family = gaussian(),
       group_levels = group_levels

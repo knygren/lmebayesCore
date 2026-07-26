@@ -336,9 +336,9 @@ NULL
   icm_info <- NULL
   design_icm <- list(
     y             = y,
-    Z             = D,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = W,
+    D             = D,
+    group         = factor(group, levels = group_levels),
+    W             = W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -375,9 +375,9 @@ NULL
 
   design <- list(
     y             = y,
-    Z             = D,
-    groups        = factor(group, levels = group_levels),
-    X_hyper       = W,
+    D             = D,
+    group         = factor(group, levels = group_levels),
+    W             = W,
     re_coef_names = re_names,
     group_name    = group_name
   )
@@ -722,9 +722,9 @@ NULL
 ) {
   if (is_gaussian) {
     two_block_rate_from_pfamily_list(
-      x                 = design$Z,
-      block             = design$groups,
-      x_hyper           = design$X_hyper,
+      x                 = design$D,
+      block             = design$group,
+      x_hyper           = design$W,
       prior_list_block1 = prior_list,
       pfamily_list      = pfamily_list,
       family            = gaussian(),
@@ -732,16 +732,16 @@ NULL
     )
   } else {
     mode_w <- two_block_mode_weights(
-      x            = design$Z,
-      block        = design$groups,
+      x            = design$D,
+      block        = design$group,
       b_mode       = b_mode,
       family       = family,
       group_levels = group_levels
     )
     two_block_rate_from_pfamily_list(
-      x                 = design$Z,
-      block             = design$groups,
-      x_hyper           = design$X_hyper,
+      x                 = design$D,
+      block             = design$group,
+      x_hyper           = design$W,
       prior_list_block1 = prior_list,
       pfamily_list      = pfamily_list,
       weights           = mode_w$weights,

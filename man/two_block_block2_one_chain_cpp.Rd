@@ -32,7 +32,7 @@ two_block_block2_one_chain_cpp(
 
 \item{group_levels}{Character vector of group level labels.}
 
-\item{design}{Model design list (\code{X_hyper}, etc.).}
+\item{design}{Model design list (\code{W}, etc.).}
 
 \item{pfamily_list}{Named list of Block~2 \code{pfamily} objects.}
 

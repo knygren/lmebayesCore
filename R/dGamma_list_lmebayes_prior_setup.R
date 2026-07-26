@@ -171,7 +171,7 @@ dGamma_list.lmebayes_prior_setup <- function(
 
   group_levels <- names(ing_grp)
   if (is.null(group_levels)) {
-    group_levels <- levels(object$design$groups)
+    group_levels <- levels(object$design$group)
     names(ing_grp) <- group_levels
   }
 
@@ -180,7 +180,7 @@ dGamma_list.lmebayes_prior_setup <- function(
       data          = object$data,
       block_formula = object$block_formula,
       fit_ref       = object$fit_ref,
-      groups        = object$design$groups,
+      groups        = object$design$group,
       group_levels  = group_levels,
       group_name    = object$design$group_name
     )
@@ -198,7 +198,7 @@ dGamma_list.lmebayes_prior_setup <- function(
       data              = object$data,
       block_formula     = object$block_formula,
       Sigma_ranef       = object$Sigma_ranef,
-      groups            = object$design$groups,
+      groups            = object$design$group,
       group_levels      = group_levels,
       intercept_source  = object$intercept_source,
       effects_source    = object$effects_source,

@@ -7,7 +7,7 @@ source("c:/Rpackages/glmbayesCore/data-raw/_check_ing_prior.R", local = TRUE)
 
 design <- ps$design
 k <- "(Intercept)"
-X_k <- design$X_hyper[[k]]
+X_k <- design$W[[k]]
 for (lab in c("tiny", "huge", "mixed")) {
   b <- switch(
     lab,

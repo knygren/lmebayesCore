@@ -65,7 +65,7 @@ pf <- pfamily_list(ps)
 
 ## The routed export has no 'group_name' formal; attach it to 'group' instead
 ## of relying on substitute() (see .lmebayes_resolve_group_name()).
-grp <- design$groups
+grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 ## Known observation dispersion: fixed sigma^2 from the lmer REML fit.
@@ -106,9 +106,9 @@ print(summary(fit_lmer))
 fit <- rLMMNormal_reg_known_vcov(
   n            = 1000L,
   y            = design$y,
-  D            = design$Z,
+  D            = design$D,
   group        = grp,
-  W            = design$X_hyper,
+  W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
   progbar      = FALSE,
@@ -119,9 +119,9 @@ cat(sprintf("\nsim_method_used: %s\n", fit$sim_method_used))
 fit_gibbs <- rLMMNormal_reg_known_vcov(
   n            = 1000L,
   y            = design$y,
-  D            = design$Z,
+  D            = design$D,
   group        = grp,
-  W            = design$X_hyper,
+  W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
   progbar      = FALSE,
@@ -345,7 +345,7 @@ if (!identical(names(coef_raw), re_names) && all(re_names %in% names(coef_raw)))
 }
 
 fixef_lmer <- lapply(re_names, function(k) {
-  cols_k <- colnames(design$X_hyper[[k]])
+  cols_k <- colnames(design$W[[k]])
   fe_nms <- vapply(cols_k, .fe_name_for_lmer, character(1L), k = k, fe = fe_lmer)
   miss <- is.na(fe_nms) | !fe_nms %in% names(fe_lmer)
   if (any(miss)) {

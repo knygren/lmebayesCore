@@ -656,7 +656,7 @@ void design_offset_wt(
   }
 }
 
-/// Coerce \code{design$X_hyper} like \code{lapply(..., as.matrix)} in R.
+/// Coerce \code{design$W} like \code{lapply(..., as.matrix)} in R.
 Rcpp::List x_hyper_as_matrix(const Rcpp::List& x_hyper) {
   const int p_re = x_hyper.size();
   Rcpp::List out(p_re);
@@ -730,8 +730,8 @@ Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
   const Rcpp::NumericVector y =
     Rcpp::as<Rcpp::NumericVector>(design["y"]);
   const Rcpp::NumericMatrix Z =
-    Rcpp::as<Rcpp::NumericMatrix>(design["Z"]);
-  SEXP groups = design["groups"];
+    Rcpp::as<Rcpp::NumericMatrix>(design["D"]);
+  SEXP groups = design["group"];
 
   Rcpp::List block_out;
   if (is_gaussian) {
@@ -805,7 +805,7 @@ Rcpp::List two_block_block1_one_chain_v2_impl(
     const Rcpp::Function& f3_gauss
 ) {
   Rcpp::List x_hyper =
-    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["X_hyper"]));
+    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["W"]));
   Rcpp::NumericMatrix mu_all = two_block_build_mu_all(
     x_hyper, fixef_i, re_names, group_levels
   );
@@ -1073,10 +1073,10 @@ Rcpp::List two_block_block1_one_chain_orchestrate_impl(
   const Rcpp::NumericVector y =
     Rcpp::as<Rcpp::NumericVector>(design["y"]);
   const Rcpp::NumericMatrix Z =
-    Rcpp::as<Rcpp::NumericMatrix>(design["Z"]);
-  SEXP groups = design["groups"];
+    Rcpp::as<Rcpp::NumericMatrix>(design["D"]);
+  SEXP groups = design["group"];
   Rcpp::List x_hyper =
-    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["X_hyper"]));
+    x_hyper_as_matrix(Rcpp::as<Rcpp::List>(design["W"]));
 
   Rcpp::List draw_out = two_block_block1_one_chain_impl(
     chain_i, batch_fixef, tau2_i, y, Z, groups, offset, wt,
