@@ -1,5 +1,27 @@
 # lmebayesCore (development version)
 
+* **New: `check_identifiability()`, exported standalone Level-1/Level-2
+  identifiability and estimability check.**
+    - Extracted from `model_setup()`'s inline rank/estimability block (the
+      "two-step identifiability assessment": per-group `Z_j` rank and
+      estimability, then per-RE-coefficient `X_hyper[[k]]` rank restricted to
+      estimable groups). `model_setup()` now calls `check_identifiability()`
+      and copies its fields onto the returned design object; its behavior is
+      unchanged.
+    - Runs directly on hand-built `(y, Z, groups, X_hyper)` without a
+      `lmer`/`glmer` reference fit, so matrix-level `rLMM_reg()`/
+      `rGLMM_reg()` callers can check identifiability before sampling.
+    - Validates its inputs strictly: `groups` must be a `factor`; `X_hyper`
+      must be a named list whose names match `re_coef_names` (as sets) and
+      whose `rownames()` match `levels(groups)` (as sets); `group_name` must
+      be resolvable from the argument or `attr(groups, "group_name")`.
+      Mismatches raise an informative error immediately.
+    - Returns `re_rank`, `re_estimable`, `re_glm_check`, `hyper_rank`,
+      `hyper_deficient`, `rank_ok`, plus `group_levels` and `group_name`.
+    - `.lmebayes_block_glm_estimable()` and
+      `.lmebayes_glm_estimable_precheck()` moved from `model_setup.R` to the
+      new `R/check_identifiability.R` (internal; no behavior change).
+
 * **`model_setup()` now performs the binomial classical-glm MLE-existence
   check itself, and the Level~2 hyper-design rank check is restricted to
   *estimable* groups (not merely full-rank ones).**

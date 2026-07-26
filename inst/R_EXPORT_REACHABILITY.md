@@ -59,7 +59,7 @@ column).
 |----------|------|
 | `lmerb()`, `glmerb()` | Formula mixed-model drivers |
 | `rlmerb()`, `rglmerb()` | Re-exported matrix samplers |
-| `model_setup()`, `Prior_Setup_lmebayes()`, `pfamily_list()` | Design + Block~2 priors |
+| `model_setup()`, `Prior_Setup_lmebayes()`, `pfamily_list()` | Design + Block~2 priors (`model_setup()` → `check_identifiability()`) |
 | `Prior_SetupBlock()`, `lmbBlock()`, `glmbBlock()` | Row blocks (`normalize_block`; block fits via **glmbayes** `lmb`/`glmb` → planned Core `rlmb`/`rglmb`) |
 | `plot_sweep_history_diag()` | Sweep-history plots |
 | Re-exported retain symbols | Same as glmbayes retain subset |
@@ -156,6 +156,7 @@ Dispatchers **`rLMMNormal_reg()`** (fixed σ²) and legacy **`rLMMindepNormalGam
 | Core `rlmb()`, `rglmb()`, `multi_prior_setup()` | Planned retain |
 | `rGLMM_reg()`, `rGLMM_reg_*`, `rGLMM_sweep()`, `rGLMM_Re_Draw()`, `rLMM_reg` routes (`rLMMNormal_reg_*`, `rLMMindepNormalGamma_reg_*`), `two_block_rNormal_reg()`, TV/pilot helpers | **lmebayes** `lmerb()` / `glmerb()` chain |
 | `rLMMNormal_reg()` | Dispatcher for fixed σ² (→ `rLMMNormal_reg_known_vcov` or `_estimated_vcov`) |
+| `check_identifiability()` | Called from **`model_setup()`** (retain); also a standalone entry point for matrix-level `rLMM_reg()`/`rGLMM_reg()` callers |
 
 ---
 

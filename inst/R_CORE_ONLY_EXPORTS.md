@@ -164,6 +164,7 @@ drivers. Required exports for **lmebayes** (`importFrom` or qualified calls).
 | `build_mu_all()` | `build_mu_all.R` | Core-only today | `lmerb()`, `glmerb()` (`simulate = FALSE` → `fixef.mu`) |
 | `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | Core-only today | `lmerb()` (`simulate = FALSE`; ICM at **fixed** variance components) |
 | `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | Core-only today | `glmerb()` (`simulate = FALSE`; same) |
+| `check_identifiability()` | `check_identifiability.R` | Core-only today | — (internal to re-exported `model_setup()`; standalone entry point for matrix-level `rLMM_reg()`/`rGLMM_reg()` callers) |
 
 When `simulate = TRUE`, re-exported `rlmerb()` / `rglmerb()` perform the same
 prep internally.
@@ -270,8 +271,8 @@ Block~2 Gibbs chain in C++ (v5 / sweep-outer batch updates).
 | Group | Symbols | Notes |
 |-------|---------|-------|
 | §1–§6 Phase-out from **glmbayes** | 30 | Still on **glmbayes** `NAMESPACE` until migration |
-| §7–§15 Core-only today (not on **lmebayes** export surface) | 37 | Includes 4 **lmebayes** direct + 9 **lmebayes** indirect; excludes planned **glmbayes** `multi_rlmb` retain |
-| **Total catalogued** | **70** | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
+| §7–§15 Core-only today (not on **lmebayes** export surface) | 38 | Includes 4 **lmebayes** direct + 9 **lmebayes** indirect; excludes planned **glmbayes** `multi_rlmb` retain |
+| **Total catalogued** | **71** | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
 
 ---
 

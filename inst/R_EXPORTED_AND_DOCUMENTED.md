@@ -187,11 +187,11 @@ Callable with `glmbayesCore:::`; have help pages but are not in `NAMESPACE`.
 
 ## **glmbayesCore**-only exports
 
-Not in **glmbayes** or **lmebayes** export surfaces (32 symbols). None are
+Not in **glmbayes** or **lmebayes** export surfaces (33 symbols). None are
 direct `glmbayesCore::…` references from **lmebayes** `R/`.
 
 **By function type:** [R_CORE_ONLY_EXPORTS.md](R_CORE_ONLY_EXPORTS.md) (full
-70-symbol catalog including **glmbayes** phase-out groups §1–§6).
+71-symbol catalog including **glmbayes** phase-out groups §1–§6).
 
 ### Indirect from **lmebayes** via `rlmerb()` / `rglmerb()`
 
@@ -213,12 +213,13 @@ use **`rGLMM_reg`** (via **`rglmerb()`**).
 | `rLMMNormal_reg()` | `rLMM_reg.R` | Dispatcher for fixed σ² (→ known or estimated route) | Validates and delegates. |
 | `rLMMindepNormalGamma_reg()` | `rLMM_reg.R` | Legacy outer loop (not default **`rlmerb()`** path) | Draw σ² via `rGamma_reg()`, then `rLMMNormal_reg()` per chain. |
 
-### Other **glmbayesCore**-only exports (23 symbols)
+### Other **glmbayesCore**-only exports (24 symbols)
 
 Not called from **lmebayes** `R/` (directly or via formula drivers).
 
 | Function | File | Role |
 |----------|------|------|
+| `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, Z, groups, X_hyper)`; used internally by `model_setup()`. |
 | `block_rNormalReg()` | `simfunction_block.R` | Row-block Normal regression sampler. |
 | `block_rNormalGLM()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
 | `block_rNormalReg_update()` | `simfunction_block.R` | Block~1 Normal reg draw given `mu_all`. |

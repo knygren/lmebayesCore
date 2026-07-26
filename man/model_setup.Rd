@@ -71,18 +71,11 @@ Object of class \code{"model_setup"}: \code{y}, \code{Z},
 \code{vcov_formula} (deprecated alias of \code{formula}),
 \code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
 \code{glmer_vcov_fit} (same object as the full-formula fit),
-\code{varcorr}, \code{vcov_re}, \code{residual_var}; \code{re_rank}
-(named logical vector: \code{TRUE} if \code{Z_j} is full column rank for
-that group); \code{re_estimable} (named logical vector: \code{TRUE} if
-the group is additionally estimable -- classical-glm MLE existence for
-\code{binomial()}/\code{poisson()}/\code{Gamma()}, residual degrees of
-freedom (\code{n_j > p_j}) for \code{gaussian()}, and equal to
-\code{re_rank} for other families) and \code{re_glm_check} (per-group
-diagnostic data frame for the families above, or \code{NULL} otherwise);
-\code{hyper_rank} (named logical vector
-per RE coefficient, restricted to \code{re_estimable} groups),
-\code{hyper_deficient} (its negation), and \code{rank_ok} (scalar,
-\code{TRUE} only when every \code{hyper_rank} entry is \code{TRUE}).
+\code{varcorr}, \code{vcov_re}, \code{residual_var}; plus \code{re_rank},
+\code{re_estimable}, \code{re_glm_check}, \code{hyper_rank},
+\code{hyper_deficient}, and \code{rank_ok} from
+\code{\link{check_identifiability}} (see its \code{@return} for exact
+definitions).
 }
 \description{
 Wrapper around \code{\link[lme4]{lmer}} or \code{\link[lme4]{glmer}} for
@@ -119,55 +112,18 @@ these three types---level-2 covariate, population mean slope, or cross-level
 moderation interaction---are rejected with an informative error.
 
 \strong{Two-step identifiability assessment.}
-After fitting \code{lmer}/\code{glmer}, \code{model_setup} performs a
-two-step check that assesses whether the model is empirically identified at
-both the within-group and across-group levels:
-
-\enumerate{
-\item \emph{Level 1 (within-group):}  For each group \eqn{j}, the
-within-group random-effects design submatrix \eqn{\mathbf{Z}_j} is
-checked for full column rank (\code{re_rank}).  A rank-deficient group
-has too few distinct observations to estimate all random slopes
-independently; its BLUPs are identified through the prior rather than
-the data alone.  Algebraically full-rank groups are then additionally
-checked for estimability (\code{re_estimable}, with per-group detail
-in \code{re_glm_check}), with the specific check depending on
-\code{family}:
-\itemize{
-\item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a
-classical \code{glm(y ~ Z_j - 1, family)} fit is attempted; a
-group can be full column rank yet have no finite MLE under
-complete or quasi-complete separation (\code{binomial}), an
-all-zero count response (\code{poisson}), or a non-positive
-response (\code{Gamma}) -- \code{Gamma} groups are additionally
-required to have \code{n_j > p_j} so the dispersion/shape
-parameter is estimable.
-\item \code{gaussian()}: no fit is attempted (the OLS coefficient
-MLE always exists given full column rank), but the group must
-still have \code{n_j > p_j} so the residual variance/dispersion
-is estimable (otherwise the group achieves a perfect/saturated
-fit with zero residual degrees of freedom).
-\item other families: \code{re_estimable} is set equal to
-\code{re_rank} (no additional check yet).
-}
-Non-estimable groups are flagged but retained in the
-\code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
-excludes them when calibrating priors.
-
-\item \emph{Level 2 (across-group):}  Restricting to the \strong{estimable}
-groups from Step 1 (\code{re_estimable}), each hyper-design matrix
-\code{X_hyper[[k]]} is checked for full column rank (\code{hyper_rank}).
-Rank deficiency at this level means the level-2 hyperparameters
-\eqn{\boldsymbol{\mu}_k}---the prior means for random-effect
-coefficient \eqn{k} across groups---are not identified by the data,
-even as the number of estimable groups grows.
-}
-
-The scalar \code{rank_ok} is \code{TRUE} only when every
-\code{X_hyper[[k]]} is full-rank after Step 2.  This is a necessary
-condition for \code{\link{Prior_Setup_lmebayes}} to derive default priors
-automatically; models with \code{rank_ok = FALSE} require user-supplied
-hyperpriors.
+After fitting \code{lmer}/\code{glmer}, \code{model_setup} calls
+\code{\link{check_identifiability}} to assess whether the model is
+empirically identified at both the within-group (\code{re_rank},
+\code{re_estimable}, \code{re_glm_check}) and across-group
+(\code{hyper_rank}, \code{hyper_deficient}, \code{rank_ok}) levels, and
+copies its fields onto the returned design object -- see
+\code{\link{check_identifiability}} for the full algorithm description
+(including the family-specific estimability checks and how
+\code{rank_ok} is derived). Non-estimable groups are flagged but retained
+in the \code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
+excludes them when calibrating priors, and requires \code{rank_ok = TRUE}
+to derive default hyperpriors automatically.
 
 The example uses \code{big_word_club} from the Suggested package
 \pkg{bayesrules} (see \code{?bayesrules::big_word_club}) and the same
@@ -351,6 +307,7 @@ design_esl <- model_setup(form_esl, data = dat_esl, control = ctrl_bobyqa)
 print(design_esl)
 }
 \seealso{
+\code{\link{check_identifiability}},
 \code{\link{extract_re_hyper_matrices}},
 \code{\link{lmerb_default_vcov_formula}},
 \code{\link{extract_lmer_variance_components}}

@@ -44,8 +44,8 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 | `.lmebayes_normalize_family()` | `model_setup.R` | Coerce `family` argument | `model_setup()` |
 | `.lmebayes_mer_convergence_issues()` | `model_setup.R` | Collect lme4 convergence warnings | `Prior_Setup_lmebayes()` |
 | `.lmebayes_mer_optional_args()` | `model_setup.R` | Optional `lmer` / `glmer` call args | `model_setup()`, **lmebayes** `glmerb()` |
-| `.lmebayes_block_glm_estimable()` | `model_setup.R` | Per-group estimability check (glm-fit for binomial/poisson/Gamma; residual-df for gaussian) | `model_setup()` |
-| `.lmebayes_glm_estimable_precheck()` | `model_setup.R` | Family-specific quick-reject pre-check used by `.lmebayes_block_glm_estimable()` | `.lmebayes_block_glm_estimable()` |
+| `.lmebayes_block_glm_estimable()` | `check_identifiability.R` | Per-group estimability check (glm-fit for binomial/poisson/Gamma; residual-df for gaussian) | `check_identifiability()` |
+| `.lmebayes_glm_estimable_precheck()` | `check_identifiability.R` | Family-specific quick-reject pre-check used by `.lmebayes_block_glm_estimable()` | `.lmebayes_block_glm_estimable()` |
 
 ---
 
