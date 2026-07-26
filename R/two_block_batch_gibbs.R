@@ -169,6 +169,46 @@
   out
 }
 
+#' Snapshot chain mean/SD of RE precision (\code{1/tau^2}) after one sweep,
+#' ING components only
+#'
+#' Companion to \code{\link{.two_block_snapshot_fixef_stats}} for the
+#' estimated-vcov case: \code{Sigma_ranef = diag(tau2_k)}, and only
+#' \code{dIndependent_Normal_Gamma} (ING) components actually sample
+#' \code{tau2_k} each sweep (\code{dNormal} components keep a fixed
+#' dispersion, so there is nothing to track for them). Reports the
+#' precision \eqn{1/\tau^2_k}, not \eqn{\tau^2_k} itself, because
+#' \eqn{E[1/\tau^2_k]} (a Gamma mean) is always well-defined while
+#' \eqn{E[\tau^2_k]} (an inverse-Gamma mean) is not for weak/low-shape
+#' priors (see \code{\link{.two_block_tau2_start_from_dispersion_draws}}'s
+#' use of the same \code{1/mean(1/x)} identity). Cross-chain *covariance*
+#' (between precision components, or between precision and fixef) is not
+#' captured here -- see \code{\link{plot_var_convergence}}'s
+#' \code{component} docs for why \code{whitened = TRUE} does not (yet)
+#' support \code{component = "precision"}.
+#' @param tau2 \code{n_chains x p_re} matrix (\code{batch$tau2}).
+#' @param ptypes Named character vector of Block~2 pfamily names, one per
+#'   \code{re_names} entry (\code{"dNormal"} or
+#'   \code{"dIndependent_Normal_Gamma"}).
+#' @param re_names Character vector of random-effect block names (defines
+#'   \code{colnames(tau2)} order).
+#' @return Named list (one entry per ING component in \code{re_names}, in
+#'   \code{re_names} order; empty list if none are ING) of
+#'   \code{list(mean = <scalar>, sd = <scalar>)} for that component's
+#'   cross-chain precision.
+#' @noRd
+.two_block_snapshot_disp_stats <- function(tau2, ptypes, re_names) {
+  ing <- re_names[vapply(re_names, function(k) {
+    identical(ptypes[[k]], "dIndependent_Normal_Gamma")
+  }, logical(1))]
+  out <- list()
+  for (k in ing) {
+    prec <- 1 / tau2[, k]
+    out[[k]] <- list(mean = mean(prec), sd = stats::sd(prec))
+  }
+  out
+}
+
 #' Snapshot the full cross-chain covariance of stacked Block 2 fixef after one sweep
 #'
 #' Stacks \code{fixef[[k]]} (\code{n_chains x p_k}, one per RE component) into

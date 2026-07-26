@@ -160,6 +160,7 @@
 plot_var_convergence.rLMMNormal_reg <- function(
     hist,
     coef_focus = NULL,
+    component = c("fixef", "precision"),
     whitened = FALSE,
     engine = c("base", "ggplot"),
     n_chains,
@@ -168,11 +169,12 @@ plot_var_convergence.rLMMNormal_reg <- function(
     stage_label = NULL,
     ...
 ) {
+  component <- match.arg(component)
   engine <- match.arg(engine)
   stage  <- match.arg(stage)
   .lmebayes_convergence_from_fit(
     hist, plot_var_convergence.default,
-    coef_focus = coef_focus, whitened = whitened, engine = engine,
+    coef_focus = coef_focus, component = component, whitened = whitened, engine = engine,
     n_chains = if (missing(n_chains)) NULL else n_chains,
     has_n_chains = !missing(n_chains),
     conf_level = conf_level, stage = stage, stage_label = stage_label,
@@ -210,6 +212,7 @@ plot_var_convergence.rglmerb <- plot_var_convergence.rLMMNormal_reg
 plot_mean_convergence.rLMMNormal_reg <- function(
     hist,
     coef_focus = NULL,
+    component = c("fixef", "precision"),
     whitened = FALSE,
     engine = c("base", "ggplot"),
     n_chains,
@@ -218,11 +221,12 @@ plot_mean_convergence.rLMMNormal_reg <- function(
     stage_label = NULL,
     ...
 ) {
+  component <- match.arg(component)
   engine <- match.arg(engine)
   stage  <- match.arg(stage)
   .lmebayes_convergence_from_fit(
     hist, plot_mean_convergence.default,
-    coef_focus = coef_focus, whitened = whitened, engine = engine,
+    coef_focus = coef_focus, component = component, whitened = whitened, engine = engine,
     n_chains = if (missing(n_chains)) NULL else n_chains,
     has_n_chains = !missing(n_chains),
     conf_level = conf_level, stage = stage, stage_label = stage_label,

@@ -16,6 +16,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{default}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   design = NULL,
   measurement_prior_list = NULL,
   whitened = FALSE,
@@ -31,6 +32,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{rLMMNormal_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -43,6 +45,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{rLMMindepNormalGamma_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -55,6 +58,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{rGLMM_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -67,6 +71,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{rlmerb}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -79,6 +84,7 @@ plot_mean_convergence(hist, ...)
 \method{plot_mean_convergence}{rglmerb}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -89,7 +95,7 @@ plot_mean_convergence(hist, ...)
 )
 }
 \arguments{
-\item{hist, coef_focus, engine, n_chains, conf_level, split, max_whitened}{Same meaning as in \code{\link{plot_var_convergence}}.}
+\item{hist, coef_focus, component, engine, n_chains, conf_level, split, max_whitened}{Same meaning as in \code{\link{plot_var_convergence}}.}
 
 \item{...}{Passed to methods; see \code{\link{plot_mean_convergence.default}}.}
 

@@ -26,6 +26,29 @@
 #' @param coef_focus Optional list of length-2 character vectors
 #'   \code{c(re_component, covariate)} to restrict the plot to; default
 #'   (\code{NULL}) uses every coefficient tracked in \code{hist}.
+#' @param component \code{"fixef"} (default) plots the Block~2
+#'   fixed-effects/hyperparameter series described above. \code{"precision"}
+#'   instead plots the estimated random-effects \emph{precision}
+#'   (\eqn{1/\tau^2_k}, i.e. the diagonal of \eqn{\Sigma_{ranef}^{-1}}) for
+#'   every ING (\code{dIndependent_Normal_Gamma}) Block~2 component --
+#'   requires \code{hist$disp_table} (populated whenever at least one
+#'   Block~2 component has an estimated, not fixed, variance -- see
+#'   \code{fit$any_non_normal}); errors if that is empty (e.g. a
+#'   known-vcov fit) or if \code{whitened = TRUE} (only the cross-chain
+#'   \emph{variance} of each component's precision is captured so far, not
+#'   its covariance with other components/fixed effects, so whitening is
+#'   not yet possible -- see \code{inst/BLOCK_GIBBS_ERGODICITY.md} for the
+#'   deferred extension). Precision is plotted (not the variance
+#'   \eqn{\tau^2_k} itself) because \eqn{E[1/\tau^2_k]} stays well-defined
+#'   under a weak/vague prior where \eqn{E[\tau^2_k]} need not be. This is
+#'   a distinct quantity from the observation-level dispersion estimated by
+#'   \code{rLMMindepNormalGamma_reg_*()} (despite both being called
+#'   "dispersion" internally) -- \code{component = "precision"} is always
+#'   about the RE variance-covariance, never the observation noise
+#'   variance. \code{design}/\code{measurement_prior_list} are ignored for
+#'   \code{component = "precision"}: no exact reference exists yet for an
+#'   estimated \eqn{\Sigma_{ranef}}, so the denominator is always the
+#'   empirical last-sweep value.
 #' @param design,measurement_prior_list When both are supplied, the *exact*
 #'   reference covariance is resolved automatically via
 #'   \code{\link{lmerb_posterior_covariance}} and used as the denominator --
@@ -125,6 +148,7 @@ plot_var_convergence <- function(hist, ...) {
 plot_var_convergence.default <- function(
     hist,
     coef_focus = NULL,
+    component = c("fixef", "precision"),
     design = NULL,
     measurement_prior_list = NULL,
     whitened = FALSE,
@@ -143,6 +167,7 @@ plot_var_convergence.default <- function(
       call. = FALSE
     )
   }
+  component <- match.arg(component)
   engine <- match.arg(engine)
   split  <- match.arg(split)
   stage_label <- as.character(stage_label)[1L]
@@ -152,8 +177,28 @@ plot_var_convergence.default <- function(
   if (identical(engine, "ggplot") && !requireNamespace("ggplot2", quietly = TRUE)) {
     stop("'engine = \"ggplot\"' requires the ggplot2 package.", call. = FALSE)
   }
+  if (identical(component, "precision")) {
+    if (is.null(hist$disp_table) || !nrow(hist$disp_table)) {
+      stop(
+        "'hist' has no RE-precision rows ('disp_table') -- component = ",
+        "\"precision\" requires a sweep history from an estimated-vcov ",
+        "engine with at least one ING Block~2 component (e.g. ",
+        "rLMMNormal_reg_estimated_vcov(), rLMMindepNormalGamma_reg_estimated_vcov()).",
+        call. = FALSE
+      )
+    }
+    if (isTRUE(whitened)) {
+      stop(
+        "'whitened = TRUE' is not yet supported for component = \"precision\" ",
+        "-- only the cross-chain variance of each RE component's precision ",
+        "is captured so far, not its cross-chain covariance with other ",
+        "components/fixed effects.",
+        call. = FALSE
+      )
+    }
+  }
 
-  sh_tab <- hist$table
+  sh_tab <- if (identical(component, "precision")) hist$disp_table else hist$table
   sh_tab$re_component <- as.character(sh_tab$re_component)
   sh_tab$covariate <- as.character(sh_tab$covariate)
   sh_sweeps <- sh_tab[sh_tab$sweep > 0L, , drop = FALSE]
@@ -162,9 +207,12 @@ plot_var_convergence.default <- function(
     return(invisible(hist))
   }
 
+  ## No exact reference exists yet for the RE-precision series (no analogue
+  ## of lmerb_posterior_covariance() for an estimated Sigma_ranef), so
+  ## design/measurement_prior_list are only consulted for component = "fixef".
   exact_ref <- NULL
   ref_source <- "empirical (Var_final)"
-  if (!is.null(design) && !is.null(measurement_prior_list)) {
+  if (identical(component, "fixef") && !is.null(design) && !is.null(measurement_prior_list)) {
     exact_ref <- lmerb_posterior_covariance(design, measurement_prior_list)
     ref_source <- "exact"
   }
@@ -174,6 +222,7 @@ plot_var_convergence.default <- function(
   ## the df2 = Inf limit of the latter, so one qf() call covers both.
   band <- .convergence_var_band(n_chains, conf_level, identical(ref_source, "exact"))
 
+  metric_label <- if (identical(component, "precision")) "RE precision (1/tau^2)" else "cross-chain variance"
   if (isTRUE(whitened)) {
     var_ratio_full <- .convergence_var_whitened_series(hist, coef_focus, exact_ref)
     ylab <- "Whitened variance ratio (eigenvalue)"
@@ -188,7 +237,7 @@ plot_var_convergence.default <- function(
     } else {
       "Var / Var_final ratio"
     }
-    sub <- sprintf("(cross-chain variance from sweep history; reference = %s)", ref_source)
+    sub <- sprintf("(%s from sweep history; reference = %s)", metric_label, ref_source)
     groups <- .convergence_named_groups(
       sh_sweeps, coef_focus, exact_ref, .convergence_var_named_series, split
     )
@@ -231,7 +280,7 @@ plot_var_convergence.default <- function(
 #' on one chart and \code{Z(l)} is expected to shrink toward 0 as \code{l}
 #' grows.
 #'
-#' @param hist,coef_focus,engine,n_chains,conf_level,split,max_whitened
+#' @param hist,coef_focus,component,engine,n_chains,conf_level,split,max_whitened
 #'   Same meaning as in \code{\link{plot_var_convergence}}.
 #' @param design,measurement_prior_list When both are supplied, the exact
 #'   reference \emph{mean} is resolved automatically via
@@ -263,6 +312,7 @@ plot_mean_convergence <- function(hist, ...) {
 plot_mean_convergence.default <- function(
     hist,
     coef_focus = NULL,
+    component = c("fixef", "precision"),
     design = NULL,
     measurement_prior_list = NULL,
     whitened = FALSE,
@@ -281,6 +331,7 @@ plot_mean_convergence.default <- function(
       call. = FALSE
     )
   }
+  component <- match.arg(component)
   engine <- match.arg(engine)
   split  <- match.arg(split)
   stage_label <- as.character(stage_label)[1L]
@@ -290,8 +341,28 @@ plot_mean_convergence.default <- function(
   if (identical(engine, "ggplot") && !requireNamespace("ggplot2", quietly = TRUE)) {
     stop("'engine = \"ggplot\"' requires the ggplot2 package.", call. = FALSE)
   }
+  if (identical(component, "precision")) {
+    if (is.null(hist$disp_table) || !nrow(hist$disp_table)) {
+      stop(
+        "'hist' has no RE-precision rows ('disp_table') -- component = ",
+        "\"precision\" requires a sweep history from an estimated-vcov ",
+        "engine with at least one ING Block~2 component (e.g. ",
+        "rLMMNormal_reg_estimated_vcov(), rLMMindepNormalGamma_reg_estimated_vcov()).",
+        call. = FALSE
+      )
+    }
+    if (isTRUE(whitened)) {
+      stop(
+        "'whitened = TRUE' is not yet supported for component = \"precision\" ",
+        "-- only the cross-chain variance of each RE component's precision ",
+        "is captured so far, not its cross-chain covariance with other ",
+        "components/fixed effects.",
+        call. = FALSE
+      )
+    }
+  }
 
-  sh_tab <- hist$table
+  sh_tab <- if (identical(component, "precision")) hist$disp_table else hist$table
   sh_tab$re_component <- as.character(sh_tab$re_component)
   sh_tab$covariate <- as.character(sh_tab$covariate)
   sh_sweeps <- sh_tab[sh_tab$sweep > 0L, , drop = FALSE]
@@ -300,9 +371,12 @@ plot_mean_convergence.default <- function(
     return(invisible(hist))
   }
 
+  ## No exact reference exists yet for the RE-precision series (no analogue
+  ## of lmerb_posterior_mean() for an estimated Sigma_ranef), so
+  ## design/measurement_prior_list are only consulted for component = "fixef".
   exact_ref <- NULL
   ref_source <- "empirical (mean_final)"
-  if (!is.null(design) && !is.null(measurement_prior_list)) {
+  if (identical(component, "fixef") && !is.null(design) && !is.null(measurement_prior_list)) {
     pm <- lmerb_posterior_mean(design, measurement_prior_list)
     exact_ref <- list(
       mean = .convergence_flatten_fixef(pm$fixef),
@@ -318,6 +392,11 @@ plot_mean_convergence.default <- function(
   ## variance band via qt(df = Inf) == qnorm()).
   band <- .convergence_mean_band(n_chains, conf_level, identical(ref_source, "exact"))
 
+  metric_label <- if (identical(component, "precision")) {
+    "RE precision (1/tau^2) cross-chain mean deviation"
+  } else {
+    "cross-chain mean deviation"
+  }
   if (isTRUE(whitened)) {
     z_series_full <- .convergence_mean_whitened_series(hist, coef_focus, exact_ref)
     ylab <- "Whitened mean deviation (z-score)"
@@ -334,8 +413,8 @@ plot_mean_convergence.default <- function(
       "(mean - mean_final) / SD"
     }
     sub <- sprintf(
-      "(cross-chain mean deviation, standardized by cross-chain SD; reference = %s)",
-      ref_source
+      "(%s, standardized by cross-chain SD; reference = %s)",
+      metric_label, ref_source
     )
     groups <- .convergence_named_groups(
       sh_sweeps, coef_focus, exact_ref_mean, .convergence_mean_named_series, split

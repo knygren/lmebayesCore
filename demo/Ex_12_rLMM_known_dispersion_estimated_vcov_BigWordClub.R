@@ -242,6 +242,21 @@ for (stg in c("pilot", "main")) {
   plot_var_convergence(fit, whitened = TRUE, stage = stg)
 }
 
+## component = "precision" plots the *other* thing this demo estimates: the
+## RE variance-covariance itself, Sigma_ranef = diag(tau2_k), tracked as its
+## reciprocal 1/tau2_k (precision) rather than tau2_k -- E[1/tau2_k] stays
+## well-defined under a weak/vague prior where E[tau2_k] need not be. Unlike
+## the Block~2 fixed-effects charts above, there is no exact reference here
+## (design/measurement_prior_list are ignored for this component) and no
+## whitened mode yet (only each component's own cross-chain variance is
+## captured so far, not its covariance with other components/fixed effects
+## -- see inst/BLOCK_GIBBS_ERGODICITY.md's "Future work" section), so only
+## the named (non-whitened) charts are drawn.
+for (stg in c("pilot", "main")) {
+  plot_mean_convergence(fit, component = "precision", stage = stg)
+  plot_var_convergence(fit, component = "precision", stage = stg)
+}
+
 ## ---------------------------------------------------------------------------
 ## 7. Block 2 hyperparameters: prior mean, ICM (gamma @ lmer tau2), pilot
 ##    mean, MCMC mean (supplementary to Section 6 -- shows how far the

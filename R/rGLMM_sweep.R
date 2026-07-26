@@ -120,6 +120,7 @@ rGLMM_sweep <- function(
   progbar_use <- isTRUE(progbar)
   sweep_stats <- vector("list", inner_sweeps)
   sweep_cov   <- vector("list", inner_sweeps)
+  sweep_disp  <- vector("list", inner_sweeps)
 
   for (m in seq_len(inner_sweeps)) {
     prefix_b1 <- if (progbar_use) {
@@ -207,6 +208,11 @@ rGLMM_sweep <- function(
       fixef    = batch$fixef,
       re_names = re_names
     )
+    sweep_disp[[m]] <- .two_block_snapshot_disp_stats(
+      tau2     = batch$tau2,
+      ptypes   = ptypes,
+      re_names = re_names
+    )
     if (progbar_use && n_chains <= 1L) {
       prefix_sweep <- if (nzchar(stage_label)) {
         sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
@@ -235,7 +241,8 @@ rGLMM_sweep <- function(
     sweep_stats = sweep_stats,
     fixef_mode  = fixef_mode,
     re_names    = re_names,
-    sweep_cov   = sweep_cov
+    sweep_cov   = sweep_cov,
+    disp_stats  = sweep_disp
   )
   if (isTRUE(diag_sweeps)) {
     print(out$sweep_history)

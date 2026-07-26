@@ -70,6 +70,49 @@
       `max_whitened` eigenvalues each (default `4`). `split = "none"`
       restores the previous single-combined-chart behavior.
 
+* **New: `component = "precision"` on `plot_var_convergence()`/
+  `plot_mean_convergence()`, plotting the estimated random-effects
+  *precision* (`1/tau^2_k`, the diagonal of `Sigma_ranef^-1`) instead of
+  the Block~2 fixed-effects/hyperparameter series.**
+    - `rGLMM_sweep()` and `.rGLMM_sweep_ing_block1()` (the estimated-vcov
+      engines behind `rLMMNormal_reg_estimated_vcov()`,
+      `rLMMindepNormalGamma_reg_estimated_vcov()`, and
+      `rGLMM_reg_estimated_vcov()`) now also snapshot the cross-chain
+      mean/SD of `1/tau2_k` after every inner sweep, for every ING
+      (`dIndependent_Normal_Gamma`) Block~2 component (`dNormal` components
+      have a fixed dispersion, so there is nothing to track for them).
+      Stored as `sweep_history$disp_table`, same 5-column shape as the
+      existing `table` (`re_component`, `covariate = "precision"`, `sweep`,
+      `mean`, `sd`); a 0-row frame for known-vcov engines or an
+      estimated-vcov fit with zero ING components. `print()` on a
+      `two_block_sweep_history` now also shows a short "Block 2 RE
+      precision (1/tau^2)" table when `disp_table` has rows.
+    - Precision (`1/tau^2_k`), not the variance `tau^2_k` itself, is
+      plotted: `E[1/tau^2_k]` stays well-defined under a weak/vague prior
+      where `E[tau^2_k]` need not be (same reasoning already used by
+      `.two_block_tau2_start_from_dispersion_draws()`'s `1/mean(1/x)`
+      plug-in). This is unrelated to the observation-level dispersion
+      estimated by `rLMMindepNormalGamma_reg_*()` (despite both being
+      called "dispersion" internally) -- `component = "precision"` is
+      always about the RE variance-covariance.
+    - No exact reference exists yet for an estimated `Sigma_ranef`, so
+      `component = "precision"` always uses the empirical last-sweep value
+      as its denominator/reference (`design`/`measurement_prior_list` are
+      ignored). Only the cross-chain *variance* of each component's
+      precision is captured (no cross-chain covariance, either between
+      precision components or between precision and fixed effects), so
+      `whitened = TRUE` is not yet supported for `component = "precision"`
+      and errors with a clear message; likewise `component = "precision"`
+      errors clearly when `disp_table` is empty (e.g. a known-vcov fit).
+    - Deferred (documented as future work in
+      `inst/BLOCK_GIBBS_ERGODICITY.md`, not implemented): capturing the
+      precision-with-precision and precision-with-fixed-effects cross-chain
+      covariances (needed for `whitened = TRUE` support here), a joint
+      Hessian/precision spanning fixed effects, random effects, *and* the
+      diagonal RE precision together, and re-deriving/adjusting the
+      Claim~1/Claim~3 eigenvalue bounds for a 3-block (or more) Gibbs cycle
+      where the vcov itself is also sampled.
+
 * **Bug fix: `plot_var_convergence(..., engine = "base")` could error
   with `Error in graphics::par(old_par) : invalid value specified for
   graphical parameter "pin"`** when restoring its plotting parameters on

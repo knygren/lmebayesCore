@@ -16,6 +16,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{default}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   design = NULL,
   measurement_prior_list = NULL,
   whitened = FALSE,
@@ -31,6 +32,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{rLMMNormal_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -43,6 +45,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{rLMMindepNormalGamma_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -55,6 +58,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{rGLMM_reg}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -67,6 +71,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{rlmerb}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -79,6 +84,7 @@ plot_var_convergence(hist, ...)
 \method{plot_var_convergence}{rglmerb}(
   hist,
   coef_focus = NULL,
+  component = c("fixef", "precision"),
   whitened = FALSE,
   engine = c("base", "ggplot"),
   n_chains,
@@ -108,6 +114,30 @@ formals.}
 \item{coef_focus}{Optional list of length-2 character vectors
 \code{c(re_component, covariate)} to restrict the plot to; default
 (\code{NULL}) uses every coefficient tracked in \code{hist}.}
+
+\item{component}{\code{"fixef"} (default) plots the Block~2
+fixed-effects/hyperparameter series described above. \code{"precision"}
+instead plots the estimated random-effects \emph{precision}
+(\eqn{1/\tau^2_k}, i.e. the diagonal of \eqn{\Sigma_{ranef}^{-1}}) for
+every ING (\code{dIndependent_Normal_Gamma}) Block~2 component --
+requires \code{hist$disp_table} (populated whenever at least one
+Block~2 component has an estimated, not fixed, variance -- see
+\code{fit$any_non_normal}); errors if that is empty (e.g. a
+known-vcov fit) or if \code{whitened = TRUE} (only the cross-chain
+\emph{variance} of each component's precision is captured so far, not
+its covariance with other components/fixed effects, so whitening is
+not yet possible -- see \code{inst/BLOCK_GIBBS_ERGODICITY.md} for the
+deferred extension). Precision is plotted (not the variance
+\eqn{\tau^2_k} itself) because \eqn{E[1/\tau^2_k]} stays well-defined
+under a weak/vague prior where \eqn{E[\tau^2_k]} need not be. This is
+a distinct quantity from the observation-level dispersion estimated by
+\code{rLMMindepNormalGamma_reg_*()} (despite both being called
+"dispersion" internally) -- \code{component = "precision"} is always
+about the RE variance-covariance, never the observation noise
+variance. \code{design}/\code{measurement_prior_list} are ignored for
+\code{component = "precision"}: no exact reference exists yet for an
+estimated \eqn{\Sigma_{ranef}}, so the denominator is always the
+empirical last-sweep value.}
 
 \item{design, measurement_prior_list}{When both are supplied, the \emph{exact}
 reference covariance is resolved automatically via

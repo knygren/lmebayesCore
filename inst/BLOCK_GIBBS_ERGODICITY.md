@@ -431,6 +431,70 @@ direction) and an **error** when `on_failure = "stop"` is passed.  With
 
 ---
 
+## Future work: extending Claims 1/3 to a sampled RE variance-covariance
+
+Claims 1 and 3 above (and the `plot_mean_convergence()`/`plot_var_convergence()`
+diagnostics built on them) are derived for the two-block cycle with a *fixed*
+observation dispersion and a *fixed* `Sigma_ranef`: only `(gamma, b)` are
+sampled, and `A` is the corresponding 2-block contraction matrix. When one or
+more RE components use an ING (`dIndependent_Normal_Gamma`) Block~2 prior,
+`tau2_k` (equivalently its precision `1/tau2_k`, the diagonal of
+`Sigma_ranef^-1`) is *also* sampled each sweep, jointly with `gamma_k` --
+i.e. the cycle is really a 3-block (or more, if `tau2_k` is treated as its
+own block per ING component) Gibbs sampler, not the 2-block cycle the current
+theory covers.
+
+`plot_var_convergence()`/`plot_mean_convergence()`'s `component = "precision"`
+mode (see `NEWS.md`) currently only tracks each `1/tau2_k`'s own marginal
+cross-chain mean/variance against its empirical last-sweep value -- a
+diagnostic in the same *spirit* as Claims 1/3, but with no accompanying
+theory establishing that this ratio is bounded by/decays like some `A_3^l`/
+`A_3^{2l}` the way Claims 1/3 are proven for the 2-block case.
+
+**`inst/BLOCK_GIBBS_ERGODICITY_ING.md`** now works out the algebra for this:
+the full Hessian of the negative log-posterior over `(gamma, b, 1/tau2)`
+jointly, under the `dIndependent_Normal_Gamma()` prior, extending the
+`P11`/`P12`/`P22` blocks `.two_block_S_P11()` builds today. Concretely, still
+to do (not implemented there either -- theory only, no code depends on it):
+
+- **Cross-chain covariance capture for the precision block.** Only the
+  variance (diagonal) of each `1/tau2_k` is snapshotted per sweep. Extending
+  to `whitened = TRUE` for `component = "precision"` needs the cross-chain
+  covariance *between* precision components (a small `p_ing x p_ing` matrix,
+  analogous to `.two_block_snapshot_fixef_cov()`), and, for a truly joint
+  whitened treatment, the covariance *between* precision and the Block~2
+  `gamma_full` vector as well (an `(P_total + p_ing) x (P_total + p_ing)`
+  matrix).
+- **An implementation of the extended Hessian.** `BLOCK_GIBBS_ERGODICITY_ING.md`
+  derives every new block (`gamma`-`lambda` and `beta`-`lambda` cross terms,
+  the `lambda`-`lambda` diagonal) in closed form, but no
+  `.two_block_S_P11_ing()`-style helper exists yet to compute them from a
+  fitted model.
+- **Re-deriving (or conservatively bounding) the convergence-rate matrix**
+  for this expanded system. `BLOCK_GIBBS_ERGODICITY_ING.md` §7 shows the
+  resulting rate matrix `A(gamma, b, 1/tau2)` is state-dependent (the
+  one-step Gibbs map is genuinely nonlinear once `1/tau2` is sampled), so
+  Nygren's exact Theorem 3 / Corollary 1 bounds do not carry over without new
+  theory for the *fully joint* state-dependent kernel. `BLOCK_GIBBS_ERGODICITY_ING.md`
+  §10 does now give a certified (proven, not just conjectured) bound for the
+  weaker but practically-relevant question of the `(gamma, b)` *sub-chain*
+  conditional on whatever `(1/tau2, Omega)` the sampler currently has: since
+  `dIndependent_Normal_Gamma()`'s `disp_lower`/`disp_upper` truncation
+  already confines `1/tau2` and the measurement dispersion to a known box,
+  `two_block_rate_from_pfamily_list()`'s existing `disp_lower` plug-in and
+  `.rLMM_measurement_disp_upper_for_rate()`'s existing `disp_upper` plug-in
+  are proven (via a monotonicity argument, exact for `p_re = 1`, citing
+  Riccati/information-filter monotonicity for `p_re > 1`) to evaluate the
+  *worst case over that box* -- i.e. the package's existing pilot-calibration
+  practice was already doing the right thing, and §10 supplies the missing
+  proof. This says nothing about how fast `1/tau2` itself mixes or about the
+  fully joint chain's own TV distance to stationarity, which remains open:
+  for the *fully joint* map, `A(.)` evaluated at a reference point is still
+  only a *local* linearization/diagnostic, not a certified
+  global TV bound the way `lambda*` is for the fixed-vcov case.
+
+---
+
 ## References
 
 - Liu, J.S., Wong, W.H., Kong, A. (1994). Covariance structure of the Gibbs

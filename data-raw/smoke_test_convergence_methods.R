@@ -128,6 +128,52 @@ plot_var_convergence(fit2, whitened = TRUE, n_chains = 5L, max_whitened = 1L)
 grDevices::dev.off()
 cat("fit2 whitened = TRUE, max_whitened = 1 (forced split) OK\n\n")
 
+## --- component = "precision": fit2 (estimated vcov, 2 ING components) has
+## a populated disp_table; fit1 (known vcov, TWO_BLOCK_GIBBS) has none. -----
+disp2 <- fit2$sweep_history$disp_table
+stopifnot(
+  is.data.frame(disp2), nrow(disp2) > 0L,
+  setequal(unique(disp2$re_component), re_names),
+  identical(unique(disp2$covariate), "precision"),
+  all(disp2$mean > 0), all(disp2$sd[disp2$sweep > 0L] >= 0)
+)
+cat("fit2 sweep_history$disp_table populated (", nrow(disp2), "rows) OK\n\n")
+
+disp1 <- fit1$sweep_history$disp_table
+stopifnot(is.data.frame(disp1), nrow(disp1) == 0L)
+cat("fit1 sweep_history$disp_table empty (known vcov) OK\n\n")
+
+png_dev("s3_var_fit2_precision.png")
+plot_var_convergence(fit2, component = "precision", n_chains = 5L)
+grDevices::dev.off()
+png_dev("s3_mean_fit2_precision.png")
+plot_mean_convergence(fit2, component = "precision", n_chains = 5L)
+grDevices::dev.off()
+cat("fit2 component = 'precision' (named, non-whitened) plots OK\n\n")
+
+err_empty <- tryCatch(plot_var_convergence(fit1, component = "precision"), error = function(e) e)
+stopifnot(inherits(err_empty, "error"), grepl("disp_table", conditionMessage(err_empty)))
+cat("fit1 component = 'precision' (empty disp_table) -> clear error OK:\n  ",
+    conditionMessage(err_empty), "\n\n")
+
+err_whitened <- tryCatch(
+  plot_var_convergence(fit2, component = "precision", whitened = TRUE, n_chains = 5L),
+  error = function(e) e
+)
+stopifnot(inherits(err_whitened, "error"), grepl("whitened", conditionMessage(err_whitened)))
+cat("fit2 component = 'precision', whitened = TRUE -> clear error OK:\n  ",
+    conditionMessage(err_whitened), "\n\n")
+
+err_mean_whitened <- tryCatch(
+  plot_mean_convergence(fit2, component = "precision", whitened = TRUE, n_chains = 5L),
+  error = function(e) e
+)
+stopifnot(inherits(err_mean_whitened, "error"), grepl("whitened", conditionMessage(err_mean_whitened)))
+cat("fit2 plot_mean_convergence component = 'precision', whitened = TRUE -> clear error OK\n\n")
+
+print(fit2$sweep_history)
+cat("print(fit2$sweep_history) shows RE precision table OK\n\n")
+
 ## --- rlmerb(): same underlying engine as fit1, via the model_setup()/
 ## Prior_Setup_lmebayes() pipeline; result_class is lost (class == "rlmerb")
 ## so exact-ref detection must come from fit$Prior$dispersion_mode. ---------
