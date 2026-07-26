@@ -69,6 +69,18 @@
 #' @param fit_mer If \code{TRUE} (default), fit reference \code{lmer}/\code{glmer}
 #'   models and extract variance components. If \code{FALSE}, return design
 #'   matrices and rank diagnostics only (used by \code{glmerb()} in lmebayes).
+#' @param dispformula One-sided formula selecting the measurement-dispersion
+#'   structure: \code{~1} (default, pooled) or \code{~<group_name>} (matching
+#'   the random-effects grouping factor exactly, requesting per-group
+#'   dispersion). Only affects \code{design$glmmTMB_fit} (see \code{@return});
+#'   \code{design$lmer_fit}/\code{design$glmer_fit} are always the plain
+#'   pooled-dispersion \code{lmer}/\code{glmer} fit, regardless of
+#'   \code{dispformula}. \code{~<group_name>} additionally requires
+#'   \code{family = gaussian()} (no observation-level dispersion parameter
+#'   to model per group otherwise). Mirrors the \code{dispformula} argument
+#'   on \code{\link{Prior_Setup_lmebayes}} and on
+#'   \code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}; all three are
+#'   independent arguments that must be kept consistent by the caller.
 #' @param start Optional starting values for the inner optimization.
 #' @param verbose Passed to \code{\link[lme4]{lmer}}.
 #' @param subset,weights,na.action,offset,contrasts Passed to
@@ -86,7 +98,16 @@
 #'   \code{re_estimable}, \code{re_glm_check}, \code{hyper_rank},
 #'   \code{hyper_deficient}, and \code{rank_ok} from
 #'   \code{\link{check_identifiability}} (see its \code{@return} for exact
-#'   definitions).
+#'   definitions); plus \code{dispformula} (as supplied) and
+#'   \code{glmmTMB_fit}: \code{NULL} when \code{dispformula = ~1} or
+#'   \code{fit_mer = FALSE}; otherwise a \code{\link[glmmTMB]{glmmTMB}} fit
+#'   on \code{formula} with the same \code{dispformula} (Gaussian models
+#'   only), fit via the same \code{data}/\code{REML}/\code{control}-derived
+#'   arguments as the \code{lmer_fit} above. This is \strong{additive}:
+#'   \code{lmer_fit}/\code{glmer_fit} are never replaced by a \code{glmmTMB}
+#'   fit. \code{\link{Prior_Setup_lmebayes}} and \code{lmerb()} (in
+#'   \pkg{lmebayes}) reuse \code{glmmTMB_fit} as their per-group-dispersion
+#'   calibration reference instead of fitting \code{glmmTMB} a second time.
 #' @seealso \code{\link{check_identifiability}},
 #'   \code{\link{extract_re_hyper_matrices}},
 #'   \code{\link{lmerb_default_vcov_formula}},
@@ -110,6 +131,7 @@ model_setup <- function(
     contrasts = NULL,
     devFunOnly = FALSE,
     fit_mer = TRUE,
+    dispformula = ~1,
     ...
 ) {
   cl <- match.call()
@@ -123,6 +145,18 @@ model_setup <- function(
   design$call    <- cl
   design$formula <- formula
   design$family  <- family
+
+  dispformula_kind <- .lmebayes_dispformula_kind(dispformula, design$group_name)
+  if (identical(dispformula_kind, "group") && !is_gaussian) {
+    stop(
+      "'dispformula' must be ~1 for family = ", family$family,
+      "() (no observation-level dispersion parameter for per-group ",
+      "measurement-dispersion calibration).",
+      call. = FALSE
+    )
+  }
+  design$dispformula <- dispformula
+  design$glmmTMB_fit <- NULL
 
   if (!is.null(vcov_formula)) {
     warning(
@@ -185,6 +219,21 @@ model_setup <- function(
     design$varcorr <- vc$varcorr
     design$vcov_re <- vc$vcov_re
     design$residual_var <- vc$residual_var
+
+    ## Additive: fit and store the glmmTMB per-group-dispersion reference
+    ## alongside (never instead of) the lmer_fit above, when 'dispformula'
+    ## requests it. Prior_Setup_lmebayes() and lmerb() (lmebayes) reuse this
+    ## as their calibration reference instead of fitting glmmTMB a second
+    ## time; see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md.
+    if (is_gaussian && identical(dispformula_kind, "group")) {
+      design$glmmTMB_fit <- .lmebayes_fit_glmmtmb_reference(
+        formula     = formula,
+        data        = data,
+        family      = family,
+        dispformula = dispformula,
+        REML        = REML
+      )
+    }
   }
 
   # Two-step identifiability/estimability assessment (Level 1 rank +

@@ -1,5 +1,28 @@
 # lmebayesCore (development version)
 
+* **New: `model_setup()` gains a `dispformula` argument and additive
+  `design$glmmTMB_fit` field.**
+    - `dispformula = ~1` (default, pooled) preserves current behavior
+      exactly. `dispformula = ~<group_name>` (matching the random-effects
+      grouping factor) additionally fits a `glmmTMB::glmmTMB()` per-group-
+      dispersion reference model (Gaussian models only; errors otherwise)
+      and stores it as a **new, additive** `design$glmmTMB_fit` field.
+      `design$lmer_fit`/`design$glmer_fit` are never touched by this --
+      they stay the plain pooled-dispersion fit in every case, exactly as
+      documented before.
+    - `Prior_Setup_lmebayes()` now passes its own `dispformula` argument
+      through to this new `model_setup()` argument and reuses
+      `design$glmmTMB_fit` as its `fit_ref`/`dispersion_fit` calibration
+      reference, instead of independently fitting `glmmTMB` a second time.
+    - Internal: `.lmebayes_prior_setup_dispformula_kind()` moved from
+      `Prior_Setup_lmebayes.R` to `glmmtmb_reference_helpers.R` and renamed
+      to `.lmebayes_dispformula_kind()` so `model_setup()` can share the
+      same `dispformula` classification/validation logic; behavior is
+      unchanged. New internal dispatcher
+      `.lmebayes_extract_reference_variance_components()` picks
+      `extract_mer_variance_components()` or
+      `extract_glmmtmb_variance_components()` based on the fit's class.
+
 * **Breaking: `model_setup()`'s (and `extract_re_hyper_matrices()`'s)
   returned `"model_setup"` object renames its design-matrix fields to match
   the `rLMM_reg()`/`rGLMM_reg()`/`check_identifiability()` `D`/`W`/`group`

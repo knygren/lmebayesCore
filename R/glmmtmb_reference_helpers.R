@@ -1,8 +1,43 @@
-## Internal glmmTMB reference-fit helpers for Prior_Setup_lmebayes() when
-## dispformula requests per-group measurement dispersion. These fit and read
-## from a glmmTMB::glmmTMB() reference model as an alternative to the lme4
-## merMod reference used for dispformula = ~1; see
-## inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md for the calibration this feeds.
+## Internal glmmTMB reference-fit helpers for model_setup() /
+## Prior_Setup_lmebayes() when dispformula requests per-group measurement
+## dispersion. These fit and read from a glmmTMB::glmmTMB() reference model
+## as an alternative to the lme4 merMod reference used for dispformula = ~1;
+## see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md for the calibration this feeds.
+
+## Classify 'dispformula' as "pooled" (~1) or "group" (~<group_name>, matching
+## the random-effects grouping factor exactly). Shared by model_setup()
+## (gates whether it fits and stores design$glmmTMB_fit) and
+## Prior_Setup_lmebayes() (gates the analogous, fragile per-group
+## within-group-regression calibration in
+## .lmebayes_calibrate_ing_prior_measurement_group()). Mirrors
+## lmebayes:::.lmebayes_validate_dispformula(), which performs the analogous
+## check against the resolved dispersion_ranef mode at lmerb()/glmerb() time;
+## the dispformula arguments across all three functions are independent and
+## must be kept consistent by the caller.
+#' @keywords internal
+#' @noRd
+.lmebayes_dispformula_kind <- function(dispformula, group_name) {
+  if (!inherits(dispformula, "formula") || length(dispformula) != 2L) {
+    stop(
+      "'dispformula' must be a one-sided formula, either ~1 (pooled) or ~",
+      group_name, " (per-group).",
+      call. = FALSE
+    )
+  }
+  vars <- all.vars(dispformula)
+  if (length(vars) == 0L) {
+    return("pooled")
+  }
+  if (length(vars) == 1L && identical(vars, group_name)) {
+    return("group")
+  }
+  stop(
+    "'dispformula' must be ~1 (pooled) or ~", group_name,
+    " (per-group, matching the random-effects grouping factor); got ",
+    deparse(dispformula), ".",
+    call. = FALSE
+  )
+}
 
 #' Fit a \code{glmmTMB::glmmTMB()} reference model with per-group residual
 #' dispersion.
@@ -130,6 +165,31 @@
   } else {
     stats::coef(fit)
   }
+}
+
+## Dispatch to the correct extractor (merMod vs glmmTMB) for a reference fit
+## that may be either, depending on the caller's dispformula. Used by
+## lmebayes's summary.lmerb() call sites, which read the reference fit via
+## .lmerb_reference_fit() -- that may now return object$glmmTMB (per-group
+## dispersion) instead of object$lmer/object$glmer, and the two fit types
+## need different extractors (extract_mer_variance_components() hard-stops
+## on a non-merMod fit).
+#' @keywords internal
+#' @noRd
+.lmebayes_extract_reference_variance_components <- function(
+    fit, re_coef_names, group_name = NULL
+) {
+  if (inherits(fit, "glmmTMB")) {
+    if (is.null(group_name)) {
+      stop(
+        "'group_name' is required to extract variance components from a ",
+        "glmmTMB fit.",
+        call. = FALSE
+      )
+    }
+    return(extract_glmmtmb_variance_components(fit, re_coef_names, group_name))
+  }
+  extract_mer_variance_components(fit, re_coef_names)
 }
 
 #' Extract random-effect variance components from a glmmTMB reference fit
