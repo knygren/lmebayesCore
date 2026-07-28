@@ -102,7 +102,7 @@ print(summary(fit_lmer))
 ## a hardcoded verbose = TRUE passed to rlmerb().
 ## ---------------------------------------------------------------------------
 fit <- rLMMNormal_reg_estimated_vcov(
-  n            = 3000L,
+  n            = 1000L,
   y            = design$y,
   D            = design$D,
   group        = grp,
@@ -132,6 +132,94 @@ cat(sprintf(
 ))
 cat(sprintf(
   "m_convergence (main) = %d\n", fit$m_convergence
+))
+
+## ---------------------------------------------------------------------------
+## 4b. Extended (lambda)-aware local rate diagnostic
+##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 5-6, 15)
+##
+## m_convergence above is calibrated from a (gamma, beta)-only rate that
+## treats each tau^2_k's reference value as *fixed* -- exactly
+## two_block_rate_from_pfamily_list()'s own P_b = .rLMM_P_from_pfamily_list()
+## plug-in (rate/(shape-1) per component), the same reference value used
+## below. This diagnostic asks: how much would the local rate move if the
+## beta-lambda coupling that reference calibration ignores (Sections 5-6 --
+## every RE component here is ING) were included? u_jp is the RE-level
+## residual beta_hat_jp - W_pj*gamma_hat_p, read off the lmer reference fit
+## via coef()-fixef() (reduces to ranef(fit_lmer) here -- every re_names
+## entry is also a plain fixed-effect term name in this model; see
+## .lmebayes_reference_u()'s documentation). This is a *diagnostic*, not a
+## certified bound: see two_block_rate_ing()'s own documentation for why no
+## analogue of Theorem~3/Corollary~1 exists for the extended chain.
+## ---------------------------------------------------------------------------
+P_b_ref <- lmebayesCore:::.rLMM_P_from_pfamily_list(pf, re_names)
+u_ref   <- lmebayesCore:::.lmebayes_reference_u(fit_lmer, design$group_name, re_names)
+
+lambda_ing <- stats::setNames(lapply(re_names, function(k) {
+  list(
+    lambda = unname(P_b_ref[k, k]),
+    shape  = pf[[k]]$prior_list$shape[[1L]],
+    u      = stats::setNames(u_ref[[k]], rownames(u_ref))
+  )
+}), re_names)
+
+prior_list_block1_rate <- list(P = P_b_ref, dispersion = prior_list$dispersion)
+prior_list_block2_rate <- lapply(pf, function(pfk) {
+  pl <- pfk$prior_list
+  list(
+    mu = pl$mu, Sigma = pl$Sigma,
+    dispersion = if (identical(pfk$pfamily, "dNormal")) pl$dispersion else pl$disp_lower
+  )
+})
+
+rate_ext <- two_block_rate_ing(
+  x = design$D, block = grp, x_hyper = design$W,
+  prior_list_block1 = prior_list_block1_rate,
+  prior_list_block2 = prior_list_block2_rate,
+  lambda_ing = lambda_ing
+)
+cat("\n=== Extended (lambda)-aware local rate diagnostic (Sections 5-6, 15) ===\n\n")
+print(rate_ext)
+
+## ---------------------------------------------------------------------------
+## 4c. Empirical worst-case: same (lambda)-aware extended rate, evaluated at
+##     EVERY main-stage draw instead of the single u_ref/P_b_ref reference
+##     state above.
+##
+## tau^2_k is estimated here, so each of the n main-stage draws has its own
+## sampled tau^2_k (fit$fixef.dispersion[i, ]) and its own beta_j/gamma_p
+## (fit$coefficients/fit$fixef draw i) -- and hence its own u_jp. Treating
+## the n draws as approximate posterior samples, this asks: what is the
+## largest local rate actually realized across them, rather than at one
+## plug-in point? Mirrors the pilot-draw pmax() scan
+## (.two_block_pilot_ub_from_coefficients()) but for the *extended* system
+## and the *main*-stage output; still a diagnostic, not a certified bound
+## (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 7, 9, 11, 15).
+## ---------------------------------------------------------------------------
+lambda_spec <- stats::setNames(lapply(re_names, function(k) {
+  list(shape = pf[[k]]$prior_list$shape[[1L]])
+}), re_names)
+
+rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
+  fit = fit, n_draws = n_draws,
+  x = design$D, block = grp, x_hyper = design$W,
+  prior_list_block1 = prior_list_block1_rate,
+  prior_list_block2 = prior_list_block2_rate,
+  group_name = design$group_name, re_coef_names = re_names,
+  lambda_spec = lambda_spec
+)
+
+cat(sprintf(
+  paste0(
+    "\n=== Empirical (lambda)-aware local rate over n = %d main-stage draws ===\n\n",
+    "  lambda* (extended, single reference state)     = %.6f\n",
+    "  lambda* (extended, empirical max over %d draws) = %.6f  (draw #%d)\n",
+    "  draws with lambda*(extended) >= 1: %d / %d\n"
+  ),
+  rate_emp$n_draws,
+  rate_ext$lambda_star,
+  rate_emp$n_draws, rate_emp$lambda_star_max, rate_emp$i_max,
+  rate_emp$n_over_one, rate_emp$n_draws
 ))
 
 ## ---------------------------------------------------------------------------

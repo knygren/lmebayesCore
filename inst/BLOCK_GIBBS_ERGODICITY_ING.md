@@ -374,6 +374,11 @@ This note supplies the algebra; it deliberately stops short of:
   \(\lambda\) into \(B_j\) and \(P_{11}^{(\gamma\gamma)}\) in place of the
   fixed \(P_b\) used today. The needed \(u_{jp}\) residuals are already
   computed as a byproduct of the existing Block~2 ING update.
+- **A marginal (Omega-integrated-out) alternative to the joint extension.**
+  §16 derives, for the \(\Omega_j\)-only case, an exact PSD/log-concavity
+  criterion on the residuals by integrating \(\Omega_j\) out analytically
+  instead of extending the joint Hessian — a genuinely different diagnostic
+  from §5-8/§14 above, and (like the rest of this list) not implemented.
 
 ---
 
@@ -774,6 +779,312 @@ truncation is on \(u_{jp}\), not on \(\beta_{jp}\) directly, so as
 itself moves with it — the constraint should be understood as "how far a
 random effect may deviate from its current hyper-mean," not as a fixed
 absolute range for \(\beta_{jp}\).
+
+---
+
+## 14. The \(\Omega\) (measurement-precision) extension
+
+Sections 5-13 extend the Hessian for a sampled **random-effects** precision
+\(\lambda_p\) (`dIndependent_Normal_Gamma()` on \(\tau_p^2\)). This section
+derives the exactly analogous extension for a sampled **measurement**
+(observation-level) precision \(\Omega := 1/\sigma^2\) — pooled (`dGamma()`,
+one value shared by every group) or per-group \(\Omega_j := 1/\sigma_j^2\)
+(`dGamma_list()`, one independent value per group, as used by
+`rLMMindepNormalGamma_reg_*()`). Everywhere below, \(\Omega\) means "pooled
+\(\Omega\)" unless a subscript \(j\) is present.
+
+### 14.1 Setup
+
+Let \(e_j := y_j - D_j\beta_j\) (the \(n_j\times1\) **data** residual for group
+\(j\) — not to be confused with \(u_{jp}\), the *RE-level* residual of §1-2).
+Write \(n_j = \dim(y_j)\), \(n = \sum_j n_j\). The likelihood term of §3
+becomes, once \(\Omega\) (or \(\Omega_j\)) is written out explicitly instead
+of held fixed:
+
+**Pooled case** (\(\Omega_j = \Omega I_{n_j}\) for every \(j\), one shared
+scalar \(\Omega\), prior \(\Omega\sim\mathrm{Gamma}(a^0,r^0)\)):
+
+$$
+\ell \;\supset\; \frac{\Omega}{2}\sum_j e_j'e_j \;-\; \frac{n}{2}\log\Omega
+\;+\; (1-a^0)\log\Omega + r^0\Omega
+$$
+
+**Per-group case** (\(\Omega_j = \Omega_j I_{n_j}\), independent
+\(\Omega_j\sim\mathrm{Gamma}(a_j^0,r_j^0)\) per group):
+
+$$
+\ell \;\supset\; \sum_j\Big[\frac{\Omega_j}{2} e_j'e_j - \frac{n_j}{2}\log\Omega_j
++ (1-a_j^0)\log\Omega_j + r_j^0\Omega_j\Big]
+$$
+
+Both reduce to the fixed-\(\Omega\) likelihood term of §3 when \(\Omega\)
+(resp. every \(\Omega_j\)) is held constant — this section only makes its
+dependence explicit, exactly as §3-5 did for \(\lambda_p\).
+
+### 14.2 First derivatives
+
+$$
+\frac{\partial\ell}{\partial\beta_{jp}} = \big[D_j'\Omega_j(D_j\beta_j-y_j)\big]_p + \lambda_p u_{jp}
+\;=\; -\big[D_j'\Omega_je_j\big]_p + \lambda_p u_{jp}
+$$
+
+(same formula as §4, just substituting \(D_j\beta_j - y_j = -e_j\); \(\Omega_j\)
+is \(\Omega\) in the pooled case). For the precision itself,
+
+$$
+\frac{\partial\ell}{\partial\Omega} = \frac12\sum_j e_j'e_j - \frac{n}{2\Omega} + \frac{1-a^0}{\Omega} + r^0
+\qquad\text{(pooled)}
+$$
+
+$$
+\frac{\partial\ell}{\partial\Omega_j} = \frac12 e_j'e_j - \frac{n_j}{2\Omega_j} + \frac{1-a_j^0}{\Omega_j} + r_j^0
+\qquad\text{(per-group)}
+$$
+
+Setting either to zero reproduces the exact conjugate Gamma full conditional
+\(\Omega \mid \beta \sim \mathrm{Gamma}(a^0+n/2,\ r^0+\tfrac12\sum_je_j'e_j)\)
+(pooled) or \(\Omega_j\mid\beta_j\sim\mathrm{Gamma}(a_j^0+n_j/2,\ r_j^0+\tfrac12e_j'e_j)\)
+(per-group) — the same `shape2 = shape + n_w/2.0`-style update used by
+`dGamma()`/`dGamma_list()`'s Block~1 Gibbs step, and the same sanity-check
+pattern used for \(\lambda_p\) in §4.
+
+### 14.3 Second derivatives, and why the cross-terms with \((\gamma,\lambda)\) vanish exactly
+
+| Block | Formula | Why (non)zero |
+|---|---|---|
+| \(\partial^2\ell/\partial\beta_{jp}\partial\Omega\) (pooled) | \(-[D_j'e_j]_p\) | \(\partial(-[D_j'\Omega e_j]_p)/\partial\Omega\), holding \(e_j\) fixed; nonzero for **every** group \(j\) (pooled \(\Omega\) enters every group's likelihood) |
+| \(\partial^2\ell/\partial\beta_{jp}\partial\Omega_{j'}\) (per-group), \(j = j'\) | \(-[D_j'e_j]_p\) | same derivation, restricted to group \(j\)'s own precision |
+| \(\partial^2\ell/\partial\beta_{jp}\partial\Omega_{j'}\) (per-group), \(j\ne j'\) | \(0\) | group \(j\)'s likelihood term does not involve \(\Omega_{j'}\) |
+| \(\partial^2\ell/\partial\gamma_p\partial\Omega\) (or \(\Omega_j\)) | \(0\) | \(\gamma_p\) only appears in the RE-prior/Block~2 terms (§3), which do not involve \(\Omega\) at all |
+| \(\partial^2\ell/\partial\lambda_p\partial\Omega\) (or \(\Omega_j\)) | \(0\) | \(\lambda_p\) only appears in the RE-prior term (§3); \(\Omega\) only in the likelihood term — the two never multiply the same additive piece of \(\ell\) |
+| \(\partial^2\ell/\partial\Omega^2\) (pooled) | \((n/2+a^0-1)/\Omega^2\) | same derivation as §5's \(\lambda_p^2\) case, with \(n\) (not \(J\)) as the log-Jacobian count, since the Gaussian normalizing constant here scales with the number of *observations*, not groups |
+| \(\partial^2\ell/\partial\Omega_j^2\) (per-group) | \((n_j/2+a_j^0-1)/\Omega_j^2\) | same, per group |
+| \(\partial^2\ell/\partial\Omega_j\partial\Omega_{j'}\), \(j\ne j'\) (per-group) | \(0\) | independent Gamma priors, no shared likelihood term |
+
+The two zero rows are the key structural fact used below: **\(\Omega\)
+(pooled or per-group) is Hessian-orthogonal to both \(\gamma\) and
+\(\lambda\)** — it interacts with the joint system *only* through its cross-
+terms with \(\beta\). This is because \(\Omega\) multiplies only the
+likelihood piece of \(\ell\), which contains \(\beta\) but never \(\gamma\)
+or \(\lambda\) directly (those enter only via the RE-prior/Block~2 terms).
+
+### 14.4 Assembling the extended blocks
+
+Let \(x_1 = (\gamma,\ \lambda_{\mathrm{ING}},\ \Omega_{\mathrm{ING}})\) —
+appending the \(\Omega\)-extension of this section onto the \(\lambda\)-
+extension of §6 (§14.5 below covers stacking both explicitly; here consider
+\(\Omega\) added to the *plain*, non-ING-\(\lambda\), \(x_1=\gamma\) system
+for clarity first). \(P_{22}\) is **unchanged in form**
+(\(B_j = D_j'\Omega_jD_j + \Psi^{-1}\); \(\Omega_j\) is simply now the current
+state rather than a fixed plug-in, exactly as \(\lambda\) was in §6).
+
+**Pooled \(\Omega\):** one new row/column. New \(P_{12}\) row, for every group
+\(j\): \(-[D_j'e_j]'\) (a \(1\times p_{re}\) block, dense — nonzero in every
+column of that group's \(p_{re}\)-wide strip, since pooled \(\Omega\) touches
+every \(\beta_{jp}\)). New \(P_{11}\) diagonal entry:
+\((n/2+a^0-1)/\Omega^2\). New \(P_{11}^{(\gamma,\Omega)}\) and
+\(P_{11}^{(\lambda,\Omega)}\) cross blocks: **exactly zero** (§14.3).
+
+**Per-group \(\Omega_j\):** \(J\) new rows/columns (one per group), each
+**block-local**: row \(j\)'s new \(P_{12}\) entries are \(-[D_j'e_j]'\) within
+group \(j\)'s own \(p_{re}\)-wide strip and **zero** in every other group's
+strip (unlike the pooled case, which is dense across all \(J\) strips in its
+single new row). New \(P_{11}\) diagonal entries:
+\(\mathrm{diag}_j\big((n_j/2+a_j^0-1)/\Omega_j^2\big)\). Cross blocks with
+\(\gamma\) and \(\lambda\): again exactly zero, and additionally
+\(P_{11}^{(\Omega_j,\Omega_{j'})}=0\) for \(j\ne j'\) (§14.3) — the per-group
+\(\Omega\)-block is itself diagonal.
+
+### 14.5 Stacking both extensions
+
+Because \(P_{11}^{(\gamma,\Omega)}=P_{11}^{(\lambda,\Omega)}=0\) **exactly**
+(§14.3) — not approximately, and not only at a stationary point (contrast
+with the \(\gamma\)-\(\lambda\) cross term of §8, which vanishes only at the
+mode under a flat \(\gamma\)-prior) — the \(\lambda\)-extension (§5-6) and the
+\(\Omega\)-extension (§14.1-14.4) are **Hessian-orthogonal** and can be
+stacked with no further cross-derivation needed. For
+\(x_1 = (\gamma,\ \lambda_{\mathrm{ING}},\ \Omega_{\mathrm{ING}})\) the
+extended \(P_{11}\) is, in partitioned form,
+
+```
+        ┌ P11^(γγ)     P11^(γλ)      0        ┐
+P11  =  │ P11^(γλ)'    P11^(λλ)      0        │
+        └ 0            0             P11^(ΩΩ) ┘
+```
+
+i.e. the new \(\Omega\)-block is **block-diagonal** with the
+\((\gamma,\lambda)\)-block of §6 — appended on the diagonal, contributing no
+new off-diagonal structure beyond its own \(P_{12}\) rows (§14.4) into
+\(\beta\)-space. This is exactly the structure `.two_block_S_P11_ing()`
+(§15) exploits: the \(\lambda\)- and \(\Omega\)-extensions are assembled
+independently and simply concatenated, never requiring a genuinely new
+cross-derivation between them.
+
+All of §7-13's conclusions (state-dependence, the §10 corner-bound
+construction for the \((\gamma,\beta)\) sub-chain conditional on
+\((\lambda,\Omega)\), and §11-13's residual-freezing/safeguard discussion) go
+through for \(\Omega\) with \(u_{jp}\to e_j\) and \(\lambda_p\to\Omega\)
+(or \(\Omega_j\)) throughout — no new argument is needed, since §14.3's exact
+zero cross-terms are the only structural fact §7-13's arguments actually use
+beyond what already held for \(\lambda\).
+
+---
+
+## 15. Implementation note: \code{.two_block_S_P11_ing()}
+
+Implemented in `R/two_block_ergodicity_ing.R` as a **diagnostic-only**
+extension of `.two_block_S_P11()`, evaluated once at a single reference
+state \((\hat\gamma,\hat\beta,\hat\lambda,\hat\Omega)\) (not a pilot-draw
+scan; see §12 for that still-unimplemented direction) — reusing
+`.two_block_rate_inputs()`/`.two_block_S_P11()` unchanged for the base
+\((\gamma,\beta)\) blocks (evaluated at whatever \((\Lambda,\Omega)\)
+reference the caller supplies, typically the same one the corresponding
+`rLMM*_reg_*()` engine's own pilot-rate calibration already uses) and
+appending the §6/§14 blocks for whichever of \(\lambda_{\mathrm{ING}}\),
+\(\Omega_{\mathrm{ING}}\) apply to the model at hand. `two_block_rate_ing()`
+is the corresponding user-facing export (mirroring `two_block_rate()`'s
+shape), documented as a **local, uncertified diagnostic** (§7, §9): it
+reports how much the base rate would move if the (currently ignored)
+\(\beta\)-\((\lambda,\Omega)\) coupling terms of §6/§14 were included, holding
+everything else fixed — not a new certified bound. §16 below derives a
+different (unimplemented) diagnostic for the \(\Omega_j\) case that
+integrates \(\Omega_j\) out analytically instead of extending the joint
+Hessian this section's helper computes.
+
+---
+
+## 16. Integrating \(\Omega_j\) out exactly: a marginal Hessian and a log-concavity criterion on the residuals
+
+Sections 14-15 extend the *joint* \((\gamma,\lambda,\Omega,\beta)\) Hessian by
+appending \(\Omega_j\) as its own coordinate and evaluating the cross terms at
+a supplied reference \((\hat\beta_j,\hat\Omega_j)\) pair. This section takes a
+different route: integrate \(\Omega_j\) out of the model **analytically**
+instead, leaving a Hessian in \(\beta_j\) alone with no \(\Omega_j\)
+coordinate at all, and ask when *that* Hessian is guaranteed positive
+semi-definite (PSD) — i.e. when the marginal negative log-density is locally
+log-concave in \(\beta_j\). Diagnostic/theoretical only, like §12-13: nothing
+here is implemented in `R/two_block_ergodicity_ing.R`.
+
+### 16.1 Setup: marginalizing instead of extending
+
+From §14.1-14.2, \(\Omega_j\mid\beta_j\sim\mathrm{Gamma}\big(a_j^0+n_j/2,\;
+r_j^0+\tfrac12e_j'e_j\big)\) exactly, with \(e_j=y_j-D_j\beta_j\). Integrating
+\(\Omega_j\) out of the joint density \(p(y_j,\Omega_j\mid\beta_j)\) (the
+standard Normal-Gamma-mixture identity) leaves a Student-t kernel in
+\(\beta_j\):
+
+$$
+p(y_j\mid\beta_j)\;\propto\;\Big(r_j^0+\tfrac12e_j'e_j\Big)^{-(a_j^0+n_j/2)}
+$$
+
+i.e. \(y_j\mid\beta_j\) is (up to scale) multivariate-\(t\) with
+\(2(a_j^0+n_j/2)\) degrees of freedom, location \(D_j\beta_j\), in place of
+the Gaussian likelihood the fixed-\(\Omega_j\) system uses. This is a
+genuinely different sampler/diagnostic variant from §14-15's joint extension
+(that one keeps \(\Omega_j\) as a sampled state variable; this one removes it
+from the model entirely by exact marginalization) — not a further extension
+of it.
+
+### 16.2 The marginal Hessian
+
+Write
+
+$$
+\Omega_j^{\mathrm{eff}}(\beta_j)\;:=\;\frac{a_j^0+n_j/2}{r_j^0+\tfrac12e_j'e_j}
+\;=\;E[\Omega_j\mid\beta_j]
+$$
+
+— literally the mean of the same Gamma full conditional §14.2 already
+derives (the one `dGamma()`/`dGamma_list()`'s Block~1 Gibbs step samples
+from), evaluated at \(\beta_j\) rather than at a fresh draw. Differentiating
+\(-\log p(y_j\mid\beta_j)\) twice with respect to \(\beta_j\) gives the closed
+form
+
+$$
+H_j(\beta_j)\;=\;\Omega_j^{\mathrm{eff}}D_j'D_j\;-\;
+\frac{\big(\Omega_j^{\mathrm{eff}}\big)^2}{a_j^0+n_j/2}(D_j'e_j)(D_j'e_j)'
+$$
+
+(verified numerically against a brute-force finite-difference Hessian of
+\(-\log p(y_j\mid\beta_j)\) on a synthetic design). The first term is exactly the current
+fixed-\(\Omega_j\) plug-in \(\Omega_jD_j'D_j\) with \(\Omega_j\) replaced by
+its conditional mean; the second is a rank-one, negative-semidefinite
+correction that vanishes exactly at \(e_j=0\), reproducing §11's finding that
+\(e_j=0\) (like \(u_{jp}=0\)) is the best-behaved reference state and that
+moving away from it can only add negative curvature, never positive.
+
+### 16.3 Exact log-concavity criterion
+
+\(H_j(\beta_j)\) has the form \(M-cvv'\) with \(M=\Omega_j^{\mathrm{eff}}D_j'D_j\)
+(PD, assuming \(D_j\) has full column rank \(p_{re}\)), \(v=D_j'e_j\), and
+\(c=\big(\Omega_j^{\mathrm{eff}}\big)^2/(a_j^0+n_j/2)\). The standard
+rank-one-perturbation fact (\(M-cvv'\) is PSD iff \(cv'M^{-1}v\le1\)) reduces,
+after substituting \(\Omega_j^{\mathrm{eff}}\), to
+
+$$
+q_j\;:=\;(D_j'e_j)'(D_j'D_j)^{-1}(D_j'e_j)\;\le\;r_j^0+\tfrac12e_j'e_j
+$$
+
+Writing \(\hat\beta_j^{\mathrm{ols}}=(D_j'D_j)^{-1}D_j'y_j\) and using the
+Pythagorean OLS decomposition \(e_j=\hat{e}_j^{\mathrm{ols}}+
+D_j(\hat\beta_j^{\mathrm{ols}}-\beta_j)\) (with \(D_j'\hat{e}_j^{\mathrm{ols}}=0\)
+by the OLS normal equations), \(q_j\) is exactly the \(D_j'D_j\)-weighted
+squared distance from \(\beta_j\) to the group's own OLS fit, and
+\(e_j'e_j=\mathrm{RSS}_j^{\mathrm{ols}}+q_j\). Substituting gives the
+equivalent, more interpretable form:
+
+$$
+\big\|\beta_j-\hat\beta_j^{\mathrm{ols}}\big\|^2_{D_j'D_j}\;\le\;
+2r_j^0+\mathrm{RSS}_j^{\mathrm{ols}}
+$$
+
+i.e. \(H_j(\beta_j)\) stays PSD (the marginal density stays locally
+log-concave) exactly as long as \(\beta_j\) is not too far — in the
+\(D_j'D_j\)-weighted sense — from the group's own OLS fit, with the allowed
+distance growing with both the prior's informativeness (\(r_j^0\)) and how
+poorly that group's OLS fit already explains its own data
+(\(\mathrm{RSS}_j^{\mathrm{ols}}\)). Both criteria were checked numerically
+against a direct eigenvalue computation of \(H_j\), scanning \(\beta_j\) away
+from \(\hat\beta_j^{\mathrm{ols}}\): the sign of the smallest eigenvalue of
+\(H_j\) matched the sign of \(r_j^0+\tfrac12e_j'e_j-q_j\) at every point
+tested.
+
+### 16.4 Two practical "buckets"
+
+Since \(q_j\le e_j'e_j\) always (the residual's projection onto
+\(\mathrm{col}(D_j)\) cannot exceed its own squared norm — \(H_{D_j}:=
+D_j(D_j'D_j)^{-1}D_j'\) is an orthogonal projection), two simple corollaries
+follow, requiring no knowledge of \(D_j\)'s leverage structure or of
+\(\hat\beta_j^{\mathrm{ols}}\):
+
+- **Design-independent bucket.** If \(e_j'e_j\le2r_j^0\) (the current
+  residual sum of squares is at most twice the prior Gamma rate), then
+  \(H_j(\beta_j)\) is PSD *regardless* of \(D_j\) or how \(e_j\) is oriented
+  relative to \(\mathrm{col}(D_j)\).
+- **Leverage bucket.** Writing \(\rho_j:=q_j/e_j'e_j\in[0,1]\) (the fraction
+  of the residual's squared norm that lies in \(\mathrm{col}(D_j)\), i.e. \(0\)
+  exactly at the OLS fit and growing as \(\beta_j\) moves away from it along
+  directions well-explained by the design), \(\rho_j\le\tfrac12\) guarantees
+  \(H_j(\beta_j)\) is PSD for *any* residual magnitude; only \(\rho_j>\tfrac12\)
+  admits a finite counterexample, at \(e_j'e_j>r_j^0/(\rho_j-\tfrac12)\).
+
+### 16.5 Relationship to the current implementation and the Ex_13 empirical finding
+
+This is a *different* diagnostic angle from §14-15's joint extension, not a
+refinement of it — no code currently implements the marginal system of
+§16.1-16.4 (matching the theory-only status of §12-13). It does, however,
+explain a finding from the empirical "scan every main-stage draw" diagnostic
+(the `.two_block_rate_ing_over_draws()` helper used by
+`demo("Ex_13_...")`/`demo("Ex_13b_...")`/`demo("Ex_14_...")`): that diagnostic
+plugs each draw's independently-sampled \((\beta_j^{(i)},\Omega_j^{(i)})\)
+pair into the *joint* extended Hessian of §14, rather than
+\(\Omega_j^{\mathrm{eff}}(\beta_j^{(i)})\) — so \(\Omega_j^{(i)}\) is not
+constrained to satisfy the §16.3 bound relative to that same draw's
+\(e_j^{(i)}\) the way the marginal system's \(\Omega_j^{\mathrm{eff}}\) always
+is by construction. A large fraction of draws showing \(\lambda^*\ge1\) in
+that scan is consistent with — and partially explained by — evaluating an
+uncontrolled joint reference state rather than the marginal one this section
+derives.
 
 ---
 

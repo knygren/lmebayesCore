@@ -19,7 +19,8 @@
 ## group with p_re x p_re solves, exploiting the one-nonzero-segment-per-
 ## component structure of H_j.
 
-#' @keywords internal
+#' Shared setup for the Remark-8 two-block rate diagnostics
+#' @noRd
 .two_block_rate_inputs <- function(x,
                                    block,
                                    x_hyper,
@@ -390,8 +391,26 @@
   invisible(NULL)
 }
 
-#' @keywords internal
-.two_block_gen_eigen <- function(S, P11, blocks = NULL, inp = NULL) {
+#' Generalized eigenvalues of the Remark-8 rate matrix
+#'
+#' @param S,P11 Remark-8 blocks (see \code{\link{.two_block_S_P11}}).
+#' @param blocks,inp Optional; only used to print diagnostics if the
+#'   \code{strict} ceiling check fails.
+#' @param strict If \code{TRUE} (default), treat \code{lam_max >= 1 - tol} as
+#'   an implementation error and \code{stop()} (correct for
+#'   \code{\link{two_block_rate}}'s exact base system, where Remark~8
+#'   guarantees \code{lambda_star < 1}). If \code{FALSE}, report the raw
+#'   spectrum instead: callers like \code{\link{two_block_rate_ing}} evaluate
+#'   a *local*, state-dependent Hessian at a single reference state (e.g.
+#'   residuals from a reference fit) that is not guaranteed to satisfy that
+#'   invariant -- \code{lambda_star >= 1} there is a legitimate (if
+#'   noteworthy) diagnostic finding, not a computation failure; see
+#'   \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 11 (nonzero residuals
+#'   only ever raise the local rate, they cannot lower it below the
+#'   \code{u = 0}/\code{e = 0} case).
+#' @return Numeric vector of eigenvalues, descending.
+#' @noRd
+.two_block_gen_eigen <- function(S, P11, blocks = NULL, inp = NULL, strict = TRUE) {
   q <- nrow(P11)
   R <- chol(P11)
   Rinv <- backsolve(R, diag(q))
@@ -404,6 +423,9 @@
   lam_stop  <- 1 - one_tol
   lam_clamp <- 1 - .Machine$double.eps
   if (lam_max >= lam_stop) {
+    if (!strict) {
+      return(sort(pmax(ev_raw, 0), decreasing = TRUE))
+    }
     if (!is.null(blocks) && !is.null(inp)) {
       .two_block_print_remark8_precision_stop(
         ev_raw, blocks, inp, S, tol = one_tol
@@ -827,7 +849,8 @@ print.two_block_mode_weights <- function(x, ...) {
   stats::pchisq(2 * x^2, df = n)
 }
 
-#' @keywords internal
+#' Single-\code{l} TV-bound term (Theorem~3 or Corollary~1)
+#' @noRd
 .two_block_tv_bound_one <- function(a_asc, l, method, D0, lambda_star) {
   n <- length(a_asc)
   ## a_i^{2l} computed in log space; a = 0 -> 0.

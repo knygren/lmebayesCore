@@ -1,5 +1,62 @@
 # lmebayesCore (development version)
 
+* **New: `two_block_rate_ing()`, an extended (lambda, Omega)-aware LOCAL
+  rate diagnostic for the two-block Gibbs chain.**
+    - Extends `two_block_rate()`'s `(gamma, beta)`-only Hessian with the
+      diagonal RE-precision (`lambda_p = 1/tau_p^2`) and/or measurement-
+      precision (`Omega`/`Omega_j = 1/sigma^2`/`1/sigma_j^2`) blocks derived
+      in `inst/BLOCK_GIBBS_ERGODICITY_ING.md`, evaluated at a single
+      reference state (residuals `u`/`e` and precision values supplied via
+      the new `lambda_ing`/`omega_ing` arguments).
+    - Diagnostic only: this is a state-dependent local rate, not a
+      certified total-variation bound (see `?two_block_rate_ing` and
+      `print.two_block_rate_ing()`'s printed caveat) -- it does not change
+      any sampler's calibrated `m_convergence` and is not called by any
+      exported sampler.
+    - New internal helpers `.lmebayes_reference_u()` and
+      `.lmebayes_reference_group_residuals()` extract the RE-level
+      (`u_jp`) and data-level (`e_j`) residual plug-ins from an `lmer`/
+      `glmmTMB` reference fit.
+    - Wired into `demo("Ex_12_...")` (lambda-extension), `demo("Ex_13_...")`
+      (Omega-extension), and `demo("Ex_14_...")` (combined) as a reported
+      diagnostic printed next to the existing certified corner-bound rate.
+    - Fix: unlike `two_block_rate()`'s exact `(gamma, beta)` system (where
+      Remark~8 guarantees `lambda_star < 1` everywhere, so hitting the
+      numerical ceiling means a computation bug), the extended
+      `(beta, lambda/Omega)` Hessian is only guaranteed positive definite
+      *near its own joint mode* -- evaluating it at a reference state where
+      a group's residual is inconsistent with its plugged-in precision (e.g.
+      an external reference fit that poorly predicts that group's data) can
+      legitimately produce `lambda_star >= 1`. `two_block_rate_ing()` now
+      reports this (with a `warning()`) instead of erroring
+      (`.two_block_gen_eigen()` gained a `strict` argument).
+    - New internal helpers `.lmebayes_posterior_mean_group_coef()`,
+      `.lmebayes_posterior_group_residuals()`, and `.lmebayes_posterior_u()`
+      evaluate `lambda_ing`/`omega_ing` at a *completed sampler's own*
+      posterior-mean state (`fit$coefficients`/`fit$fixef`/
+      `fit$dispersion_ranef.mean`/`fit$fixef.dispersion`) instead of an
+      external `lmer`/`glmmTMB` reference fit, so the plugged-in precision
+      and its paired residual always come from the same mutually-consistent
+      state; `demo("Ex_13_...")` and `demo("Ex_14_...")` now use these.
+    - New `demo("Ex_13b_...")`: a copy of `demo("Ex_13_...")` using the
+      (unimplemented-in-`dGamma_list()`) Part~VI extension of
+      `inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md` -- integrating out the
+      per-group prior mean `mu_j` via a model-derived
+      `Omega_j = W_j Sigma_fixef W_j'` -- for comparison against `Ex_13`'s
+      production calibration.
+    - New internal helpers `.lmebayes_fit_at_draw()` and
+      `.two_block_rate_ing_over_draws()` evaluate the extended
+      `two_block_rate_ing()` diagnostic at *every* main-stage draw already
+      returned by a completed fit (rather than a single reference state),
+      treating the draws as approximate posterior samples and tracking the
+      empirical worst-case `lambda_star`/eigenvalues across them -- the
+      main-stage analogue of `.two_block_pilot_ub_from_coefficients()`'s
+      pilot-draw `pmax()` scan, applied to the extended `(lambda, Omega)`
+      system. `demo("Ex_12_...")`, `demo("Ex_13_...")`, `demo("Ex_13b_...")`,
+      and `demo("Ex_14_...")` now print this alongside the existing
+      single-reference-state diagnostic. Diagnostic only; does not feed
+      back into any sampler's calibration.
+
 * **New: `model_setup()` gains a `dispformula` argument and additive
   `design$glmmTMB_fit` field.**
     - `dispformula = ~1` (default, pooled) preserves current behavior

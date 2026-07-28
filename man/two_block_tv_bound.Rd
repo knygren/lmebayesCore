@@ -100,6 +100,7 @@ glmbayes Simulation Functions
 \code{\link{rLMM_reg}},
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
-\code{\link{two_block_rate}()}
+\code{\link{two_block_rate}()},
+\code{\link{two_block_rate_ing}()}
 }
 \concept{simfuncs}

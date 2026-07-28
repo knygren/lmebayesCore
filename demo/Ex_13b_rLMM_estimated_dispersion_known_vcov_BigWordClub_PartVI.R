@@ -1,22 +1,39 @@
-## Demo: rLMMindepNormalGamma_reg_estimated_vcov() called directly on
-## bayesrules::big_word_club
+## Demo: rLMMindepNormalGamma_reg_known_vcov() called directly on
+## bayesrules::big_word_club -- Part VI (model-derived) alternate prior
 ##
-## Case 5 of 5: ESTIMATED observation dispersion -- a *separate*, per-group
-## sigma^2_j (dGamma() ING prior on each group's own precision, via
-## dGamma_list()), NOT a single value shared across all groups -- AND
-## ESTIMATED random-effect variance components (every Block~2 pfamily
-## component is dIndependent_Normal_Gamma(), so tau^2_k is sampled too).
+## Variant of demo("Ex_13_rLMM_estimated_dispersion_known_vcov_BigWordClub",
+## package = "lmebayesCore"): SAME model, data, filtering, and sampler call --
+## only the per-group Block~1 measurement-dispersion prior differs. Ex_13
+## uses dGamma_list(ps, disp_upper_anchor = "symmetric") directly (Part
+## I/II of inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md: mu_j held fixed at
+## group j's own null-model intercept). This demo instead applies the
+## un-implemented Part VI extension of that document -- "also integrating
+## out the prior mean mu_j" -- with a *model-derived* Omega_j (not an
+## invented one): mu_j[k] stands in for the model's own conditional prior
+## mean for b_j, W_j[[k]] %*% gamma_k (the Block~2 hyper-regression).
+## gamma_k's own prior uncertainty is already calibrated at
+## ps$prior_list[[k]]$Sigma_fixef (the same object pfamily_list(ps) uses to
+## build pf below), so the "fixed, known uncertainty about mu_j" Part VI
+## asks for is exactly that existing Sigma_fixef propagated through group
+## j's own hyper-design row:
 ##
-## Same model as demo("Ex_25_lmerb_dGamma_ING_BigWordClub", package =
-## "lmebayes"), but this script calls rLMMindepNormalGamma_reg_estimated_vcov()
-## directly instead of going through lmerb()/rlmerb(): model_setup(),
-## Prior_Setup_lmebayes(), pfamily_list(), and dGamma_list() (all exported
-## from lmebayesCore) build the design and priors, then the script assembles
-## by hand the exact 'group'/'prior_list' arguments that matrix_args_lmm()
-## builds internally for rlmerb(), and calls the matrix-level export
-## directly.
+##   Omega_j[k,k] = W_j[[k]] %*% Sigma_fixef_k %*% t(W_j[[k]])   (diagonal
+##                                                      across components k)
 ##
-##   demo("Ex_14_rLMM_estimated_dispersion_estimated_vcov_BigWordClub", package = "lmebayesCore")
+## folded in as Sigma_j' = Sigma_j + Omega_j before the same
+## compute_gaussian_prior() calibration Part I/dGamma_list() already use,
+## then the same symmetric-quantile window construction
+## (shape_w/rate_w from n_combined,j) applied to the resulting
+## sigma2_hat,j'. Part VI is NOT wired into dGamma_list() itself -- this
+## demo reproduces it by hand via the internal helpers
+## .lmebayes_ing_prior_measurement_group_glm_inputs() and
+## .lmebayes_compute_ing_prior_cal_from_sigma() (the same two calls
+## dGamma_list() itself makes), so everything downstream of the
+## 'prior_list' assembly (design, pf, fit_lmer, the sampler call, and all
+## diagnostics/plots) is unchanged from Ex_13 and does not need to know a
+## different calibration was used.
+##
+##   demo("Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI", package = "lmebayesCore")
 
 if (!requireNamespace("bayesrules", quietly = TRUE)) {
   stop("This demo requires the 'bayesrules' package.", call. = FALSE)
@@ -45,7 +62,7 @@ form_lmer <- score_ppvt ~
 ## ---------------------------------------------------------------------------
 ## 1. Per-group ING measurement dispersion requires every group to be full
 ##    column rank (no accept/reject envelope is built for rank-deficient
-##    groups yet). Mirrors demo("Ex_25_lmerb_dGamma_ING_BigWordClub", package =
+##    groups yet). Mirrors demo("Ex_24_lmerb_dGamma_BigWordClub", package =
 ##    "lmebayes"): filter to full-rank schools, and drop school_id 2/18
 ##    (a known Block~1 per-group ING envelope sign-violation case, tracked
 ##    independently of this demo).
@@ -81,50 +98,135 @@ if (length(drop)) {
 
 ## ---------------------------------------------------------------------------
 ## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
-##    / dGamma_list()
 ##
-## pwt_dispersion = 0.2 calibrates the dIndependent_Normal_Gamma() Gamma
-## window on each tau^2_k (wider/more diffuse than the pwt = 0.01 default).
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s per-group Block~1 calibration
-## (ing_prior_measurement_group), consumed below by dGamma_list().
+## (ing_prior_measurement_group), consumed below by the Part VI extension
+## (in place of Ex_13's direct dGamma_list() call).
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$re_rank))
 
+## Same max_disp_perc = 0.8 / pwt_measurement = 0.1 as Ex_13 (Prior_Setup_
+## lmebayes()'s own per-group sigma2_hat calibration is unchanged by Part
+## VI -- only the window built from it, below, differs).
 ps <- Prior_Setup_lmebayes(
   form_lmer,
-  data           = dat,
-  pwt            = 0.01,
-  pwt_dispersion = 0.2,
-  dispformula    = ~school_id
+  data            = dat,
+  pwt             = 0.01,
+  dispformula     = ~school_id,
+  max_disp_perc   = 0.8,
+  pwt_measurement = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes (ING + per-group Block~1 calibration) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
 print(ps)
 
-## Every Block~2 component is dIndependent_Normal_Gamma(): tau^2_k is
-## *estimated* (sampled each sweep), not fixed at the lmer REML plug-in.
-pf <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
+## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
+## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
+## posterior -- no envelope/Gamma step. Also supplies Sigma_fixef below,
+## the input the Part VI Omega_j extension propagates through W.
+pf <- pfamily_list(ps)
 
-## One dGamma() pfamily per group level: each school_id gets its own
-## sigma^2_j prior (shape/rate mean-matched to that school's own OLS/BLUP
-## residual variance), not a shared pooled sigma^2.
-disp_pf_list <- dGamma_list(ps)
+## ---------------------------------------------------------------------------
+## 2b. Part VI: per-group Block~1 measurement-dispersion prior with
+##     Omega_j folded in (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI).
+##
+## Reproduces dGamma_list(ps, disp_upper_anchor = "symmetric")'s own two
+## internal calls (.lmebayes_ing_prior_measurement_group_glm_inputs(),
+## .lmebayes_compute_ing_prior_cal_from_sigma()) and its Part 0 Sigma_j
+## shrinkage formula verbatim, adding only Sigma_j' = Sigma_j + Omega_j
+## before calibration, and the same shape_w/rate_w symmetric-quantile
+## window construction (Part II) applied to the resulting sigma2_hat,j'.
+## ---------------------------------------------------------------------------
+max_disp_perc <- 0.8
+block_formula <- ps$block_formula
+sd_tau        <- sqrt(diag(ps$Sigma_ranef))
+re_names_all  <- design$re_coef_names
+group_levels0 <- levels(dat$school_id)
+
+part_vi_group <- stats::setNames(
+  lapply(group_levels0, function(lev) {
+    dat_j <- dat[dat$school_id == lev, , drop = FALSE]
+    inp <- lmebayesCore:::.lmebayes_ing_prior_measurement_group_glm_inputs(
+      lev = lev, dat_j = dat_j, block_formula = block_formula, sd_tau = sd_tau,
+      family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
+    )
+    n_j          <- inp$n_j
+    n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
+    n_combined_j <- n_prior_j + n_j
+    p_re         <- length(sd_tau)
+
+    ## Part 0: coefficient-scale prior covariance from population sd_tau
+    ## shrinkage (verbatim from .lmebayes_calibrate_ing_prior_measurement_
+    ## group(), R/mixed_rmerb_helpers.R).
+    pwt_j <- diag(inp$V0)
+    pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
+    if (length(pwt_j) == 1L) {
+      Sigma_j <- ((1 - pwt_j) / pwt_j) * inp$V0
+    } else {
+      scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+      Sigma_j <- inp$V0 * outer(scale_vec, scale_vec)
+    }
+
+    ## Part VI: model-derived Omega_j, diagonal across RE components (each
+    ## gamma_k calibrated independently in pf/ps$prior_list).
+    Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
+                       dimnames = list(inp$var_names, inp$var_names))
+    for (k in re_names_all) {
+      Wk_row <- design$W[[k]][lev, , drop = FALSE]
+      Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
+      Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+    }
+
+    cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
+      inp, Sigma_j + Omega_j, n_prior_j
+    )
+
+    shape_w <- (n_combined_j + 1) / 2 + p_re / 2
+    rate_w  <- cal$dispersion * (n_combined_j + p_re - 1) / 2
+    disp_lower <- 1 / qgamma(max_disp_perc,     shape = shape_w, rate = rate_w)
+    disp_upper <- 1 / qgamma(1 - max_disp_perc, shape = shape_w, rate = rate_w)
+
+    list(
+      sigma2_hat = cal$dispersion,
+      shape      = cal$shape_ING,
+      rate       = cal$rate,
+      disp_lower = disp_lower,
+      disp_upper = disp_upper,
+      omega_j    = Omega_j
+    )
+  }),
+  group_levels0
+)
+
+cat("\n=== Part VI per-group sigma^2_j: model-derived Omega_j vs Ex_13's symmetric-only prior ===\n\n")
+part_vi_tab <- do.call(rbind, lapply(group_levels0, function(lev) {
+  g <- part_vi_group[[lev]]
+  data.frame(
+    group      = lev,
+    sigma2_hat = g$sigma2_hat,
+    disp_lower = g$disp_lower,
+    disp_upper = g$disp_upper
+  )
+}))
+num_cols <- vapply(part_vi_tab, is.numeric, logical(1L))
+part_vi_tab[num_cols] <- lapply(part_vi_tab[num_cols], round, digits = 3)
+print(part_vi_tab, row.names = FALSE)
 
 ## ---------------------------------------------------------------------------
 ## 3. Arguments matrix_args_lmm() would build for rlmerb() -- assembled here
-##    by hand so rLMMindepNormalGamma_reg_estimated_vcov() can be called
-##    directly.
+##    by hand so rLMMindepNormalGamma_reg_known_vcov() can be called directly.
 ##
 ## The routed export's 'prior_list' for a per-group ING Block~1 dispersion is
 ## NOT the dGamma() pfamily list itself -- it is a flat list with 'mu'/'Sigma'
 ## (the Block~2 hyperparameter prior, same shape .rLMM_validate_ing_
-## measurement_prior_list() expects) plus 'shape_group'/'rate_group'/
-## 'disp_lower_group'/'disp_upper_group' (one named-by-group-level numeric
-## vector each), extracted here from each group's dGamma() pfamily --
-## mirroring .lmebayes_resolve_dispersion_ranef_group_list() /
+## measurement_prior_list() expects for the fixed-vcov/estimated-vcov cases)
+## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
+## (one named-by-group-level numeric vector each) -- extracted here from
+## part_vi_group (Section 2b) instead of a dGamma() pfamily list, mirroring
+## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ## ---------------------------------------------------------------------------
 
@@ -142,11 +244,11 @@ rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_lower_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_upper_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 for (lev in group_levels) {
-  pl <- disp_pf_list[[lev]]$prior_list
-  shape_group[[lev]]      <- pl$shape[1L]
-  rate_group[[lev]]       <- pl$rate[1L]
-  disp_lower_group[[lev]] <- pl$disp_lower
-  disp_upper_group[[lev]] <- pl$disp_upper
+  g <- part_vi_group[[lev]]
+  shape_group[[lev]]      <- g$shape
+  rate_group[[lev]]       <- g$rate
+  disp_lower_group[[lev]] <- g$disp_lower
+  disp_upper_group[[lev]] <- g$disp_upper
 }
 
 prior_list <- list(
@@ -159,7 +261,7 @@ prior_list <- list(
 )
 
 cat(sprintf(
-  "\n=== Per-group sigma^2_j ING prior: %d groups, sigma^2_hat range [%.4f, %.4f] ===\n\n",
+  "\n=== Per-group sigma^2_j ING prior (Part VI): %d groups, sigma^2_hat range [%.4f, %.4f] ===\n\n",
   length(group_levels),
   min(rate_group / (shape_group - 1)),
   max(rate_group / (shape_group - 1))
@@ -177,35 +279,31 @@ cat(sprintf(
 ))
 
 ## ---------------------------------------------------------------------------
-## 5. Direct call: rLMMindepNormalGamma_reg_estimated_vcov()
+## 5. Direct call: rLMMindepNormalGamma_reg_known_vcov()
 ##
-## Two-block Gibbs with both an ING Block~1 sweep (sigma^2_j estimated) and
-## an ING Block~2 sweep (tau^2_k estimated): an optional pilot stage
-## (gap_tol/mode_gap_max) recenters the main stage's starting point away
-## from the ICM mode, then Theorem~3 calibrates the number of inner sweeps
-## per stored draw.
+## Two-block Gibbs with an ING Block~1 sweep (sigma^2_j is estimated, so the
+## joint posterior is not exactly Gaussian even though Block~2 is dNormal()):
+## an optional pilot stage (gap_tol/mode_gap_max) recenters the main stage's
+## starting point away from the ICM mode, then Theorem~3 calibrates the
+## number of inner sweeps per stored draw.
 ##
-## progbar/verbose match demo("Ex_25_lmerb_dGamma_ING_BigWordClub", package =
+## progbar/verbose match demo("Ex_24_lmerb_dGamma_BigWordClub", package =
 ## "lmebayes"): that demo calls lmerb() without overriding progbar/verbose,
 ## and lmerb()'s own formals are progbar = NULL (falsy -- no bar shown) and
 ## a hardcoded verbose = TRUE passed to rlmerb().
 ## ---------------------------------------------------------------------------
-fit <- rLMMindepNormalGamma_reg_estimated_vcov(
-  n            = 3000L,
+fit <- rLMMindepNormalGamma_reg_known_vcov(
+  n            = 1000L,
   y            = design$y,
   D            = design$D,
   group        = grp,
   W            = design$W,
   prior_list   = prior_list,
   pfamily_list = pf,
-  gap_tol      = 0.05,
-  mode_gap_max = 1.0,
-  diag_sweeps  = FALSE,
   progbar      = FALSE,
   verbose      = TRUE
 )
 
-stopifnot(isTRUE(fit$any_non_normal))
 stopifnot(is.matrix(fit$dispersion_ranef))
 stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
 stopifnot(!is.null(fit$pilot_chisq))
@@ -223,8 +321,8 @@ cat(sprintf(
 cat(sprintf("m_convergence (main) = %d\n", fit$m_convergence))
 
 ## ---------------------------------------------------------------------------
-## 6. sigma^2_j (Block~1): post-sweep draws' per-group means vs
-##    OLS/BLUP-calibrated prior mean, and vs the pooled lmer REML sigma^2.
+## 6. sigma^2_j: post-sweep draws' per-group means vs Part VI-calibrated
+##    prior mean, and vs the pooled lmer REML sigma^2.
 ## ---------------------------------------------------------------------------
 ## Build every row first (no printing) so the header/rows below print as one
 ## contiguous block -- otherwise demo()'s echo = TRUE interleaves this loop's
@@ -245,7 +343,7 @@ for (lev in group_levels) {
 ## interleaves an echoed statement between each piece. One call in, one
 ## block out.
 cat(
-  "\n=== sigma^2_j: post mean vs calibrated prior mean (all groups) ===\n\n",
+  "\n=== sigma^2_j: post mean vs Part VI-calibrated prior mean (all groups) ===\n\n",
   sprintf("  %-6s  %10s  %10s  %10s\n",
           "group", "post mean", "prior mean", "[window]"),
   rows_disp,
@@ -253,27 +351,13 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 7. tau^2_k (Block~2): post-sweep draws stayed inside the calibrated Gamma
-##    window.
-## ---------------------------------------------------------------------------
-cat("\n=== tau^2_k: post mean vs calibrated window ===\n\n")
-for (k in re_names) {
-  pr_k <- pf[[k]]$prior_list
-  t2   <- fit$fixef.dispersion[, k]
-  cat(sprintf(
-    "  %-18s post mean = %8.4f  [window (%.4f, %.4f)]\n",
-    k, mean(t2), pr_k$disp_lower, pr_k$disp_upper
-  ))
-}
-
-## ---------------------------------------------------------------------------
-## 8. Block 2 fixed effects: Gibbs (MCMC) vs ICM mean vs glmmTMB fixef
+## 7. Block 2 fixed effects: Gibbs (MCMC) vs ICM mean vs glmmTMB fixef
 ##    (+ uncertainty)
 ##
-## No exact-iid engine exists for this model (both sigma^2_j and tau^2_k are
-## estimated, so the joint posterior is not exactly Gaussian) -- 'gibbs
-## mean'/'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k
-## across the main-stage MCMC draws) is compared directly to the same
+## No exact-iid engine exists for this model (sigma^2_j is estimated per
+## group, so the joint posterior is not exactly Gaussian) -- 'gibbs mean'/
+## 'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k across
+## the main-stage MCMC draws) is compared directly to the same
 ## dispformula = ~school_id glmmTMB reference fit that calibrated
 ## Prior_Setup_lmebayes()'s per-group Block~1 prior (ps$fit_ref), same
 ## column layout as Ex_11's Section 6 (just without the 'iid' columns, since
@@ -335,47 +419,22 @@ cat(
 )
 
 ## ---------------------------------------------------------------------------
-## 8b. Extended (lambda + Omega)-aware local rate diagnostic
-##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 6, 14, 15)
+## 7b. Extended (Omega)-aware local rate diagnostic
+##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 14-15)
 ##
-## Both extensions of the theory note apply here (tau^2_k *and* sigma^2_j
-## are estimated): lambda_ing (Section 6) and omega_ing (Section 14) are
-## supplied together; Sections 14.5/15 show the two stack with no new
-## cross-derivation (P11^(gamma,Omega) = P11^(lambda,Omega) = 0 exactly).
-##
-## lambda_ing/omega_ing's reference precisions and residuals are ALL
-## evaluated at the now-*completed* sampler's own posterior-mean state
-## (fit$fixef.dispersion for tau^2_k, fit$dispersion_ranef.mean for
-## sigma^2_j, fit$coefficients/fit$fixef for beta_j/gamma_k), rather than
-## the certified corner's P_b/disp_upper_group plug-ins or an external
-## dispformula = ~school_id glmmTMB reference fit (fit_ref). Every quantity
-## below therefore comes from the SAME fitted object and describes one
-## mutually-consistent reference state; mixing corner/external-reference-fit
-## quantities can put a precision and its paired residual badly out of step
-## for a group/component the reference poorly predicts -- the joint
-## (beta, lambda/Omega) Hessian is only guaranteed PD near its own mode, see
-## two_block_rate_ing()'s "local, uncertified diagnostic" documentation and
-## demo("Ex_13_...")'s Section 7b note for the worked-out det(H) < 0 case
-## this fix followed from. This is a *diagnostic*, not a certified bound:
-## see two_block_rate_ing()'s own documentation for why no analogue of
-## Theorem~3/Corollary~1 exists for the extended chain.
+## Same diagnostic as Ex_13 Section 7b: omega_ing$omega/$e are evaluated at
+## the now-*completed* sampler's own posterior-mean state --
+## 1/fit$dispersion_ranef.mean[[lev]] for Omega_j, and e_j = y_j - D_j %*%
+## (posterior-mean beta_j from fit$coefficients) -- rather than the
+## certified corner's disp_upper_group/fit_ref (glmmTMB) combination, so
+## both quantities come from the SAME fitted object and describe one
+## mutually-consistent reference state (see Ex_13 Section 7b's longer note
+## for why mixing corner/external-reference-fit quantities can put Omega_j
+## and e_j out of step for a poorly-predicted group). This is a
+## *diagnostic*, not a certified bound: see two_block_rate_ing()'s own
+## documentation for why no analogue of Theorem~3/Corollary~1 exists for
+## the extended chain.
 ## ---------------------------------------------------------------------------
-lambda_post <- stats::setNames(
-  1 / vapply(re_names, function(k) mean(fit$fixef.dispersion[, k]), numeric(1L)),
-  re_names
-)
-u_post <- lmebayesCore:::.lmebayes_posterior_u(
-  fit, design$group_name, re_names, design$W
-)
-
-lambda_ing <- stats::setNames(lapply(re_names, function(k) {
-  list(
-    lambda = unname(lambda_post[[k]]),
-    shape  = pf[[k]]$prior_list$shape[[1L]],
-    u      = stats::setNames(u_post[[k]], rownames(u_post))
-  )
-}), re_names)
-
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   fit, y = design$y, D = design$D, group = grp,
@@ -384,6 +443,7 @@ e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
 omega_post <- stats::setNames(
   1 / fit$dispersion_ranef.mean[group_levels], group_levels
 )
+
 omega_ing <- list(
   scope = "per_group",
   omega = omega_post,
@@ -392,53 +452,32 @@ omega_ing <- list(
   e     = e_post
 )
 
-## P_b_ref (the calibrated Block~1 prior precision the certified corner
-## rate/m_convergence calibration itself uses) is kept as-is for
-## prior_list_block1_rate$P -- unlike lambda_ing/omega_ing's own reference
-## precisions above, this is NOT switched to the posterior mean, so
-## lambda_star_base below still reproduces that same certified corner rate
-## (mirrors demo("Ex_13_...")'s Section 7b keeping disp_upper_group for the
-## same reason).
-P_b_ref <- lmebayesCore:::.rLMM_P_from_pfamily_list(pf, re_names)
-
-prior_list_block1_rate <- list(P = P_b_ref, dispersion = disp_upper_group[group_levels])
+prior_list_block1_rate <- list(
+  Sigma      = as.matrix(ps$Sigma_ranef),
+  dispersion = disp_upper_group[group_levels]
+)
 prior_list_block2_rate <- lapply(pf, function(pfk) {
   pl <- pfk$prior_list
-  list(
-    mu = pl$mu, Sigma = pl$Sigma,
-    dispersion = if (identical(pfk$pfamily, "dNormal")) pl$dispersion else pl$disp_lower
-  )
+  list(mu = pl$mu, Sigma = pl$Sigma, dispersion = pl$dispersion)
 })
 
 rate_ext <- two_block_rate_ing(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  lambda_ing = lambda_ing,
-  omega_ing  = omega_ing
+  omega_ing = omega_ing
 )
-cat("\n=== Extended (lambda + Omega)-aware local rate diagnostic (Sections 6, 14-15) ===\n\n")
+cat("\n=== Extended (Omega)-aware local rate diagnostic (Section 14-15) ===\n\n")
 print(rate_ext)
 
 ## ---------------------------------------------------------------------------
-## 8c. Empirical worst-case: same (lambda + Omega)-aware extended rate,
-##     evaluated at EVERY main-stage draw instead of the single
-##     posterior-mean reference state above.
-##
-## Both tau^2_k and sigma^2_j are estimated here, so each of the n
-## main-stage draws has its own sampled tau^2_k (fit$fixef.dispersion[i, ])
-## AND sigma^2_j (fit$dispersion_ranef[i, ]), together with its own
-## beta_j/gamma_p (fit$coefficients/fit$fixef draw i) -- and hence its own
-## u_jp/e_j. Treating the n draws as approximate posterior samples, this
-## asks: what is the largest local rate actually realized across them,
-## rather than at one plug-in point? Mirrors the pilot-draw pmax() scan
-## (.two_block_pilot_ub_from_coefficients()) but for the *extended* system
-## and the *main*-stage output; still a diagnostic, not a certified bound
-## (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 7, 9, 11, 15).
+## 7c. Empirical worst-case: same (Omega)-aware extended rate, evaluated at
+##     EVERY main-stage draw instead of the single posterior-mean reference
+##     state above. Same diagnostic as Ex_13 Section 7c -- see its longer
+##     note for the rationale (pilot-draw pmax() scan analogue, applied to
+##     the extended system and the main-stage output; still a diagnostic,
+##     not a certified bound).
 ## ---------------------------------------------------------------------------
-lambda_spec <- stats::setNames(lapply(re_names, function(k) {
-  list(shape = pf[[k]]$prior_list$shape[[1L]])
-}), re_names)
 omega_spec <- list(
   scope = "per_group",
   shape = shape_group[group_levels],
@@ -452,12 +491,12 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   prior_list_block2 = prior_list_block2_rate,
   group_name = design$group_name, re_coef_names = re_names,
   y = design$y, D = design$D,
-  lambda_spec = lambda_spec, omega_spec = omega_spec
+  omega_spec = omega_spec
 )
 
 cat(sprintf(
   paste0(
-    "\n=== Empirical (lambda + Omega)-aware local rate over n = %d main-stage draws ===\n\n",
+    "\n=== Empirical (Omega)-aware local rate over n = %d main-stage draws ===\n\n",
     "  lambda* (extended, single reference state)     = %.6f\n",
     "  lambda* (extended, empirical max over %d draws) = %.6f  (draw #%d)\n",
     "  draws with lambda*(extended) >= 1: %d / %d\n"
@@ -469,22 +508,22 @@ cat(sprintf(
 ))
 
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
-## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_estimated_vcov() goes
+## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes
 ## through the sweeps-outer/chains-inner pilot/main engine, so both
 ## fit$pilot$sweep_history and fit$sweep_history carry cov_by_sweep (as does
 ## rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")'s single main
-## stage now that its engine is rGLMM_sweep()-based too). Both per-group
-## dispersion and Sigma_ranef are *estimated* here (that is the point of this
-## demo), so plot_mean_convergence()/plot_var_convergence()'s fit-object
-## methods automatically find no exact reference available and fall back to
-## the empirical mean_final/Var_final (last-sweep cross-chain mean/
-## covariance). 'stage' selects fit$pilot$sweep_history ("pilot") or
-## fit$sweep_history ("main"); n_chains defaults to the correct chain count
-## for each stage (fit$pilot_chisq$n_pilot vs fit$n). The pilot stage's whole
-## job is to *recenter* the main stage's starting point away from the ICM
-## mode, so the mean-bias chart is the more direct diagnostic there; the main
-## stage is where the variance/uncertainty calibration check matters most --
-## both charts are shown for both stages for consistency.
+## stage now that its engine is rGLMM_sweep()-based too). Per-group dispersion
+## is *estimated* here (that is the point of this demo), so
+## plot_mean_convergence()/plot_var_convergence()'s fit-object methods
+## automatically find no exact reference available and fall back to the
+## empirical mean_final/Var_final (last-sweep cross-chain mean/covariance).
+## 'stage' selects fit$pilot$sweep_history ("pilot") or fit$sweep_history
+## ("main"); n_chains defaults to the correct chain count for each stage
+## (fit$pilot_chisq$n_pilot vs fit$n). The pilot stage's whole job is to
+## *recenter* the main stage's starting point away from the ICM mode, so the
+## mean-bias chart is the more direct diagnostic there; the main stage is
+## where the variance/uncertainty calibration check matters most -- both
+## charts are shown for both stages for consistency.
 for (stg in c("pilot", "main")) {
   plot_mean_convergence(fit, whitened = FALSE, stage = stg)
   plot_mean_convergence(fit, whitened = TRUE, stage = stg)
@@ -492,57 +531,8 @@ for (stg in c("pilot", "main")) {
   plot_var_convergence(fit, whitened = TRUE, stage = stg)
 }
 
-## component = "precision" plots the RE variance-covariance itself,
-## Sigma_ranef = diag(tau2_k), tracked as its reciprocal 1/tau2_k
-## (precision) rather than tau2_k -- E[1/tau2_k] stays well-defined under a
-## weak/vague prior where E[tau2_k] need not be. Unlike the Block~2
-## fixed-effects charts above, there is no exact reference here
-## (design/measurement_prior_list are ignored for this component) and no
-## whitened mode yet (only each component's own cross-chain variance is
-## captured so far, not its covariance with other components/fixed effects
-## -- see inst/BLOCK_GIBBS_ERGODICITY.md's "Future work" section), so only
-## the named (non-whitened) charts are drawn.
-for (stg in c("pilot", "main")) {
-  plot_mean_convergence(fit, component = "precision", stage = stg)
-  plot_var_convergence(fit, component = "precision", stage = stg)
-}
-
 ## ---------------------------------------------------------------------------
-## 9. Block 2 hyperparameters: prior mean, ICM (gamma @ lmer tau2), pilot
-##    mean, MCMC mean (supplementary to Section 8 -- shows how far the
-##    pilot-stage recentering moved the starting point away from the prior).
-## ---------------------------------------------------------------------------
-cn <- unlist(lapply(re_names, function(k) {
-  paste0(k, "::", colnames(fit$fixef[[k]]))
-}))
-beta_bar    <- unlist(lapply(re_names, function(k) colMeans(fit$fixef[[k]])))
-theta_icm   <- unlist(lapply(re_names, function(k) fit$fixef.mode[[k]]))
-theta_prior <- unlist(lapply(re_names, function(k) {
-  nms <- colnames(fit$fixef[[k]])
-  ## Raw pfamily_list() objects (unlike lmerb()'s processed fit$prior) store
-  ## the Block~2 prior mean as prior_list$mu, an ncol(W[[k]]) x 1 matrix
-  ## dimnamed by colnames(W[[k]]) -- not prior_list$mu_fixef.
-  unname(pf[[k]]$prior_list$mu[nms, 1L])
-}))
-theta_pilot <- unlist(lapply(re_names, function(k) {
-  nms <- colnames(fit$fixef[[k]])
-  unname(fit$fixef.init[[k]][nms])
-}))
-names(beta_bar) <- names(theta_icm) <- names(theta_prior) <- names(theta_pilot) <- cn
-
-block2_cmp <- data.frame(
-  prior_mean      = unname(theta_prior),
-  icm_lmer_tau2   = unname(theta_icm),
-  pilot_mean      = unname(theta_pilot),
-  mcmc_mean       = unname(beta_bar),
-  row.names       = cn,
-  check.names     = FALSE
-)
-cat("\n=== Block 2 hyperparameters (prior / ICM / pilot / MCMC) ===\n\n")
-print(round(block2_cmp, 4))
-
-## ---------------------------------------------------------------------------
-## 10. Sweep-history diagnostics: cross-chain mean/SD vs inner sweep, for
+## 8. Sweep-history diagnostics: cross-chain mean/SD vs inner sweep, for
 ##    both the pilot and main stages.
 ##
 ## plot_sweep_history_diag(engine = "base") stacks one panel per coef_focus
@@ -574,7 +564,7 @@ for (stg in c("pilot", "main")) {
 }
 
 ## ---------------------------------------------------------------------------
-## 11. Random effects: MCMC mean (per group, per draw average) vs ICM mode
+## 9. Random effects: MCMC mean (per group, per draw average) vs ICM mode
 ##
 ## fit$coefficients: long data.frame with one row per (draw, group) -- beta_j
 ## draws (the full, non-centered coefficient; see ?rLMM_reg's "Model and

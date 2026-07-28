@@ -92,14 +92,43 @@ cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$re_rank))
 
+## max_disp_perc = 0.8 / pwt_measurement = 0.1 (tighter than the 0.99/0.01
+## package defaults) and disp_upper_anchor = "symmetric" (NOT the "blup"
+## default -- see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part II: blup_infl
+## widens the upper tail from one specific reference-fit point estimate,
+## which is exactly the kind of single-point conditioning Part I's marginal
+## calibration is built to avoid). Without these, several small schools get
+## disp_upper/disp_lower ratios wide enough to stall
+## rindepNormalGamma_reg()'s per-group accept/reject envelope indefinitely.
 ps <- Prior_Setup_lmebayes(
   form_lmer,
-  data        = dat,
-  pwt         = 0.01,
-  dispformula = ~school_id
+  data            = dat,
+  pwt             = 0.01,
+  dispformula     = ~school_id,
+  max_disp_perc   = 0.8,
+  pwt_measurement = 0.1
 )
 cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
 print(ps)
+
+glmmTMB::ranef(ps$fit_ref)
+
+re <- glmmTMB::ranef(ps$fit_ref, condVar = TRUE)$cond$school_id
+cv <- attr(re, "condVar")               # p_re x p_re x n_groups array; diag = per-coef variance
+
+se <- t(apply(cv, 3, function(m) sqrt(diag(m))))
+colnames(se) <- colnames(re)
+rownames(se) <- rownames(re)
+
+z <- re / se                             # standardized random effects
+
+n_tests <- nrow(z) * ncol(z)             # groups x RE coefficients (fixed the bug)
+z_crit  <- qnorm(1 - 0.05 / (2 * n_tests))
+cat(sprintf("Bonferroni z threshold (n_tests = %d): %.3f\n", n_tests, z_crit))
+
+print(round(z, 3))
+which(abs(as.matrix(z)) > z_crit, arr.ind = TRUE)   # flagged (group, coef) cells
+
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
 ## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
@@ -109,7 +138,11 @@ pf <- pfamily_list(ps)
 ## One dGamma() pfamily per group level: each school_id gets its own
 ## sigma^2_j prior (shape/rate mean-matched to that school's own OLS/BLUP
 ## residual variance), not a shared pooled sigma^2.
-disp_pf_list <- dGamma_list(ps)
+disp_pf_list <- dGamma_list(
+  ps,
+  max_disp_perc     = 0.8,
+  disp_upper_anchor = "symmetric"
+)
 
 ## ---------------------------------------------------------------------------
 ## 3. Arguments matrix_args_lmm() would build for rlmerb() -- assembled here
@@ -199,6 +232,20 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   progbar      = FALSE,
   verbose      = TRUE
 )
+
+
+source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
+
+tab_13 <- .tmp_rss_ellipsoid_test(
+  fit           = fit,
+  D             = design$D,
+  y             = design$y,
+  group         = grp,
+  group_name    = design$group_name,
+  re_coef_names = re_names,
+  rate_group    = rate_group
+)
+print(tab_13, row.names = FALSE, digits = 4)
 
 stopifnot(is.matrix(fit$dispersion_ranef))
 stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
@@ -313,6 +360,112 @@ cat(
   "  is well within glmmTMB's own uncertainty for that coefficient, not a discrepancy.\n",
   sep = ""
 )
+
+## ---------------------------------------------------------------------------
+## 7b. Extended (Omega)-aware local rate diagnostic
+##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 14-15)
+##
+## m_convergence above is calibrated from a (gamma, beta)-only rate that
+## plugs in disp_upper_group (the least-favorable per-group sigma^2_j
+## consistent with the calibrated prior window) as a *fixed* Omega_j via
+## .rLMM_measurement_rate_inputs() -- reused verbatim below as
+## prior_list_block1_rate$dispersion, so lambda_star_base here reproduces
+## that same certified corner rate exactly. This diagnostic asks: how much
+## would the local rate move if the beta-Omega_j coupling that corner
+## calibration ignores (Section 14, per-group case) were included?
+##
+## omega_ing$omega/$e are evaluated at the now-*completed* sampler's own
+## posterior-mean state -- 1/fit$dispersion_ranef.mean[[lev]] for Omega_j,
+## and e_j = y_j - D_j %*% (posterior-mean beta_j from fit$coefficients) --
+## rather than the certified corner's disp_upper_group/fit_ref (glmmTMB)
+## combination. Both quantities below therefore come from the SAME fitted
+## object and describe one mutually-consistent reference state; mixing the
+## corner's disp_upper_group with an external reference fit's residuals can
+## put Omega_j and e_j badly out of step for a group the reference fit
+## predicts poorly (the joint (beta, Omega) Hessian is only guaranteed PD
+## near its own mode -- see two_block_rate_ing()'s "local, uncertified
+## diagnostic" documentation). This is a *diagnostic*, not a certified
+## bound: see two_block_rate_ing()'s own documentation for why no analogue
+## of Theorem~3/Corollary~1 exists for the extended chain.
+## ---------------------------------------------------------------------------
+n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
+e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
+  fit, y = design$y, D = design$D, group = grp,
+  group_name = design$group_name, re_coef_names = re_names
+)
+omega_post <- stats::setNames(
+  1 / fit$dispersion_ranef.mean[group_levels], group_levels
+)
+
+omega_ing <- list(
+  scope = "per_group",
+  omega = omega_post,
+  shape = shape_group[group_levels],
+  n     = n_group,
+  e     = e_post
+)
+
+prior_list_block1_rate <- list(
+  Sigma      = as.matrix(ps$Sigma_ranef),
+  dispersion = disp_upper_group[group_levels]
+)
+prior_list_block2_rate <- lapply(pf, function(pfk) {
+  pl <- pfk$prior_list
+  list(mu = pl$mu, Sigma = pl$Sigma, dispersion = pl$dispersion)
+})
+
+rate_ext <- two_block_rate_ing(
+  x = design$D, block = grp, x_hyper = design$W,
+  prior_list_block1 = prior_list_block1_rate,
+  prior_list_block2 = prior_list_block2_rate,
+  omega_ing = omega_ing
+)
+cat("\n=== Extended (Omega)-aware local rate diagnostic (Section 14-15) ===\n\n")
+print(rate_ext)
+
+## ---------------------------------------------------------------------------
+## 7c. Empirical worst-case: same (Omega)-aware extended rate, evaluated at
+##     EVERY main-stage draw instead of the single posterior-mean reference
+##     state above.
+##
+## Per-group dispersion sigma^2_j is estimated here, so each of the n
+## main-stage draws has its own sampled sigma^2_j (fit$dispersion_ranef[i, ])
+## and its own beta_j (fit$coefficients draw i) -- and hence its own e_j.
+## Treating the n draws as approximate posterior samples, this asks: what is
+## the largest local rate actually realized across them, rather than at one
+## plug-in point? Mirrors the pilot-draw pmax() scan
+## (.two_block_pilot_ub_from_coefficients()) but for the *extended* system
+## and the *main*-stage output; still a diagnostic, not a certified bound
+## (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 7, 9, 11, 15).
+## ---------------------------------------------------------------------------
+omega_spec <- list(
+  scope = "per_group",
+  shape = shape_group[group_levels],
+  n     = n_group
+)
+
+rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
+  fit = fit, n_draws = n_draws,
+  x = design$D, block = grp, x_hyper = design$W,
+  prior_list_block1 = prior_list_block1_rate,
+  prior_list_block2 = prior_list_block2_rate,
+  group_name = design$group_name, re_coef_names = re_names,
+  y = design$y, D = design$D,
+  omega_spec = omega_spec
+)
+
+cat(sprintf(
+  paste0(
+    "\n=== Empirical (Omega)-aware local rate over n = %d main-stage draws ===\n\n",
+    "  lambda* (extended, single reference state)     = %.6f\n",
+    "  lambda* (extended, empirical max over %d draws) = %.6f  (draw #%d)\n",
+    "  draws with lambda*(extended) >= 1: %d / %d\n"
+  ),
+  rate_emp$n_draws,
+  rate_ext$lambda_star,
+  rate_emp$n_draws, rate_emp$lambda_star_max, rate_emp$i_max,
+  rate_emp$n_over_one, rate_emp$n_draws
+))
 
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes
