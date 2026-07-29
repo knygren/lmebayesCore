@@ -5,5 +5,6 @@ Ex_11_rLMM_known_dispersion_vector_known_vcov_BigWordClub  rLMMNormal_reg_known_
 Ex_12_rLMM_known_dispersion_estimated_vcov_BigWordClub     rLMMNormal_reg_estimated_vcov() called directly (known dispersion, estimated vcov)
 Ex_13_rLMM_estimated_dispersion_known_vcov_BigWordClub     rLMMindepNormalGamma_reg_known_vcov() called directly (estimated per-group dispersion, known vcov)
 Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI rLMMindepNormalGamma_reg_known_vcov() called directly (Ex_13 variant: Part VI model-derived Omega_j prior)
+Ex_13c_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI_NoOutlier rLMMindepNormalGamma_reg_known_vcov() called directly (Ex_13b variant: outlier schools 6 and 33 excluded)
 Ex_14_rLMM_estimated_dispersion_estimated_vcov_BigWordClub rLMMindepNormalGamma_reg_estimated_vcov() called directly (estimated per-group dispersion, estimated vcov)
 Ex_A1_Methods              Envelope construction and rglmb sampling (menarche)

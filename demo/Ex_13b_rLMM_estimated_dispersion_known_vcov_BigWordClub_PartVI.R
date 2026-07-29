@@ -304,6 +304,20 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   verbose      = TRUE
 )
 
+source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
+
+tab_13b <- .tmp_rss_ellipsoid_test(
+  fit           = fit,
+  D             = design$D,
+  y             = design$y,
+  group         = grp,
+  group_name    = design$group_name,
+  re_coef_names = re_names,
+  shape_group   = shape_group,
+  rate_group    = rate_group
+)
+print(tab_13b[order(tab_13b$p_value), ], row.names = FALSE, digits = 4)
+
 stopifnot(is.matrix(fit$dispersion_ranef))
 stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
 stopifnot(!is.null(fit$pilot_chisq))
@@ -506,6 +520,37 @@ cat(sprintf(
   rate_emp$n_draws, rate_emp$lambda_star_max, rate_emp$i_max,
   rate_emp$n_over_one, rate_emp$n_draws
 ))
+
+## ---------------------------------------------------------------------------
+## 7d. SCRATCH: Omega_j-MARGINALIZED (Section 16.2) lambda_star, also
+##     evaluated at every main-stage draw -- see
+##     data-raw/_scratch_lambda_star_marginal_over_draws.R (temporary,
+##     investigation only, not package code). Same rationale as Ex_13
+##     Section 7d: unlike 7c above (which plugs each draw's
+##     independently-sampled (beta_j, Omega_j) pair into the *joint* Section
+##     14 Hessian), this integrates Omega_j out analytically first (Section
+##     16), so each draw's effective measurement precision is always the one
+##     implied by that SAME draw's own beta_j. Draws where some group's
+##     Lambda + H_j(beta_j) block isn't PD are skipped (flagged per-group)
+##     rather than forced through.
+## ---------------------------------------------------------------------------
+source("data-raw/_scratch_lambda_star_marginal_over_draws.R")
+inp_marg <- lmebayesCore:::.two_block_rate_inputs(
+  x = design$D, block = grp, x_hyper = design$W,
+  prior_list_block1 = prior_list_block1_rate,
+  prior_list_block2 = prior_list_block2_rate
+)
+blocks_marg <- lmebayesCore:::.two_block_S_P11(inp_marg)
+group_setup_marg <- .tmp_marginal_group_setup(
+  D = design$D, y = design$y, group = grp, group_levels = group_levels,
+  re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group
+)
+res_marg <- .tmp_lambda_star_marginal_over_draws(
+  fit = fit, n_draws = n_draws, y = design$y,
+  group_name = design$group_name, group_setup = group_setup_marg,
+  inp = inp_marg, blocks = blocks_marg
+)
+.tmp_print_marginal_over_draws_summary(res_marg)
 
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes

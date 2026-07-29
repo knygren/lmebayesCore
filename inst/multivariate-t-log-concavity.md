@@ -175,3 +175,76 @@ $$
   log-concave — so Newton-type steps or Laplace approximations around
   $\hat\beta$ are only trustworthy strictly inside the region where the
   quadratic form in $X^\top X$ stays below the observed RSS.
+
+## Confidence-level interpretation via the Scheffé region
+
+The ellipsoid derived above is, in fact, exactly a classical **Scheffé
+confidence region** for $\beta$ — just at a specific radius. This lets us
+attach an actual confidence level to the log-concavity boundary.
+
+### The pivotal quantity
+
+Under the Gaussian linear model, the standard pivot for $\beta$ is:
+
+$$
+\frac{(\hat\beta-\beta)^\top X^\top X(\hat\beta-\beta)}{p\,\hat\sigma^2} \;\sim\; F_{p,\,n-p}
+$$
+
+A $100(1-\alpha)\%$ confidence region for the true $\beta$ is the ellipsoid:
+
+$$
+(\hat\beta-\beta)^\top X^\top X(\hat\beta-\beta) \;\le\; p\,\hat\sigma^2\,F_{p,n-p,\alpha}
+$$
+
+### Matching it to the log-concavity boundary
+
+Our boundary was $(x-\hat\beta)^\top X^\top X(x-\hat\beta) < \text{RSS} =
+(n-p)\hat\sigma^2$. Comparing radii:
+
+$$
+p\,\hat\sigma^2\,F_{p,n-p,\alpha} = (n-p)\hat\sigma^2
+\quad\Longrightarrow\quad
+F_{p,n-p,\alpha} = \frac{n-p}{p}
+$$
+
+So the log-concavity ellipsoid is **exactly the confidence region obtained
+by setting the F-quantile equal to $(n-p)/p$**, with corresponding
+confidence level:
+
+$$
+1-\alpha \;=\; P\!\left(F_{p,n-p} \le \frac{n-p}{p}\right)
+$$
+
+This is a clean, **data-independent** quantity — it depends only on $n$ and
+$p$, not on $X$ or $y$ themselves (e.g. computable via `pf((n-p)/p, p, n-p)`
+in R or `scipy.stats.f.cdf` in Python).
+
+### Numerical illustration
+
+| $p$ | $n$ | $n-p$ | $(n-p)/p$ | confidence level |
+|---|---|---|---|---|
+| 1 | 6 | 5 | 5.0 | 0.924 |
+| 1 | 21 | 20 | 20.0 | 0.9998 |
+| 2 | 12 | 10 | 5.0 | 0.969 |
+| 2 | 22 | 20 | 10.0 | 0.999 |
+| 5 | 10 | 5 | 1.0 | 0.500 |
+| 5 | 25 | 20 | 4.0 | 0.989 |
+| 10 | 20 | 10 | 1.0 | 0.500 |
+| 10 | 30 | 20 | 2.0 | 0.910 |
+
+### Interpretation
+
+- **For fixed $p$, as $n$ grows, the confidence level rapidly approaches 1.**
+  The log-concavity ellipsoid becomes a very generous confidence region as
+  residual degrees of freedom $\nu=n-p$ grow, consistent with the earlier
+  observation that the "radius of concavity" in Mahalanobis units grows with
+  $\nu$.
+- **When $n-p \approx p$** (residual degrees of freedom comparable to the
+  number of parameters), the confidence level sits near 50% — a coin-flip
+  region, and a signal that Newton-type or Laplace-approximation reasoning
+  around $\hat\beta$ is on shakier ground.
+- **Rule of thumb:** since $(n-p)/p$ is the ratio of residual degrees of
+  freedom to parameter count, the log-concavity confidence level is high
+  whenever there are several-fold more residual degrees of freedom than
+  parameters being estimated — a quick diagnostic for whether a local
+  quadratic treatment of the *t*-based likelihood is trustworthy.

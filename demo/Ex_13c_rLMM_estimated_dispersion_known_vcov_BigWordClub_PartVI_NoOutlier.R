@@ -1,22 +1,27 @@
 ## Demo: rLMMindepNormalGamma_reg_known_vcov() called directly on
-## bayesrules::big_word_club
+## bayesrules::big_word_club -- Part VI (model-derived) alternate prior,
+## outlier groups excluded
 ##
-## Case 4 of 5: ESTIMATED observation dispersion -- a *separate*,
-## per-group sigma^2_j (dGamma() ING prior on each group's own precision,
-## via dGamma_list()), NOT a single value shared across all groups -- and
-## KNOWN random-effect variance components (every Block~2 pfamily component
-## is dNormal(), so tau^2_k is fixed, not sampled).
+## Variant of demo("Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_
+## PartVI", package = "lmebayesCore"): SAME model, data, filtering, priors,
+## and sampler call as Ex_13b -- the only difference is two additional lines
+## dropping school_id "6" and "33" from the data before fitting. The
+## observed-vs-expected RSS/Mahalanobis-ellipsoid test (data-raw/
+## _scratch_rss_ellipsoid_test.R, per inst/BLOCK_GIBBS_ERGODICITY_ING.md
+## Section 16 and inst/multivariate-t-log-concavity.md's Scheffe-region
+## correspondence) run on Ex_13b flagged these two school_ids as the only
+## groups whose observed pct_draws_outside the log-concavity ellipsoid
+## significantly exceeds the no-shrinkage Bayesian-t baseline (p = 0.0033
+## and p = 0.018 respectively; every other group's p_value was >= 0.21).
+## This demo drops both to see whether the (Omega)-aware local rate
+## diagnostic's lambda* (Section 7b/7c below) -- and in particular the
+## Omega-MARGINALIZED lambda_star_marginal (Section 7d) -- ends up below 1
+## on every main-stage draw once neither flagged group is part of the
+## per-group worst-case scan, which would in principle make
+## lambda_star_marginal usable to calibrate how long the sampler needs to
+## run (per Theorem 3/Corollary 1's TV-distance bound).
 ##
-## Same model as demo("Ex_24_lmerb_dGamma_BigWordClub", package = "lmebayes"),
-## but this script calls rLMMindepNormalGamma_reg_known_vcov() directly
-## instead of going through lmerb()/rlmerb(): model_setup(),
-## Prior_Setup_lmebayes(), pfamily_list(), and dGamma_list() (all exported
-## from lmebayesCore) build the design and priors, then the script assembles
-## by hand the exact 'group'/'prior_list' arguments that matrix_args_lmm()
-## builds internally for rlmerb(), and calls the matrix-level export
-## directly.
-##
-##   demo("Ex_13_rLMM_estimated_dispersion_known_vcov_BigWordClub", package = "lmebayesCore")
+##   demo("Ex_13c_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI_NoOutlier", package = "lmebayesCore")
 
 if (!requireNamespace("bayesrules", quietly = TRUE)) {
   stop("This demo requires the 'bayesrules' package.", call. = FALSE)
@@ -67,12 +72,18 @@ if (length(full_rank_schools) < length(design_all$re_rank)) {
 dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
 
-## TEMP: school 18 triggers ING envelope sign violation (UB2 < 0); drop and retest
-temp_drop_schools <- c("18", "2")
+## TEMP: school 18 triggers ING envelope sign violation (UB2 < 0); drop and
+## retest. schools 6 and 33 are ALSO dropped here (unlike Ex_13/Ex_13b) --
+## they are the only two groups the observed-vs-expected RSS/
+## Mahalanobis-ellipsoid diagnostic flagged as significantly exceeding their
+## own no-shrinkage baseline under Ex_13b's Part VI prior; see whether
+## lambda* (Section 7b/7c), and especially lambda_star_marginal (7d), stays
+## below 1 on every draw once both are excluded.
+temp_drop_schools <- c("18", "2", "6", "33")
 drop <- intersect(temp_drop_schools, levels(dat$school_id))
 if (length(drop)) {
   cat(sprintf(
-    "\n=== TEMP: excluding school_id %s (Block~1 ING envelope failure) ===\n",
+    "\n=== TEMP: excluding school_id %s (Block~1 ING envelope failure / outlier groups) ===\n",
     paste(drop, collapse = ", ")
   ))
   dat <- subset(dat, !as.character(school_id) %in% drop)
@@ -81,25 +92,20 @@ if (length(drop)) {
 
 ## ---------------------------------------------------------------------------
 ## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
-##    / dGamma_list()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s per-group Block~1 calibration
-## (ing_prior_measurement_group), consumed below by dGamma_list().
+## (ing_prior_measurement_group), consumed below by the Part VI extension
+## (in place of Ex_13's direct dGamma_list() call).
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
-cat("\n=== model_setup (full-rank schools only) ===\n\n")
+cat("\n=== model_setup (full-rank schools only, outlier groups 6 and 33 excluded) ===\n\n")
 print(design)
 stopifnot(all(design$re_rank))
 
-## max_disp_perc = 0.8 / pwt_measurement = 0.1 (tighter than the 0.99/0.01
-## package defaults) and disp_upper_anchor = "symmetric" (NOT the "blup"
-## default -- see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part II: blup_infl
-## widens the upper tail from one specific reference-fit point estimate,
-## which is exactly the kind of single-point conditioning Part I's marginal
-## calibration is built to avoid). Without these, several small schools get
-## disp_upper/disp_lower ratios wide enough to stall
-## rindepNormalGamma_reg()'s per-group accept/reject envelope indefinitely.
+## Same max_disp_perc = 0.8 / pwt_measurement = 0.1 as Ex_13/Ex_13b (Prior_
+## Setup_lmebayes()'s own per-group sigma2_hat calibration is unchanged by
+## Part VI -- only the window built from it, below, differs).
 ps <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
@@ -111,38 +117,97 @@ ps <- Prior_Setup_lmebayes(
 cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
 print(ps)
 
-glmmTMB::ranef(ps$fit_ref)
-
-re <- glmmTMB::ranef(ps$fit_ref, condVar = TRUE)$cond$school_id
-cv <- attr(re, "condVar")               # p_re x p_re x n_groups array; diag = per-coef variance
-
-se <- t(apply(cv, 3, function(m) sqrt(diag(m))))
-colnames(se) <- colnames(re)
-rownames(se) <- rownames(re)
-
-z <- re / se                             # standardized random effects
-
-n_tests <- nrow(z) * ncol(z)             # groups x RE coefficients (fixed the bug)
-z_crit  <- qnorm(1 - 0.05 / (2 * n_tests))
-cat(sprintf("Bonferroni z threshold (n_tests = %d): %.3f\n", n_tests, z_crit))
-
-print(round(z, 3))
-which(abs(as.matrix(z)) > z_crit, arr.ind = TRUE)   # flagged (group, coef) cells
-
-
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
 ## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
-## posterior -- no envelope/Gamma step.
+## posterior -- no envelope/Gamma step. Also supplies Sigma_fixef below,
+## the input the Part VI Omega_j extension propagates through W.
 pf <- pfamily_list(ps)
 
-## One dGamma() pfamily per group level: each school_id gets its own
-## sigma^2_j prior (shape/rate mean-matched to that school's own OLS/BLUP
-## residual variance), not a shared pooled sigma^2.
-disp_pf_list <- dGamma_list(
-  ps,
-  max_disp_perc     = 0.8,
-  disp_upper_anchor = "symmetric"
+## ---------------------------------------------------------------------------
+## 2b. Part VI: per-group Block~1 measurement-dispersion prior with
+##     Omega_j folded in (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI).
+##
+## Reproduces dGamma_list(ps, disp_upper_anchor = "symmetric")'s own two
+## internal calls (.lmebayes_ing_prior_measurement_group_glm_inputs(),
+## .lmebayes_compute_ing_prior_cal_from_sigma()) and its Part 0 Sigma_j
+## shrinkage formula verbatim, adding only Sigma_j' = Sigma_j + Omega_j
+## before calibration, and the same shape_w/rate_w symmetric-quantile
+## window construction (Part II) applied to the resulting sigma2_hat,j'.
+## ---------------------------------------------------------------------------
+max_disp_perc <- 0.8
+block_formula <- ps$block_formula
+sd_tau        <- sqrt(diag(ps$Sigma_ranef))
+re_names_all  <- design$re_coef_names
+group_levels0 <- levels(dat$school_id)
+
+part_vi_group <- stats::setNames(
+  lapply(group_levels0, function(lev) {
+    dat_j <- dat[dat$school_id == lev, , drop = FALSE]
+    inp <- lmebayesCore:::.lmebayes_ing_prior_measurement_group_glm_inputs(
+      lev = lev, dat_j = dat_j, block_formula = block_formula, sd_tau = sd_tau,
+      family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
+    )
+    n_j          <- inp$n_j
+    n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
+    n_combined_j <- n_prior_j + n_j
+    p_re         <- length(sd_tau)
+
+    ## Part 0: coefficient-scale prior covariance from population sd_tau
+    ## shrinkage (verbatim from .lmebayes_calibrate_ing_prior_measurement_
+    ## group(), R/mixed_rmerb_helpers.R).
+    pwt_j <- diag(inp$V0)
+    pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
+    if (length(pwt_j) == 1L) {
+      Sigma_j <- ((1 - pwt_j) / pwt_j) * inp$V0
+    } else {
+      scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+      Sigma_j <- inp$V0 * outer(scale_vec, scale_vec)
+    }
+
+    ## Part VI: model-derived Omega_j, diagonal across RE components (each
+    ## gamma_k calibrated independently in pf/ps$prior_list).
+    Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
+                       dimnames = list(inp$var_names, inp$var_names))
+    for (k in re_names_all) {
+      Wk_row <- design$W[[k]][lev, , drop = FALSE]
+      Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
+      Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+    }
+
+    cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
+      inp, Sigma_j + Omega_j, n_prior_j
+    )
+
+    shape_w <- (n_combined_j + 1) / 2 + p_re / 2
+    rate_w  <- cal$dispersion * (n_combined_j + p_re - 1) / 2
+    disp_lower <- 1 / qgamma(max_disp_perc,     shape = shape_w, rate = rate_w)
+    disp_upper <- 1 / qgamma(1 - max_disp_perc, shape = shape_w, rate = rate_w)
+
+    list(
+      sigma2_hat = cal$dispersion,
+      shape      = cal$shape_ING,
+      rate       = cal$rate,
+      disp_lower = disp_lower,
+      disp_upper = disp_upper,
+      omega_j    = Omega_j
+    )
+  }),
+  group_levels0
 )
+
+cat("\n=== Part VI per-group sigma^2_j: model-derived Omega_j (outlier groups 6 and 33 excluded) ===\n\n")
+part_vi_tab <- do.call(rbind, lapply(group_levels0, function(lev) {
+  g <- part_vi_group[[lev]]
+  data.frame(
+    group      = lev,
+    sigma2_hat = g$sigma2_hat,
+    disp_lower = g$disp_lower,
+    disp_upper = g$disp_upper
+  )
+}))
+num_cols <- vapply(part_vi_tab, is.numeric, logical(1L))
+part_vi_tab[num_cols] <- lapply(part_vi_tab[num_cols], round, digits = 3)
+print(part_vi_tab, row.names = FALSE)
 
 ## ---------------------------------------------------------------------------
 ## 3. Arguments matrix_args_lmm() would build for rlmerb() -- assembled here
@@ -153,8 +218,8 @@ disp_pf_list <- dGamma_list(
 ## (the Block~2 hyperparameter prior, same shape .rLMM_validate_ing_
 ## measurement_prior_list() expects for the fixed-vcov/estimated-vcov cases)
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
-## (one named-by-group-level numeric vector each), extracted here from each
-## group's dGamma() pfamily -- mirroring
+## (one named-by-group-level numeric vector each) -- extracted here from
+## part_vi_group (Section 2b) instead of a dGamma() pfamily list, mirroring
 ## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ## ---------------------------------------------------------------------------
@@ -173,11 +238,11 @@ rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_lower_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_upper_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 for (lev in group_levels) {
-  pl <- disp_pf_list[[lev]]$prior_list
-  shape_group[[lev]]      <- pl$shape[1L]
-  rate_group[[lev]]       <- pl$rate[1L]
-  disp_lower_group[[lev]] <- pl$disp_lower
-  disp_upper_group[[lev]] <- pl$disp_upper
+  g <- part_vi_group[[lev]]
+  shape_group[[lev]]      <- g$shape
+  rate_group[[lev]]       <- g$rate
+  disp_lower_group[[lev]] <- g$disp_lower
+  disp_upper_group[[lev]] <- g$disp_upper
 }
 
 prior_list <- list(
@@ -190,7 +255,7 @@ prior_list <- list(
 )
 
 cat(sprintf(
-  "\n=== Per-group sigma^2_j ING prior: %d groups, sigma^2_hat range [%.4f, %.4f] ===\n\n",
+  "\n=== Per-group sigma^2_j ING prior (Part VI, outlier excluded): %d groups, sigma^2_hat range [%.4f, %.4f] ===\n\n",
   length(group_levels),
   min(rate_group / (shape_group - 1)),
   max(rate_group / (shape_group - 1))
@@ -233,10 +298,9 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   verbose      = TRUE
 )
 
-
 source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
 
-tab_13 <- .tmp_rss_ellipsoid_test(
+tab_13c <- .tmp_rss_ellipsoid_test(
   fit           = fit,
   D             = design$D,
   y             = design$y,
@@ -246,7 +310,7 @@ tab_13 <- .tmp_rss_ellipsoid_test(
   shape_group   = shape_group,
   rate_group    = rate_group
 )
-print(tab_13[order(tab_13$p_value), ], row.names = FALSE, digits = 4)
+print(tab_13c[order(tab_13c$p_value), ], row.names = FALSE, digits = 4)
 
 stopifnot(is.matrix(fit$dispersion_ranef))
 stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
@@ -265,7 +329,7 @@ cat(sprintf(
 cat(sprintf("m_convergence (main) = %d\n", fit$m_convergence))
 
 ## ---------------------------------------------------------------------------
-## 6. sigma^2_j: post-sweep draws' per-group means vs OLS/BLUP-calibrated
+## 6. sigma^2_j: post-sweep draws' per-group means vs Part VI-calibrated
 ##    prior mean, and vs the pooled lmer REML sigma^2.
 ## ---------------------------------------------------------------------------
 ## Build every row first (no printing) so the header/rows below print as one
@@ -287,7 +351,7 @@ for (lev in group_levels) {
 ## interleaves an echoed statement between each piece. One call in, one
 ## block out.
 cat(
-  "\n=== sigma^2_j: post mean vs calibrated prior mean (all groups) ===\n\n",
+  "\n=== sigma^2_j: post mean vs Part VI-calibrated prior mean (outlier groups 6 and 33 excluded) ===\n\n",
   sprintf("  %-6s  %10s  %10s  %10s\n",
           "group", "post mean", "prior mean", "[window]"),
   rows_disp,
@@ -366,28 +430,20 @@ cat(
 ## 7b. Extended (Omega)-aware local rate diagnostic
 ##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 14-15)
 ##
-## m_convergence above is calibrated from a (gamma, beta)-only rate that
-## plugs in disp_upper_group (the least-favorable per-group sigma^2_j
-## consistent with the calibrated prior window) as a *fixed* Omega_j via
-## .rLMM_measurement_rate_inputs() -- reused verbatim below as
-## prior_list_block1_rate$dispersion, so lambda_star_base here reproduces
-## that same certified corner rate exactly. This diagnostic asks: how much
-## would the local rate move if the beta-Omega_j coupling that corner
-## calibration ignores (Section 14, per-group case) were included?
+## Same diagnostic as Ex_13b Section 7b: omega_ing$omega/$e are evaluated at
+## the now-*completed* sampler's own posterior-mean state --
+## 1/fit$dispersion_ranef.mean[[lev]] for Omega_j, and e_j = y_j - D_j %*%
+## (posterior-mean beta_j from fit$coefficients) -- rather than the
+## certified corner's disp_upper_group/fit_ref (glmmTMB) combination, so
+## both quantities come from the SAME fitted object and describe one
+## mutually-consistent reference state. This is a *diagnostic*, not a
+## certified bound: see two_block_rate_ing()'s own documentation for why no
+## analogue of Theorem~3/Corollary~1 exists for the extended chain.
 ##
-## omega_ing$omega/$e are evaluated at the now-*completed* sampler's own
-## posterior-mean state -- 1/fit$dispersion_ranef.mean[[lev]] for Omega_j,
-## and e_j = y_j - D_j %*% (posterior-mean beta_j from fit$coefficients) --
-## rather than the certified corner's disp_upper_group/fit_ref (glmmTMB)
-## combination. Both quantities below therefore come from the SAME fitted
-## object and describe one mutually-consistent reference state; mixing the
-## corner's disp_upper_group with an external reference fit's residuals can
-## put Omega_j and e_j badly out of step for a group the reference fit
-## predicts poorly (the joint (beta, Omega) Hessian is only guaranteed PD
-## near its own mode -- see two_block_rate_ing()'s "local, uncertified
-## diagnostic" documentation). This is a *diagnostic*, not a certified
-## bound: see two_block_rate_ing()'s own documentation for why no analogue
-## of Theorem~3/Corollary~1 exists for the extended chain.
+## Compare lambda* here directly to Ex_13b's (outlier groups 6/33 included)
+## to see whether excluding both flagged groups (per the observed-vs-expected
+## RSS/Mahalanobis-ellipsoid diagnostic) meaningfully improves the worst-case
+## rate.
 ## ---------------------------------------------------------------------------
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
@@ -427,17 +483,10 @@ print(rate_ext)
 ## ---------------------------------------------------------------------------
 ## 7c. Empirical worst-case: same (Omega)-aware extended rate, evaluated at
 ##     EVERY main-stage draw instead of the single posterior-mean reference
-##     state above.
-##
-## Per-group dispersion sigma^2_j is estimated here, so each of the n
-## main-stage draws has its own sampled sigma^2_j (fit$dispersion_ranef[i, ])
-## and its own beta_j (fit$coefficients draw i) -- and hence its own e_j.
-## Treating the n draws as approximate posterior samples, this asks: what is
-## the largest local rate actually realized across them, rather than at one
-## plug-in point? Mirrors the pilot-draw pmax() scan
-## (.two_block_pilot_ub_from_coefficients()) but for the *extended* system
-## and the *main*-stage output; still a diagnostic, not a certified bound
-## (inst/BLOCK_GIBBS_ERGODICITY_ING.md Sections 7, 9, 11, 15).
+##     state above. Same diagnostic as Ex_13b Section 7c -- see its longer
+##     note for the rationale (pilot-draw pmax() scan analogue, applied to
+##     the extended system and the main-stage output; still a diagnostic,
+##     not a certified bound).
 ## ---------------------------------------------------------------------------
 omega_spec <- list(
   scope = "per_group",
@@ -457,7 +506,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
 
 cat(sprintf(
   paste0(
-    "\n=== Empirical (Omega)-aware local rate over n = %d main-stage draws ===\n\n",
+    "\n=== Empirical (Omega)-aware local rate over n = %d main-stage draws (outlier groups 6 and 33 excluded) ===\n\n",
     "  lambda* (extended, single reference state)     = %.6f\n",
     "  lambda* (extended, empirical max over %d draws) = %.6f  (draw #%d)\n",
     "  draws with lambda*(extended) >= 1: %d / %d\n"
@@ -472,14 +521,14 @@ cat(sprintf(
 ## 7d. SCRATCH: Omega_j-MARGINALIZED (Section 16.2) lambda_star, also
 ##     evaluated at every main-stage draw -- see
 ##     data-raw/_scratch_lambda_star_marginal_over_draws.R (temporary,
-##     investigation only, not package code). Unlike 7c above (which plugs
-##     each draw's independently-sampled (beta_j, Omega_j) pair into the
-##     *joint* Section 14 Hessian), this integrates Omega_j out analytically
-##     first (Section 16), so each draw's effective measurement precision is
-##     always the one implied by that SAME draw's own beta_j -- Section 16.5
-##     argues this is why 7c's empirical scan sees so many draws with
-##     lambda* >= 1. Draws where some group's Lambda + H_j(beta_j) block
-##     isn't PD are skipped (flagged per-group) rather than forced through.
+##     investigation only, not package code). Same rationale as Ex_13/Ex_13b
+##     Section 7d: unlike 7c above (which plugs each draw's
+##     independently-sampled (beta_j, Omega_j) pair into the *joint* Section
+##     14 Hessian), this integrates Omega_j out analytically first (Section
+##     16), so each draw's effective measurement precision is always the one
+##     implied by that SAME draw's own beta_j. Draws where some group's
+##     Lambda + H_j(beta_j) block isn't PD are skipped (flagged per-group)
+##     rather than forced through.
 ## ---------------------------------------------------------------------------
 source("data-raw/_scratch_lambda_star_marginal_over_draws.R")
 inp_marg <- lmebayesCore:::.two_block_rate_inputs(
