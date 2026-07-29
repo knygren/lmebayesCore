@@ -24,14 +24,21 @@
 ## compute_gaussian_prior() calibration Part I/dGamma_list() already use,
 ## then the same symmetric-quantile window construction
 ## (shape_w/rate_w from n_combined,j) applied to the resulting
-## sigma2_hat,j'. Part VI is NOT wired into dGamma_list() itself -- this
-## demo reproduces it by hand via the internal helpers
+## sigma2_hat,j'.
+##
+## UPDATE: Part VI's Omega_j fold-in is now wired into
+## Prior_Setup_lmebayes() itself (permanent default, not opt-in), and
+## disp_lower/disp_upper are now literal quantiles of the resulting
+## Gamma(shape_ING, rate) (not the shape_w/rate_w/n_combined window below) --
+## see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI and R/dGamma_list_
+## lmebayes_prior_setup.R. A plain `dGamma_list(ps)` call now reproduces
+## the Omega_j fold-in automatically; this demo's hand-rolled block below
+## (part_vi_group, via the internal helpers
 ## .lmebayes_ing_prior_measurement_group_glm_inputs() and
-## .lmebayes_compute_ing_prior_cal_from_sigma() (the same two calls
-## dGamma_list() itself makes), so everything downstream of the
-## 'prior_list' assembly (design, pf, fit_lmer, the sampler call, and all
-## diagnostics/plots) is unchanged from Ex_13 and does not need to know a
-## different calibration was used.
+## .lmebayes_compute_ing_prior_cal_from_sigma()) is kept as a from-scratch
+## worked derivation for comparison, and its shape/rate should now match
+## ps$ing_prior_measurement_group's own values (only the window construction
+## still differs -- see the comparison table below).
 ##
 ##   demo("Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI", package = "lmebayesCore")
 
@@ -551,6 +558,28 @@ res_marg <- .tmp_lambda_star_marginal_over_draws(
   inp = inp_marg, blocks = blocks_marg
 )
 .tmp_print_marginal_over_draws_summary(res_marg)
+
+## ---------------------------------------------------------------------------
+## 7e. SCRATCH: split-support revised end-of-simulation TV bound
+##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 17) -- see
+##     data-raw/_scratch_tv_bound_revised.R (temporary, investigation only,
+##     not package code). Reuses res_marg (7d) directly: A^c is the set of
+##     main-stage draws where some group's Lambda + H_j wasn't PD, or the
+##     draw's own lambda_star_marginal exceeded lambda_star_used -- the
+##     lambda_star that actually calibrated this run's m_convergence (the
+##     marginal safeguard if it was valid for this pilot, else the base/
+##     extended upper bound it fell back to).
+## ---------------------------------------------------------------------------
+source("data-raw/_scratch_tv_bound_revised.R")
+lambda_star_used <- if (isTRUE(fit$convergence_info$marginal_rate_valid)) {
+  fit$convergence_info$lambda_star_marginal
+} else {
+  fit$convergence_info$lambda_star_upper
+}
+tv_revised <- .tmp_tv_bound_revised(
+  res_marg, lambda_star_used, tv_tol = fit$convergence_info$tv_tol
+)
+.tmp_print_tv_bound_revised(tv_revised)
 
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes

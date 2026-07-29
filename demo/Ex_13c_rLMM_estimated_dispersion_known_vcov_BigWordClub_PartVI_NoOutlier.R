@@ -21,6 +21,11 @@
 ## lambda_star_marginal usable to calibrate how long the sampler needs to
 ## run (per Theorem 3/Corollary 1's TV-distance bound).
 ##
+## UPDATE: see Ex_13b's header note -- Part VI's Omega_j fold-in and the
+## disp_lower/disp_upper quantile-of-the-actual-prior construction below are
+## now Prior_Setup_lmebayes()'s permanent default; the hand-rolled
+## part_vi_group block below is kept as a from-scratch derivation check.
+##
 ##   demo("Ex_13c_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI_NoOutlier", package = "lmebayesCore")
 
 if (!requireNamespace("bayesrules", quietly = TRUE)) {
@@ -547,6 +552,28 @@ res_marg <- .tmp_lambda_star_marginal_over_draws(
   inp = inp_marg, blocks = blocks_marg
 )
 .tmp_print_marginal_over_draws_summary(res_marg)
+
+## ---------------------------------------------------------------------------
+## 7e. SCRATCH: split-support revised end-of-simulation TV bound
+##     (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 17) -- see
+##     data-raw/_scratch_tv_bound_revised.R (temporary, investigation only,
+##     not package code). Reuses res_marg (7d) directly: A^c is the set of
+##     main-stage draws where some group's Lambda + H_j wasn't PD, or the
+##     draw's own lambda_star_marginal exceeded lambda_star_used -- the
+##     lambda_star that actually calibrated this run's m_convergence (the
+##     marginal safeguard if it was valid for this pilot, else the base/
+##     extended upper bound it fell back to).
+## ---------------------------------------------------------------------------
+source("data-raw/_scratch_tv_bound_revised.R")
+lambda_star_used <- if (isTRUE(fit$convergence_info$marginal_rate_valid)) {
+  fit$convergence_info$lambda_star_marginal
+} else {
+  fit$convergence_info$lambda_star_upper
+}
+tv_revised <- .tmp_tv_bound_revised(
+  res_marg, lambda_star_used, tv_tol = fit$convergence_info$tv_tol
+)
+.tmp_print_tv_bound_revised(tv_revised)
 
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes

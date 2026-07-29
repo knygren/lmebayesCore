@@ -2012,6 +2012,91 @@ NULL
       convergence_info$m_convergence     <- m_convergence_used
     }
 
+    ## Omega-marginalized (Section 16) safeguard: known_vcov engine only
+    ## (any_non_normal = FALSE => Lambda fixed/known, the assumption the
+    ## Section 16 derivation relies on). When the marginalized lambda_star
+    ## is computable on every pilot draw (no Lambda + H_j PD failures) and
+    ## stays below the safeguard cutoff, it REPLACES m_convergence_used
+    ## (it is the more faithful, typically tighter rate); otherwise the
+    ## plain-rate m_convergence_used computed above is kept and a warning
+    ## is issued.
+    marginal_ub <- NULL
+    if (run_ub && !any_non_normal) {
+      ## The main stage starts from the pilot MEAN (fixef_init), not the
+      ## exact mode, so the override must certify the SAME pilot-start D0
+      ## the plain-rate m_convergence above used (two_block_
+      ## m_convergence_for_pilot_start()'s D0 = qchisq(pilot_start_tol, p) /
+      ## n_pilot) -- D0 = 0 would only certify a mode start and silently
+      ## understate the sweeps needed.
+      D0_main <- two_block_d0_pilot_start(
+        n_pilot = n_pilot, p = p_dim, pilot_start_tol = 0.95
+      )
+      marginal_ub <- .two_block_pilot_marginal_ub_from_coefficients(
+        pilot_coefficients = pilot_raw$coefficients,
+        n_pilot            = n_pilot,
+        y                  = inp$y,
+        D                  = inp$D,
+        group              = group,
+        x_hyper            = inp$W,
+        prior_list_block1  = prior_list_block1_rate,
+        pfamily_list       = pfamily_list,
+        tv_tol             = tv_tol,
+        group_name         = group_name,
+        group_levels       = group_levels,
+        re_names           = re_names,
+        ing_prior_list     = ing_prior_list,
+        D0                 = D0_main
+      )
+      convergence_info$marginal_D0             <- D0_main
+      convergence_info$lambda_star_marginal    <- marginal_ub$lambda_star_marginal
+      convergence_info$m_min_marginal          <- marginal_ub$m_min_marginal
+      convergence_info$marginal_rate_valid     <- marginal_ub$valid
+      convergence_info$marginal_pd_fail_groups <- marginal_ub$failing_groups
+      convergence_info$marginal_n_skipped      <- marginal_ub$n_skipped
+      convergence_info$marginal_cutoff         <- marginal_ub$cutoff
+      convergence_info$marginal_fallback_message <- NULL
+
+      if (isTRUE(marginal_ub$valid)) {
+        m_convergence_used <- marginal_ub$m_min_marginal
+        convergence_info$m_convergence <- m_convergence_used
+        if (isTRUE(verbose) || isTRUE(stage_verbose)) {
+          cat(sprintf(
+            paste0(
+              "--- %s: Omega-marginalized safeguard [%d pilot draws, all groups' Lambda + H_j PD]:\n",
+              "    lambda_star_marginal = %.4f (< %.2f) => main m_convergence override = %d ---\n\n"
+            ),
+            engine_label, n_pilot, marginal_ub$lambda_star_marginal,
+            marginal_ub$cutoff, m_convergence_used
+          ))
+        }
+      } else {
+        reason <- if (length(marginal_ub$failing_groups)) {
+          sprintf(
+            "outlier groups detected (%s; %d / %d pilot draws skipped)",
+            paste(marginal_ub$failing_groups, collapse = ", "),
+            marginal_ub$n_skipped, n_pilot
+          )
+        } else {
+          sprintf(
+            "lambda_star_marginal = %.4f is at/above the safeguard cutoff (%.2f)",
+            marginal_ub$lambda_star_marginal, marginal_ub$cutoff
+          )
+        }
+        fallback_msg <- sprintf(
+          paste0(
+            "%s - Omega-marginalized convergence bound may not be valid; ",
+            "falling back to lambda_star = %.4f (m_convergence = %d)."
+          ),
+          reason, convergence_info$lambda_star_upper, m_convergence_used
+        )
+        convergence_info$marginal_fallback_message <- fallback_msg
+        warning(engine_label, "(): ", fallback_msg, call. = FALSE)
+        if (isTRUE(verbose) || isTRUE(stage_verbose)) {
+          cat(sprintf("--- %s: %s ---\n\n", engine_label, fallback_msg))
+        }
+      }
+    }
+
     if (isTRUE(stage_verbose) && run_ub) {
       .two_block_print_pilot_stage_diagnostics(
         n_pilot            = n_pilot,

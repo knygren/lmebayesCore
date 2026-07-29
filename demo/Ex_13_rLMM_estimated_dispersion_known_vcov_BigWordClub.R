@@ -93,12 +93,13 @@ print(design)
 stopifnot(all(design$re_rank))
 
 ## max_disp_perc = 0.8 / pwt_measurement = 0.1 (tighter than the 0.99/0.01
-## package defaults) and disp_upper_anchor = "symmetric" (NOT the "blup"
-## default -- see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part II: blup_infl
-## widens the upper tail from one specific reference-fit point estimate,
-## which is exactly the kind of single-point conditioning Part I's marginal
-## calibration is built to avoid). Without these, several small schools get
-## disp_upper/disp_lower ratios wide enough to stall
+## package defaults). disp_lower/disp_upper are now computed by
+## Prior_Setup_lmebayes() itself, as literal quantiles of the same
+## Gamma(shape_ING, rate) marginal fed to the sampler -- including the Part
+## VI model-derived Omega_j fold-in (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md
+## Part VI), which is now the permanent default (see dGamma_list()'s
+## roxygen). Without max_disp_perc/pwt_measurement tightened here, several
+## small schools get disp_upper/disp_lower ratios wide enough to stall
 ## rindepNormalGamma_reg()'s per-group accept/reject envelope indefinitely.
 ps <- Prior_Setup_lmebayes(
   form_lmer,
@@ -136,13 +137,11 @@ which(abs(as.matrix(z)) > z_crit, arr.ind = TRUE)   # flagged (group, coef) cell
 pf <- pfamily_list(ps)
 
 ## One dGamma() pfamily per group level: each school_id gets its own
-## sigma^2_j prior (shape/rate mean-matched to that school's own OLS/BLUP
-## residual variance), not a shared pooled sigma^2.
-disp_pf_list <- dGamma_list(
-  ps,
-  max_disp_perc     = 0.8,
-  disp_upper_anchor = "symmetric"
-)
+## sigma^2_j prior (shape/rate from the Part VI marginal, which already
+## integrates out both b_j and gamma; disp_lower/disp_upper are quantiles
+## of that same Gamma, already stored on ps -- max_disp_perc here just
+## needs to match the value used above, or it would trigger a recompute).
+disp_pf_list <- dGamma_list(ps, max_disp_perc = 0.8)
 
 ## ---------------------------------------------------------------------------
 ## 3. Arguments matrix_args_lmm() would build for rlmerb() -- assembled here

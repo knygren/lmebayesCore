@@ -1088,6 +1088,139 @@ derives.
 
 ---
 
+## 17. A split-support heuristic for a revised end-of-simulation TV bound
+
+**Status: implemented (diagnostic, `known_vcov` engine only).** §§14-16 all
+make the same point from different angles: once \(\Omega_j\) is state
+dependent, the contraction matrix \(A\) that Theorem 3 needs is not a
+constant, so a single \(\lambda^*\) calibrated once (at the pilot mean, or as
+a pilot-draws \(\max\) via the marginal safeguard of §16/`R/
+two_block_ergodicity_ing_marginal.R`) is only a *local* rate. This section
+gives a post-hoc, end-of-run correction that turns the empirical per-draw scan
+already used in §7d of `demo("Ex_13b_...")`/`demo("Ex_13c_...")` into a
+revised total-variation estimate, rather than leaving the calibrated
+\(\texttt{tv\_tol}\) (e.g. 0.01) as the reported number unconditionally.
+
+### 17.1 Why the calibrated bound can be optimistic here
+
+`two_block_l_for_tv()` picks `m_convergence` so that, **if** the chain were
+the fixed-\(\Omega\) Gaussian two-block Gibbs sampler with contraction matrix
+\(A(\Lambda,\Omega^\star)\) (spectral radius \(\lambda^\star\)) *everywhere*,
+Theorem 3 guarantees
+\(d_{\mathrm{TV}}(P^m(x_0,\cdot),\pi)\le\texttt{tv\_tol}\). In the ING
+`known_vcov` engine, \(\Omega_j\) is instead resampled every sweep, so the
+*local* rate at the state actually visited varies draw to draw (§14), and can
+in principle exceed the \(\lambda^\star\) used to size \(m\) — or the local
+quadratic approximation can fail to be log-concave at all (§16.3's \(H_j\)
+PSD criterion; equivalently \(\Lambda+H_j(\beta_j)\) failing to be PD, the
+inversion the marginal scan needs). Theorem 3's proof gives no guarantee for
+sweeps that land in such a state. The calibrated `tv_tol` is therefore only
+demonstrably valid *conditional on staying in the region where the local rate
+behaves*; this section estimates how much slack to add for the rest.
+
+### 17.2 Splitting the support
+
+Let \(\lambda^\star_{\mathrm{used}}\) be whichever rate actually calibrated
+`m_convergence` for the run being diagnosed —
+\(\texttt{fit\$convergence\_info\$lambda\_star\_marginal}\) if the marginal
+safeguard was valid for that pilot (`marginal_rate_valid == TRUE`), else the
+base/extended \(\lambda^\star_{\text{upper}}\) it fell back to (§14,
+`two_block_rate_ing()`/`two_block_rate()`). Partition the state space into
+
+$$
+A \;=\; \Big\{\,\beta:\ \Lambda+H_j(\beta_j)\succ0\ \ \forall j,\ \ \text{and}\ \ \lambda^\star_{\mathrm{marginal}}(\beta)\le\lambda^\star_{\mathrm{used}}\,\Big\},
+\qquad A^c \;=\; \text{its complement,}
+$$
+
+using the §16.2 per-draw marginal Hessian \(H_j(\beta_j)\) — exactly the
+quantity `.two_block_lambda_star_marginal_over_draws()`
+(`R/two_block_ergodicity_ing_marginal.R`, mirrored for demo use by
+`.tmp_lambda_star_marginal_over_draws()` in
+`data-raw/_scratch_lambda_star_marginal_over_draws.R`) already computes for
+every main-stage draw in §7d. A draw is in \(A^c\) iff *either* some group's
+block failed the PD check (`skipped[i]`) *or* its computed
+`lambda_star_vec[i] > lambda_star_used`.
+
+### 17.3 A triangle-inequality decomposition
+
+For any probability measures \(\mu,\nu\) and measurable \(A\), and any
+\(B\subseteq\mathcal X\),
+
+$$
+|\mu(B)-\nu(B)| \;=\; \big|\mu(B\cap A)+\mu(B\cap A^c)-\nu(B\cap A)-\nu(B\cap A^c)\big|
+\;\le\; \big|\mu(B\cap A)-\nu(B\cap A)\big| \;+\; \mu(A^c) \;+\; \nu(A^c).
+$$
+
+Taking the supremum over \(B\) (the definition of \(d_{\mathrm{TV}}\)) with
+\(\mu=P^m(x_0,\cdot)\), \(\nu=\pi\):
+
+$$
+d_{\mathrm{TV}}\big(P^m(x_0,\cdot),\pi\big) \;\le\;
+\underbrace{\sup_B\big|P^m(x_0,B\cap A)-\pi(B\cap A)\big|}_{\text{"on-}A\text{" gap}}
+\;+\; P^m(x_0,A^c) \;+\; \pi(A^c).
+$$
+
+**Heuristic assumption.** The "on-\(A\)" gap is bounded by `tv_tol`: i.e. that
+restricted to trajectories that stay inside the region where the local rate
+is \(\le\lambda^\star_{\mathrm{used}}\) and every block is PD, the chain
+behaves enough like the homogeneous-rate chain Theorem 3 was calibrated
+against that its guarantee still applies. This is *not* a proven fact for the
+state-dependent system (that would require its own homogeneous-in-\(A\)
+contraction argument); it is the natural reading of what `tv_tol` was
+supposed to buy, restricted to where the argument is on firm ground.
+
+### 17.4 Estimating the \(A^c\) terms and the resulting formula
+
+\(P^m(x_0,A^c)\) and \(\pi(A^c)\) are two conceptually different quantities —
+the chain's actual excursion probability starting from \(x_0\), and the
+*stationary* excursion probability — that this diagnostic cannot tell apart
+from a single stream of stored draws. Since the whole point of calibrating
+`m_convergence` is that the stored main-stage draws are already close to
+\(\pi\), both are approximated by the same empirical fraction
+
+$$
+\hat p \;=\; \frac{1}{n}\sum_{i=1}^n \mathbf{1}\{\text{draw }i\in A^c\},
+$$
+
+over the \(n\) main-stage draws, giving
+
+$$
+\mathrm{TV}_{\mathrm{revised}} \;=\; \texttt{tv\_tol} + 2\hat p.
+$$
+
+A looser, one-sided variant \(\mathrm{TV}_{\mathrm{revised,\,loose}} =
+\texttt{tv\_tol}+\hat p\) — dropping either the \(P^m(x_0,A^c)\) or the
+\(\pi(A^c)\) term — is also reported as a sensitivity check; it is not the
+quantity the triangle-inequality argument above actually derives, but bounds
+how much of \(\mathrm{TV}_{\mathrm{revised}}\) comes from doubling a single
+empirical estimate versus from the \(\hat p\) itself.
+
+### 17.5 Caveats
+
+- This is a **diagnostic augmentation of the reported number, not a new
+  certified theorem** — precisely because §17.3's "on-\(A\)" step is a
+  heuristic, not something proven here or elsewhere in this document. It
+  should be read the same way as the existing `known_vcov` marginal
+  safeguard: informative, not a substitute for keeping \(\hat p\) small by
+  construction (e.g. removing outlier groups, as in `demo("Ex_13c_...")`).
+- \(\hat p\) is computed from the **main-stage** draws — the same draws whose
+  distribution `TV_revised` is trying to characterize — so this is
+  intrinsically self-referential/post-hoc, not a pre-run guarantee the way
+  `two_block_l_for_tv()`'s own `tv_tol` calibration is. A large \(\hat p\)
+  is itself informative (it says the run spent a non-trivial fraction of its
+  time outside the region the calibration trusted) independent of whether
+  \(2\hat p\) is the "right" multiplier.
+- Scope matches the marginal safeguard of §16/`R/
+  two_block_ergodicity_ing_marginal.R`: `known_vcov` engine only, where
+  \(\Lambda\) (RE precision) is fixed/known and only \(\Omega_j\) is
+  state-dependent.
+- See `data-raw/_scratch_tv_bound_revised.R` for the scratch implementation
+  (temporary, investigation only) and `demo("Ex_13b_...")`/
+  `demo("Ex_13c_...")` §7e for its use immediately after §7d's per-draw
+  marginal scan, reusing that scan's output rather than recomputing it.
+
+---
+
 ## References
 
 - Anderson, W.N. and Duffin, R.J. (1969). "Series and Parallel Addition of

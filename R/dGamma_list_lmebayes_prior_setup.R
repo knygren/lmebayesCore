@@ -4,70 +4,34 @@
 #' in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
 #' \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 #'
-#' Prior density (\code{shape_ING}, \code{rate} from \eqn{S_{\mathrm{marg}}}
-#' A12 3.3.4) comes from \code{object$ing_prior_measurement_group} (calibrated in
-#' \code{Prior_Setup_lmebayes()} via \code{\link[glmbayesCore]{compute_gaussian_prior}} with
-#' shared population \code{sd_tau}).  Truncation bounds use an approximate
-#' posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j},
-#' mean-matched at one of two per-group centers (\code{disp_center}):
-#' \describe{
-#'   \item{\code{"sigma2_hat"} (default)}{\code{disp_lower} is OLS-anchored at
-#'     \code{sigma2_hat_j}; \code{disp_upper} widens by the BLUP/OLS residual
-#'     RSS inflation ratio when \code{disp_upper_anchor = "blup"} (default).}
-#'   \item{\code{"dispersion2"}}{Both bounds are mean-matched, symmetrically,
-#'     at a dispersion estimate that integrates over the random effect's own
-#'     posterior uncertainty (an \code{EnvelopeCentering()}-style trace
-#'     correction; \code{disp_upper_anchor} is ignored).  Tends to produce
-#'     narrower, better-centered upper tails than \code{"sigma2_hat"} for
-#'     groups with large BLUP/OLS inflation.}
-#' }
-#' See \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (Parts II and III) for
-#' the full derivation of both constructions and their empirical validation.
-#'
-#' The returned list carries attribute \code{"window_diagnostics"}: a data
-#' frame with cross-percentiles of the asymmetric truncation window and flag
-#' \code{asymmetric_window} when
-#' \eqn{R_{\mathrm{lo}} = \mathrm{lo\_pct\_BLUP}/\mathrm{lo\_pct\_OLS} <}
-#' \code{asymmetric_R_lo} (default \code{0.25}) or
-#' \eqn{R_{\mathrm{hi}} = \mathrm{hi\_pct\_OLS}/\mathrm{hi\_pct\_BLUP} >}
-#' \code{asymmetric_R_hi} (default \code{4}).  A \code{\link[base]{warning}}
-#' is emitted for flagged groups when \code{warn_asymmetric = TRUE}.
+#' Prior density (\code{shape_ING}, \code{rate}) and truncation bounds
+#' (\code{disp_lower}, \code{disp_upper}) both come from
+#' \code{object$ing_prior_measurement_group}, calibrated once in
+#' \code{\link{Prior_Setup_lmebayes}()} via
+#' \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
+#' extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
+#' model-derived \code{Omega_j} folded into \code{Sigma_j}, so \code{rate}/
+#' \code{sigma2_hat} integrate out both the random effects \code{b_j} and
+#' the fixed effects \code{gamma}). \code{disp_lower}/\code{disp_upper} are
+#' literal quantiles of that same \code{Gamma(shape_ING, rate)} marginal
+#' (the \eqn{(1-\mathrm{max\_disp\_perc})}/\code{max_disp_perc} quantiles),
+#' i.e. a truncated version of the actual sampling prior rather than a
+#' separately-constructed window. See
+#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation.
 #'
 #' @param object An object of class \code{"lmebayes_prior_setup"} as returned
 #'   by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).
 #' @param max_disp_perc Scalar in \eqn{(0.5, 1)}; defaults to
-#'   \code{object$max_disp_perc}.
-#' @param disp_center Character: \code{"sigma2_hat"} (default) mean-matches
-#'   the truncation window at each group's calibrated point estimate
-#'   (\code{disp_upper_anchor} controls upper-tail widening); \code{"dispersion2"}
-#'   mean-matches symmetrically at an envelope-centering dispersion estimate
-#'   that integrates over random-effect uncertainty instead (Part III of
-#'   \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md}; ignores
-#'   \code{disp_upper_anchor}).
-#' @param disp_upper_anchor Character: \code{"blup"} (default) scales the
-#'   upper-bound rate by \eqn{\mathrm{RSS}_{\mathrm{blup}}/\mathrm{RSS}_{\mathrm{ols}}}
-#'   per group; \code{"symmetric"} uses the same rate as the lower bound.
-#'   Ignored when \code{disp_center = "dispersion2"}.
-#' @param n_rss_iter Positive integer; number of fixed-point iterations for
-#'   the \code{disp_center = "dispersion2"} envelope-centering estimate
-#'   (default \code{10L}). Ignored when \code{disp_center = "sigma2_hat"}.
-#' @param warn_asymmetric If \code{TRUE} (default), warn when any group's
-#'   truncation window is flagged as asymmetric.  Defaults to option
-#'   \code{glmbayesCore.dgamma_window_warn} when \code{NULL}.
-#' @param print_asymmetric If \code{TRUE}, print a table of flagged groups
-#'   after the warning.  Defaults to option
-#'   \code{glmbayesCore.dgamma_window_print} when \code{NULL}.
-#' @param asymmetric_R_lo Flag when \code{R_lo = lo_pct_BLUP/lo_pct_OLS} is
-#'   below this threshold (default \code{0.25}, or option
-#'   \code{glmbayesCore.dgamma_window_R_lo}).
-#' @param asymmetric_R_hi Flag when \code{R_hi = hi_pct_OLS/hi_pct_BLUP} exceeds
-#'   this threshold (default \code{4}, or option
-#'   \code{glmbayesCore.dgamma_window_R_hi}).
+#'   \code{object$max_disp_perc} (the value the stored \code{disp_lower}/
+#'   \code{disp_upper} bounds were calibrated with). Supplying a different
+#'   value recomputes the bounds as fresh quantiles of the same
+#'   \code{Gamma(shape_ING, rate)} for every group.
 #' @param ... Currently ignored.
 #'
 #' @return A named list of \code{"pfamily"} objects keyed by group levels,
 #'   suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
-#'   attributes \code{"window_diagnostics"} (data frame, one row per group),
+#'   attributes \code{"window_diagnostics"} (data frame, one row per group,
+#'   with \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
 #'   \code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
 #'   reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
 #'   reuse it as their own \code{dispersion_fit} instead of re-fitting
@@ -101,23 +65,8 @@
 dGamma_list.lmebayes_prior_setup <- function(
     object,
     max_disp_perc = NULL,
-    disp_center = c("sigma2_hat", "dispersion2"),
-    disp_upper_anchor = c("blup", "symmetric"),
-    warn_asymmetric = NULL,
-    print_asymmetric = NULL,
-    asymmetric_R_lo = NULL,
-    asymmetric_R_hi = NULL,
-    n_rss_iter = 10L,
     ...
 ) {
-  disp_center       <- match.arg(disp_center)
-  disp_upper_anchor <- match.arg(disp_upper_anchor)
-  if (!is.numeric(n_rss_iter) || length(n_rss_iter) != 1L ||
-      is.na(n_rss_iter) || n_rss_iter < 1L) {
-    stop("'n_rss_iter' must be a positive integer.", call. = FALSE)
-  }
-  n_rss_iter <- as.integer(n_rss_iter)
-
   if (!identical(object$family$family, "gaussian")) {
     stop(
       "dGamma_list() for lmebayes_prior_setup requires family = gaussian().",
@@ -148,137 +97,44 @@ dGamma_list.lmebayes_prior_setup <- function(
     stop("'max_disp_perc' must be a scalar in (0.5, 1).", call. = FALSE)
   }
 
-  if (is.null(warn_asymmetric)) {
-    warn_asymmetric <- getOption("glmbayesCore.dgamma_window_warn", TRUE)
-  }
-  if (is.null(print_asymmetric)) {
-    print_asymmetric <- getOption("glmbayesCore.dgamma_window_print", TRUE)
-  }
-  if (is.null(asymmetric_R_lo)) {
-    asymmetric_R_lo <- getOption("glmbayesCore.dgamma_window_R_lo", 0.25)
-  }
-  if (is.null(asymmetric_R_hi)) {
-    asymmetric_R_hi <- getOption("glmbayesCore.dgamma_window_R_hi", 4)
-  }
-  if (!is.numeric(asymmetric_R_lo) || length(asymmetric_R_lo) != 1L ||
-      !is.finite(asymmetric_R_lo) || asymmetric_R_lo <= 0 || asymmetric_R_lo >= 1) {
-    stop("'asymmetric_R_lo' must be a single value in (0, 1).", call. = FALSE)
-  }
-  if (!is.numeric(asymmetric_R_hi) || length(asymmetric_R_hi) != 1L ||
-      !is.finite(asymmetric_R_hi) || asymmetric_R_hi <= 1) {
-    stop("'asymmetric_R_hi' must be a single value > 1.", call. = FALSE)
-  }
-
   group_levels <- names(ing_grp)
   if (is.null(group_levels)) {
     group_levels <- levels(object$design$group)
     names(ing_grp) <- group_levels
   }
 
-  blup_inflation <- if (disp_center == "sigma2_hat" && disp_upper_anchor == "blup") {
-    .lmebayes_group_blup_rss_inflation(
-      data          = object$data,
-      block_formula = object$block_formula,
-      fit_ref       = object$fit_ref,
-      groups        = object$design$group,
-      group_levels  = group_levels,
-      group_name    = object$design$group_name
-    )
-  } else {
-    stats::setNames(rep(1, length(group_levels)), group_levels)
-  }
-
-  ## Part III (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md): mean-match
-  ## symmetrically at an envelope-centering dispersion estimate that
-  ## integrates over b_j's own posterior uncertainty, instead of
-  ## BLUP-inflating sigma2_hat. Computed once per group up front (like
-  ## blup_inflation above), not inside the per-group lapply() below.
-  dispersion2_vals <- if (disp_center == "dispersion2") {
-    .lmebayes_group_dispersion2_envelope_centering(
-      data              = object$data,
-      block_formula     = object$block_formula,
-      Sigma_ranef       = object$Sigma_ranef,
-      groups            = object$design$group,
-      group_levels      = group_levels,
-      intercept_source  = object$intercept_source,
-      effects_source    = object$effects_source,
-      n_rss_iter        = n_rss_iter
-    )
-  } else {
-    NULL
-  }
+  ## The bounds stored on ing_grp were computed at object$max_disp_perc; if
+  ## the caller asks for a different max_disp_perc here, recompute them as
+  ## fresh quantiles of the same Gamma(shape_ING, rate) rather than reusing
+  ## the stored ones.
+  recompute <- !isTRUE(all.equal(max_disp_perc, object$max_disp_perc))
 
   diag_rows <- vector("list", length(group_levels))
   out <- stats::setNames(
     lapply(seq_along(group_levels), function(i) {
       lev <- group_levels[[i]]
       g <- ing_grp[[lev]]
-      p_re <- g$p_re
-      n_combined <- g$n_combined
-      sigma2_hat <- g$sigma2_hat
 
-      shape_w <- (n_combined + 1) / 2 + p_re / 2
-
-      if (disp_center == "dispersion2") {
-        rate_w <- dispersion2_vals[[lev]] * (n_combined + p_re - 1) / 2
-        rate_u <- rate_w
-      } else {
-        rate_w <- sigma2_hat * (n_combined + p_re - 1) / 2
-        rate_u <- if (disp_upper_anchor == "blup") {
-          rate_w * blup_inflation[[lev]]
-        } else {
-          rate_w
-        }
-      }
-
-      if (rate_u < rate_w - sqrt(.Machine$double.eps) * max(rate_w, 1)) {
-        stop(
-          "Group '", lev, "': upper-bound rate (", rate_u,
-          ") is below lower-bound rate (", rate_w, ").",
-          call. = FALSE
+      if (recompute || is.null(g$disp_lower) || is.null(g$disp_upper)) {
+        win <- .lmebayes_ing_prior_quantile_window(
+          g$shape_ING, g$rate, max_disp_perc
         )
-      }
-
-      blup_infl_val <- if (disp_center == "dispersion2") {
-        NA_real_
+        disp_lower <- win$disp_lower
+        disp_upper <- win$disp_upper
       } else {
-        unname(blup_inflation[[lev]])
+        disp_lower <- g$disp_lower
+        disp_upper <- g$disp_upper
       }
-      dispersion2_val <- if (disp_center == "dispersion2") {
-        unname(dispersion2_vals[[lev]])
-      } else {
-        NA_real_
-      }
-
-      xwin <- .lmebayes_dgamma_window_cross_percentiles(
-        shape         = shape_w,
-        rate_w        = rate_w,
-        rate_u        = rate_u,
-        max_disp_perc = max_disp_perc,
-        blup_infl     = blup_infl_val,
-        sigma2_hat    = unname(sigma2_hat)
-      )
 
       diag_rows[[i]] <<- data.frame(
-        group              = lev,
-        n_j                = g$n_j,
-        sigma2_hat         = unname(sigma2_hat),
-        dispersion2        = dispersion2_val,
-        blup_infl          = blup_infl_val,
-        disp_lower         = xwin$disp_lower,
-        disp_upper         = xwin$disp_upper,
-        lo_pct_OLS         = xwin$lo_pct_OLS,
-        lo_pct_BLUP        = xwin$lo_pct_BLUP,
-        hi_pct_BLUP        = xwin$hi_pct_BLUP,
-        hi_pct_OLS         = xwin$hi_pct_OLS,
-        R_lo               = xwin$R_lo,
-        R_hi               = xwin$R_hi,
-        asymmetric_window  = .lmebayes_dgamma_window_asymmetric_flag(
-          xwin$R_lo, xwin$R_hi,
-          asymmetric_R_lo = asymmetric_R_lo,
-          asymmetric_R_hi = asymmetric_R_hi
-        ),
-        stringsAsFactors   = FALSE
+        group      = lev,
+        n_j        = g$n_j,
+        sigma2_hat = unname(g$sigma2_hat),
+        shape_ING  = unname(g$shape_ING),
+        rate       = unname(g$rate),
+        disp_lower = disp_lower,
+        disp_upper = disp_upper,
+        stringsAsFactors = FALSE
       )
 
       glmbayesCore::dGamma(
@@ -287,8 +143,8 @@ dGamma_list.lmebayes_prior_setup <- function(
         beta           = matrix(0, 1, 1, dimnames = list("(Intercept)", NULL)),
         Inv_Dispersion = TRUE,
         max_disp_perc  = max_disp_perc,
-        disp_lower     = xwin$disp_lower,
-        disp_upper     = xwin$disp_upper
+        disp_lower     = disp_lower,
+        disp_upper     = disp_upper
       )
     }),
     group_levels
@@ -302,15 +158,6 @@ dGamma_list.lmebayes_prior_setup <- function(
   ## lmebayes:::.lmebayes_fit_glmmtmb_dispersion().
   attr(out, "dispersion_fit")      <- object$dispersion_fit
   attr(out, "calibration_source")  <- object$calibration_source
-
-  if (isTRUE(warn_asymmetric)) {
-    .lmebayes_warn_dgamma_window_asymmetry(
-      window_diagnostics,
-      asymmetric_R_lo = asymmetric_R_lo,
-      asymmetric_R_hi   = asymmetric_R_hi,
-      print_table       = isTRUE(print_asymmetric)
-    )
-  }
 
   out
 }

@@ -215,7 +215,11 @@
     lv <- res$lambda_star_vec[!res$skipped]
     cat(sprintf(
       paste0(
-        "\n  Among the %d draws with every group PD:\n",
+        "\n  Among the %d draws where every group's Lambda + H_j was PD\n",
+        "  (a MILDER, necessary-for-computability condition -- NOT the same as\n",
+        "  every group's raw H_j alone being PSD/inside its ellipsoid; see the\n",
+        "  'raw H_j (Lambda-free) violations' counts above, which can be nonzero\n",
+        "  even here):\n",
         "    lambda_star_marginal: mean = %.6f, median = %.6f, max = %.6f (draw #%d)\n",
         "    draws with lambda_star_marginal >= 1: %d / %d\n"
       ),
@@ -223,7 +227,7 @@
       res$n_over_one, n_ok
     ))
   } else {
-    cat("\n  No draws had every group PD -- no lambda_star_marginal computed.\n")
+    cat("\n  No draws had every group's Lambda + H_j PD -- no lambda_star_marginal computed.\n")
   }
   invisible(res)
 }

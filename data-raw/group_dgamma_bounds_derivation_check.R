@@ -1,5 +1,13 @@
 ## Runnable companion to inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md
 ##
+## HISTORICAL (Parts I-IV of that doc): reproduces the pre-2026-migration
+## disp_lower/disp_upper window construction (disp_center/disp_upper_anchor),
+## which has since been removed from dGamma_list() -- see that doc's Part
+## VII, and data-raw/_scratch_compare_partvi_handrolled.R /
+## _scratch_validate_disp_bounds_migration.R for the current implementation.
+## Kept for the worked-example derivation; disp_upper_anchor is now a no-op
+## silently absorbed by dGamma_list()'s '...'.
+##
 ## Reproduces, on the `bayesrules::big_word_club` all-full-rank fixture
 ## (39 schools, 2 uncorrelated RE components):
 ##   1. The current dGamma_list() per-group truncation window (mean-matched at

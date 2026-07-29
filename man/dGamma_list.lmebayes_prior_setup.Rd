@@ -4,65 +4,25 @@
 \alias{dGamma_list.lmebayes_prior_setup}
 \title{Build per-group dGamma priors from a Prior_Setup_lmebayes object}
 \usage{
-\method{dGamma_list}{lmebayes_prior_setup}(
-  object,
-  max_disp_perc = NULL,
-  disp_center = c("sigma2_hat", "dispersion2"),
-  disp_upper_anchor = c("blup", "symmetric"),
-  warn_asymmetric = NULL,
-  print_asymmetric = NULL,
-  asymmetric_R_lo = NULL,
-  asymmetric_R_hi = NULL,
-  n_rss_iter = 10L,
-  ...
-)
+\method{dGamma_list}{lmebayes_prior_setup}(object, max_disp_perc = NULL, ...)
 }
 \arguments{
 \item{object}{An object of class \code{"lmebayes_prior_setup"} as returned
 by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).}
 
 \item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}; defaults to
-\code{object$max_disp_perc}.}
-
-\item{disp_center}{Character: \code{"sigma2_hat"} (default) mean-matches
-the truncation window at each group's calibrated point estimate
-(\code{disp_upper_anchor} controls upper-tail widening); \code{"dispersion2"}
-mean-matches symmetrically at an envelope-centering dispersion estimate
-that integrates over random-effect uncertainty instead (Part III of
-\code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md}; ignores
-\code{disp_upper_anchor}).}
-
-\item{disp_upper_anchor}{Character: \code{"blup"} (default) scales the
-upper-bound rate by \eqn{\mathrm{RSS}_{\mathrm{blup}}/\mathrm{RSS}_{\mathrm{ols}}}
-per group; \code{"symmetric"} uses the same rate as the lower bound.
-Ignored when \code{disp_center = "dispersion2"}.}
-
-\item{warn_asymmetric}{If \code{TRUE} (default), warn when any group's
-truncation window is flagged as asymmetric.  Defaults to option
-\code{glmbayesCore.dgamma_window_warn} when \code{NULL}.}
-
-\item{print_asymmetric}{If \code{TRUE}, print a table of flagged groups
-after the warning.  Defaults to option
-\code{glmbayesCore.dgamma_window_print} when \code{NULL}.}
-
-\item{asymmetric_R_lo}{Flag when \code{R_lo = lo_pct_BLUP/lo_pct_OLS} is
-below this threshold (default \code{0.25}, or option
-\code{glmbayesCore.dgamma_window_R_lo}).}
-
-\item{asymmetric_R_hi}{Flag when \code{R_hi = hi_pct_OLS/hi_pct_BLUP} exceeds
-this threshold (default \code{4}, or option
-\code{glmbayesCore.dgamma_window_R_hi}).}
-
-\item{n_rss_iter}{Positive integer; number of fixed-point iterations for
-the \code{disp_center = "dispersion2"} envelope-centering estimate
-(default \code{10L}). Ignored when \code{disp_center = "sigma2_hat"}.}
+\code{object$max_disp_perc} (the value the stored \code{disp_lower}/
+\code{disp_upper} bounds were calibrated with). Supplying a different
+value recomputes the bounds as fresh quantiles of the same
+\code{Gamma(shape_ING, rate)} for every group.}
 
 \item{...}{Currently ignored.}
 }
 \value{
 A named list of \code{"pfamily"} objects keyed by group levels,
 suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
-attributes \code{"window_diagnostics"} (data frame, one row per group),
+attributes \code{"window_diagnostics"} (data frame, one row per group,
+with \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
 \code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
 reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
 reuse it as their own \code{dispersion_fit} instead of re-fitting
@@ -75,34 +35,20 @@ in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
 \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 }
 \details{
-Prior density (\code{shape_ING}, \code{rate} from \eqn{S_{\mathrm{marg}}}
-A12 3.3.4) comes from \code{object$ing_prior_measurement_group} (calibrated in
-\code{Prior_Setup_lmebayes()} via \code{\link[glmbayesCore]{compute_gaussian_prior}} with
-shared population \code{sd_tau}).  Truncation bounds use an approximate
-posterior at \eqn{n_{\mathrm{combined},j} = n_{\mathrm{prior},j} + n_j},
-mean-matched at one of two per-group centers (\code{disp_center}):
-\describe{
-\item{\code{"sigma2_hat"} (default)}{\code{disp_lower} is OLS-anchored at
-\code{sigma2_hat_j}; \code{disp_upper} widens by the BLUP/OLS residual
-RSS inflation ratio when \code{disp_upper_anchor = "blup"} (default).}
-\item{\code{"dispersion2"}}{Both bounds are mean-matched, symmetrically,
-at a dispersion estimate that integrates over the random effect's own
-posterior uncertainty (an \code{EnvelopeCentering()}-style trace
-correction; \code{disp_upper_anchor} is ignored).  Tends to produce
-narrower, better-centered upper tails than \code{"sigma2_hat"} for
-groups with large BLUP/OLS inflation.}
-}
-See \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (Parts II and III) for
-the full derivation of both constructions and their empirical validation.
-
-The returned list carries attribute \code{"window_diagnostics"}: a data
-frame with cross-percentiles of the asymmetric truncation window and flag
-\code{asymmetric_window} when
-\eqn{R_{\mathrm{lo}} = \mathrm{lo\_pct\_BLUP}/\mathrm{lo\_pct\_OLS} <}
-\code{asymmetric_R_lo} (default \code{0.25}) or
-\eqn{R_{\mathrm{hi}} = \mathrm{hi\_pct\_OLS}/\mathrm{hi\_pct\_BLUP} >}
-\code{asymmetric_R_hi} (default \code{4}).  A \code{\link[base]{warning}}
-is emitted for flagged groups when \code{warn_asymmetric = TRUE}.
+Prior density (\code{shape_ING}, \code{rate}) and truncation bounds
+(\code{disp_lower}, \code{disp_upper}) both come from
+\code{object$ing_prior_measurement_group}, calibrated once in
+\code{\link{Prior_Setup_lmebayes}()} via
+\code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
+extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
+model-derived \code{Omega_j} folded into \code{Sigma_j}, so \code{rate}/
+\code{sigma2_hat} integrate out both the random effects \code{b_j} and
+the fixed effects \code{gamma}). \code{disp_lower}/\code{disp_upper} are
+literal quantiles of that same \code{Gamma(shape_ING, rate)} marginal
+(the \eqn{(1-\mathrm{max\_disp\_perc})}/\code{max_disp_perc} quantiles),
+i.e. a truncated version of the actual sampling prior rather than a
+separately-constructed window. See
+\code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation.
 }
 \examples{
 \donttest{

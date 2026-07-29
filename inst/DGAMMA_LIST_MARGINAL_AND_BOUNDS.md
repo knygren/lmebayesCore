@@ -9,14 +9,40 @@ Companion to `inst/TAU2_ING_FORMULAS.md` (the same conjugate machinery for
 `data-raw/group_dgamma_bounds_derivation_check.R`.
 
 **Status (current default):** the Gamma density fed to `dGamma()` is
-`g$rate` -- the Chapter A12 **§3.3.4 marginal ING rate** (`beta` integrated
-out) -- not `g$rate_gamma` (**§3.3.5**'s fixed-`beta` rate). `rate_gamma` is
+`g$rate` -- the Chapter A12 **?3.3.4 marginal ING rate** (`beta` integrated
+out) -- not `g$rate_gamma` (**?3.3.5**'s fixed-`beta` rate). `rate_gamma` is
 still computed and stored for diagnostic comparison only (see Part I and the
 dev-only print in `Prior_Setup_lmebayes()`). This is a change from an
 earlier version of this document/code, which fed `rate_gamma` to the
 sampler; Part I below explains why `rate` is the theoretically correct
 choice for this particular sampler, and Part II shows why it also improves
 alignment with the (unchanged) truncation window.
+
+**2026 update -- Part VI is now the permanent default, and the bounds moved
+upstream.** Two things changed after Parts II/III/V below were written; see
+**Part VII** for the current implementation:
+
+1. Part VI's model-derived `Omega_j` fold-in ("also integrating out the
+   prior mean `mu_j`", i.e. the fixed effects `gamma`, not just `b_j`) is no
+   longer an unimplemented extension -- it is now applied unconditionally
+   inside `Prior_Setup_lmebayes()`/`.lmebayes_calibrate_ing_prior_measurement_group()`.
+   There is no opt-out.
+2. `disp_lower`/`disp_upper` are no longer built by `dGamma_list()` from a
+   separate, `n_combined,j`-based `shape_w`/`rate_w` (Part II's construction,
+   with the `disp_center = "dispersion2"` alternative from Part III). They
+   are now computed once inside `Prior_Setup_lmebayes()`, as literal
+   `(1-max_disp_perc)`/`max_disp_perc` quantiles of the **same**
+   `Gamma(shape_ING,j, rate,j)` that is the actual sampling prior (the
+   Part-VI-extended one) -- i.e. a truncated version of the real prior,
+   not a separately-mean-matched window. `dGamma_list()` now just reads
+   `disp_lower`/`disp_upper` off `ing_prior_measurement_group` verbatim.
+
+Parts II/III's `shape_w`/`rate_w`/BLUP-inflation/`dispersion2`-envelope-
+centering machinery (and the `disp_center`, `disp_upper_anchor`, and
+`n_rss_iter` arguments that controlled it) has been removed from
+`dGamma_list()`; those sections are kept below **for historical record and
+worked-example intuition only** -- they no longer describe shipped
+behavior.
 
 ---
 
@@ -28,7 +54,7 @@ For each group (school) `j = 1..J`:
 |---|---|---|
 | `n_j` | `g$n_j` | Observations in group `j` |
 | `X_j` | `model.matrix(block_formula, dat_j)` | `n_j x p_re` design (RE-relevant predictors only; see `.lmebayes_block_formula_from_re()`) |
-| `Y_j` | — | Response, group `j` |
+| `Y_j` | ��� | Response, group `j` |
 | `bhat_j` | `coef(glm.fit(X_j, Y_j))` | Group `j`'s own OLS/WLS estimate |
 | `mu_j` | `.lmebayes_block_formula_prior_mu()` | Prior mean: null-model intercept, zero slopes (defaults) |
 | `V0_j` | `vcov(glm_full)` | Sampling covariance of `bhat_j` |
@@ -61,7 +87,7 @@ group's Block~1 design; see that vignette for the full derivation and proof
 that this is the correct marginal (i.e. `beta` integrated out) Gamma law on
 the residual precision.
 
-**Marginal quadratic term** (Chapter A12 §3.1, specialized to group `j`,
+**Marginal quadratic term** (Chapter A12 ?3.1, specialized to group `j`,
 weights `=1`):
 
 ```
@@ -95,10 +121,10 @@ answer different questions (`R/compute_gaussian_prior.R`):
 ```
 shape_ING,j = (n_prior,j + 1)/2 + p_re/2                                    # k = 1; shared by both rates below
 
-## §3.3.4 -- marginal rate (beta integrated out against N(mu_j, Sigma_j)):
+## ?3.3.4 -- marginal rate (beta integrated out against N(mu_j, Sigma_j)):
 rate,j       = 0.5 * S_marg,j * (n_prior,j + p_re - 1) / (n_j - p_re)
 
-## §3.3.5 -- fixed-beta rate (RSS at the point-blend beta_star,j):
+## ?3.3.5 -- fixed-beta rate (RSS at the point-blend beta_star,j):
 beta_star,j  = (1 - w_j) * bhat_j + w_j * mu_j                              # Zellner blend at group j's own w_j
 RSS_star,j   = sum((Y_j - X_j %*% beta_star,j)^2)
 rate_gamma,j = 0.5 * RSS_star,j * (n_prior,j + p_re - 1) / (n_j - p_re)
@@ -107,7 +133,7 @@ rate_gamma,j = 0.5 * RSS_star,j * (n_prior,j + p_re - 1) / (n_j - p_re)
 Both are calibrated **per group**, using group `j`'s own `bhat_j`, `mu_j`,
 and `w_j` -- neither is one shared prior across all `J` groups (contrast with
 the "consistent design" `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md`
-§8 argues for; see Part V).
+?8 argues for; see Part V).
 
 **Key algebraic fact:** `rate,j / (shape_ING,j - 1) = S_marg,j / (n_j - p_re)
 = sigma2_hat,j` **exactly**, for every `n_prior,j`, `k`, and `p_re` (the same
@@ -118,7 +144,7 @@ empirically `S_marg,j > RSS_star,j` for essentially every group on the
 39-school fixture below), so `rate_gamma,j / (shape_ING,j - 1) != sigma2_hat,j`
 in general.
 
-### The Gamma actually fed to the sampler: `rate` (§3.3.4), not `rate_gamma` (§3.3.5)
+### The Gamma actually fed to the sampler: `rate` (?3.3.4), not `rate_gamma` (?3.3.5)
 
 `dGamma_list.lmebayes_prior_setup()` passes `g$rate` -- **not**
 `g$rate_gamma` -- to each group's `dGamma(shape = g$shape_ING, rate = g$rate,
@@ -131,10 +157,10 @@ dispersion) purely for diagnostic comparison; it is not consumed downstream.
 does with `beta`.** The two rates are the Gamma parameters of two different
 conditional statements about `sigma^2_j`:
 
-- `rate` (§3.3.4): the rate of the **marginal** law for `1/sigma^2_j`, with
+- `rate` (?3.3.4): the rate of the **marginal** law for `1/sigma^2_j`, with
   `beta_j` integrated out against its own prior `N(mu_j, Sigma_j)`. Correct
   when `beta_j` is itself a random quantity yet to be drawn.
-- `rate_gamma` (§3.3.5): the rate **conditional on `beta_j` fixed** at the
+- `rate_gamma` (?3.3.5): the rate **conditional on `beta_j` fixed** at the
   specific point `beta_star,j`. Correct when the consumer of the prior treats
   `beta` as a known plug-in and never updates it (`?dGamma`'s general
   description: a Gibbs step "where the beta and dispersion parameters are
@@ -152,15 +178,15 @@ sampler `dGamma_list()` output feeds:
 3. On the (typical) full-rank path, that calls `rindepNormalGamma_reg()`
    (`R/simfunction.R`), which performs a **joint** Independent Normal-Gamma
    draw: `sigma2_j` is drawn first from the *marginal* Gamma (`beta_j`
-   integrated out -- exactly the §3.3.4 law), and **then** `b_j | sigma2_j`
+   integrated out -- exactly the ?3.3.4 law), and **then** `b_j | sigma2_j`
    is drawn from its Normal conditional.
 
 `beta_j` (the group's random effect, `b_j`) is **not** fixed at any point
 value during this step -- it is simulated fresh, every sweep, for every
 group. Because the sampler's own derivation integrates `beta_j` out before
 conditioning on `sigma2_j`, the prior handed to it must already be that same
-marginal law -- i.e. `(shape_ING, rate)` from §3.3.4. Feeding it
-`rate_gamma` (§3.3.5) instead silently substitutes a Gamma calibrated
+marginal law -- i.e. `(shape_ING, rate)` from ?3.3.4. Feeding it
+`rate_gamma` (?3.3.5) instead silently substitutes a Gamma calibrated
 *conditional on a specific point `beta_star,j`* for the *marginal* Gamma the
 joint draw's own derivation assumes -- understating `E[sigma^2_j]` by
 however much the quadratic-penalty gap (`S_marg,j - RSS_ols,j`) exceeds the
@@ -174,7 +200,7 @@ worked numbers below); it is not a rounding-level discrepancy -- on the
 supplied by the *current* Block~2 hyperparameters -- Block~2's own
 random-effect mean/covariance is treated as **given, fixed input** to this
 Block~1 calibration step, not re-derived from Block~1's own data. So the
-§3.3.4 marginal used here is the correct precision prior for the `(b_j,
+?3.3.4 marginal used here is the correct precision prior for the `(b_j,
 sigma2_j)` joint draw **given Block~2's current RE covariance and mean** --
 it is not a full joint marginal that additionally integrates over
 uncertainty in `sd_tau`/`Sigma_ranef` themselves. (Part III's `dispersion2`
@@ -212,7 +238,13 @@ fixed-point RSS and the marginal RSS nearly coincide.
 
 ---
 
-## Part II -- The truncation window (current `dGamma_list()` bounds)
+## Part II -- The truncation window (HISTORICAL -- superseded by Part VII)
+
+**No longer shipped behavior.** `dGamma_list()` no longer builds this
+`shape_w`/`rate_w`/`n_combined,j` window, and the `disp_upper_anchor`
+argument described below has been removed. Kept for the worked-example
+intuition and as a record of the design this superseded; see Part VII for
+what `disp_lower`/`disp_upper` are computed from now.
 
 ### Why a window at all
 
@@ -242,7 +274,7 @@ center.
 ### Alignment with Part I's prior mean
 
 Because `rate,j / (shape_ING,j - 1) = sigma2_hat,j` exactly (Part I), the
-window built here is mean-matched to **the same point** the §3.3.4 prior
+window built here is mean-matched to **the same point** the ?3.3.4 prior
 itself asserts for `E[sigma^2_j]` -- prior and window now share a center by
 construction, for every group, regardless of `pwt_measurement`,
 `max_disp_perc`, or `disp_upper_anchor`.
@@ -294,9 +326,14 @@ school  9: n_j=11  sigma2_hat=137.1  blup_infl=1.26  ->  disp_lower=  92.6  disp
 
 ---
 
-## Part III -- Integrating over random-effect uncertainty (`disp_center = "dispersion2"`)
+## Part III -- Integrating over random-effect uncertainty (HISTORICAL -- superseded by Part VII)
 
-Implemented as an opt-in argument: `dGamma_list(ps, disp_center = "dispersion2")`
+**No longer shipped behavior.** The `disp_center`/`n_rss_iter` arguments and
+the `EnvelopeCentering()`-style trace correction described below have been
+removed from `dGamma_list()`. Kept for the worked-example intuition; see
+Part VII for the current bounds construction.
+
+Was implemented as an opt-in argument: `dGamma_list(ps, disp_center = "dispersion2")`
 (default remains `disp_center = "sigma2_hat"`, i.e. Part II unchanged). See
 Part V for status.
 
@@ -481,49 +518,47 @@ whether the per-group model is over-parameterized for the available data.
 
 ---
 
-## Part V -- Status and open questions
+## Part V -- Status and open questions (as of the original Parts I-IV; see Part VII for what shipped after)
 
-- **The sampler now uses the §3.3.4 marginal `rate`, not the §3.3.5
+- **The sampler now uses the ?3.3.4 marginal `rate`, not the ?3.3.5
   `rate_gamma`** (Part I). This is the current default and is not
   configurable via a public argument; `rate_gamma` is retained on
   `ing_prior_measurement_group` and shown alongside `rate` by
   `Prior_Setup_lmebayes()`'s dev-only comparison print for anyone who wants
   to inspect the gap, but nothing downstream consumes it. This does not
-  change `sigma2_hat`, the truncation window, or any other calibration
-  quantity described elsewhere in this document -- see Part II's
-  "Alignment with Part I's prior mean" for the one place the two interact.
-- **Part III is implemented as `dGamma_list(ps, disp_center = "dispersion2")`**
-  (an R-level reproduction of `EnvelopeCentering()`'s trace correction, run
-  per group with the double-counting pitfall above avoided). The shipped
-  default remains `disp_center = "sigma2_hat"` with `disp_upper_anchor =
-  "blup"` (Part II) -- `disp_center = "dispersion2"` is opt-in and ignores
-  `disp_upper_anchor`. `.lmebayes_group_dispersion2_envelope_centering()`
-  (`R/mixed_rmerb_helpers.R`) is the underlying helper; it is numerically
-  verified against `data-raw/group_dgamma_bounds_derivation_check.R`'s
-  independent reproduction.
-- **Tension with `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md` §8.**
+  change `sigma2_hat` or any other calibration quantity described elsewhere
+  in this document -- see Part II's "Alignment with Part I's prior mean"
+  (historical) for the one place the two used to interact via the window.
+- **Part III was implemented as an opt-in `dGamma_list(ps, disp_center =
+  "dispersion2")` argument** (an R-level reproduction of
+  `EnvelopeCentering()`'s trace correction, run per group with the
+  double-counting pitfall above avoided). `disp_center`,
+  `disp_upper_anchor`, and the underlying
+  `.lmebayes_group_dispersion2_envelope_centering()`/
+  `.lmebayes_group_blup_rss_inflation()` helpers have since been **removed**
+  (Part VII); `data-raw/group_dgamma_bounds_derivation_check.R`'s
+  independent reproduction of both is kept as a historical companion script
+  and is no longer exercised by the shipped `dGamma_list()`.
+- **Tension with `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md` ?8.**
   That note argues the "consistent design" keeps **one shared prior** across
   all groups, varying only the truncation window per group, to avoid
   double-counting each group's data in its own prior. `dGamma_list()` instead
   calibrates `shape_ING,j` / `rate,j` **per group** (Part I). The
   default `pwt_measurement = 0.01` keeps `n_prior,j << n_j`, so the resulting
   double-count in the *prior itself* is proportionally small -- but it is not
-  zero, and is a distinct issue from the Part III bounds double-count (which
-  is a full, not partial, double-count and must be avoided entirely).
-- Part III's `n_combined,j`-based shape convention was carried over unchanged
-  from Part II for direct comparability; whether it remains the right spread
-  choice once the center is `dispersion2,j` rather than `sigma2_hat,j` is an
-  open question.
+  zero.
 
 ---
 
-## Part VI -- Extension: also integrating out the prior mean `mu_j` (not implemented)
+## Part VI -- Extension: also integrating out the prior mean `mu_j` (IMPLEMENTED, permanent default)
 
 Part I's marginal Gamma treats `mu_j` as a known constant. This section
-outlines, but does not implement, the change needed to also account for
-**fixed, known uncertainty about `mu_j` itself** -- i.e. to integrate out
-not just `b_j` (already done, Part I) but a further, fixed budget of
-uncertainty about where `b_j`'s prior mean actually is.
+derives the change needed to also account for **fixed, known uncertainty
+about `mu_j` itself** -- i.e. to integrate out not just `b_j` (already
+done, Part I) but a further, fixed budget of uncertainty about where `b_j`'s
+prior mean actually is. As of the 2026 migration (Part VII) this is
+implemented and is the unconditional default -- see "Status" below for
+exactly what was built and how it maps onto the derivation.
 
 ### Setup: the `u_j = b_j - mu_j` substitution
 
@@ -555,7 +590,7 @@ sweep: **the ING prior decouples `b_j`'s covariance from the precision
 parameter entirely** --
 
 ```939:941:vignettes/Chapter-A12.Rmd
-The independent Normal–Gamma (ING) prior replaces the conjugate covariance structure
+The independent Normal���Gamma (ING) prior replaces the conjugate covariance structure
 tau^{-1}*Sigma_0 with a fixed coefficient-scale covariance Sigma, ...
 ```
 
@@ -612,7 +647,7 @@ deviation vector itself shifts too.
   automatically re-centers at `sigma2_hat,j'`, preserving the "prior mean =
   window center" identity Part II's "Alignment with Part I's prior mean"
   already establishes.
-- `rate_gamma,j` (§3.3.5) has no marginalization to extend -- it is a
+- `rate_gamma,j` (?3.3.5) has no marginalization to extend -- it is a
   fixed-point RSS evaluated at `beta_star,j`, not an integral. The only
   sensible analog is `mu_j \to \bar\mu` inside the Zellner blend
   `beta_star,j = (1 - w_j) bhat_j + w_j \bar\mu`. This sharpens, rather than
@@ -652,17 +687,137 @@ guise:
    contribution to that pooled estimate is a partial, `O(1/J)` double-count
    -- the same caveat Part V already notes for `shape_ING,j`/`rate,j`, and
    discussed at length in `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md`
-   §8. Standard, generally accepted empirical-Bayes practice (Efron, 2010),
+   ?8. Standard, generally accepted empirical-Bayes practice (Efron, 2010),
    but not a zero double-count.
 
 ### Status
 
-Not implemented. This section records the exact substitutions required
-(`Sigma_0j \to Sigma_0j + \Omega_j/\mathrm{dispersion\_classical}_j`, `mu_j
-\to \bar\mu`) should a genuine external source for `bar_mu`/`Omega_j` become
-available. The change is confined to Part I's `S_marg,j` / `rate,j` /
-`sigma2_hat,j` calibration and its mechanical consequence for Part II's
-window center; nothing else in this document is affected.
+**Implemented (permanent default, no opt-out) in
+`.lmebayes_calibrate_ing_prior_measurement_group()`
+(`R/mixed_rmerb_helpers.R`), wired from `Prior_Setup_lmebayes()`.** With one
+simplification relative to the general derivation above: `mu_j` itself is
+**not** changed (no `mu_j \to \bar\mu` substitution) -- only `Sigma_j \to
+Sigma_j + \Omega_j` is applied, i.e. the *same* per-group prior mean from
+Part 0 (`.lmebayes_block_formula_prior_mu()`, still group `j`'s own
+null-model intercept / zero slopes) with a wider covariance around it. This
+is exactly the "Resulting formulas" substitution above with `bar_mu = mu_j`,
+so `S_marg,j' = RSS_ols,j + (bhat_j - mu_j)' Mi_j' (bhat_j - mu_j)` and the
+rest of the "Resulting formulas" block applies verbatim.
+
+`Omega_j` is **model-derived** (not invented): it is diagonal across RE
+components `k` (each `gamma_k` calibrated independently, Part~2 of
+`vignettes/Chapter-A12.Rmd`'s Block~2 structure) with
+
+```
+Omega_j[k, k] = W_j[[k]] %*% Sigma_fixef_k %*% t(W_j[[k]])
+```
+
+where `W_j[[k]]` is group `j`'s own row of `design$W[[k]]` (the Block~2
+hyper-design for RE component `k`) and `Sigma_fixef_k =
+prior_list[[k]]$Sigma_fixef` is that component's own calibrated
+fixed-effect/`gamma_k` covariance (already computed earlier in
+`Prior_Setup_lmebayes()`, the same object `pfamily_list()` uses to build
+`dNormal()`/Block~2 priors) -- i.e. `mu_j[k]`'s uncertainty stand-in is
+exactly the model's own Block~2 hyper-regression uncertainty about
+`W_j[[k]] %*% gamma_k`, propagated through group `j`'s own design row.
+
+Of the two source caveats above: caveat 1 (independence from group `j`'s
+own data) does not apply here, because `mu_j` itself is unchanged -- only
+`Sigma_j`'s width changes, and `Omega_j` never enters `mu_j`. Caveat 2 (the
+`O(1/J)` empirical-Bayes double-count) does apply: `Sigma_fixef_k` comes
+from `vcov(fit_ref)` fit on the pooled data (all `J` groups, including
+group `j`'s own observations), so group `j` makes a partial, `O(1/J)`
+contribution to its own `Omega_j`. This is the same standard,
+generally-accepted empirical-Bayes caveat already noted for
+`shape_ING,j`/`rate,j` themselves (Part V), not a new or larger one.
+`disp_lower,j`/`disp_upper,j` are no longer built from Part II's
+`shape_w`/`rate_w`; see Part VII.
+
+---
+
+## Part VII -- Current implementation (2026 migration): bounds moved upstream
+
+Summarizes what actually ships today, after folding Part VI's `Omega_j` in
+as the permanent default and moving `disp_lower`/`disp_upper` out of
+`dGamma_list()` and into `Prior_Setup_lmebayes()`.
+
+### What changed, in one place
+
+`.lmebayes_calibrate_ing_prior_measurement_group()` (`R/mixed_rmerb_helpers.R`)
+is now the single source of truth for per-group `sigma^2_j` calibration.
+For each group `j`, in order:
+
+```
+Sigma_j          <- Part 0's shrinkage formula (unchanged)          # coefficient-scale, dispersion-free-eligible
+Omega_j          <- Part VI's model-derived fold-in (see above)     # diagonal across RE components k
+cal              <- compute_gaussian_prior(..., Sigma_0 = (Sigma_j + Omega_j)/dispersion_classical,j,
+                                                 Sigma   = Sigma_j + Omega_j, ...)
+                     # -> cal$shape_ING, cal$rate, cal$dispersion (== sigma2_hat,j)
+disp_lower,j     <- 1 / qgamma(max_disp_perc,     shape = cal$shape_ING, rate = cal$rate)
+disp_upper,j     <- 1 / qgamma(1 - max_disp_perc, shape = cal$shape_ING, rate = cal$rate)
+```
+
+via `.lmebayes_ing_prior_quantile_window()` -- the same construction already
+used for the pooled `ing_prior_measurement` case (Block~1 dispersion when
+`dispformula = ~1`) and for `ing_prior`'s `tau^2_k` window (Chapter A12,
+Theorem 2). `shape_ING,j`, `rate,j`, `sigma2_hat,j`, `disp_lower,j`,
+`disp_upper,j`, `max_disp_perc`, and `omega_j` (the matrix itself, for
+diagnostics) are all stored directly on
+`ps$ing_prior_measurement_group[[j]]`.
+
+### Why literal quantiles of the actual prior, not a separately-matched window
+
+Parts II/III built a *different* Gamma (`shape_w,j`/`rate_w,j`, mean-matched
+at `sigma2_hat,j` via `n_combined,j`) purely to control the window's spread
+independently of the actual `Gamma(shape_ING,j, rate,j)` fed to the sampler.
+That decoupling is no longer needed once the marginal itself already
+integrates out both `b_j` and `gamma` (Part VI) -- the actual sampling prior
+is now the right object to truncate directly: `disp_lower,j`/`disp_upper,j`
+are simply the `(1-max_disp_perc)`/`max_disp_perc` quantiles of
+`Gamma(shape_ING,j, rate,j)` itself, inverted to the dispersion scale. This
+guarantees `sigma2_hat,j` (the prior's own implied mean-ish point estimate)
+always lies inside the window by construction (`shape_ING,j > 1` is required
+of any valid calibration for the mean to exist, and the window brackets the
+whole central mass around it), with no separate spread parameter
+(`n_combined,j`) to keep in sync.
+
+### `dGamma_list()` after the migration
+
+`dGamma_list.lmebayes_prior_setup()` (`R/dGamma_list_lmebayes_prior_setup.R`)
+is now a thin consumer: for each group it reads
+`g$shape_ING`/`g$rate`/`g$disp_lower`/`g$disp_upper` off
+`object$ing_prior_measurement_group` and calls `dGamma()` directly. Passing
+a `max_disp_perc` that differs from `object$max_disp_perc` recomputes fresh
+quantiles of the same `Gamma(shape_ING,j, rate,j)` (still no separate
+window-shape parameter); passing the same value (or omitting it) reuses the
+stored bounds verbatim. The `disp_center`, `disp_upper_anchor`, and
+`n_rss_iter` arguments (Parts II/III) have been **removed** from the
+function's formal signature -- callers who still pass them get a silent
+no-op (absorbed by `...`), not an error, since `dGamma_list()` keeps a `...`
+parameter. The `warn_asymmetric`/`print_asymmetric`/`asymmetric_R_lo`/
+`asymmetric_R_hi` diagnostic (which flagged windows where the BLUP-anchored
+upper tail and the OLS-anchored lower tail crossed very different
+percentiles of the underlying Gamma) is also gone -- there is no longer a
+separate upper/lower anchor to be asymmetric between. The
+`"window_diagnostics"` attribute is still attached (now just `group`, `n_j`,
+`sigma2_hat`, `shape_ING`, `rate`, `disp_lower`, `disp_upper` -- no
+`asymmetric_window`/`blup_infl`/`R_lo`/`R_hi` columns).
+
+### Verified equivalence
+
+`data-raw/_scratch_compare_partvi_handrolled.R` confirms
+`Prior_Setup_lmebayes()`'s default `shape_ING,j`/`rate,j`/`sigma2_hat,j` now
+match, to floating-point precision, the demo `Ex_13b`'s pre-migration
+hand-rolled reproduction of this same Part VI derivation (which called
+`.lmebayes_ing_prior_measurement_group_glm_inputs()` and
+`.lmebayes_compute_ing_prior_cal_from_sigma()` directly). `data-raw/
+_scratch_validate_disp_bounds_migration.R` additionally checks: every
+group's `sigma2_hat,j` lands inside its own `[disp_lower,j, disp_upper,j]`;
+`dGamma_list(ps)`'s returned `pfamily` objects carry the stored
+shape/rate/bounds verbatim; a different `max_disp_perc` triggers a
+recompute (narrower window at a looser `max_disp_perc`, as expected); and
+the now-removed `disp_center`/`disp_upper_anchor`/`n_rss_iter`/
+`warn_asymmetric` arguments are silently accepted without error.
 
 ---
 
@@ -676,7 +831,7 @@ window center; nothing else in this document is affected.
   rationale this document's Part II specializes to per-group bounds.
 - `lmebayes`'s `inst/GROUP_DISPERSION_HYPERPRIOR.md` -- precursor exploration
   of group-level dispersion heterogeneity and the double-counting hazard
-  (§8), on the same `big_word_club` fixture; also the source of the
+  (?8), on the same `big_word_club` fixture; also the source of the
   `O(1/J)` empirical-Bayes caveat cited in Part VI.
 - Pinheiro, J.C. and Bates, D.M. (2000). *Mixed-Effects Models in S and
   S-PLUS.* Springer. -- `varIdent()` heteroscedastic variance structures used
@@ -684,12 +839,18 @@ window center; nothing else in this document is affected.
 - Efron, B. (2010). *Large-Scale Inference: Empirical Bayes Methods for
   Estimation, Testing, and Prediction.* Cambridge University Press. --
   justification for the `O(1/J)` empirical-Bayes double-count in Part VI /
-  `GROUP_DISPERSION_HYPERPRIOR.md` §8.
+  `GROUP_DISPERSION_HYPERPRIOR.md` ?8.
 
 ## Runnable check
 
 ```r
+## Historical (Parts I-IV's pre-migration window construction; not exercised
+## by the shipped dGamma_list() -- see Part VII):
 Rscript data-raw/group_dgamma_bounds_derivation_check.R
+
+## Current implementation (Part VII):
+Rscript data-raw/_scratch_compare_partvi_handrolled.R
+Rscript data-raw/_scratch_validate_disp_bounds_migration.R
 ```
 
 Reproduces the Part II/III worked-numbers table (all 39 groups) and the Part

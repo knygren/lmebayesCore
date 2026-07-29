@@ -1006,6 +1006,30 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' population \code{sd_tau} coefficient shrinkage (\eqn{V_0} scaled by
 #' per-coefficient \code{pwt_j}). Also stores \code{rate} (A12 3.3.4
 #' \eqn{S_{\mathrm{marg}}}) for dev comparison only.
+#'
+#' Also folds in the Part VI extension of
+#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} -- "also integrating out
+#' the prior mean \code{mu_j}" -- with a model-derived \code{Omega_j}: each
+#' RE component's \code{mu_j[k]} stands in for the model's own conditional
+#' prior mean \code{W_j[[k]] \%*\% gamma_k} (the Block~2 hyper-regression),
+#' and \code{gamma_k}'s own calibrated uncertainty (\code{prior_list[[k]]$Sigma_fixef},
+#' already computed above in \code{Prior_Setup_lmebayes()}) propagates
+#' through group \code{j}'s own hyper-design row,
+#' \code{Omega_j[k, k] = W_j[[k]] \%*\% Sigma_fixef_k \%*\% t(W_j[[k]])}
+#' (diagonal across RE components -- each \code{gamma_k} is calibrated
+#' independently). \code{Sigma_j' = Sigma_j + Omega_j} is then used in place
+#' of \code{Sigma_j} for \code{compute_gaussian_prior()}, so the resulting
+#' \code{rate}/\code{sigma2_hat} integrate out both \code{b_j} (random
+#' effects, as before) and \code{gamma} (fixed effects, via \code{Omega_j}).
+#' This is now the permanent default (not opt-in) -- see
+#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
+#'
+#' \code{disp_lower}/\code{disp_upper} are computed here too, as literal
+#' quantiles of this same \code{Gamma(shape_ING, rate)} marginal (via
+#' \code{\link{.lmebayes_ing_prior_quantile_window}}) -- the same construction
+#' already used for the pooled \code{ing_prior_measurement} case -- rather
+#' than \code{dGamma_list()}'s former, decoupled \code{n_combined}-based
+#' window.
 #' @noRd
 .lmebayes_calibrate_ing_prior_measurement_group <- function(
     design,
@@ -1015,6 +1039,8 @@ priors_from_pfamily_list <- function(pfamily_list,
     pwt_group,
     n_prior_group,
     group_levels,
+    prior_list,
+    max_disp_perc,
     family = gaussian(),
     intercept_source = c("null_model", "full_model"),
     effects_source = c("null_effects", "full_model")
@@ -1034,6 +1060,7 @@ priors_from_pfamily_list <- function(pfamily_list,
       call. = FALSE
     )
   }
+  re_names <- design$re_coef_names
 
   stats::setNames(
     lapply(group_levels, function(lev) {
@@ -1062,8 +1089,20 @@ priors_from_pfamily_list <- function(pfamily_list,
         Sigma <- inp$V0 * outer(scale_vec, scale_vec)
       }
 
+      ## Part VI: model-derived Omega_j (fixed-effect/gamma uncertainty
+      ## about b_j's prior mean), diagonal across RE components.
+      Omega_j <- matrix(
+        0, nrow = length(inp$var_names), ncol = length(inp$var_names),
+        dimnames = list(inp$var_names, inp$var_names)
+      )
+      for (k in re_names) {
+        Wk_row        <- design$W[[k]][lev, , drop = FALSE]
+        Sigma_fixef_k <- prior_list[[k]]$Sigma_fixef
+        Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+      }
+
       cal <- .lmebayes_compute_ing_prior_cal_from_sigma(
-        inp, Sigma, n_prior_j
+        inp, Sigma + Omega_j, n_prior_j
       )
 
       .ing_stop_if_prior_exceeds_data(
@@ -1075,7 +1114,11 @@ priors_from_pfamily_list <- function(pfamily_list,
         prefix      = "Per-group measurement dispersion: "
       )
 
-      .lmebayes_ing_prior_list_from_cal(
+      win <- .lmebayes_ing_prior_quantile_window(
+        cal$shape_ING, cal$rate, max_disp_perc
+      )
+
+      out <- .lmebayes_ing_prior_list_from_cal(
         cal         = cal,
         n_prior_j   = n_prior_j,
         n_j         = inp$n_j,
@@ -1083,6 +1126,11 @@ priors_from_pfamily_list <- function(pfamily_list,
         pwt_record  = pwt_j,
         pwt_group_j = unname(pwt_group[[lev]])
       )
+      out$disp_lower    <- win$disp_lower
+      out$disp_upper    <- win$disp_upper
+      out$max_disp_perc <- max_disp_perc
+      out$omega_j       <- Omega_j
+      out
     }),
     group_levels
   )
@@ -1152,266 +1200,6 @@ priors_from_pfamily_list <- function(pfamily_list,
   }
   print(tab, row.names = FALSE)
   invisible(tab)
-}
-
-#' BLUP/OLS residual RSS inflation ratio per group (for dGamma upper bounds)
-#' @noRd
-.lmebayes_group_blup_rss_inflation <- function(
-    data,
-    block_formula,
-    fit_ref,
-    groups,
-    group_levels,
-    group_name
-) {
-  beta_blup <- .lmebayes_reference_coef(fit_ref)[[group_name]]
-  if (is.null(beta_blup)) {
-    stop(
-      "Reference fit has no random-effect levels for group '", group_name, "'.",
-      call. = FALSE
-    )
-  }
-
-  infl <- vapply(group_levels, function(lev) {
-    idx     <- groups == lev
-    dat_lev <- data[idx, , drop = FALSE]
-    Xg      <- stats::model.matrix(block_formula, data = dat_lev)
-    yg      <- stats::model.response(stats::model.frame(block_formula, data = dat_lev))
-    beta_lev <- as.numeric(beta_blup[lev, colnames(Xg), drop = FALSE])
-    resid_g  <- yg - Xg %*% beta_lev
-    RSS_blup <- sum(resid_g^2)
-    RSS_ols  <- sum(stats::residuals(stats::lm(block_formula, data = dat_lev))^2)
-    if (!is.finite(RSS_blup) || !is.finite(RSS_ols) || RSS_ols <= 0) {
-      stop(
-        "Group '", lev, "': non-finite or non-positive OLS RSS for BLUP inflation.",
-        call. = FALSE
-      )
-    }
-    if (RSS_blup < RSS_ols - sqrt(.Machine$double.eps) * max(RSS_ols, 1)) {
-      stop(
-        "Group '", lev, "': BLUP RSS (", RSS_blup, ") < OLS RSS (", RSS_ols,
-        "); inflation ratio must be >= 1.",
-        call. = FALSE
-      )
-    }
-    RSS_blup / RSS_ols
-  }, numeric(1))
-
-  stats::setNames(infl, group_levels)
-}
-
-#' Per-group envelope-centering dispersion estimate (for \code{dGamma_list()}
-#' \code{disp_center = "dispersion2"})
-#'
-#' Pure-R replica of the \code{EnvelopeCentering()} trace-correction fixed
-#' point (\code{src/EnvelopeCentering.cpp}), run \strong{without} a dispersion
-#' prior contribution so the group's own \code{n_j} observations are used
-#' exactly once (see "double-counting pitfall",
-#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part III). At a working
-#' dispersion \code{dispersion2}, the posterior mean of \code{b_j} under
-#' \code{b_j ~ N(mu_j, Sigma_ranef)} and the Gaussian likelihood is the
-#' ridge/GLS estimator \code{b2 = (X'X/dispersion2 + P)^{-1} (X'Y/dispersion2
-#' + P mu_j)}; the expected RSS under its posterior
-#' (\code{RSS_precomputed = ||Y - X b2||^2 + tr(X'X Cov(b2))}) updates
-#' \code{dispersion2 <- RSS_precomputed / (n_j - p)} to a 10-iteration (by
-#' default) fixed point.
-#' @noRd
-.lmebayes_group_dispersion2_envelope_centering <- function(
-    data,
-    block_formula,
-    Sigma_ranef,
-    groups,
-    group_levels,
-    intercept_source = c("null_model", "full_model"),
-    effects_source   = c("null_effects", "full_model"),
-    n_rss_iter = 10L
-) {
-  intercept_source <- match.arg(intercept_source)
-  effects_source   <- match.arg(effects_source)
-
-  P  <- solve(Sigma_ranef)
-  RA <- chol(P)
-
-  out <- vapply(group_levels, function(lev) {
-    idx   <- groups == lev
-    dat_j <- data[idx, , drop = FALSE]
-    X <- stats::model.matrix(block_formula, data = dat_j)
-    Y <- stats::model.response(stats::model.frame(block_formula, data = dat_j))
-    n_j <- nrow(X)
-    p   <- ncol(X)
-
-    if (n_j <= p) {
-      stop(
-        "Group '", lev, "': disp_center = \"dispersion2\" requires n_j > p ",
-        "(n_j = ", n_j, ", p = ", p, ").",
-        call. = FALSE
-      )
-    }
-
-    mu_j <- .lmebayes_block_formula_prior_mu(
-      block_formula    = block_formula,
-      dat_j            = dat_j,
-      intercept_source = intercept_source,
-      effects_source   = effects_source
-    )
-    mu_vec <- as.numeric(mu_j)
-
-    fit0 <- stats::lm.fit(X, Y)
-    rss0 <- sum(fit0$residuals^2)
-    dispersion2 <- rss0 / (n_j - p)
-
-    z_bot <- RA %*% mu_vec
-    XtX   <- t(X) %*% X
-
-    for (iter in seq_len(n_rss_iter)) {
-      s <- 1 / sqrt(dispersion2)
-      W <- rbind(s * X, RA)
-      z <- c(s * Y, z_bot)
-      Sigma_post  <- solve(t(W) %*% W)
-      b2          <- Sigma_post %*% (t(W) %*% z)
-      r           <- Y - X %*% b2
-      rss_at_mean <- sum(r^2)
-      trace_term  <- sum(diag(XtX %*% Sigma_post))
-      RSS_precomputed <- rss_at_mean + trace_term
-      dispersion2 <- RSS_precomputed / (n_j - p)
-    }
-
-    dispersion2
-  }, numeric(1))
-
-  stats::setNames(out, group_levels)
-}
-
-#' \eqn{\sigma^2} CDF under precision \eqn{1/\sigma^2 \sim \mathrm{Gamma}(\code{shape}, \code{rate})}
-#' @noRd
-.lmebayes_dgamma_sigma2_pct_under_rate <- function(sigma2, shape, rate) {
-  if (!is.finite(sigma2) || sigma2 <= 0 ||
-      !is.finite(shape) || shape <= 0 ||
-      !is.finite(rate) || rate <= 0) {
-    return(NA_real_)
-  }
-  1 - stats::pgamma(1 / sigma2, shape = shape, rate = rate)
-}
-
-#' Cross-percentiles for asymmetric per-group \code{dGamma()} truncation windows
-#'
-#' \code{disp_lower} is the nominal lower quantile under the OLS-matched rate;
-#' \code{disp_upper} under the BLUP-scaled upper rate. Returns relative-tail
-#' ratios \code{R_lo = lo_pct_BLUP/lo_pct_OLS} and
-#' \code{R_hi = hi_pct_OLS/hi_pct_BLUP}.
-#' @noRd
-.lmebayes_dgamma_window_cross_percentiles <- function(
-    shape,
-    rate_w,
-    rate_u,
-    max_disp_perc = 0.99,
-    blup_infl = NA_real_,
-    sigma2_hat = NA_real_
-) {
-  win <- .lmebayes_ing_prior_quantile_window_asymmetric(
-    shape         = shape,
-    rate_lower    = rate_w,
-    rate_upper    = rate_u,
-    max_disp_perc = max_disp_perc
-  )
-  lo <- win$disp_lower
-  hi <- win$disp_upper
-  lo_pct_ols  <- 100 * (1 - max_disp_perc)
-  hi_pct_blup <- 100 * max_disp_perc
-  lo_pct_blup <- 100 * .lmebayes_dgamma_sigma2_pct_under_rate(lo, shape, rate_u)
-  hi_pct_ols  <- 100 * .lmebayes_dgamma_sigma2_pct_under_rate(hi, shape, rate_w)
-  R_lo <- lo_pct_blup / lo_pct_ols
-  R_hi <- hi_pct_ols / hi_pct_blup
-  list(
-    disp_lower  = lo,
-    disp_upper  = hi,
-    lo_pct_OLS  = lo_pct_ols,
-    lo_pct_BLUP = lo_pct_blup,
-    hi_pct_BLUP = hi_pct_blup,
-    hi_pct_OLS  = hi_pct_ols,
-    R_lo        = R_lo,
-    R_hi        = R_hi,
-    blup_infl   = blup_infl,
-    sigma2_hat  = sigma2_hat
-  )
-}
-
-#' Flag asymmetric per-group \code{dGamma()} truncation windows
-#' @noRd
-.lmebayes_dgamma_window_asymmetric_flag <- function(
-    R_lo,
-    R_hi,
-    asymmetric_R_lo = 0.25,
-    asymmetric_R_hi = 4
-) {
-  (is.finite(R_lo) && R_lo < asymmetric_R_lo) ||
-    (is.finite(R_hi) && R_hi > asymmetric_R_hi)
-}
-
-#' Warn when per-group \code{dGamma()} window cross-percentiles indicate asymmetry
-#' @noRd
-.lmebayes_warn_dgamma_window_asymmetry <- function(
-    diag,
-    asymmetric_R_lo = 0.25,
-    asymmetric_R_hi = 4,
-    print_table = FALSE
-) {
-  if (is.null(diag) || !is.data.frame(diag) || nrow(diag) < 1L) {
-    return(invisible(diag))
-  }
-  flagged <- diag[
-    !is.na(diag$asymmetric_window) & diag$asymmetric_window,
-    ,
-    drop = FALSE
-  ]
-  if (!nrow(flagged)) {
-    return(invisible(diag))
-  }
-  warning(
-    sprintf(
-      paste0(
-        "%d group(s) with asymmetric dGamma truncation window ",
-        "(R_lo = lo_pct_BLUP/lo_pct_OLS < %g or ",
-        "R_hi = hi_pct_OLS/hi_pct_BLUP > %g): %s."
-      ),
-      nrow(flagged),
-      asymmetric_R_lo,
-      asymmetric_R_hi,
-      paste(flagged$group, collapse = ", ")
-    ),
-    call. = FALSE
-  )
-  if (isTRUE(print_table)) {
-    show_cols <- c(
-      "group", "blup_infl", "R_lo", "R_hi", "lo_pct_BLUP", "hi_pct_OLS"
-    )
-    show_cols <- intersect(show_cols, names(flagged))
-    out <- flagged[, show_cols, drop = FALSE]
-    num_cols <- vapply(out, is.numeric, logical(1L))
-    out[num_cols] <- lapply(out[num_cols], function(x) round(x, 3))
-    cat("\n--- dGamma window asymmetry (flagged groups) ---\n")
-    print(out, row.names = FALSE)
-  }
-  invisible(diag)
-}
-
-#' Approximate-posterior truncation window for per-group Block~1 \eqn{\sigma^2}
-#' @noRd
-.lmebayes_ing_prior_quantile_window_asymmetric <- function(
-    shape,
-    rate_lower,
-    rate_upper,
-    max_disp_perc = 0.99
-) {
-  win_lo <- .lmebayes_ing_prior_quantile_window(shape, rate_lower, max_disp_perc)
-  list(
-    disp_lower = win_lo$disp_lower,
-    disp_upper = 1 / stats::qgamma(
-      1 - max_disp_perc,
-      shape = shape,
-      rate  = rate_upper
-    )
-  )
 }
 
 #' Central 98% prior-mass \eqn{\sigma^2}/\eqn{\tau^2} window from calibrated precision prior

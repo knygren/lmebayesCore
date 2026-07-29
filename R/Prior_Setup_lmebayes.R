@@ -230,10 +230,21 @@
 #'     \item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
 #'       when \code{dispformula} requests per-group dispersion: named list
 #'       (one entry per group level) of per-group \code{dGamma()} density
-#'       calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate_gamma},
-#'       \code{n_prior}, \code{n_j}, \code{n_combined}, \ldots).  \code{NULL}
-#'       when \code{dispformula = ~1}.  Used by \code{\link{dGamma_list}()};
-#'       truncation bounds are assembled there.}
+#'       calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate},
+#'       \code{rate_gamma}, \code{n_prior}, \code{n_j}, \code{n_combined},
+#'       \code{disp_lower}, \code{disp_upper}, \code{max_disp_perc},
+#'       \code{omega_j}, \ldots). \code{shape_ING}/\code{rate} already fold
+#'       in the Part VI model-derived \code{Omega_j} (fixed-effect/\code{gamma}
+#'       uncertainty about \code{b_j}'s prior mean, propagated through group
+#'       \code{j}'s hyper-design row and \code{prior_list[[k]]$Sigma_fixef}),
+#'       so this marginal integrates out both random effects (\code{b_j}) and
+#'       fixed effects (\code{gamma}); see
+#'       \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
+#'       \code{disp_lower}/\code{disp_upper} are literal
+#'       \eqn{(1-\mathrm{max\_disp\_perc})}/\eqn{\mathrm{max\_disp\_perc}}
+#'       quantiles of that same \code{Gamma(shape_ING, rate)} (not a
+#'       separately-constructed window). \code{NULL} when
+#'       \code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}
 #'     \item{\code{dispformula}}{The \code{dispformula} supplied.}
 #'   }
 #' @details
@@ -742,6 +753,8 @@ Prior_Setup_lmebayes <- function(formula,
       pwt_group        = meas_group$pwt_measurement,
       n_prior_group    = meas_group$n_prior_measurement,
       group_levels     = group_levels,
+      prior_list       = prior_list,
+      max_disp_perc    = max_disp_perc,
       family           = family,
       intercept_source = intercept_source,
       effects_source   = effects_source
