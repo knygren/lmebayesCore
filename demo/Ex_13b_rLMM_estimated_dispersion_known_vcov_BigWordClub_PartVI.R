@@ -104,22 +104,34 @@ if (length(drop)) {
 }
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() (first pass) /
+##    per-group pwt_measurement calibration (2b) / Prior_Setup_lmebayes()
+##    (final, tailored -- 2c) / pfamily_list()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s per-group Block~1 calibration
 ## (ing_prior_measurement_group), consumed below by the Part VI extension
 ## (in place of Ex_13's direct dGamma_list() call).
+##
+## pwt_measurement is calibrated in two passes, same as Ex_13: 'ps_flat'
+## below uses a flat scalar (0.1) purely as input to the per-group
+## quantile-matching calibration in 2b/2c (fit_ref/Sigma_ranef/gamma_hat are
+## all independent of pwt_measurement, so ps_flat's glmmTMB reference fit is
+## identical to the final 'ps' produced in 2c). 'ps' -- the tailored,
+## per-group pwt_measurement result of 2c -- is what the Part VI derivation
+## (2d) and the sampler (Section 5) actually consume.
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$re_rank))
 
-## Same max_disp_perc = 0.8 / pwt_measurement = 0.1 as Ex_13 (Prior_Setup_
-## lmebayes()'s own per-group sigma2_hat calibration is unchanged by Part
-## VI -- only the window built from it, below, differs).
-ps <- Prior_Setup_lmebayes(
+## Same max_disp_perc = 0.8 as Ex_13 (Prior_Setup_lmebayes()'s own per-group
+## sigma2_hat calibration is unchanged by Part VI -- only the window built
+## from it, below, differs). pwt_measurement = 0.1 here is only the flat
+## first-pass input to the per-group calibration in 2b/2c below -- it is not
+## what the Part VI derivation/sampler end up using.
+ps_flat <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
   pwt             = 0.01,
@@ -127,18 +139,92 @@ ps <- Prior_Setup_lmebayes(
   max_disp_perc   = 0.8,
   pwt_measurement = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes, first pass (flat pwt_measurement) ===\n\n")
+print(ps_flat)
+
+## group_name is not a formal on the routed export; attach it to 'group'
+## instead of relying on substitute() (see .lmebayes_resolve_group_name()).
+grp <- design$group
+attr(grp, "group_name") <- design$group_name
+
+group_levels <- levels(grp)
+re_names     <- design$re_coef_names
+p_re         <- length(re_names)
+
+## ---------------------------------------------------------------------------
+## 2b. Per-group pwt_measurement large enough to bring the pre-run
+##     (noncentral, closed-form Gaussian plug-in) estimate of
+##     pct_draws_outside below a target alpha_target -- see
+##     inst/omega-ing-marginal-multivariate-t.md Section 9 and
+##     data-raw/_scratch_group_pwt_measurement_noncentral.R (temporary
+##     helper script, investigation-grade, not exported package code). Same
+##     diagnostic as Ex_13 Section 2b -- see its longer note for the
+##     rationale.
+## ---------------------------------------------------------------------------
+source("data-raw/_scratch_group_pwt_measurement_noncentral.R")
+tab_pwt <- .tmp_group_pwt_measurement_noncentral(
+  ps = ps_flat, design = design, group = grp, group_levels = group_levels,
+  re_coef_names = re_names
+)
+.tmp_print_group_pwt_measurement_noncentral(tab_pwt)
+
+w_pwt_vec <- stats::setNames(
+  tab_pwt$w_star_floored[match(group_levels, tab_pwt$group)], group_levels
+)
+cat("\npwt_measurement vector (floored at 0.1), positional order matching levels(group):\n\n")
+print(round(w_pwt_vec, 4))
+
+## ---------------------------------------------------------------------------
+## 2c. Feed w_pwt_vec into a SECOND, final Prior_Setup_lmebayes() call --
+##     same formula/data/dispformula/max_disp_perc as 'ps_flat' above, but
+##     with the tailored per-group pwt_measurement vector instead of the flat
+##     0.1 scalar. This 'ps' -- not 'ps_flat' -- is what the Part VI
+##     derivation (2d) and the sampler (Section 5) below consume.
+## ---------------------------------------------------------------------------
+ps <- Prior_Setup_lmebayes(
+  form_lmer,
+  data            = dat,
+  pwt             = 0.01,
+  dispformula     = ~school_id,
+  max_disp_perc   = 0.8,
+  pwt_measurement = w_pwt_vec
+)
+cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group pwt_measurement) ===\n\n")
 print(ps)
+
+rows_pwt_cmp <- character(0L)
+for (lev in group_levels) {
+  g1 <- ps_flat$ing_prior_measurement_group[[lev]]
+  g2 <- ps$ing_prior_measurement_group[[lev]]
+  rows_pwt_cmp <- c(rows_pwt_cmp, sprintf(
+    "  %-6s  %8.4f  %8.4f  %12.4f  %12.4f  %10.4f  %10.4f\n",
+    lev, w_pwt_vec[[lev]], g2$shape_ING, g1$rate, g2$rate, g1$disp_upper, g2$disp_upper
+  ))
+}
+cat(
+  "\n=== pwt_measurement = 0.1 (ps_flat) vs tailored (ps, final): shape/rate/disp_upper ===\n\n",
+  sprintf("  %-6s  %8s  %8s  %12s  %12s  %10s  %10s\n",
+          "group", "w_j", "shape_ING", "rate (flat)", "rate (final)",
+          "disp_up(flat)", "disp_up(final)"),
+  rows_pwt_cmp,
+  sep = ""
+)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
 ## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
 ## posterior -- no envelope/Gamma step. Also supplies Sigma_fixef below,
-## the input the Part VI Omega_j extension propagates through W.
+## the input the Part VI Omega_j extension propagates through W. Built from
+## the TAILORED 'ps' (2c) -- pf itself is invariant to pwt_measurement, but
+## this keeps it consistent with the ps that feeds everything else.
 pf <- pfamily_list(ps)
 
 ## ---------------------------------------------------------------------------
-## 2b. Part VI: per-group Block~1 measurement-dispersion prior with
+## 2d. Part VI: per-group Block~1 measurement-dispersion prior with
 ##     Omega_j folded in (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI).
+##
+## Built from the TAILORED 'ps' (2c) -- n_prior_j below (via
+## ps$ing_prior_measurement_group[[lev]]$n_prior) picks up each group's own
+## calibrated pwt_measurement automatically.
 ##
 ## Reproduces dGamma_list(ps, disp_upper_anchor = "symmetric")'s own two
 ## internal calls (.lmebayes_ing_prior_measurement_group_glm_inputs(),
@@ -232,19 +318,10 @@ print(part_vi_tab, row.names = FALSE)
 ## measurement_prior_list() expects for the fixed-vcov/estimated-vcov cases)
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
 ## (one named-by-group-level numeric vector each) -- extracted here from
-## part_vi_group (Section 2b) instead of a dGamma() pfamily list, mirroring
+## part_vi_group (Section 2d) instead of a dGamma() pfamily list, mirroring
 ## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ## ---------------------------------------------------------------------------
-
-## group_name is not a formal on the routed export; attach it to 'group'
-## instead of relying on substitute() (see .lmebayes_resolve_group_name()).
-grp <- design$group
-attr(grp, "group_name") <- design$group_name
-
-group_levels <- levels(grp)
-re_names     <- design$re_coef_names
-p_re         <- length(re_names)
 
 shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
 rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)

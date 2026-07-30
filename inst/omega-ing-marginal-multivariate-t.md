@@ -450,7 +450,113 @@ looks like from the finite-$\nu_j$ side of that spectrum.
 
 ---
 
-## 9. Conclusion
+## 9. Beyond the no-shrinkage baseline: the real, noncentral full conditional
+
+§§7-8 are a correct, closed-form, and explicitly self-limited result: $\alpha_j$
+is the exceedance probability of the *isolated* group-$j$-only posterior
+(Block~1's likelihood plus the weak $\sigma^2_j$ prior, with Block~2's
+$(\Lambda,\gamma)$ hierarchical pull switched off entirely, matching §8's own
+caveat). It is **not**, and was never claimed to be, a prediction of the real
+sampler's observed `pct_draws_outside` for a specific group -- doing that
+requires bringing $(\Lambda,\gamma)$ back in, which reintroduces exactly the
+noncentrality this section derives.
+
+### 9.1 The real full conditional is a shrinkage estimator, not centered at $\hat\beta_j^{\mathrm{ols}}$
+
+Fixing $\Omega_j$ at a plug-in value (its own Gaussian full-conditional
+structure is what makes this tractable, unlike the $\Omega_j$-integrated-out
+case of §§1-4), the real Gibbs sampler's Block~1 draw combines two Gaussian
+pieces exactly as `Prior_Setup_lmebayes.R`/`_scratch_rss_prerun_estimate.R`
+already implement:
+
+$$
+\beta_j\mid\Omega_j,\Lambda,\gamma\ \sim\ N(\mu_j,\ B_j^{-1}),\qquad
+B_j := \Omega_jD_j'D_j+\Lambda,\qquad
+\mu_j := B_j^{-1}\big(\Omega_jD_j'D_j\,\hat\beta_j^{\mathrm{ols}}+\Lambda W_j\gamma\big).
+$$
+
+Writing $e_j:=\beta_j-\hat\beta_j^{\mathrm{ols}}$, this is $e_j\sim
+N(\Delta_j,\ B_j^{-1})$ with
+
+$$
+\boxed{\ \Delta_j = B_j^{-1}\Lambda\big(W_j\gamma-\hat\beta_j^{\mathrm{ols}}\big)\ }
+$$
+
+-- the **noncentrality vector**: how far, and in which direction, the
+hierarchy pulls group $j$ away from its own OLS fit, weighted by how much
+relative precision $\Lambda$ has versus the group's own data
+($\Omega_jD_j'D_j$, inside $B_j$). This is not an add-on correction; it *is*
+partial pooling, the central mechanism of every hierarchical model in this
+package. By construction $\Delta_j$ is largest for exactly the groups whose
+$\hat\beta_j^{\mathrm{ols}}$ disagrees most with what the rest of the
+hierarchy implies -- i.e. the same groups (6, 33, 30) the ellipsoid test and
+$H_j$-violation tables have flagged as outliers all along.
+
+### 9.2 Why this does not reduce to a noncentral $F$ in general
+
+The boundary check is $q_j(\beta_j)=e_j'D_j'D_je_j\le K_j$. With
+$e_j\sim N(\Delta_j,B_j^{-1})$, $q_j$ is a **noncentral quadratic form in a
+Gaussian vector**, weighted by $D_j'D_j$ under a covariance $B_j^{-1}$ that is
+*not*, in general, proportional to $D_j'D_j$'s own eigenstructure (that would
+require $\Lambda\propto\Omega_jD_j'D_j$, not something the model guarantees).
+Consequently $q_j$ is in general a weighted sum of noncentral $\chi^2$'s (one
+per eigenvalue of $B_j^{-1/2}D_j'D_j B_j^{-1/2}$), not a single noncentral
+$\chi^2$ or $F$ -- so §7's clean, scale-free F-to-Beta pivot does **not**
+survive the shift. There is no equally simple closed form for the
+noncentral case.
+
+### 9.3 The practical resolution: simulate the real conditional directly, and reuse it for every $w_j$ at once
+
+Rather than chase a closed-form (Satterthwaite/Patnaik-style) approximation
+to a weighted noncentral $\chi^2$, `_scratch_rss_prerun_estimate.R` already
+implements the exact answer (up to Monte Carlo error and the $\Omega_j,\gamma$
+plug-in approximation, which the pre-run estimate always carries): draw
+directly from the closed-form Gaussian $N(\mu_j,B_j^{-1})$ and compute the
+empirical fraction with $q_j>K_j$. This is exact for *any* $\Lambda,\gamma$,
+with no assumption on how $D_j'D_j$ and $B_j^{-1}$ relate.
+
+**Key simplification for calibrating `pwt_measurement` group-by-group.**
+$\hat\sigma_j^2$ -- hence $\Omega_j$, $B_j$, $\mu_j$, and the entire
+*distribution* of $e_j=\beta_j-\hat\beta_j^{\mathrm{ols}}$ -- is, per §8's own
+identity, **invariant to $w_j$**; only the boundary $K_j=2r_j^0+
+\mathrm{RSS}_j^{\mathrm{ols}}$ moves as $w_j$ (hence $r_j^0$) changes. So a
+*single* Monte Carlo draw of $q_j$'s distribution per group is enough to solve
+for the $w_j$ needed to hit *any* target $\alpha^\star$, via one quantile
+lookup instead of re-simulating per candidate $w_j$:
+
+1. Simulate $q_j^{(1)},\dots,q_j^{(n_{\mathrm{sim}})}$ once, at the group's
+   *current* (any) calibration, exactly as `_scratch_rss_prerun_estimate.R`
+   already does.
+2. Read off $q_j^\star := $ the empirical $(1-\alpha^\star)$ quantile of the
+   $q_j^{(i)}$'s -- the boundary that would leave exactly $\alpha^\star$ of
+   this same, noncentrality-correct distribution outside.
+3. Invert $K_j=q_j^\star \iff r_j^{0\star} = (q_j^\star-\mathrm{RSS}_j^{\mathrm{ols}})/2$,
+   then, using $r_j^0=\hat\sigma_j^2(a_j^0-1)$ (§8, invariant to $w_j$):
+   $a_j^{0\star} = r_j^{0\star}/\hat\sigma_j^2+1$, and, using
+   $a_j^0=(n_{\mathrm{prior},j}+1)/2+p_{re}/2$:
+   $n_{\mathrm{prior},j}^\star = 2a_j^{0\star}-p_{re}-1$.
+4. $w_j^\star = \max\big(0,\ n_{\mathrm{prior},j}^\star/(n_{\mathrm{prior},j}^\star+n_j)\big)$,
+   clipped at the package's own $0.5$ per-group ceiling and flagged if that
+   ceiling binds (meaning $\alpha^\star$ is not reachable for that group via
+   `pwt_measurement` alone -- the same conclusion `Ex_13c` reached
+   empirically for groups 6/33 by excluding them instead).
+
+Because step 1's simulation doesn't depend on $w_j$ at all, this whole
+procedure is a **single pass per group**, not an iterative root-find --
+despite $q_j$ having no closed-form noncentral distribution. See
+`data-raw/_scratch_group_pwt_measurement_noncentral.R` for the
+implementation, run against `Ex_13b`'s fixture.
+
+**Caveats, inherited from `_scratch_rss_prerun_estimate.R`:** $\Omega_j$ and
+$\gamma$ are held at plug-in point estimates (the sampler's own posterior
+uncertainty in both is ignored), so this is a pre-run *approximation* to the
+sampler's true `pct_draws_outside`, not a certified value -- exactly the
+caveat already attached to the pre-run estimator itself. Unlike §7-8's
+$\alpha_j$, though, it *does* correctly reflect each group's own
+noncentrality $\Delta_j$, which is the property this section exists to
+supply.
+
+## 10. Conclusion
 
 `inst/BLOCK_GIBBS_ERGODICITY_ING.md` §16's $H_j(\beta_j)$, the
 $q_j\le2r_j^0+\mathrm{RSS}_j^{\mathrm{ols}}$ log-concavity threshold, and
@@ -474,3 +580,12 @@ under the package's actual `pwt_measurement`-driven calibration (§8) — in
 either case $\alpha_j$ improves monotonically as the prior is sharpened. No
 change to `R/two_block_ergodicity_ing_marginal.R` or to Section 16 is implied
 by this note; it is a confirmation, not a correction.
+
+§9 adds the piece $\alpha_j$ deliberately leaves out: the real sampler's
+$\beta_j$ is not centered at $\hat\beta_j^{\mathrm{ols}}$, and the resulting
+noncentrality $\Delta_j$ -- driven by the hierarchy's pull, not by $n_j$ --
+is the dominant reason a fixed-$n_j$ comparison across groups (e.g. groups
+5/6/14/24/26/40, all $n_j=11$) shows very different empirical violation
+rates despite identical $\alpha_j$. §9's Monte Carlo procedure, not §7-8's
+closed form, is the right tool for group-specific `pwt_measurement`
+calibration.

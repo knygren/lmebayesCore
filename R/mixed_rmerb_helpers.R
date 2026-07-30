@@ -720,6 +720,7 @@ priors_from_pfamily_list <- function(pfamily_list,
             call. = FALSE
           )
         }
+        names(w) <- nms
         w <- w[group_levels]
       } else {
         names(w) <- group_levels

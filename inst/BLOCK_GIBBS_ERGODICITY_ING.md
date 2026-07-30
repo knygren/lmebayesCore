@@ -1086,6 +1086,289 @@ that scan is consistent with — and partially explained by — evaluating an
 uncontrolled joint reference state rather than the marginal one this section
 derives.
 
+### 16.6 Accounting for the actual *truncated* prior: exact marginal and Hessian in terms of \(\texttt{disp\_lower}\)/\(\texttt{disp\_upper}\)
+
+**Status: theory-only, no code changes are made here.** §16.1-16.5 integrate
+\(\Omega_j\) out assuming the *untruncated*
+\(\mathrm{Gamma}(a_j^0,r_j^0)\) prior. But the prior that `dGamma_list()`
+actually hands the sampler is truncated to a bounded window
+\(\sigma_j^2\in[\texttt{disp\_lower}_j,\texttt{disp\_upper}_j]\) (an
+accept/reject envelope over that range, not the full \((0,\infty)\) support),
+which the untruncated derivation never accounts for.
+This subsection re-derives §16.2's marginal and Hessian accounting for that
+truncation exactly, in closed form, using only quantities already computed by
+`Prior_Setup_lmebayes()`/`dGamma_list()`.
+
+**Setup.** Since \(\Omega_j=1/\sigma_j^2\), the truncation on precision is the
+window with endpoints swapped:
+
+$$
+\omega_L:=1/\texttt{disp\_upper}_j,\qquad\omega_U:=1/\texttt{disp\_lower}_j.
+$$
+
+Reuse \(s_j:=a_j^0+n_j/2\) (shape, fixed) and \(t_j(\beta_j):=r_j^0+\tfrac12
+e_j'e_j\) (rate, the only \(\beta_j\)-dependence).
+
+**Exact marginal.** The joint density in \(\Omega_j\) given \(\beta_j\),
+restricted to \([\omega_L,\omega_U]\), is \(\omega^{s_j-1}
+e^{-t_j(\beta_j)\omega}\). Using the incomplete-gamma identity
+\(\int_0^x u^{k-1}e^{-tu}\,du=\Gamma(k)t^{-k}\,\texttt{pgamma}(x;k,t)\)
+(`pgamma(x, shape = k, rate = t)`, R's parameterization),
+
+$$
+p(y_j\mid\beta_j)\;\propto\;I_j(t_j)\;:=\;\Gamma(s_j)\,t_j^{-s_j}\,
+\Big[\texttt{pgamma}(\omega_U;s_j,t_j)-\texttt{pgamma}(\omega_L;s_j,t_j)\Big],
+$$
+
+i.e. the familiar Student-t kernel \(t_j^{-s_j}\) from §16.1, divided by a
+*truncation-fraction correction* \(\Delta P(s_j,t_j):=\texttt{pgamma}
+(\omega_U;s_j,t_j)-\texttt{pgamma}(\omega_L;s_j,t_j)\) — the probability the
+untruncated \(\mathrm{Gamma}(s_j,t_j)\) puts on \([\omega_L,\omega_U]\) — that
+carries all the truncation information and depends on \(\beta_j\) (through
+\(t_j\)) exactly like the kernel itself does.
+
+**Exact Hessian.** The same exponential-tilting argument that reproduces
+§16.2's formula in the untruncated case gives, for *any* mixing measure on
+\(\Omega_j\) (truncated or not),
+
+$$
+H_j(\beta_j)\;=\;E_t[\Omega_j]\,D_j'D_j\;-\;\mathrm{Var}_t[\Omega_j]\,
+(D_j'e_j)(D_j'e_j)',
+$$
+
+where \(E_t[\cdot],\mathrm{Var}_t[\cdot]\) are the mean/variance of
+\(\Omega_j\) under the tilted-and-truncated density \(\propto
+\omega^{s_j-1}e^{-t_j\omega}\) on \([\omega_L,\omega_U]\) — i.e. the truncated
+\(\mathrm{Gamma}(s_j,t_j(\beta_j))\) posterior for \(\Omega_j\) given
+\(\beta_j\), the one `dGamma()`'s Block~1 step actually draws from. The
+standard "raise the shape by 1 (or 2)" identity for incomplete-gamma moments
+gives these in closed form:
+
+$$
+E_t[\Omega_j]=\frac{s_j}{t_j}\cdot\frac{\Delta P(s_j+1,t_j)}{\Delta P(s_j,t_j)},
+\qquad
+E_t[\Omega_j^2]=\frac{s_j(s_j+1)}{t_j^2}\cdot\frac{\Delta P(s_j+2,t_j)}{\Delta P(s_j,t_j)},
+\qquad
+\mathrm{Var}_t[\Omega_j]=E_t[\Omega_j^2]-\big(E_t[\Omega_j]\big)^2.
+$$
+
+Three `pgamma()` calls (shapes \(s_j\), \(s_j+1\), \(s_j+2\), all at rate
+\(t_j(\beta_j)\)) give the exact truncated Hessian — no numerical integration,
+no approximation.
+
+**Consistency check.** As \(\texttt{disp\_lower}_j\to0\) and
+\(\texttt{disp\_upper}_j\to\infty\) (\(\omega_L\to0\), \(\omega_U\to\infty\)),
+\(\texttt{pgamma}(\omega_U;k,t)\to1\) and \(\texttt{pgamma}(\omega_L;k,t)\to0\)
+for every \(k\), so \(\Delta P(k,t)\to1\) regardless of \(k\), and the formulas
+collapse to \(E_t[\Omega_j]\to s_j/t_j\), \(\mathrm{Var}_t[\Omega_j]\to
+s_j/t_j^2\) — exactly §16.2's untruncated moments. This is a strict
+generalization, not a different model.
+
+**The degenerate limit: recovering the fixed-\(\Omega_j\) plug-in exactly.**
+At the opposite extreme, as the window collapses to a point
+(\(\texttt{disp\_lower}_j\uparrow\texttt{disp\_upper}_j\to\omega_0^{-1}\), i.e.
+\(\omega_L,\omega_U\to\omega_0\)), \(\Omega_j\) is forced to equal \(\omega_0\)
+with certainty regardless of \(t_j(\beta_j)\): \(E_t[\Omega_j]\to\omega_0\)
+and \(\mathrm{Var}_t[\Omega_j]\to0\). The rank-one correction term vanishes
+entirely and
+
+$$
+H_j(\beta_j)\;\to\;\omega_0\,D_j'D_j,
+$$
+
+exactly the ordinary *fixed*-\(\Omega_j\) Gaussian Hessian §14's joint
+extension (and the plain, non-ING fixed-vcov engine) already uses — globally
+PD whenever \(D_j\) has full column rank, with no finite-radius ellipsoid at
+all. So §16.6's family of Hessians interpolates continuously between two
+known, previously-derived extremes as the truncation window narrows or widens:
+the plug-in fixed-precision case at one end, §16.2's full (untruncated)
+Student-t at the other.
+
+**Which moment does the window width actually move?** \(E_t[\Omega_j]\) and
+\(\mathrm{Var}_t[\Omega_j]\) do not respond to the window the same way:
+
+- \(E_t[\Omega_j]\) is a *mean*. For the quantile-based windows
+  `Prior_Setup_lmebayes()` actually constructs (symmetric-ish quantiles of the
+  same untruncated \(\mathrm{Gamma}(s_j,t_j)\) around its own center),
+  widening or narrowing the window symmetrically moves probability mass off
+  *both* tails at once, and the two changes largely cancel in their effect on
+  the mean — so \(E_t[\Omega_j]\) should move comparatively little as
+  \(\texttt{max\_disp\_perc}\)/\(\texttt{pwt\_measurement}\) are varied,
+  provided the window stays reasonably centered on the untruncated
+  distribution's own mass.
+- \(\mathrm{Var}_t[\Omega_j]\), by contrast, is exactly what truncation acts
+  on directly: for nested truncation intervals sharing (approximately) the
+  same center, a *narrower* window can only remove probability mass further
+  from that center, which — for the unimodal Gamma densities in play here —
+  can only shrink the variance monotonically; a *wider* window restores mass
+  further out and grows it back, up to the untruncated \(s_j/t_j^2\) ceiling.
+  (This monotonicity is the standard "truncating a unimodal density to a
+  smaller interval around its mode cannot increase its variance" fact; it is
+  stated here as a working remark, not reproven in full generality for every
+  possible pair of nested intervals.)
+
+Combined with the §16.3-style criterion \(q_j\le E_t[\Omega_j]/
+\mathrm{Var}_t[\Omega_j]\) (dividing the PSD condition
+\(\mathrm{Var}_t[\Omega_j]\,q_j\le E_t[\Omega_j]\) through), this gives a
+direct, Hessian-level explanation for the tail-probability-level finding
+already in `inst/omega-ing-marginal-multivariate-t.md` (a sharper prior
+shrinking the expected fraction of draws outside the ellipsoid): tightening
+`disp_lower`/`disp_upper` mainly *lowers* \(\mathrm{Var}_t[\Omega_j]\) (with
+\(E_t[\Omega_j]\) roughly unchanged), which directly *raises* the effective
+threshold \(E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) on the right-hand side —
+making the log-concavity violation harder to trigger — while widening the
+window pushes the threshold back down toward §16.3's untruncated value. The
+two limits above are exactly the two ends of that same continuum: a point
+window (\(\mathrm{Var}_t\to0\)) sends the threshold to \(+\infty\) (no finite
+\(\beta_j\) can violate it), and the fully untruncated window
+(\(\mathrm{Var}_t\to s_j/t_j^2\)) recovers §16.3's finite-radius ellipsoid
+exactly.
+
+**Practical implication.** The `lambda_star_marginal`/ellipsoid diagnostics
+currently implemented (`R/two_block_ergodicity_ing_marginal.R`,
+`data-raw/_scratch_lambda_star_marginal_over_draws.R`,
+`data-raw/_scratch_rss_ellipsoid_test.R`) all use the *untruncated* §16.2/16.3
+formulas, even though the sampler they're diagnosing always runs under the
+truncated prior. Per the consistency check above, this makes them
+systematically *conservative* (they overstate how far into the tail
+\(\mathrm{Var}_t[\Omega_j]\) actually reaches, hence understate the true
+threshold and overstate the true violation probability) — not wrong, but not
+exact either. §16.6's closed form is a drop-in, exact replacement (same
+inputs, three extra `pgamma()` calls per group per draw) if that gap ever
+needs to be closed numerically; see the parent conversation for the plan to
+prototype it as a scratch comparison before considering any package change.
+
+### 16.7 The bad region is a single (untruncated) or bounded double (truncated) crossing — never more
+
+**Status: theory-only, no code changes are made here.** Fix any single
+direction \(u\) and parameterize \(\beta_j=\hat\beta_j^{\mathrm{ols}}+su\) by
+the signed distance \(s\). Because \(D_j'\hat e_j^{\mathrm{ols}}=0\), both
+\(q_j(s)\) and \(t_j(s)=r_j^0+\tfrac12e_j'e_j\) depend on \(s\) only through
+\(s^2\) (Pythagoras, §16.3), so the whole problem along this ray is an *even*
+function of \(s\) — it suffices to track \(s\ge0\).
+
+**Untruncated case: exactly one crossing, then convex forever, decaying to
+zero.** §16.2's criterion is \(q_j(s)\le E[\Omega_j\mid\beta_j]/
+\mathrm{Var}[\Omega_j\mid\beta_j]=t_j(s)/(a_j^0+n_j/2)\) — the right side is
+*linear* in \(t_j(s)\), and \(t_j(s)\), \(q_j(s)\) are both \(\Theta(s^2)\) for
+large \(s\), so the gap between the two sides, once it opens (at
+\(s=\sqrt{2r_j^0+\mathrm{RSS}_j^{\mathrm{ols}}}\) per §16.3), never closes
+again — there is exactly one crossing per side. The magnitude of the
+resulting negative eigenvalue does not diverge, though: it is
+\(\propto\mathrm{Var}[\Omega_j\mid\beta_j]\|D_j'e_j\|^2\propto
+s^2/t_j(s)^2\propto1/s^2\to0\). (This is the exact multivariate analogue of
+the univariate Student-t fact that \(f''(x)=-(\nu+1)(\nu-x^2)/(\nu+x^2)^2\)
+crosses zero once at \(x=\pm\sqrt\nu\) and then decays like \((\nu+1)/x^2\)
+without ever re-crossing; \(f'(x)=-(\nu+1)x/(\nu+x^2)\) stays strictly
+negative throughout, i.e. the log-density never "turns upward" — it only
+flattens, consistent with the Student-t's polynomial, strictly monotone
+tail.)
+
+**Truncated case: a second crossing restores PD far out.** With a *fixed*,
+nontrivial window \([\omega_L,\omega_U]\), \(\omega_L>0\), §16.6's threshold
+is \(E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\), and this no longer stays linear
+in \(t_j\) as \(t_j\to\infty\). As \(t_j\to\infty\) the tilted density
+\(\propto\omega^{s_j-1}e^{-t_j\omega}\) concentrates at the left edge
+\(\omega_L\); substituting \(\omega=\omega_L+v/t_j\), the factor
+\((\omega_L+v/t_j)^{s_j-1}\to\omega_L^{s_j-1}\) pointwise (for *any* fixed
+\(s_j\), this needs no large-shape approximation) while \(e^{-t_j\omega}=
+e^{-t_j\omega_L}e^{-v}\) sharpens into a plain \(\mathrm{Exponential}(1)\)
+shape in \(v\) — a standard boundary-Laplace argument. To leading order in
+\(1/t_j\),
+
+$$
+E_t[\Omega_j]\to\omega_L+\frac1{t_j},\qquad
+\mathrm{Var}_t[\Omega_j]\to\frac1{t_j^2},\qquad\text{so}\qquad
+\frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\;\sim\;\omega_L\,t_j^2.
+$$
+
+The threshold now grows **quadratically in \(t_j\)** (quartically in \(s\)),
+while \(q_j(s)\) still only grows like \(t_j\) (quadratically in \(s\)). A
+quartic eventually overtakes a quadratic, so the criterion \(q_j\le
+E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) — violated on some intermediate
+range — is satisfied again for \(s\) large enough. Along each ray, the sign
+pattern of \(H_j\)'s bad eigendirection is therefore
+
+$$
+\underbrace{\text{PSD}}_{|s|<x_1}\ \Big|\ \underbrace{\text{not PSD}}_{x_1\le|s|\le x_2}\ \Big|\ \underbrace{\text{PSD}}_{|s|>x_2},
+$$
+
+a **bounded** annulus \([x_1,x_2]\) per side, not a half-line — the direct
+consequence of \(\omega_L>0\) strictly (an untruncated or zero-lower-bound
+window degenerates back to the single-crossing case above, since then the
+threshold's growth rate in \(t_j\) drops from quadratic back to linear).
+
+### 16.8 A chord majorizes the bounded annulus, exactly licensed by Nygren and Nygren (2006)
+
+**Status: theory-only.** Because \(f\) (equivalently \(\log p(y_j\mid\beta_j)\)
+as a function of \(s\) along the fixed ray of §16.7) is convex on the bounded
+interval \([x_1,x_2]\), the chord joining \((x_1,f(x_1))\) and
+\((x_2,f(x_2))\) is a valid upper bound there:
+
+$$
+f(s)\;\le\;\ell(s):=f(x_1)+\frac{f(x_2)-f(x_1)}{x_2-x_1}(s-x_1),\qquad s\in[x_1,x_2],
+$$
+
+and since \(f\) is decreasing across the whole annulus (§16.7), \(\ell\) has
+negative slope, so \(p(y_j\mid\beta_j)\propto e^{f(s)}\le e^{\ell(s)}\) decays
+exponentially over the annulus with an explicit rate — no numerical
+integration needed, since \(f(x_1)\), \(f(x_2)\) come straight from §16.6's
+closed-form \(I_j(t_j)\).
+
+This device is not an ad hoc patch on top of Nygren and Nygren (2006,
+*Likelihood Subgradient Densities*, JASA 101(475):1144-1156, the paper behind
+`glmbayes`'s `EnvelopeBuild_c()`/`Gridtype` machinery documented in
+`vignettes/Chapter-A05.Rmd`) — it is a direct instance of that paper's own
+most general construction. Definition 2 there only requires a bounding
+function \(g\ge f\) for which \(-\log g\) has a subgradient (i.e. is convex)
+at the chosen point; \(g\) need not equal \(f\). Fact A.1/Remark A.2 make the
+existence criterion explicit: a valid (generalized) likelihood-subgradient
+density exists on a set if and only if \(f\) is bounded above there by a
+function of the form \(\exp(a+b^Ts)\) — exactly the form \(e^{\ell(s)}\)
+takes. Using \(g=f\) directly (as the paper's plain "likelihood-subgradient
+density" special case does, and as §16's tangent pieces below implicitly do)
+fails specifically on \([x_1,x_2]\), because \(-\log f\) is not convex there
+by construction — but \(g=e^{\ell(s)}\) succeeds, satisfying Fact A.1 exactly,
+with \(-\log g=-\ell(s)\) already affine (trivially convex, with constant
+"subgradient" equal to \(-\ell\)'s own slope everywhere on the piece).
+
+Two further points push this well past mere formal admissibility:
+
+- **Claim 1's algebra does not care where \(c\) came from.** For a
+  multivariate normal prior, any fixed subgradient vector \(c(\bar\theta)\)
+  produces a restricted density that is again multivariate normal with mean
+  \(\tilde\mu=\mu-\Sigma c(\bar\theta)\), regardless of whether \(c\) is a
+  genuine gradient \(-\nabla\log f(\bar\theta)\) (a tangent, valid on the
+  concave pieces) or the chord's constant slope (valid, via Fact A.1, on the
+  bounded convex annulus). So Remark 5's restriction/renormalization,
+  Remark 6's explicit mixture-weight formula, and Example 2's inverse-
+  transform sampling of a box-truncated normal (Claim 2's whole apparatus)
+  all apply *unchanged* to a chord-anchored piece — no new sampling machinery
+  is required, only a different (constant, not state-dependent) \(c\).
+- **The resulting partition is a direct five-piece generalization of §3.2's
+  three-piece construction**, alternating tangent/chord/tangent/chord/tangent
+  along each ray: two far-tail tangent pieces (PD restored, §16.7), two
+  bounded chord pieces (the annuli), and one center tangent piece — mirroring
+  \(\{\theta^\ast-\omega,\theta^\ast,\theta^\ast+\omega\}\)'s three anchors
+  with the five anchors \(\{-x_2,-x_1,\theta^\ast,x_1,x_2\}\).
+
+**What does *not* transfer for free.** Theorem 2/3's specific asymptotic
+result (\(\tilde a\to2/\sqrt\pi\) as \(N\to\infty\)) is proved (Appendix,
+Claims A.1-A.4) via a Mills'-ratio argument tied to the tangent-only,
+Gaussian-data construction; the analogous tightness limit for a chord piece
+(as \(n_j\to\infty\), or as \([\omega_L,\omega_U]\) is varied) would need its
+own derivation from §16.6's exact marginal, not inherited automatically.
+Likewise, §3.3's multivariate "standard form" diagonalizes the Hessian
+*once*, at the mode — a fixed matrix — whereas here the bad eigendirection
+\(v(\beta_j)=D_j'D_j(\hat\beta_j^{\mathrm{ols}}-\beta_j)\) is state-dependent
+(rotates with \(\beta_j\) in general, though it stays fixed in direction along
+any single ray from \(\hat\beta_j^{\mathrm{ols}}\), per §16.7's setup); a
+literal multivariate five-piece grid would need either a direction-uniform
+worst-case pair of annulus radii or a genuinely per-direction construction,
+neither of which is derived here. This section remains, like §16.1-16.7, a
+diagnostic/theoretical note only — nothing here is implemented in
+`R/two_block_ergodicity_ing_marginal.R` or elsewhere.
+
 ---
 
 ## 17. A split-support heuristic for a revised end-of-simulation TV bound
@@ -1237,6 +1520,12 @@ empirical estimate versus from the \(\hat p\) itself.
   normal densities with applications to two-block Gibbs samplers.*
   Unpublished manuscript. (source of Claims 1-3, Remark 8, Theorem 3,
   Corollary 1; see `R/two_block_ergodicity.R`.)
+- Nygren, K.N. and Nygren, L.M. (2006). "Likelihood Subgradient Densities."
+  *Journal of the American Statistical Association*, 101(475), 1144-1156.
+  (source of Definition 1/2, Fact A.1, Claim 1/2, Theorem 1/2/3 cited in
+  §16.8's chord-majorization argument; implemented for `glmbayes`'s
+  log-concave GLM samplers in `EnvelopeBuild_c()`, documented in
+  `vignettes/Chapter-A05.Rmd`.)
 - See also `inst/BLOCK_GIBBS_ERGODICITY.md` (rank-deficiency / identifiability
   theory this note's §8 data-free-group remark connects back to) and
   `inst/notation.md` (the \(D,\mathcal{W},\beta,\gamma,\Psi\) notation used
