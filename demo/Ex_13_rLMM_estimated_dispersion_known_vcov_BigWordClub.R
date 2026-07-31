@@ -101,15 +101,16 @@ cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$re_rank))
 
-## max_disp_perc = 0.8 (tighter than the 0.99 package default). disp_lower/
-## disp_upper are now computed by Prior_Setup_lmebayes() itself, as literal
-## quantiles of the same Gamma(shape_ING, rate) marginal fed to the sampler
-## -- including the Part VI model-derived Omega_j fold-in
+## max_disp_perc_measurement = 0.8 (tighter than the 0.99 package default).
+## disp_lower/disp_upper are now computed by Prior_Setup_lmebayes() itself,
+## as literal quantiles of the same Gamma(shape_ING, rate) marginal fed to
+## the sampler -- including the Part VI model-derived Omega_j fold-in
 ## (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI), which is now the
-## permanent default (see dGamma_list()'s roxygen). Without max_disp_perc
-## tightened here, several small schools get disp_upper/disp_lower ratios
-## wide enough to stall rindepNormalGamma_reg()'s per-group accept/reject
-## envelope indefinitely. pwt_measurement = 0.1 here is only the flat
+## permanent default (see dGamma_list()'s roxygen). Without
+## max_disp_perc_measurement tightened here, several small schools get
+## disp_upper/disp_lower ratios wide enough to stall
+## rindepNormalGamma_reg()'s per-group accept/reject envelope indefinitely.
+## pwt_measurement = 0.1 here is only the flat
 ## first-pass input to the per-group calibration in 2b/2c below -- it is not
 ## what the sampler ends up using.
 ps_flat <- Prior_Setup_lmebayes(
@@ -117,7 +118,7 @@ ps_flat <- Prior_Setup_lmebayes(
   data            = dat,
   pwt             = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc   = 0.8,
+  max_disp_perc_measurement = 0.8,
   pwt_measurement = 0.1
 )
 cat("\n=== Prior_Setup_lmebayes, first pass (flat pwt_measurement) ===\n\n")
@@ -176,14 +177,15 @@ tab_pwt <- .tmp_group_pwt_measurement_noncentral(
 .tmp_print_group_pwt_measurement_noncentral(tab_pwt)
 
 w_pwt_vec <- stats::setNames(
-  tab_pwt$w_star_floored[match(group_levels, tab_pwt$group)], group_levels
+  tab_pwt$w_star_exact_floored[match(group_levels, tab_pwt$group)], group_levels
 )
 cat("\npwt_measurement vector (floored at 0.1), positional order matching levels(group):\n\n")
 print(round(w_pwt_vec, 4))
 
 ## ---------------------------------------------------------------------------
 ## 2c. Feed w_pwt_vec into a SECOND, final Prior_Setup_lmebayes() call --
-##     same formula/data/dispformula/max_disp_perc as 'ps_flat' above, but
+##     same formula/data/dispformula/max_disp_perc_measurement as 'ps_flat'
+##     above, but
 ##     with the tailored per-group pwt_measurement vector instead of the flat
 ##     0.1 scalar. sigma2_hat is invariant to pwt_measurement
 ##     (Section 9.3), so only shape_ING/rate (hence disp_lower/disp_upper)
@@ -196,7 +198,7 @@ ps <- Prior_Setup_lmebayes(
   data            = dat,
   pwt             = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc   = 0.8,
+  max_disp_perc_measurement = 0.8,
   pwt_measurement = w_pwt_vec
 )
 cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group pwt_measurement) ===\n\n")
@@ -246,9 +248,10 @@ pf <- pfamily_list(ps)
 ## One dGamma() pfamily per group level: each school_id gets its own
 ## sigma^2_j prior (shape/rate from the Part VI marginal, which already
 ## integrates out both b_j and gamma; disp_lower/disp_upper are quantiles
-## of that same Gamma, already stored on ps -- max_disp_perc here just
-## needs to match the value used above, or it would trigger a recompute).
-disp_pf_list <- dGamma_list(ps, max_disp_perc = 0.8)
+## of that same Gamma, already stored on ps -- max_disp_perc_measurement
+## here just needs to match the value used above, or it would trigger a
+## recompute).
+disp_pf_list <- dGamma_list(ps, max_disp_perc_measurement = 0.8)
 
 shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
 rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
@@ -319,14 +322,16 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
 source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
 
 tab_13 <- .tmp_rss_ellipsoid_test(
-  fit           = fit,
-  D             = design$D,
-  y             = design$y,
-  group         = grp,
-  group_name    = design$group_name,
-  re_coef_names = re_names,
-  shape_group   = shape_group,
-  rate_group    = rate_group
+  fit               = fit,
+  D                 = design$D,
+  y                 = design$y,
+  group             = grp,
+  group_name        = design$group_name,
+  re_coef_names     = re_names,
+  shape_group       = shape_group,
+  rate_group        = rate_group,
+  disp_lower_group  = disp_lower_group,
+  disp_upper_group  = disp_upper_group
 )
 print(tab_13[order(tab_13$p_value), ], row.names = FALSE, digits = 4)
 
@@ -572,7 +577,8 @@ inp_marg <- lmebayesCore:::.two_block_rate_inputs(
 blocks_marg <- lmebayesCore:::.two_block_S_P11(inp_marg)
 group_setup_marg <- .tmp_marginal_group_setup(
   D = design$D, y = design$y, group = grp, group_levels = group_levels,
-  re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group
+  re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group,
+  omega_L_group = 1 / disp_upper_group, omega_U_group = 1 / disp_lower_group
 )
 res_marg <- .tmp_lambda_star_marginal_over_draws(
   fit = fit, n_draws = n_draws, y = design$y,

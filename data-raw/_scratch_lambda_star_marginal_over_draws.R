@@ -1,19 +1,28 @@
 ## TEMPORARY / SCRATCH -- investigation only, not package code.
 ##
 ## "Gradual development" step 1: a system-wide lambda_star built from the
-## exact Omega_j-MARGINALIZED (Section 16.2) per-group Hessian, instead of
-## the fixed-Omega_j plug-in `two_block_rate()` uses (the "base" lambda_star)
-## or the joint-state extension `two_block_rate_ing()` uses (the "extended"
-## lambda_star, which differentiates but never integrates Omega_j out):
+## EXACT, truncation-aware Omega_j-MARGINALIZED (Section 16.6) per-group
+## Hessian, instead of the fixed-Omega_j plug-in `two_block_rate()` uses (the
+## "base" lambda_star) or the joint-state extension `two_block_rate_ing()`
+## uses (the "extended" lambda_star, which differentiates but never
+## integrates Omega_j out):
 ##
-##   H_j(beta_j) = Omega_j^eff * D_j'D_j
-##                 - (Omega_j^eff)^2 / (a_j^0 + n_j/2) * (D_j'e_j)(D_j'e_j)'
-##   Omega_j^eff(beta_j) = (a_j^0 + n_j/2) / (r_j^0 + 0.5 * e_j'e_j)
+##   H_j(beta_j) = E_t[Omega_j] * D_j'D_j - Var_t[Omega_j] * (D_j'e_j)(D_j'e_j)'
 ##   e_j = y_j - D_j * beta_j
+##   E_t[Omega_j], Var_t[Omega_j] = truncated Gamma(shape_j, rate_j(beta_j))
+##     moments on [omega_L_j, omega_U_j] = [1/disp_upper_j, 1/disp_lower_j],
+##     via lmebayesCore:::.two_block_truncated_omega_moments() (Section 16.6).
 ##
+## shape_j = a_j^0 + n_j/2 and rate_j(beta_j) = r_j^0 + 0.5*e_j'e_j, where
 ## a_j^0/r_j^0 are the group's Block~1 ING Gamma PRIOR shape/rate (the same
 ## shape_group/rate_group already used by _scratch_rss_ellipsoid_test.R's
-## threshold = 2*r0_j + RSS_ols_j).
+## threshold = 2*r0_j + RSS_ols_j -- that fixed threshold is the UNTRUNCATED
+## Section 16.3 criterion, still reported below as h_violates_count for
+## comparison; the exact, state-dependent criterion is h_violates_count_exact).
+##
+## As omega_L_j -> 0 and omega_U_j -> Inf (untruncated), E_t[Omega_j] ->
+## Omega_j^eff = (a_j^0+n_j/2)/(r_j^0+0.5*e_j'e_j) and Var_t[Omega_j] ->
+## (Omega_j^eff)^2/(a_j^0+n_j/2), recovering the old formula exactly.
 ##
 ## See inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 16 for the derivation and
 ## Section 16.5 for why this is a genuinely different diagnostic from the
@@ -49,7 +58,8 @@
 ## reproduce that script's pct_draws_outside per group as a sanity check.
 ## ---------------------------------------------------------------------------
 .tmp_marginal_group_setup <- function(D, y, group, group_levels, re_coef_names,
-                                       shape_group, rate_group) {
+                                       shape_group, rate_group,
+                                       omega_L_group, omega_U_group) {
   group_chr <- as.character(group)
   stats::setNames(lapply(group_levels, function(lev) {
     idx <- which(group_chr == lev)
@@ -62,7 +72,8 @@
       rows = idx, D_j = D_j, DtD = DtD, n_j = length(idx),
       beta_ols = beta_ols, RSS_ols = RSS_ols,
       a0 = shape_group[[lev]], r0 = rate_group[[lev]],
-      threshold = 2 * rate_group[[lev]] + RSS_ols
+      threshold = 2 * rate_group[[lev]] + RSS_ols,
+      omega_L = omega_L_group[[lev]], omega_U = omega_U_group[[lev]]
     )
   }), group_levels)
 }
@@ -92,11 +103,13 @@
   group_levels  <- inp$group_levels
   co_group_chr  <- as.character(co[[group_name]])
 
-  lambda_star_vec  <- rep(NA_real_, n_draws)
-  skipped          <- logical(n_draws)
-  failing_groups   <- vector("list", n_draws)
-  h_violates_count <- stats::setNames(integer(length(group_levels)), group_levels)
-  pd_fail_count    <- stats::setNames(integer(length(group_levels)), group_levels)
+  lambda_star_vec        <- rep(NA_real_, n_draws)
+  skipped                <- logical(n_draws)
+  failing_groups         <- vector("list", n_draws)
+  h_violates_count       <- stats::setNames(integer(length(group_levels)), group_levels)
+  h_violates_count_exact <- stats::setNames(integer(length(group_levels)), group_levels)
+  moments_fail_count     <- stats::setNames(integer(length(group_levels)), group_levels)
+  pd_fail_count          <- stats::setNames(integer(length(group_levels)), group_levels)
   lambda_star_max  <- -Inf
   i_max            <- NA_integer_
   n_over_one       <- 0L
@@ -117,17 +130,34 @@
       ete  <- sum(e_j^2)
       Dte  <- as.vector(crossprod(gs$D_j, e_j))
 
-      ## Section 16.3 raw criterion (H_j alone, ignoring Lambda) -- reported
-      ## for comparison against .tmp_rss_ellipsoid_test()'s q_j/threshold
-      ## (q_j = e_j'e_j - RSS_ols_j exactly, via the Pythagorean OLS split).
+      ## Section 16.3 raw criterion (H_j alone, ignoring Lambda), UNTRUNCATED
+      ## -- reported for comparison against .tmp_rss_ellipsoid_test()'s
+      ## q_j/threshold (q_j = e_j'e_j - RSS_ols_j exactly, via the
+      ## Pythagorean OLS split).
       q_j <- ete - gs$RSS_ols
       if (q_j > gs$threshold) {
         h_violates_count[[lev]] <- h_violates_count[[lev]] + 1L
       }
 
-      Omega_eff <- (gs$a0 + gs$n_j / 2) / (gs$r0 + 0.5 * ete)
-      H_j <- Omega_eff * gs$DtD -
-        (Omega_eff^2 / (gs$a0 + gs$n_j / 2)) * outer(Dte, Dte)
+      ## Section 16.6 EXACT (truncation-aware) moments at this draw's own
+      ## rate t_j = r0_j + 0.5*e_j'e_j.
+      shape_j <- gs$a0 + gs$n_j / 2
+      rate_j  <- gs$r0 + 0.5 * ete
+      mom <- lmebayesCore:::.two_block_truncated_omega_moments(
+        shape_j, rate_j, gs$omega_L, gs$omega_U
+      )
+
+      if (!isTRUE(mom$ok)) {
+        ok <- FALSE
+        fail_this <- c(fail_this, lev)
+        moments_fail_count[[lev]] <- moments_fail_count[[lev]] + 1L
+        next
+      }
+      if (q_j > mom$E_omega / mom$Var_omega) {
+        h_violates_count_exact[[lev]] <- h_violates_count_exact[[lev]] + 1L
+      }
+
+      H_j <- mom$E_omega * gs$DtD - mom$Var_omega * outer(Dte, Dte)
       B_j <- P_b + H_j
       B_j <- 0.5 * (B_j + t(B_j))
 
@@ -167,16 +197,18 @@
   }
 
   list(
-    lambda_star_vec  = lambda_star_vec,
-    skipped          = skipped,
-    n_skipped        = sum(skipped),
-    failing_groups    = failing_groups,
-    h_violates_count = h_violates_count,
-    pd_fail_count    = pd_fail_count,
-    lambda_star_max  = lambda_star_max,
-    i_max            = i_max,
-    n_over_one       = n_over_one,
-    n_draws          = n_draws
+    lambda_star_vec        = lambda_star_vec,
+    skipped                = skipped,
+    n_skipped              = sum(skipped),
+    failing_groups         = failing_groups,
+    h_violates_count       = h_violates_count,
+    h_violates_count_exact = h_violates_count_exact,
+    moments_fail_count     = moments_fail_count,
+    pd_fail_count          = pd_fail_count,
+    lambda_star_max        = lambda_star_max,
+    i_max                  = i_max,
+    n_over_one             = n_over_one,
+    n_draws                = n_draws
   )
 }
 
@@ -204,12 +236,30 @@
   h_tab <- res$h_violates_count[res$h_violates_count > 0L]
   h_tab <- sort(h_tab, decreasing = TRUE)
   cat(sprintf(
-    "\n  Section 16.3 raw H_j (Lambda-free) violations, %d groups nonzero:\n",
+    "\n  Section 16.3 raw H_j (Lambda-free) violations, UNTRUNCATED, %d groups nonzero:\n",
     length(h_tab)
   ))
   for (nm in names(h_tab)) {
     cat(sprintf("    %-6s  %d / %d draws (%.1f%%)\n",
                 nm, h_tab[[nm]], res$n_draws, 100 * h_tab[[nm]] / res$n_draws))
+  }
+  he_tab <- res$h_violates_count_exact[res$h_violates_count_exact > 0L]
+  he_tab <- sort(he_tab, decreasing = TRUE)
+  cat(sprintf(
+    "\n  Section 16.6 raw H_j (Lambda-free) violations, EXACT/truncated, %d groups nonzero:\n",
+    length(he_tab)
+  ))
+  for (nm in names(he_tab)) {
+    cat(sprintf("    %-6s  %d / %d draws (%.1f%%)\n",
+                nm, he_tab[[nm]], res$n_draws, 100 * he_tab[[nm]] / res$n_draws))
+  }
+  if (sum(res$moments_fail_count) > 0L) {
+    mf_tab <- res$moments_fail_count[res$moments_fail_count > 0L]
+    mf_tab <- sort(mf_tab, decreasing = TRUE)
+    cat("\n  groups with a near-degenerate truncated-moments window (count of draws):\n")
+    for (nm in names(mf_tab)) {
+      cat(sprintf("    %-6s  %d\n", nm, mf_tab[[nm]]))
+    }
   }
   if (n_ok > 0L) {
     lv <- res$lambda_star_vec[!res$skipped]
@@ -245,7 +295,8 @@
 ##   blocks <- lmebayesCore:::.two_block_S_P11(inp)
 ##   group_setup <- .tmp_marginal_group_setup(
 ##     D = design$D, y = design$y, group = grp, group_levels = group_levels,
-##     re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group
+##     re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group,
+##     omega_L_group = 1 / disp_upper_group, omega_U_group = 1 / disp_lower_group
 ##   )
 ##   res <- .tmp_lambda_star_marginal_over_draws(
 ##     fit = fit, n_draws = n_draws, y = design$y,

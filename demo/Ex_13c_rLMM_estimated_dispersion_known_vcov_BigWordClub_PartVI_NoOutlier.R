@@ -108,7 +108,7 @@ cat("\n=== model_setup (full-rank schools only, outlier groups 6 and 33 excluded
 print(design)
 stopifnot(all(design$re_rank))
 
-## Same max_disp_perc = 0.8 / pwt_measurement = 0.1 as Ex_13/Ex_13b (Prior_
+## Same max_disp_perc_measurement = 0.8 / pwt_measurement = 0.1 as Ex_13/Ex_13b (Prior_
 ## Setup_lmebayes()'s own per-group sigma2_hat calibration is unchanged by
 ## Part VI -- only the window built from it, below, differs).
 ps <- Prior_Setup_lmebayes(
@@ -116,7 +116,7 @@ ps <- Prior_Setup_lmebayes(
   data            = dat,
   pwt             = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc   = 0.8,
+  max_disp_perc_measurement = 0.8,
   pwt_measurement = 0.1
 )
 cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
@@ -306,14 +306,16 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
 source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
 
 tab_13c <- .tmp_rss_ellipsoid_test(
-  fit           = fit,
-  D             = design$D,
-  y             = design$y,
-  group         = grp,
-  group_name    = design$group_name,
-  re_coef_names = re_names,
-  shape_group   = shape_group,
-  rate_group    = rate_group
+  fit               = fit,
+  D                 = design$D,
+  y                 = design$y,
+  group             = grp,
+  group_name        = design$group_name,
+  re_coef_names     = re_names,
+  shape_group       = shape_group,
+  rate_group        = rate_group,
+  disp_lower_group  = disp_lower_group,
+  disp_upper_group  = disp_upper_group
 )
 print(tab_13c[order(tab_13c$p_value), ], row.names = FALSE, digits = 4)
 
@@ -544,7 +546,8 @@ inp_marg <- lmebayesCore:::.two_block_rate_inputs(
 blocks_marg <- lmebayesCore:::.two_block_S_P11(inp_marg)
 group_setup_marg <- .tmp_marginal_group_setup(
   D = design$D, y = design$y, group = grp, group_levels = group_levels,
-  re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group
+  re_coef_names = re_names, shape_group = shape_group, rate_group = rate_group,
+  omega_L_group = 1 / disp_upper_group, omega_U_group = 1 / disp_lower_group
 )
 res_marg <- .tmp_lambda_star_marginal_over_draws(
   fit = fit, n_draws = n_draws, y = design$y,

@@ -21,11 +21,15 @@
 #'
 #' @param object An object of class \code{"lmebayes_prior_setup"} as returned
 #'   by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).
-#' @param max_disp_perc Scalar in \eqn{(0.5, 1)}; defaults to
-#'   \code{object$max_disp_perc} (the value the stored \code{disp_lower}/
-#'   \code{disp_upper} bounds were calibrated with). Supplying a different
-#'   value recomputes the bounds as fresh quantiles of the same
-#'   \code{Gamma(shape_ING, rate)} for every group.
+#' @param max_disp_perc_measurement \code{NULL} (default), a scalar in
+#'   \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
+#'   per group level). \code{NULL} reuses each group's own stored
+#'   \code{disp_lower}/\code{disp_upper} (the value
+#'   \code{object$ing_prior_measurement_group[[lev]]$max_disp_perc} was
+#'   calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
+#'   scalar or vector recomputes the bounds as fresh quantiles of the same
+#'   \code{Gamma(shape_ING, rate)}, per group, for every group whose
+#'   resolved value differs from its own stored one.
 #' @param ... Currently ignored.
 #'
 #' @return A named list of \code{"pfamily"} objects keyed by group levels,
@@ -64,7 +68,7 @@
 #' @method dGamma_list lmebayes_prior_setup
 dGamma_list.lmebayes_prior_setup <- function(
     object,
-    max_disp_perc = NULL,
+    max_disp_perc_measurement = NULL,
     ...
 ) {
   if (!identical(object$family$family, "gaussian")) {
@@ -86,28 +90,22 @@ dGamma_list.lmebayes_prior_setup <- function(
     )
   }
 
-  if (is.null(max_disp_perc)) {
-    max_disp_perc <- object$max_disp_perc
-  }
-  if (is.null(max_disp_perc)) {
-    max_disp_perc <- 0.99
-  }
-  if (!is.numeric(max_disp_perc) || length(max_disp_perc) != 1L ||
-      is.na(max_disp_perc) || max_disp_perc <= 0.5 || max_disp_perc >= 1) {
-    stop("'max_disp_perc' must be a scalar in (0.5, 1).", call. = FALSE)
-  }
-
   group_levels <- names(ing_grp)
   if (is.null(group_levels)) {
     group_levels <- levels(object$design$group)
     names(ing_grp) <- group_levels
   }
 
-  ## The bounds stored on ing_grp were computed at object$max_disp_perc; if
-  ## the caller asks for a different max_disp_perc here, recompute them as
-  ## fresh quantiles of the same Gamma(shape_ING, rate) rather than reusing
-  ## the stored ones.
-  recompute <- !isTRUE(all.equal(max_disp_perc, object$max_disp_perc))
+  ## NULL: reuse each group's own stored max_disp_perc (no override, no
+  ## recompute). Supplied: resolve to a per-group vector (scalar recycled,
+  ## or a length-J vector) and recompute per group below.
+  mdp_override <- if (!is.null(max_disp_perc_measurement)) {
+    .lmebayes_expand_scalar_or_vector(
+      max_disp_perc_measurement, group_levels, "max_disp_perc_measurement"
+    )
+  } else {
+    NULL
+  }
 
   diag_rows <- vector("list", length(group_levels))
   out <- stats::setNames(
@@ -115,9 +113,20 @@ dGamma_list.lmebayes_prior_setup <- function(
       lev <- group_levels[[i]]
       g <- ing_grp[[lev]]
 
+      ## The bounds stored on g were computed at g$max_disp_perc; if the
+      ## caller asks for a different value for this group, recompute fresh
+      ## quantiles of the same Gamma(shape_ING, rate) rather than reusing
+      ## the stored ones.
+      mdp_lev <- if (!is.null(mdp_override)) {
+        unname(mdp_override[[lev]])
+      } else {
+        g$max_disp_perc
+      }
+      recompute <- !isTRUE(all.equal(mdp_lev, g$max_disp_perc))
+
       if (recompute || is.null(g$disp_lower) || is.null(g$disp_upper)) {
         win <- .lmebayes_ing_prior_quantile_window(
-          g$shape_ING, g$rate, max_disp_perc
+          g$shape_ING, g$rate, mdp_lev
         )
         disp_lower <- win$disp_lower
         disp_upper <- win$disp_upper
@@ -127,13 +136,14 @@ dGamma_list.lmebayes_prior_setup <- function(
       }
 
       diag_rows[[i]] <<- data.frame(
-        group      = lev,
-        n_j        = g$n_j,
-        sigma2_hat = unname(g$sigma2_hat),
-        shape_ING  = unname(g$shape_ING),
-        rate       = unname(g$rate),
-        disp_lower = disp_lower,
-        disp_upper = disp_upper,
+        group         = lev,
+        n_j           = g$n_j,
+        sigma2_hat    = unname(g$sigma2_hat),
+        shape_ING     = unname(g$shape_ING),
+        rate          = unname(g$rate),
+        max_disp_perc = mdp_lev,
+        disp_lower    = disp_lower,
+        disp_upper    = disp_upper,
         stringsAsFactors = FALSE
       )
 
@@ -142,7 +152,7 @@ dGamma_list.lmebayes_prior_setup <- function(
         rate           = g$rate,
         beta           = matrix(0, 1, 1, dimnames = list("(Intercept)", NULL)),
         Inv_Dispersion = TRUE,
-        max_disp_perc  = max_disp_perc,
+        max_disp_perc  = mdp_lev,
         disp_lower     = disp_lower,
         disp_upper     = disp_upper
       )

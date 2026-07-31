@@ -15,7 +15,8 @@ Prior_Setup_lmebayes(
   pwt_measurement = NULL,
   n_prior_measurement = NULL,
   dispformula = ~1,
-  max_disp_perc = 0.99,
+  max_disp_perc_measurement = 0.99,
+  max_disp_perc_dispersion = 0.99,
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model")
 )
@@ -103,18 +104,32 @@ group formula; \code{dispformula = ~1} skips it entirely, so
 analogous choice of sampler route; the two are independent arguments
 that must be kept consistent by the caller.}
 
-\item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
-Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
-\eqn{\tau^2_k} (Block~2) truncation windows stored in
-\code{ing_prior_measurement} and \code{ing_prior} respectively.
-The window is the central \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
-mass interval: \code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc})}
-quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc}} quantile
-of the relevant Gamma (precision) distribution, inverted to the
+\item{max_disp_perc_measurement}{Scalar in \eqn{(0.5, 1)}, default
+\code{0.99}, or a named/positional length-\eqn{J} vector (one value per
+group level, Gaussian models with per-group \code{dispformula} only).
+Tail probability used to compute the Block~1 \eqn{\sigma^2} truncation
+windows stored in \code{ing_prior_measurement} (pooled; always the
+scalar default when a vector is supplied here) and
+\code{ing_prior_measurement_group} (per group, using the resolved
+per-group value).  The window is the central
+\eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} mass interval:
+\code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc\_measurement})}
+quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc\_measurement}}
+quantile of the relevant Gamma (precision) distribution, inverted to the
 dispersion scale.  Tighter values (e.g.\ \code{0.95}) shrink the
 truncation window and typically improve Block~1 acceptance rates at the
 cost of slightly less envelope coverage; looser values (e.g.\ \code{0.999})
-widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as \code{max_disp_perc}.}
+widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as
+\code{max_disp_perc}.  A per-group vector lets outlier groups be given a
+tighter (or looser) window than the rest; see \code{dGamma_list()}.}
+
+\item{max_disp_perc_dispersion}{Scalar in \eqn{(0.5, 1)}, default
+\code{0.99}, or a named/positional length-\eqn{p_{\mathrm{re}}} vector
+(one value per random-effect component).  Same tail-probability role as
+\code{max_disp_perc_measurement}, but for the Block~2 \eqn{\tau^2_k}
+truncation window stored in \code{ing_prior}.  Only operationally
+consumed when the sampler's dispersion \code{pfamily} is
+\code{dIndependent_Normal_Gamma} (ignored for \code{dNormal}).}
 
 \item{intercept_source}{Character string controlling the prior mean for the
 global intercept hyperparameter \code{(Intercept)::(Intercept)} only.
@@ -173,8 +188,19 @@ Used by \code{dGamma_list()}.}
 fit; shared population RE standard deviations for per-group calibration.}
 \item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
 (reference for \code{dGamma_list()} diagnostics).}
-\item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
-the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
+\item{\code{max_disp_perc_measurement}}{Gaussian models only: the
+\code{max_disp_perc_measurement} value used for the pooled Block~1
+\eqn{\sigma^2} truncation window (\code{ing_prior_measurement}) --
+the scalar as supplied, or the resolved length-\eqn{J} vector when a
+vector was supplied (mirrors \code{pwt_measurement}).}
+\item{\code{max_disp_perc_measurement_group}}{Gaussian models only:
+named length-\eqn{J} vector of resolved per-group values feeding
+\code{ing_prior_measurement_group} (always present, even when a
+scalar was supplied).}
+\item{\code{max_disp_perc_dispersion}}{Named length-\eqn{p_{\mathrm{re}}}
+vector of resolved per-component values used for the Block~2
+\eqn{\tau^2_k} truncation windows in \code{ing_prior} (always
+present).}
 \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 \item{\code{mer_fit}}{Reference \code{lmer}/\code{glmer} fit on all
 groups (the full-formula fit from \code{\link{model_setup}}), always
@@ -213,13 +239,14 @@ calibration with \eqn{n_0 =} \code{n_prior_dispersion}; since
 inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
 \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
 window \code{disp_lower} / \code{disp_upper}: the
-\eqn{(1-\mathrm{max\_disp\_perc})} / \eqn{\mathrm{max\_disp\_perc}}
+\eqn{(1-\mathrm{max\_disp\_perc\_dispersion})} /
+\eqn{\mathrm{max\_disp\_perc\_dispersion}}
 quantiles of the \emph{limiting posterior}
 \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
 precision (lmebayesCore Chapter A12, Theorem 2; inverted to a
 \eqn{\tau^2} interval).  This window is identical for all
-\eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+\eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc\_dispersion} - 1}
 of the exact posterior for every prior strength, and keeps the
 envelope sampler's cost stable as priors weaken; see
 \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
@@ -235,8 +262,10 @@ mean-matched \code{shape} / \code{rate} with
 \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
 \eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
 \code{disp_lower} / \code{disp_upper} as the central
-\eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
-the same calibrated \code{shape}/\code{rate}.  Pass these fields to
+\eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} prior-mass
+interval from the same calibrated \code{shape}/\code{rate} (always
+the pooled/scalar \code{max_disp_perc_measurement} value, even when
+a per-group vector was supplied).  Pass these fields to
 \code{\link[glmbayesCore]{dGamma}()}.}
 \item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
 when \code{dispformula} requests per-group dispersion: named list
@@ -252,9 +281,11 @@ so this marginal integrates out both random effects (\code{b_j}) and
 fixed effects (\code{gamma}); see
 \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
 \code{disp_lower}/\code{disp_upper} are literal
-\eqn{(1-\mathrm{max\_disp\_perc})}/\eqn{\mathrm{max\_disp\_perc}}
-quantiles of that same \code{Gamma(shape_ING, rate)} (not a
-separately-constructed window). \code{NULL} when
+\eqn{(1-w_j)}/\eqn{w_j} quantiles of that same
+\code{Gamma(shape_ING, rate)} (not a separately-constructed window),
+where \eqn{w_j} is this group's own resolved
+\code{max_disp_perc_measurement} value (stored per-group as
+\code{max_disp_perc}). \code{NULL} when
 \code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}
 \item{\code{dispformula}}{The \code{dispformula} supplied.}
 }

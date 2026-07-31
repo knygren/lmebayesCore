@@ -72,9 +72,9 @@ message(sprintf(
 ## ---------------------------------------------------------------------------
 ps <- Prior_Setup_lmebayes(
   form, data = dat, pwt = 0.01, pwt_measurement = 0.1,
-  max_disp_perc = max_disp_perc, dispformula = ~school_id
+  max_disp_perc_measurement = max_disp_perc, dispformula = ~school_id
 )
-disp_pf_current <- dGamma_list(ps, max_disp_perc = max_disp_perc, warn_asymmetric = FALSE)
+disp_pf_current <- dGamma_list(ps, max_disp_perc_measurement = max_disp_perc, warn_asymmetric = FALSE)
 window_diag <- attr(disp_pf_current, "window_diagnostics")
 
 ing_grp       <- ps$ing_prior_measurement_group

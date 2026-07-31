@@ -18,7 +18,7 @@ group_levels <- levels(block)
 
 raw_lambda <- function(ps) {
   pf <- pfamily_list(ps)
-  disp_pf <- dGamma_list(ps, max_disp_perc = 0.8, warn_asymmetric = FALSE)
+  disp_pf <- dGamma_list(ps, max_disp_perc_measurement = 0.8, warn_asymmetric = FALSE)
   ing <- ps$ing_prior_measurement_group
   P <- solve(ps$Sigma_ranef)
   ing_prior_list <- list(
@@ -60,7 +60,7 @@ raw_lambda <- function(ps) {
 
 ps_tmb <- Prior_Setup_lmebayes(
   form, data = dat, pwt = 0.05, pwt_measurement = 0.1,
-  max_disp_perc = 0.8, dispformula = ~school_id
+  max_disp_perc_measurement = 0.8, dispformula = ~school_id
 )
 vc_lmer <- 4.7937^2  # lme4 REML on this fixture (see manual reference print)
 
@@ -75,7 +75,7 @@ cat("lme4 slope var:", vc_lmer,
 
 ps_pool <- Prior_Setup_lmebayes(
   form, data = dat, pwt = 0.05, pwt_measurement = 0.1,
-  max_disp_perc = 0.8, dispformula = ~1
+  max_disp_perc_measurement = 0.8, dispformula = ~1
 )
 cat("pooled lme4 slope var:", ps_pool$Sigma_ranef[2, 2],
     " lambda* =", raw_lambda(ps_pool), "\n")

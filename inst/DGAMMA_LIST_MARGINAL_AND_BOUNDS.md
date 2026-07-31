@@ -31,7 +31,9 @@ upstream.** Two things changed after Parts II/III/V below were written; see
    separate, `n_combined,j`-based `shape_w`/`rate_w` (Part II's construction,
    with the `disp_center = "dispersion2"` alternative from Part III). They
    are now computed once inside `Prior_Setup_lmebayes()`, as literal
-   `(1-max_disp_perc)`/`max_disp_perc` quantiles of the **same**
+   `(1-max_disp_perc_measurement)`/`max_disp_perc_measurement` quantiles
+   (scalar, or a per-group vector -- see `Prior_Setup_lmebayes()`'s
+   `max_disp_perc_measurement` argument) of the **same**
    `Gamma(shape_ING,j, rate,j)` that is the actual sampling prior (the
    Part-VI-extended one) -- i.e. a truncated version of the real prior,
    not a separately-mean-matched window. `dGamma_list()` now just reads
@@ -786,11 +788,19 @@ whole central mass around it), with no separate spread parameter
 `dGamma_list.lmebayes_prior_setup()` (`R/dGamma_list_lmebayes_prior_setup.R`)
 is now a thin consumer: for each group it reads
 `g$shape_ING`/`g$rate`/`g$disp_lower`/`g$disp_upper` off
-`object$ing_prior_measurement_group` and calls `dGamma()` directly. Passing
-a `max_disp_perc` that differs from `object$max_disp_perc` recomputes fresh
-quantiles of the same `Gamma(shape_ING,j, rate,j)` (still no separate
-window-shape parameter); passing the same value (or omitting it) reuses the
-stored bounds verbatim. The `disp_center`, `disp_upper_anchor`, and
+`object$ing_prior_measurement_group` and calls `dGamma()` directly. Its
+override argument is `max_disp_perc_measurement` (`NULL` by default), a
+scalar or a named/positional length-`J` vector (one value per group level,
+via the same `.lmebayes_expand_scalar_or_vector()` resolver used inside
+`Prior_Setup_lmebayes()`). `NULL` (the default) reuses every group's own
+stored `g$max_disp_perc` bounds verbatim; supplying a scalar or vector
+recomputes fresh quantiles of the same `Gamma(shape_ING,j, rate,j)` for
+every group whose resolved override differs from its own stored
+`g$max_disp_perc` (a **per-group** comparison, not a single top-level
+`object$max_disp_perc` field -- `Prior_Setup_lmebayes()` itself now accepts
+`max_disp_perc_measurement` as a scalar or per-group vector too, so
+different groups can already carry different stored windows before
+`dGamma_list()` is even called). The `disp_center`, `disp_upper_anchor`, and
 `n_rss_iter` arguments (Parts II/III) have been **removed** from the
 function's formal signature -- callers who still pass them get a silent
 no-op (absorbed by `...`), not an error, since `dGamma_list()` keeps a `...`
@@ -814,9 +824,9 @@ hand-rolled reproduction of this same Part VI derivation (which called
 _scratch_validate_disp_bounds_migration.R` additionally checks: every
 group's `sigma2_hat,j` lands inside its own `[disp_lower,j, disp_upper,j]`;
 `dGamma_list(ps)`'s returned `pfamily` objects carry the stored
-shape/rate/bounds verbatim; a different `max_disp_perc` triggers a
-recompute (narrower window at a looser `max_disp_perc`, as expected); and
-the now-removed `disp_center`/`disp_upper_anchor`/`n_rss_iter`/
+shape/rate/bounds verbatim; a different `max_disp_perc_measurement` triggers
+a recompute (narrower window at a looser `max_disp_perc_measurement`, as
+expected); and the now-removed `disp_center`/`disp_upper_anchor`/`n_rss_iter`/
 `warn_asymmetric` arguments are silently accepted without error.
 
 ---

@@ -39,10 +39,10 @@ stopifnot(all(design$re_rank))
 
 ps <- Prior_Setup_lmebayes(
   form_lmer, data = dat, pwt = 0.01, dispformula = ~school_id,
-  max_disp_perc = 0.8, pwt_measurement = 0.1
+  max_disp_perc_measurement = 0.8, pwt_measurement = 0.1
 )
 pf <- pfamily_list(ps)
-disp_pf_list <- dGamma_list(ps, max_disp_perc = 0.8)
+disp_pf_list <- dGamma_list(ps, max_disp_perc_measurement = 0.8)
 
 grp <- design$group
 attr(grp, "group_name") <- design$group_name

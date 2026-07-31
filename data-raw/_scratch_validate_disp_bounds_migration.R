@@ -43,7 +43,7 @@ ps <- Prior_Setup_lmebayes(
   data            = dat,
   pwt             = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc   = 0.8,
+  max_disp_perc_measurement = 0.8,
   pwt_measurement = 0.1
 )
 
@@ -86,14 +86,15 @@ cat("\n=== 3. window_diagnostics attribute (lightweight) ===\n\n")
 print(head(wd), row.names = FALSE)
 stopifnot(nrow(wd) == length(pf))
 
-## Recompute at a different max_disp_perc: should trigger a fresh quantile
-## calculation (not just echo the stored 0.8-calibrated bounds).
-cat("\n=== 4. Different max_disp_perc triggers a recompute ===\n\n")
-pf95 <- dGamma_list(ps, max_disp_perc = 0.95)
+## Recompute at a different max_disp_perc_measurement: should trigger a
+## fresh quantile calculation (not just echo the stored 0.8-calibrated
+## bounds).
+cat("\n=== 4. Different max_disp_perc_measurement triggers a recompute ===\n\n")
+pf95 <- dGamma_list(ps, max_disp_perc_measurement = 0.95)
 lo80 <- ps$ing_prior_measurement_group[[g_lev]]$disp_lower
 lo95 <- pf95[[g_lev]]$prior_list$disp_lower
-cat(sprintf("disp_lower at max_disp_perc = 0.80: %.4f\n", lo80))
-cat(sprintf("disp_lower at max_disp_perc = 0.95: %.4f\n", lo95))
+cat(sprintf("disp_lower at max_disp_perc_measurement = 0.80: %.4f\n", lo80))
+cat(sprintf("disp_lower at max_disp_perc_measurement = 0.95: %.4f\n", lo95))
 stopifnot(lo95 < lo80)  # wider window -> lower disp_lower
 
 ## Passing the removed disp_center/disp_upper_anchor args should be silently

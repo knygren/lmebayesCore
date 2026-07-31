@@ -26,10 +26,10 @@ for (pwt_meas in c(0.05, 0.1, 0.49)) {
   cat("\n--- pwt_measurement =", pwt_meas, "---\n")
   ps <- lmebayes::Prior_Setup_lmebayes(
     form, data = dat, pwt = 0.05, pwt_measurement = pwt_meas,
-    max_disp_perc = 0.8, dispformula = ~school_id
+    max_disp_perc_measurement = 0.8, dispformula = ~school_id
   )
   pf <- lmebayes::pfamily_list(ps)
-  disp_pf <- lmebayes::dGamma_list(ps, max_disp_perc = 0.8, warn_asymmetric = FALSE)
+  disp_pf <- lmebayes::dGamma_list(ps, max_disp_perc_measurement = 0.8, warn_asymmetric = FALSE)
   ing <- ps$ing_prior_measurement_group
   P <- solve(ps$Sigma_ranef)
 

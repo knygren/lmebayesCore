@@ -1071,9 +1071,11 @@ follow, requiring no knowledge of \(D_j\)'s leverage structure or of
 ### 16.5 Relationship to the current implementation and the Ex_13 empirical finding
 
 This is a *different* diagnostic angle from §14-15's joint extension, not a
-refinement of it — no code currently implements the marginal system of
-§16.1-16.4 (matching the theory-only status of §12-13). It does, however,
-explain a finding from the empirical "scan every main-stage draw" diagnostic
+refinement of it. §16.1-16.4's untruncated formulas are, since §16.6, present
+in code only as a conservative comparison branch alongside the exact
+truncated one (never as the primary criterion — see §16.6's "Practical
+implication"). It does, however, explain a finding from the empirical "scan
+every main-stage draw" diagnostic
 (the `.two_block_rate_ing_over_draws()` helper used by
 `demo("Ex_13_...")`/`demo("Ex_13b_...")`/`demo("Ex_14_...")`): that diagnostic
 plugs each draw's independently-sampled \((\beta_j^{(i)},\Omega_j^{(i)})\)
@@ -1088,16 +1090,29 @@ derives.
 
 ### 16.6 Accounting for the actual *truncated* prior: exact marginal and Hessian in terms of \(\texttt{disp\_lower}\)/\(\texttt{disp\_upper}\)
 
-**Status: theory-only, no code changes are made here.** §16.1-16.5 integrate
-\(\Omega_j\) out assuming the *untruncated*
-\(\mathrm{Gamma}(a_j^0,r_j^0)\) prior. But the prior that `dGamma_list()`
-actually hands the sampler is truncated to a bounded window
+**Status: implemented.** §16.1-16.5 integrate \(\Omega_j\) out assuming the
+*untruncated* \(\mathrm{Gamma}(a_j^0,r_j^0)\) prior. But the prior that
+`dGamma_list()` actually hands the sampler is truncated to a bounded window
 \(\sigma_j^2\in[\texttt{disp\_lower}_j,\texttt{disp\_upper}_j]\) (an
 accept/reject envelope over that range, not the full \((0,\infty)\) support),
 which the untruncated derivation never accounts for.
 This subsection re-derives §16.2's marginal and Hessian accounting for that
 truncation exactly, in closed form, using only quantities already computed by
-`Prior_Setup_lmebayes()`/`dGamma_list()`.
+`Prior_Setup_lmebayes()`/`dGamma_list()`. The exact formulas below are now
+wired into the eigenvalue/`lambda_star_marginal` machinery at three call
+sites: the internal helper `.two_block_truncated_omega_moments()`
+(`R/two_block_ergodicity_ing_marginal.R`), which
+`.two_block_lambda_star_marginal_over_draws()` (the real safeguard inside
+`rLMMindepNormalGamma_reg_known_vcov()`, `known_vcov` engine only) now calls
+in place of the old fixed-\(\Omega_j^{\mathrm{eff}}\) formula; its scratch
+mirror `.tmp_lambda_star_marginal_over_draws()`
+(`data-raw/_scratch_lambda_star_marginal_over_draws.R`); and the per-draw
+ellipsoid test `.tmp_rss_ellipsoid_test()`
+(`data-raw/_scratch_rss_ellipsoid_test.R`), which now reports both the
+UNTRUNCATED (legacy, `pct_draws_outside`) and EXACT (`pct_draws_outside_exact`)
+violation rates side by side. The untruncated formulas are kept everywhere as
+a conservative comparison column, per the "Practical implication" paragraph
+below.
 
 **Setup.** Since \(\Omega_j=1/\sigma_j^2\), the truncation on precision is the
 window with endpoints swapped:
@@ -1225,18 +1240,28 @@ window (\(\mathrm{Var}_t\to0\)) sends the threshold to \(+\infty\) (no finite
 exactly.
 
 **Practical implication.** The `lambda_star_marginal`/ellipsoid diagnostics
-currently implemented (`R/two_block_ergodicity_ing_marginal.R`,
+(`R/two_block_ergodicity_ing_marginal.R`,
 `data-raw/_scratch_lambda_star_marginal_over_draws.R`,
-`data-raw/_scratch_rss_ellipsoid_test.R`) all use the *untruncated* §16.2/16.3
-formulas, even though the sampler they're diagnosing always runs under the
-truncated prior. Per the consistency check above, this makes them
-systematically *conservative* (they overstate how far into the tail
-\(\mathrm{Var}_t[\Omega_j]\) actually reaches, hence understate the true
-threshold and overstate the true violation probability) — not wrong, but not
-exact either. §16.6's closed form is a drop-in, exact replacement (same
-inputs, three extra `pgamma()` calls per group per draw) if that gap ever
-needs to be closed numerically; see the parent conversation for the plan to
-prototype it as a scratch comparison before considering any package change.
+`data-raw/_scratch_rss_ellipsoid_test.R`) now compute the *exact*, truncation-
+aware §16.6 Hessian/threshold by default (three extra `pgamma()` calls per
+group per draw via `.two_block_truncated_omega_moments()`), and additionally
+report the old *untruncated* §16.2/16.3 numbers alongside for comparison
+(`h_violates_count` vs. `h_violates_count_exact` in the `lambda_star_marginal`
+diagnostics; `pct_draws_outside` vs. `pct_draws_outside_exact` in the
+ellipsoid test). Per the consistency check above, the untruncated numbers are
+systematically *conservative* relative to the exact ones (they overstate how
+far into the tail \(\mathrm{Var}_t[\Omega_j]\) actually reaches, hence
+understate the true threshold and overstate the true violation probability).
+Empirically (see `demo("Ex_13b_...")`/`demo("Ex_13c_...")`'s Section 7d/2b),
+the effect is often large: under the current `Prior_Setup_lmebayes()` default
+window (\(\texttt{max\_disp\_perc}=0.8\), i.e. the central 60% prior-mass
+window), even previously-flagged outlier groups can show an exact violation
+rate of essentially \(0\%\) although their *untruncated* rate was several
+percent — i.e. once the truncation is accounted for exactly, the per-group
+`pwt_measurement` tailoring of §9 (`inst/omega-ing-marginal-multivariate-t.md`)
+may no longer be necessary at the package's default truncation window; see
+`data-raw/_scratch_group_pwt_measurement_noncentral.R`'s `w_star_exact` column
+for the corresponding per-group re-derivation.
 
 ### 16.7 The bad region is a single (untruncated) or bounded double (truncated) crossing — never more
 

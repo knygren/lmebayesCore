@@ -64,13 +64,13 @@ ps <- Prior_Setup_lmebayes(
   data            = dat,
   pwt             = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc   = 0.8,
+  max_disp_perc_measurement = 0.8,
   pwt_measurement = 0.1
 )
 
 disp_pf_list <- dGamma_list(
   ps,
-  max_disp_perc     = 0.8,
+  max_disp_perc_measurement = 0.8,
   disp_upper_anchor = "symmetric"
 )
 

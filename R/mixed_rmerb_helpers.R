@@ -584,6 +584,63 @@ priors_from_pfamily_list <- function(pfamily_list,
   )
 }
 
+#' Expand a scalar-or-length-\eqn{N} argument into a named length-\eqn{N} vector
+#'
+#' Shared "scalar or one value per named unit" resolver used for arguments
+#' that can be supplied either as a single number (recycled to every unit in
+#' \code{names_ref}) or as a length-\eqn{N} numeric vector (named, matching
+#' \code{names_ref} in any order, or positional). Generalizes the \code{expand()}
+#' closure in \code{.lmebayes_resolve_disp_prior()} and the \code{check_w()} /
+#' recycling logic in \code{.lmebayes_resolve_measurement_disp_prior_group()}
+#' so both Block~1 (per-group) and Block~2 (per-RE-component) "scalar or
+#' vector" arguments -- and \code{dGamma_list()}'s override -- share one
+#' validation path.
+#' @noRd
+.lmebayes_expand_scalar_or_vector <- function(x, names_ref, what,
+                                               range = c(0.5, 1)) {
+  n <- length(names_ref)
+  check_range <- function(v) {
+    if (!is.numeric(v) || anyNA(v) || any(v <= range[1]) || any(v >= range[2])) {
+      stop(
+        sprintf(
+          "'%s' must be numeric with all values in (%s, %s).",
+          what, range[1], range[2]
+        ),
+        call. = FALSE
+      )
+    }
+  }
+
+  if (length(x) == 1L) {
+    check_range(x)
+    v <- rep(as.numeric(x), n)
+  } else if (length(x) == n) {
+    check_range(x)
+    v <- as.numeric(x)
+    nms <- names(x)
+    if (!is.null(nms) && any(nzchar(nms))) {
+      if (!setequal(nms, names_ref)) {
+        stop(
+          sprintf(
+            "Names of '%s' must match: %s.",
+            what, paste(names_ref, collapse = ", ")
+          ),
+          call. = FALSE
+        )
+      }
+      names(v) <- nms
+      v <- v[names_ref]
+    }
+  } else {
+    stop(
+      sprintf("'%s' must have length 1 or %d.", what, n),
+      call. = FALSE
+    )
+  }
+
+  stats::setNames(v, names_ref)
+}
+
 #' Resolve Block~1 \eqn{\sigma^2} prior weight into observation-scale \code{n_prior}.
 #'
 #' \eqn{n_{\mathrm{prior}} = w/(1-w)\times n} with \eqn{w =} \code{pwt_measurement}.
@@ -1041,7 +1098,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     n_prior_group,
     group_levels,
     prior_list,
-    max_disp_perc,
+    max_disp_perc_group,
     family = gaussian(),
     intercept_source = c("null_model", "full_model"),
     effects_source = c("null_effects", "full_model")
@@ -1115,8 +1172,9 @@ priors_from_pfamily_list <- function(pfamily_list,
         prefix      = "Per-group measurement dispersion: "
       )
 
+      mdp_j <- unname(max_disp_perc_group[[lev]])
       win <- .lmebayes_ing_prior_quantile_window(
-        cal$shape_ING, cal$rate, max_disp_perc
+        cal$shape_ING, cal$rate, mdp_j
       )
 
       out <- .lmebayes_ing_prior_list_from_cal(
@@ -1129,7 +1187,7 @@ priors_from_pfamily_list <- function(pfamily_list,
       )
       out$disp_lower    <- win$disp_lower
       out$disp_upper    <- win$disp_upper
-      out$max_disp_perc <- max_disp_perc
+      out$max_disp_perc <- mdp_j
       out$omega_j       <- Omega_j
       out
     }),

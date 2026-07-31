@@ -97,18 +97,31 @@
 #'   \code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}, which gates the
 #'   analogous choice of sampler route; the two are independent arguments
 #'   that must be kept consistent by the caller.
-#' @param max_disp_perc Scalar in \eqn{(0.5, 1)}, default \code{0.99}.
-#'   Tail probability used to compute the \eqn{\sigma^2} (Block~1) and
-#'   \eqn{\tau^2_k} (Block~2) truncation windows stored in
-#'   \code{ing_prior_measurement} and \code{ing_prior} respectively.
-#'   The window is the central \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
-#'   mass interval: \code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc})}
-#'   quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc}} quantile
-#'   of the relevant Gamma (precision) distribution, inverted to the
+#' @param max_disp_perc_measurement Scalar in \eqn{(0.5, 1)}, default
+#'   \code{0.99}, or a named/positional length-\eqn{J} vector (one value per
+#'   group level, Gaussian models with per-group \code{dispformula} only).
+#'   Tail probability used to compute the Block~1 \eqn{\sigma^2} truncation
+#'   windows stored in \code{ing_prior_measurement} (pooled; always the
+#'   scalar default when a vector is supplied here) and
+#'   \code{ing_prior_measurement_group} (per group, using the resolved
+#'   per-group value).  The window is the central
+#'   \eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} mass interval:
+#'   \code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc\_measurement})}
+#'   quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc\_measurement}}
+#'   quantile of the relevant Gamma (precision) distribution, inverted to the
 #'   dispersion scale.  Tighter values (e.g.\ \code{0.95}) shrink the
 #'   truncation window and typically improve Block~1 acceptance rates at the
 #'   cost of slightly less envelope coverage; looser values (e.g.\ \code{0.999})
-#'   widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as \code{max_disp_perc}.
+#'   widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as
+#'   \code{max_disp_perc}.  A per-group vector lets outlier groups be given a
+#'   tighter (or looser) window than the rest; see \code{dGamma_list()}.
+#' @param max_disp_perc_dispersion Scalar in \eqn{(0.5, 1)}, default
+#'   \code{0.99}, or a named/positional length-\eqn{p_{\mathrm{re}}} vector
+#'   (one value per random-effect component).  Same tail-probability role as
+#'   \code{max_disp_perc_measurement}, but for the Block~2 \eqn{\tau^2_k}
+#'   truncation window stored in \code{ing_prior}.  Only operationally
+#'   consumed when the sampler's dispersion \code{pfamily} is
+#'   \code{dIndependent_Normal_Gamma} (ignored for \code{dNormal}).
 #' @param n_prior_dispersion Optional \emph{absolute} effective prior sample
 #'   size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion prior.
 #'   A positive scalar, or a list / numeric vector with one value per
@@ -162,8 +175,19 @@
 #'       fit; shared population RE standard deviations for per-group calibration.}
 #'     \item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
 #'       (reference for \code{dGamma_list()} diagnostics).}
-#'     \item{\code{max_disp_perc}}{The \code{max_disp_perc} value used for both
-#'       the \eqn{\sigma^2} and \eqn{\tau^2_k} truncation windows.}
+#'     \item{\code{max_disp_perc_measurement}}{Gaussian models only: the
+#'       \code{max_disp_perc_measurement} value used for the pooled Block~1
+#'       \eqn{\sigma^2} truncation window (\code{ing_prior_measurement}) --
+#'       the scalar as supplied, or the resolved length-\eqn{J} vector when a
+#'       vector was supplied (mirrors \code{pwt_measurement}).}
+#'     \item{\code{max_disp_perc_measurement_group}}{Gaussian models only:
+#'       named length-\eqn{J} vector of resolved per-group values feeding
+#'       \code{ing_prior_measurement_group} (always present, even when a
+#'       scalar was supplied).}
+#'     \item{\code{max_disp_perc_dispersion}}{Named length-\eqn{p_{\mathrm{re}}}
+#'       vector of resolved per-component values used for the Block~2
+#'       \eqn{\tau^2_k} truncation windows in \code{ing_prior} (always
+#'       present).}
 #'     \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 #'     \item{\code{mer_fit}}{Reference \code{lmer}/\code{glmer} fit on all
 #'       groups (the full-formula fit from \code{\link{model_setup}}), always
@@ -202,13 +226,14 @@
 #'       inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
 #'       \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
 #'       window \code{disp_lower} / \code{disp_upper}: the
-#'       \eqn{(1-\mathrm{max\_disp\_perc})} / \eqn{\mathrm{max\_disp\_perc}}
+#'       \eqn{(1-\mathrm{max\_disp\_perc\_dispersion})} /
+#'       \eqn{\mathrm{max\_disp\_perc\_dispersion}}
 #'       quantiles of the \emph{limiting posterior}
 #'       \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 #'       (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
 #'       precision (lmebayesCore Chapter A12, Theorem 2; inverted to a
 #'       \eqn{\tau^2} interval).  This window is identical for all
-#'       \eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc} - 1}
+#'       \eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc\_dispersion} - 1}
 #'       of the exact posterior for every prior strength, and keeps the
 #'       envelope sampler's cost stable as priors weaken; see
 #'       \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
@@ -224,8 +249,10 @@
 #'       \code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
 #'       \eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
 #'       \code{disp_lower} / \code{disp_upper} as the central
-#'       \eqn{2 \times \mathrm{max\_disp\_perc} - 1} prior-mass interval from
-#'       the same calibrated \code{shape}/\code{rate}.  Pass these fields to
+#'       \eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} prior-mass
+#'       interval from the same calibrated \code{shape}/\code{rate} (always
+#'       the pooled/scalar \code{max_disp_perc_measurement} value, even when
+#'       a per-group vector was supplied).  Pass these fields to
 #'       \code{\link[glmbayesCore]{dGamma}()}.}
 #'     \item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
 #'       when \code{dispformula} requests per-group dispersion: named list
@@ -241,9 +268,11 @@
 #'       fixed effects (\code{gamma}); see
 #'       \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
 #'       \code{disp_lower}/\code{disp_upper} are literal
-#'       \eqn{(1-\mathrm{max\_disp\_perc})}/\eqn{\mathrm{max\_disp\_perc}}
-#'       quantiles of that same \code{Gamma(shape_ING, rate)} (not a
-#'       separately-constructed window). \code{NULL} when
+#'       \eqn{(1-w_j)}/\eqn{w_j} quantiles of that same
+#'       \code{Gamma(shape_ING, rate)} (not a separately-constructed window),
+#'       where \eqn{w_j} is this group's own resolved
+#'       \code{max_disp_perc_measurement} value (stored per-group as
+#'       \code{max_disp_perc}). \code{NULL} when
 #'       \code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}
 #'     \item{\code{dispformula}}{The \code{dispformula} supplied.}
 #'   }
@@ -279,20 +308,13 @@ Prior_Setup_lmebayes <- function(formula,
                                  pwt_measurement = NULL,
                                  n_prior_measurement = NULL,
                                  dispformula = ~1,
-                                 max_disp_perc = 0.99,
+                                 max_disp_perc_measurement = 0.99,
+                                 max_disp_perc_dispersion = 0.99,
                                  intercept_source = c("null_model", "full_model"),
                                  effects_source   = c("null_effects", "full_model")) {
 
   intercept_source <- match.arg(intercept_source)
   effects_source   <- match.arg(effects_source)
-
-  if (!is.numeric(max_disp_perc) || length(max_disp_perc) != 1L ||
-      is.na(max_disp_perc) || max_disp_perc <= 0.5 || max_disp_perc >= 1) {
-    stop(
-      "'max_disp_perc' must be a scalar in (0.5, 1).",
-      call. = FALSE
-    )
-  }
 
   if (!inherits(formula, "formula")) {
     stop("'formula' must be a formula.", call. = FALSE)
@@ -364,11 +386,12 @@ Prior_Setup_lmebayes <- function(formula,
     dispformula, design$group_name
   )
   if (identical(dispformula_kind, "pooled") && is_gaussian &&
-      (length(pwt_measurement) > 1L || length(n_prior_measurement) > 1L)) {
+      (length(pwt_measurement) > 1L || length(n_prior_measurement) > 1L ||
+       length(max_disp_perc_measurement) > 1L)) {
     stop(
-      "'pwt_measurement'/'n_prior_measurement' has more than one value ",
-      "(per-group), but dispformula = ~1 (pooled); use ",
-      "dispformula = ~", design$group_name, " to calibrate per-group ",
+      "'pwt_measurement'/'n_prior_measurement'/'max_disp_perc_measurement' ",
+      "has more than one value (per-group), but dispformula = ~1 (pooled); ",
+      "use dispformula = ~", design$group_name, " to calibrate per-group ",
       "measurement-dispersion priors for dGamma_list().",
       call. = FALSE
     )
@@ -669,16 +692,20 @@ Prior_Setup_lmebayes <- function(formula,
   ## weak-prior (n0 -> 0) limit of the Block 2 posterior Gamma:
   ##   a_inf = (J + 1)/2,  b_inf = tau2_k * (J - 1)/2
   ## (so b_inf/(a_inf - 1) = tau2_k: mean-matched, like the prior).  The
-  ## window uses max_disp_perc (default 0.99) for the central
-  ## (2*max_disp_perc - 1) mass interval.  Quantiles of the *prior* would
-  ## stretch without bound as n0 -> 0 (posterior coverage -> 100%, envelope
-  ## acceptance -> 0); the limiting-posterior window instead has coverage >=
-  ## (2*max_disp_perc - 1) of the exact posterior for every n0 (the finite-n0
-  ## posterior is strictly more concentrated than the limit), is identical for
-  ## all n0, and keeps the envelope sampler's candidates-per-draw roughly
-  ## constant as priors weaken.  See inst/ING_TRUNCATION_WINDOW.md.
-  ## Stored here so print() can display the window and pfamily_list()
-  ## consumes one source of truth.
+  ## window uses max_disp_perc_dispersion (default 0.99, scalar or one value
+  ## per random-effect component) for the central
+  ## (2*max_disp_perc_dispersion - 1) mass interval.  Quantiles of the
+  ## *prior* would stretch without bound as n0 -> 0 (posterior coverage ->
+  ## 100%, envelope acceptance -> 0); the limiting-posterior window instead
+  ## has coverage >= (2*max_disp_perc_dispersion - 1) of the exact posterior
+  ## for every n0 (the finite-n0 posterior is strictly more concentrated
+  ## than the limit), is identical for all n0, and keeps the envelope
+  ## sampler's candidates-per-draw roughly constant as priors weaken.  See
+  ## inst/ING_TRUNCATION_WINDOW.md.  Stored here so print() can display the
+  ## window and pfamily_list() consumes one source of truth.
+  mdp_dispersion <- .lmebayes_expand_scalar_or_vector(
+    max_disp_perc_dispersion, re_names, "max_disp_perc_dispersion"
+  )
   ing_prior <- stats::setNames(
     lapply(re_names, function(k) {
       n0_k    <- unname(disp$n_prior_dispersion[[k]])
@@ -686,14 +713,15 @@ Prior_Setup_lmebayes <- function(formula,
       tau2_k  <- unname(prior_list[[k]]$dispersion_fixef)
       shape_k <- (n0_k + 1) / 2 + p_k / 2
       rate_k  <- tau2_k * (n0_k + p_k - 1) / 2
+      mdp_k   <- unname(mdp_dispersion[[k]])
       win_k <- .lmebayes_ing_limiting_posterior_window(tau2_k, J_groups,
-                                                       max_disp_perc)
+                                                       mdp_k)
       list(
         shape         = shape_k,
         rate          = rate_k,
         disp_lower    = win_k$disp_lower,
         disp_upper    = win_k$disp_upper,
-        max_disp_perc = max_disp_perc
+        max_disp_perc = mdp_k
       )
     }),
     re_names
@@ -701,6 +729,8 @@ Prior_Setup_lmebayes <- function(formula,
 
   ing_prior_measurement <- NULL
   meas <- NULL
+  mdp_meas_vector       <- length(max_disp_perc_measurement) > 1L
+  mdp_measurement_pooled <- NULL
   if (is_gaussian) {
     n_obs <- length(design$y)
     pwt_meas_vector <- !is.null(pwt_measurement) && length(pwt_measurement) > 1L
@@ -715,11 +745,31 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_measurement = n_prior_measurement,
       n_obs               = n_obs
     )
+
+    ## Mirrors pwt_measurement's own pooled-vs-vector split: a per-group
+    ## max_disp_perc_measurement vector leaves the *pooled* ing_prior_measurement
+    ## window at the package default (0.99) -- the vector only ever tailors
+    ## the per-group ing_prior_measurement_group calibration below.
+    if (mdp_meas_vector) {
+      mdp_measurement_pooled <- 0.99
+    } else {
+      mdp_measurement_pooled <- as.numeric(max_disp_perc_measurement)
+      if (length(mdp_measurement_pooled) != 1L || is.na(mdp_measurement_pooled) ||
+          mdp_measurement_pooled <= 0.5 || mdp_measurement_pooled >= 1) {
+        stop(
+          "'max_disp_perc_measurement' must be a scalar in (0.5, 1), or a ",
+          "length-J vector (one value per group level) for per-group ",
+          "calibration.",
+          call. = FALSE
+        )
+      }
+    }
+
     ing_prior_measurement <- .lmebayes_calibrate_ing_prior_measurement(
       design           = design,
       dispersion_ranef = dispersion_ranef,
       n_prior          = meas$n_prior_measurement,
-      max_disp_perc    = max_disp_perc
+      max_disp_perc    = mdp_measurement_pooled
     )
   }
 
@@ -744,6 +794,14 @@ Prior_Setup_lmebayes <- function(formula,
     NULL
   }
 
+  mdp_measurement_group <- if (is_gaussian) {
+    .lmebayes_expand_scalar_or_vector(
+      max_disp_perc_measurement, group_levels, "max_disp_perc_measurement"
+    )
+  } else {
+    NULL
+  }
+
   ing_prior_measurement_group <- if (is_gaussian && identical(dispformula_kind, "group")) {
     .lmebayes_calibrate_ing_prior_measurement_group(
       design           = design,
@@ -754,7 +812,7 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_group    = meas_group$n_prior_measurement,
       group_levels     = group_levels,
       prior_list       = prior_list,
-      max_disp_perc    = max_disp_perc,
+      max_disp_perc_group = mdp_measurement_group,
       family           = family,
       intercept_source = intercept_source,
       effects_source   = effects_source
@@ -791,6 +849,11 @@ Prior_Setup_lmebayes <- function(formula,
   } else {
     NULL
   }
+  max_disp_perc_measurement_out <- if (is_gaussian) {
+    if (mdp_meas_vector) mdp_measurement_group else mdp_measurement_pooled
+  } else {
+    NULL
+  }
 
   structure(
     list(
@@ -803,7 +866,9 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_measurement = n_prior_measurement_out,
       pwt_measurement_group = if (is_gaussian) meas_group$pwt_measurement else NULL,
       n_prior_measurement_group = if (is_gaussian) meas_group$n_prior_measurement else NULL,
-      max_disp_perc      = max_disp_perc,
+      max_disp_perc_measurement       = max_disp_perc_measurement_out,
+      max_disp_perc_measurement_group = if (is_gaussian) mdp_measurement_group else NULL,
+      max_disp_perc_dispersion        = mdp_dispersion,
       dispformula        = dispformula,
       intercept_source   = intercept_source,
       effects_source     = effects_source,
@@ -1079,6 +1144,7 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
         n_prior   = vapply(ing_grp, `[[`, 0, "n_prior"),
         sigma2_hat = vapply(ing_grp, `[[`, 0, "sigma2_hat"),
         pwt_group = vapply(ing_grp, `[[`, 0, "pwt_group"),
+        max_disp_perc = vapply(ing_grp, `[[`, 0, "max_disp_perc"),
         stringsAsFactors = FALSE
       )
       cat("\n--- Per-group Block~1 sigma^2 calibration (dGamma_list) ---\n")

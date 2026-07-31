@@ -4,17 +4,21 @@
 \alias{dGamma_list.lmebayes_prior_setup}
 \title{Build per-group dGamma priors from a Prior_Setup_lmebayes object}
 \usage{
-\method{dGamma_list}{lmebayes_prior_setup}(object, max_disp_perc = NULL, ...)
+\method{dGamma_list}{lmebayes_prior_setup}(object, max_disp_perc_measurement = NULL, ...)
 }
 \arguments{
 \item{object}{An object of class \code{"lmebayes_prior_setup"} as returned
 by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).}
 
-\item{max_disp_perc}{Scalar in \eqn{(0.5, 1)}; defaults to
-\code{object$max_disp_perc} (the value the stored \code{disp_lower}/
-\code{disp_upper} bounds were calibrated with). Supplying a different
-value recomputes the bounds as fresh quantiles of the same
-\code{Gamma(shape_ING, rate)} for every group.}
+\item{max_disp_perc_measurement}{\code{NULL} (default), a scalar in
+\eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
+per group level). \code{NULL} reuses each group's own stored
+\code{disp_lower}/\code{disp_upper} (the value
+\code{object$ing_prior_measurement_group[[lev]]$max_disp_perc} was
+calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
+scalar or vector recomputes the bounds as fresh quantiles of the same
+\code{Gamma(shape_ING, rate)}, per group, for every group whose
+resolved value differs from its own stored one.}
 
 \item{...}{Currently ignored.}
 }

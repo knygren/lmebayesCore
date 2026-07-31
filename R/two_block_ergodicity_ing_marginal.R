@@ -15,7 +15,11 @@
 #' Accepts either a per-group \code{shape_group}/\code{rate_group} ING
 #' measurement prior (named numeric vectors, one entry per group level) or a
 #' pooled \code{shape}/\code{rate} scalar prior, broadcast to every group
-#' level.
+#' level. Also resolves the truncation window on the precision scale
+#' (\eqn{\omega_L = 1/\texttt{disp\_upper}}, \eqn{\omega_U =
+#' 1/\texttt{disp\_lower}}) the same way, from \code{disp_lower_group}/
+#' \code{disp_upper_group} or pooled \code{disp_lower}/\code{disp_upper} --
+#' see \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6.
 #' @noRd
 .two_block_shape_rate_group_lookup <- function(ing_prior_list, group_levels) {
   if (!is.null(ing_prior_list$shape_group) || !is.null(ing_prior_list$rate_group)) {
@@ -29,18 +33,85 @@
       rep(as.numeric(ing_prior_list$rate[1L]), length(group_levels)), group_levels
     )
   }
-  list(shape_group = shape_group, rate_group = rate_group)
+  if (!is.null(ing_prior_list$disp_lower_group) || !is.null(ing_prior_list$disp_upper_group)) {
+    disp_lower_group <- ing_prior_list$disp_lower_group[group_levels]
+    disp_upper_group <- ing_prior_list$disp_upper_group[group_levels]
+  } else {
+    disp_lower_group <- stats::setNames(
+      rep(as.numeric(ing_prior_list$disp_lower[1L]), length(group_levels)), group_levels
+    )
+    disp_upper_group <- stats::setNames(
+      rep(as.numeric(ing_prior_list$disp_upper[1L]), length(group_levels)), group_levels
+    )
+  }
+  omega_L_group <- 1 / disp_upper_group
+  omega_U_group <- 1 / disp_lower_group
+  list(
+    shape_group   = shape_group,   rate_group    = rate_group,
+    omega_L_group = omega_L_group, omega_U_group = omega_U_group
+  )
+}
+
+#' Exact truncated-Gamma moments of the measurement precision
+#'
+#' Computes \eqn{E_t[\Omega_j]} and \eqn{\mathrm{Var}_t[\Omega_j]} for the
+#' Block~1 ING full conditional \eqn{\Omega_j \mid \beta_j \sim
+#' \mathrm{Gamma}(\mathrm{shape}, \mathrm{rate})} truncated to
+#' \eqn{[\omega_L, \omega_U]} -- i.e. \eqn{\sigma_j^2 \in [\texttt{disp\_lower},
+#' \texttt{disp\_upper}]} -- via three \code{pgamma()} calls, exactly as
+#' derived in \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6. This
+#' generalizes the untruncated moments (\code{shape/rate},
+#' \code{shape/rate^2}) recovered as \code{omega_L -> 0}, \code{omega_U ->
+#' Inf}.
+#'
+#' \code{shape}, \code{omega_L}, and \code{omega_U} are group-level scalars
+#' (draw-independent); \code{rate} is the only argument that varies by draw
+#' (\eqn{r_j^0 + \tfrac12 e_j'e_j}), so this vectorizes cleanly over draws for
+#' a fixed group.
+#'
+#' @param dP0_floor Numerical guard: if the truncation window captures less
+#'   than this fraction of the untruncated \code{Gamma(shape, rate)} mass,
+#'   the moments are returned as \code{NA} rather than dividing by a
+#'   near-zero denominator (near-degenerate window at this \code{rate}).
+#' @noRd
+.two_block_truncated_omega_moments <- function(shape, rate, omega_L, omega_U,
+                                                dP0_floor = 1e-8) {
+  dP <- function(k) {
+    stats::pgamma(omega_U, shape = k, rate = rate) -
+      stats::pgamma(omega_L, shape = k, rate = rate)
+  }
+  dP0 <- dP(shape)
+  dP1 <- dP(shape + 1)
+  dP2 <- dP(shape + 2)
+
+  bad <- !is.finite(dP0) | dP0 < dP0_floor
+  E_omega   <- rep(NA_real_, length(rate))
+  Var_omega <- rep(NA_real_, length(rate))
+
+  ok <- !bad
+  if (any(ok)) {
+    E_omega[ok]  <- (shape / rate[ok]) * (dP1[ok] / dP0[ok])
+    E2           <- (shape * (shape + 1) / rate[ok]^2) * (dP2[ok] / dP0[ok])
+    Var_omega[ok] <- E2 - E_omega[ok]^2
+  }
+
+  list(E_omega = E_omega, Var_omega = Var_omega, dP0 = dP0, ok = ok)
 }
 
 #' Per-group draw-independent setup for the Omega-marginalized Hessian
 #'
 #' Precomputes \eqn{D_j'D_j}, the group OLS fit, the Section 16.3
-#' log-concavity threshold \eqn{2 r_j^0 + \mathrm{RSS}_{OLS,j}}, and the
-#' group's ING Gamma prior shape/rate \eqn{a_j^0}/\eqn{r_j^0}, reused across
-#' every draw.
+#' *untruncated* log-concavity threshold \eqn{2 r_j^0 +
+#' \mathrm{RSS}_{OLS,j}} (kept for comparison/reporting only -- see
+#' \code{h_violates_count} in \code{\link{.two_block_lambda_star_marginal_over_draws}}),
+#' the group's ING Gamma prior shape/rate \eqn{a_j^0}/\eqn{r_j^0}, and the
+#' group's truncation window on the precision scale
+#' (\eqn{\omega_L}/\eqn{\omega_U}, Section 16.6), all reused across every
+#' draw.
 #' @noRd
 .two_block_marginal_group_setup <- function(D, y, group, group_levels, re_coef_names,
-                                             shape_group, rate_group) {
+                                             shape_group, rate_group,
+                                             omega_L_group, omega_U_group) {
   group_chr <- as.character(group)
   stats::setNames(lapply(group_levels, function(lev) {
     idx <- which(group_chr == lev)
@@ -53,7 +124,8 @@
       rows = idx, D_j = D_j, DtD = DtD, n_j = length(idx),
       beta_ols = beta_ols, RSS_ols = RSS_ols,
       a0 = shape_group[[lev]], r0 = rate_group[[lev]],
-      threshold = 2 * rate_group[[lev]] + RSS_ols
+      threshold = 2 * rate_group[[lev]] + RSS_ols,
+      omega_L = omega_L_group[[lev]], omega_U = omega_U_group[[lev]]
     )
   }), group_levels)
 }
@@ -61,10 +133,14 @@
 #' System-wide Omega-marginalized lambda_star over a set of draws
 #'
 #' For each draw, builds the per-group Omega_j-marginalized Hessian
-#' \eqn{H_j(\beta_j)} (Section 16.2), checks that \eqn{\Lambda + H_j} is
-#' positive definite for every group (skipping the draw if not, and flagging
-#' the failing group(s)), and assembles the marginalized
-#' \eqn{S = P_{12} P_{22,\mathrm{marginal}}^{-1} P_{21}} matrix.
+#' \eqn{H_j(\beta_j)} using the *exact*, truncation-aware moments of Section
+#' 16.6 (\eqn{E_t[\Omega_j]}, \eqn{\mathrm{Var}_t[\Omega_j]} of the
+#' \code{Gamma(shape, rate)} full conditional truncated to
+#' \eqn{[\omega_L,\omega_U]}, via \code{\link{.two_block_truncated_omega_moments}}),
+#' checks that \eqn{\Lambda + H_j} is positive definite for every group
+#' (skipping the draw if not, and flagging the failing group(s)), and
+#' assembles the marginalized \eqn{S = P_{12} P_{22,\mathrm{marginal}}^{-1}
+#' P_{21}} matrix.
 #'
 #' In addition to each draw's top eigenvalue, this accumulates a
 #' componentwise \code{pmax} envelope of the full eigenvalue spectrum across
@@ -98,7 +174,9 @@
   lambda_star_vec  <- rep(NA_real_, n_draws)
   skipped          <- logical(n_draws)
   failing_groups   <- vector("list", n_draws)
-  h_violates_count <- stats::setNames(integer(length(group_levels)), group_levels)
+  h_violates_count       <- stats::setNames(integer(length(group_levels)), group_levels)
+  h_violates_count_exact <- stats::setNames(integer(length(group_levels)), group_levels)
+  moments_fail_count     <- stats::setNames(integer(length(group_levels)), group_levels)
   pd_fail_count    <- stats::setNames(integer(length(group_levels)), group_levels)
   max_eigenvalues  <- NULL
   lambda_star_max  <- -Inf
@@ -121,17 +199,39 @@
       ete <- sum(e_j^2)
       Dte <- as.vector(crossprod(gs$D_j, e_j))
 
-      ## Section 16.3 raw criterion (H_j alone, ignoring Lambda) -- reported
-      ## for comparison; q_j = e_j'e_j - RSS_ols_j exactly (Pythagorean OLS
-      ## split), matching .tmp_rss_ellipsoid_test()'s q_j/threshold.
+      ## Section 16.3 raw criterion (H_j alone, ignoring Lambda), UNTRUNCATED
+      ## -- reported for comparison only; q_j = e_j'e_j - RSS_ols_j exactly
+      ## (Pythagorean OLS split), matching .tmp_rss_ellipsoid_test()'s
+      ## q_j/threshold.
       q_j <- ete - gs$RSS_ols
       if (q_j > gs$threshold) {
         h_violates_count[[lev]] <- h_violates_count[[lev]] + 1L
       }
 
-      Omega_eff <- (gs$a0 + gs$n_j / 2) / (gs$r0 + 0.5 * ete)
-      H_j <- Omega_eff * gs$DtD -
-        (Omega_eff^2 / (gs$a0 + gs$n_j / 2)) * outer(Dte, Dte)
+      ## Section 16.6 EXACT (truncation-aware) moments at this draw's own
+      ## rate t_j = r0_j + 0.5*e_j'e_j; shape/omega_L/omega_U are fixed per
+      ## group. The exact log-concavity threshold is state-dependent (it is
+      ## itself a function of e_j'e_j through t_j), unlike the untruncated
+      ## fixed threshold above.
+      shape_j <- gs$a0 + gs$n_j / 2
+      rate_j  <- gs$r0 + 0.5 * ete
+      mom <- .two_block_truncated_omega_moments(shape_j, rate_j, gs$omega_L, gs$omega_U)
+
+      if (!isTRUE(mom$ok)) {
+        ## Near-degenerate truncation window at this rate -- cannot compute
+        ## the moments reliably; treat like a PD failure (skip the draw) and
+        ## flag it separately so it is not conflated with a genuine
+        ## Lambda + H_j non-PD failure.
+        ok <- FALSE
+        fail_this <- c(fail_this, lev)
+        moments_fail_count[[lev]] <- moments_fail_count[[lev]] + 1L
+        next
+      }
+      if (q_j > mom$E_omega / mom$Var_omega) {
+        h_violates_count_exact[[lev]] <- h_violates_count_exact[[lev]] + 1L
+      }
+
+      H_j <- mom$E_omega * gs$DtD - mom$Var_omega * outer(Dte, Dte)
       B_j <- P_b + H_j
       B_j <- 0.5 * (B_j + t(B_j))
 
@@ -175,17 +275,19 @@
   }
 
   list(
-    lambda_star_vec  = lambda_star_vec,
-    skipped          = skipped,
-    n_skipped        = sum(skipped),
-    failing_groups   = failing_groups,
-    h_violates_count = h_violates_count,
-    pd_fail_count    = pd_fail_count,
-    lambda_star_max  = lambda_star_max,
-    max_eigenvalues  = max_eigenvalues,
-    i_max            = i_max,
-    n_over_one       = n_over_one,
-    n_draws          = n_draws
+    lambda_star_vec        = lambda_star_vec,
+    skipped                = skipped,
+    n_skipped              = sum(skipped),
+    failing_groups         = failing_groups,
+    h_violates_count       = h_violates_count,
+    h_violates_count_exact = h_violates_count_exact,
+    moments_fail_count     = moments_fail_count,
+    pd_fail_count          = pd_fail_count,
+    lambda_star_max        = lambda_star_max,
+    max_eigenvalues        = max_eigenvalues,
+    i_max                  = i_max,
+    n_over_one             = n_over_one,
+    n_draws                = n_draws
   )
 }
 
@@ -253,7 +355,8 @@
   group_setup <- .two_block_marginal_group_setup(
     D = D, y = y, group = group, group_levels = group_levels,
     re_coef_names = re_names,
-    shape_group = sr$shape_group, rate_group = sr$rate_group
+    shape_group = sr$shape_group, rate_group = sr$rate_group,
+    omega_L_group = sr$omega_L_group, omega_U_group = sr$omega_U_group
   )
 
   res <- .two_block_lambda_star_marginal_over_draws(
@@ -261,7 +364,10 @@
     group_name = group_name, group_setup = group_setup, inp = inp, blocks = blocks
   )
 
-  failing_groups <- sort(names(res$pd_fail_count)[res$pd_fail_count > 0L])
+  failing_groups <- sort(union(
+    names(res$pd_fail_count)[res$pd_fail_count > 0L],
+    names(res$moments_fail_count)[res$moments_fail_count > 0L]
+  ))
   valid <- res$n_skipped == 0L && is.finite(res$lambda_star_max) &&
     res$lambda_star_max < cutoff
 
@@ -309,6 +415,7 @@
     n_skipped            = res$n_skipped,
     failing_groups       = failing_groups,
     pd_fail_count        = res$pd_fail_count,
+    moments_fail_count   = res$moments_fail_count,
     cutoff               = cutoff
   )
 }
