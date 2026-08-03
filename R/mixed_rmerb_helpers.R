@@ -1172,9 +1172,18 @@ priors_from_pfamily_list <- function(pfamily_list,
         prefix      = "Per-group measurement dispersion: "
       )
 
+      ## The window must bound the POSTERIOR spread the sampler's own
+      ## envelope machinery actually draws sigma2_j from (EnvelopeDispersionBuild.cpp:
+      ## shape2 = Shape + n_w/2), not the prior alone -- shape_ING,j (cal$shape_ING)
+      ## is the PRIOR shape (n_prior,j-only) fed to the sampler as-is (unchanged
+      ## below); only the window's own shape/rate are inflated by n_j/2, mean-matched
+      ## at the same sigma2_hat,j. See inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part II
+      ## (algebraically shape_post,j == shape_w,j = (n_combined,j+1)/2 + p_re/2).
       mdp_j <- unname(max_disp_perc_group[[lev]])
+      shape_post_j <- cal$shape_ING + inp$n_j / 2
+      rate_post_j  <- cal$dispersion * (shape_post_j - 1)
       win <- .lmebayes_ing_prior_quantile_window(
-        cal$shape_ING, cal$rate, mdp_j
+        shape_post_j, rate_post_j, mdp_j
       )
 
       out <- .lmebayes_ing_prior_list_from_cal(

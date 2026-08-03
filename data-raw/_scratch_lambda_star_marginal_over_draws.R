@@ -233,16 +233,14 @@
       cat(sprintf("    %-6s  %d\n", nm, pd_tab[[nm]]))
     }
   }
-  h_tab <- res$h_violates_count[res$h_violates_count > 0L]
-  h_tab <- sort(h_tab, decreasing = TRUE)
-  cat(sprintf(
-    "\n  Section 16.3 raw H_j (Lambda-free) violations, UNTRUNCATED, %d groups nonzero:\n",
-    length(h_tab)
-  ))
-  for (nm in names(h_tab)) {
-    cat(sprintf("    %-6s  %d / %d draws (%.1f%%)\n",
-                nm, h_tab[[nm]], res$n_draws, 100 * h_tab[[nm]] / res$n_draws))
-  }
+  ## The legacy UNTRUNCATED Section 16.3 h_violates_count (a fixed
+  ## threshold, ignoring the fact that the prior actually handed to the
+  ## sampler is truncated) is still computed above for anyone reading
+  ## res$h_violates_count directly, but is no longer printed here -- it no
+  ## longer reflects the sampler's actual (truncated) prior, and printing
+  ## it first/unlabeled made it look like the headline result. The
+  ## EXACT/truncated Section 16.6 h_violates_count_exact below is what the
+  ## lambda_star_marginal/eigenvalue computation itself actually uses.
   he_tab <- res$h_violates_count_exact[res$h_violates_count_exact > 0L]
   he_tab <- sort(he_tab, decreasing = TRUE)
   cat(sprintf(

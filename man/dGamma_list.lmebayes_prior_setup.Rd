@@ -17,8 +17,9 @@ per group level). \code{NULL} reuses each group's own stored
 \code{object$ing_prior_measurement_group[[lev]]$max_disp_perc} was
 calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
 scalar or vector recomputes the bounds as fresh quantiles of the same
-\code{Gamma(shape_ING, rate)}, per group, for every group whose
-resolved value differs from its own stored one.}
+posterior-shape \code{Gamma(shape_ING + n_j/2, rate_post)} (see above),
+per group, for every group whose resolved value differs from its own
+stored one.}
 
 \item{...}{Currently ignored.}
 }
@@ -39,19 +40,24 @@ in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
 \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 }
 \details{
-Prior density (\code{shape_ING}, \code{rate}) and truncation bounds
-(\code{disp_lower}, \code{disp_upper}) both come from
+Prior density (\code{shape_ING}, \code{rate}) both come from
 \code{object$ing_prior_measurement_group}, calibrated once in
 \code{\link{Prior_Setup_lmebayes}()} via
 \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
 extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
 model-derived \code{Omega_j} folded into \code{Sigma_j}, so \code{rate}/
 \code{sigma2_hat} integrate out both the random effects \code{b_j} and
-the fixed effects \code{gamma}). \code{disp_lower}/\code{disp_upper} are
-literal quantiles of that same \code{Gamma(shape_ING, rate)} marginal
-(the \eqn{(1-\mathrm{max\_disp\_perc})}/\code{max_disp_perc} quantiles),
-i.e. a truncated version of the actual sampling prior rather than a
-separately-constructed window. See
+the fixed effects \code{gamma}). Truncation bounds (\code{disp_lower},
+\code{disp_upper}) are the \eqn{(1-\mathrm{max\_disp\_perc})}/
+\code{max_disp_perc} quantiles of \code{Gamma(shape_ING + n_j/2,
+rate_post)}, \code{rate_post} being \code{sigma2_hat} mean-matched at
+that inflated shape -- i.e. the window tracks the \emph{posterior}
+spread the sampler's own envelope machinery actually draws
+\eqn{\sigma^2_j} from each sweep (\code{EnvelopeDispersionBuild.cpp}'s
+own \code{shape2 = Shape + n_w/2} fallback), not the prior
+\code{Gamma(shape_ING, rate)} alone. \code{shape_ING}/\code{rate}
+themselves -- what is actually fed to the sampler as the Gamma prior --
+are unaffected by this widening. See
 \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation.
 }
 \examples{

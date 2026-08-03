@@ -223,10 +223,23 @@ print(part_vi_tab, row.names = FALSE)
 ## (the Block~2 hyperparameter prior, same shape .rLMM_validate_ing_
 ## measurement_prior_list() expects for the fixed-vcov/estimated-vcov cases)
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
-## (one named-by-group-level numeric vector each) -- extracted here from
-## part_vi_group (Section 2b) instead of a dGamma() pfamily list, mirroring
+## (one named-by-group-level numeric vector each), extracted here from each
+## group's dGamma() pfamily -- 'ps' (Section 2)'s own Part VI + calibrated
+## pwt_measurement default, mirroring Ex_13's Section 3 and
 ## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
+##
+## UPDATE: this used to be extracted from Section 2b's hand-rolled
+## part_vi_group instead of dGamma_list(ps) directly, back when
+## Prior_Setup_lmebayes()'s own disp_lower/disp_upper hadn't yet been
+## corrected to match part_vi_group's shape_w/rate_w window (see
+## inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VIII). Now that they agree
+## to floating-point precision, this section (and everything downstream of
+## it: Section 5's sampler call, and Section 7b/7d's diagnostics, which all
+## read the SAME shape_group/rate_group/disp_lower_group/disp_upper_group
+## vectors built here) is wired to 'ps' directly; Section 2b's part_vi_group
+## is kept purely as an independent from-scratch check -- compare its table
+## above to the "Per-group sigma^2_j ING prior" summary below.
 ## ---------------------------------------------------------------------------
 
 ## group_name is not a formal on the routed export; attach it to 'group'
@@ -238,16 +251,18 @@ group_levels <- levels(grp)
 re_names     <- design$re_coef_names
 p_re         <- length(re_names)
 
+disp_pf_list <- dGamma_list(ps, max_disp_perc_measurement = 0.8)
+
 shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
 rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_lower_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 disp_upper_group <- stats::setNames(numeric(length(group_levels)), group_levels)
 for (lev in group_levels) {
-  g <- part_vi_group[[lev]]
-  shape_group[[lev]]      <- g$shape
-  rate_group[[lev]]       <- g$rate
-  disp_lower_group[[lev]] <- g$disp_lower
-  disp_upper_group[[lev]] <- g$disp_upper
+  pl <- disp_pf_list[[lev]]$prior_list
+  shape_group[[lev]]      <- pl$shape[1L]
+  rate_group[[lev]]       <- pl$rate[1L]
+  disp_lower_group[[lev]] <- pl$disp_lower
+  disp_upper_group[[lev]] <- pl$disp_upper
 }
 
 prior_list <- list(

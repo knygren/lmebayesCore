@@ -14,6 +14,7 @@ Prior_Setup_lmebayes(
   n_prior_dispersion = NULL,
   pwt_measurement = NULL,
   n_prior_measurement = NULL,
+  alpha_target_measurement = 0.01,
   dispformula = ~1,
   max_disp_perc_measurement = 0.99,
   max_disp_perc_dispersion = 0.99,
@@ -87,6 +88,30 @@ supplied explicitly).  At most one of \code{pwt_measurement} and
 \item{n_prior_measurement}{Optional positive scalar: absolute effective
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 not groups).  See \code{pwt_measurement}.}
+
+\item{alpha_target_measurement}{Scalar in \eqn{(0, 1)}, default
+\code{0.01}, or \code{NULL} to disable.  Gaussian models with per-group
+\code{dispformula} only: target percentage of posterior \code{beta_j}
+draws allowed to fall outside the per-group Mahalanobis/log-concavity
+ellipsoid of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6.
+This is a different quantity from \code{pwt_measurement}: \code{pwt_measurement}
+is the Gamma prior \emph{weight} (an input to the prior), while
+\code{alpha_target_measurement} is a target \emph{violation rate} (an
+output being aimed at).  When non-\code{NULL} and \code{dispformula}
+requests per-group dispersion, \code{Prior_Setup_lmebayes()} searches,
+for each group, for the smallest \code{pwt_measurement} driving the
+predicted violation rate down to \code{alpha_target_measurement},
+\strong{floored at} the \code{pwt_measurement} resolved from the
+\code{pwt_measurement}/\code{n_prior_measurement} arguments above (so
+calibration only ever sharpens, never loosens, the per-group prior;
+supplying \code{pwt_measurement} explicitly still guarantees a minimum).
+Active by default as a safeguard against poorly-behaved per-group
+priors; set to \code{NULL} to opt out and use \code{pwt_measurement}/
+\code{n_prior_measurement} directly, unmodified.  Silently ignored
+(not an error) when left at its default on a model that does not
+support per-group calibration (e.g.\ \code{dispformula = ~1}); it is
+only an error to \emph{explicitly} supply a non-\code{NULL} value in
+that case.  See \code{pwt_measurement_calibration} below.}
 
 \item{dispformula}{One-sided formula selecting the Block~1 measurement-
 dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
@@ -179,7 +204,17 @@ scale.}
 vector of resolved per-group measurement prior weights (see
 \code{dGamma_list()}).}
 \item{\code{n_prior_measurement_group}}{Gaussian models only: named
-length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}.}
+length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}. Reflects
+the \code{alpha_target_measurement}-calibrated \code{pwt_measurement}
+when calibration was active (see \code{pwt_measurement_calibration}).}
+\item{\code{alpha_target_measurement}}{The value used, or \code{NULL}
+if calibration was not active.}
+\item{\code{pwt_measurement_calibration}}{\code{NULL} unless
+calibration was active; otherwise a per-group diagnostics
+\code{data.frame} (\code{group}, \code{n_j}, \code{pwt_floor},
+\code{pct_outside_before}, \code{w_star}, \code{clipped_at_ceiling},
+\code{w_final}, \code{floor_binds}, \code{pct_outside_after}) from
+the search described under \code{alpha_target_measurement}.}
 \item{\code{block_formula}}{Within-group Block~1 formula: response
 regressed on the random-coefficient structure only (columns of
 \code{design$re_coef_names}); level-2 hyper covariates are excluded.
@@ -280,10 +315,16 @@ uncertainty about \code{b_j}'s prior mean, propagated through group
 so this marginal integrates out both random effects (\code{b_j}) and
 fixed effects (\code{gamma}); see
 \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
-\code{disp_lower}/\code{disp_upper} are literal
-\eqn{(1-w_j)}/\eqn{w_j} quantiles of that same
-\code{Gamma(shape_ING, rate)} (not a separately-constructed window),
-where \eqn{w_j} is this group's own resolved
+\code{disp_lower}/\code{disp_upper} are \eqn{(1-w_j)}/\eqn{w_j}
+quantiles of \code{Gamma(shape_ING + n_j/2, rate_post)}, where
+\code{rate_post} is \code{sigma2_hat} mean-matched at that same
+inflated shape (\eqn{n_j/2} added only for the window, so it
+reflects the posterior spread the sampler's own envelope
+machinery actually draws \eqn{\sigma^2_j} from -- see
+\code{EnvelopeDispersionBuild.cpp}'s \code{shape2 = Shape + n_w/2}
+fallback -- while \code{shape_ING}/\code{rate} themselves, the
+values actually fed to the sampler as the Gamma prior, are
+unchanged); \eqn{w_j} is this group's own resolved
 \code{max_disp_perc_measurement} value (stored per-group as
 \code{max_disp_perc}). \code{NULL} when
 \code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}

@@ -82,6 +82,29 @@
 #' @param n_prior_measurement Optional positive scalar: absolute effective
 #'   prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
 #'   not groups).  See \code{pwt_measurement}.
+#' @param alpha_target_measurement Scalar in \eqn{(0, 1)}, default
+#'   \code{0.01}, or \code{NULL} to disable.  Gaussian models with per-group
+#'   \code{dispformula} only: target percentage of posterior \code{beta_j}
+#'   draws allowed to fall outside the per-group Mahalanobis/log-concavity
+#'   ellipsoid of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6.
+#'   This is a different quantity from \code{pwt_measurement}: \code{pwt_measurement}
+#'   is the Gamma prior \emph{weight} (an input to the prior), while
+#'   \code{alpha_target_measurement} is a target \emph{violation rate} (an
+#'   output being aimed at).  When non-\code{NULL} and \code{dispformula}
+#'   requests per-group dispersion, \code{Prior_Setup_lmebayes()} searches,
+#'   for each group, for the smallest \code{pwt_measurement} driving the
+#'   predicted violation rate down to \code{alpha_target_measurement},
+#'   \strong{floored at} the \code{pwt_measurement} resolved from the
+#'   \code{pwt_measurement}/\code{n_prior_measurement} arguments above (so
+#'   calibration only ever sharpens, never loosens, the per-group prior;
+#'   supplying \code{pwt_measurement} explicitly still guarantees a minimum).
+#'   Active by default as a safeguard against poorly-behaved per-group
+#'   priors; set to \code{NULL} to opt out and use \code{pwt_measurement}/
+#'   \code{n_prior_measurement} directly, unmodified.  Silently ignored
+#'   (not an error) when left at its default on a model that does not
+#'   support per-group calibration (e.g.\ \code{dispformula = ~1}); it is
+#'   only an error to \emph{explicitly} supply a non-\code{NULL} value in
+#'   that case.  See \code{pwt_measurement_calibration} below.
 #' @param dispformula One-sided formula selecting the Block~1 measurement-
 #'   dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
 #'   (matching the random-effects grouping factor exactly, requesting
@@ -166,7 +189,17 @@
 #'       vector of resolved per-group measurement prior weights (see
 #'       \code{dGamma_list()}).}
 #'     \item{\code{n_prior_measurement_group}}{Gaussian models only: named
-#'       length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}.}
+#'       length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}. Reflects
+#'       the \code{alpha_target_measurement}-calibrated \code{pwt_measurement}
+#'       when calibration was active (see \code{pwt_measurement_calibration}).}
+#'     \item{\code{alpha_target_measurement}}{The value used, or \code{NULL}
+#'       if calibration was not active.}
+#'     \item{\code{pwt_measurement_calibration}}{\code{NULL} unless
+#'       calibration was active; otherwise a per-group diagnostics
+#'       \code{data.frame} (\code{group}, \code{n_j}, \code{pwt_floor},
+#'       \code{pct_outside_before}, \code{w_star}, \code{clipped_at_ceiling},
+#'       \code{w_final}, \code{floor_binds}, \code{pct_outside_after}) from
+#'       the search described under \code{alpha_target_measurement}.}
 #'     \item{\code{block_formula}}{Within-group Block~1 formula: response
 #'       regressed on the random-coefficient structure only (columns of
 #'       \code{design$re_coef_names}); level-2 hyper covariates are excluded.
@@ -267,10 +300,16 @@
 #'       so this marginal integrates out both random effects (\code{b_j}) and
 #'       fixed effects (\code{gamma}); see
 #'       \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
-#'       \code{disp_lower}/\code{disp_upper} are literal
-#'       \eqn{(1-w_j)}/\eqn{w_j} quantiles of that same
-#'       \code{Gamma(shape_ING, rate)} (not a separately-constructed window),
-#'       where \eqn{w_j} is this group's own resolved
+#'       \code{disp_lower}/\code{disp_upper} are \eqn{(1-w_j)}/\eqn{w_j}
+#'       quantiles of \code{Gamma(shape_ING + n_j/2, rate_post)}, where
+#'       \code{rate_post} is \code{sigma2_hat} mean-matched at that same
+#'       inflated shape (\eqn{n_j/2} added only for the window, so it
+#'       reflects the posterior spread the sampler's own envelope
+#'       machinery actually draws \eqn{\sigma^2_j} from -- see
+#'       \code{EnvelopeDispersionBuild.cpp}'s \code{shape2 = Shape + n_w/2}
+#'       fallback -- while \code{shape_ING}/\code{rate} themselves, the
+#'       values actually fed to the sampler as the Gamma prior, are
+#'       unchanged); \eqn{w_j} is this group's own resolved
 #'       \code{max_disp_perc_measurement} value (stored per-group as
 #'       \code{max_disp_perc}). \code{NULL} when
 #'       \code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}
@@ -307,6 +346,7 @@ Prior_Setup_lmebayes <- function(formula,
                                  n_prior_dispersion = NULL,
                                  pwt_measurement = NULL,
                                  n_prior_measurement = NULL,
+                                 alpha_target_measurement = 0.01,
                                  dispformula = ~1,
                                  max_disp_perc_measurement = 0.99,
                                  max_disp_perc_dispersion = 0.99,
@@ -781,13 +821,19 @@ Prior_Setup_lmebayes <- function(formula,
     NULL
   }
 
+  n_j_group <- if (is_gaussian) {
+    nj <- as.integer(table(design$group))
+    names(nj) <- group_levels
+    nj
+  } else {
+    NULL
+  }
+
   meas_group <- if (is_gaussian) {
-    n_j <- as.integer(table(design$group))
-    names(n_j) <- group_levels
     .lmebayes_resolve_measurement_disp_prior_group(
       pwt_measurement     = pwt_measurement,
       n_prior_measurement = NULL,
-      n_j                 = n_j,
+      n_j                 = n_j_group,
       group_levels        = group_levels
     )
   } else {
@@ -829,8 +875,72 @@ Prior_Setup_lmebayes <- function(formula,
     )
   }
 
+  ## alpha_target_measurement: search for the smallest per-group
+  ## pwt_measurement driving the predicted ellipsoid violation rate down to
+  ## alpha_target_measurement (Section 16.6 exact/truncated criterion),
+  ## floored at the pwt_measurement resolved above (pass-1/seed). Active by
+  ## default; a non-NULL default must stay a true no-op for models that
+  ## don't support per-group calibration (e.g. dispformula = ~1) -- only an
+  ## *explicit* request on such a model is an error.
+  supports_group_calibration <- is_gaussian && identical(dispformula_kind, "group")
+
+  if (!missing(alpha_target_measurement) && !is.null(alpha_target_measurement) &&
+      !supports_group_calibration) {
+    stop(
+      "'alpha_target_measurement' requires a Gaussian model with dispformula ",
+      "requesting per-group dispersion (dispformula = ~<group_name>).",
+      call. = FALSE
+    )
+  }
+
+  pwt_measurement_calibration <- NULL
+  if (!is.null(alpha_target_measurement) && supports_group_calibration) {
+    if (!is.numeric(alpha_target_measurement) ||
+        length(alpha_target_measurement) != 1L ||
+        is.na(alpha_target_measurement) ||
+        alpha_target_measurement <= 0 || alpha_target_measurement >= 1) {
+      stop("'alpha_target_measurement' must be a scalar in (0, 1).", call. = FALSE)
+    }
+    calib <- .lmebayes_calibrate_pwt_measurement_group(
+      fit_ref                     = fit_ref,
+      design                      = design,
+      group_levels                = group_levels,
+      re_coef_names               = re_names,
+      Sigma_ranef                 = Sigma_ranef,
+      ing_prior_measurement_group = ing_prior_measurement_group,
+      alpha_target                = alpha_target_measurement,
+      floor_vec                   = meas_group$pwt_measurement
+    )
+    meas_group <- .lmebayes_resolve_measurement_disp_prior_group(
+      pwt_measurement     = calib$pwt_measurement,
+      n_prior_measurement = NULL,
+      n_j                 = n_j_group,
+      group_levels        = group_levels
+    )
+    meas_group$source <- sprintf(
+      "alpha_target_measurement-calibrated (target = %.4g, floored at pwt_measurement)",
+      alpha_target_measurement
+    )
+    ing_prior_measurement_group <- .lmebayes_calibrate_ing_prior_measurement_group(
+      design           = design,
+      data             = data,
+      block_formula    = block_formula,
+      sd_tau           = sd_tau_out,
+      pwt_group        = meas_group$pwt_measurement,
+      n_prior_group    = meas_group$n_prior_measurement,
+      group_levels     = group_levels,
+      prior_list       = prior_list,
+      max_disp_perc_group = mdp_measurement_group,
+      family           = family,
+      intercept_source = intercept_source,
+      effects_source   = effects_source
+    )
+    pwt_measurement_calibration <- calib$table
+  }
+
   pwt_measurement_out <- if (is_gaussian) {
-    if (!is.null(pwt_measurement) && length(pwt_measurement) > 1L) {
+    if ((!is.null(pwt_measurement) && length(pwt_measurement) > 1L) ||
+        !is.null(pwt_measurement_calibration)) {
       w <- meas_group$pwt_measurement
       attr(w, "source") <- meas_group$source
       w
@@ -866,6 +976,8 @@ Prior_Setup_lmebayes <- function(formula,
       n_prior_measurement = n_prior_measurement_out,
       pwt_measurement_group = if (is_gaussian) meas_group$pwt_measurement else NULL,
       n_prior_measurement_group = if (is_gaussian) meas_group$n_prior_measurement else NULL,
+      alpha_target_measurement    = if (supports_group_calibration) alpha_target_measurement else NULL,
+      pwt_measurement_calibration = pwt_measurement_calibration,
       max_disp_perc_measurement       = max_disp_perc_measurement_out,
       max_disp_perc_measurement_group = if (is_gaussian) mdp_measurement_group else NULL,
       max_disp_perc_dispersion        = mdp_dispersion,
@@ -1151,6 +1263,17 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
       num_cols <- vapply(guard_df, is.numeric, logical(1L))
       guard_df[num_cols] <- lapply(guard_df[num_cols], round, digits = digits)
       print(guard_df, row.names = FALSE)
+    }
+    if (!is.null(x$alpha_target_measurement) &&
+        !is.null(x$pwt_measurement_calibration)) {
+      cat(sprintf(
+        "\n--- pwt_measurement calibrated to alpha_target_measurement = %.4g ---\n",
+        x$alpha_target_measurement
+      ))
+      calib_df <- x$pwt_measurement_calibration
+      num_cols <- vapply(calib_df, is.numeric, logical(1L))
+      calib_df[num_cols] <- lapply(calib_df[num_cols], round, digits = digits)
+      print(calib_df, row.names = FALSE)
     }
   } else {
     cat("  dispersion_ranef : NULL  (no observation-level dispersion)\n")

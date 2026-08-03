@@ -774,14 +774,18 @@ at `sigma2_hat,j` via `n_combined,j`) purely to control the window's spread
 independently of the actual `Gamma(shape_ING,j, rate,j)` fed to the sampler.
 That decoupling is no longer needed once the marginal itself already
 integrates out both `b_j` and `gamma` (Part VI) -- the actual sampling prior
-is now the right object to truncate directly: `disp_lower,j`/`disp_upper,j`
-are simply the `(1-max_disp_perc)`/`max_disp_perc` quantiles of
-`Gamma(shape_ING,j, rate,j)` itself, inverted to the dispersion scale. This
-guarantees `sigma2_hat,j` (the prior's own implied mean-ish point estimate)
-always lies inside the window by construction (`shape_ING,j > 1` is required
-of any valid calibration for the mean to exist, and the window brackets the
-whole central mass around it), with no separate spread parameter
-(`n_combined,j`) to keep in sync.
+is now the right object to truncate directly. This guarantees `sigma2_hat,j`
+(the prior's own implied mean-ish point estimate) always lies inside the
+window by construction (`shape_ING,j > 1` is required of any valid
+calibration for the mean to exist, and the window brackets the whole central
+mass around it), with no separate spread parameter (`n_combined,j`) to keep
+in sync.
+
+**Amended in Part VIII below**: the window's *shape/rate* are not literally
+`(shape_ING,j, rate,j)` -- they are `(shape_ING,j, rate,j)` inflated by the
+group's own `n_j` observations, i.e. the *posterior* (not prior) spread.
+`shape_ING,j`/`rate,j` themselves, the values actually fed to the sampler as
+the Gamma prior, are unaffected either way.
 
 ### `dGamma_list()` after the migration
 
@@ -828,6 +832,80 @@ shape/rate/bounds verbatim; a different `max_disp_perc_measurement` triggers
 a recompute (narrower window at a looser `max_disp_perc_measurement`, as
 expected); and the now-removed `disp_center`/`disp_upper_anchor`/`n_rss_iter`/
 `warn_asymmetric` arguments are silently accepted without error.
+
+---
+
+## Part VIII -- Correction: the window uses the posterior shape (`+n_j/2`), not the prior shape
+
+Part VII's initial migration truncated the *prior* `Gamma(shape_ING,j,
+rate,j)` directly:
+
+```
+disp_lower,j  <- 1 / qgamma(max_disp_perc,     shape = shape_ING,j, rate = rate,j)
+disp_upper,j  <- 1 / qgamma(1 - max_disp_perc, shape = shape_ING,j, rate = rate,j)
+```
+
+That is too wide relative to what the sampler itself actually needs the
+window for. `src/EnvelopeDispersionBuild.cpp` builds its own truncation
+window internally, as a *fallback*, whenever `disp_lower`/`disp_upper` are
+not supplied -- and it does so from the **posterior**-adjusted shape/rate,
+not the prior's:
+
+```
+shape2  <- Shape + n_w / 2   # Shape = the input (prior) shape_ING,j; n_w = n_j
+rate3   <- rate  + RSS_post / 2
+```
+
+(see `inst/BLOCK_ING_RINDEPNORMALGAMMA_REG.md`, "Lemma 2 -- centering"). This
+`+n_j/2` term is exactly the historical Part II `shape_w,j` construction's
+own `n_combined,j = n_prior,j + n_j` (vs. Part VII's `n_prior,j`-only
+`shape_ING,j`) -- Part II was right about *what* to inflate by, Part VII's
+first migration pass dropped that inflation when it unified the window with
+the sampling prior.
+
+### The fix, scoped to the window only
+
+`.lmebayes_calibrate_ing_prior_measurement_group()`
+(`R/mixed_rmerb_helpers.R`) now computes the window from a **separate,
+posterior-shape** Gamma, while leaving `shape_ING,j`/`rate,j` -- the values
+actually stored on `ps$ing_prior_measurement_group[[j]]$shape_ING`/`$rate`
+and fed to the sampler as the Gamma prior -- untouched:
+
+```
+shape_post,j  <- shape_ING,j + n_j / 2
+rate_post,j   <- sigma2_hat,j * (shape_post,j - 1)   # mean-matched at the SAME sigma2_hat,j
+disp_lower,j  <- 1 / qgamma(max_disp_perc,     shape = shape_post,j, rate = rate_post,j)
+disp_upper,j  <- 1 / qgamma(1 - max_disp_perc, shape = shape_post,j, rate = rate_post,j)
+```
+
+`rate_post,j` is mean-matched (`sigma2_hat,j = rate_post,j /
+(shape_post,j - 1)`) rather than reusing `rate,j` unchanged, for the same
+reason Part II mean-matched `rate_w,j`: inflating only the shape while
+keeping the rate fixed would shift the window's *center* away from
+`sigma2_hat,j`, not just tighten its spread. Algebraically,
+`(shape_post,j, rate_post,j)` reproduces Part II's `(shape_w,j, rate_w,j)`
+exactly, since both equal `((n_prior,j + n_j + 1)/2 + p_re/2,
+sigma2_hat,j * (n_prior,j + n_j + p_re - 1)/2)` when `n_combined,j =
+n_prior,j + n_j` -- confirmed to floating-point precision by
+`data-raw/_scratch_check_window_njfix.R`.
+
+`dGamma_list.lmebayes_prior_setup()`'s own recompute path (triggered when a
+caller overrides `max_disp_perc_measurement` for a group away from its
+stored value) applies the identical `shape_ING + n_j/2` / mean-matched-rate
+construction, so overriding the window's `max_disp_perc_measurement` at
+`dGamma_list()` time stays consistent with what `Prior_Setup_lmebayes()`
+would have computed had it been called with that same value in the first
+place.
+
+### What does *not* change
+
+- `shape_ING,j`/`rate,j` (the actual Gamma prior handed to the sampler) --
+  unchanged; this correction only widens/narrows the *window*.
+- The pooled Block~1 case (`ing_prior_measurement`, `dispformula = ~1`) and
+  Block~2's `ing_prior` (`tau^2_k`) windows are untouched by this fix; only
+  the per-group `ing_prior_measurement_group` window is corrected here (the
+  pooled case has a superficially similar gap -- its window also skips an
+  analogous `+n/2` term -- but that has not been revisited in this pass).
 
 ---
 
