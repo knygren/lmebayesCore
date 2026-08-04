@@ -177,10 +177,24 @@ across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
 \code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
 \code{length(group_levels)} giving one fixed, known dispersion per
 group, matched to \code{group_levels} either positionally or by name),
-\code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or
-shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
-\code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
-\code{shape/rate} for ICM/TV is derived internally).}
+\code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or,
+for \code{rLMMindepNormalGamma_reg_known_vcov}/
+\code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
+the ING measurement-dispersion prior: (1) a single
+\code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
+shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
+one per \code{group_levels} entry, as returned by
+\code{\link{dGamma_list}()} (per-group \eqn{\sigma^2_j}) -- both
+preferred, since \code{shape}/\code{rate}/\code{disp_lower}/
+\code{disp_upper} are read straight from each pfamily's own
+\code{prior_list} -- or (3) the legacy flat list itself
+(\code{shape}/\code{rate}/\code{disp_upper}\code{[}/\code{disp_lower]},
+or \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
+\code{disp_upper_group}). In every case, \code{mu} and \code{Sigma} are
+never read from \code{prior_list}: \code{mu} is always \eqn{W_j\gamma}
+(recomputed every sweep), and \code{Sigma} is always derived internally
+as \code{solve(P)} from \code{pfamily_list} (see \code{pfamily_list}
+below), so it can never drift out of sync with it.}
 
 \item{pfamily_list}{Named list of Block~2 \code{pfamily} objects. The
 Block~2 random-effect prior precision (formerly a separate \code{P}
