@@ -2155,10 +2155,16 @@ NULL
     ## (any_non_normal = FALSE => Lambda fixed/known, the assumption the
     ## Section 16 derivation relies on). When the marginalized lambda_star
     ## is computable on every pilot draw (no Lambda + H_j PD failures) and
-    ## stays below the safeguard cutoff, it REPLACES m_convergence_used
-    ## (it is the more faithful, typically tighter rate); otherwise the
-    ## plain-rate m_convergence_used computed above is kept and a warning
-    ## is issued.
+    ## stays below the safeguard cutoff, it is COMBINED with the plain
+    ## disp_upper plug-in envelope (.two_block_combine_rate_envelopes():
+    ## rank-matched pointwise max of the two eigenvalue spectra, then a
+    ## single TV certificate from the combined spectrum) rather than
+    ## replacing it outright -- neither safeguard's own blind spot (a
+    ## fixed, possibly-loose disp_upper plug-in on one side; a finite
+    ## pilot sample that may miss a worse unobserved state on the other)
+    ## can then make m_convergence_used smaller than either alone would
+    ## have required. Otherwise the plain-rate m_convergence_used computed
+    ## above is kept and a warning is issued.
     marginal_ub <- NULL
     if (run_ub && !any_non_normal) {
       ## The main stage starts from the pilot MEAN (fixef_init), not the
@@ -2196,16 +2202,29 @@ NULL
       convergence_info$marginal_fallback_message <- NULL
 
       if (isTRUE(marginal_ub$valid)) {
-        m_convergence_used <- marginal_ub$m_min_marginal
-        convergence_info$m_convergence <- m_convergence_used
+        combined_ub <- .two_block_combine_rate_envelopes(
+          rate_a = pilot_ub$rate_upper,
+          rate_b = marginal_ub$rate_marginal,
+          tv_tol = tv_tol,
+          D0     = D0_main
+        )
+        if (combined_ub$m_min_combined > m_convergence_used) {
+          m_convergence_used <- combined_ub$m_min_combined
+        }
+        convergence_info$m_convergence        <- m_convergence_used
+        convergence_info$lambda_star_combined <- combined_ub$rate_combined$lambda_star
+        convergence_info$eigenvalues_combined <- combined_ub$rate_combined$eigenvalues
+        convergence_info$m_min_combined       <- combined_ub$m_min_combined
         if (isTRUE(verbose) || isTRUE(stage_verbose)) {
           cat(sprintf(
             paste0(
               "--- %s: Omega-marginalized safeguard [%d pilot draws, all groups' Lambda + H_j PD]:\n",
-              "    lambda_star_marginal = %.4f (< %.2f) => main m_convergence override = %d ---\n\n"
+              "    lambda_star_marginal = %.4f (< %.2f); combined (rank-matched max) with the\n",
+              "    disp_upper plug-in envelope => lambda_star_combined = %.4f => main\n",
+              "    m_convergence = %d ---\n\n"
             ),
             engine_label, n_pilot, marginal_ub$lambda_star_marginal,
-            marginal_ub$cutoff, m_convergence_used
+            marginal_ub$cutoff, combined_ub$rate_combined$lambda_star, m_convergence_used
           ))
         }
       } else {

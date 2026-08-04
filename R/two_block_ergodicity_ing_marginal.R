@@ -419,3 +419,78 @@
     cutoff               = cutoff
   )
 }
+
+#' Combine two \code{"two_block_rate"} eigenvalue envelopes conservatively
+#'
+#' Builds a single \code{"two_block_rate"}-class object whose eigenvalue
+#' spectrum is the componentwise (rank-matched) maximum of two input
+#' spectra, each sorted ascending first so that rank \eqn{i} of one envelope
+#' is compared against rank \eqn{i} of the other (matching the ascending
+#' order \code{two_block_tv_bound()}/Lemma 2 already require internally).
+#' If both inputs' own spectra are non-decreasing in rank (as every spectrum
+#' this package produces is, being either a \code{two_block_rate}-family
+#' eigen-decomposition or a pilot-draws \code{pmax} envelope of such), the
+#' componentwise max of the two sorted spectra is again non-decreasing, so
+#' the resulting object's own \code{lambda_star} is simply its largest
+#' (last) entry.
+#'
+#' Intended use: combine the plain \code{disp_upper} plug-in envelope from
+#' \code{.two_block_pilot_ub_from_coefficients()} (\code{rate_upper}, fixed
+#' at a possibly-loose fixed precision, D0 = 0/mode-start) with the
+#' Omega-marginalized envelope from
+#' \code{.two_block_pilot_marginal_ub_from_coefficients()}
+#' (\code{rate_marginal}, tighter/state-dependent but only certified over
+#' the observed pilot draws). Taking the rank-matched max means neither
+#' safeguard's own blind spot -- a fixed, possibly-conservative plug-in on
+#' one side; a finite pilot sample that may miss a worse unobserved state on
+#' the other -- can make the certified \code{m_convergence} smaller than
+#' either safeguard alone would have required.
+#'
+#' @param rate_a,rate_b \code{"two_block_rate"}-class objects (or minimal
+#'   structures with an \code{eigenvalues} element) with eigenvalue spectra
+#'   of the same length.
+#' @param tv_tol Target total-variation tolerance passed to
+#'   \code{\link{two_block_l_for_tv}}.
+#' @param D0 Squared standardized start distance for the combined envelope's
+#'   TV certificate; see \code{\link{two_block_l_for_tv}}.
+#' @return List with \code{rate_combined} (the combined
+#'   \code{"two_block_rate"} object) and \code{m_min_combined} (integer
+#'   sweep count certifying \code{tv_tol} from the combined spectrum).
+#' @noRd
+.two_block_combine_rate_envelopes <- function(rate_a, rate_b, tv_tol, D0 = 0) {
+  ev_a <- sort(as.numeric(rate_a$eigenvalues))
+  ev_b <- sort(as.numeric(rate_b$eigenvalues))
+  if (length(ev_a) != length(ev_b)) {
+    stop(
+      ".two_block_combine_rate_envelopes(): eigenvalue spectra have ",
+      "different lengths (", length(ev_a), " vs ", length(ev_b), ").",
+      call. = FALSE
+    )
+  }
+  ev_combined <- pmax(ev_a, ev_b)
+  lambda_star_combined <- ev_combined[length(ev_combined)]
+
+  rate_combined <- structure(
+    list(
+      lambda_star = lambda_star_combined,
+      eigenvalues = ev_combined,
+      m_for_tol   = function(tol) {
+        if (!is.numeric(tol) || length(tol) != 1L || tol <= 0 || tol >= 1) {
+          stop("'tol' must be a single value in (0, 1).", call. = FALSE)
+        }
+        if (lambda_star_combined <= 0) return(1L)
+        as.integer(ceiling(log(tol) / log(lambda_star_combined)))
+      },
+      weights_source = "combined"
+    ),
+    class = "two_block_rate"
+  )
+
+  m_min_combined <- .two_block_cap_inner_sweeps(
+    two_block_l_for_tv(
+      rate_combined, tv_tol, method = "theorem3", D0 = D0, warn = FALSE
+    ) + 1L
+  )
+
+  list(rate_combined = rate_combined, m_min_combined = m_min_combined)
+}

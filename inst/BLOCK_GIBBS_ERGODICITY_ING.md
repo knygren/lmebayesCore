@@ -1394,6 +1394,61 @@ neither of which is derived here. This section remains, like §16.1-16.7, a
 diagnostic/theoretical note only — nothing here is implemented in
 `R/two_block_ergodicity_ing_marginal.R` or elsewhere.
 
+### 16.9 Combining the marginal safeguard with the disp_upper plug-in envelope, rather than replacing it
+
+**Status: implemented** (`.two_block_combine_rate_envelopes()`,
+`R/two_block_ergodicity_ing_marginal.R`; called from
+`.rLMMIngNormal_reg_run_with_pilot()` in `R/rLMM_reg.R`).
+
+Earlier versions of the pilot safeguard treated
+\(\lambda^\star_{\mathrm{marginal}}\) (§16, computed at each pilot draw's own
+\(\beta_j\), maxed over draws) and \(\lambda^\star_{\mathrm{upper}}\) (§14,
+the fixed \(\omega_L=1/\texttt{disp\_upper}_j\) plug-in envelope, D0 = 0) as
+mutually exclusive: if the marginal envelope was computable and valid
+(`marginal_rate_valid == TRUE`), it *replaced* the plug-in one outright.
+Neither envelope is an unconditionally valid upper bound on its own,
+however, each has a distinct blind spot:
+
+- \(\lambda^\star_{\mathrm{upper}}\) fixes the per-group precision at
+  \(\omega_L D_j'D_j\) — the degenerate, zero-variance-at-\(\omega_L\) corner
+  of the exact §16.6 family (§16.6's "degenerate limit" specialized to
+  \(\omega_0=\omega_L\)) — regardless of what the pilot draws' own residuals
+  actually look like. It is only guaranteed to lower-bound the true
+  \(H_j(\beta_j)\) (and hence upper-bound \(\lambda^\star\)) on the *tighter*
+  sub-ellipsoid \(q_j\le K_j':=(E_t[\Omega_j]-\omega_L)/\mathrm{Var}_t[\Omega_j]\),
+  strictly smaller than the ordinary log-concavity ellipsoid
+  \(q_j\le K_j:=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) that §16.3/§16.6
+  already check — so a draw can sit inside the checked ellipsoid (no PD
+  failure) yet still, in principle, have a true local rate above what
+  \(\lambda^\star_{\mathrm{upper}}\) certifies.
+- \(\lambda^\star_{\mathrm{marginal}}\) uses the exact, state-dependent
+  \(H_j(\beta_j)\) at every observed pilot draw, but is only a \(\max\) over
+  the *finite* pilot sample (\(n_{\mathrm{pilot}}\) draws); a worse state the
+  pilot happened not to visit is not certified against.
+
+Rather than picking one, `.two_block_combine_rate_envelopes()` builds a
+single conservative envelope: sort each spectrum ascending (the order
+`two_block_tv_bound()`/Lemma 2 already require internally), take the
+componentwise (rank-matched) maximum, and run Theorem 3's TV bound once on
+the combined spectrum at the pilot-mean-start \(D_0\)
+(`two_block_d0_pilot_start()`) both envelopes are already certified against.
+Because the componentwise max of two rank-\(i\) non-decreasing sequences is
+itself non-decreasing, the combined object's own \(\lambda^\star\) is simply
+its largest (last) entry, and the resulting \(m_{\min,\mathrm{combined}}\)
+is \(\ge\) both \(m_{\min,\mathrm{upper}}\) and \(m_{\min,\mathrm{marginal}}\)
+individually — in fact typically strictly larger than either, since Theorem
+3's bound sums over the *whole* spectrum, not just the top eigenvalue, so a
+rank-\(i\) crossover elsewhere in the spectrum (one envelope's rank-\(i\)
+eigenvalue exceeding the other's, even where the *top* eigenvalues favor the
+other envelope) still adds to the combined bound. `m_convergence_used` is
+then the max of this combined \(m_{\min}\) and the plain-rate floor computed
+at pilot-start (mirroring the existing "only ever increase" pattern already
+used to fold `pilot_ub$m_min_upper` into `m_convergence_used`).
+`fit$convergence_info$lambda_star_combined`/`eigenvalues_combined`/
+`m_min_combined` record the combined spectrum's own summary; when the
+marginal safeguard is invalid, behavior is unchanged (falls back to the
+plain-rate envelope alone, with the same warning as before).
+
 ---
 
 ## 17. A split-support heuristic for a revised end-of-simulation TV bound
@@ -1430,10 +1485,11 @@ behaves*; this section estimates how much slack to add for the rest.
 
 Let \(\lambda^\star_{\mathrm{used}}\) be whichever rate actually calibrated
 `m_convergence` for the run being diagnosed —
-\(\texttt{fit\$convergence\_info\$lambda\_star\_marginal}\) if the marginal
-safeguard was valid for that pilot (`marginal_rate_valid == TRUE`), else the
-base/extended \(\lambda^\star_{\text{upper}}\) it fell back to (§14,
-`two_block_rate_ing()`/`two_block_rate()`). Partition the state space into
+\(\texttt{fit\$convergence\_info\$lambda\_star\_combined}\) if the marginal
+safeguard was valid for that pilot (`marginal_rate_valid == TRUE`; §16.9
+below), else the base/extended \(\lambda^\star_{\text{upper}}\) it fell back
+to (§14, `two_block_rate_ing()`/`two_block_rate()`). Partition the state
+space into
 
 $$
 A \;=\; \Big\{\,\beta:\ \Lambda+H_j(\beta_j)\succ0\ \ \forall j,\ \ \text{and}\ \ \lambda^\star_{\mathrm{marginal}}(\beta)\le\lambda^\star_{\mathrm{used}}\,\Big\},

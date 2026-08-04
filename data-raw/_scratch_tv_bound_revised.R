@@ -26,8 +26,11 @@
 ##                     package's own .two_block_lambda_star_marginal_over_draws()):
 ##                     must carry $lambda_star_vec, $skipped, $n_draws.
 ## lambda_star_used -- the lambda_star that actually calibrated this run's
-##                     m_convergence: fit$convergence_info$lambda_star_marginal
-##                     if fit$convergence_info$marginal_rate_valid is TRUE,
+##                     m_convergence: fit$convergence_info$lambda_star_combined
+##                     (the rank-matched-max combination of the marginal
+##                     safeguard and the disp_upper plug-in envelope; see
+##                     .two_block_combine_rate_envelopes()) if
+##                     fit$convergence_info$marginal_rate_valid is TRUE,
 ##                     else fit$convergence_info$lambda_star_upper.
 ## tv_tol           -- the TV tolerance two_block_l_for_tv() was calibrated
 ##                      against (package default 0.01; see fit$convergence_info
@@ -86,7 +89,7 @@
 ##
 ##   source("data-raw/_scratch_tv_bound_revised.R")
 ##   lambda_star_used <- if (isTRUE(fit$convergence_info$marginal_rate_valid)) {
-##     fit$convergence_info$lambda_star_marginal
+##     fit$convergence_info$lambda_star_combined  # rank-matched max w/ upper bound
 ##   } else {
 ##     fit$convergence_info$lambda_star_upper
 ##   }

@@ -622,12 +622,14 @@ res_marg <- .tmp_lambda_star_marginal_over_draws(
 ##     main-stage draws where some group's Lambda + H_j wasn't PD, or the
 ##     draw's own lambda_star_marginal exceeded lambda_star_used -- the
 ##     lambda_star that actually calibrated this run's m_convergence (the
-##     marginal safeguard if it was valid for this pilot, else the base/
-##     extended upper bound it fell back to).
+##     rank-matched-max COMBINATION of the marginal safeguard and the base/
+##     extended upper bound if the marginal safeguard was valid for this
+##     pilot -- see .two_block_combine_rate_envelopes() -- else just the
+##     upper bound it fell back to).
 ## ---------------------------------------------------------------------------
 source("data-raw/_scratch_tv_bound_revised.R")
 lambda_star_used <- if (isTRUE(fit$convergence_info$marginal_rate_valid)) {
-  fit$convergence_info$lambda_star_marginal
+  fit$convergence_info$lambda_star_combined
 } else {
   fit$convergence_info$lambda_star_upper
 }
