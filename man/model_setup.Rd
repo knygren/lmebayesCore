@@ -8,7 +8,6 @@
 model_setup(
   formula,
   data = NULL,
-  vcov_formula = NULL,
   family = gaussian(),
   REML = TRUE,
   control = NULL,
@@ -33,9 +32,6 @@ model_setup(
 variance components).}
 
 \item{data}{Optional data frame.}
-
-\item{vcov_formula}{Ignored (deprecated). Variance components are taken from
-the full \code{formula} fit so \code{lmer} reference output is consistent.}
 
 \item{family}{A \code{\link[stats]{family}} object. Defaults to
 \code{gaussian()}, in which case \code{\link[lme4]{lmer}} is used.
@@ -80,25 +76,68 @@ independent arguments that must be kept consistent by the caller.}
 \item{x}{A \code{model_setup} object.}
 }
 \value{
-Object of class \code{"model_setup"}: \code{y}, \code{D},
-\code{group}, \code{W}, \code{formula}, \code{family},
-\code{vcov_formula} (deprecated alias of \code{formula}),
-\code{lmer_fit} / \code{glmer_fit}, \code{lmer_vcov_fit} /
-\code{glmer_vcov_fit} (same object as the full-formula fit),
-\code{varcorr}, \code{vcov_re}, \code{residual_var}; plus \code{re_rank},
-\code{re_estimable}, \code{re_glm_check}, \code{hyper_rank},
-\code{hyper_deficient}, and \code{rank_ok} from
-\code{\link{check_identifiability}} (see its \code{@return} for exact
-definitions); plus \code{dispformula} (as supplied) and
-\code{glmmTMB_fit}: \code{NULL} when \code{dispformula = ~1} or
-\code{fit_mer = FALSE}; otherwise a \code{\link[glmmTMB]{glmmTMB}} fit
-on \code{formula} with the same \code{dispformula} (Gaussian models
-only), fit via the same \code{data}/\code{REML}/\code{control}-derived
-arguments as the \code{lmer_fit} above. This is \strong{additive}:
-\code{lmer_fit}/\code{glmer_fit} are never replaced by a \code{glmmTMB}
-fit. \code{\link{Prior_Setup_lmebayes}} and \code{lmerb()} (in
-\pkg{lmebayes}) reuse \code{glmmTMB_fit} as their per-group-dispersion
-calibration reference instead of fitting \code{glmmTMB} a second time.
+Object of class \code{"model_setup"} with:
+\describe{
+\item{\code{y}}{Response vector, length \code{nrow(D)}.}
+\item{\code{D}}{Random-effects model matrix (\code{n_obs} x
+\code{p_re}): per-observation loadings on the within-group random
+coefficient vector (columns \code{re_coef_names}).}
+\item{\code{group}}{Factor of length \code{nrow(D)} for block
+subsetting; \code{levels(group)} fixes group order used elsewhere.}
+\item{\code{group_name}}{Grouping factor name.}
+\item{\code{re_coef_names}}{Random coefficient names from \code{lme4}.}
+\item{\code{W}}{Named list of group-level hyper-design matrices (one
+per \code{re_coef_names} entry, one row per group level).}
+\item{\code{re_slope_moderation}}{Cross-level moderation metadata; see
+\code{\link{extract_re_hyper_matrices}}.}
+\item{\code{formula}}{The \code{formula} argument, as supplied.}
+\item{\code{family}}{The normalized \code{\link[stats]{family}}
+object.}
+\item{\code{call}}{The matched call.}
+\item{\code{dispformula}}{The \code{dispformula} argument, as
+supplied.}
+\item{\code{lmer_fit} / \code{glmer_fit}}{The reference
+\code{\link[lme4]{lmer}} (Gaussian) or \code{\link[lme4]{glmer}}
+(otherwise) fit on \code{formula}; \code{NULL} when
+\code{fit_mer = FALSE}.}
+\item{\code{lmer_vcov_fit} / \code{glmer_vcov_fit}}{Same object as
+\code{lmer_fit}/\code{glmer_fit} (retained as a separate name for
+backward compatibility).}
+\item{\code{varcorr}}{The raw \code{\link[lme4]{VarCorr}} object from
+the reference fit.}
+\item{\code{vcov_re}}{Named numeric vector (names
+\code{re_coef_names}) of random-effect variances.}
+\item{\code{residual_var}}{Residual (measurement) variance from the
+reference fit.}
+\item{\code{glmmTMB_fit}}{\code{NULL} when \code{dispformula = ~1} or
+\code{fit_mer = FALSE}; otherwise a \code{\link[glmmTMB]{glmmTMB}}
+fit on \code{formula} with the same \code{dispformula} (Gaussian
+models only), fit via the same \code{data}/\code{REML}/
+\code{control}-derived arguments as \code{lmer_fit}. This is
+\strong{additive}: \code{lmer_fit}/\code{glmer_fit} are never
+replaced by a \code{glmmTMB} fit. \code{\link{Prior_Setup_lmebayes}}
+and \code{lmerb()} (in \pkg{lmebayes}) reuse \code{glmmTMB_fit} as
+their per-group-dispersion calibration reference instead of fitting
+\code{glmmTMB} a second time.}
+\item{\code{re_rank}}{Named logical (names \code{levels(group)}):
+\code{TRUE} if that group's \eqn{D_j} is full column rank; see
+\code{\link{check_identifiability}}.}
+\item{\code{re_estimable}}{Named logical, same names as
+\code{re_rank}: \code{TRUE} if the group is additionally estimable
+(family-specific MLE/dispersion check); see
+\code{\link{check_identifiability}}.}
+\item{\code{re_glm_check}}{Per-group diagnostic data frame from
+\code{\link{check_identifiability}} (family-dependent; may be
+\code{NULL}).}
+\item{\code{hyper_rank}}{Named logical (names \code{re_coef_names}):
+\code{TRUE} if \code{W[[k]]} is full column rank when restricted to
+\code{re_estimable} groups.}
+\item{\code{hyper_deficient}}{Negation of \code{hyper_rank}.}
+\item{\code{rank_ok}}{Scalar \code{TRUE} only when every
+\code{hyper_rank} entry is \code{TRUE}; required by
+\code{\link{Prior_Setup_lmebayes}} to derive default hyperpriors
+automatically.}
+}
 }
 \description{
 Wrapper around \code{\link[lme4]{lmer}} or \code{\link[lme4]{glmer}} for
