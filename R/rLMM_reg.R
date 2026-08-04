@@ -128,10 +128,24 @@
 #'   \code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
 #'   \code{length(group_levels)} giving one fixed, known dispersion per
 #'   group, matched to \code{group_levels} either positionally or by name),
-#'   \code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or
-#'   shared ING measurement prior (\code{mu}, \code{Sigma}, \code{shape},
-#'   \code{rate}, \ldots) for ING routes (plug-in \eqn{\sigma^2 =}
-#'   \code{shape/rate} for ICM/TV is derived internally).
+#'   \code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or,
+#'   for \code{rLMMindepNormalGamma_reg_known_vcov}/
+#'   \code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
+#'   the ING measurement-dispersion prior: (1) a single
+#'   \code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
+#'   shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
+#'   one per \code{group_levels} entry, as returned by
+#'   \code{\link{dGamma_list}()} (per-group \eqn{\sigma^2_j}) -- both
+#'   preferred, since \code{shape}/\code{rate}/\code{disp_lower}/
+#'   \code{disp_upper} are read straight from each pfamily's own
+#'   \code{prior_list} -- or (3) the legacy flat list itself
+#'   (\code{shape}/\code{rate}/\code{disp_upper}\code{[}/\code{disp_lower]},
+#'   or \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
+#'   \code{disp_upper_group}). In every case, \code{mu} and \code{Sigma} are
+#'   never read from \code{prior_list}: \code{mu} is always \eqn{W_j\gamma}
+#'   (recomputed every sweep), and \code{Sigma} is always derived internally
+#'   as \code{solve(P)} from \code{pfamily_list} (see \code{pfamily_list}
+#'   below), so it can never drift out of sync with it.
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects. The
 #'   Block~2 random-effect prior precision (formerly a separate \code{P}
 #'   argument) is always derived internally from \code{pfamily_list}: one
@@ -624,15 +638,154 @@ NULL
     )
   )
 }
+#' Build a pooled ING measurement prior_list from a single dGamma() pfamily
+#'
+#' \code{mu}/\code{Sigma} are deliberately not part of the returned list --
+#' see \code{.rLMM_validate_ing_measurement_prior_list()}'s header comment
+#' for why the caller never supplies them.
+#' @noRd
+.rLMM_ing_measurement_prior_from_dGamma_pooled <- function(pf, fn_name) {
+  if (!identical(pf$pfamily, "dGamma")) {
+    stop(
+      fn_name, "(): a 'prior_list' pfamily object must be dGamma() (pooled ",
+      "measurement-dispersion prior); got \"", pf$pfamily, "\".",
+      call. = FALSE
+    )
+  }
+  pl <- pf$prior_list
+  shape <- as.numeric(pl$shape[1L])
+  rate  <- as.numeric(pl$rate[1L])
+  if (!is.finite(shape) || shape <= 0) {
+    stop(
+      fn_name, "(): dGamma() 'prior_list$shape' must be a positive scalar.",
+      call. = FALSE
+    )
+  }
+  if (!is.finite(rate) || rate <= 0) {
+    stop(
+      fn_name, "(): dGamma() 'prior_list$rate' must be a positive scalar.",
+      call. = FALSE
+    )
+  }
+  disp_lower <- pl$disp_lower
+  disp_upper <- pl$disp_upper
+  if (!is.null(disp_lower) && !is.null(disp_upper) && disp_upper <= disp_lower) {
+    stop(
+      fn_name, "(): dGamma() 'prior_list$disp_upper' must exceed 'disp_lower'.",
+      call. = FALSE
+    )
+  }
+  if (is.null(disp_upper) || !is.numeric(disp_upper) || length(disp_upper) != 1L ||
+      !is.finite(disp_upper) || disp_upper <= 0) {
+    stop(
+      fn_name, "(): dGamma() 'prior_list$disp_upper' is required ",
+      "(conservative measurement-dispersion plug-in for lambda* calibration).",
+      call. = FALSE
+    )
+  }
+  out <- list(shape = shape, rate = rate, disp_upper = as.numeric(disp_upper))
+  if (!is.null(disp_lower)) out$disp_lower <- as.numeric(disp_lower)
+  out
+}
+
+#' Build a per-group ING measurement prior_list from a named list of
+#' dGamma() pfamilies (one per group level, as returned by dGamma_list())
+#' @noRd
+.rLMM_ing_measurement_prior_from_dGamma_group <- function(
+    prior_list,
+    fn_name,
+    group_levels
+) {
+  if (is.null(group_levels)) {
+    stop(
+      fn_name, "(): 'group_levels' is required to validate a per-group ",
+      "measurement dispersion prior_list.",
+      call. = FALSE
+    )
+  }
+  nms <- names(prior_list)
+  if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
+    stop(
+      fn_name, "(): names(prior_list) must match every group level (",
+      paste(group_levels, collapse = ", "), ") exactly when 'prior_list' is ",
+      "a named list of dGamma() pfamilies.",
+      call. = FALSE
+    )
+  }
+  shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
+  rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
+  disp_lower_group <- stats::setNames(numeric(length(group_levels)), group_levels)
+  disp_upper_group <- stats::setNames(numeric(length(group_levels)), group_levels)
+  for (lev in group_levels) {
+    pf <- prior_list[[lev]]
+    if (!identical(pf$pfamily, "dGamma")) {
+      stop(
+        fn_name, "(): prior_list[[\"", lev, "\"]] pfamily must be dGamma(); ",
+        "got \"", pf$pfamily, "\".",
+        call. = FALSE
+      )
+    }
+    pl    <- pf$prior_list
+    shape <- as.numeric(pl$shape[1L])
+    rate  <- as.numeric(pl$rate[1L])
+    lo    <- pl$disp_lower
+    hi    <- pl$disp_upper
+    if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
+      stop(
+        fn_name, "(): prior_list[[\"", lev, "\"]] must have positive, ",
+        "finite 'shape' and 'rate'.",
+        call. = FALSE
+      )
+    }
+    if (is.null(lo) || is.null(hi) || !is.numeric(lo) || !is.numeric(hi) ||
+        length(lo) != 1L || length(hi) != 1L ||
+        !is.finite(lo) || !is.finite(hi) || lo <= 0 || hi <= lo) {
+      stop(
+        fn_name, "(): prior_list[[\"", lev, "\"]] must have a finite, ",
+        "positive 'disp_lower' and 'disp_upper' with disp_upper > disp_lower.",
+        call. = FALSE
+      )
+    }
+    shape_group[[lev]]      <- shape
+    rate_group[[lev]]       <- rate
+    disp_lower_group[[lev]] <- as.numeric(lo)
+    disp_upper_group[[lev]] <- as.numeric(hi)
+  }
+  list(
+    shape_group      = shape_group,
+    rate_group       = rate_group,
+    disp_lower_group = disp_lower_group,
+    disp_upper_group = disp_upper_group
+  )
+}
+
 #' Validate a shared ING measurement prior for per-group Block~1 updates
 #'
-#' Accepts either a single pooled \code{shape}/\code{rate}/\code{disp_lower}/
-#' \code{disp_upper} (scalar) prior, or a per-group prior carrying
-#' \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
-#' \code{disp_upper_group} named vectors (one entry per \code{group_levels}).
-#' The two are mutually exclusive; which one is present determines the
-#' dispersion mode used by the Block~1 sweep (see
-#' \code{.two_block_block1_ing_one_chain()}).
+#' Accepts, in order of preference: (1) a single \code{dGamma()} pfamily
+#' (pooled measurement dispersion), (2) a named list of \code{dGamma()}
+#' pfamilies, one per \code{group_levels} entry, exactly as returned by
+#' \code{\link{dGamma_list}()} (per-group measurement dispersion), or (3) the
+#' legacy flat shape -- pooled \code{shape}/\code{rate}/\code{disp_lower}/
+#' \code{disp_upper} (scalar), or per-group \code{shape_group}/
+#' \code{rate_group}/\code{disp_lower_group}/\code{disp_upper_group} named
+#' vectors (one entry per \code{group_levels}) -- kept only for backward
+#' compatibility with \code{rlmerb()}'s own glue
+#' (\code{.lmebayes_ing_measurement_prior_list()}/
+#' \code{.lmebayes_ing_measurement_prior_list_group()}). Pooled vs. per-group
+#' is mutually exclusive and determines the dispersion mode used by the
+#' Block~1 sweep (see \code{.two_block_block1_ing_one_chain()}).
+#'
+#' \code{mu}/\code{Sigma} are never read here (and never required), even
+#' from the legacy flat shape if present: \code{mu} is always \eqn{W_j\gamma}
+#' (recomputed every sweep from \code{pfamily_list}'s own Block~2 hyper-prior,
+#' never a fixed input), and \code{Sigma} -- the shared random-effects
+#' covariance every group's \eqn{\beta_j} prior uses -- is filled in by the
+#' caller (\code{rLMMindepNormalGamma_reg_known_vcov()}/
+#' \code{_estimated_vcov()}) as \code{solve(P)} immediately after this
+#' function returns, once \code{P} has been derived from \code{pfamily_list}
+#' (see those functions' bodies); this guarantees \code{Sigma} can never
+#' drift out of sync with \code{pfamily_list}'s own implied precision, which
+#' requiring it here (and trusting whatever the caller supplied) could not.
 #' @noRd
 .rLMM_validate_ing_measurement_prior_list <- function(
     prior_list,
@@ -643,29 +796,15 @@ NULL
   if (!is.list(prior_list)) {
     stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
   }
-  req_common <- c("mu", "Sigma")
-  miss <- req_common[!req_common %in% names(prior_list)]
-  if (length(miss)) {
-    stop(
-      fn_name, "(): 'prior_list' must contain ",
-      paste(req_common, collapse = ", "),
-      " (from dIndependent_Normal_Gamma()).",
-      call. = FALSE
-    )
+
+  if (inherits(prior_list, "pfamily")) {
+    return(.rLMM_ing_measurement_prior_from_dGamma_pooled(prior_list, fn_name))
   }
-  mu <- as.matrix(prior_list$mu, ncol = 1L)
-  Sigma <- as.matrix(prior_list$Sigma)
-  if (nrow(mu) != p_re || ncol(mu) != 1L) {
-    stop(
-      fn_name, "(): 'prior_list$mu' must be a ", p_re, " x 1 matrix.",
-      call. = FALSE
-    )
-  }
-  if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
-    stop(
-      fn_name, "(): 'prior_list$Sigma' must be ", p_re, " x ", p_re, ".",
-      call. = FALSE
-    )
+  if (length(prior_list) > 0L &&
+      all(vapply(prior_list, function(x) inherits(x, "pfamily"), logical(1L)))) {
+    return(.rLMM_ing_measurement_prior_from_dGamma_group(
+      prior_list, fn_name = fn_name, group_levels = group_levels
+    ))
   }
 
   is_group <- !is.null(prior_list$shape_group) || !is.null(prior_list$rate_group)
@@ -3004,6 +3143,11 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
   P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
+  ## The shared random-effects covariance every group's beta_j prior uses is
+  ## always Psi = solve(P) -- P already derived above from pfamily_list --
+  ## never a value read from 'prior_list' (see
+  ## .rLMM_validate_ing_measurement_prior_list()'s header comment).
+  ing_prior_list$Sigma <- solve(P)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
@@ -3074,6 +3218,11 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
   )
   P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
+  ## The shared random-effects covariance every group's beta_j prior uses is
+  ## always Psi = solve(P) -- P already derived above from pfamily_list --
+  ## never a value read from 'prior_list' (see
+  ## .rLMM_validate_ing_measurement_prior_list()'s header comment).
+  ing_prior_list$Sigma <- solve(P)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (pf_summary$all_dNormal) {
     stop(

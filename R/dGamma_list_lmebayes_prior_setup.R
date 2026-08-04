@@ -39,9 +39,21 @@
 #' @param ... Currently ignored.
 #'
 #' @return A named list of \code{"pfamily"} objects keyed by group levels,
-#'   suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
-#'   attributes \code{"window_diagnostics"} (data frame, one row per group,
-#'   with \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
+#'   suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}
+#'   \emph{or} passed directly as \code{prior_list} to
+#'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}}/
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} (both routes
+#'   accept a named list of \code{dGamma()} pfamilies directly; \code{mu}/
+#'   \code{Sigma} are derived internally from \code{pfamily_list} and are
+#'   never read from this object), with attributes
+#'   \code{"window_diagnostics"} (data frame, one row per group, with
+#'   \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
+#'   \code{"measurement_prior_group"} (list of four named-by-group-level
+#'   numeric vectors -- \code{shape_group}, \code{rate_group},
+#'   \code{disp_lower_group}, \code{disp_upper_group} -- the same
+#'   per-group quantities as \code{"window_diagnostics"}'s \code{shape_ING}/
+#'   \code{rate}/\code{disp_lower}/\code{disp_upper} columns, reshaped as
+#'   vectors; a convenience view, not needed for the primary use above),
 #'   \code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
 #'   reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
 #'   reuse it as their own \code{dispersion_fit} instead of re-fitting
@@ -178,6 +190,27 @@ dGamma_list.lmebayes_prior_setup <- function(
   ## lmebayes:::.lmebayes_fit_glmmtmb_dispersion().
   attr(out, "dispersion_fit")      <- object$dispersion_fit
   attr(out, "calibration_source")  <- object$calibration_source
+
+  ## Flattened view of the SAME four per-group quantities already collected
+  ## into window_diagnostics above (shape_ING/rate/disp_lower/disp_upper),
+  ## reshaped as named-by-group-level vectors instead of data-frame columns
+  ## -- ready to pass straight through as 'prior_list' to
+  ## rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov() (which now
+  ## accept this list argument-name-for-argument-name; note 'mu'/'Sigma' are
+  ## deliberately NOT included here: 'mu' is never read by those routes --
+  ## each group's mean is always W_j %*% gamma, recomputed every sweep -- and
+  ## 'Sigma' is the Block~2-derived random-effects covariance, which those
+  ## routes now always derive internally from 'pfamily_list' as
+  ## solve(P) rather than accepting it here, so it can never drift out of
+  ## sync with pfamily_list). All four vectors share identical names/order
+  ## (= group_levels) by construction: they come from the same per-group
+  ## loop above, never independently subset afterward.
+  attr(out, "measurement_prior_group") <- list(
+    shape_group      = stats::setNames(window_diagnostics$shape_ING,  window_diagnostics$group),
+    rate_group       = stats::setNames(window_diagnostics$rate,       window_diagnostics$group),
+    disp_lower_group = stats::setNames(window_diagnostics$disp_lower, window_diagnostics$group),
+    disp_upper_group = stats::setNames(window_diagnostics$disp_upper, window_diagnostics$group)
+  )
 
   out
 }

@@ -65,6 +65,121 @@
 ## autocorrelation violates -- fine for a first-pass ranking/screening tool,
 ## not a calibrated p-value.
 
+## =============================================================================
+## .tmp_rss_ellipsoid_test_marginal(): THE ellipsoid check (Omega integrated
+## out exactly, Section 16.6) -- add this new section BEFORE the older,
+## untruncated/no-shrinkage-baseline test below.
+##
+## The whole point of calibrating disp_lower_j/disp_upper_j
+## (Prior_Setup_lmebayes()'s alpha_target_measurement search,
+## R/pwt_measurement_group_calibration.R) is to keep the fraction of
+## log-concavity violations below a target. That search is a PRE-RUN
+## approximation: it simulates q_j from a plug-in NONCENTRAL GAUSSIAN full
+## conditional (Omega_j, gamma, Lambda all fixed at reference point
+## estimates -- see .lmebayes_calibrate_pwt_measurement_group()). This
+## function is the POST-RUN check on whether that prediction actually held
+## up against the real posterior: for each of the n main-stage draws
+## (independent parallel chains, NOT a single autocorrelated chain -- see
+## m_convergence/Theorem-3 calibration), it uses ONLY that draw's own beta_j
+## (via q_j) to test
+##
+##   q_j(beta_j) <= K_j(beta_j) := E_t[Omega_j | beta_j] / Var_t[Omega_j | beta_j]
+##
+## i.e. Omega_j analytically integrated out of the marginal Hessian
+## H_j(beta_j) = E_t[Omega_j]*D_j'D_j - Var_t[Omega_j]*(D_j'e_j)(D_j'e_j)'
+## (Section 16.6) -- NOT the realized dispersion_ranef draw for that sweep
+## (conditioning on a specific, realized Omega_j makes H_j trivially PD for
+## every beta_j, which is why Omega_j must be integrated out analytically
+## instead: see the "why not just use the sampled Omega_j" discussion this
+## section grew out of). A draw is flagged "degenerate" (excluded from both
+## the numerator and denominator of pct_draws_outside below) only when the
+## truncated-moment calculation itself is numerically unstable for that
+## draw's own q_j -- see .two_block_truncated_omega_moments()'s dP0_floor
+## guard -- not because any Omega_j draw ever left [omega_L, omega_U] (the
+## sampler enforces that truncation directly; it never happens).
+##
+## Pass `pwt_measurement_calibration = ps$pwt_measurement_calibration` (the
+## data.frame Prior_Setup_lmebayes() stores whenever alpha_target_measurement
+## calibration ran) to attach each group's PRE-RUN predicted
+## `pct_outside_after` alongside the POST-RUN empirical `pct_draws_outside`
+## computed here, for direct comparison.
+## =============================================================================
+.tmp_rss_ellipsoid_test_marginal <- function(fit, D, y, group, group_name, re_coef_names,
+                                              shape_group, rate_group,
+                                              disp_lower_group, disp_upper_group,
+                                              group_levels = levels(group),
+                                              pwt_measurement_calibration = NULL) {
+  co <- fit$coefficients
+  group_chr <- as.character(group)
+
+  rows <- lapply(group_levels, function(lev) {
+    idx <- which(group_chr == lev)
+    D_j <- D[idx, re_coef_names, drop = FALSE]
+    y_j <- y[idx]
+    n_j <- length(idx)
+    DtD <- crossprod(D_j)
+    beta_ols <- as.vector(solve(DtD, crossprod(D_j, y_j)))
+    RSS_ols  <- sum((y_j - D_j %*% beta_ols)^2)
+
+    a0 <- shape_group[[lev]]
+    r0 <- rate_group[[lev]]
+    omega_L  <- 1 / disp_upper_group[[lev]]
+    omega_U  <- 1 / disp_lower_group[[lev]]
+    shape_j  <- a0 + n_j / 2
+
+    draws <- as.matrix(co[co[[group_name]] == lev, re_coef_names, drop = FALSE])
+    n_draws_j <- nrow(draws)
+    diffs <- sweep(draws, 2, beta_ols, "-")
+    q_draws <- rowSums((diffs %*% DtD) * diffs)
+
+    ## rate_j(beta) = r0 + 0.5*e_j(beta)'e_j(beta) = r0 + 0.5*(q_j(beta) + RSS_ols_j)
+    rate_draws <- r0 + 0.5 * (q_draws + RSS_ols)
+    mom_draws  <- lmebayesCore:::.two_block_truncated_omega_moments(
+      shape_j, rate_draws, omega_L, omega_U
+    )
+    K_draws      <- mom_draws$E_omega / mom_draws$Var_omega
+    n_degenerate <- sum(!mom_draws$ok)
+    n_eval       <- sum(mom_draws$ok)
+    obs_n        <- sum(mom_draws$ok & (q_draws > K_draws))
+
+    data.frame(
+      group             = lev,
+      n_j               = n_j,
+      n_draws           = n_draws_j,
+      n_degenerate      = n_degenerate,
+      n_eval            = n_eval,
+      obs_n             = obs_n,
+      pct_draws_outside = 100 * obs_n / max(n_eval, 1L),
+      stringsAsFactors  = FALSE
+    )
+  })
+  tab <- do.call(rbind, rows)
+
+  if (!is.null(pwt_measurement_calibration)) {
+    pre <- pwt_measurement_calibration[
+      match(tab$group, pwt_measurement_calibration$group),
+      "pct_outside_after"
+    ]
+    tab$pct_outside_prerun <- pre
+    tab$diff_vs_prerun      <- tab$pct_draws_outside - tab$pct_outside_prerun
+  }
+  tab
+}
+
+## Usage:
+##   tab_marg <- .tmp_rss_ellipsoid_test_marginal(
+##     fit = fit, D = design$D, y = design$y, group = grp,
+##     group_name = design$group_name, re_coef_names = re_names,
+##     shape_group = shape_group, rate_group = rate_group,
+##     disp_lower_group = disp_lower_group, disp_upper_group = disp_upper_group,
+##     pwt_measurement_calibration = ps$pwt_measurement_calibration
+##   )
+##   print(tab_marg[order(-tab_marg$pct_draws_outside), ], row.names = FALSE, digits = 4)
+##   cat(sprintf(
+##     "Mean pct outside -- post-run (real posterior) vs pre-run (calibration prediction): %.3f%% vs %.3f%%\n",
+##     mean(tab_marg$pct_draws_outside), mean(tab_marg$pct_outside_prerun, na.rm = TRUE)
+##   ))
+
 .tmp_rss_ellipsoid_test <- function(fit, D, y, group, group_name, re_coef_names,
                                      shape_group, rate_group,
                                      disp_lower_group, disp_upper_group,

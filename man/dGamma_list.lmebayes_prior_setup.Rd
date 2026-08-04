@@ -25,9 +25,21 @@ stored one.}
 }
 \value{
 A named list of \code{"pfamily"} objects keyed by group levels,
-suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}, with
-attributes \code{"window_diagnostics"} (data frame, one row per group,
-with \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
+suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}
+\emph{or} passed directly as \code{prior_list} to
+\code{\link{rLMMindepNormalGamma_reg_known_vcov}}/
+\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} (both routes
+accept a named list of \code{dGamma()} pfamilies directly; \code{mu}/
+\code{Sigma} are derived internally from \code{pfamily_list} and are
+never read from this object), with attributes
+\code{"window_diagnostics"} (data frame, one row per group, with
+\code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
+\code{"measurement_prior_group"} (list of four named-by-group-level
+numeric vectors -- \code{shape_group}, \code{rate_group},
+\code{disp_lower_group}, \code{disp_upper_group} -- the same
+per-group quantities as \code{"window_diagnostics"}'s \code{shape_ING}/
+\code{rate}/\code{disp_lower}/\code{disp_upper} columns, reshaped as
+vectors; a convenience view, not needed for the primary use above),
 \code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
 reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
 reuse it as their own \code{dispersion_fit} instead of re-fitting

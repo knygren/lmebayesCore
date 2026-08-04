@@ -70,9 +70,14 @@ form_lmer <- score_ppvt ~
 ## 1. Per-group ING measurement dispersion requires every group to be full
 ##    column rank (no accept/reject envelope is built for rank-deficient
 ##    groups yet). Mirrors demo("Ex_24_lmerb_dGamma_BigWordClub", package =
-##    "lmebayes"): filter to full-rank schools, and drop school_id 2/18
-##    (a known Block~1 per-group ING envelope sign-violation case, tracked
-##    independently of this demo).
+##    "lmebayes"): filter to full-rank schools.
+##
+##    UPDATE: school_id 2/18 used to be dropped here as a known Block~1
+##    per-group ING envelope sign-violation case ("Sign violation: UB2 < 0").
+##    Retested with the current glmbayesCore (root-finding UB2_Min_j fix --
+##    see data-raw/README_ub2_rootfinding_fix.md) and the current Part VI/
+##    n_j/2-corrected dispersion bounds: both schools now run clean (see
+##    data-raw/_scratch_retest_school18.R), so the drop is removed.
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
 full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
@@ -90,18 +95,6 @@ if (length(full_rank_schools) < length(design_all$re_rank)) {
 }
 dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
-
-## TEMP: school 18 triggers ING envelope sign violation (UB2 < 0); drop and retest
-temp_drop_schools <- c("18", "2")
-drop <- intersect(temp_drop_schools, levels(dat$school_id))
-if (length(drop)) {
-  cat(sprintf(
-    "\n=== TEMP: excluding school_id %s (Block~1 ING envelope failure) ===\n",
-    paste(drop, collapse = ", ")
-  ))
-  dat <- subset(dat, !as.character(school_id) %in% drop)
-  dat$school_id <- droplevels(dat$school_id)
-}
 
 ## ---------------------------------------------------------------------------
 ## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
@@ -174,96 +167,104 @@ pf <- pfamily_list(ps)
 ## shrinkage formula verbatim, adding only Sigma_j' = Sigma_j + Omega_j
 ## before calibration, and the same shape_w/rate_w symmetric-quantile
 ## window construction (Part II) applied to the resulting sigma2_hat,j'.
+##
+## COMMENTED OUT: not consumed downstream (Section 3 reads dGamma_list(ps)
+## directly, see the UPDATE note there) -- this was purely an independent
+## from-scratch check against ps$ing_prior_measurement_group. Left here,
+## disabled, in case it's needed again rather than deleted outright.
 ## ---------------------------------------------------------------------------
-max_disp_perc <- 0.8
-block_formula <- ps$block_formula
-sd_tau        <- sqrt(diag(ps$Sigma_ranef))
-re_names_all  <- design$re_coef_names
-group_levels0 <- levels(dat$school_id)
-
-part_vi_group <- stats::setNames(
-  lapply(group_levels0, function(lev) {
-    dat_j <- dat[dat$school_id == lev, , drop = FALSE]
-    inp <- lmebayesCore:::.lmebayes_ing_prior_measurement_group_glm_inputs(
-      lev = lev, dat_j = dat_j, block_formula = block_formula, sd_tau = sd_tau,
-      family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
-    )
-    n_j          <- inp$n_j
-    n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
-    n_combined_j <- n_prior_j + n_j
-    p_re         <- length(sd_tau)
-
-    ## Part 0: coefficient-scale prior covariance from population sd_tau
-    ## shrinkage (verbatim from .lmebayes_calibrate_ing_prior_measurement_
-    ## group(), R/mixed_rmerb_helpers.R).
-    pwt_j <- diag(inp$V0)
-    pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
-    if (length(pwt_j) == 1L) {
-      Sigma_j <- ((1 - pwt_j) / pwt_j) * inp$V0
-    } else {
-      scale_vec <- sqrt((1 - pwt_j) / pwt_j)
-      Sigma_j <- inp$V0 * outer(scale_vec, scale_vec)
-    }
-
-    ## Part VI: model-derived Omega_j, diagonal across RE components (each
-    ## gamma_k calibrated independently in pf/ps$prior_list).
-    Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
-                       dimnames = list(inp$var_names, inp$var_names))
-    for (k in re_names_all) {
-      Wk_row <- design$W[[k]][lev, , drop = FALSE]
-      Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
-      Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
-    }
-
-    cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
-      inp, Sigma_j + Omega_j, n_prior_j
-    )
-
-    shape_w <- (n_combined_j + 1) / 2 + p_re / 2
-    rate_w  <- cal$dispersion * (n_combined_j + p_re - 1) / 2
-    disp_lower <- 1 / qgamma(max_disp_perc,     shape = shape_w, rate = rate_w)
-    disp_upper <- 1 / qgamma(1 - max_disp_perc, shape = shape_w, rate = rate_w)
-
-    list(
-      sigma2_hat = cal$dispersion,
-      shape      = cal$shape_ING,
-      rate       = cal$rate,
-      disp_lower = disp_lower,
-      disp_upper = disp_upper,
-      omega_j    = Omega_j
-    )
-  }),
-  group_levels0
-)
-
-cat("\n=== Part VI per-group sigma^2_j: model-derived Omega_j vs Ex_13's symmetric-only prior ===\n\n")
-part_vi_tab <- do.call(rbind, lapply(group_levels0, function(lev) {
-  g <- part_vi_group[[lev]]
-  data.frame(
-    group      = lev,
-    sigma2_hat = g$sigma2_hat,
-    disp_lower = g$disp_lower,
-    disp_upper = g$disp_upper
-  )
-}))
-num_cols <- vapply(part_vi_tab, is.numeric, logical(1L))
-part_vi_tab[num_cols] <- lapply(part_vi_tab[num_cols], round, digits = 3)
-print(part_vi_tab, row.names = FALSE)
+# max_disp_perc <- 0.8
+# block_formula <- ps$block_formula
+# sd_tau        <- sqrt(diag(ps$Sigma_ranef))
+# re_names_all  <- design$re_coef_names
+# group_levels0 <- levels(dat$school_id)
+#
+# part_vi_group <- stats::setNames(
+#   lapply(group_levels0, function(lev) {
+#     dat_j <- dat[dat$school_id == lev, , drop = FALSE]
+#     inp <- lmebayesCore:::.lmebayes_ing_prior_measurement_group_glm_inputs(
+#       lev = lev, dat_j = dat_j, block_formula = block_formula, sd_tau = sd_tau,
+#       family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
+#     )
+#     n_j          <- inp$n_j
+#     n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
+#     n_combined_j <- n_prior_j + n_j
+#     p_re         <- length(sd_tau)
+#
+#     ## Part 0: coefficient-scale prior covariance from population sd_tau
+#     ## shrinkage (verbatim from .lmebayes_calibrate_ing_prior_measurement_
+#     ## group(), R/mixed_rmerb_helpers.R).
+#     pwt_j <- diag(inp$V0)
+#     pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
+#     if (length(pwt_j) == 1L) {
+#       Sigma_j <- ((1 - pwt_j) / pwt_j) * inp$V0
+#     } else {
+#       scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+#       Sigma_j <- inp$V0 * outer(scale_vec, scale_vec)
+#     }
+#
+#     ## Part VI: model-derived Omega_j, diagonal across RE components (each
+#     ## gamma_k calibrated independently in pf/ps$prior_list).
+#     Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
+#                        dimnames = list(inp$var_names, inp$var_names))
+#     for (k in re_names_all) {
+#       Wk_row <- design$W[[k]][lev, , drop = FALSE]
+#       Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
+#       Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+#     }
+#
+#     cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
+#       inp, Sigma_j + Omega_j, n_prior_j
+#     )
+#
+#     shape_w <- (n_combined_j + 1) / 2 + p_re / 2
+#     rate_w  <- cal$dispersion * (n_combined_j + p_re - 1) / 2
+#     disp_lower <- 1 / qgamma(max_disp_perc,     shape = shape_w, rate = rate_w)
+#     disp_upper <- 1 / qgamma(1 - max_disp_perc, shape = shape_w, rate = rate_w)
+#
+#     list(
+#       sigma2_hat = cal$dispersion,
+#       shape      = cal$shape_ING,
+#       rate       = cal$rate,
+#       disp_lower = disp_lower,
+#       disp_upper = disp_upper,
+#       omega_j    = Omega_j
+#     )
+#   }),
+#   group_levels0
+# )
+#
+# cat("\n=== Part VI per-group sigma^2_j: model-derived Omega_j vs Ex_13's symmetric-only prior ===\n\n")
+# part_vi_tab <- do.call(rbind, lapply(group_levels0, function(lev) {
+#   g <- part_vi_group[[lev]]
+#   data.frame(
+#     group      = lev,
+#     sigma2_hat = g$sigma2_hat,
+#     disp_lower = g$disp_lower,
+#     disp_upper = g$disp_upper
+#   )
+# }))
+# num_cols <- vapply(part_vi_tab, is.numeric, logical(1L))
+# part_vi_tab[num_cols] <- lapply(part_vi_tab[num_cols], round, digits = 3)
+# print(part_vi_tab, row.names = FALSE)
 
 ## ---------------------------------------------------------------------------
 ## 3. Arguments matrix_args_lmm() would build for rlmerb() -- assembled here
 ##    by hand so rLMMindepNormalGamma_reg_known_vcov() can be called directly.
 ##
-## The routed export's 'prior_list' for a per-group ING Block~1 dispersion is
-## NOT the dGamma() pfamily list itself -- it is a flat list with 'mu'/'Sigma'
-## (the Block~2 hyperparameter prior, same shape .rLMM_validate_ing_
-## measurement_prior_list() expects for the fixed-vcov/estimated-vcov cases)
-## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
-## (one named-by-group-level numeric vector each), extracted here from each
-## group's dGamma() pfamily -- 'ps' (Section 2)'s own Part VI + calibrated
-## pwt_measurement default, mirroring Ex_13's Section 3 and
-## .lmebayes_resolve_dispersion_ranef_group_list() /
-## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
+## rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov() now accept
+## dGamma_list()'s own return value as 'prior_list' directly -- no manual
+## mu/Sigma/shape_group/rate_group/disp_lower_group/disp_upper_group
+## flattening needed: 'mu' is never read (each group's mean is always
+## W_j %*% gamma, recomputed every sweep), and 'Sigma' -- the shared
+## random-effects covariance every group's beta_j prior uses -- is always
+## derived internally as solve(P) from 'pfamily_list' (Section 2's 'pf'),
+## which is exactly 'ps$Sigma_ranef' here (known_vcov: Sigma_ranef IS
+## pfamily_list's implied covariance), just guaranteed never to drift out
+## of sync with it. Section 7b/7d's diagnostics still want the flattened
+## per-group vectors, so pull those from dGamma_list()'s own
+## "measurement_prior_group" attribute (identical values, just a
+## convenience view) rather than re-deriving them.
 ##
 ## UPDATE: this used to be extracted from Section 2d's hand-rolled
 ## part_vi_group instead of dGamma_list(ps) directly, back when
@@ -274,31 +275,18 @@ print(part_vi_tab, row.names = FALSE)
 ## it: Section 5's sampler call, and Section 7b/7d's diagnostics, which all
 ## read the SAME shape_group/rate_group/disp_lower_group/disp_upper_group
 ## vectors built here) is wired to 'ps' directly; Section 2d's part_vi_group
-## is kept purely as an independent from-scratch check -- compare its table
-## above to the "Per-group sigma^2_j ING prior" summary below.
+## is now commented out (was purely an independent from-scratch check --
+## uncomment it and compare its table to the "Per-group sigma^2_j ING prior"
+## summary below if this needs re-verifying).
 ## ---------------------------------------------------------------------------
 disp_pf_list <- dGamma_list(ps, max_disp_perc_measurement = 0.8)
+prior_list   <- disp_pf_list
 
-shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
-rate_group       <- stats::setNames(numeric(length(group_levels)), group_levels)
-disp_lower_group <- stats::setNames(numeric(length(group_levels)), group_levels)
-disp_upper_group <- stats::setNames(numeric(length(group_levels)), group_levels)
-for (lev in group_levels) {
-  pl <- disp_pf_list[[lev]]$prior_list
-  shape_group[[lev]]      <- pl$shape[1L]
-  rate_group[[lev]]       <- pl$rate[1L]
-  disp_lower_group[[lev]] <- pl$disp_lower
-  disp_upper_group[[lev]] <- pl$disp_upper
-}
-
-prior_list <- list(
-  mu               = matrix(0, nrow = p_re, ncol = 1L, dimnames = list(re_names, NULL)),
-  Sigma            = as.matrix(ps$Sigma_ranef),
-  shape_group      = shape_group,
-  rate_group       = rate_group,
-  disp_lower_group = disp_lower_group,
-  disp_upper_group = disp_upper_group
-)
+mpg              <- attr(disp_pf_list, "measurement_prior_group")
+shape_group      <- mpg$shape_group[group_levels]
+rate_group       <- mpg$rate_group[group_levels]
+disp_lower_group <- mpg$disp_lower_group[group_levels]
+disp_upper_group <- mpg$disp_upper_group[group_levels]
 
 cat(sprintf(
   "\n=== Per-group sigma^2_j ING prior (Part VI): %d groups, sigma^2_hat range [%.4f, %.4f] ===\n\n",
@@ -345,6 +333,37 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
 )
 
 source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_rss_ellipsoid_test only if you comment out/skip the run_one() calls at the bottom
+
+## THE ellipsoid check (Omega integrated out exactly, Section 16.6): each of
+## the n main-stage draws (independent parallel chains) is tested using ONLY
+## that draw's own beta_j -- see .tmp_rss_ellipsoid_test_marginal()'s header
+## comment. pct_outside_prerun/diff_vs_prerun compare this POST-RUN empirical
+## rate against Prior_Setup_lmebayes()'s own PRE-RUN (plug-in Monte Carlo)
+## prediction, ps$pwt_measurement_calibration$pct_outside_after -- the whole
+## point of calibrating disp_lower_group/disp_upper_group was to keep this
+## below alpha_target_measurement, so this is the check on whether that
+## prediction held up against the real posterior.
+tab_13b_marginal <- .tmp_rss_ellipsoid_test_marginal(
+  fit                         = fit,
+  D                           = design$D,
+  y                           = design$y,
+  group                       = grp,
+  group_name                  = design$group_name,
+  re_coef_names               = re_names,
+  shape_group                 = shape_group,
+  rate_group                  = rate_group,
+  disp_lower_group            = disp_lower_group,
+  disp_upper_group            = disp_upper_group,
+  pwt_measurement_calibration = ps$pwt_measurement_calibration
+)
+cat("\n=== Ellipsoid check (Omega integrated out exactly, Section 16.6) ===\n\n")
+print(tab_13b_marginal[order(-tab_13b_marginal$pct_draws_outside), ],
+      row.names = FALSE, digits = 4)
+cat(sprintf(
+  "\n  Mean pct outside -- post-run (real posterior) vs pre-run (calibration prediction): %.3f%% vs %.3f%%\n",
+  mean(tab_13b_marginal$pct_draws_outside),
+  mean(tab_13b_marginal$pct_outside_prerun, na.rm = TRUE)
+))
 
 tab_13b <- .tmp_rss_ellipsoid_test(
   fit               = fit,
