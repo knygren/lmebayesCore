@@ -15,8 +15,8 @@ stopifnot(!is.null(ps_pooled$group.ing_prior))
 stopifnot(!lmebayesCore:::.lmebayes_ing_prior_is_grouped(ps_pooled$group.ing_prior))
 stopifnot(!is.null(ps_pooled$pop.prior_list))
 stopifnot(!is.null(ps_pooled$pop.ing_prior))
-stopifnot(is.numeric(ps_pooled$group.pwt) && length(ps_pooled$group.pwt) == 1L)
-stopifnot(is.numeric(ps_pooled$group.n_prior) && length(ps_pooled$group.n_prior) == 1L)
+stopifnot(is.numeric(ps_pooled$group.dispersion.pwt) && length(ps_pooled$group.dispersion.pwt) == 1L)
+stopifnot(is.numeric(ps_pooled$group.dispersion.n_prior) && length(ps_pooled$group.dispersion.n_prior) == 1L)
 print(ps_pooled)
 
 pf_pooled <- pfamily_list(ps_pooled)
@@ -31,7 +31,7 @@ ps_group <- Prior_Setup_lmebayes(
   Reaction ~ Days + (Days || Subject),
   data                = dat,
   pop.pwt             = 0.01,
-  group.pwt           = 0.1,
+  group.dispersion.pwt           = 0.1,
   dispformula         = ~Subject,
   group.max_disp_perc = 0.9,
   group.alpha_target  = 0.02

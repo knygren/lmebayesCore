@@ -108,7 +108,7 @@ cat("\n=== model_setup (full-rank schools only, outlier groups 6 and 33 excluded
 print(design)
 stopifnot(all(design$groupef.rank))
 
-## Same group.max_disp_perc = 0.8 / group.pwt = 0.1 as Ex_13/Ex_13b (Prior_
+## Same group.max_disp_perc = 0.8 / group.dispersion.pwt = 0.1 as Ex_13/Ex_13b (Prior_
 ## Setup_lmebayes()'s own per-group sigma2_hat calibration is unchanged by
 ## Part VI -- only the window built from it, below, differs).
 ps <- Prior_Setup_lmebayes(
@@ -117,7 +117,7 @@ ps <- Prior_Setup_lmebayes(
   pop.pwt         = 0.01,
   dispformula     = ~school_id,
   group.max_disp_perc = 0.8,
-  group.pwt       = 0.1
+  group.dispersion.pwt       = 0.1
 )
 cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
 print(ps)
@@ -225,7 +225,7 @@ print(part_vi_tab, row.names = FALSE)
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
 ## (one named-by-group-level numeric vector each), extracted here from each
 ## group's dGamma() pfamily -- 'ps' (Section 2)'s own Part VI + calibrated
-## group.pwt default, mirroring Ex_13's Section 3 and
+## group.dispersion.pwt default, mirroring Ex_13's Section 3 and
 ## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ##

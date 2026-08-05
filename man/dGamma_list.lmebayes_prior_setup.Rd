@@ -84,7 +84,7 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   ps <- Prior_Setup_lmebayes(
     score_ppvt ~ private_school + (1 | school_id),
     data = dat,
-    group.pwt = 0.01,
+    group.dispersion.pwt = 0.01,
     dispformula = ~school_id
   )
   disp_pf <- dGamma_list(ps)

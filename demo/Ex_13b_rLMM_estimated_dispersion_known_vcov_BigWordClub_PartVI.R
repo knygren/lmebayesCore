@@ -105,13 +105,13 @@ dat$school_id <- droplevels(dat$school_id)
 ## (in place of Ex_13's direct dGamma_list() call).
 ##
 ## group.alpha_target = 0.01 (the package default; spelled out here
-## for clarity) folds the group-specific group.pwt search --
+## for clarity) folds the group-specific group.dispersion.pwt search --
 ## previously a hand-rolled ps_flat -> tab_pwt -> w_pwt_vec -> ps two-pass
 ## dance sourcing data-raw/_scratch_group_pwt_measurement_noncentral.R --
 ## directly into this single Prior_Setup_lmebayes() call: it searches, per
-## group, for the smallest group.pwt driving the predicted ellipsoid
+## group, for the smallest group.dispersion.pwt driving the predicted ellipsoid
 ## violation rate (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 16.6) down to
-## 1%, floored at group.pwt = 0.1 below. 'ps' is what the Part VI
+## 1%, floored at group.dispersion.pwt = 0.1 below. 'ps' is what the Part VI
 ## derivation (2d) and the sampler (Section 5) actually consume.
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
@@ -121,7 +121,7 @@ stopifnot(all(design$groupef.rank))
 
 ## Same group.max_disp_perc = 0.8 as Ex_13 (Prior_Setup_lmebayes()'s own per-group
 ## sigma2_hat calibration is unchanged by Part VI -- only the window built
-## from it, below, differs). group.pwt = 0.1 here is only the floor
+## from it, below, differs). group.dispersion.pwt = 0.1 here is only the floor
 ## the group.alpha_target calibration below sharpens from -- it is
 ## not necessarily what the Part VI derivation/sampler end up using.
 ps <- Prior_Setup_lmebayes(
@@ -130,10 +130,10 @@ ps <- Prior_Setup_lmebayes(
   pop.pwt         = 0.01,
   dispformula     = ~school_id,
   group.max_disp_perc = 0.8,
-  group.pwt       = 0.1,
+  group.dispersion.pwt       = 0.1,
   group.alpha_target  = 0.01
 )
-cat("\n=== Prior_Setup_lmebayes (group.pwt calibrated to group.alpha_target = 0.01) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes (group.dispersion.pwt calibrated to group.alpha_target = 0.01) ===\n\n")
 print(ps)
 
 ## group_name is not a formal on the routed export; attach it to 'group'
@@ -159,7 +159,7 @@ pf <- pfamily_list(ps)
 ##
 ## Built from the TAILORED 'ps' (2c) -- n_prior_j below (via
 ## ps$group.ing_prior[[lev]]$n_prior) picks up each group's own
-## calibrated group.pwt automatically.
+## calibrated group.dispersion.pwt automatically.
 ##
 ## Reproduces dGamma_list(ps, disp_upper_anchor = "symmetric")'s own two
 ## internal calls (.lmebayes_ing_prior_measurement_group_glm_inputs(),

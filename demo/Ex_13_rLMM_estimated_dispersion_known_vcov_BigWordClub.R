@@ -119,9 +119,9 @@ ps_flat <- Prior_Setup_lmebayes(
   pop.pwt         = 0.01,
   dispformula     = ~school_id,
   group.max_disp_perc = 0.8,
-  group.pwt       = 0.1
+  group.dispersion.pwt       = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes, first pass (flat group.pwt) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes, first pass (flat group.dispersion.pwt) ===\n\n")
 print(ps_flat)
 
 glmmTMB::ranef(ps_flat$fit_ref)
@@ -199,9 +199,9 @@ ps <- Prior_Setup_lmebayes(
   pop.pwt         = 0.01,
   dispformula     = ~school_id,
   group.max_disp_perc = 0.8,
-  group.pwt       = w_pwt_vec
+  group.dispersion.pwt       = w_pwt_vec
 )
-cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group group.pwt) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group group.dispersion.pwt) ===\n\n")
 print(ps)
 
 rows_pwt_cmp <- character(0L)

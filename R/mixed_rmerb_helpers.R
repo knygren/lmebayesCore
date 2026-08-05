@@ -680,7 +680,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     w <- as.numeric(pwt_measurement)
     n_prior <- w / (1 - w) * n_obs
-    src <- "user-supplied (group.pwt)"
+    src <- "user-supplied (group.dispersion.pwt)"
   } else if (!is.null(n_prior_measurement)) {
     if (!is.numeric(n_prior_measurement) || length(n_prior_measurement) != 1L ||
         is.na(n_prior_measurement) || n_prior_measurement <= 0 ||
@@ -692,11 +692,11 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     n_prior <- as.numeric(n_prior_measurement)
     w <- n_prior / (n_prior + n_obs)
-    src <- "user-supplied (group.n_prior)"
+    src <- "user-supplied (group.dispersion.n_prior)"
   } else {
     w <- 0.01
     n_prior <- w / (1 - w) * n_obs
-    src <- "default (group.pwt = 0.01)"
+    src <- "default (group.dispersion.pwt = 0.01)"
   }
 
   if (n_prior > n_obs) {
@@ -785,17 +785,17 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     n_prior <- w / (1 - w) * n_j
     src <- if (length(pwt_measurement) == 1L) {
-      "user-supplied scalar (group.pwt)"
+      "user-supplied scalar (group.dispersion.pwt)"
     } else {
-      "user-supplied vector (group.pwt)"
+      "user-supplied vector (group.dispersion.pwt)"
     }
   } else {
     w <- rep(0.01, J)
     n_prior <- w / (1 - w) * n_j
     src <- if (!is.null(n_prior_measurement)) {
-      "default per group (group.pwt = 0.01; scalar group.n_prior applies to pooled path only)"
+      "default per group (group.dispersion.pwt = 0.01; scalar group.dispersion.n_prior applies to pooled path only)"
     } else {
-      "default (group.pwt = 0.01 per group)"
+      "default (group.dispersion.pwt = 0.01 per group)"
     }
   }
 
@@ -1328,7 +1328,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   }
 
   shape <- (n_prior + 1) / 2 + p_re / 2
-  rate  <- dispersion_ranef * (n_prior + p_re - 1) / 2
+  rate  <- as.numeric(dispersion_ranef) * (n_prior + p_re - 1) / 2
   if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
     stop(
       "Measurement dispersion ING calibration produced non-positive shape/rate.",
@@ -1339,7 +1339,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   win <- .lmebayes_ing_prior_quantile_window(shape, rate, max_disp_perc)
 
   list(
-    sigma2_hat    = dispersion_ranef,
+    sigma2_hat    = as.numeric(dispersion_ranef),
     shape         = shape,
     rate          = rate,
     disp_lower    = win$disp_lower,
@@ -1348,6 +1348,53 @@ priors_from_pfamily_list <- function(pfamily_list,
     n_prior       = n_prior,
     n_effective = n,
     p_re        = p_re
+  )
+}
+
+#' Mean-match one per-group Block~1 \code{group.ing_prior} entry to a fixed \eqn{\sigma^2_j}.
+#' @noRd
+.lmebayes_pin_ing_prior_measurement_group_entry <- function(ing, sigma2, p_re) {
+  n_prior_j <- ing$n_prior
+  shape_ING <- ing$shape_ING
+  rate_gamma <- sigma2 * (n_prior_j + p_re - 1) / 2
+  shape_post <- shape_ING + ing$n_j / 2
+  rate_post <- sigma2 * (shape_post - 1)
+  win <- .lmebayes_ing_prior_quantile_window(
+    shape_post, rate_post, ing$max_disp_perc
+  )
+  ing$sigma2_hat <- sigma2
+  ing$rate_gamma <- rate_gamma
+  if ("E_sigma2" %in% names(ing)) {
+    ing$E_sigma2 <- if (is.finite(shape_ING) && shape_ING > 1 &&
+                        is.finite(rate_gamma) && rate_gamma > 0) {
+      rate_gamma / (shape_ING - 1)
+    } else {
+      NA_real_
+    }
+  }
+  if ("inv_E" %in% names(ing)) {
+    ing$inv_E <- if (is.finite(shape_ING) && shape_ING > 0 &&
+                     is.finite(rate_gamma) && rate_gamma > 0) {
+      rate_gamma / shape_ING
+    } else {
+      NA_real_
+    }
+  }
+  ing$disp_lower <- win$disp_lower
+  ing$disp_upper <- win$disp_upper
+  ing
+}
+
+#' Mean-match every per-group Block~1 \code{group.ing_prior} entry from \code{group.dispersion}.
+#' @noRd
+.lmebayes_pin_ing_prior_measurement_group <- function(ing_grp, override_vec, p_re) {
+  stats::setNames(
+    lapply(names(ing_grp), function(lev) {
+      .lmebayes_pin_ing_prior_measurement_group_entry(
+        ing_grp[[lev]], unname(override_vec[[lev]]), p_re
+      )
+    }),
+    names(ing_grp)
   )
 }
 

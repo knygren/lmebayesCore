@@ -3,23 +3,29 @@
 \name{Prior_Setup_lmebayes}
 \alias{Prior_Setup_lmebayes}
 \alias{print.lmebayes_prior_setup}
-\title{Prior setup for the two-block Gibbs lmebayes sampler}
+\title{Prior setup for generalized linear mixed models}
 \usage{
 Prior_Setup_lmebayes(
   formula,
   data,
   family = gaussian(),
-  pop.pwt = 0.01,
+  dispformula = ~1,
+  pop.pwt = NULL,
+  pop.pwt_default_low = 0.01,
+  pop.pwt_default_high = 0.05,
+  pop.nprior = NULL,
+  pop.sd = NULL,
   pop.dispersion.pwt = NULL,
   pop.dispersion.nprior = NULL,
-  group.pwt = NULL,
-  group.n_prior = NULL,
-  group.alpha_target = 0.01,
-  dispformula = ~1,
-  group.max_disp_perc = 0.99,
   pop.max_disp_perc = 0.99,
-  intercept_source = c("null_model", "full_model"),
-  effects_source = c("null_effects", "full_model")
+  pop.intercept_source = c("null_model", "full_model"),
+  pop.effects_source = c("null_effects", "full_model"),
+  pop.mu = NULL,
+  group.dispersion = NULL,
+  group.dispersion.pwt = NULL,
+  group.dispersion.n_prior = NULL,
+  group.alpha_target = 0.01,
+  group.max_disp_perc = 0.99
 )
 
 \method{print}{lmebayes_prior_setup}(x, digits = 4L, ...)
@@ -36,6 +42,22 @@ Non-Gaussian families use \code{\link[lme4]{glmer}} for calibration;
 \code{dispersion_ranef} is omitted (analogous to
 \code{\link[glmbayesCore]{Prior_Setup}} for flat GLMs).}
 
+\item{dispformula}{One-sided formula selecting the Block~1 measurement-
+dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
+(matching the random-effects grouping factor exactly, requesting
+per-group dispersion).  Passed through to \code{\link{model_setup}},
+which fits and stores the \code{glmmTMB} reference
+(\code{design$glmmTMB_fit}) reused below as \code{fit_ref}.  Gaussian
+models only compute the per-group \code{group.ing_prior}
+calibration (a within-group regression fit for every group level, used
+only by \code{\link{dGamma_list}()}) when \code{dispformula} is the
+group formula; \code{dispformula = ~1} skips it entirely, so
+\code{group.dispersion.pwt} / \code{group.dispersion.n_prior} must then be scalar
+(pooled).  Mirrors the \code{dispformula} argument on
+\code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}, which gates the
+analogous choice of sampler route; the two are independent arguments
+that must be kept consistent by the caller.}
+
 \item{pop.pwt}{Prior weight(s) in \eqn{(0, 1)} for the population-level
 (Block~2, \code{fixef}) coefficients.  Either a \strong{scalar} (applied
 to every random-effect component and every Block~2 predictor), or a
@@ -49,7 +71,69 @@ The prior covariance for each \code{fixef_k} block is scaled relative to
 convention: \eqn{(1-\mathrm{pop.pwt})/\mathrm{pop.pwt}} for a scalar, and
 elementwise
 \eqn{\sqrt{(1-\mathrm{pop.pwt}_i)/\mathrm{pop.pwt}_i}\,
-       \sqrt{(1-\mathrm{pop.pwt}_j)/\mathrm{pop.pwt}_j}} for vectors.}
+       \sqrt{(1-\mathrm{pop.pwt}_j)/\mathrm{pop.pwt}_j}} for vectors.  At
+most one of \code{pop.pwt} (explicitly supplied), \code{pop.nprior},
+and \code{pop.sd} may be supplied.  When \code{pop.pwt} is \code{NULL}
+(the default), dimension-adaptive defaults are chosen separately for
+each random-effect component (see \code{pop.pwt_default_low}/
+\code{pop.pwt_default_high}).}
+
+\item{pop.pwt_default_low}{Scalar in \eqn{(0, 1)}, default \code{0.01}.
+Used when \code{pop.pwt} is \code{NULL} and a random-effect component's
+Block~2 predictor count \eqn{p_k = ncol(X\_hyper[[k]])} is strictly less
+than \code{14} (mirrors \code{\link[glmbayesCore]{Prior_Setup}}
+\code{pwt_default_low}).}
+
+\item{pop.pwt_default_high}{Scalar in \eqn{(0, 1)}, default \code{0.05}.
+Used when \code{pop.pwt} is \code{NULL} and \eqn{p_k \ge 14} for that
+component (mirrors \code{\link[glmbayesCore]{Prior_Setup}}
+\code{pwt_default_high}).}
+
+\item{pop.nprior}{Optional \emph{absolute} effective prior sample
+size(s), in group units (\eqn{J = }\code{nlevels(group)}), for the
+population-level (Block~2, \code{fixef}) coefficients -- an
+alternative to \code{pop.pwt}, on the same \eqn{n_i = J\,w_i/(1-w_i)}
+duality as \code{pop.dispersion.pwt}/\code{pop.dispersion.nprior}.
+Same shape as \code{pop.pwt}: a \strong{scalar}, or a \strong{list with
+one element per random-effect component} (named or unnamed
+positional), each element \code{NULL} (keep the \code{pop.pwt}-derived
+default for that component), a scalar, or a vector of length
+\eqn{p_k} (optionally named with the predictor column names of
+\code{X_hyper[[k]]}, reordered to match).  Converted internally to an
+effective weight \eqn{w_i = \mathrm{pop.nprior}_i /
+  (\mathrm{pop.nprior}_i + J)}, used in place of \code{pop.pwt} for that
+component's \code{Sigma_fixef} scaling.  At most one of \code{pop.pwt}
+(explicitly supplied), \code{pop.nprior}, and \code{pop.sd} may be
+supplied.  The returned \code{pop.nprior} field (see \code{Value}
+below) is always populated with the effective prior sample size
+actually implied (derived from whichever of \code{pop.pwt}/
+\code{pop.sd} was used when \code{pop.nprior} is not supplied), in the
+same shape this argument expects -- call once without
+\code{pop.nprior} to inspect the defaults, then feed a modified copy
+of \code{ps$pop.nprior} back in to override.}
+
+\item{pop.sd}{Optional prior standard deviation(s), on the coefficient
+scale of \code{vcov(fit_ref)}, for the population-level (Block~2,
+\code{fixef}) coefficients -- an alternative to \code{pop.pwt}.  Same
+shape as \code{pop.pwt}: a \strong{scalar}, or a \strong{list with one
+element per random-effect component} (named or unnamed positional),
+each element \code{NULL} (keep the \code{pop.pwt}-derived default for
+that component -- a \emph{partial} override across components), a
+scalar, or a vector of length \eqn{p_k} (optionally named with the
+predictor column names of \code{X_hyper[[k]]}, reordered to match).
+Converted internally to an effective weight
+\eqn{w_i = V_{ii} / (V_{ii} + \mathrm{pop.sd}_i^2)}, where \eqn{V_{ii}}
+is the corresponding diagonal entry of \code{vcov(fit_ref)}, and used
+in place of \code{pop.pwt} for that component's \code{Sigma_fixef}
+scaling.  At most one of \code{pop.pwt} (explicitly supplied),
+\code{pop.nprior}, and \code{pop.sd} may be supplied.  The returned
+\code{pop.sd} field (see \code{Value} below) is always populated with
+the effective standard deviations actually used
+(\eqn{\sqrt{\mathrm{diag}(\Sigma_{\mathrm{fixef},k})}}, derived from
+whichever of \code{pop.pwt}/\code{pop.nprior} was used when
+\code{pop.sd} is not supplied), in the same shape this argument
+expects -- call once without \code{pop.sd} to inspect the defaults,
+then feed a modified copy of \code{ps$pop.sd} back in to override.}
 
 \item{pop.dispersion.pwt}{Optional \emph{relative} prior weight(s) in
 \eqn{(0, 1)} for the Block~2 dispersion (precision) prior, decoupled from
@@ -71,7 +155,66 @@ prior.  A positive scalar, or a list / numeric vector with one value per
 random-effect component (named or positional).  See
 \code{pop.dispersion.pwt}.}
 
-\item{group.pwt}{Optional relative prior weight(s) in \eqn{(0, 1)} for
+\item{pop.max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default
+\code{0.99}, or a named/positional length-\eqn{p_{\mathrm{re}}} vector
+(one value per random-effect component).  Same tail-probability role as
+\code{group.max_disp_perc}, but for the Block~2 \eqn{\tau^2_k}
+truncation window stored in \code{pop.ing_prior}.  Only operationally
+consumed when the sampler's dispersion \code{pfamily} is
+\code{dIndependent_Normal_Gamma} (ignored for \code{dNormal}).}
+
+\item{pop.intercept_source}{Character string controlling the prior mean for
+the global intercept hyperparameter \code{(Intercept)::(Intercept)} only.
+One of \code{"null_model"} (default) or \code{"full_model"}.  When
+\code{"null_model"}, the prior mean is taken from a random-intercept-only
+reference fit \code{y ~ 1 + (1 | group)} that omits all fixed-effect
+predictors (analogous to \code{\link[glmbayesCore]{Prior_Setup}} with
+\code{intercept_source = "null_model"}).  When \code{"full_model"}, the
+full-model MLE intercept is used.}
+
+\item{pop.effects_source}{Character string controlling the prior mean for
+all other Block~2 hyperparameters (including population-mean slopes
+stored as \code{(Intercept)} columns in non-intercept RE components, and
+any non-intercept columns in \code{X_hyper}).  One of
+\code{"null_effects"} (default) or \code{"full_model"}.  When
+\code{"null_effects"}, prior means are set to zero.  When
+\code{"full_model"}, full-model MLE values are used.}
+
+\item{pop.mu}{Optional prior mean override(s) for the population-level
+(Block~2, \code{fixef}) coefficients -- a finer-grained alternative to
+\code{pop.intercept_source}/\code{pop.effects_source}; prefer those
+first, and reach for \code{pop.mu} only when a specific mean needs to
+differ from either derived default.  Same shape as \code{pop.pwt}: a
+\strong{scalar}, or a \strong{list with one element per random-effect
+component} (named or unnamed positional), each element \code{NULL}
+(keep the \code{pop.intercept_source}/\code{pop.effects_source}-derived
+default mean for that component -- a \emph{partial} override across
+components), a scalar, or a vector of length \eqn{p_k} (optionally
+named with the predictor column names of \code{X_hyper[[k]]}, reordered
+to match).  Replaces \code{mu_fixef} wholesale for the components
+supplied; components left \code{NULL} keep their usual
+\code{pop.intercept_source}/\code{pop.effects_source} default.  The
+returned \code{pop.mu} field (see \code{Value} below) is always
+populated with the values actually used (derived defaults when
+\code{pop.mu} is not supplied), in the same shape this argument
+expects -- call once without \code{pop.mu} to inspect the defaults,
+then feed a modified copy of \code{ps$pop.mu} back in to override.}
+
+\item{group.dispersion}{Optional override for Block~1 observation-level
+dispersion \eqn{\sigma^2} (Gaussian models only).  When \code{dispformula =
+  ~1}, a single positive scalar replaces the pooled \code{lmer} estimate
+stored in \code{dispersion_ranef} (for fixed-\eqn{\sigma^2} \code{dNormal()}
+priors, pass \code{dispersion_ranef = ps$dispersion_ranef} to
+\code{rlmerb()}/\code{rglmerb()}).  When \code{dispformula} requests
+per-group dispersion, a named length-\eqn{J} vector (one positive value per
+group level) replaces the per-group values used for fixed per-group
+\eqn{\sigma^2_j} and mean-matches each per-group \code{dGamma()}
+\code{group.ing_prior} entry.  \code{sigma2_group} remains the glmmTMB
+reference-fit diagnostic.  Ignored (must be \code{NULL}) for non-Gaussian
+families.  The returned \code{group.dispersion} field echoes the resolved
+override when supplied; otherwise \code{NULL}.}
+
+\item{group.dispersion.pwt}{Optional relative prior weight(s) in \eqn{(0, 1)} for
 the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian models only),
 decoupled from \code{pop.pwt} (Block~2 fixef) and from
 \code{pop.dispersion.pwt} (Block~2 \eqn{\tau^2_k}).  Either a
@@ -81,56 +224,40 @@ or a \strong{named or positional vector of length \eqn{J}}
 (\eqn{J =} \code{nlevels(groups)}) with one weight per group level for
 per-group \code{dGamma_list()} calibration
 (\eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j}).  When
-\code{group.pwt} is a vector, the pooled \code{group.ing_prior}
+\code{group.dispersion.pwt} is a vector, the pooled \code{group.ing_prior}
 continues to use the default \code{w = 0.01} on total \eqn{n} (unless
-\code{group.n_prior} is supplied explicitly).  At most one of
-\code{group.pwt} and \code{group.n_prior} may be supplied; when neither
-is, scalar \code{group.pwt = 0.01} is used for both pooled and
+\code{group.dispersion.n_prior} is supplied explicitly).  At most one of
+\code{group.dispersion.pwt} and \code{group.dispersion.n_prior} may be supplied; when neither
+is, scalar \code{group.dispersion.pwt = 0.01} is used for both pooled and
 per-group paths.}
 
-\item{group.n_prior}{Optional positive scalar: absolute effective
+\item{group.dispersion.n_prior}{Optional positive scalar: absolute effective
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
-not groups).  See \code{group.pwt}.}
+not groups).  See \code{group.dispersion.pwt}.}
 
 \item{group.alpha_target}{Scalar in \eqn{(0, 1)}, default
 \code{0.01}, or \code{NULL} to disable.  Gaussian models with per-group
 \code{dispformula} only: target percentage of posterior \code{beta_j}
 draws allowed to fall outside the per-group Mahalanobis/log-concavity
 ellipsoid of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6.
-This is a different quantity from \code{group.pwt}: \code{group.pwt}
+This is a different quantity from \code{group.dispersion.pwt}: \code{group.dispersion.pwt}
 is the Gamma prior \emph{weight} (an input to the prior), while
 \code{group.alpha_target} is a target \emph{violation rate} (an
 output being aimed at).  When non-\code{NULL} and \code{dispformula}
 requests per-group dispersion, \code{Prior_Setup_lmebayes()} searches,
-for each group, for the smallest \code{group.pwt} driving the
+for each group, for the smallest \code{group.dispersion.pwt} driving the
 predicted violation rate down to \code{group.alpha_target},
-\strong{floored at} the \code{group.pwt} resolved from the
-\code{group.pwt}/\code{group.n_prior} arguments above (so
+\strong{floored at} the \code{group.dispersion.pwt} resolved from the
+\code{group.dispersion.pwt}/\code{group.dispersion.n_prior} arguments above (so
 calibration only ever sharpens, never loosens, the per-group prior;
-supplying \code{group.pwt} explicitly still guarantees a minimum).
+supplying \code{group.dispersion.pwt} explicitly still guarantees a minimum).
 Active by default as a safeguard against poorly-behaved per-group
-priors; set to \code{NULL} to opt out and use \code{group.pwt}/
-\code{group.n_prior} directly, unmodified.  Silently ignored
+priors; set to \code{NULL} to opt out and use \code{group.dispersion.pwt}/
+\code{group.dispersion.n_prior} directly, unmodified.  Silently ignored
 (not an error) when left at its default on a model that does not
 support per-group calibration (e.g.\ \code{dispformula = ~1}); it is
 only an error to \emph{explicitly} supply a non-\code{NULL} value in
 that case.  See \code{group.pwt_calibration} below.}
-
-\item{dispformula}{One-sided formula selecting the Block~1 measurement-
-dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
-(matching the random-effects grouping factor exactly, requesting
-per-group dispersion).  Passed through to \code{\link{model_setup}},
-which fits and stores the \code{glmmTMB} reference
-(\code{design$glmmTMB_fit}) reused below as \code{fit_ref}.  Gaussian
-models only compute the per-group \code{group.ing_prior}
-calibration (a within-group regression fit for every group level, used
-only by \code{\link{dGamma_list}()}) when \code{dispformula} is the
-group formula; \code{dispformula = ~1} skips it entirely, so
-\code{group.pwt} / \code{group.n_prior} must then be scalar
-(pooled).  Mirrors the \code{dispformula} argument on
-\code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}, which gates the
-analogous choice of sampler route; the two are independent arguments
-that must be kept consistent by the caller.}
 
 \item{group.max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default
 \code{0.99}, or a named/positional length-\eqn{J} vector (one value per
@@ -151,31 +278,6 @@ widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as
 \code{max_disp_perc}.  A per-group vector lets outlier groups be given a
 tighter (or looser) window than the rest; see \code{dGamma_list()}.}
 
-\item{pop.max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default
-\code{0.99}, or a named/positional length-\eqn{p_{\mathrm{re}}} vector
-(one value per random-effect component).  Same tail-probability role as
-\code{group.max_disp_perc}, but for the Block~2 \eqn{\tau^2_k}
-truncation window stored in \code{pop.ing_prior}.  Only operationally
-consumed when the sampler's dispersion \code{pfamily} is
-\code{dIndependent_Normal_Gamma} (ignored for \code{dNormal}).}
-
-\item{intercept_source}{Character string controlling the prior mean for the
-global intercept hyperparameter \code{(Intercept)::(Intercept)} only.
-One of \code{"null_model"} (default) or \code{"full_model"}.  When
-\code{"null_model"}, the prior mean is taken from a random-intercept-only
-reference fit \code{y ~ 1 + (1 | group)} that omits all fixed-effect
-predictors (analogous to \code{\link[glmbayesCore]{Prior_Setup}} with
-\code{intercept_source = "null_model"}).  When \code{"full_model"}, the
-full-model MLE intercept is used.}
-
-\item{effects_source}{Character string controlling the prior mean for all
-other Block~2 hyperparameters (including population-mean slopes stored as
-\code{(Intercept)} columns in non-intercept RE components, and any
-non-intercept columns in \code{X_hyper}).  One of \code{"null_effects"}
-(default) or \code{"full_model"}.  When \code{"null_effects"}, prior
-means are set to zero.  When \code{"full_model"}, full-model MLE values
-are used.}
-
 \item{x}{Object of class \code{"lmebayes_prior_setup"}.}
 
 \item{digits}{Number of decimal places for numeric output. Default 4.}
@@ -187,9 +289,36 @@ Object of class \code{"lmebayes_prior_setup"} with fields:
 \describe{
 \item{\code{formula}}{Model formula.}
 \item{\code{family}}{Family object.}
-\item{\code{pop.pwt}}{Prior weight(s) used: the scalar as supplied, or the
+\item{\code{pop.pwt}}{Prior weight(s) used: the scalar as supplied, the
 canonical named list of per-predictor weight vectors when a list was
-supplied.}
+supplied, or the dimension-adaptive default list (one weight per
+Block~2 predictor, per RE component) when \code{pop.pwt} was
+\code{NULL}.}
+\item{\code{pop.nprior}}{Named list with one named numeric vector per
+random-effect component -- the effective prior sample size (group
+units) actually implied, \eqn{n_i = J\,w_i/(1-w_i)}, whether
+derived from \code{pop.pwt}/\code{pop.sd} (the usual case) or
+overridden via \code{pop.nprior}.  Always present, and in the same
+shape the \code{pop.nprior} argument expects, so it can be
+inspected from a first call and fed back in (after editing) as
+\code{pop.nprior} to a second call.}
+\item{\code{pop.sd}}{Named list with one named numeric vector per
+random-effect component -- the effective coefficient-scale prior
+standard deviations actually used
+(\eqn{\sqrt{\mathrm{diag}(\Sigma_{\mathrm{fixef},k})}}), whether
+derived from \code{pop.pwt}/\code{pop.nprior} (the usual case) or
+overridden via \code{pop.sd}.  Always present, and in the same
+shape the \code{pop.sd} argument expects, so it can be inspected
+from a first call and fed back in (after editing) as \code{pop.sd}
+to a second call.}
+\item{\code{pop.mu}}{Named list with one named numeric vector per
+random-effect component -- the prior means actually used
+(\code{mu_fixef}), whether derived from
+\code{pop.intercept_source}/\code{pop.effects_source} (the usual
+case) or overridden via \code{pop.mu}.  Always present, and in the
+same shape the \code{pop.mu} argument expects, so it can be
+inspected from a first call and fed back in (after editing) as
+\code{pop.mu} to a second call.}
 \item{\code{pop.dispersion.pwt}}{Named per-component vector of relative
 dispersion prior weights (always present; consistent with
 \code{pop.dispersion.nprior} via \eqn{w_k = n_k/(n_k + J)}).}
@@ -198,16 +327,16 @@ effective prior sample sizes for the Block~2 dispersion prior
 (always present; used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
 calibrate \code{dIndependent_Normal_Gamma} components).}
-\item{\code{group.pwt}}{Gaussian models only: scalar or length-\eqn{J}
+\item{\code{group.dispersion.pwt}}{Gaussian models only: scalar or length-\eqn{J}
 vector of relative prior weights for Block~1 \eqn{\sigma^2} -- a
 scalar unless a per-group vector was supplied or
 \code{group.alpha_target} calibration was active, in which case it
 is the resolved length-\eqn{J} vector (see \code{dGamma_list()}).}
-\item{\code{group.n_prior}}{Gaussian models only: effective prior
+\item{\code{group.dispersion.n_prior}}{Gaussian models only: effective prior
 sample size for Block~1 \eqn{\sigma^2}, on the same pooled-vs.-vector
-basis as \code{group.pwt} (a scalar on the observation scale, or a
+basis as \code{group.dispersion.pwt} (a scalar on the observation scale, or a
 named length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}
-reflecting the \code{group.alpha_target}-calibrated \code{group.pwt}
+reflecting the \code{group.alpha_target}-calibrated \code{group.dispersion.pwt}
 when calibration was active; see \code{group.pwt_calibration}).}
 \item{\code{group.alpha_target}}{The value used, or \code{NULL}
 if calibration was not active.}
@@ -258,9 +387,15 @@ against \code{group.ing_prior}'s \code{sigma2_hat}.}
 which reference fit produced \code{fit_ref} (and therefore
 \code{pop.prior_list}, \code{pop.ing_prior}, \code{sd_tau}, and
 \code{group.ing_prior}).}
-\item{\code{dispersion_ranef}}{Scalar \eqn{\sigma^2} for Gaussian models
-only; \code{NULL} otherwise. Always derived from \code{mer_fit}
-(pooled), independent of \code{dispformula}.}
+\item{\code{group.dispersion}}{\code{NULL} unless \code{group.dispersion}
+was supplied on input; then the resolved override (scalar or named
+length-\eqn{J} vector).}
+\item{\code{dispersion_ranef}}{For Gaussian models: a scalar \eqn{\sigma^2}
+from \code{mer_fit} when \code{dispformula = ~1} or when per-group
+dispersion is requested without \code{group.dispersion}; a named
+length-\eqn{J} vector when \code{group.dispersion} supplies per-group
+values.  \code{NULL} for non-Gaussian families.  Pass to
+\code{rlmerb()}/\code{rglmerb()} as \code{dispersion_ranef}.}
 \item{\code{Sigma_ranef}}{Diagonal RE covariance matrix (Block~1).}
 \item{\code{pop.prior_list}}{Named Block~2 prior list per RE coefficient.}
 \item{\code{pop.ing_prior}}{Named per-component list of the prospective
@@ -293,10 +428,10 @@ for non-Gaussian models. Shape depends on \code{dispformula}:
 \code{dGamma()} \code{dispersion_ranef} calibration for Block~1
 ING (observation \eqn{\sigma^2} shared across all group
 levels) -- mean-matched \code{shape} / \code{rate} with
-\eqn{n_{\mathrm{prior}} = \mathrm{group.pwt}/(1-\mathrm{group.pwt})\times n},
+\eqn{n_{\mathrm{prior}} = \mathrm{group.dispersion.pwt}/(1-\mathrm{group.dispersion.pwt})\times n},
 \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
 \code{dispersion_ranef} (same ING algebra as \code{pop.ing_prior}
-for \eqn{\tau^2_k}; requires \code{group.pwt} \eqn{\le 0.5}),
+for \eqn{\tau^2_k}; requires \code{group.dispersion.pwt} \eqn{\le 0.5}),
 plus \code{disp_lower} / \code{disp_upper} as the central
 \eqn{2 \times \mathrm{group.max\_disp\_perc} - 1} prior-mass
 interval from the same calibrated \code{shape}/\code{rate}
@@ -350,7 +485,7 @@ for \code{family = gaussian()}) are diagnostic checks computed by
 \code{\link{model_setup}} and do not subset the data or the reference
 \code{glmer} fit.  Random-effect variances are
 treated as fixed at their mixed-model estimates.  The returned object
-two-block Gibbs sampler:
+organizes calibrated priors as two independent blocks:
 }
 \details{
 \strong{Block 1} (per-group, independent):
@@ -380,11 +515,11 @@ equivalent \code{glmmTMB} fit with the same \code{dispformula} when
 per-group dispersion is requested (see \code{calibration_source} and
 \code{mer_fit} above).  By default the global intercept
 prior mean comes from a random-intercept-only null fit; all other prior
-means are zero (\code{effects_source = "null_effects"}).  This requires:
+means are zero (\code{pop.effects_source = "null_effects"}).  This requires:
 \enumerate{
 \item Converged reference \code{lmer}/\code{glmer} fit from
 \code{\link{model_setup}} on the full formula (and a random-intercept-only
-null fit when \code{intercept_source = "null_model"}).
+null fit when \code{pop.intercept_source = "null_model"}).
 Fits with \code{lme4} \code{checkConv} failures (e.g.\ large
 \code{max|grad|}) are rejected.
 \item Every \code{X_hyper[[k]]} column maps to a \code{fixef(fit_ref)} term.
