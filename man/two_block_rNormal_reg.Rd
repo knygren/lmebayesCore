@@ -34,7 +34,7 @@ two_block_rNormal_reg(
 \item{x}{Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
 non-empty \code{colnames(x)}: these are the random-effect coefficient
 names used to key \code{x_hyper} and \code{pfamily_list} (there is no
-separate \code{re_coef_names} argument to override them).}
+separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
 \code{levels(group)} fixes the row order of Block~1 draws -- there is no
@@ -87,7 +87,7 @@ when \code{family} is not Gaussian.}
 Object of class \code{"two_block_rNormal_reg"} with fields \code{fixef_draws},
 \code{coefficients}, \code{fixef_last}, \code{b_last},
 \code{mu_all_last}, \code{family}, \code{n}, \code{m_convergence},
-\code{sampling}, \code{fixef_start}, \code{re_coef_names},
+\code{sampling}, \code{fixef_start}, \code{groupef.names},
 \code{group_levels}, \code{group_name}, \code{call}, plus
 \code{dispersion_fixef_draws}: an \code{n x p_re} matrix of the Block~2
 dispersion (tau^2_k) at each stored draw (constant columns for

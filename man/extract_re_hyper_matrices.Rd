@@ -17,16 +17,19 @@ extract_re_hyper_matrices(formula, data = NULL, ...)
 Object of class \code{"model_setup"} with:
 \describe{
 \item{\code{group_name}}{Grouping factor name.}
-\item{\code{group}}{Factor of length \code{nrow(D)} for block subsetting.}
-\item{\code{re_coef_names}}{Random coefficient names from \code{lme4}.}
+\item{\code{group}}{Factor of length \code{nrow(D)} for block
+subsetting; also carries \code{attr(group, "group_name")} (same
+value as \code{group_name}).}
+\item{\code{groupef.names}}{Group-effect coefficient names from
+\code{lme4}.}
 \item{\code{y}}{Response vector, length \code{nrow(D)} (aligned with
 \code{D} and \code{group}).}
-\item{\code{D}}{Random-effects model matrix (\code{n_obs} x \code{p_re}):
-per-observation loadings on the within-group random coefficient
-vector (columns \code{re_coef_names}).}
+\item{\code{D}}{Group-effects model matrix (\code{n_obs} x \code{p_re}):
+per-observation loadings on the within-group group-effect coefficient
+vector (columns \code{groupef.names}).}
 \item{\code{W}}{Named list of matrices (one row per group level),
-keyed by \code{re_coef_names}.}
-\item{\code{re_slope_moderation}}{Cross-level moderation metadata.}
+keyed by \code{groupef.names}.}
+\item{\code{popef.moderation}}{Cross-level moderation metadata.}
 }
 }
 \description{

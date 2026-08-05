@@ -25,7 +25,7 @@ rlmerb(
 
 \item{design}{A \code{model_setup} object (from \code{\link{model_setup}})
 supplying \code{y}, \code{D}, \code{group}, \code{W},
-\code{group_name}, and \code{re_coef_names}.}
+\code{group_name}, and \code{groupef.names}.}
 
 \item{prior}{Normalized prior container with \code{Sigma_ranef}, \code{prior_list},
 and related Block~2 fields (typically from \code{pfamily_list} and

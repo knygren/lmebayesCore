@@ -61,16 +61,16 @@ form_lmer <- score_ppvt ~
 ##    independently of this demo).
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
-full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
+full_rank_schools <- names(design_all$groupef.rank)[design_all$groupef.rank]
 cat(sprintf(
   "\n=== Full-rank filter: %d of %d schools kept ===\n",
   length(full_rank_schools),
-  length(design_all$re_rank)
+  length(design_all$groupef.rank)
 ))
-if (length(full_rank_schools) < length(design_all$re_rank)) {
+if (length(full_rank_schools) < length(design_all$groupef.rank)) {
   cat(
     "  Dropped:",
-    paste(names(design_all$re_rank)[!design_all$re_rank], collapse = ", "),
+    paste(names(design_all$groupef.rank)[!design_all$groupef.rank], collapse = ", "),
     "\n"
   )
 }
@@ -100,24 +100,24 @@ if (length(drop)) {
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s per-group Block~1 calibration
-## (ing_prior_measurement_group), consumed below by the Part VI extension
+## (group.ing_prior), consumed below by the Part VI extension
 ## (in place of Ex_13's direct dGamma_list() call).
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only, outlier groups 6 and 33 excluded) ===\n\n")
 print(design)
-stopifnot(all(design$re_rank))
+stopifnot(all(design$groupef.rank))
 
-## Same max_disp_perc_measurement = 0.8 / pwt_measurement = 0.1 as Ex_13/Ex_13b (Prior_
+## Same group.max_disp_perc = 0.8 / group.pwt = 0.1 as Ex_13/Ex_13b (Prior_
 ## Setup_lmebayes()'s own per-group sigma2_hat calibration is unchanged by
 ## Part VI -- only the window built from it, below, differs).
 ps <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
-  pwt             = 0.01,
+  pop.pwt         = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc_measurement = 0.8,
-  pwt_measurement = 0.1
+  group.max_disp_perc = 0.8,
+  group.pwt       = 0.1
 )
 cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
 print(ps)
@@ -142,7 +142,7 @@ pf <- pfamily_list(ps)
 max_disp_perc <- 0.8
 block_formula <- ps$block_formula
 sd_tau        <- sqrt(diag(ps$Sigma_ranef))
-re_names_all  <- design$re_coef_names
+re_names_all  <- design$groupef.names
 group_levels0 <- levels(dat$school_id)
 
 part_vi_group <- stats::setNames(
@@ -153,7 +153,7 @@ part_vi_group <- stats::setNames(
       family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
     )
     n_j          <- inp$n_j
-    n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
+    n_prior_j    <- ps$group.ing_prior[[lev]]$n_prior
     n_combined_j <- n_prior_j + n_j
     p_re         <- length(sd_tau)
 
@@ -170,12 +170,12 @@ part_vi_group <- stats::setNames(
     }
 
     ## Part VI: model-derived Omega_j, diagonal across RE components (each
-    ## gamma_k calibrated independently in pf/ps$prior_list).
+    ## gamma_k calibrated independently in pf/ps$pop.prior_list).
     Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
                        dimnames = list(inp$var_names, inp$var_names))
     for (k in re_names_all) {
       Wk_row <- design$W[[k]][lev, , drop = FALSE]
-      Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
+      Sigma_fixef_k <- ps$pop.prior_list[[k]]$Sigma_fixef
       Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
     }
 
@@ -225,7 +225,7 @@ print(part_vi_tab, row.names = FALSE)
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
 ## (one named-by-group-level numeric vector each), extracted here from each
 ## group's dGamma() pfamily -- 'ps' (Section 2)'s own Part VI + calibrated
-## pwt_measurement default, mirroring Ex_13's Section 3 and
+## group.pwt default, mirroring Ex_13's Section 3 and
 ## .lmebayes_resolve_dispersion_ranef_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ##
@@ -248,7 +248,7 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 group_levels <- levels(grp)
-re_names     <- design$re_coef_names
+re_names     <- design$groupef.names
 p_re         <- length(re_names)
 
 disp_pf_list <- dGamma_list(ps, max_disp_perc_measurement = 0.8)
@@ -470,7 +470,7 @@ cat(
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   fit, y = design$y, D = design$D, group = grp,
-  group_name = design$group_name, re_coef_names = re_names
+  group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
   1 / fit$dispersion_ranef.mean[group_levels], group_levels
@@ -521,7 +521,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  group_name = design$group_name, re_coef_names = re_names,
+  group_name = design$group_name, groupef.names = re_names,
   y = design$y, D = design$D,
   omega_spec = omega_spec
 )

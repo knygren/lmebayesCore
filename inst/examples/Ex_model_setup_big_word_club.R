@@ -60,7 +60,7 @@ print(design)
 ## 3. Random effects b[j]: first 10 schools
 ## ---------------------------------------------------------------------------
 cat("--- Random effects b[j]: first 10", design$group_name, "---\n")
-re_df <- as.data.frame(lme4::ranef(design$lmer_fit)[[design$group_name]])
+re_df <- as.data.frame(lme4::ranef(design$lmer)[[design$group_name]])
 print(utils::head(re_df, 10))
 
 ## ---------------------------------------------------------------------------
@@ -71,14 +71,14 @@ print(utils::head(re_df, 10))
 ## ---------------------------------------------------------------------------
 cat("\n--- Random effects model (gamma estimates) ---\n")
 
-fe         <- lme4::fixef(design$lmer_fit)
-coef_df    <- coef(design$lmer_fit)[[design$group_name]]
+fe         <- lme4::fixef(design$lmer)
+coef_df    <- coef(design$lmer)[[design$group_name]]
 coef_means <- colMeans(coef_df)
 coef_vars  <- apply(coef_df, 2L, var)
 coef_sds   <- sqrt(coef_vars)
-w          <- max(nchar(design$re_coef_names))
+w          <- max(nchar(design$groupef.names))
 
-for (nm in design$re_coef_names) {
+for (nm in design$groupef.names) {
   Xj    <- design$W[[nm]]
   other <- setdiff(colnames(Xj), "(Intercept)")
   hyper_rhs <- if (length(other) == 0L) "1" else paste(c("1", other), collapse = " + ")
@@ -107,13 +107,13 @@ for (nm in design$re_coef_names) {
 ## 5. Empirical SD/variance of per-school coefficients vs lmer VarCorr
 ## ---------------------------------------------------------------------------
 cat("--- Between-school SD of random coefficients vs lmer VarCorr ---\n")
-vc <- as.data.frame(lme4::VarCorr(design$lmer_fit))
+vc <- as.data.frame(lme4::VarCorr(design$lmer))
 cat(sprintf("  %-16s  empirical_sd=%7.4f  empirical_var=%8.4f  lmer_sd=%7.4f  lmer_var=%8.4f\n",
             "(Intercept)",
             coef_sds["(Intercept)"], coef_vars["(Intercept)"],
             vc$sdcor[vc$var1 == "(Intercept)" & is.na(vc$var2)][1L],
             vc$vcov[vc$var1  == "(Intercept)" & is.na(vc$var2)][1L]))
-for (nm in setdiff(design$re_coef_names, "(Intercept)")) {
+for (nm in setdiff(design$groupef.names, "(Intercept)")) {
   if (!nm %in% colnames(coef_df)) next
   lmer_row <- vc[vc$var1 == nm & is.na(vc$var2), ]
   cat(sprintf("  %-16s  empirical_sd=%7.4f  empirical_var=%8.4f  lmer_sd=%7.4f  lmer_var=%8.4f\n",
@@ -127,11 +127,11 @@ for (nm in setdiff(design$re_coef_names, "(Intercept)")) {
 ## 6. lmer refitted on full-rank schools only (same subset as Prior_Setup)
 ## ---------------------------------------------------------------------------
 cat("\n--- lmer refit: full-rank schools only ---\n")
-full_rank_schools <- names(design$re_rank)[design$re_rank]
+full_rank_schools <- names(design$groupef.rank)[design$groupef.rank]
 cat(sprintf("  Using %d of %d schools (dropping rank-deficient: %s)\n\n",
             length(full_rank_schools),
             nlevels(design$group),
-            paste(names(design$re_rank)[!design$re_rank], collapse = ", ")))
+            paste(names(design$groupef.rank)[!design$groupef.rank], collapse = ", ")))
 
 dat_fr <- subset(dat, school_id %in% full_rank_schools)
 dat_fr$school_id <- droplevels(dat_fr$school_id)
@@ -144,7 +144,7 @@ cat(sprintf("  %-16s  all_schools_sd=%7.4f  full_rank_sd=%7.4f\n",
             "(Intercept)",
             vc$sdcor[vc$var1 == "(Intercept)" & is.na(vc$var2)][1L],
             vc_fr$sdcor[vc_fr$var1 == "(Intercept)" & is.na(vc_fr$var2)][1L]))
-for (nm in setdiff(design$re_coef_names, "(Intercept)")) {
+for (nm in setdiff(design$groupef.names, "(Intercept)")) {
   row_all <- vc[vc$var1 == nm & is.na(vc$var2), ]
   row_fr  <- vc_fr[vc_fr$var1 == nm & is.na(vc_fr$var2), ]
   cat(sprintf("  %-16s  all_schools_sd=%7.4f  full_rank_sd=%7.4f\n",

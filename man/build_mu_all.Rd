@@ -7,12 +7,12 @@
 build_mu_all(design, fixef, group_levels = NULL, use_cpp = TRUE)
 }
 \arguments{
-\item{design}{List with components \code{W}, \code{re_coef_names},
+\item{design}{List with components \code{W}, \code{groupef.names},
 and \code{group} (typically supplied by a downstream mixed-effects
 model setup step).}
 
 \item{fixef}{Named list of hyper-parameter vectors, one entry per RE column
-of \code{D}. Names must match \code{design$re_coef_names}. Each
+of \code{D}. Names must match \code{design$groupef.names}. Each
 \code{fixef[[k]]} is a numeric vector of length \code{ncol(W[[k]])}
 with names matching \code{colnames(W[[k]])}.}
 
@@ -32,9 +32,9 @@ A list with:
 \describe{
 \item{\code{mu_all}}{Numeric matrix \code{p_re x J} (\code{p_re} =
 number of RE columns, \code{J} = number of groups). Row names are
-\code{design$re_coef_names}; column names are \code{group_levels} in
+\code{design$groupef.names}; column names are \code{group_levels} in
 the order supplied.}
-\item{\code{re_coef_names}}{Copy of \code{design$re_coef_names}.}
+\item{\code{groupef.names}}{Copy of \code{design$groupef.names}.}
 \item{\code{group_levels}}{Grouping levels used for columns.}
 }
 }

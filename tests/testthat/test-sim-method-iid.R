@@ -113,7 +113,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
 
   design <- list(
     y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    re_coef_names = "(Intercept)", group_name = "group"
+    groupef.names = "(Intercept)", group_name = "group"
   )
   ## Sigma_ranef must match what rLMMNormal_joint_iid() now derives
   ## internally from pfamily_list (diag(tau2_k), here tau2_true), not an

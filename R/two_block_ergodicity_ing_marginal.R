@@ -109,13 +109,13 @@
 #' (\eqn{\omega_L}/\eqn{\omega_U}, Section 16.6), all reused across every
 #' draw.
 #' @noRd
-.two_block_marginal_group_setup <- function(D, y, group, group_levels, re_coef_names,
+.two_block_marginal_group_setup <- function(D, y, group, group_levels, groupef.names,
                                              shape_group, rate_group,
                                              omega_L_group, omega_U_group) {
   group_chr <- as.character(group)
   stats::setNames(lapply(group_levels, function(lev) {
     idx <- which(group_chr == lev)
-    D_j <- D[idx, re_coef_names, drop = FALSE]
+    D_j <- D[idx, groupef.names, drop = FALSE]
     y_j <- y[idx]
     DtD <- crossprod(D_j)
     beta_ols <- as.vector(solve(DtD, crossprod(D_j, y_j)))
@@ -167,7 +167,7 @@
   P_b  <- blocks$P_b
   cols <- inp$gamma_cols
   co   <- coefficients
-  re_coef_names <- inp$re_names
+  groupef.names <- inp$re_names
   group_levels  <- inp$group_levels
   co_group_chr  <- as.character(co[[group_name]])
 
@@ -193,7 +193,7 @@
       lev <- group_levels[[j]]
       gs  <- group_setup[[lev]]
       row_i  <- draw_rows[co_group_chr[draw_rows] == lev]
-      beta_j <- as.numeric(unlist(co[row_i, re_coef_names]))
+      beta_j <- as.numeric(unlist(co[row_i, groupef.names]))
 
       e_j <- y[gs$rows] - gs$D_j %*% beta_j
       ete <- sum(e_j^2)
@@ -354,7 +354,7 @@
 
   group_setup <- .two_block_marginal_group_setup(
     D = D, y = y, group = group, group_levels = group_levels,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     shape_group = sr$shape_group, rate_group = sr$rate_group,
     omega_L_group = sr$omega_L_group, omega_U_group = sr$omega_U_group
   )

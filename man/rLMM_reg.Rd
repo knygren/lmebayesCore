@@ -152,7 +152,7 @@ rLMMindepNormalGamma_reg_estimated_vcov(
 (row-stacked \eqn{D_j}) in \dQuote{Model and notation} below. Must have
 unique, non-empty \code{colnames(D)}: these are the random-effect
 coefficient names used to key \code{W} and \code{pfamily_list}
-(there is no separate \code{re_coef_names} argument to override them).}
+(there is no separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
 \code{levels(group)} fixes the row order of Block~1 draws -- there is no

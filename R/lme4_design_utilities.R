@@ -359,9 +359,9 @@ classify_lme4_fixed_columns <- function(X_fixed, group_factor) {
 #'
 #' @param level1_cols Character vector of level-1 fixed column names.
 #' @param level2_cols Character vector of group-constant fixed column names.
-#' @param re_coef_names Character vector of random-effects coefficient names
+#' @param groupef.names Character vector of group-effect coefficient names
 #'   from \code{reTrms$cnms}.
-#' @return List with \code{re_slope_moderation} (data frame with columns
+#' @return List with \code{popef.moderation} (data frame with columns
 #'   \code{interaction_col}, \code{moderator}, \code{random_slope}),
 #'   \code{slope_mean_cols} (main fixed effects that are random slope names,
 #'   i.e. population mean slope terms), and
@@ -370,7 +370,7 @@ classify_lme4_fixed_columns <- function(X_fixed, group_factor) {
 classify_crosslevel_re_moderation <- function(
     level1_cols,
     level2_cols,
-    re_coef_names
+    groupef.names
 ) {
   empty_mod <- data.frame(
     interaction_col = character(0),
@@ -380,14 +380,14 @@ classify_crosslevel_re_moderation <- function(
   )
   if (length(level1_cols) == 0L) {
     return(list(
-      re_slope_moderation = empty_mod,
+      popef.moderation = empty_mod,
       slope_mean_cols = character(0),
       disallowed_level1_cols = character(0)
     ))
   }
 
   level2_preds <- setdiff(level2_cols, "(Intercept)")
-  re_slopes <- setdiff(unique(as.character(re_coef_names)), "(Intercept)")
+  re_slopes <- setdiff(unique(as.character(groupef.names)), "(Intercept)")
   moderation <- vector("list", length(level1_cols))
   slope_means <- character(0)
   disallowed <- character(0)
@@ -432,7 +432,7 @@ classify_crosslevel_re_moderation <- function(
   }
 
   list(
-    re_slope_moderation = if (n_mod > 0L) {
+    popef.moderation = if (n_mod > 0L) {
       do.call(rbind, moderation[seq_len(n_mod)])
     } else {
       empty_mod
@@ -468,16 +468,19 @@ classify_crosslevel_re_moderation <- function(
 #' @return Object of class \code{"model_setup"} with:
 #'   \describe{
 #'     \item{\code{group_name}}{Grouping factor name.}
-#'     \item{\code{group}}{Factor of length \code{nrow(D)} for block subsetting.}
-#'     \item{\code{re_coef_names}}{Random coefficient names from \code{lme4}.}
+#'     \item{\code{group}}{Factor of length \code{nrow(D)} for block
+#'       subsetting; also carries \code{attr(group, "group_name")} (same
+#'       value as \code{group_name}).}
+#'     \item{\code{groupef.names}}{Group-effect coefficient names from
+#'       \code{lme4}.}
 #'     \item{\code{y}}{Response vector, length \code{nrow(D)} (aligned with
 #'       \code{D} and \code{group}).}
-#'     \item{\code{D}}{Random-effects model matrix (\code{n_obs} x \code{p_re}):
-#'       per-observation loadings on the within-group random coefficient
-#'       vector (columns \code{re_coef_names}).}
+#'     \item{\code{D}}{Group-effects model matrix (\code{n_obs} x \code{p_re}):
+#'       per-observation loadings on the within-group group-effect coefficient
+#'       vector (columns \code{groupef.names}).}
 #'     \item{\code{W}}{Named list of matrices (one row per group level),
-#'       keyed by \code{re_coef_names}.}
-#'     \item{\code{re_slope_moderation}}{Cross-level moderation metadata.}
+#'       keyed by \code{groupef.names}.}
+#'     \item{\code{popef.moderation}}{Cross-level moderation metadata.}
 #'   }
 #' @seealso \code{\link{model_setup}}, \code{\link{extract_lme4_fixed_group_matrix}},
 #'   \code{\link{extract_re_Z_obs}}
@@ -492,9 +495,17 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
   parsed <- lme4::lFormula(formula = formula, data = data, ...)
   group_name <- names(parsed$reTrms$flist)[1L]
   group_factor <- parsed$reTrms$flist[[1L]]
-  re_coef_names <- unique(unlist(parsed$reTrms$cnms, use.names = FALSE))
+  ## Belt-and-suspenders: attach group_name as an attribute too, so 'group'
+  ## alone can be handed to sampler engine functions (which resolve it via
+  ## .lmebayes_resolve_group_name(), attribute-first) without also passing
+  ## group_name separately. The explicit group_name field above remains the
+  ## authoritative source -- this attribute is fragile (silently dropped by
+  ## `[`, droplevels(), factor(), c(), rep(), and subset(data.frame, ...)) so
+  ## it must not be relied on alone.
+  attr(group_factor, "group_name") <- group_name
+  groupef.names <- unique(unlist(parsed$reTrms$cnms, use.names = FALSE))
 
-  re_slope_moderation <- data.frame(
+  popef.moderation <- data.frame(
     interaction_col = character(0),
     moderator = character(0),
     random_slope = character(0),
@@ -508,9 +519,9 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
       cross_cls <- classify_crosslevel_re_moderation(
         level1_cols = fixed_cls$level1_cols,
         level2_cols = fixed_cls$level2_cols,
-        re_coef_names = re_coef_names
+        groupef.names = groupef.names
       )
-      re_slope_moderation <- cross_cls$re_slope_moderation
+      popef.moderation <- cross_cls$popef.moderation
       # slope_mean_cols (e.g. age_c alongside (1 + age_c || group)) are the
       # population mean slopes gamma_10; they are level-2 parameters estimated
       # as fixed effects and are allowed without changing X_hyper structure.
@@ -532,14 +543,14 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
   k <- nrow(X_group)
 
   moderators <- stats::setNames(
-    re_slope_moderation$moderator,
-    re_slope_moderation$random_slope
+    popef.moderation$moderator,
+    popef.moderation$random_slope
   )
 
-  X_hyper <- vector("list", length(re_coef_names))
-  names(X_hyper) <- re_coef_names
+  X_hyper <- vector("list", length(groupef.names))
+  names(X_hyper) <- groupef.names
 
-  for (coef in re_coef_names) {
+  for (coef in groupef.names) {
     if (coef == "(Intercept)") {
       X_hyper[[coef]] <- X_group
     } else if (coef %in% names(moderators)) {
@@ -565,7 +576,7 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
   Z <- extract_re_Z_obs(
     matrices_list = comps,
     group_name = group_name,
-    re_coef_names = re_coef_names
+    groupef.names = groupef.names
   )
 
   y <- stats::model.response(parsed$fr)
@@ -583,11 +594,11 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
     list(
       group_name = group_name,
       group = group_factor,
-      re_coef_names = re_coef_names,
+      groupef.names = groupef.names,
       y = y,
       D = Z,
       W = X_hyper,
-      re_slope_moderation = re_slope_moderation
+      popef.moderation = popef.moderation
     ),
     class = "model_setup"
   )
@@ -617,19 +628,19 @@ lmerb_default_vcov_formula <- function(formula, data = NULL, ...) {
   parsed <- lme4::lFormula(formula = formula, data = data, ...)
   group_name <- names(parsed$reTrms$flist)[1L]
   group_factor <- parsed$reTrms$flist[[1L]]
-  re_coef_names <- unique(unlist(parsed$reTrms$cnms, use.names = FALSE))
+  groupef.names <- unique(unlist(parsed$reTrms$cnms, use.names = FALSE))
 
   fixed_cls <- classify_lme4_fixed_columns(parsed$X, group_factor)
   cross_cls <- classify_crosslevel_re_moderation(
     level1_cols = fixed_cls$level1_cols,
     level2_cols = fixed_cls$level2_cols,
-    re_coef_names = re_coef_names
+    groupef.names = groupef.names
   )
 
   fixed_form <- reformulas::nobars(formula)
   term_labels <- attr(terms(fixed_form), "term.labels")
   # Drop only the cross-level interaction terms; keep slope_mean_cols (gamma_10)
-  drop_terms <- cross_cls$re_slope_moderation$interaction_col
+  drop_terms <- cross_cls$popef.moderation$interaction_col
   terms_keep <- setdiff(term_labels, drop_terms)
 
   resp <- all.vars(formula)[1L]
@@ -640,8 +651,8 @@ lmerb_default_vcov_formula <- function(formula, data = NULL, ...) {
   }
 
   # Build random term from lFormula cnms (findbars() splits || into separate bars).
-  re_terms <- ifelse(re_coef_names == "(Intercept)", "1", re_coef_names)
-  if (length(re_coef_names) == 1L && identical(re_coef_names, "(Intercept)")) {
+  re_terms <- ifelse(groupef.names == "(Intercept)", "1", groupef.names)
+  if (length(groupef.names) == 1L && identical(groupef.names, "(Intercept)")) {
     random_chr <- paste0("(1 | ", group_name, ")")
   } else {
     random_chr <- paste0(
@@ -654,47 +665,49 @@ lmerb_default_vcov_formula <- function(formula, data = NULL, ...) {
 
 #' Extract variance components from an \code{lmer} fit
 #'
-#' Maps \code{lme4::VarCorr()} output to a named vector of random-effect
-#' variances (aligned with \code{re_coef_names}) plus residual variance.
+#' Maps \code{lme4::VarCorr()} output to a named vector of group-effect
+#' variances (aligned with \code{groupef.names}) plus residual variance.
 #'
 #' @param fit Object of class \code{"lmerMod"} from \code{\link[lme4]{lmer}}.
-#' @param re_coef_names Random coefficient names (as in \code{reTrms$cnms}).
-#' @return List with \code{varcorr}, \code{vcov_re}, and \code{residual_var}.
+#' @param groupef.names Group-effect coefficient names (as in
+#'   \code{reTrms$cnms}).
+#' @return List with \code{varcorr}, \code{Psi}, and \code{dispersion}.
 #' @keywords internal
-extract_lmer_variance_components <- function(fit, re_coef_names) {
+extract_lmer_variance_components <- function(fit, groupef.names) {
   if (!inherits(fit, "lmerMod")) {
     stop("fit must be an lmerMod object.", call. = FALSE)
   }
-  extract_mer_variance_components(fit, re_coef_names)
+  extract_mer_variance_components(fit, groupef.names)
 }
 
 #' Extract variance components from an \code{lmer} or \code{glmer} fit
 #'
 #' @param fit Object of class \code{"merMod"}.
-#' @param re_coef_names Random coefficient names (as in \code{reTrms$cnms}).
-#' @return List with \code{varcorr}, \code{vcov_re}, and \code{residual_var}.
+#' @param groupef.names Group-effect coefficient names (as in
+#'   \code{reTrms$cnms}).
+#' @return List with \code{varcorr}, \code{Psi}, and \code{dispersion}.
 #' @keywords internal
-extract_mer_variance_components <- function(fit, re_coef_names) {
+extract_mer_variance_components <- function(fit, groupef.names) {
   if (!inherits(fit, "merMod")) {
     stop("fit must be an merMod object.", call. = FALSE)
   }
 
   vc_df <- as.data.frame(lme4::VarCorr(fit), stringsAsFactors = FALSE)
-  vcov_re <- stats::setNames(
-    rep(NA_real_, length(re_coef_names)),
-    re_coef_names
+  Psi <- stats::setNames(
+    rep(NA_real_, length(groupef.names)),
+    groupef.names
   )
 
-  for (nm in re_coef_names) {
+  for (nm in groupef.names) {
     hit <- vc_df$var1 == nm & (vc_df$var2 == nm | is.na(vc_df$var2))
     hit[is.na(hit)] <- FALSE
     if (any(hit)) {
-      vcov_re[[nm]] <- vc_df$vcov[which(hit)[1L]]
+      Psi[[nm]] <- vc_df$vcov[which(hit)[1L]]
     }
   }
 
-  if (anyNA(vcov_re)) {
-    missing_coefs <- names(vcov_re)[is.na(vcov_re)]
+  if (anyNA(Psi)) {
+    missing_coefs <- names(Psi)[is.na(Psi)]
     stop(
       "Could not find variance components for: ",
       paste(missing_coefs, collapse = ", "),
@@ -702,37 +715,38 @@ extract_mer_variance_components <- function(fit, re_coef_names) {
     )
   }
 
-  residual_var <- vc_df$vcov[vc_df$grp == "Residual"]
-  if (length(residual_var) >= 1L) {
-    residual_var <- unname(residual_var[1L])
+  dispersion <- vc_df$vcov[vc_df$grp == "Residual"]
+  if (length(dispersion) >= 1L) {
+    dispersion <- unname(dispersion[1L])
   } else if (inherits(fit, "lmerMod")) {
-    residual_var <- lme4::getME(fit, "sigma")^2
+    dispersion <- lme4::getME(fit, "sigma")^2
   } else {
-    residual_var <- NA_real_
+    dispersion <- NA_real_
   }
 
   list(
     varcorr = vc_df,
-    vcov_re = vcov_re,
-    residual_var = unname(residual_var)
+    Psi = Psi,
+    dispersion = unname(dispersion)
   )
 }
-#' Restructure \code{lme4} sparse \code{Z} to per-observation RE loadings
+#' Restructure \code{lme4} sparse \code{Z} to per-observation group-effect
+#' loadings
 #'
 #' Collapses the stacked \code{lme4} random-effects design (one column per
 #' \code{group|coef|level}) into an \code{n_obs x p_re} matrix whose columns
-#' are the random coefficient names (\code{(Intercept)}, slopes, etc.). Row
-#' \code{i} contains the loadings on the within-group random vector for
-#' observation \code{i}'s group.
+#' are the group-effect coefficient names (\code{(Intercept)}, slopes, etc.).
+#' Row \code{i} contains the loadings on the within-group group-effect vector
+#' for observation \code{i}'s group.
 #'
 #' @param matrices_list List from \code{\link{get_lme4_components}}.
 #' @param group_name Name of the grouping factor.
-#' @param re_coef_names Character vector of random coefficient names
+#' @param groupef.names Character vector of group-effect coefficient names
 #'   (as in \code{reTrms$cnms}).
-#' @return Numeric matrix \code{n_obs x length(re_coef_names)} with
-#'   \code{colnames = re_coef_names}.
+#' @return Numeric matrix \code{n_obs x length(groupef.names)} with
+#'   \code{colnames = groupef.names}.
 #' @keywords internal
-extract_re_Z_obs <- function(matrices_list, group_name, re_coef_names) {
+extract_re_Z_obs <- function(matrices_list, group_name, groupef.names) {
   Z_sparse <- matrices_list$Z_random_sparse
   col_map <- matrices_list$Z_random_column_map
   group_factor <- matrices_list$groups[[group_name]]
@@ -743,8 +757,8 @@ extract_re_Z_obs <- function(matrices_list, group_name, re_coef_names) {
   if (is.null(group_factor)) {
     stop(sprintf("Grouping factor '%s' not found.", group_name), call. = FALSE)
   }
-  if (length(re_coef_names) < 1L) {
-    stop("re_coef_names must be non-empty.", call. = FALSE)
+  if (length(groupef.names) < 1L) {
+    stop("groupef.names must be non-empty.", call. = FALSE)
   }
 
   n <- nrow(Z_sparse)
@@ -756,15 +770,15 @@ extract_re_Z_obs <- function(matrices_list, group_name, re_coef_names) {
     )
   }
 
-  p <- length(re_coef_names)
+  p <- length(groupef.names)
   Z <- matrix(0, nrow = n, ncol = p)
-  colnames(Z) <- re_coef_names
+  colnames(Z) <- groupef.names
 
   g_chr <- as.character(group_factor)
   Zm <- as.matrix(Z_sparse)
 
-  for (j in seq_along(re_coef_names)) {
-    coef_nm <- re_coef_names[j]
+  for (j in seq_along(groupef.names)) {
+    coef_nm <- groupef.names[j]
     map_j <- col_map[col_map$coef == coef_nm, , drop = FALSE]
     if (nrow(map_j) < 1L) {
       stop(

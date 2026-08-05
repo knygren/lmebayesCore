@@ -28,9 +28,9 @@
 #'   \code{gamma_hat} (the Block~2 hyper-regression's fixed-effect point
 #'   estimates, i.e. each group's shrinkage-target mean \eqn{\mu_j}).
 #' @param design \code{model_setup()} design list (\code{D}, \code{y},
-#'   \code{W}, \code{group}, \code{re_coef_names}).
+#'   \code{W}, \code{group}, \code{groupef.names}).
 #' @param group_levels Character vector of group levels.
-#' @param re_coef_names Character vector of random-coefficient names.
+#' @param groupef.names Character vector of random-coefficient names.
 #' @param Sigma_ranef Diagonal RE covariance matrix (Block~1's \eqn{\Psi}).
 #' @param ing_prior_measurement_group Pass-1 (seed) per-group Block~1
 #'   calibration list, as returned by
@@ -48,11 +48,11 @@
 #'   <data.frame>)}.
 #' @noRd
 .lmebayes_calibrate_pwt_measurement_group <- function(
-    fit_ref, design, group_levels, re_coef_names, Sigma_ranef,
+    fit_ref, design, group_levels, groupef.names, Sigma_ranef,
     ing_prior_measurement_group, alpha_target, floor_vec,
     n_sim = 200000L, seed = 1L
 ) {
-  p_re <- length(re_coef_names)
+  p_re <- length(groupef.names)
 
   fe <- .lmebayes_reference_fixef(fit_ref)
   ## diag(x) with a length-1 numeric x builds an x-by-x identity matrix, not
@@ -82,7 +82,7 @@
   }
 
   gamma_hat_by_component <- stats::setNames(
-    lapply(re_coef_names, function(k) {
+    lapply(groupef.names, function(k) {
       Wk   <- design$W[[k]]
       cols <- colnames(Wk)
       fe_nm <- vapply(cols, fe_name_for, character(1L), k = k)
@@ -95,7 +95,7 @@
       }
       stats::setNames(unname(fe[fe_nm]), cols)
     }),
-    re_coef_names
+    groupef.names
   )
 
   set.seed(seed)
@@ -103,7 +103,7 @@
 
   rows <- lapply(group_levels, function(lev) {
     idx <- which(group_chr == lev)
-    D_j <- design$D[idx, re_coef_names, drop = FALSE]
+    D_j <- design$D[idx, groupef.names, drop = FALSE]
     y_j <- design$y[idx]
     n_j <- length(idx)
     DtD <- crossprod(D_j)
@@ -115,7 +115,7 @@
     Omega_hat_j   <- 1 / sigma2_hat
     max_disp_perc <- ing_j$max_disp_perc
 
-    mu_j <- vapply(re_coef_names, function(k) {
+    mu_j <- vapply(groupef.names, function(k) {
       Wk <- design$W[[k]]
       as.numeric(Wk[lev, , drop = FALSE] %*% gamma_hat_by_component[[k]])
     }, numeric(1))

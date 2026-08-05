@@ -4,15 +4,16 @@
 \alias{extract_mer_variance_components}
 \title{Extract variance components from an \code{lmer} or \code{glmer} fit}
 \usage{
-extract_mer_variance_components(fit, re_coef_names)
+extract_mer_variance_components(fit, groupef.names)
 }
 \arguments{
 \item{fit}{Object of class \code{"merMod"}.}
 
-\item{re_coef_names}{Random coefficient names (as in \code{reTrms$cnms}).}
+\item{groupef.names}{Group-effect coefficient names (as in
+\code{reTrms$cnms}).}
 }
 \value{
-List with \code{varcorr}, \code{vcov_re}, and \code{residual_var}.
+List with \code{varcorr}, \code{Psi}, and \code{dispersion}.
 }
 \description{
 Extract variance components from an \code{lmer} or \code{glmer} fit

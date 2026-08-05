@@ -18,7 +18,7 @@ glmerb_posterior_mode(
 }
 \arguments{
 \item{design}{Design list with \code{y}, \code{D}, \code{group},
-\code{W}, and \code{re_coef_names}.}
+\code{W}, and \code{groupef.names}.}
 
 \item{measurement_prior_list}{List with \code{Sigma_ranef} and
 \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required

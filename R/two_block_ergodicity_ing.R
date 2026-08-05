@@ -340,7 +340,7 @@ print.two_block_rate_ing <- function(x, ...) {
 #' reference fit, via \code{coef() - fixef()} per term
 #'
 #' Reduces to \code{lme4::ranef(fit)}/\code{glmmTMB::ranef(fit)} exactly
-#' whenever every \code{re_coef_names} entry is also a plain (non-interaction)
+#' whenever every \code{groupef.names} entry is also a plain (non-interaction)
 #' fixed-effect term name -- true for every model in
 #' \code{demo/Ex_10}-\code{Ex_14} -- while routing through the existing
 #' \code{\link{.lmebayes_reference_coef}}/\code{\link{.lmebayes_reference_fixef}}
@@ -349,13 +349,13 @@ print.two_block_rate_ing <- function(x, ...) {
 #'
 #' @param fit A fitted \code{merMod} or \code{glmmTMB} reference model.
 #' @param group_name Name of the random-effects grouping factor.
-#' @param re_coef_names Random coefficient names to extract (a subset of the
+#' @param groupef.names Random coefficient names to extract (a subset of the
 #'   fixed-effect names in \code{fit}).
-#' @return A data frame (rows = group levels, columns = \code{re_coef_names})
+#' @return A data frame (rows = group levels, columns = \code{groupef.names})
 #'   of \eqn{u_{jp}} residuals.
 #' @keywords internal
 #' @noRd
-.lmebayes_reference_u <- function(fit, group_name, re_coef_names) {
+.lmebayes_reference_u <- function(fit, group_name, groupef.names) {
   co <- .lmebayes_reference_coef(fit)[[group_name]]
   if (is.null(co)) {
     stop(
@@ -363,7 +363,7 @@ print.two_block_rate_ing <- function(x, ...) {
       call. = FALSE
     )
   }
-  missing_coefs <- setdiff(re_coef_names, colnames(co))
+  missing_coefs <- setdiff(groupef.names, colnames(co))
   if (length(missing_coefs) > 0L) {
     stop(
       "coef(fit)[[\"", group_name, "\"]] is missing column(s): ",
@@ -372,8 +372,8 @@ print.two_block_rate_ing <- function(x, ...) {
     )
   }
   fe <- .lmebayes_reference_fixef(fit)
-  u  <- co[, re_coef_names, drop = FALSE]
-  for (k in re_coef_names) {
+  u  <- co[, groupef.names, drop = FALSE]
+  for (k in groupef.names) {
     fe_k <- if (k %in% names(fe)) unname(fe[[k]]) else 0
     u[[k]] <- u[[k]] - fe_k
   }
@@ -386,18 +386,18 @@ print.two_block_rate_ing <- function(x, ...) {
 #' @param fit A fitted \code{merMod} or \code{glmmTMB} reference model.
 #' @param y Response vector (as in \code{design$y}).
 #' @param D Level-1 design matrix (as in \code{design$D}), \code{length(y) x
-#'   length(re_coef_names)}.
+#'   length(groupef.names)}.
 #' @param group Grouping factor, length \code{length(y)}, aligned to
 #'   \code{y}/\code{D}.
 #' @param group_name Name of the random-effects grouping factor.
-#' @param re_coef_names Column names of \code{D} (as in
-#'   \code{design$re_coef_names}).
+#' @param groupef.names Column names of \code{D} (as in
+#'   \code{design$groupef.names}).
 #' @return Named list (one entry per group level in \code{coef(fit)}) of
 #'   numeric residual vectors \eqn{e_j}.
 #' @keywords internal
 #' @noRd
 .lmebayes_reference_group_residuals <- function(
-    fit, y, D, group, group_name, re_coef_names
+    fit, y, D, group, group_name, groupef.names
 ) {
   co <- .lmebayes_reference_coef(fit)[[group_name]]
   if (is.null(co)) {
@@ -406,7 +406,7 @@ print.two_block_rate_ing <- function(x, ...) {
       call. = FALSE
     )
   }
-  missing_coefs <- setdiff(re_coef_names, colnames(co))
+  missing_coefs <- setdiff(groupef.names, colnames(co))
   if (length(missing_coefs) > 0L) {
     stop(
       "coef(fit)[[\"", group_name, "\"]] is missing column(s): ",
@@ -424,8 +424,8 @@ print.two_block_rate_ing <- function(x, ...) {
       out[[lev]] <- numeric(0L)
       next
     }
-    beta_j <- as.numeric(co[lev, re_coef_names])
-    out[[lev]] <- as.numeric(y[rows] - D[rows, re_coef_names, drop = FALSE] %*% beta_j)
+    beta_j <- as.numeric(co[lev, groupef.names])
+    out[[lev]] <- as.numeric(y[rows] - D[rows, groupef.names, drop = FALSE] %*% beta_j)
   }
   out
 }
@@ -449,13 +449,13 @@ print.two_block_rate_ing <- function(x, ...) {
 #'   \code{rGLMM_reg} exports.
 #' @param group_name Name of the grouping-factor column in
 #'   \code{fit$coefficients}.
-#' @param re_coef_names Random coefficient names (columns of
+#' @param groupef.names Random coefficient names (columns of
 #'   \code{fit$coefficients} and of \code{D}).
 #' @return Named list (one entry per group level in \code{fit$coefficients})
-#'   of posterior-mean coefficient vectors (length \code{length(re_coef_names)}).
+#'   of posterior-mean coefficient vectors (length \code{length(groupef.names)}).
 #' @keywords internal
 #' @noRd
-.lmebayes_posterior_mean_group_coef <- function(fit, group_name, re_coef_names) {
+.lmebayes_posterior_mean_group_coef <- function(fit, group_name, groupef.names) {
   co <- fit$coefficients
   if (is.null(co) || is.null(co[[group_name]])) {
     stop(
@@ -463,7 +463,7 @@ print.two_block_rate_ing <- function(x, ...) {
       call. = FALSE
     )
   }
-  missing_coefs <- setdiff(re_coef_names, colnames(co))
+  missing_coefs <- setdiff(groupef.names, colnames(co))
   if (length(missing_coefs) > 0L) {
     stop(
       "fit$coefficients is missing column(s): ",
@@ -473,7 +473,7 @@ print.two_block_rate_ing <- function(x, ...) {
   }
   idx_by_group <- split(seq_len(nrow(co)), co[[group_name]])
   lapply(idx_by_group, function(idx) {
-    colMeans(co[idx, re_coef_names, drop = FALSE])
+    colMeans(co[idx, groupef.names, drop = FALSE])
   })
 }
 
@@ -482,24 +482,24 @@ print.two_block_rate_ing <- function(x, ...) {
 #'
 #' @inheritParams .lmebayes_posterior_mean_group_coef
 #' @param x_hyper Named list of group-level design matrices (as in
-#'   \code{design$W}), one per \code{re_coef_names} entry, row-named by
+#'   \code{design$W}), one per \code{groupef.names} entry, row-named by
 #'   group level.
-#' @return A data frame (rows = group levels, columns = \code{re_coef_names})
+#' @return A data frame (rows = group levels, columns = \code{groupef.names})
 #'   of \eqn{u_{jp}} residuals, matching \code{.lmebayes_reference_u()}'s
 #'   return shape.
 #' @keywords internal
 #' @noRd
-.lmebayes_posterior_u <- function(fit, group_name, re_coef_names, x_hyper) {
-  beta_bar <- .lmebayes_posterior_mean_group_coef(fit, group_name, re_coef_names)
+.lmebayes_posterior_u <- function(fit, group_name, groupef.names, x_hyper) {
+  beta_bar <- .lmebayes_posterior_mean_group_coef(fit, group_name, groupef.names)
   levs <- names(beta_bar)
   beta_mat <- do.call(rbind, beta_bar)
   rownames(beta_mat) <- levs
   gamma_bar <- stats::setNames(
-    lapply(re_coef_names, function(k) colMeans(fit$fixef[[k]])),
-    re_coef_names
+    lapply(groupef.names, function(k) colMeans(fit$fixef[[k]])),
+    groupef.names
   )
   u <- as.data.frame(beta_mat)
-  for (k in re_coef_names) {
+  for (k in groupef.names) {
     Wk <- x_hyper[[k]][levs, , drop = FALSE]
     u[[k]] <- beta_mat[, k] - as.vector(Wk %*% gamma_bar[[k]])
   }
@@ -519,9 +519,9 @@ print.two_block_rate_ing <- function(x, ...) {
 #' @keywords internal
 #' @noRd
 .lmebayes_posterior_group_residuals <- function(
-    fit, y, D, group, group_name, re_coef_names
+    fit, y, D, group, group_name, groupef.names
 ) {
-  beta_bar <- .lmebayes_posterior_mean_group_coef(fit, group_name, re_coef_names)
+  beta_bar <- .lmebayes_posterior_mean_group_coef(fit, group_name, groupef.names)
   group_chr <- as.character(group)
   levs <- names(beta_bar)
   out <- vector("list", length(levs))
@@ -533,7 +533,7 @@ print.two_block_rate_ing <- function(x, ...) {
       next
     }
     out[[lev]] <- as.numeric(
-      y[rows] - D[rows, re_coef_names, drop = FALSE] %*% beta_bar[[lev]]
+      y[rows] - D[rows, groupef.names, drop = FALSE] %*% beta_bar[[lev]]
     )
   }
   out
@@ -604,12 +604,12 @@ print.two_block_rate_ing <- function(x, ...) {
 #' @param x,block,x_hyper,prior_list_block1,prior_list_block2,family,group_levels
 #'   As in \code{\link{two_block_rate_ing}}; held fixed across draws (only
 #'   \code{lambda_ing}/\code{omega_ing} vary per draw).
-#' @param group_name,re_coef_names As in \code{\link{.lmebayes_posterior_u}}.
+#' @param group_name,groupef.names As in \code{\link{.lmebayes_posterior_u}}.
 #' @param y,D Response vector / level-1 design matrix, required when
 #'   \code{omega_spec} is supplied (as in
 #'   \code{\link{.lmebayes_posterior_group_residuals}}).
 #' @param lambda_spec \code{NULL}, or a named list (subset of
-#'   \code{re_coef_names}) of \code{shape} values (Gamma prior shape
+#'   \code{groupef.names}) of \code{shape} values (Gamma prior shape
 #'   \eqn{a_p^0}) -- one ING lambda entry per name.
 #' @param omega_spec \code{NULL}, or a list with \code{scope}
 #'   (\code{"pooled"}/\code{"per_group"}), \code{shape}, and \code{n}, as in
@@ -625,7 +625,7 @@ print.two_block_rate_ing <- function(x, ...) {
 .two_block_rate_ing_over_draws <- function(
     fit, n_draws,
     x, block, x_hyper, prior_list_block1, prior_list_block2,
-    group_name, re_coef_names, y = NULL, D = NULL,
+    group_name, groupef.names, y = NULL, D = NULL,
     lambda_spec = NULL, omega_spec = NULL,
     family = gaussian(), group_levels = levels(block)
 ) {
@@ -652,7 +652,7 @@ print.two_block_rate_ing <- function(x, ...) {
 
     lambda_ing_i <- NULL
     if (!is.null(lambda_spec)) {
-      u_i <- .lmebayes_posterior_u(fit_i, group_name, re_coef_names, x_hyper)
+      u_i <- .lmebayes_posterior_u(fit_i, group_name, groupef.names, x_hyper)
       lambda_ing_i <- stats::setNames(lapply(lambda_names, function(k) {
         list(
           lambda = 1 / fit$fixef.dispersion[i, k],
@@ -666,7 +666,7 @@ print.two_block_rate_ing <- function(x, ...) {
     if (!is.null(omega_spec)) {
       e_i <- .lmebayes_posterior_group_residuals(
         fit_i, y = y, D = D, group = block, group_name = group_name,
-        re_coef_names = re_coef_names
+        groupef.names = groupef.names
       )
       omega_i <- 1 / fit$dispersion_ranef[i, group_levels]
       names(omega_i) <- group_levels

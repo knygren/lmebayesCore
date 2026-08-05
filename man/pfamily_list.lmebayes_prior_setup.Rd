@@ -15,13 +15,13 @@ random-effect component, or a character vector / list with one
 string per component.  Allowed values are \code{"dNormal"} and
 \code{"dIndependent_Normal_Gamma"}.  A vector may be named with the
 random-effect coefficient names (any order); unnamed vectors are
-matched positionally against \code{names(object$prior_list)}.}
+matched positionally against \code{names(object$pop.prior_list)}.}
 
 \item{...}{Currently ignored.}
 }
 \value{
 A named list of \code{"pfamily"} objects, with names equal to
-\code{names(object$prior_list)} (the random-effect coefficient
+\code{names(object$pop.prior_list)} (the random-effect coefficient
 names).
 }
 \description{
@@ -32,7 +32,7 @@ Converts the per-component Block~2 hyperprior parameters stored in a
 }
 \details{
 For each random-effect coefficient \eqn{k}, the prior parameters come
-from \code{object$prior_list[[k]]}:
+from \code{object$pop.prior_list[[k]]}:
 \itemize{
 \item \code{"dNormal"}: \code{dNormal(mu = mu_fixef, Sigma =
     Sigma_fixef, dispersion = dispersion_fixef)}.  The Block~2
@@ -42,9 +42,9 @@ as known.
 \code{Sigma}, plus a Gamma prior on the Block~2 precision
 \eqn{1/\tau^2_k} calibrated with the same convention as
 \code{\link[glmbayesCore]{Prior_Setup}}.  The per-component effective prior sample
-size \eqn{n_0} is taken from \code{object$n_prior_dispersion[[k]]}
-(set by \code{\link{Prior_Setup_lmebayes}} via \code{pwt_dispersion} /
-\code{n_prior_dispersion}, derived from \code{pwt} by default).
+size \eqn{n_0} is taken from \code{object$pop.dispersion.nprior[[k]]}
+(set by \code{\link{Prior_Setup_lmebayes}} via \code{pop.dispersion.pwt} /
+\code{pop.dispersion.nprior}, derived from \code{pop.pwt} by default).
 Then
 \deqn{shape = (n_0 + 1 + p_k)/2, \qquad
           rate = \tau^2_k \, (n_0 + p_k - 1)/2,}
@@ -53,11 +53,11 @@ component \eqn{k} (the \code{shape_ING} convention with the
 lmebayesCore default rate \eqn{b_0}).  Because
 \eqn{rate = \tau^2_k (shape - 1)}, the implied inverse-Gamma prior
 on the dispersion has mean exactly \eqn{\tau^2_k} for every
-\eqn{n_0} and \eqn{p_k}, while small \code{pwt_dispersion} keeps it
+\eqn{n_0} and \eqn{p_k}, while small \code{pop.dispersion.pwt} keeps it
 deliberately diffuse.
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{The dispersion prior must not outweigh the data: \eqn{n_0 \le J}
-(equivalently \code{pwt_dispersion} \eqn{\le 0.5}) is required,
+(equivalently \code{pop.dispersion.pwt} \eqn{\le 0.5}) is required,
 mirroring the sampler-side guard in
 \code{\link{two_block_rNormal_reg}} (the ING dispersion envelope
 caps its log-tilt at the data contribution \eqn{J/2}; a
@@ -77,7 +77,7 @@ Quantiles of the limiting posterior -- rather than of the prior --
 make the window independent of \eqn{n_0}.  See
 \code{inst/ING_TRUNCATION_WINDOW.md} for the derivation.  The
 values are computed once by \code{\link{Prior_Setup_lmebayes}}
-(stored in its \code{ing_prior} field and shown by its print
+(stored in its \code{pop.ing_prior} field and shown by its print
 method); this function reads them from the object.
 }\if{html}{\out{</div>}}
 

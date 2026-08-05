@@ -6,7 +6,7 @@
 #' \code{"(Intercept)"}, slope names).
 #'
 #' For each random-effect coefficient \eqn{k}, the prior parameters come
-#' from \code{object$prior_list[[k]]}:
+#' from \code{object$pop.prior_list[[k]]}:
 #' \itemize{
 #'   \item \code{"dNormal"}: \code{dNormal(mu = mu_fixef, Sigma =
 #'     Sigma_fixef, dispersion = dispersion_fixef)}.  The Block~2
@@ -16,9 +16,9 @@
 #'     \code{Sigma}, plus a Gamma prior on the Block~2 precision
 #'     \eqn{1/\tau^2_k} calibrated with the same convention as
 #'     \code{\link[glmbayesCore]{Prior_Setup}}.  The per-component effective prior sample
-#'     size \eqn{n_0} is taken from \code{object$n_prior_dispersion[[k]]}
-#'     (set by \code{\link{Prior_Setup_lmebayes}} via \code{pwt_dispersion} /
-#'     \code{n_prior_dispersion}, derived from \code{pwt} by default).
+#'     size \eqn{n_0} is taken from \code{object$pop.dispersion.nprior[[k]]}
+#'     (set by \code{\link{Prior_Setup_lmebayes}} via \code{pop.dispersion.pwt} /
+#'     \code{pop.dispersion.nprior}, derived from \code{pop.pwt} by default).
 #'     Then
 #'     \deqn{shape = (n_0 + 1 + p_k)/2, \qquad
 #'           rate = \tau^2_k \, (n_0 + p_k - 1)/2,}
@@ -27,11 +27,11 @@
 #'     lmebayesCore default rate \eqn{b_0}).  Because
 #'     \eqn{rate = \tau^2_k (shape - 1)}, the implied inverse-Gamma prior
 #'     on the dispersion has mean exactly \eqn{\tau^2_k} for every
-#'     \eqn{n_0} and \eqn{p_k}, while small \code{pwt_dispersion} keeps it
+#'     \eqn{n_0} and \eqn{p_k}, while small \code{pop.dispersion.pwt} keeps it
 #'     deliberately diffuse.
 #'
 #'     The dispersion prior must not outweigh the data: \eqn{n_0 \le J}
-#'     (equivalently \code{pwt_dispersion} \eqn{\le 0.5}) is required,
+#'     (equivalently \code{pop.dispersion.pwt} \eqn{\le 0.5}) is required,
 #'     mirroring the sampler-side guard in
 #'     \code{\link{two_block_rNormal_reg}} (the ING dispersion envelope
 #'     caps its log-tilt at the data contribution \eqn{J/2}; a
@@ -51,7 +51,7 @@
 #'     make the window independent of \eqn{n_0}.  See
 #'     \code{inst/ING_TRUNCATION_WINDOW.md} for the derivation.  The
 #'     values are computed once by \code{\link{Prior_Setup_lmebayes}}
-#'     (stored in its \code{ing_prior} field and shown by its print
+#'     (stored in its \code{pop.ing_prior} field and shown by its print
 #'     method); this function reads them from the object.
 #' }
 #'
@@ -62,11 +62,11 @@
 #'   string per component.  Allowed values are \code{"dNormal"} and
 #'   \code{"dIndependent_Normal_Gamma"}.  A vector may be named with the
 #'   random-effect coefficient names (any order); unnamed vectors are
-#'   matched positionally against \code{names(object$prior_list)}.
+#'   matched positionally against \code{names(object$pop.prior_list)}.
 #' @param ... Currently ignored.
 #'
 #' @return A named list of \code{"pfamily"} objects, with names equal to
-#'   \code{names(object$prior_list)} (the random-effect coefficient
+#'   \code{names(object$pop.prior_list)} (the random-effect coefficient
 #'   names).
 #'
 #' @seealso \code{\link{Prior_Setup_lmebayes}}, \code{\link{pfamily_list}},
@@ -100,7 +100,7 @@ pfamily_list.lmebayes_prior_setup <- function(object,
 
   allowed <- c("dNormal", "dIndependent_Normal_Gamma")
 
-  re_names <- names(object$prior_list)
+  re_names <- names(object$pop.prior_list)
   p_re     <- length(re_names)
 
   if (is.list(ptypes)) {
@@ -157,20 +157,20 @@ pfamily_list.lmebayes_prior_setup <- function(object,
   }
 
   J   <- nlevels(object$design$group)
-  npd <- object$n_prior_dispersion
+  npd <- object$pop.dispersion.nprior
 
   n_prior_for <- function(k) {
     if (!is.null(npd)) {
       return(unname(npd[[k]]))
     }
-    w <- if (is.list(object$pwt)) mean(object$pwt[[k]]) else object$pwt
+    w <- if (is.list(object$pop.pwt)) mean(object$pop.pwt[[k]]) else object$pop.pwt
     (w / (1 - w)) * J
   }
 
   out <- stats::setNames(vector("list", p_re), re_names)
 
   for (k in re_names) {
-    pl    <- object$prior_list[[k]]
+    pl    <- object$pop.prior_list[[k]]
     mu_k  <- pl$mu_fixef
     Sig_k <- pl$Sigma_fixef
     d_k   <- unname(pl$dispersion_fixef)
@@ -188,15 +188,15 @@ pfamily_list.lmebayes_prior_setup <- function(object,
         if (n_prior_k > J) {
           stop(
             "Component \"", k, "\": the dispersion prior has effective ",
-            "prior sample size n_prior_dispersion = ", signif(n_prior_k, 4),
+            "prior sample size pop.dispersion.nprior = ", signif(n_prior_k, 4),
             ", but there are only J = ", J, " groups. ",
             "dIndependent_Normal_Gamma sampling requires ",
-            "n_prior_dispersion <= J (pwt_dispersion <= 0.5); lower ",
-            "'pwt_dispersion'/'n_prior_dispersion' in Prior_Setup_lmebayes().",
+            "pop.dispersion.nprior <= J (pop.dispersion.pwt <= 0.5); lower ",
+            "'pop.dispersion.pwt'/'pop.dispersion.nprior' in Prior_Setup_lmebayes().",
             call. = FALSE
           )
         }
-        ing_k <- object$ing_prior[[k]]
+        ing_k <- object$pop.ing_prior[[k]]
         if (is.null(ing_k)) {
           shape_k <- (n_prior_k + 1) / 2 + p_k / 2
           rate_k  <- d_k * (n_prior_k + p_k - 1) / 2

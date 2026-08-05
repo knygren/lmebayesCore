@@ -16,7 +16,7 @@
     iters_ranef_draws      = v6_out$iters_ranef_draws,
     mu_all_last            = v6_out$mu_all_last,
     sweep_history          = v6_out$sweep_history,
-    re_coef_names          = re_names,
+    groupef.names          = re_names,
     group_levels           = group_levels,
     n                      = n
   )
@@ -123,7 +123,7 @@
     D             = inp$D,
     group         = factor(group, levels = group_levels),
     W             = inp$W,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     group_name    = group_name
   )
 

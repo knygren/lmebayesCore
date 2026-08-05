@@ -100,7 +100,7 @@
     beta_ols <- as.vector(solve(DtD, crossprod(D_j, y_j)))
     RSS_ols  <- sum((y_j - D_j %*% beta_ols)^2)
 
-    ing_j         <- ps$ing_prior_measurement_group[[lev]]
+    ing_j         <- ps$group.ing_prior[[lev]]
     sigma2_hat    <- ing_j$sigma2_hat
     Omega_hat_j   <- 1 / sigma2_hat
     rate_now      <- ing_j$rate           ## r0_j at ps's CURRENT pwt_measurement

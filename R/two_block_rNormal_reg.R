@@ -138,7 +138,7 @@
 #' @param x Level-1 design matrix \code{Z} (\code{l2 x p_re}). Must have unique,
 #'   non-empty \code{colnames(x)}: these are the random-effect coefficient
 #'   names used to key \code{x_hyper} and \code{pfamily_list} (there is no
-#'   separate \code{re_coef_names} argument to override them).
+#'   separate \code{groupef.names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
 #'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
 #'   separate \code{group_levels} argument. To use a level order/superset not
@@ -178,7 +178,7 @@
 #' @return Object of class \code{"two_block_rNormal_reg"} with fields \code{fixef_draws},
 #'   \code{coefficients}, \code{fixef_last}, \code{b_last},
 #'   \code{mu_all_last}, \code{family}, \code{n}, \code{m_convergence},
-#'   \code{sampling}, \code{fixef_start}, \code{re_coef_names},
+#'   \code{sampling}, \code{fixef_start}, \code{groupef.names},
 #'   \code{group_levels}, \code{group_name}, \code{call}, plus
 #'   \code{dispersion_fixef_draws}: an \code{n x p_re} matrix of the Block~2
 #'   dispersion (tau^2_k) at each stored draw (constant columns for
@@ -252,7 +252,7 @@ two_block_rNormal_reg <- function(
       any(!nzchar(re_names)) || anyDuplicated(re_names)) {
     stop(
       "'x' must have unique, non-empty column names (colnames(x)); ",
-      "there is no 're_coef_names' argument to override this.",
+      "there is no 'groupef.names' argument to override this.",
       call. = FALSE
     )
   }
@@ -296,7 +296,7 @@ two_block_rNormal_reg <- function(
     stop("'fixef_start' must be a named list.", call. = FALSE)
   }
   if (!setequal(names(fixef_start), re_names)) {
-    stop("names(fixef_start) must match re_coef_names.", call. = FALSE)
+    stop("names(fixef_start) must match groupef.names.", call. = FALSE)
   }
   fixef_start <- fixef_start[re_names]
 
@@ -453,7 +453,7 @@ two_block_rNormal_reg <- function(
       m_convergence          = m_convergence,
       sampling               = sampling,
       fixef_start            = fixef_start,
-      re_coef_names          = re_names,
+      groupef.names          = re_names,
       group_levels           = group_levels,
       group_name             = group_name,
       call                   = cl
@@ -490,7 +490,7 @@ two_block_rNormal_reg <- function(
          call. = FALSE)
   }
   if (!setequal(names(pfamily_list), re_names)) {
-    stop("names(pfamily_list) must match re_coef_names.", call. = FALSE)
+    stop("names(pfamily_list) must match groupef.names.", call. = FALSE)
   }
   pfamily_list <- pfamily_list[re_names]
 

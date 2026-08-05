@@ -9,15 +9,15 @@ Prior_Setup_lmebayes(
   formula,
   data,
   family = gaussian(),
-  pwt = 0.01,
-  pwt_dispersion = NULL,
-  n_prior_dispersion = NULL,
-  pwt_measurement = NULL,
-  n_prior_measurement = NULL,
-  alpha_target_measurement = 0.01,
+  pop.pwt = 0.01,
+  pop.dispersion.pwt = NULL,
+  pop.dispersion.nprior = NULL,
+  group.pwt = NULL,
+  group.n_prior = NULL,
+  group.alpha_target = 0.01,
   dispformula = ~1,
-  max_disp_perc_measurement = 0.99,
-  max_disp_perc_dispersion = 0.99,
+  group.max_disp_perc = 0.99,
+  pop.max_disp_perc = 0.99,
   intercept_source = c("null_model", "full_model"),
   effects_source = c("null_effects", "full_model")
 )
@@ -36,82 +36,85 @@ Non-Gaussian families use \code{\link[lme4]{glmer}} for calibration;
 \code{dispersion_ranef} is omitted (analogous to
 \code{\link[glmbayesCore]{Prior_Setup}} for flat GLMs).}
 
-\item{pwt}{Prior weight(s) in \eqn{(0, 1)}.  Either a \strong{scalar}
-(applied to every random-effect component and every Block~2 predictor),
-or a \strong{list with one element per random-effect component} (named
+\item{pop.pwt}{Prior weight(s) in \eqn{(0, 1)} for the population-level
+(Block~2, \code{fixef}) coefficients.  Either a \strong{scalar} (applied
+to every random-effect component and every Block~2 predictor), or a
+\strong{list with one element per random-effect component} (named
 with the RE coefficient names in any order, or unnamed positional).
 Each list element is a scalar (recycled over that component's Block~2
 predictors) or a vector of length \eqn{p_k} (optionally named with the
 predictor column names of \code{X_hyper[[k]]}, reordered to match).
 The prior covariance for each \code{fixef_k} block is scaled relative to
 \code{vcov(fit_ref)} following the \code{\link[glmbayesCore]{Prior_Setup}}
-convention: \eqn{(1-\mathrm{pwt})/\mathrm{pwt}} for a scalar, and
+convention: \eqn{(1-\mathrm{pop.pwt})/\mathrm{pop.pwt}} for a scalar, and
 elementwise
-\eqn{\sqrt{(1-\mathrm{pwt}_i)/\mathrm{pwt}_i}\,
-       \sqrt{(1-\mathrm{pwt}_j)/\mathrm{pwt}_j}} for vectors.}
+\eqn{\sqrt{(1-\mathrm{pop.pwt}_i)/\mathrm{pop.pwt}_i}\,
+       \sqrt{(1-\mathrm{pop.pwt}_j)/\mathrm{pop.pwt}_j}} for vectors.}
 
-\item{pwt_dispersion}{Optional \emph{relative} prior weight(s) in
+\item{pop.dispersion.pwt}{Optional \emph{relative} prior weight(s) in
 \eqn{(0, 1)} for the Block~2 dispersion (precision) prior, decoupled from
-\code{pwt}.  A scalar, or a list / numeric vector with one value per
+\code{pop.pwt}.  A scalar, or a list / numeric vector with one value per
 random-effect component (named or positional).  Converted internally to
 an effective prior sample size \eqn{n_k = J\,w_k/(1-w_k)} where \eqn{J}
-is the number of groups.  At most one of \code{pwt_dispersion} and
-\code{n_prior_dispersion} may be supplied; when neither is, the value
-is derived from \code{pwt} (the mean across a component's predictors),
-keeping the Block~2 \eqn{\tau^2_k} dispersion prior consistent with the
-coefficient prior strength.  Weak values carry no computational penalty for
-\code{dIndependent_Normal_Gamma} sampling: the \eqn{\tau^2} truncation
-window comes from limiting-posterior quantiles independent of the
-prior strength (see \code{ing_prior} below).}
+is the number of groups.  At most one of \code{pop.dispersion.pwt} and
+\code{pop.dispersion.nprior} may be supplied; when neither is, the
+value is derived from \code{pop.pwt} (the mean across a component's
+predictors), keeping the Block~2 \eqn{\tau^2_k} dispersion prior
+consistent with the coefficient prior strength.  Weak values carry no
+computational penalty for \code{dIndependent_Normal_Gamma} sampling: the
+\eqn{\tau^2} truncation window comes from limiting-posterior quantiles
+independent of the prior strength (see \code{pop.ing_prior} below).}
 
-\item{n_prior_dispersion}{Optional \emph{absolute} effective prior sample
-size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion prior.
-A positive scalar, or a list / numeric vector with one value per
-random-effect component (named or positional).  See \code{pwt_dispersion}.}
+\item{pop.dispersion.nprior}{Optional \emph{absolute} effective prior
+sample size(s) (in group units) for the Block~2 \eqn{\tau^2_k} dispersion
+prior.  A positive scalar, or a list / numeric vector with one value per
+random-effect component (named or positional).  See
+\code{pop.dispersion.pwt}.}
 
-\item{pwt_measurement}{Optional relative prior weight(s) in \eqn{(0, 1)} for
+\item{group.pwt}{Optional relative prior weight(s) in \eqn{(0, 1)} for
 the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian models only),
-decoupled from \code{pwt} (Block~2 fixef) and from \code{pwt_dispersion}
-(Block~2 \eqn{\tau^2_k}).  Either a \strong{scalar} converted to
-\eqn{n_{\mathrm{prior}} = w/(1-w)\times n} on the total observation count
-\eqn{n} (pooled \code{ing_prior_measurement}), or a \strong{named or
-positional vector of length \eqn{J}} (\eqn{J =} \code{nlevels(groups)})
-with one weight per group level for per-group \code{dGamma_list()}
-calibration (\eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j}).  When
-\code{pwt_measurement} is a vector, the pooled
-\code{ing_prior_measurement} continues to use the default
-\code{w = 0.01} on total \eqn{n} (unless \code{n_prior_measurement} is
-supplied explicitly).  At most one of \code{pwt_measurement} and
-\code{n_prior_measurement} may be supplied; when neither is, scalar
-\code{pwt_measurement = 0.01} is used for both pooled and per-group paths.}
+decoupled from \code{pop.pwt} (Block~2 fixef) and from
+\code{pop.dispersion.pwt} (Block~2 \eqn{\tau^2_k}).  Either a
+\strong{scalar} converted to \eqn{n_{\mathrm{prior}} = w/(1-w)\times n}
+on the total observation count \eqn{n} (pooled \code{group.ing_prior}),
+or a \strong{named or positional vector of length \eqn{J}}
+(\eqn{J =} \code{nlevels(groups)}) with one weight per group level for
+per-group \code{dGamma_list()} calibration
+(\eqn{n_{\mathrm{prior},j} = w_j/(1-w_j)\times n_j}).  When
+\code{group.pwt} is a vector, the pooled \code{group.ing_prior}
+continues to use the default \code{w = 0.01} on total \eqn{n} (unless
+\code{group.n_prior} is supplied explicitly).  At most one of
+\code{group.pwt} and \code{group.n_prior} may be supplied; when neither
+is, scalar \code{group.pwt = 0.01} is used for both pooled and
+per-group paths.}
 
-\item{n_prior_measurement}{Optional positive scalar: absolute effective
+\item{group.n_prior}{Optional positive scalar: absolute effective
 prior sample size for the Block~1 \eqn{\sigma^2} prior (observation units,
-not groups).  See \code{pwt_measurement}.}
+not groups).  See \code{group.pwt}.}
 
-\item{alpha_target_measurement}{Scalar in \eqn{(0, 1)}, default
+\item{group.alpha_target}{Scalar in \eqn{(0, 1)}, default
 \code{0.01}, or \code{NULL} to disable.  Gaussian models with per-group
 \code{dispformula} only: target percentage of posterior \code{beta_j}
 draws allowed to fall outside the per-group Mahalanobis/log-concavity
 ellipsoid of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} Section 16.6.
-This is a different quantity from \code{pwt_measurement}: \code{pwt_measurement}
+This is a different quantity from \code{group.pwt}: \code{group.pwt}
 is the Gamma prior \emph{weight} (an input to the prior), while
-\code{alpha_target_measurement} is a target \emph{violation rate} (an
+\code{group.alpha_target} is a target \emph{violation rate} (an
 output being aimed at).  When non-\code{NULL} and \code{dispformula}
 requests per-group dispersion, \code{Prior_Setup_lmebayes()} searches,
-for each group, for the smallest \code{pwt_measurement} driving the
-predicted violation rate down to \code{alpha_target_measurement},
-\strong{floored at} the \code{pwt_measurement} resolved from the
-\code{pwt_measurement}/\code{n_prior_measurement} arguments above (so
+for each group, for the smallest \code{group.pwt} driving the
+predicted violation rate down to \code{group.alpha_target},
+\strong{floored at} the \code{group.pwt} resolved from the
+\code{group.pwt}/\code{group.n_prior} arguments above (so
 calibration only ever sharpens, never loosens, the per-group prior;
-supplying \code{pwt_measurement} explicitly still guarantees a minimum).
+supplying \code{group.pwt} explicitly still guarantees a minimum).
 Active by default as a safeguard against poorly-behaved per-group
-priors; set to \code{NULL} to opt out and use \code{pwt_measurement}/
-\code{n_prior_measurement} directly, unmodified.  Silently ignored
+priors; set to \code{NULL} to opt out and use \code{group.pwt}/
+\code{group.n_prior} directly, unmodified.  Silently ignored
 (not an error) when left at its default on a model that does not
 support per-group calibration (e.g.\ \code{dispformula = ~1}); it is
 only an error to \emph{explicitly} supply a non-\code{NULL} value in
-that case.  See \code{pwt_measurement_calibration} below.}
+that case.  See \code{group.pwt_calibration} below.}
 
 \item{dispformula}{One-sided formula selecting the Block~1 measurement-
 dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
@@ -119,27 +122,27 @@ dispersion structure: \code{~1} (default, pooled) or \code{~<group_name>}
 per-group dispersion).  Passed through to \code{\link{model_setup}},
 which fits and stores the \code{glmmTMB} reference
 (\code{design$glmmTMB_fit}) reused below as \code{fit_ref}.  Gaussian
-models only compute the per-group \code{ing_prior_measurement_group}
+models only compute the per-group \code{group.ing_prior}
 calibration (a within-group regression fit for every group level, used
 only by \code{\link{dGamma_list}()}) when \code{dispformula} is the
 group formula; \code{dispformula = ~1} skips it entirely, so
-\code{pwt_measurement} / \code{n_prior_measurement} must then be scalar
+\code{group.pwt} / \code{group.n_prior} must then be scalar
 (pooled).  Mirrors the \code{dispformula} argument on
 \code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}, which gates the
 analogous choice of sampler route; the two are independent arguments
 that must be kept consistent by the caller.}
 
-\item{max_disp_perc_measurement}{Scalar in \eqn{(0.5, 1)}, default
+\item{group.max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default
 \code{0.99}, or a named/positional length-\eqn{J} vector (one value per
 group level, Gaussian models with per-group \code{dispformula} only).
 Tail probability used to compute the Block~1 \eqn{\sigma^2} truncation
-windows stored in \code{ing_prior_measurement} (pooled; always the
-scalar default when a vector is supplied here) and
-\code{ing_prior_measurement_group} (per group, using the resolved
-per-group value).  The window is the central
-\eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} mass interval:
-\code{disp_lower} = \eqn{(1-\mathrm{max\_disp\_perc\_measurement})}
-quantile and \code{disp_upper} = \eqn{\mathrm{max\_disp\_perc\_measurement}}
+window stored in \code{group.ing_prior} -- the pooled scalar default
+when a vector is supplied here (\code{dispformula = ~1}), or the
+resolved per-group value (per group, per-group \code{dispformula}).
+The window is the central
+\eqn{2 \times \mathrm{group.max\_disp\_perc} - 1} mass interval:
+\code{disp_lower} = \eqn{(1-\mathrm{group.max\_disp\_perc})}
+quantile and \code{disp_upper} = \eqn{\mathrm{group.max\_disp\_perc}}
 quantile of the relevant Gamma (precision) distribution, inverted to the
 dispersion scale.  Tighter values (e.g.\ \code{0.95}) shrink the
 truncation window and typically improve Block~1 acceptance rates at the
@@ -148,11 +151,11 @@ widen the window.  Passed to \code{\link[glmbayesCore]{dGamma}()} as
 \code{max_disp_perc}.  A per-group vector lets outlier groups be given a
 tighter (or looser) window than the rest; see \code{dGamma_list()}.}
 
-\item{max_disp_perc_dispersion}{Scalar in \eqn{(0.5, 1)}, default
+\item{pop.max_disp_perc}{Scalar in \eqn{(0.5, 1)}, default
 \code{0.99}, or a named/positional length-\eqn{p_{\mathrm{re}}} vector
 (one value per random-effect component).  Same tail-probability role as
-\code{max_disp_perc_measurement}, but for the Block~2 \eqn{\tau^2_k}
-truncation window stored in \code{ing_prior}.  Only operationally
+\code{group.max_disp_perc}, but for the Block~2 \eqn{\tau^2_k}
+truncation window stored in \code{pop.ing_prior}.  Only operationally
 consumed when the sampler's dispersion \code{pfamily} is
 \code{dIndependent_Normal_Gamma} (ignored for \code{dNormal}).}
 
@@ -184,58 +187,53 @@ Object of class \code{"lmebayes_prior_setup"} with fields:
 \describe{
 \item{\code{formula}}{Model formula.}
 \item{\code{family}}{Family object.}
-\item{\code{pwt}}{Prior weight(s) used: the scalar as supplied, or the
+\item{\code{pop.pwt}}{Prior weight(s) used: the scalar as supplied, or the
 canonical named list of per-predictor weight vectors when a list was
 supplied.}
-\item{\code{pwt_dispersion}}{Named per-component vector of relative
+\item{\code{pop.dispersion.pwt}}{Named per-component vector of relative
 dispersion prior weights (always present; consistent with
-\code{n_prior_dispersion} via \eqn{w_k = n_k/(n_k + J)}).}
-\item{\code{n_prior_dispersion}}{Named per-component vector of
+\code{pop.dispersion.nprior} via \eqn{w_k = n_k/(n_k + J)}).}
+\item{\code{pop.dispersion.nprior}}{Named per-component vector of
 effective prior sample sizes for the Block~2 dispersion prior
 (always present; used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
 calibrate \code{dIndependent_Normal_Gamma} components).}
-\item{\code{pwt_measurement}}{Gaussian models only: scalar or length-\eqn{J}
-vector of relative prior weights for Block~1 \eqn{\sigma^2}.}
-\item{\code{n_prior_measurement}}{Gaussian models only: scalar effective
-prior sample size for pooled Block~1 \eqn{\sigma^2} on the observation
-scale.}
-\item{\code{pwt_measurement_group}}{Gaussian models only: named length-\eqn{J}
-vector of resolved per-group measurement prior weights (see
-\code{dGamma_list()}).}
-\item{\code{n_prior_measurement_group}}{Gaussian models only: named
-length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}. Reflects
-the \code{alpha_target_measurement}-calibrated \code{pwt_measurement}
-when calibration was active (see \code{pwt_measurement_calibration}).}
-\item{\code{alpha_target_measurement}}{The value used, or \code{NULL}
+\item{\code{group.pwt}}{Gaussian models only: scalar or length-\eqn{J}
+vector of relative prior weights for Block~1 \eqn{\sigma^2} -- a
+scalar unless a per-group vector was supplied or
+\code{group.alpha_target} calibration was active, in which case it
+is the resolved length-\eqn{J} vector (see \code{dGamma_list()}).}
+\item{\code{group.n_prior}}{Gaussian models only: effective prior
+sample size for Block~1 \eqn{\sigma^2}, on the same pooled-vs.-vector
+basis as \code{group.pwt} (a scalar on the observation scale, or a
+named length-\eqn{J} vector of per-group \eqn{n_{\mathrm{prior},j}}
+reflecting the \code{group.alpha_target}-calibrated \code{group.pwt}
+when calibration was active; see \code{group.pwt_calibration}).}
+\item{\code{group.alpha_target}}{The value used, or \code{NULL}
 if calibration was not active.}
-\item{\code{pwt_measurement_calibration}}{\code{NULL} unless
+\item{\code{group.pwt_calibration}}{\code{NULL} unless
 calibration was active; otherwise a per-group diagnostics
 \code{data.frame} (\code{group}, \code{n_j}, \code{pwt_floor},
 \code{pct_outside_before}, \code{w_star}, \code{clipped_at_ceiling},
 \code{w_final}, \code{floor_binds}, \code{pct_outside_after}) from
-the search described under \code{alpha_target_measurement}.}
+the search described under \code{group.alpha_target}.}
+\item{\code{group.max_disp_perc}}{Gaussian models only: scalar or
+length-\eqn{J} vector of the tail probability used for the Block~1
+\eqn{\sigma^2} truncation window (\code{group.ing_prior}) -- the
+scalar as supplied, or the resolved length-\eqn{J} vector when a
+vector was supplied.}
+\item{\code{pop.max_disp_perc}}{Named length-\eqn{p_{\mathrm{re}}}
+vector of resolved per-component values used for the Block~2
+\eqn{\tau^2_k} truncation windows in \code{pop.ing_prior} (always
+present).}
 \item{\code{block_formula}}{Within-group Block~1 formula: response
 regressed on the random-coefficient structure only (columns of
-\code{design$re_coef_names}); level-2 hyper covariates are excluded.
+\code{design$groupef.names}); level-2 hyper covariates are excluded.
 Used by \code{dGamma_list()}.}
-\item{\code{sd_tau}}{Named vector \code{sqrt(vcov_re)} from the reference
+\item{\code{sd_tau}}{Named vector \code{sqrt(Psi)} from the reference
 fit; shared population RE standard deviations for per-group calibration.}
 \item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
 (reference for \code{dGamma_list()} diagnostics).}
-\item{\code{max_disp_perc_measurement}}{Gaussian models only: the
-\code{max_disp_perc_measurement} value used for the pooled Block~1
-\eqn{\sigma^2} truncation window (\code{ing_prior_measurement}) --
-the scalar as supplied, or the resolved length-\eqn{J} vector when a
-vector was supplied (mirrors \code{pwt_measurement}).}
-\item{\code{max_disp_perc_measurement_group}}{Gaussian models only:
-named length-\eqn{J} vector of resolved per-group values feeding
-\code{ing_prior_measurement_group} (always present, even when a
-scalar was supplied).}
-\item{\code{max_disp_perc_dispersion}}{Named length-\eqn{p_{\mathrm{re}}}
-vector of resolved per-component values used for the Block~2
-\eqn{\tau^2_k} truncation windows in \code{ing_prior} (always
-present).}
 \item{\code{design}}{Full \code{\link{model_setup}} object (all groups).}
 \item{\code{mer_fit}}{Reference \code{lmer}/\code{glmer} fit on all
 groups (the full-formula fit from \code{\link{model_setup}}), always
@@ -255,65 +253,69 @@ otherwise a named length-\eqn{J} vector of per-group observation-level
 dispersion read from \code{fit_ref}'s dispersion linear predictor
 (\code{glmmTMB::predict(fit_ref, type = "disp")}, aggregated by
 group). Diagnostic only -- not the value fed to the sampler; compare
-against \code{ing_prior_measurement_group}'s \code{sigma2_hat}.}
+against \code{group.ing_prior}'s \code{sigma2_hat}.}
 \item{\code{calibration_source}}{\code{"lme4"} or \code{"glmmTMB"};
 which reference fit produced \code{fit_ref} (and therefore
-\code{prior_list}, \code{ing_prior}, \code{sd_tau}, and
-\code{ing_prior_measurement_group}).}
+\code{pop.prior_list}, \code{pop.ing_prior}, \code{sd_tau}, and
+\code{group.ing_prior}).}
 \item{\code{dispersion_ranef}}{Scalar \eqn{\sigma^2} for Gaussian models
 only; \code{NULL} otherwise. Always derived from \code{mer_fit}
 (pooled), independent of \code{dispformula}.}
 \item{\code{Sigma_ranef}}{Diagonal RE covariance matrix (Block~1).}
-\item{\code{prior_list}}{Named Block~2 prior list per RE coefficient.}
-\item{\code{ing_prior}}{Named per-component list of the prospective
+\item{\code{pop.prior_list}}{Named Block~2 prior list per RE coefficient.}
+\item{\code{pop.ing_prior}}{Named per-component list of the prospective
 \code{dIndependent_Normal_Gamma} calibration: Gamma precision-prior
 \code{shape} \eqn{= (n_0 + 1 + p_k)/2} and \code{rate}
 \eqn{= \hat\tau^2_k (n_0 + p_k - 1)/2} (the lmebayesCore default
-calibration with \eqn{n_0 =} \code{n_prior_dispersion}; since
+calibration with \eqn{n_0 =} \code{pop.dispersion.nprior}; since
 \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
 \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
 window \code{disp_lower} / \code{disp_upper}: the
-\eqn{(1-\mathrm{max\_disp\_perc\_dispersion})} /
-\eqn{\mathrm{max\_disp\_perc\_dispersion}}
+\eqn{(1-\mathrm{pop.max\_disp\_perc})} /
+\eqn{\mathrm{pop.max\_disp\_perc}}
 quantiles of the \emph{limiting posterior}
 \eqn{\Gamma((J+1)/2,\; \hat\tau^2_k (J-1)/2)} -- the weak-prior
 (\eqn{n_0 \to 0}) limit of the Block~2 posterior Gamma for the
 precision (lmebayesCore Chapter A12, Theorem 2; inverted to a
 \eqn{\tau^2} interval).  This window is identical for all
-\eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{max\_disp\_perc\_dispersion} - 1}
+\eqn{n_0}, covers \eqn{\ge} \eqn{2 \times \mathrm{pop.max\_disp\_perc} - 1}
 of the exact posterior for every prior strength, and keeps the
 envelope sampler's cost stable as priors weaken; see
 \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
 \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} when
 \code{ptypes = "dIndependent_Normal_Gamma"}; ignored for
 \code{dNormal} priors.}
-\item{\code{ing_prior_measurement}}{Gaussian models only: prospective
-\code{dGamma()} \code{dispersion_ranef} calibration for Block~1 ING
-(observation \eqn{\sigma^2} shared across all group levels):
-mean-matched \code{shape} / \code{rate} with
-\eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n},
+\item{\code{group.ing_prior}}{Gaussian models only; \code{NULL}
+for non-Gaussian models. Shape depends on \code{dispformula}:
+\describe{
+\item{\code{dispformula = ~1} (pooled)}{A single list: prospective
+\code{dGamma()} \code{dispersion_ranef} calibration for Block~1
+ING (observation \eqn{\sigma^2} shared across all group
+levels) -- mean-matched \code{shape} / \code{rate} with
+\eqn{n_{\mathrm{prior}} = \mathrm{group.pwt}/(1-\mathrm{group.pwt})\times n},
 \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
-\code{dispersion_ranef} (same ING algebra as \code{ing_prior} for
-\eqn{\tau^2_k}; requires \code{pwt_measurement} \eqn{\le 0.5}), plus
-\code{disp_lower} / \code{disp_upper} as the central
-\eqn{2 \times \mathrm{max\_disp\_perc\_measurement} - 1} prior-mass
-interval from the same calibrated \code{shape}/\code{rate} (always
-the pooled/scalar \code{max_disp_perc_measurement} value, even when
-a per-group vector was supplied).  Pass these fields to
-\code{\link[glmbayesCore]{dGamma}()}.}
-\item{\code{ing_prior_measurement_group}}{Gaussian models only, and only
-when \code{dispformula} requests per-group dispersion: named list
-(one entry per group level) of per-group \code{dGamma()} density
-calibration (\code{sigma2_hat}, \code{shape_ING}, \code{rate},
-\code{rate_gamma}, \code{n_prior}, \code{n_j}, \code{n_combined},
-\code{disp_lower}, \code{disp_upper}, \code{max_disp_perc},
-\code{omega_j}, \ldots). \code{shape_ING}/\code{rate} already fold
-in the Part VI model-derived \code{Omega_j} (fixed-effect/\code{gamma}
-uncertainty about \code{b_j}'s prior mean, propagated through group
-\code{j}'s hyper-design row and \code{prior_list[[k]]$Sigma_fixef}),
-so this marginal integrates out both random effects (\code{b_j}) and
-fixed effects (\code{gamma}); see
+\code{dispersion_ranef} (same ING algebra as \code{pop.ing_prior}
+for \eqn{\tau^2_k}; requires \code{group.pwt} \eqn{\le 0.5}),
+plus \code{disp_lower} / \code{disp_upper} as the central
+\eqn{2 \times \mathrm{group.max\_disp\_perc} - 1} prior-mass
+interval from the same calibrated \code{shape}/\code{rate}
+(always the pooled/scalar \code{group.max_disp_perc} value,
+even when a per-group vector was supplied). Pass these fields
+to \code{\link[glmbayesCore]{dGamma}()}.}
+\item{\code{dispformula} requesting per-group dispersion}{A named
+list (one entry per group level) of per-group \code{dGamma()}
+density calibration (\code{sigma2_hat}, \code{shape_ING},
+\code{rate}, \code{rate_gamma}, \code{n_prior}, \code{n_j},
+\code{n_combined}, \code{disp_lower}, \code{disp_upper},
+\code{max_disp_perc}, \code{omega_j}, \ldots).
+\code{shape_ING}/\code{rate} already fold in the Part VI
+model-derived \code{Omega_j} (fixed-effect/\code{gamma}
+uncertainty about \code{b_j}'s prior mean, propagated through
+group \code{j}'s hyper-design row and
+\code{pop.prior_list[[k]]$Sigma_fixef}), so this marginal
+integrates out both random effects (\code{b_j}) and fixed
+effects (\code{gamma}); see
 \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} Part VI.
 \code{disp_lower}/\code{disp_upper} are \eqn{(1-w_j)}/\eqn{w_j}
 quantiles of \code{Gamma(shape_ING + n_j/2, rate_post)}, where
@@ -325,9 +327,13 @@ machinery actually draws \eqn{\sigma^2_j} from -- see
 fallback -- while \code{shape_ING}/\code{rate} themselves, the
 values actually fed to the sampler as the Gamma prior, are
 unchanged); \eqn{w_j} is this group's own resolved
-\code{max_disp_perc_measurement} value (stored per-group as
-\code{max_disp_perc}). \code{NULL} when
-\code{dispformula = ~1}. Used directly by \code{\link{dGamma_list}()}.}
+\code{group.max_disp_perc} value (stored per-group as
+\code{max_disp_perc}). Used directly by
+\code{\link{dGamma_list}()}.}
+}
+Which shape is returned is fully determined by \code{dispformula};
+see \code{\link{dGamma_list}()} for how consumers tell the two
+apart.}
 \item{\code{dispformula}}{The \code{dispformula} supplied.}
 }
 
@@ -337,7 +343,7 @@ unchanged); \eqn{w_j} is this group's own resolved
 Calibrates priors for the level-2 fixed effects (\code{fixef}) of a
 hierarchical mixed model using the reference \code{lmer}/\code{glmer} fits
 on \strong{all} groups (from \code{\link{model_setup}}).  Per-group design
-rank (\code{re_rank}) and estimability (\code{re_estimable} --
+rank (\code{groupef.rank}) and estimability (\code{groupef.estimable} --
 classical-\code{glm} MLE existence for \code{family =
 binomial()}/\code{poisson()}/\code{Gamma()}, residual degrees of freedom
 for \code{family = gaussian()}) are diagnostic checks computed by

@@ -22,7 +22,7 @@ rLMMNormal_joint_iid(
 \item{y, x, group, x_hyper, pfamily_list}{Same meaning as in \code{\link{two_block_rNormal_reg}}; every
 \code{pfamily_list} component must be \code{dNormal()}. \code{x} must
 have unique, non-empty \code{colnames(x)} and \code{group} must be a
-factor (there are no separate \code{re_coef_names}/\code{group_levels}
+factor (there are no separate \code{groupef.names}/\code{group_levels}
 arguments). The grouping-column name (\code{group_name}) is resolved
 from \code{attr(group, "group_name")} if set, otherwise from
 \code{group}'s own variable name via \code{substitute()} (see
@@ -49,7 +49,7 @@ same as \code{\link{two_block_rNormal_reg}}'s return value
 \code{b_last}, \code{mu_all_last}, \code{dispersion_fixef_draws},
 \code{iters_fixef_draws}, \code{pfamily_list}, \code{family}, \code{n},
 \code{m_convergence} (always \code{1L}), \code{sampling},
-\code{fixef_start}, \code{re_coef_names}, \code{group_levels},
+\code{fixef_start}, \code{groupef.names}, \code{group_levels},
 \code{group_name}, \code{call}), plus \code{fixef_mean} -- the exact
 posterior mean that every draw is centered on (what
 \code{\link{lmerb_posterior_mean}} would return as \code{fixef}) -- and

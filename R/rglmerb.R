@@ -105,7 +105,7 @@ rglmerb <- function(
     fn_name          = "rglmerb"
   )
 
-  re_names     <- design$re_coef_names
+  re_names     <- design$groupef.names
   group_levels <- levels(design$group)
 
   if (is_gaussian) {

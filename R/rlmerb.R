@@ -16,7 +16,7 @@
 #'   \code{m_convergence} inner Gibbs sweeps).
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}})
 #'   supplying \code{y}, \code{D}, \code{group}, \code{W},
-#'   \code{group_name}, and \code{re_coef_names}.
+#'   \code{group_name}, and \code{groupef.names}.
 #' @param prior Normalized prior container with \code{Sigma_ranef}, \code{prior_list},
 #'   and related Block~2 fields (typically from \code{pfamily_list} and
 #'   \code{dispersion_ranef} via \code{\link{Prior_Setup_lmebayes}} or an
@@ -123,7 +123,7 @@ rlmerb <- function(
     }
   }
 
-  re_names     <- design$re_coef_names
+  re_names     <- design$groupef.names
   group_levels <- levels(design$group)
   block1_prior <- .lmebayes_block1_prior_list(
     prior,

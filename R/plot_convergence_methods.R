@@ -95,7 +95,7 @@
     return(NULL)
   }
   design   <- fit$design
-  re_names <- design$re_coef_names
+  re_names <- design$groupef.names
   prior_list_block1 <- fit$prior_list
   if (is.null(prior_list_block1$P) && is.null(prior_list_block1$Sigma)) {
     prior_list_block1$P <- .rLMM_P_from_pfamily_list(fit$pfamily_list, re_names)

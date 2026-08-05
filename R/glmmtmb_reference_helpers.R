@@ -46,7 +46,7 @@
 #' (fixed effects, RE variances, per-group coefficients and dispersion) when
 #' \code{dispformula} requests per-group measurement dispersion. The
 #' lme4-embedded \code{lmer}/\code{glmer} reference fit
-#' (\code{design$lmer_fit} / \code{design$glmer_fit}) is fit separately and
+#' (\code{design$lmer} / \code{design$glmer}) is fit separately and
 #' unconditionally by \code{\link{model_setup}} for backward compatibility.
 #'
 #' @param formula Mixed-model formula (same as \code{Prior_Setup_lmebayes}).
@@ -177,7 +177,7 @@
 #' @keywords internal
 #' @noRd
 .lmebayes_extract_reference_variance_components <- function(
-    fit, re_coef_names, group_name = NULL
+    fit, groupef.names, group_name = NULL
 ) {
   if (inherits(fit, "glmmTMB")) {
     if (is.null(group_name)) {
@@ -187,9 +187,9 @@
         call. = FALSE
       )
     }
-    return(extract_glmmtmb_variance_components(fit, re_coef_names, group_name))
+    return(extract_glmmtmb_variance_components(fit, groupef.names, group_name))
   }
-  extract_mer_variance_components(fit, re_coef_names)
+  extract_mer_variance_components(fit, groupef.names)
 }
 
 #' Extract random-effect variance components from a glmmTMB reference fit
@@ -203,15 +203,15 @@
 #' values.
 #'
 #' @param fit A fitted \code{"glmmTMB"} object.
-#' @param re_coef_names Random coefficient names (as in
-#'   \code{design$re_coef_names}).
+#' @param groupef.names Random coefficient names (as in
+#'   \code{design$groupef.names}).
 #' @param group_name Name of the random-effects grouping factor.
 #' @return List with \code{varcorr} (raw \code{VarCorr.glmmTMB} object),
-#'   \code{vcov_re} (named numeric vector, one entry per \code{re_coef_names}),
-#'   and \code{residual_var} (\code{NA_real_}).
+#'   \code{Psi} (named numeric vector, one entry per \code{groupef.names}),
+#'   and \code{dispersion} (\code{NA_real_}).
 #' @keywords internal
 #' @noRd
-extract_glmmtmb_variance_components <- function(fit, re_coef_names, group_name) {
+extract_glmmtmb_variance_components <- function(fit, groupef.names, group_name) {
   if (!inherits(fit, "glmmTMB")) {
     stop("fit must be a glmmTMB object.", call. = FALSE)
   }
@@ -227,7 +227,7 @@ extract_glmmtmb_variance_components <- function(fit, re_coef_names, group_name) 
   }
 
   sd_vec <- attr(block, "stddev")
-  missing_coefs <- setdiff(re_coef_names, names(sd_vec))
+  missing_coefs <- setdiff(groupef.names, names(sd_vec))
   if (length(missing_coefs) > 0L) {
     stop(
       "Could not find variance components for: ",
@@ -236,10 +236,10 @@ extract_glmmtmb_variance_components <- function(fit, re_coef_names, group_name) 
     )
   }
 
-  vcov_re <- (sd_vec[re_coef_names])^2
-  names(vcov_re) <- re_coef_names
+  Psi <- (sd_vec[groupef.names])^2
+  names(Psi) <- groupef.names
 
-  list(varcorr = vc, vcov_re = vcov_re, residual_var = NA_real_)
+  list(varcorr = vc, Psi = Psi, dispersion = NA_real_)
 }
 
 #' Per-group observation-level dispersion from a glmmTMB reference fit

@@ -34,7 +34,7 @@
 #' @param D Level-1 design matrix (\code{l2 x p_re}). Must have unique,
 #'   non-empty \code{colnames(D)}: these are the random-effect coefficient
 #'   names used to key \code{W} and \code{pfamily_list} (there is no
-#'   separate \code{re_coef_names} argument to override them).
+#'   separate \code{groupef.names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
 #'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
 #'   separate \code{group_levels} argument. To use a level order/superset not
@@ -81,7 +81,7 @@ NULL
 
 #' Shared matrix-level validation for GLMM replicate-chain engines
 #'
-#' \code{re_coef_names} and \code{group_levels} are no longer separate
+#' \code{groupef.names} and \code{group_levels} are no longer separate
 #' arguments: they are always \code{colnames(D)} and \code{levels(group)}
 #' respectively. \code{group_name} must already be resolved by the caller
 #' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
@@ -132,7 +132,7 @@ NULL
       any(!nzchar(re_names)) || anyDuplicated(re_names)) {
     stop(
       "'D' must have unique, non-empty column names (colnames(D)); ",
-      "there is no 're_coef_names' argument to override this.",
+      "there is no 'groupef.names' argument to override this.",
       call. = FALSE
     )
   }
@@ -339,7 +339,7 @@ NULL
     D             = D,
     group         = factor(group, levels = group_levels),
     W             = W,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     group_name    = group_name
   )
   icm <- .two_block_icm_at_start(
@@ -378,7 +378,7 @@ NULL
     D             = D,
     group         = factor(group, levels = group_levels),
     W             = W,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     group_name    = group_name
   )
 
@@ -769,7 +769,7 @@ NULL
     iters_ranef_draws      = v6_out$iters_ranef_draws,
     mu_all_last            = v6_out$mu_all_last,
     sweep_history          = v6_out$sweep_history,
-    re_coef_names          = re_names,
+    groupef.names          = re_names,
     group_levels           = group_levels,
     n                      = n
   )

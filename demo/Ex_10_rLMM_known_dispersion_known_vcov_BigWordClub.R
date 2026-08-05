@@ -143,7 +143,7 @@ cat(sprintf("sim_method_used: %s (m_convergence = %d)\n",
 ## judge it on (see Ex_11's Section 6 for the same table against a glmmTMB
 ## reference instead of lmer).
 ## ---------------------------------------------------------------------------
-re_names <- design$re_coef_names
+re_names <- design$groupef.names
 n_draws  <- nrow(fit$fixef[[re_names[1L]]])
 
 fe_ref <- lmebayesCore:::.lmebayes_reference_fixef(fit_lmer)

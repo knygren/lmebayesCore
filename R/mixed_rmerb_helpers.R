@@ -205,9 +205,9 @@
   window_diagnostics <- attr(dispersion_ranef, "window_diagnostics")
   dispersion_ranef <- dispersion_ranef[group_levels]
 
-  if (is.null(design$re_rank) || !all(design$re_rank[group_levels])) {
-    deficient <- if (!is.null(design$re_rank)) {
-      group_levels[!design$re_rank[group_levels]]
+  if (is.null(design$groupef.rank) || !all(design$groupef.rank[group_levels])) {
+    deficient <- if (!is.null(design$groupef.rank)) {
+      group_levels[!design$groupef.rank[group_levels]]
     } else {
       group_levels
     }
@@ -321,7 +321,7 @@
 #'     \code{"gamma"}/\code{"gamma_list"} Block~1 dispersion modes described
 #'     under \code{dispersion_mode} below).
 #'   \item Validates that \code{pfamily_list} has exactly one entry per
-#'     random-effect coefficient in \code{design$re_coef_names} (by name, not
+#'     random-effect coefficient in \code{design$groupef.names} (by name, not
 #'     position) and reorders it to that canonical order.
 #'   \item For each random-effect component, checks that its \code{pfamily}
 #'     is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other
@@ -344,7 +344,7 @@
 #' considered stable.
 #'
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
-#'   random-effect coefficient in \code{design$re_coef_names}.
+#'   random-effect coefficient in \code{design$groupef.names}.
 #' @param dispersion_ranef Block~1 dispersion spec, as accepted by
 #'   \code{.lmebayes_resolve_dispersion_ranef()} (\code{NULL}, a single
 #'   scalar, a named/unnamed numeric vector, a \code{dGamma()} pfamily, or a
@@ -356,7 +356,7 @@
 #' @return A list (the \code{prior} object) with elements:
 #'   \describe{
 #'     \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
-#'       \code{design$re_coef_names} and with each component's
+#'       \code{design$groupef.names} and with each component's
 #'       \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
 #'       column order of the corresponding \code{design$W[[k]]}. Safe
 #'       to pass straight through to the matrix-level samplers.}
@@ -398,14 +398,14 @@
 #'       each group's \code{disp_lower}/\code{disp_upper} truncation window
 #'       was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
 #'     \item{\code{Sigma_ranef}}{A \code{p_re x p_re} diagonal matrix (row/
-#'       column names \code{design$re_coef_names}) holding each component's
+#'       column names \code{design$groupef.names}) holding each component's
 #'       Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
 #'       the random-effect prior covariance implied by \code{pfamily_list}.
 #'       Its inverse is the Block~2 random-effect prior precision the
 #'       matrix-level samplers derive internally from \code{pfamily_list}
 #'       (there is no separate \code{P} argument).}
 #'     \item{\code{prior_list}}{A named list (one entry per
-#'       \code{design$re_coef_names}), each a list with \code{mu_fixef}
+#'       \code{design$groupef.names}), each a list with \code{mu_fixef}
 #'       (numeric vector, the Block~2 hyperparameter prior mean),
 #'       \code{Sigma_fixef} (matrix, the Block~2 hyperparameter prior
 #'       covariance), and \code{dispersion_fixef} (scalar, the same
@@ -414,7 +414,7 @@
 #'       \code{pfamily_list}'s contents keyed for direct use elsewhere (e.g.
 #'       ICM reporting).}
 #'     \item{\code{ptypes}}{A named character vector (names
-#'       \code{design$re_coef_names}), each entry either \code{"dNormal"} or
+#'       \code{design$groupef.names}), each entry either \code{"dNormal"} or
 #'       \code{"dIndependent_Normal_Gamma"} -- the \code{pfamily} type of the
 #'       corresponding Block~2 component.}
 #'     \item{\code{any_non_normal}}{Logical scalar: \code{TRUE} if any
@@ -432,7 +432,7 @@ priors_from_pfamily_list <- function(pfamily_list,
                                       family,
                                       fn_name = "lmerb") {
 
-  re_names <- design$re_coef_names
+  re_names <- design$groupef.names
   p_re     <- length(re_names)
 
   ## --- dispersion_ranef (Block 1 measurement dispersion) -------------------
@@ -680,7 +680,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     w <- as.numeric(pwt_measurement)
     n_prior <- w / (1 - w) * n_obs
-    src <- "user-supplied (pwt_measurement)"
+    src <- "user-supplied (group.pwt)"
   } else if (!is.null(n_prior_measurement)) {
     if (!is.numeric(n_prior_measurement) || length(n_prior_measurement) != 1L ||
         is.na(n_prior_measurement) || n_prior_measurement <= 0 ||
@@ -692,11 +692,11 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     n_prior <- as.numeric(n_prior_measurement)
     w <- n_prior / (n_prior + n_obs)
-    src <- "user-supplied (n_prior_measurement)"
+    src <- "user-supplied (group.n_prior)"
   } else {
     w <- 0.01
     n_prior <- w / (1 - w) * n_obs
-    src <- "default (pwt_measurement = 0.01)"
+    src <- "default (group.pwt = 0.01)"
   }
 
   if (n_prior > n_obs) {
@@ -785,17 +785,17 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     n_prior <- w / (1 - w) * n_j
     src <- if (length(pwt_measurement) == 1L) {
-      "user-supplied scalar (pwt_measurement)"
+      "user-supplied scalar (group.pwt)"
     } else {
-      "user-supplied vector (pwt_measurement)"
+      "user-supplied vector (group.pwt)"
     }
   } else {
     w <- rep(0.01, J)
     n_prior <- w / (1 - w) * n_j
     src <- if (!is.null(n_prior_measurement)) {
-      "default per group (pwt_measurement = 0.01; scalar n_prior_measurement applies to pooled path only)"
+      "default per group (group.pwt = 0.01; scalar group.n_prior applies to pooled path only)"
     } else {
-      "default (pwt_measurement = 0.01 per group)"
+      "default (group.pwt = 0.01 per group)"
     }
   }
 
@@ -822,22 +822,22 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'
 #' Per-group \eqn{\sigma^2} calibration (\code{\link[glmbayesCore]{Prior_Setup}} parity) fits
 #' only predictors that enter the within-group likelihood---the population-mean
-#' structure aligned with \code{design$re_coef_names}.  Level-2 hyper covariates
+#' structure aligned with \code{design$groupef.names}.  Level-2 hyper covariates
 #' and cross-level moderation terms in the full mixed-model formula are excluded.
 #' @noRd
-.lmebayes_block_formula_from_re <- function(formula, re_coef_names) {
+.lmebayes_block_formula_from_re <- function(formula, groupef.names) {
   if (!inherits(formula, "formula")) {
     stop("'formula' must be a formula.", call. = FALSE)
   }
-  if (length(re_coef_names) < 1L || anyNA(re_coef_names)) {
+  if (length(groupef.names) < 1L || anyNA(groupef.names)) {
     stop(
-      "'re_coef_names' must be a non-empty character vector.",
+      "'groupef.names' must be a non-empty character vector.",
       call. = FALSE
     )
   }
 
   resp <- all.vars(formula)[1L]
-  slope_terms <- setdiff(re_coef_names, "(Intercept)")
+  slope_terms <- setdiff(groupef.names, "(Intercept)")
   rhs <- if (length(slope_terms) == 0L) {
     "1"
   } else {
@@ -1105,7 +1105,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 ) {
   intercept_source <- match.arg(intercept_source)
   effects_source   <- match.arg(effects_source)
-  p_re <- length(design$re_coef_names)
+  p_re <- length(design$groupef.names)
   if (p_re < 1L) {
     stop(
       "Per-group measurement dispersion calibration requires at least one random coefficient.",
@@ -1118,7 +1118,7 @@ priors_from_pfamily_list <- function(pfamily_list,
       call. = FALSE
     )
   }
-  re_names <- design$re_coef_names
+  re_names <- design$groupef.names
 
   stats::setNames(
     lapply(group_levels, function(lev) {
@@ -1303,7 +1303,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     n_prior,
     max_disp_perc = 0.99
 ) {
-  p_re <- length(design$re_coef_names)
+  p_re <- length(design$groupef.names)
   n    <- length(design$y)
   if (p_re < 1L) {
     stop(
@@ -1385,7 +1385,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' Build shared ING Block~1 measurement \code{prior_list} for lmebayes glue
 #' @noRd
 .lmebayes_ing_measurement_prior_list <- function(prior, disp_info, design) {
-  re_names <- design$re_coef_names
+  re_names <- design$groupef.names
   p_re     <- length(re_names)
   pl       <- disp_info$dispersion_prior_list
   if (is.null(pl$shape) || is.null(pl$rate)) {
@@ -1441,7 +1441,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' \code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper}.
 #' @noRd
 .lmebayes_ing_measurement_prior_list_group <- function(prior, disp_info, design) {
-  re_names <- design$re_coef_names
+  re_names <- design$groupef.names
   p_re     <- length(re_names)
   pl       <- disp_info$dispersion_prior_list
   req <- c("shape_group", "rate_group", "disp_lower_group", "disp_upper_group")
@@ -1904,9 +1904,9 @@ matrix_args_lmm <- function(
 }
 
 #' Per-group full column-rank flag for Block~1 \code{Z_j} (same rule as
-#' \code{model_setup()$re_rank}).
+#' \code{model_setup()$groupef.rank}).
 #' @noRd
-.lmebayes_re_rank_from_Z <- function(Z, groups, group_levels = NULL) {
+.lmebayes_groupef_rank_from_Z <- function(Z, groups, group_levels = NULL) {
   Z <- as.matrix(Z)
   g_chr <- as.character(groups)
   levs <- if (is.null(group_levels)) {

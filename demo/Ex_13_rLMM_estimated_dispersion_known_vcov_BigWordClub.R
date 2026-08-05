@@ -51,16 +51,16 @@ form_lmer <- score_ppvt ~
 ##    independently of this demo).
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
-full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
+full_rank_schools <- names(design_all$groupef.rank)[design_all$groupef.rank]
 cat(sprintf(
   "\n=== Full-rank filter: %d of %d schools kept ===\n",
   length(full_rank_schools),
-  length(design_all$re_rank)
+  length(design_all$groupef.rank)
 ))
-if (length(full_rank_schools) < length(design_all$re_rank)) {
+if (length(full_rank_schools) < length(design_all$groupef.rank)) {
   cat(
     "  Dropped:",
-    paste(names(design_all$re_rank)[!design_all$re_rank], collapse = ", "),
+    paste(names(design_all$groupef.rank)[!design_all$groupef.rank], collapse = ", "),
     "\n"
   )
 }
@@ -99,7 +99,7 @@ if (length(drop)) {
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
-stopifnot(all(design$re_rank))
+stopifnot(all(design$groupef.rank))
 
 ## max_disp_perc_measurement = 0.8 (tighter than the 0.99 package default).
 ## disp_lower/disp_upper are now computed by Prior_Setup_lmebayes() itself,
@@ -116,12 +116,12 @@ stopifnot(all(design$re_rank))
 ps_flat <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
-  pwt             = 0.01,
+  pop.pwt         = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc_measurement = 0.8,
-  pwt_measurement = 0.1
+  group.max_disp_perc = 0.8,
+  group.pwt       = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes, first pass (flat pwt_measurement) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes, first pass (flat group.pwt) ===\n\n")
 print(ps_flat)
 
 glmmTMB::ranef(ps_flat$fit_ref)
@@ -148,7 +148,7 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 group_levels <- levels(grp)
-re_names     <- design$re_coef_names
+re_names     <- design$groupef.names
 p_re         <- length(re_names)
 
 ## ---------------------------------------------------------------------------
@@ -196,18 +196,18 @@ print(round(w_pwt_vec, 4))
 ps <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
-  pwt             = 0.01,
+  pop.pwt         = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc_measurement = 0.8,
-  pwt_measurement = w_pwt_vec
+  group.max_disp_perc = 0.8,
+  group.pwt       = w_pwt_vec
 )
-cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group pwt_measurement) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group group.pwt) ===\n\n")
 print(ps)
 
 rows_pwt_cmp <- character(0L)
 for (lev in group_levels) {
-  g1 <- ps_flat$ing_prior_measurement_group[[lev]]
-  g2 <- ps$ing_prior_measurement_group[[lev]]
+  g1 <- ps_flat$group.ing_prior[[lev]]
+  g2 <- ps$group.ing_prior[[lev]]
   rows_pwt_cmp <- c(rows_pwt_cmp, sprintf(
     "  %-6s  %8.4f  %8.4f  %12.4f  %12.4f  %10.4f  %10.4f\n",
     lev, w_pwt_vec[[lev]], g2$shape_ING, g1$rate, g2$rate, g1$disp_upper, g2$disp_upper
@@ -479,7 +479,7 @@ cat(
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   fit, y = design$y, D = design$D, group = grp,
-  group_name = design$group_name, re_coef_names = re_names
+  group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
   1 / fit$dispersion_ranef.mean[group_levels], group_levels
@@ -537,7 +537,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  group_name = design$group_name, re_coef_names = re_names,
+  group_name = design$group_name, groupef.names = re_names,
   y = design$y, D = design$D,
   omega_spec = omega_spec
 )

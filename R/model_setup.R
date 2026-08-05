@@ -3,7 +3,7 @@
 #' Wrapper around \code{\link[lme4]{lmer}} or \code{\link[lme4]{glmer}} for
 #' models with exactly one grouping factor. Design matrices come from
 #' \code{formula} (including cross-level RE moderation terms). Random-effect
-#' and residual variance components (\code{vcov_re}, \code{residual_var}) come
+#' and residual variance components (\code{Psi}, \code{dispersion}) come
 #' from the same reference \code{lmer}/\code{glmer} fit on \code{formula}, so
 #' printed summaries match \code{summary(lmer(...))} on that formula.
 #'
@@ -36,42 +36,60 @@
 #' \strong{Two-step identifiability assessment.}
 #' After fitting \code{lmer}/\code{glmer}, \code{model_setup} calls
 #' \code{\link{check_identifiability}} to assess whether the model is
-#' empirically identified at both the within-group (\code{re_rank},
-#' \code{re_estimable}, \code{re_glm_check}) and across-group
-#' (\code{hyper_rank}, \code{hyper_deficient}, \code{rank_ok}) levels, and
-#' copies its fields onto the returned design object -- see
+#' empirically identified at both the within-group (\code{groupef.rank},
+#' \code{groupef.estimable}, \code{groupef.glm_check}) and across-group
+#' (\code{popef.rank}, \code{popef.deficient}, \code{popef.rank_ok}) levels,
+#' and copies its fields onto the returned design object -- see
 #' \code{\link{check_identifiability}} for the full algorithm description
 #' (including the family-specific estimability checks and how
-#' \code{rank_ok} is derived). Non-estimable groups are flagged but retained
-#' in the \code{lmer}/\code{glmer} fit; \code{\link{Prior_Setup_lmebayes}}
-#' excludes them when calibrating priors, and requires \code{rank_ok = TRUE}
-#' to derive default hyperpriors automatically.
+#' \code{popef.rank_ok} is derived). Non-estimable groups are flagged but
+#' retained in the \code{lmer}/\code{glmer} fit;
+#' \code{\link{Prior_Setup_lmebayes}} excludes them when calibrating priors,
+#' and requires \code{popef.rank_ok = TRUE} to derive default hyperpriors
+#' automatically.
 #'
 #' The example uses \code{big_word_club} from the Suggested package
 #' \pkg{bayesrules} (see \code{?bayesrules::big_word_club}) and the same
 #' formula as the full \code{lmerb()} demo in lmebayes
 #' (\code{demo("Ex_12_lmerb_BigWordClub", package = "lmebayes")}).
 #'
-#' @param formula Mixed-model formula for design extraction and the reference
-#'   \code{lmer}/\code{glmer} fit (fixed effects, hyper calibration, and
-#'   variance components).
-#' @param data Optional data frame.
-#' @param family A \code{\link[stats]{family}} object. Defaults to
-#'   \code{gaussian()}, in which case \code{\link[lme4]{lmer}} is used.
-#'   Non-Gaussian families use \code{\link[lme4]{glmer}}.
-#' @param REML Logical; passed to \code{\link[lme4]{lmer}} when
-#'   \code{family = gaussian()}.
-#' @param control \code{\link[lme4]{lmerControl}} when \code{family = gaussian()},
-#'   otherwise \code{\link[lme4]{glmerControl}}; passed through to the reference
-#'   fit when \code{fit_mer = TRUE}.
-#' @param fit_mer If \code{TRUE} (default), fit reference \code{lmer}/\code{glmer}
-#'   models and extract variance components. If \code{FALSE}, return design
-#'   matrices and rank diagnostics only (used by \code{glmerb()} in lmebayes).
-#' @param dispformula One-sided formula selecting the measurement-dispersion
-#'   structure: \code{~1} (default, pooled) or \code{~<group_name>} (matching
-#'   the random-effects grouping factor exactly, requesting per-group
+#' @param formula A two-sided linear formula, as in \code{\link[lme4]{lmer}}:
+#'   response on the left of \code{~}, fixed and random-effects terms
+#'   (\code{(terms | group)}) on the right. Used for both design extraction
+#'   and the reference \code{lmer}/\code{glmer} fit (fixed effects, hyper
+#'   calibration, and variance components); see Details for the
+#'   single-grouping-factor / \code{||} constraints.
+#' @param data An optional data frame containing the variables named in
+#'   \code{formula} (as in \code{\link[lme4]{lmer}}); if omitted, variables
+#'   are taken from the environment of \code{formula}.
+#' @param family As in \code{\link[stats]{glm}}: a character string naming a
+#'   family function, a family function, or the result of a call to one.
+#'   Defaults to \code{gaussian()}, in which case \code{\link[lme4]{lmer}} is
+#'   used. Non-Gaussian families use \code{\link[lme4]{glmer}}.
+#' @param REML Logical scalar, as in \code{lmer}'s own \code{REML} argument:
+#'   should the reference fit's estimates optimize the REML criterion rather
+#'   than the log-likelihood? Passed to \code{lmer} when
+#'   \code{family = gaussian()}; ignored otherwise (\code{glmer} has no REML
+#'   criterion).
+#' @param control \code{\link[lme4]{lmerControl}} when
+#'   \code{family = gaussian()}, otherwise \code{\link[lme4]{glmerControl}} --
+#'   including the nonlinear optimizer and its settings (as in
+#'   \code{lmer}/\code{glmer}'s own \code{control} argument); passed through
+#'   to the reference fit when \code{fit_mer = TRUE}. \code{NULL} (default)
+#'   resolves to \code{lmerControl()}'s defaults for Gaussian families, or
+#'   \code{glmer}'s own default control otherwise.
+#' @param fit_mer If \code{TRUE} (default), fit the reference
+#'   \code{lmer}/\code{glmer} model and extract variance components --
+#'   analogous to \code{glmmTMB}'s \code{doFit} argument. If \code{FALSE},
+#'   skip the reference fit and return design matrices and rank diagnostics
+#'   only (used by \code{glmerb()} in \pkg{lmebayes}, which fits its own
+#'   \code{glmer} separately).
+#' @param dispformula As in \code{glmmTMB}'s \code{dispformula} argument: a
+#'   one-sided formula selecting the measurement-dispersion structure:
+#'   \code{~1} (default, pooled) or \code{~<group_name>} (matching the
+#'   random-effects grouping factor exactly, requesting per-group
 #'   dispersion). Only affects \code{design$glmmTMB_fit} (see \code{@return});
-#'   \code{design$lmer_fit}/\code{design$glmer_fit} are always the plain
+#'   \code{design$lmer}/\code{design$glmer} are always the plain
 #'   pooled-dispersion \code{lmer}/\code{glmer} fit, regardless of
 #'   \code{dispformula}. \code{~<group_name>} additionally requires
 #'   \code{family = gaussian()} (no observation-level dispersion parameter
@@ -79,73 +97,104 @@
 #'   on \code{\link{Prior_Setup_lmebayes}} and on
 #'   \code{lmerb()}/\code{glmerb()} in \pkg{lmebayes}; all three are
 #'   independent arguments that must be kept consistent by the caller.
-#' @param start Optional starting values for the inner optimization.
-#' @param verbose Passed to \code{\link[lme4]{lmer}}.
-#' @param subset,weights,na.action,offset,contrasts Passed to
-#'   \code{\link[lme4]{lmer}}.
-#' @param devFunOnly If \code{TRUE}, return the deviance function only (Gaussian
-#'   \code{lmer} fits only).
-#' @param ... Passed to design extraction and, when \code{fit_mer = TRUE}, to the
-#'   reference \code{lmer}/\code{glmer} fit.
+#' @param start Optional starting values, passed to the reference
+#'   \code{lmer}/\code{glmer} fit's own \code{start} argument (numeric vector
+#'   or named list with \code{par}/\code{theta}, and for \code{glmer} also
+#'   \code{fixef}/\code{beta}; see their documentation). \code{NULL} (default)
+#'   uses \code{lme4}'s own defaults.
+#' @param verbose Integer scalar passed to the reference \code{lmer} (or
+#'   \code{glmer} for non-Gaussian \code{family}); see their \code{verbose}
+#'   argument (\code{> 0} prints optimizer iterations; \code{> 1} also prints
+#'   inner PIRLS steps).
+#' @param subset An optional expression indicating the subset of rows of
+#'   \code{data} to use, as in \code{lmer}'s \code{subset} argument; passed
+#'   to the reference fit.
+#' @param weights An optional vector of prior weights, as in \code{lmer}'s
+#'   \code{weights} argument; passed to the reference fit. Unspecified means
+#'   equal weights.
+#' @param na.action A function indicating what should happen when \code{data}
+#'   contain \code{NA}s (default \code{na.omit}, as in \code{lmer}); passed
+#'   to the reference fit.
+#' @param offset An optional a priori known component to include in the
+#'   linear predictor, as in \code{lmer}'s \code{offset} argument; passed to
+#'   the reference fit.
+#' @param contrasts An optional list of contrasts (see the
+#'   \code{contrasts.arg} of \code{model.matrix.default}, as in \code{lmer});
+#'   passed to the reference fit.
+#' @param devFunOnly Logical, as in \code{lmer}'s \code{devFunOnly} argument:
+#'   if \code{TRUE}, return only the deviance evaluation function instead of
+#'   a fitted model. Gaussian \code{lmer} fits only; ignored for \code{glmer}.
+#' @param ... Additional arguments passed to \code{extract_re_hyper_matrices()}
+#'   for design extraction and, when \code{fit_mer = TRUE}, to the reference
+#'   \code{lmer}/\code{glmer} fit (as in \code{lm}/\code{glm}'s own
+#'   \code{...}: further arguments passed to or from other methods).
 #' @return Object of class \code{"model_setup"} with:
 #'   \describe{
 #'     \item{\code{y}}{Response vector, length \code{nrow(D)}.}
-#'     \item{\code{D}}{Random-effects model matrix (\code{n_obs} x
-#'       \code{p_re}): per-observation loadings on the within-group random
-#'       coefficient vector (columns \code{re_coef_names}).}
+#'     \item{\code{D}}{Group-effects model matrix (\code{n_obs} x
+#'       \code{p_re}): per-observation loadings on the within-group
+#'       group-effect coefficient vector (columns \code{groupef.names}).}
 #'     \item{\code{group}}{Factor of length \code{nrow(D)} for block
-#'       subsetting; \code{levels(group)} fixes group order used elsewhere.}
+#'       subsetting; \code{levels(group)} fixes group order used elsewhere.
+#'       Also carries \code{attr(group, "group_name")} (same value as
+#'       \code{group_name}) so \code{group} alone can be passed to sampler
+#'       engine functions without a separate \code{group_name} argument.}
 #'     \item{\code{group_name}}{Grouping factor name.}
-#'     \item{\code{re_coef_names}}{Random coefficient names from \code{lme4}.}
+#'     \item{\code{groupef.names}}{Group-effect coefficient names from
+#'       \code{lme4}; always identical to \code{names(W)} (and to
+#'       \code{colnames(D)}).}
 #'     \item{\code{W}}{Named list of group-level hyper-design matrices (one
-#'       per \code{re_coef_names} entry, one row per group level).}
-#'     \item{\code{re_slope_moderation}}{Cross-level moderation metadata; see
+#'       per \code{groupef.names} entry, one row per group level).}
+#'     \item{\code{popef.moderation}}{Cross-level moderation metadata; see
 #'       \code{\link{extract_re_hyper_matrices}}.}
 #'     \item{\code{formula}}{The \code{formula} argument, as supplied.}
 #'     \item{\code{family}}{The normalized \code{\link[stats]{family}}
 #'       object.}
 #'     \item{\code{call}}{The matched call.}
+#'     \item{\code{terms}}{The \code{\link[stats]{terms}} object for
+#'       \code{formula}, as in \code{lm}/\code{glm} (and
+#'       \code{glmbayes::glmb}/\code{lmb}).}
+#'     \item{\code{data}}{The \code{data} argument, as supplied (\code{NULL}
+#'       when omitted), as in \code{lm}/\code{glm} (and
+#'       \code{glmbayes::glmb}/\code{lmb}).}
 #'     \item{\code{dispformula}}{The \code{dispformula} argument, as
 #'       supplied.}
-#'     \item{\code{lmer_fit} / \code{glmer_fit}}{The reference
+#'     \item{\code{lmer} / \code{glmer}}{The reference
 #'       \code{\link[lme4]{lmer}} (Gaussian) or \code{\link[lme4]{glmer}}
 #'       (otherwise) fit on \code{formula}; \code{NULL} when
 #'       \code{fit_mer = FALSE}.}
-#'     \item{\code{lmer_vcov_fit} / \code{glmer_vcov_fit}}{Same object as
-#'       \code{lmer_fit}/\code{glmer_fit} (retained as a separate name for
-#'       backward compatibility).}
 #'     \item{\code{varcorr}}{The raw \code{\link[lme4]{VarCorr}} object from
 #'       the reference fit.}
-#'     \item{\code{vcov_re}}{Named numeric vector (names
-#'       \code{re_coef_names}) of random-effect variances.}
-#'     \item{\code{residual_var}}{Residual (measurement) variance from the
+#'     \item{\code{Psi}}{Named numeric vector (names \code{groupef.names}) of
+#'       group-effect variances.}
+#'     \item{\code{dispersion}}{Residual (measurement) variance from the
 #'       reference fit.}
 #'     \item{\code{glmmTMB_fit}}{\code{NULL} when \code{dispformula = ~1} or
 #'       \code{fit_mer = FALSE}; otherwise a \code{\link[glmmTMB]{glmmTMB}}
 #'       fit on \code{formula} with the same \code{dispformula} (Gaussian
 #'       models only), fit via the same \code{data}/\code{REML}/
-#'       \code{control}-derived arguments as \code{lmer_fit}. This is
-#'       \strong{additive}: \code{lmer_fit}/\code{glmer_fit} are never
-#'       replaced by a \code{glmmTMB} fit. \code{\link{Prior_Setup_lmebayes}}
-#'       and \code{lmerb()} (in \pkg{lmebayes}) reuse \code{glmmTMB_fit} as
-#'       their per-group-dispersion calibration reference instead of fitting
+#'       \code{control}-derived arguments as \code{lmer}. This is
+#'       \strong{additive}: \code{lmer}/\code{glmer} are never replaced by a
+#'       \code{glmmTMB} fit. \code{\link{Prior_Setup_lmebayes}} and
+#'       \code{lmerb()} (in \pkg{lmebayes}) reuse \code{glmmTMB_fit} as their
+#'       per-group-dispersion calibration reference instead of fitting
 #'       \code{glmmTMB} a second time.}
-#'     \item{\code{re_rank}}{Named logical (names \code{levels(group)}):
+#'     \item{\code{groupef.rank}}{Named logical (names \code{levels(group)}):
 #'       \code{TRUE} if that group's \eqn{D_j} is full column rank; see
 #'       \code{\link{check_identifiability}}.}
-#'     \item{\code{re_estimable}}{Named logical, same names as
-#'       \code{re_rank}: \code{TRUE} if the group is additionally estimable
-#'       (family-specific MLE/dispersion check); see
+#'     \item{\code{groupef.estimable}}{Named logical, same names as
+#'       \code{groupef.rank}: \code{TRUE} if the group is additionally
+#'       estimable (family-specific MLE/dispersion check); see
 #'       \code{\link{check_identifiability}}.}
-#'     \item{\code{re_glm_check}}{Per-group diagnostic data frame from
+#'     \item{\code{groupef.glm_check}}{Per-group diagnostic data frame from
 #'       \code{\link{check_identifiability}} (family-dependent; may be
 #'       \code{NULL}).}
-#'     \item{\code{hyper_rank}}{Named logical (names \code{re_coef_names}):
+#'     \item{\code{popef.rank}}{Named logical (names \code{groupef.names}):
 #'       \code{TRUE} if \code{W[[k]]} is full column rank when restricted to
-#'       \code{re_estimable} groups.}
-#'     \item{\code{hyper_deficient}}{Negation of \code{hyper_rank}.}
-#'     \item{\code{rank_ok}}{Scalar \code{TRUE} only when every
-#'       \code{hyper_rank} entry is \code{TRUE}; required by
+#'       \code{groupef.estimable} groups.}
+#'     \item{\code{popef.deficient}}{Negation of \code{popef.rank}.}
+#'     \item{\code{popef.rank_ok}}{Scalar \code{TRUE} only when every
+#'       \code{popef.rank} entry is \code{TRUE}; required by
 #'       \code{\link{Prior_Setup_lmebayes}} to derive default hyperpriors
 #'       automatically.}
 #'   }
@@ -185,6 +234,8 @@ model_setup <- function(
   design$call    <- cl
   design$formula <- formula
   design$family  <- family
+  design$terms   <- stats::terms(formula, data = data)
+  design$data    <- data
 
   dispformula_kind <- .lmebayes_dispformula_kind(dispformula, design$group_name)
   if (identical(dispformula_kind, "group") && !is_gaussian) {
@@ -238,21 +289,19 @@ model_setup <- function(
 
     vc <- extract_mer_variance_components(
       fit_full,
-      design$re_coef_names
+      design$groupef.names
     )
     if (is_gaussian) {
-      design$lmer_fit <- fit_full
-      design$lmer_vcov_fit <- fit_full
+      design$lmer <- fit_full
     } else {
-      design$glmer_fit <- fit_full
-      design$glmer_vcov_fit <- fit_full
+      design$glmer <- fit_full
     }
     design$varcorr <- vc$varcorr
-    design$vcov_re <- vc$vcov_re
-    design$residual_var <- vc$residual_var
+    design$Psi <- vc$Psi
+    design$dispersion <- vc$dispersion
 
     ## Additive: fit and store the glmmTMB per-group-dispersion reference
-    ## alongside (never instead of) the lmer_fit above, when 'dispformula'
+    ## alongside (never instead of) the lmer fit above, when 'dispformula'
     ## requests it. Prior_Setup_lmebayes() and lmerb() (lmebayes) reuse this
     ## as their calibration reference instead of fitting glmmTMB a second
     ## time; see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md.
@@ -279,12 +328,12 @@ model_setup <- function(
     family     = family,
     group_name = design$group_name
   )
-  design$re_rank         <- ident$re_rank
-  design$re_estimable    <- ident$re_estimable
-  design$re_glm_check    <- ident$re_glm_check
-  design$hyper_rank      <- ident$hyper_rank
-  design$hyper_deficient <- ident$hyper_deficient
-  design$rank_ok         <- ident$rank_ok
+  design$groupef.rank      <- ident$groupef.rank
+  design$groupef.estimable <- ident$groupef.estimable
+  design$groupef.glm_check <- ident$groupef.glm_check
+  design$popef.rank        <- ident$popef.rank
+  design$popef.deficient   <- ident$popef.deficient
+  design$popef.rank_ok     <- ident$popef.rank_ok
 
   design
 }
@@ -382,7 +431,7 @@ model_setup <- function(
 print.model_setup <- function(x, ...) {
 
   resp     <- deparse(x$formula[[2L]])
-  re_names <- x$re_coef_names
+  re_names <- x$groupef.names
   grp      <- x$group_name
   n_obs    <- length(x$y)
   n_lev    <- nlevels(x$group)
@@ -398,11 +447,11 @@ print.model_setup <- function(x, ...) {
   cat(sprintf("  Observations : %d\n", n_obs))
   cat(sprintf("  RE predictors: %d\n", length(re_names)))
   cat(sprintf("  Group        : %s  [%d levels]\n", grp, n_lev))
-  if (!is.null(x$re_rank)) {
-    n_full <- sum(x$re_rank)
+  if (!is.null(x$groupef.rank)) {
+    n_full <- sum(x$groupef.rank)
     cat(sprintf("  Full-rank D_j: %d of %d groups\n", n_full, n_lev))
     if (n_full < n_lev) {
-      deficient <- names(x$re_rank)[!x$re_rank]
+      deficient <- names(x$groupef.rank)[!x$groupef.rank]
       shown     <- deficient[seq_len(min(10L, length(deficient)))]
       suffix    <- if (length(deficient) > 10L)
         sprintf(", ... (%d more)", length(deficient) - 10L) else ""
@@ -410,14 +459,14 @@ print.model_setup <- function(x, ...) {
                   paste(shown, collapse = ", "), suffix))
     }
   }
-  if (!is.null(x$re_glm_check) && !is.null(x$re_estimable)) {
-    n_est <- sum(x$re_estimable[x$re_rank])
+  if (!is.null(x$groupef.glm_check) && !is.null(x$groupef.estimable)) {
+    n_est <- sum(x$groupef.estimable[x$groupef.rank])
     cat(sprintf(
       "  Full-rank & estimable: %d of %d full-rank (%d of %d total %s)\n",
       n_est, n_full, n_est, n_lev, grp
     ))
     if (n_est < n_full) {
-      not_est <- names(x$re_estimable)[x$re_rank & !x$re_estimable]
+      not_est <- names(x$groupef.estimable)[x$groupef.rank & !x$groupef.estimable]
       shown   <- not_est[seq_len(min(10L, length(not_est)))]
       suffix  <- if (length(not_est) > 10L)
         sprintf(", ... (%d more)", length(not_est) - 10L) else ""
@@ -443,15 +492,15 @@ print.model_setup <- function(x, ...) {
   cat("\n")
 
   # ---- Section 3: Hyper-design rank (estimable groups only) -----------------
-  if (!is.null(x$hyper_rank) && !is.null(x$re_estimable)) {
-    n_est_groups <- sum(x$re_estimable)
+  if (!is.null(x$popef.rank) && !is.null(x$groupef.estimable)) {
+    n_est_groups <- sum(x$groupef.estimable)
     cat("--- Random Effects Model: Hyper-Design Rank ---\n")
     cat(sprintf("  (Restricted to %d estimable %s)\n\n", n_est_groups, grp))
     deficient_nms <- character(0)
     for (nm in re_names) {
       Xh      <- x$W[[nm]]
       p_hyper <- ncol(Xh)
-      is_fr   <- if (nm %in% names(x$hyper_rank)) x$hyper_rank[[nm]] else NA
+      is_fr   <- if (nm %in% names(x$popef.rank)) x$popef.rank[[nm]] else NA
       status  <- if (isTRUE(is_fr)) "full-rank" else if (isFALSE(is_fr)) "RANK-DEFICIENT" else "unknown"
       cat(sprintf("  %-*s  groups=%-3d  predictors=%-2d  %s\n",
                   w, nm, n_est_groups, p_hyper, status))
@@ -459,16 +508,16 @@ print.model_setup <- function(x, ...) {
     }
     # Per-RE deficient flags
     cat("\n")
-    flag_strs <- ifelse(x$hyper_deficient[re_names], "TRUE (deficient)", "FALSE")
+    flag_strs <- ifelse(x$popef.deficient[re_names], "TRUE (deficient)", "FALSE")
     cat("  Rank-deficient flags:\n")
     for (nm in re_names) {
       cat(sprintf("    %-*s  %s\n", w, nm, flag_strs[nm]))
     }
 
     # Overall indicator
-    ok_label <- if (isTRUE(x$rank_ok)) "TRUE  -- model rank looks OK" else
+    ok_label <- if (isTRUE(x$popef.rank_ok)) "TRUE  -- model rank looks OK" else
                   "FALSE -- rank issues detected (see above)"
-    cat(sprintf("\n  rank_ok: %s\n", ok_label))
+    cat(sprintf("\n  popef.rank_ok: %s\n", ok_label))
 
     if (length(deficient_nms) > 0L) {
       cat("\n")

@@ -32,7 +32,7 @@
 #' \code{lmerb_posterior_mean()} (via ICM rather than the closed form).
 #'
 #' @param design Design list with \code{y}, \code{D}, \code{group},
-#'   \code{W}, and \code{re_coef_names}.
+#'   \code{W}, and \code{groupef.names}.
 #' @param measurement_prior_list List with \code{Sigma_ranef} and
 #'   \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
 #'   for \code{lmerb_posterior_mean()} and for \code{glmerb_posterior_mode()}
@@ -187,7 +187,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 #' Gaussian).
 #' @noRd
 .lmerb_posterior_normal_system <- function(design, measurement_prior_list) {
-  re_names     <- design$re_coef_names
+  re_names     <- design$groupef.names
   group_levels <- levels(design$group)
   J            <- length(group_levels)
   p_re         <- length(re_names)
@@ -450,7 +450,7 @@ glmerb_posterior_mode <- function(design,
     stop("'design' must contain 'y' and 'D'.", call. = FALSE)
   }
 
-  re_names     <- design$re_coef_names
+  re_names     <- design$groupef.names
   group_levels <- levels(design$group)
   J            <- length(group_levels)
   p_re         <- length(re_names)

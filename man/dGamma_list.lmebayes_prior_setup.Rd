@@ -14,7 +14,7 @@ by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).}
 \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
 per group level). \code{NULL} reuses each group's own stored
 \code{disp_lower}/\code{disp_upper} (the value
-\code{object$ing_prior_measurement_group[[lev]]$max_disp_perc} was
+\code{object$group.ing_prior[[lev]]$max_disp_perc} was
 calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
 scalar or vector recomputes the bounds as fresh quantiles of the same
 posterior-shape \code{Gamma(shape_ING + n_j/2, rate_post)} (see above),
@@ -53,7 +53,8 @@ in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
 }
 \details{
 Prior density (\code{shape_ING}, \code{rate}) both come from
-\code{object$ing_prior_measurement_group}, calibrated once in
+\code{object$group.ing_prior} (the per-group shape, when
+\code{dispformula} requested per-group dispersion), calibrated once in
 \code{\link{Prior_Setup_lmebayes}()} via
 \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
 extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
@@ -83,7 +84,7 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   ps <- Prior_Setup_lmebayes(
     score_ppvt ~ private_school + (1 | school_id),
     data = dat,
-    pwt_measurement = 0.01,
+    group.pwt = 0.01,
     dispformula = ~school_id
   )
   disp_pf <- dGamma_list(ps)

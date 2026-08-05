@@ -35,7 +35,7 @@
 #' rank, but the group-level residual \emph{dispersion} additionally
 #' requires strictly more observations than parameters (\code{n_j > p_j});
 #' this is checked directly via arithmetic on \code{n_j}/\code{p_j}. Other
-#' families return \code{re_estimable = re_rank} (no check).
+#' families return \code{groupef.estimable = groupef.rank} (no check).
 #'
 #' Family-specific pre-checks (before any fit is attempted):
 #' \itemize{
@@ -50,30 +50,30 @@
 #'     freedom for the variance).
 #' }
 #' @noRd
-.lmebayes_block_glm_estimable <- function(y, groups, Z, re_rank, family) {
-  g_levs <- names(re_rank)
+.lmebayes_block_glm_estimable <- function(y, groups, Z, groupef.rank, family) {
+  g_levs <- names(groupef.rank)
   if (is.null(g_levs)) {
     g_levs <- levels(groups)
-    names(re_rank) <- g_levs
+    names(groupef.rank) <- g_levs
   }
 
-  re_estimable <- stats::setNames(rep(FALSE, length(g_levs)), g_levs)
+  groupef.estimable <- stats::setNames(rep(FALSE, length(g_levs)), g_levs)
   fam_name <- family$family
 
   is_fit_family <- fam_name %in% .lmebayes_glm_fit_families
   is_gaussian   <- identical(fam_name, "gaussian")
 
   if (!is_fit_family && !is_gaussian) {
-    re_estimable[re_rank] <- TRUE
+    groupef.estimable[groupef.rank] <- TRUE
     return(list(
-      re_estimable = re_estimable,
-      re_glm_check = NULL
+      groupef.estimable = groupef.estimable,
+      groupef.glm_check = NULL
     ))
   }
 
   y <- as.numeric(y)
   g_chr <- as.character(groups)
-  fr_levs <- g_levs[re_rank]
+  fr_levs <- g_levs[groupef.rank]
 
   rows_out <- vector("list", length(fr_levs))
 
@@ -145,33 +145,33 @@
       }
     }
 
-    re_estimable[[lev]] <- estimable
+    groupef.estimable[[lev]] <- estimable
     rows_out[[ii]] <- data.frame(
       group     = lev,
       n         = n_j,
       p         = p_j,
-      re_rank   = TRUE,
+      groupef.rank   = TRUE,
       estimable = estimable,
       note      = if (length(note)) paste(note, collapse = "; ") else "",
       stringsAsFactors = FALSE
     )
   }
 
-  re_glm_check <- if (length(rows_out)) {
+  groupef.glm_check <- if (length(rows_out)) {
     do.call(rbind, rows_out)
   } else {
     data.frame(
       group = character(0),
       n = integer(0),
       p = integer(0),
-      re_rank = logical(0),
+      groupef.rank = logical(0),
       estimable = logical(0),
       note = character(0),
       stringsAsFactors = FALSE
     )
   }
 
-  list(re_estimable = re_estimable, re_glm_check = re_glm_check)
+  list(groupef.estimable = groupef.estimable, groupef.glm_check = groupef.glm_check)
 }
 
 #' Check identifiability and estimability of a single-factor mixed-model design
@@ -192,11 +192,12 @@
 #' @details
 #' \strong{Level 1 (within-group).} For each group \eqn{j}, the within-group
 #' submatrix \eqn{D_j} (\code{D[group == } \eqn{j}\code{, ]}) is checked for
-#' full column rank (\code{re_rank}). A rank-deficient group has too few
+#' full column rank (\code{groupef.rank}). A rank-deficient group has too few
 #' distinct observations to estimate all random slopes independently.
 #' Algebraically full-rank groups are then additionally checked for
-#' estimability (\code{re_estimable}, with per-group detail in
-#' \code{re_glm_check}), with the specific check depending on \code{family}:
+#' estimability (\code{groupef.estimable}, with per-group detail in
+#' \code{groupef.glm_check}), with the specific check depending on
+#' \code{family}:
 #' \itemize{
 #'   \item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a classical
 #'     \code{glm(y ~ D_j - 1, family)} fit is attempted; a group can be full
@@ -210,19 +211,19 @@
 #'     \code{n_j > p_j} so the residual variance/dispersion is estimable
 #'     (otherwise the group achieves a perfect/saturated fit with zero
 #'     residual degrees of freedom).
-#'   \item other families: \code{re_estimable} is set equal to \code{re_rank}
-#'     (no additional check yet).
+#'   \item other families: \code{groupef.estimable} is set equal to
+#'     \code{groupef.rank} (no additional check yet).
 #' }
 #'
 #' \strong{Level 2 (across-group).} Restricting to the \strong{estimable}
-#' groups from Level 1 (\code{re_estimable}), each level-2 design matrix
-#' \code{W[[k]]} is checked for full column rank (\code{hyper_rank}), using
+#' groups from Level 1 (\code{groupef.estimable}), each level-2 design matrix
+#' \code{W[[k]]} is checked for full column rank (\code{popef.rank}), using
 #' only the rows at the estimable positions (row \eqn{j} of \code{W[[k]]}
 #' corresponds to \code{levels(group)[j]}, exactly as in
 #' \code{\link{rLMM_reg}}). Rank deficiency at this level means the level-2
 #' hyperparameters are not identified by the data, even as the number of
-#' estimable groups grows. The scalar \code{rank_ok} is \code{TRUE} only when
-#' every \code{hyper_rank} entry is \code{TRUE}.
+#' estimable groups grows. The scalar \code{popef.rank_ok} is \code{TRUE}
+#' only when every \code{popef.rank} entry is \code{TRUE}.
 #'
 #' \strong{Inputs must already be consistently keyed.} This function does
 #' \emph{not} infer or coerce missing names -- it validates them up front and
@@ -231,7 +232,7 @@
 #' \itemize{
 #'   \item \code{D} must have unique, non-empty \code{colnames(D)}: these are
 #'     the random-effect coefficient names used to key \code{W} (there is no
-#'     separate \code{re_coef_names} argument to override them, matching
+#'     separate \code{groupef.names} argument to override them, matching
 #'     \code{\link{rLMM_reg}}).
 #'   \item \code{group} must be a \code{factor} (not coerced from a character
 #'     vector); \code{levels(group)} fixes the row order assumed by
@@ -248,10 +249,10 @@
 #' @inheritParams rLMM_reg
 #' @param group Grouping factor of length \code{nrow(D)} (must be a
 #'   \code{factor}); \code{levels(group)} fixes the row order assumed by
-#'   \code{W} and names \code{re_rank}/\code{re_estimable} in the return
-#'   value -- there is no separate \code{group_levels} argument. Unlike
-#'   \code{\link{rLMM_reg}}, \code{group_name} is a separate argument here
-#'   (see below) rather than derived from \code{group} via
+#'   \code{W} and names \code{groupef.rank}/\code{groupef.estimable} in the
+#'   return value -- there is no separate \code{group_levels} argument.
+#'   Unlike \code{\link{rLMM_reg}}, \code{group_name} is a separate argument
+#'   here (see below) rather than derived from \code{group} via
 #'   \code{substitute()}.
 #' @param family A \code{\link[stats]{family}} object (or a string/function
 #'   accepted by \code{\link[stats]{family}}); normalized internally via the
@@ -269,23 +270,23 @@
 #'   this from \code{\link{model_setup}} introduces no new console output.
 #' @return A list with:
 #'   \describe{
-#'     \item{\code{re_rank}}{Named logical, one entry per group (names
+#'     \item{\code{groupef.rank}}{Named logical, one entry per group (names
 #'       \code{levels(group)}): \code{TRUE} if \eqn{D_j} is full column
 #'       rank.}
-#'     \item{\code{re_estimable}}{Named logical, same names as
-#'       \code{re_rank}: \code{TRUE} if the group is additionally estimable
-#'       (see Details).}
-#'     \item{\code{re_glm_check}}{Per-group diagnostic data frame for
+#'     \item{\code{groupef.estimable}}{Named logical, same names as
+#'       \code{groupef.rank}: \code{TRUE} if the group is additionally
+#'       estimable (see Details).}
+#'     \item{\code{groupef.glm_check}}{Per-group diagnostic data frame for
 #'       \code{binomial()}/\code{poisson()}/\code{Gamma()}/\code{gaussian()},
 #'       or \code{NULL} for other families.}
-#'     \item{\code{hyper_rank}}{Named logical, one entry per RE coefficient
+#'     \item{\code{popef.rank}}{Named logical, one entry per RE coefficient
 #'       (names \code{colnames(D)}): \code{TRUE} if \code{W[[k]]} is full
-#'       column rank when restricted to \code{re_estimable} groups.}
-#'     \item{\code{hyper_deficient}}{Negation of \code{hyper_rank}.}
-#'     \item{\code{rank_ok}}{Scalar \code{TRUE} only when every
-#'       \code{hyper_rank} entry is \code{TRUE}.}
+#'       column rank when restricted to \code{groupef.estimable} groups.}
+#'     \item{\code{popef.deficient}}{Negation of \code{popef.rank}.}
+#'     \item{\code{popef.rank_ok}}{Scalar \code{TRUE} only when every
+#'       \code{popef.rank} entry is \code{TRUE}.}
 #'     \item{\code{group_levels}}{\code{levels(group)}, i.e. the exact
-#'       names used on \code{re_rank}/\code{re_estimable}.}
+#'       names used on \code{groupef.rank}/\code{groupef.estimable}.}
 #'     \item{\code{group_name}}{The resolved grouping-factor display name.}
 #'   }
 #' @seealso \code{\link{model_setup}}, \code{\link{rLMM_reg}},
@@ -305,7 +306,7 @@
 #'   y = y, D = D, group = group, W = W,
 #'   family = gaussian(), group_name = "group"
 #' )
-#' ident$rank_ok
+#' ident$popef.rank_ok
 #' @export
 check_identifiability <- function(
     y,
@@ -352,7 +353,7 @@ check_identifiability <- function(
       any(!nzchar(re_names)) || anyDuplicated(re_names)) {
     stop(
       "'D' must have unique, non-empty column names (colnames(D)); there is ",
-      "no 're_coef_names' argument to override this.",
+      "no 'groupef.names' argument to override this.",
       call. = FALSE
     )
   }
@@ -392,7 +393,7 @@ check_identifiability <- function(
   ## Level 1: per-group rank check -- is D_j full column rank for each level?
   p_re  <- ncol(D)
   g_chr <- as.character(group)
-  re_rank <- vapply(
+  groupef.rank <- vapply(
     g_levs,
     function(lev) {
       rows <- which(g_chr == lev)
@@ -406,7 +407,7 @@ check_identifiability <- function(
   if (isTRUE(verbose)) {
     message(sprintf(
       "check_identifiability: Level 1 (rank) -- %d of %d %s full column rank.",
-      sum(re_rank), length(g_levs), group_name
+      sum(groupef.rank), length(g_levs), group_name
     ))
   }
 
@@ -414,15 +415,15 @@ check_identifiability <- function(
   ## must run before the Level 2 check below, since Level 2 restricts to
   ## *estimable* groups, not merely algebraically full-rank ones.
   glm_est <- .lmebayes_block_glm_estimable(
-    y = y, groups = group, Z = D, re_rank = re_rank, family = family
+    y = y, groups = group, Z = D, groupef.rank = groupef.rank, family = family
   )
-  re_estimable <- glm_est$re_estimable
-  re_glm_check <- glm_est$re_glm_check
+  groupef.estimable <- glm_est$groupef.estimable
+  groupef.glm_check <- glm_est$groupef.glm_check
 
-  if (!is.null(re_glm_check) && nrow(re_glm_check) > 0L &&
-      !all(re_glm_check$group %in% g_levs)) {
+  if (!is.null(groupef.glm_check) && nrow(groupef.glm_check) > 0L &&
+      !all(groupef.glm_check$group %in% g_levs)) {
     stop(
-      "Internal error: re_glm_check$group contains values not in ",
+      "Internal error: groupef.glm_check$group contains values not in ",
       "levels(", group_name, ").",
       call. = FALSE
     )
@@ -431,16 +432,16 @@ check_identifiability <- function(
   if (isTRUE(verbose)) {
     message(sprintf(
       "check_identifiability: Level 1 (estimability) -- %d of %d full-rank %s are estimable.",
-      sum(re_estimable[re_rank]), sum(re_rank), group_name
+      sum(groupef.estimable[groupef.rank]), sum(groupef.rank), group_name
     ))
   }
 
   ## Level 2: hyper-design rank check, restricted to Level-1-estimable groups.
   ## Positional, not name-based: row j of W[[k]] corresponds to
-  ## levels(group)[j] (the rLMM_reg/rGLMM_reg convention), and re_estimable
-  ## preserves that same level order.
-  estimable_idx <- which(re_estimable)
-  hyper_rank <- vapply(
+  ## levels(group)[j] (the rLMM_reg/rGLMM_reg convention), and
+  ## groupef.estimable preserves that same level order.
+  estimable_idx <- which(groupef.estimable)
+  popef.rank <- vapply(
     re_names,
     function(nm) {
       Wk <- W[[nm]][estimable_idx, , drop = FALSE]
@@ -449,11 +450,11 @@ check_identifiability <- function(
     },
     logical(1L)
   )
-  hyper_deficient <- !hyper_rank
-  rank_ok <- all(hyper_rank)
+  popef.deficient <- !popef.rank
+  popef.rank_ok <- all(popef.rank)
 
   if (isTRUE(verbose)) {
-    if (isTRUE(rank_ok)) {
+    if (isTRUE(popef.rank_ok)) {
       message(sprintf(
         "check_identifiability: Level 2 -- all hyper-design matrices are full rank (%d estimable %s).",
         length(estimable_idx), group_name
@@ -461,19 +462,19 @@ check_identifiability <- function(
     } else {
       message(sprintf(
         "check_identifiability: Level 2 -- rank-deficient hyper-design matrix(es): %s.",
-        paste(names(hyper_rank)[hyper_deficient], collapse = ", ")
+        paste(names(popef.rank)[popef.deficient], collapse = ", ")
       ))
     }
   }
 
   list(
-    re_rank         = re_rank,
-    re_estimable    = re_estimable,
-    re_glm_check    = re_glm_check,
-    hyper_rank      = hyper_rank,
-    hyper_deficient = hyper_deficient,
-    rank_ok         = rank_ok,
-    group_levels    = g_levs,
-    group_name      = group_name
+    groupef.rank      = groupef.rank,
+    groupef.estimable = groupef.estimable,
+    groupef.glm_check = groupef.glm_check,
+    popef.rank        = popef.rank,
+    popef.deficient   = popef.deficient,
+    popef.rank_ok     = popef.rank_ok,
+    group_levels      = g_levs,
+    group_name        = group_name
   )
 }

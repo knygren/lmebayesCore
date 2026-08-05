@@ -38,7 +38,7 @@ named numeric vector per RE component (matches \code{re_names}).}
 \item{inner_sweeps}{Integer. Number of inner Gibbs sweeps per chain.}
 
 \item{design}{List with components \code{y}, \code{D}, \code{group},
-\code{W}, \code{re_coef_names}, and optional \code{group_name}.}
+\code{W}, \code{groupef.names}, and optional \code{group_name}.}
 
 \item{block1_prior}{Block~1 prior list (\code{P} or \code{Sigma},
 \code{dispersion}, optional \code{ddef}).}

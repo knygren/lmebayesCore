@@ -4,18 +4,19 @@
 \alias{extract_lmer_variance_components}
 \title{Extract variance components from an \code{lmer} fit}
 \usage{
-extract_lmer_variance_components(fit, re_coef_names)
+extract_lmer_variance_components(fit, groupef.names)
 }
 \arguments{
 \item{fit}{Object of class \code{"lmerMod"} from \code{\link[lme4]{lmer}}.}
 
-\item{re_coef_names}{Random coefficient names (as in \code{reTrms$cnms}).}
+\item{groupef.names}{Group-effect coefficient names (as in
+\code{reTrms$cnms}).}
 }
 \value{
-List with \code{varcorr}, \code{vcov_re}, and \code{residual_var}.
+List with \code{varcorr}, \code{Psi}, and \code{dispersion}.
 }
 \description{
-Maps \code{lme4::VarCorr()} output to a named vector of random-effect
-variances (aligned with \code{re_coef_names}) plus residual variance.
+Maps \code{lme4::VarCorr()} output to a named vector of group-effect
+variances (aligned with \code{groupef.names}) plus residual variance.
 }
 \keyword{internal}

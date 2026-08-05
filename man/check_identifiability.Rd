@@ -21,14 +21,14 @@ check_identifiability(
 (row-stacked \eqn{D_j}) in \dQuote{Model and notation} below. Must have
 unique, non-empty \code{colnames(D)}: these are the random-effect
 coefficient names used to key \code{W} and \code{pfamily_list}
-(there is no separate \code{re_coef_names} argument to override them).}
+(there is no separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{nrow(D)} (must be a
 \code{factor}); \code{levels(group)} fixes the row order assumed by
-\code{W} and names \code{re_rank}/\code{re_estimable} in the return
-value -- there is no separate \code{group_levels} argument. Unlike
-\code{\link{rLMM_reg}}, \code{group_name} is a separate argument here
-(see below) rather than derived from \code{group} via
+\code{W} and names \code{groupef.rank}/\code{groupef.estimable} in the
+return value -- there is no separate \code{group_levels} argument.
+Unlike \code{\link{rLMM_reg}}, \code{group_name} is a separate argument
+here (see below) rather than derived from \code{group} via
 \code{substitute()}.}
 
 \item{W}{Named list of group-level design matrices (\code{J x q_k}),
@@ -56,23 +56,23 @@ this from \code{\link{model_setup}} introduces no new console output.}
 \value{
 A list with:
 \describe{
-\item{\code{re_rank}}{Named logical, one entry per group (names
+\item{\code{groupef.rank}}{Named logical, one entry per group (names
 \code{levels(group)}): \code{TRUE} if \eqn{D_j} is full column
 rank.}
-\item{\code{re_estimable}}{Named logical, same names as
-\code{re_rank}: \code{TRUE} if the group is additionally estimable
-(see Details).}
-\item{\code{re_glm_check}}{Per-group diagnostic data frame for
+\item{\code{groupef.estimable}}{Named logical, same names as
+\code{groupef.rank}: \code{TRUE} if the group is additionally
+estimable (see Details).}
+\item{\code{groupef.glm_check}}{Per-group diagnostic data frame for
 \code{binomial()}/\code{poisson()}/\code{Gamma()}/\code{gaussian()},
 or \code{NULL} for other families.}
-\item{\code{hyper_rank}}{Named logical, one entry per RE coefficient
+\item{\code{popef.rank}}{Named logical, one entry per RE coefficient
 (names \code{colnames(D)}): \code{TRUE} if \code{W[[k]]} is full
-column rank when restricted to \code{re_estimable} groups.}
-\item{\code{hyper_deficient}}{Negation of \code{hyper_rank}.}
-\item{\code{rank_ok}}{Scalar \code{TRUE} only when every
-\code{hyper_rank} entry is \code{TRUE}.}
+column rank when restricted to \code{groupef.estimable} groups.}
+\item{\code{popef.deficient}}{Negation of \code{popef.rank}.}
+\item{\code{popef.rank_ok}}{Scalar \code{TRUE} only when every
+\code{popef.rank} entry is \code{TRUE}.}
 \item{\code{group_levels}}{\code{levels(group)}, i.e. the exact
-names used on \code{re_rank}/\code{re_estimable}.}
+names used on \code{groupef.rank}/\code{groupef.estimable}.}
 \item{\code{group_name}}{The resolved grouping-factor display name.}
 }
 }
@@ -92,11 +92,12 @@ reference fit.
 \details{
 \strong{Level 1 (within-group).} For each group \eqn{j}, the within-group
 submatrix \eqn{D_j} (\code{D[group == } \eqn{j}\code{, ]}) is checked for
-full column rank (\code{re_rank}). A rank-deficient group has too few
+full column rank (\code{groupef.rank}). A rank-deficient group has too few
 distinct observations to estimate all random slopes independently.
 Algebraically full-rank groups are then additionally checked for
-estimability (\code{re_estimable}, with per-group detail in
-\code{re_glm_check}), with the specific check depending on \code{family}:
+estimability (\code{groupef.estimable}, with per-group detail in
+\code{groupef.glm_check}), with the specific check depending on
+\code{family}:
 \itemize{
 \item \code{binomial()}, \code{poisson()}, \code{Gamma()}: a classical
 \code{glm(y ~ D_j - 1, family)} fit is attempted; a group can be full
@@ -110,19 +111,19 @@ always exists given full column rank), but the group must still have
 \code{n_j > p_j} so the residual variance/dispersion is estimable
 (otherwise the group achieves a perfect/saturated fit with zero
 residual degrees of freedom).
-\item other families: \code{re_estimable} is set equal to \code{re_rank}
-(no additional check yet).
+\item other families: \code{groupef.estimable} is set equal to
+\code{groupef.rank} (no additional check yet).
 }
 
 \strong{Level 2 (across-group).} Restricting to the \strong{estimable}
-groups from Level 1 (\code{re_estimable}), each level-2 design matrix
-\code{W[[k]]} is checked for full column rank (\code{hyper_rank}), using
+groups from Level 1 (\code{groupef.estimable}), each level-2 design matrix
+\code{W[[k]]} is checked for full column rank (\code{popef.rank}), using
 only the rows at the estimable positions (row \eqn{j} of \code{W[[k]]}
 corresponds to \code{levels(group)[j]}, exactly as in
 \code{\link{rLMM_reg}}). Rank deficiency at this level means the level-2
 hyperparameters are not identified by the data, even as the number of
-estimable groups grows. The scalar \code{rank_ok} is \code{TRUE} only when
-every \code{hyper_rank} entry is \code{TRUE}.
+estimable groups grows. The scalar \code{popef.rank_ok} is \code{TRUE}
+only when every \code{popef.rank} entry is \code{TRUE}.
 
 \strong{Inputs must already be consistently keyed.} This function does
 \emph{not} infer or coerce missing names -- it validates them up front and
@@ -131,7 +132,7 @@ match deeper in the rank/estimability computation:
 \itemize{
 \item \code{D} must have unique, non-empty \code{colnames(D)}: these are
 the random-effect coefficient names used to key \code{W} (there is no
-separate \code{re_coef_names} argument to override them, matching
+separate \code{groupef.names} argument to override them, matching
 \code{\link{rLMM_reg}}).
 \item \code{group} must be a \code{factor} (not coerced from a character
 vector); \code{levels(group)} fixes the row order assumed by
@@ -160,7 +161,7 @@ ident <- check_identifiability(
   y = y, D = D, group = group, W = W,
   family = gaussian(), group_name = "group"
 )
-ident$rank_ok
+ident$popef.rank_ok
 }
 \seealso{
 \code{\link{model_setup}}, \code{\link{rLMM_reg}},

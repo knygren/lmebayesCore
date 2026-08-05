@@ -106,7 +106,7 @@ $$y_j = D_j(\mathcal{W}_j\gamma + u_j) + \varepsilon_j = \underbrace{(D_j\mathca
 | $\gamma$ | $\beta$ | fixed effects |
 | $u_j = \beta_j - \mathcal{W}_j\gamma$ | $b_j$ | random effects (mean zero) |
 | $\Psi$ | per-group block of $G$ | $G = I_J \otimes \Psi$ |
-| $\beta_j$ | *(no direct analog)* | closest is `lme4::coef()` output, $\hat\beta + \hat b_j$, computed post hoc |
+| $\beta_j = u_j + \mathcal{W}_j\gamma$ | $\hat\beta + \hat b_j$ | recovered exactly from the two rows above ($u_j \leftrightarrow b_j$, $\gamma \leftrightarrow \beta$); coincides with `lme4::coef()`'s $\hat\beta + \hat b_j$ when $\mathcal{W}_j$ is intercept-only ($q_p = 1\ \forall p$), and generalizes it (via the $\mathcal{W}_j$ weighting) otherwise |
 
 **Note the asymmetry**: $D_j$ has no single `lme4` counterpart — it is
 the common ancestor of both $X_j$ (after right-multiplication by

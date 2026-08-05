@@ -4,18 +4,18 @@
 \alias{classify_crosslevel_re_moderation}
 \title{Classify level-1 fixed interactions as cross-level RE-slope moderation}
 \usage{
-classify_crosslevel_re_moderation(level1_cols, level2_cols, re_coef_names)
+classify_crosslevel_re_moderation(level1_cols, level2_cols, groupef.names)
 }
 \arguments{
 \item{level1_cols}{Character vector of level-1 fixed column names.}
 
 \item{level2_cols}{Character vector of group-constant fixed column names.}
 
-\item{re_coef_names}{Character vector of random-effects coefficient names
+\item{groupef.names}{Character vector of group-effect coefficient names
 from \code{reTrms$cnms}.}
 }
 \value{
-List with \code{re_slope_moderation} (data frame with columns
+List with \code{popef.moderation} (data frame with columns
 \code{interaction_col}, \code{moderator}, \code{random_slope}),
 \code{slope_mean_cols} (main fixed effects that are random slope names,
 i.e. population mean slope terms), and

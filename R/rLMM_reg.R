@@ -106,7 +106,7 @@
 #'   (row-stacked \eqn{D_j}) in \dQuote{Model and notation} below. Must have
 #'   unique, non-empty \code{colnames(D)}: these are the random-effect
 #'   coefficient names used to key \code{W} and \code{pfamily_list}
-#'   (there is no separate \code{re_coef_names} argument to override them).
+#'   (there is no separate \code{groupef.names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
 #'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
 #'   separate \code{group_levels} argument. To use a level order/superset not
@@ -174,7 +174,7 @@ NULL
 
 #' Shared matrix-level validation for LMM replicate-chain engines
 #'
-#' \code{re_coef_names} and \code{group_levels} are no longer separate
+#' \code{groupef.names} and \code{group_levels} are no longer separate
 #' arguments: they are always \code{colnames(D)} and \code{levels(group)}
 #' respectively. \code{group_name} must already be resolved by the caller
 #' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
@@ -210,7 +210,7 @@ NULL
       any(!nzchar(re_names)) || anyDuplicated(re_names)) {
     stop(
       "'D' must have unique, non-empty column names (colnames(D)); ",
-      "there is no 're_coef_names' argument to override this.",
+      "there is no 'groupef.names' argument to override this.",
       call. = FALSE
     )
   }
@@ -528,7 +528,7 @@ NULL
     D             = D,
     group         = factor(group, levels = group_levels),
     W             = W,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     group_name    = group_name
   )
   icm <- .two_block_icm_at_start(
@@ -1057,7 +1057,7 @@ NULL
 #'     RE columns). The ING envelope then fails or is undefined on the full
 #'     \code{p_re} columns; this helper routes deficient schools to prior-only or
 #'     QR-identifiable subsets before calling the sampler.
-#'   \item Optional \code{full_rank} (from \code{design$re_rank}) skips repeated
+#'   \item Optional \code{full_rank} (from \code{design$groupef.rank}) skips repeated
 #'     QR when rank was computed once at setup.
 #' }
 #'
@@ -1914,9 +1914,9 @@ NULL
     D             = inp$D,
     group         = factor(group, levels = group_levels),
     W             = inp$W,
-    re_coef_names = re_names,
+    groupef.names = re_names,
     group_name    = group_name,
-    re_rank       = .lmebayes_re_rank_from_Z(
+    groupef.rank  = .lmebayes_groupef_rank_from_Z(
       inp$D, group, group_levels = group_levels
     )
   )
@@ -2408,7 +2408,7 @@ NULL
       stop("'fixef_start' must be a named list.", call. = FALSE)
     }
     if (!setequal(names(fixef_start), inp$re_names)) {
-      stop("names(fixef_start) must match re_coef_names.", call. = FALSE)
+      stop("names(fixef_start) must match groupef.names.", call. = FALSE)
     }
     fixef_mode <- fixef_start[inp$re_names]
   }
@@ -2447,7 +2447,7 @@ NULL
     D             = inp$D,
     group         = factor(group, levels = inp$group_levels),
     W             = inp$W,
-    re_coef_names = inp$re_names,
+    groupef.names = inp$re_names,
     group_name    = inp$group_name
   )
 
@@ -2582,7 +2582,7 @@ NULL
     D             = inp$D,
     group         = factor(group, levels = inp$group_levels),
     W             = inp$W,
-    re_coef_names = inp$re_names,
+    groupef.names = inp$re_names,
     group_name    = inp$group_name
   )
 
@@ -3086,7 +3086,7 @@ rLMMindepNormalGamma_reg <- function(
     mu_all_last            = build_mu_all(
       list(
         W             = inp$W,
-        re_coef_names = re_names,
+        groupef.names = re_names,
         group         = factor(group, levels = inp$group_levels)
       ),
       fixef_cur,
@@ -3290,7 +3290,7 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     iters_fixef_draws      = v2_out$iters_fixef_draws,
     iters_ranef_draws      = v2_out$iters_ranef_draws,
     mu_all_last            = v2_out$mu_all_last,
-    re_coef_names          = re_names,
+    groupef.names          = re_names,
     group_levels           = group_levels,
     n                      = n
   )

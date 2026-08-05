@@ -8,11 +8,11 @@
 #' where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 #' (Block 2 state).
 #'
-#' @param design List with components \code{W}, \code{re_coef_names},
+#' @param design List with components \code{W}, \code{groupef.names},
 #'   and \code{group} (typically supplied by a downstream mixed-effects
 #'   model setup step).
 #' @param fixef Named list of hyper-parameter vectors, one entry per RE column
-#'   of \code{D}. Names must match \code{design$re_coef_names}. Each
+#'   of \code{D}. Names must match \code{design$groupef.names}. Each
 #'   \code{fixef[[k]]} is a numeric vector of length \code{ncol(W[[k]])}
 #'   with names matching \code{colnames(W[[k]])}.
 #' @param group_levels Character vector of grouping levels defining the
@@ -28,9 +28,9 @@
 #'   \describe{
 #'     \item{\code{mu_all}}{Numeric matrix \code{p_re x J} (\code{p_re} =
 #'       number of RE columns, \code{J} = number of groups). Row names are
-#'       \code{design$re_coef_names}; column names are \code{group_levels} in
+#'       \code{design$groupef.names}; column names are \code{group_levels} in
 #'       the order supplied.}
-#'     \item{\code{re_coef_names}}{Copy of \code{design$re_coef_names}.}
+#'     \item{\code{groupef.names}}{Copy of \code{design$groupef.names}.}
 #'     \item{\code{group_levels}}{Grouping levels used for columns.}
 #'   }
 #' @seealso \code{\link{lmerb_posterior_mean}},
@@ -47,11 +47,11 @@ build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
     }
     x_hyper <- lapply(design$W, as.matrix)
     mu_all <- .two_block_build_mu_all_cpp(
-      x_hyper, fixef, design$re_coef_names, group_levels
+      x_hyper, fixef, design$groupef.names, group_levels
     )
     return(list(
       mu_all        = mu_all,
-      re_coef_names = design$re_coef_names,
+      groupef.names = design$groupef.names,
       group_levels  = group_levels
     ))
   }
@@ -68,7 +68,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
     stop("'fixef' must be a named list with one element per RE column.", call. = FALSE)
   }
 
-  re <- design$re_coef_names
+  re <- design$groupef.names
   Xh <- design$W
 
   if (length(re) < 1L) {
@@ -82,7 +82,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
   }
   if (!setequal(names(fixef), re)) {
     stop(
-      "names(fixef) must match design$re_coef_names: ",
+      "names(fixef) must match design$groupef.names: ",
       paste(re, collapse = ", "),
       call. = FALSE
     )
@@ -164,7 +164,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
 
   list(
     mu_all        = mu_all,
-    re_coef_names = re,
+    groupef.names = re,
     group_levels  = group_levels
   )
 }
@@ -174,7 +174,7 @@ build_mu_all_r <- function(design, fixef, group_levels = NULL) {
   if (!is.list(design)) {
     stop("'design' must be a list.", call. = FALSE)
   }
-  for (nm in c("W", "re_coef_names", "group")) {
+  for (nm in c("W", "groupef.names", "group")) {
     if (is.null(design[[nm]])) {
       stop("'design' must contain '", nm, "'.", call. = FALSE)
     }

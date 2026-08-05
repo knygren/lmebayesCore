@@ -72,16 +72,16 @@ form_lmer <- score_ppvt ~
 ##    Ex_13/Ex_14 -- school_id 2/18 do not need to be excluded here.
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
-full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
+full_rank_schools <- names(design_all$groupef.rank)[design_all$groupef.rank]
 cat(sprintf(
   "\n=== Full-rank filter: %d of %d schools kept ===\n",
   length(full_rank_schools),
-  length(design_all$re_rank)
+  length(design_all$groupef.rank)
 ))
-if (length(full_rank_schools) < length(design_all$re_rank)) {
+if (length(full_rank_schools) < length(design_all$groupef.rank)) {
   cat(
     "  Dropped:",
-    paste(names(design_all$re_rank)[!design_all$re_rank], collapse = ", "),
+    paste(names(design_all$groupef.rank)[!design_all$groupef.rank], collapse = ", "),
     "\n"
   )
 }
@@ -99,7 +99,7 @@ dat$school_id <- droplevels(dat$school_id)
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
-stopifnot(all(design$re_rank))
+stopifnot(all(design$groupef.rank))
 
 ps <- Prior_Setup_lmebayes(
   form_lmer,
@@ -123,7 +123,7 @@ pf <- pfamily_list(ps)
 grp <- design$group
 attr(grp, "group_name") <- design$group_name
 group_levels <- levels(grp)
-re_names     <- design$re_coef_names
+re_names     <- design$groupef.names
 
 ## sigma2_group is a diagnostic-only field in Prior_Setup_lmebayes(); here we
 ## deliberately treat it as KNOWN/fixed and pass it straight through as

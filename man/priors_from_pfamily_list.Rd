@@ -14,7 +14,7 @@ priors_from_pfamily_list(
 }
 \arguments{
 \item{pfamily_list}{Named list of Block~2 \code{pfamily} objects, one per
-random-effect coefficient in \code{design$re_coef_names}.}
+random-effect coefficient in \code{design$groupef.names}.}
 
 \item{dispersion_ranef}{Block~1 dispersion spec, as accepted by
 \code{.lmebayes_resolve_dispersion_ranef()} (\code{NULL}, a single
@@ -32,7 +32,7 @@ named list of \code{dGamma()} pfamily objects).}
 A list (the \code{prior} object) with elements:
 \describe{
 \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
-\code{design$re_coef_names} and with each component's
+\code{design$groupef.names} and with each component's
 \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
 column order of the corresponding \code{design$W[[k]]}. Safe
 to pass straight through to the matrix-level samplers.}
@@ -74,14 +74,14 @@ carried on the \code{dispersion_ranef} list (if any), describing how
 each group's \code{disp_lower}/\code{disp_upper} truncation window
 was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
 \item{\code{Sigma_ranef}}{A \code{p_re x p_re} diagonal matrix (row/
-column names \code{design$re_coef_names}) holding each component's
+column names \code{design$groupef.names}) holding each component's
 Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
 the random-effect prior covariance implied by \code{pfamily_list}.
 Its inverse is the Block~2 random-effect prior precision the
 matrix-level samplers derive internally from \code{pfamily_list}
 (there is no separate \code{P} argument).}
 \item{\code{prior_list}}{A named list (one entry per
-\code{design$re_coef_names}), each a list with \code{mu_fixef}
+\code{design$groupef.names}), each a list with \code{mu_fixef}
 (numeric vector, the Block~2 hyperparameter prior mean),
 \code{Sigma_fixef} (matrix, the Block~2 hyperparameter prior
 covariance), and \code{dispersion_fixef} (scalar, the same
@@ -90,7 +90,7 @@ covariance), and \code{dispersion_fixef} (scalar, the same
 \code{pfamily_list}'s contents keyed for direct use elsewhere (e.g.
 ICM reporting).}
 \item{\code{ptypes}}{A named character vector (names
-\code{design$re_coef_names}), each entry either \code{"dNormal"} or
+\code{design$groupef.names}), each entry either \code{"dNormal"} or
 \code{"dIndependent_Normal_Gamma"} -- the \code{pfamily} type of the
 corresponding Block~2 component.}
 \item{\code{any_non_normal}}{Logical scalar: \code{TRUE} if any
@@ -120,7 +120,7 @@ length to one of the \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}/
 \code{"gamma"}/\code{"gamma_list"} Block~1 dispersion modes described
 under \code{dispersion_mode} below).
 \item Validates that \code{pfamily_list} has exactly one entry per
-random-effect coefficient in \code{design$re_coef_names} (by name, not
+random-effect coefficient in \code{design$groupef.names} (by name, not
 position) and reorders it to that canonical order.
 \item For each random-effect component, checks that its \code{pfamily}
 is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other

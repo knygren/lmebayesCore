@@ -96,7 +96,7 @@ length is used.}
 \item{D}{Level-1 design matrix (\code{l2 x p_re}). Must have unique,
 non-empty \code{colnames(D)}: these are the random-effect coefficient
 names used to key \code{W} and \code{pfamily_list} (there is no
-separate \code{re_coef_names} argument to override them).}
+separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
 \code{levels(group)} fixes the row order of Block~1 draws -- there is no

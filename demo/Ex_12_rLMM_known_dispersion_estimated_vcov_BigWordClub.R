@@ -116,7 +116,7 @@ fit <- rLMMNormal_reg_estimated_vcov(
   verbose      = TRUE
 )
 
-re_names <- design$re_coef_names
+re_names <- design$groupef.names
 n_draws  <- nrow(fit$fixef[[re_names[1L]]])
 
 stopifnot(isTRUE(fit$any_non_normal))
@@ -205,7 +205,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  group_name = design$group_name, re_coef_names = re_names,
+  group_name = design$group_name, groupef.names = re_names,
   lambda_spec = lambda_spec
 )
 

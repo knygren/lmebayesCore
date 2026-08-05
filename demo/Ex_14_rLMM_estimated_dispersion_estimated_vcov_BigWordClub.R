@@ -51,16 +51,16 @@ form_lmer <- score_ppvt ~
 ##    independently of this demo).
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
-full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
+full_rank_schools <- names(design_all$groupef.rank)[design_all$groupef.rank]
 cat(sprintf(
   "\n=== Full-rank filter: %d of %d schools kept ===\n",
   length(full_rank_schools),
-  length(design_all$re_rank)
+  length(design_all$groupef.rank)
 ))
-if (length(full_rank_schools) < length(design_all$re_rank)) {
+if (length(full_rank_schools) < length(design_all$groupef.rank)) {
   cat(
     "  Dropped:",
-    paste(names(design_all$re_rank)[!design_all$re_rank], collapse = ", "),
+    paste(names(design_all$groupef.rank)[!design_all$groupef.rank], collapse = ", "),
     "\n"
   )
 }
@@ -92,7 +92,7 @@ if (length(drop)) {
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
-stopifnot(all(design$re_rank))
+stopifnot(all(design$groupef.rank))
 
 ps <- Prior_Setup_lmebayes(
   form_lmer,
@@ -134,7 +134,7 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 group_levels <- levels(grp)
-re_names     <- design$re_coef_names
+re_names     <- design$groupef.names
 p_re         <- length(re_names)
 
 shape_group      <- stats::setNames(numeric(length(group_levels)), group_levels)
@@ -379,7 +379,7 @@ lambda_ing <- stats::setNames(lapply(re_names, function(k) {
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   fit, y = design$y, D = design$D, group = grp,
-  group_name = design$group_name, re_coef_names = re_names
+  group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
   1 / fit$dispersion_ranef.mean[group_levels], group_levels
@@ -450,7 +450,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  group_name = design$group_name, re_coef_names = re_names,
+  group_name = design$group_name, groupef.names = re_names,
   y = design$y, D = design$D,
   lambda_spec = lambda_spec, omega_spec = omega_spec
 )

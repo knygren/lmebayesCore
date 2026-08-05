@@ -12,7 +12,7 @@
 ## invented one): mu_j[k] stands in for the model's own conditional prior
 ## mean for b_j, W_j[[k]] %*% gamma_k (the Block~2 hyper-regression).
 ## gamma_k's own prior uncertainty is already calibrated at
-## ps$prior_list[[k]]$Sigma_fixef (the same object pfamily_list(ps) uses to
+## ps$pop.prior_list[[k]]$Sigma_fixef (the same object pfamily_list(ps) uses to
 ## build pf below), so the "fixed, known uncertainty about mu_j" Part VI
 ## asks for is exactly that existing Sigma_fixef propagated through group
 ## j's own hyper-design row:
@@ -37,7 +37,7 @@
 ## .lmebayes_ing_prior_measurement_group_glm_inputs() and
 ## .lmebayes_compute_ing_prior_cal_from_sigma()) is kept as a from-scratch
 ## worked derivation for comparison, and its shape/rate should now match
-## ps$ing_prior_measurement_group's own values (only the window construction
+## ps$group.ing_prior's own values (only the window construction
 ## still differs -- see the comparison table below).
 ##
 ##   demo("Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI", package = "lmebayesCore")
@@ -80,16 +80,16 @@ form_lmer <- score_ppvt ~
 ##    data-raw/_scratch_retest_school18.R), so the drop is removed.
 ## ---------------------------------------------------------------------------
 design_all <- model_setup(form_lmer, data = dat)
-full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
+full_rank_schools <- names(design_all$groupef.rank)[design_all$groupef.rank]
 cat(sprintf(
   "\n=== Full-rank filter: %d of %d schools kept ===\n",
   length(full_rank_schools),
-  length(design_all$re_rank)
+  length(design_all$groupef.rank)
 ))
-if (length(full_rank_schools) < length(design_all$re_rank)) {
+if (length(full_rank_schools) < length(design_all$groupef.rank)) {
   cat(
     "  Dropped:",
-    paste(names(design_all$re_rank)[!design_all$re_rank], collapse = ", "),
+    paste(names(design_all$groupef.rank)[!design_all$groupef.rank], collapse = ", "),
     "\n"
   )
 }
@@ -101,39 +101,39 @@ dat$school_id <- droplevels(dat$school_id)
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s per-group Block~1 calibration
-## (ing_prior_measurement_group), consumed below by the Part VI extension
+## (group.ing_prior), consumed below by the Part VI extension
 ## (in place of Ex_13's direct dGamma_list() call).
 ##
-## alpha_target_measurement = 0.01 (the package default; spelled out here
-## for clarity) folds the group-specific pwt_measurement search --
+## group.alpha_target = 0.01 (the package default; spelled out here
+## for clarity) folds the group-specific group.pwt search --
 ## previously a hand-rolled ps_flat -> tab_pwt -> w_pwt_vec -> ps two-pass
 ## dance sourcing data-raw/_scratch_group_pwt_measurement_noncentral.R --
 ## directly into this single Prior_Setup_lmebayes() call: it searches, per
-## group, for the smallest pwt_measurement driving the predicted ellipsoid
+## group, for the smallest group.pwt driving the predicted ellipsoid
 ## violation rate (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 16.6) down to
-## 1%, floored at pwt_measurement = 0.1 below. 'ps' is what the Part VI
+## 1%, floored at group.pwt = 0.1 below. 'ps' is what the Part VI
 ## derivation (2d) and the sampler (Section 5) actually consume.
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
-stopifnot(all(design$re_rank))
+stopifnot(all(design$groupef.rank))
 
-## Same max_disp_perc_measurement = 0.8 as Ex_13 (Prior_Setup_lmebayes()'s own per-group
+## Same group.max_disp_perc = 0.8 as Ex_13 (Prior_Setup_lmebayes()'s own per-group
 ## sigma2_hat calibration is unchanged by Part VI -- only the window built
-## from it, below, differs). pwt_measurement = 0.1 here is only the floor
-## the alpha_target_measurement calibration below sharpens from -- it is
+## from it, below, differs). group.pwt = 0.1 here is only the floor
+## the group.alpha_target calibration below sharpens from -- it is
 ## not necessarily what the Part VI derivation/sampler end up using.
 ps <- Prior_Setup_lmebayes(
   form_lmer,
   data            = dat,
-  pwt             = 0.01,
+  pop.pwt         = 0.01,
   dispformula     = ~school_id,
-  max_disp_perc_measurement = 0.8,
-  pwt_measurement = 0.1,
-  alpha_target_measurement  = 0.01
+  group.max_disp_perc = 0.8,
+  group.pwt       = 0.1,
+  group.alpha_target  = 0.01
 )
-cat("\n=== Prior_Setup_lmebayes (pwt_measurement calibrated to alpha_target_measurement = 0.01) ===\n\n")
+cat("\n=== Prior_Setup_lmebayes (group.pwt calibrated to group.alpha_target = 0.01) ===\n\n")
 print(ps)
 
 ## group_name is not a formal on the routed export; attach it to 'group'
@@ -142,7 +142,7 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 group_levels <- levels(grp)
-re_names     <- design$re_coef_names
+re_names     <- design$groupef.names
 p_re         <- length(re_names)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
@@ -158,8 +158,8 @@ pf <- pfamily_list(ps)
 ##     Omega_j folded in (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI).
 ##
 ## Built from the TAILORED 'ps' (2c) -- n_prior_j below (via
-## ps$ing_prior_measurement_group[[lev]]$n_prior) picks up each group's own
-## calibrated pwt_measurement automatically.
+## ps$group.ing_prior[[lev]]$n_prior) picks up each group's own
+## calibrated group.pwt automatically.
 ##
 ## Reproduces dGamma_list(ps, disp_upper_anchor = "symmetric")'s own two
 ## internal calls (.lmebayes_ing_prior_measurement_group_glm_inputs(),
@@ -170,13 +170,13 @@ pf <- pfamily_list(ps)
 ##
 ## COMMENTED OUT: not consumed downstream (Section 3 reads dGamma_list(ps)
 ## directly, see the UPDATE note there) -- this was purely an independent
-## from-scratch check against ps$ing_prior_measurement_group. Left here,
+## from-scratch check against ps$group.ing_prior. Left here,
 ## disabled, in case it's needed again rather than deleted outright.
 ## ---------------------------------------------------------------------------
 # max_disp_perc <- 0.8
 # block_formula <- ps$block_formula
 # sd_tau        <- sqrt(diag(ps$Sigma_ranef))
-# re_names_all  <- design$re_coef_names
+# re_names_all  <- design$groupef.names
 # group_levels0 <- levels(dat$school_id)
 #
 # part_vi_group <- stats::setNames(
@@ -187,7 +187,7 @@ pf <- pfamily_list(ps)
 #       family = gaussian(), intercept_source = "null_model", effects_source = "null_effects"
 #     )
 #     n_j          <- inp$n_j
-#     n_prior_j    <- ps$ing_prior_measurement_group[[lev]]$n_prior
+#     n_prior_j    <- ps$group.ing_prior[[lev]]$n_prior
 #     n_combined_j <- n_prior_j + n_j
 #     p_re         <- length(sd_tau)
 #
@@ -204,12 +204,12 @@ pf <- pfamily_list(ps)
 #     }
 #
 #     ## Part VI: model-derived Omega_j, diagonal across RE components (each
-#     ## gamma_k calibrated independently in pf/ps$prior_list).
+#     ## gamma_k calibrated independently in pf/ps$pop.prior_list).
 #     Omega_j <- matrix(0, nrow = length(inp$var_names), ncol = length(inp$var_names),
 #                        dimnames = list(inp$var_names, inp$var_names))
 #     for (k in re_names_all) {
 #       Wk_row <- design$W[[k]][lev, , drop = FALSE]
-#       Sigma_fixef_k <- ps$prior_list[[k]]$Sigma_fixef
+#       Sigma_fixef_k <- ps$pop.prior_list[[k]]$Sigma_fixef
 #       Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
 #     }
 #
@@ -339,9 +339,9 @@ source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_
 ## that draw's own beta_j -- see .tmp_rss_ellipsoid_test_marginal()'s header
 ## comment. pct_outside_prerun/diff_vs_prerun compare this POST-RUN empirical
 ## rate against Prior_Setup_lmebayes()'s own PRE-RUN (plug-in Monte Carlo)
-## prediction, ps$pwt_measurement_calibration$pct_outside_after -- the whole
+## prediction, ps$group.pwt_calibration$pct_outside_after -- the whole
 ## point of calibrating disp_lower_group/disp_upper_group was to keep this
-## below alpha_target_measurement, so this is the check on whether that
+## below group.alpha_target, so this is the check on whether that
 ## prediction held up against the real posterior.
 tab_13b_marginal <- .tmp_rss_ellipsoid_test_marginal(
   fit                         = fit,
@@ -354,7 +354,7 @@ tab_13b_marginal <- .tmp_rss_ellipsoid_test_marginal(
   rate_group                  = rate_group,
   disp_lower_group            = disp_lower_group,
   disp_upper_group            = disp_upper_group,
-  pwt_measurement_calibration = ps$pwt_measurement_calibration
+  pwt_measurement_calibration = ps$group.pwt_calibration
 )
 cat("\n=== Ellipsoid check (Omega integrated out exactly, Section 16.6) ===\n\n")
 print(tab_13b_marginal[order(-tab_13b_marginal$pct_draws_outside), ],
@@ -513,7 +513,7 @@ cat(
 n_group  <- stats::setNames(as.numeric(table(grp)), group_levels)
 e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   fit, y = design$y, D = design$D, group = grp,
-  group_name = design$group_name, re_coef_names = re_names
+  group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
   1 / fit$dispersion_ranef.mean[group_levels], group_levels
@@ -564,7 +564,7 @@ rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   x = design$D, block = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
-  group_name = design$group_name, re_coef_names = re_names,
+  group_name = design$group_name, groupef.names = re_names,
   y = design$y, D = design$D,
   omega_spec = omega_spec
 )

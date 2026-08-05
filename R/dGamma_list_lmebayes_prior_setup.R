@@ -5,7 +5,8 @@
 #' \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 #'
 #' Prior density (\code{shape_ING}, \code{rate}) both come from
-#' \code{object$ing_prior_measurement_group}, calibrated once in
+#' \code{object$group.ing_prior} (the per-group shape, when
+#' \code{dispformula} requested per-group dispersion), calibrated once in
 #' \code{\link{Prior_Setup_lmebayes}()} via
 #' \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
 #' extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
@@ -30,7 +31,7 @@
 #'   \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
 #'   per group level). \code{NULL} reuses each group's own stored
 #'   \code{disp_lower}/\code{disp_upper} (the value
-#'   \code{object$ing_prior_measurement_group[[lev]]$max_disp_perc} was
+#'   \code{object$group.ing_prior[[lev]]$max_disp_perc} was
 #'   calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
 #'   scalar or vector recomputes the bounds as fresh quantiles of the same
 #'   posterior-shape \code{Gamma(shape_ING + n_j/2, rate_post)} (see above),
@@ -74,7 +75,7 @@
 #'   ps <- Prior_Setup_lmebayes(
 #'     score_ppvt ~ private_school + (1 | school_id),
 #'     data = dat,
-#'     pwt_measurement = 0.01,
+#'     group.pwt = 0.01,
 #'     dispformula = ~school_id
 #'   )
 #'   disp_pf <- dGamma_list(ps)
@@ -96,11 +97,11 @@ dGamma_list.lmebayes_prior_setup <- function(
     )
   }
 
-  ing_grp <- object$ing_prior_measurement_group
-  if (is.null(ing_grp)) {
+  ing_grp <- object$group.ing_prior
+  if (is.null(ing_grp) || !.lmebayes_ing_prior_is_grouped(ing_grp)) {
     grp_nm <- object$design$group_name
     stop(
-      "object has no ing_prior_measurement_group; call Prior_Setup_lmebayes(",
+      "object's group.ing_prior is not per-group; call Prior_Setup_lmebayes(",
       "..., dispformula = ~", if (!is.null(grp_nm)) grp_nm else "<group_name>",
       ") on a Gaussian model to calibrate per-group measurement-dispersion ",
       "priors (dispformula = ~1, the default, skips this calibration).",
@@ -134,7 +135,7 @@ dGamma_list.lmebayes_prior_setup <- function(
       ## The bounds stored on g were computed at g$max_disp_perc; if the
       ## caller asks for a different value for this group, recompute fresh
       ## quantiles of Gamma(shape_ING + n_j/2, rate_post) -- the posterior-
-      ## shape window (see Prior_Setup_lmebayes()'s ing_prior_measurement_group
+      ## shape window (see Prior_Setup_lmebayes()'s group.ing_prior
       ## docs), NOT g$shape_ING/g$rate directly (those are the prior fed to
       ## the sampler, unchanged) -- rather than reusing the stored bounds.
       mdp_lev <- if (!is.null(mdp_override)) {
