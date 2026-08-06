@@ -257,30 +257,16 @@ retained in the \code{lmer}/\code{glmer} fit;
 and requires \code{popef.rank_ok = TRUE} to derive default hyperpriors
 automatically.
 
-The example uses \code{big_word_club} from the Suggested package
-\pkg{bayesrules} (see \code{?bayesrules::big_word_club}) and the same
+The example uses \code{big_word_club} from \pkg{bayesrules}
+(see \code{?bayesrules::big_word_club}) and the same
 formula as the full \code{lmerb()} demo in lmebayes
 (\code{demo("Ex_12_lmerb_BigWordClub", package = "lmebayes")}).
 }
 \examples{
-\dontshow{if (requireNamespace("bayesrules", quietly = TRUE)) withAutoprint(\{ # examplesIf}
-\dontshow{\}) # examplesIf}
-## model_setup() on bayesrules::big_word_club
+## model_setup() — design + reference lmer (Ex_13b / big_word_club)
 ##
-## Same model as the full lmerb demo, demo/Ex_12_lmerb_BigWordClub.R (see
-## also Prior_Setup_GLMM / lmerb development scripts in data-raw/).
-##
-## Level 1 (students):
-##   y ~ b0[j] + b_ppvt[j]*distracted_ppvt + b_a1[j]*distracted_a1
-##
-## Level 2 (schools):
-##   b0[j]      ~ private_school + title1 + free_reduced_lunch + u0[j]
-##   b_ppvt[j]  ~ 1 + u_ppvt[j]
-##   b_a1[j]    ~ 1 + free_reduced_lunch + u_a1[j]
-##                 (cross-level: free_reduced_lunch:distracted_a1 in formula)
-##
-## Each random slope has a matching fixed main effect (required for
-## Prior_Setup_GLMM() default calibration).
+## Same formula and data cleaning as
+## demo("Ex_13b_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI").
 
 data(big_word_club, package = "bayesrules")
 
@@ -298,145 +284,26 @@ dat <- subset(
 
 form_lmer <- score_ppvt ~
   private_school + title1 + free_reduced_lunch +
-  distracted_a1 + distracted_ppvt +
+  distracted_ppvt + distracted_a1 +
   free_reduced_lunch:distracted_a1 +
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
-ctrl_bobyqa <- lme4::lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
-
-## ---------------------------------------------------------------------------
-## 1. lmer fit: raw output
-## ---------------------------------------------------------------------------
-cat("--- lmer fit ---\n")
-fit <- lme4::lmer(form_lmer, data = dat, control = ctrl_bobyqa)
-print(summary(fit))
-
-cat("\n--- fixef(fit): population-level (gamma) estimates ---\n")
-print(lme4::fixef(fit))
-
-cat("\n--- coef(fit): per-group coefficients (fixef + ranef) ---\n")
-print(coef(fit))
-
-## ---------------------------------------------------------------------------
-## 2. model_setup: structured view of the same model
-## ---------------------------------------------------------------------------
-design <- model_setup(form_lmer, data = dat, control = ctrl_bobyqa)
+## Default: design matrices + reference lmer + identifiability
+design <- model_setup(form_lmer, data = dat)
 print(design)
 
-## ---------------------------------------------------------------------------
-## 3. Random effects b[j]: first 10 schools
-## ---------------------------------------------------------------------------
-cat("--- Random effects b[j]: first 10", design$group_name, "---\n")
-re_df <- as.data.frame(lme4::ranef(design$lmer)[[design$group_name]])
-print(utils::head(re_df, 10))
-
-## ---------------------------------------------------------------------------
-## 4. Gamma estimates organised to match the Random Effects Model above
-##
-##    Mapping (intercept RE): W columns map directly to fixef() names.
-##    Mapping (slope RE, hyper ~ 1): (Intercept) column -> fixef[slope_name].
-## ---------------------------------------------------------------------------
-cat("\n--- Random effects model (gamma estimates) ---\n")
-
-fe         <- lme4::fixef(design$lmer)
-coef_df    <- coef(design$lmer)[[design$group_name]]
-coef_means <- colMeans(coef_df)
-coef_vars  <- apply(coef_df, 2L, var)
-coef_sds   <- sqrt(coef_vars)
-w          <- max(nchar(design$groupef.names))
-
-for (nm in design$groupef.names) {
-  Xj    <- design$W[[nm]]
-  other <- setdiff(colnames(Xj), "(Intercept)")
-  hyper_rhs <- if (length(other) == 0L) "1" else paste(c("1", other), collapse = " + ")
-
-  gamma <- setNames(
-    vapply(colnames(Xj), function(col) {
-      if (nm == "(Intercept)") {
-        if (col \%in\% names(fe)) unname(fe[col]) else 0
-      } else if (col == "(Intercept)") {
-        if (nm \%in\% names(fe)) unname(fe[nm]) else unname(coef_means[nm])
-      } else {
-        cand <- c(paste0(col, ":", nm), paste0(nm, ":", col))
-        hit  <- cand[cand \%in\% names(fe)]
-        if (length(hit)) unname(fe[hit[1L]]) else 0
-      }
-    }, numeric(1L)),
-    colnames(Xj)
-  )
-
-  cat(sprintf("  \%-*s ~ \%s\n", w, nm, hyper_rhs))
-  print(gamma)
-  cat("\n")
-}
-
-## ---------------------------------------------------------------------------
-## 5. Empirical SD/variance of per-school coefficients vs lmer VarCorr
-## ---------------------------------------------------------------------------
-cat("--- Between-school SD of random coefficients vs lmer VarCorr ---\n")
-vc <- as.data.frame(lme4::VarCorr(design$lmer))
-cat(sprintf("  \%-16s  empirical_sd=\%7.4f  empirical_var=\%8.4f  lmer_sd=\%7.4f  lmer_var=\%8.4f\n",
-            "(Intercept)",
-            coef_sds["(Intercept)"], coef_vars["(Intercept)"],
-            vc$sdcor[vc$var1 == "(Intercept)" & is.na(vc$var2)][1L],
-            vc$vcov[vc$var1  == "(Intercept)" & is.na(vc$var2)][1L]))
-for (nm in setdiff(design$groupef.names, "(Intercept)")) {
-  if (!nm \%in\% colnames(coef_df)) next
-  lmer_row <- vc[vc$var1 == nm & is.na(vc$var2), ]
-  cat(sprintf("  \%-16s  empirical_sd=\%7.4f  empirical_var=\%8.4f  lmer_sd=\%7.4f  lmer_var=\%8.4f\n",
-              nm,
-              coef_sds[nm], coef_vars[nm],
-              if (nrow(lmer_row)) lmer_row$sdcor[1L] else NA_real_,
-              if (nrow(lmer_row)) lmer_row$vcov[1L]  else NA_real_))
-}
-
-## ---------------------------------------------------------------------------
-## 6. lmer refitted on full-rank schools only (same subset as Prior_Setup)
-## ---------------------------------------------------------------------------
-cat("\n--- lmer refit: full-rank schools only ---\n")
-full_rank_schools <- names(design$groupef.rank)[design$groupef.rank]
-cat(sprintf("  Using \%d of \%d schools (dropping rank-deficient: \%s)\n\n",
-            length(full_rank_schools),
-            nlevels(design$group),
-            paste(names(design$groupef.rank)[!design$groupef.rank], collapse = ", ")))
-
-dat_fr <- subset(dat, school_id \%in\% full_rank_schools)
+## Full-rank filter (same as Ex_13b before prior setup / sampling)
+full_rank <- names(design$groupef.rank)[design$groupef.rank]
+dat_fr <- subset(dat, school_id \%in\% full_rank)
 dat_fr$school_id <- droplevels(dat_fr$school_id)
-fit_fr <- lme4::lmer(form_lmer, data = dat_fr, control = ctrl_bobyqa)
-print(summary(fit_fr))
+design_fr <- model_setup(form_lmer, data = dat_fr)
+stopifnot(all(design_fr$groupef.rank))
+print(design_fr)
 
-cat("\n--- VarCorr comparison: all schools vs full-rank schools only ---\n")
-vc_fr <- as.data.frame(lme4::VarCorr(fit_fr))
-cat(sprintf("  \%-16s  all_schools_sd=\%7.4f  full_rank_sd=\%7.4f\n",
-            "(Intercept)",
-            vc$sdcor[vc$var1 == "(Intercept)" & is.na(vc$var2)][1L],
-            vc_fr$sdcor[vc_fr$var1 == "(Intercept)" & is.na(vc_fr$var2)][1L]))
-for (nm in setdiff(design$groupef.names, "(Intercept)")) {
-  row_all <- vc[vc$var1 == nm & is.na(vc$var2), ]
-  row_fr  <- vc_fr[vc_fr$var1 == nm & is.na(vc_fr$var2), ]
-  cat(sprintf("  \%-16s  all_schools_sd=\%7.4f  full_rank_sd=\%7.4f\n",
-              nm,
-              if (nrow(row_all)) row_all$sdcor[1L] else NA_real_,
-              if (nrow(row_fr))  row_fr$sdcor[1L]  else NA_real_))
-}
-
-## ===========================================================================
-## 7. Optional stress test (NOT the lmerb example model): esl_observed RE
-## ===========================================================================
-cat("\n\n=== Section 7 (optional): esl_observed added as random slope ===\n\n")
-
-dat_esl <- subset(
-  dat,
-  complete.cases(dat[, c("esl_observed")])
-)
-form_esl <- score_ppvt ~
-  private_school + title1 + free_reduced_lunch +
-  distracted_a1 + distracted_ppvt +
-  free_reduced_lunch:distracted_a1 + esl_observed +
-  (1 + distracted_ppvt + distracted_a1 + esl_observed || school_id)
-
-design_esl <- model_setup(form_esl, data = dat_esl, control = ctrl_bobyqa)
-print(design_esl)
+## Variation: design only (no reference merMod fit)
+design_only <- model_setup(form_lmer, data = dat_fr, fit_mer = FALSE)
+stopifnot(is.null(design_only$lmer))
+names(design_only$W)
 }
 \seealso{
 \code{\link{check_identifiability}},

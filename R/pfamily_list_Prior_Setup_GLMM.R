@@ -1,96 +1,32 @@
-#' Build pfamily objects from a Prior_Setup_GLMM object
-#'
-#' Converts the per-component Block~2 hyperprior parameters stored in a
-#' \code{\link{Prior_Setup_GLMM}} object into a named list of
-#' \code{\link[glmbayesCore]{pfamily}} objects, one per random-effect coefficient (e.g.
-#' \code{"(Intercept)"}, slope names).
-#'
-#' For each random-effect coefficient \eqn{k}, the prior parameters come
-#' from \code{object$pop.prior_list[[k]]}:
+#' @rdname pfamily_list
+#' @order 2
+#' @details
+#' For a \code{\link{Prior_Setup_GLMM}} object, each group-effect
+#' coefficient \eqn{k} uses parameters from
+#' \code{object$pop.prior_list[[k]]}:
 #' \itemize{
-#'   \item \code{"dNormal"}: \code{dNormal(mu = mu, Sigma =
-#'     Sigma, dispersion = dispersion)}.  The Block~2
-#'     dispersion (the random-effect variance \eqn{\tau^2_k}) is treated
-#'     as known.
+#'   \item \code{"dNormal"}: \code{dNormal(mu, Sigma, dispersion)} with
+#'     known group-effect variance \eqn{\tau^2_k}.
 #'   \item \code{"dIndependent_Normal_Gamma"}: the same \code{mu} and
-#'     \code{Sigma}, plus a Gamma prior on the Block~2 precision
-#'     \eqn{1/\tau^2_k} calibrated with the same convention as
-#'     \code{\link[glmbayesCore]{Prior_Setup}}.  The per-component effective prior sample
-#'     size \eqn{n_0} is taken from \code{object$pop.dispersion.nprior[[k]]}
-#'     (set by \code{\link{Prior_Setup_GLMM}} via \code{pop.dispersion.pwt} /
-#'     \code{pop.dispersion.nprior}, derived from \code{pop.pwt} by default).
-#'     Then
+#'     \code{Sigma}, plus a Gamma prior on precision \eqn{1/\tau^2_k}
+#'     from \code{object$pop.ing_prior[[k]]} (calibrated by
+#'     \code{\link{Prior_Setup_GLMM}} via \code{pop.dispersion.pwt} /
+#'     \code{pop.dispersion.nprior}).  With effective prior sample size
+#'     \eqn{n_0} and \eqn{p_k} population predictors for component
+#'     \eqn{k},
 #'     \deqn{shape = (n_0 + 1 + p_k)/2, \qquad
-#'           rate = \tau^2_k \, (n_0 + p_k - 1)/2,}
-#'     where \eqn{p_k} is the number of Block~2 coefficients for
-#'     component \eqn{k} (the \code{shape_ING} convention with the
-#'     lmebayesCore default rate \eqn{b_0}).  Because
-#'     \eqn{rate = \tau^2_k (shape - 1)}, the implied inverse-Gamma prior
-#'     on the dispersion has mean exactly \eqn{\tau^2_k} for every
-#'     \eqn{n_0} and \eqn{p_k}, while small \code{pop.dispersion.pwt} keeps it
-#'     deliberately diffuse.
-#'
-#'     The dispersion prior must not outweigh the data: \eqn{n_0 \le J}
-#'     (equivalently \code{pop.dispersion.pwt} \eqn{\le 0.5}) is required,
-#'     mirroring the sampler-side guard in
-#'     \code{\link{two_block_rNormal_reg}} (the ING dispersion envelope
-#'     caps its log-tilt at the data contribution \eqn{J/2}; a
-#'     prior-dominated calibration would invalidate it).
-#'
-#'     \code{disp_lower} and \code{disp_upper} default to the 0.01 and
-#'     0.99 quantiles of the \emph{limiting posterior} for \eqn{\tau^2_k}
-#'     -- the weak-prior (\eqn{n_0 \to 0}) limit of the Block~2 posterior
-#'     Gamma for the precision (Chapter A12, Theorem 2),
-#'     \eqn{\Gamma(a_\infty, b_\infty)} with
-#'     \deqn{a_\infty = (J+1)/2, \qquad b_\infty = \tau^2_k\,(J-1)/2,}
-#'     inverted to a \eqn{\tau^2} interval:
-#'     \deqn{disp\_lower = 1 / q_{\Gamma}(0.99;\; a_\infty, b_\infty),
-#'           \qquad
-#'           disp\_upper = 1 / q_{\Gamma}(0.01;\; a_\infty, b_\infty).}
-#'     Quantiles of the limiting posterior -- rather than of the prior --
-#'     make the window independent of \eqn{n_0}.  See
-#'     \code{inst/ING_TRUNCATION_WINDOW.md} for the derivation.  The
-#'     values are computed once by \code{\link{Prior_Setup_GLMM}}
-#'     (stored in its \code{pop.ing_prior} field and shown by its print
-#'     method); this function reads them from the object.
+#'           rate = \tau^2_k \, (n_0 + p_k - 1)/2.}
+#'     Requires \eqn{n_0 \le J} (equivalently
+#'     \code{pop.dispersion.pwt} \eqn{\le 0.5}). Truncation bounds
+#'     \code{disp_lower} / \code{disp_upper} come from the limiting
+#'     posterior window stored on \code{pop.ing_prior}; see
+#'     \code{inst/ING_TRUNCATION_WINDOW.md}.
 #' }
 #'
-#' @param object An object of class \code{"Prior_Setup_GLMM"} as
-#'   returned by \code{\link{Prior_Setup_GLMM}}.
-#' @param ptypes Character: either a single string applied to every
-#'   random-effect component, or a character vector / list with one
-#'   string per component.  Allowed values are \code{"dNormal"} and
-#'   \code{"dIndependent_Normal_Gamma"}.  A vector may be named with the
-#'   random-effect coefficient names (any order); unnamed vectors are
-#'   matched positionally against \code{names(object$pop.prior_list)}.
-#' @param ... Currently ignored.
-#'
-#' @return A named list of \code{"pfamily"} objects, with names equal to
-#'   \code{names(object$pop.prior_list)} (the random-effect coefficient
-#'   names).
-#'
-#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{pfamily_list}},
-#'   \code{\link[glmbayesCore]{dNormal}}, \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
-#'
-#' @examples
-#' \donttest{
-#' if (requireNamespace("bayesrules", quietly = TRUE)) {
-#'   data(big_word_club, package = "bayesrules")
-#'   dat <- big_word_club
-#'   dat$school_id <- factor(dat$school_id)
-#'   dat <- subset(dat, !is.na(score_ppvt))
-#'
-#'   ps <- Prior_Setup_GLMM(
-#'     score_ppvt ~ private_school + (1 | school_id),
-#'     data = dat
-#'   )
-#'
-#'   pf1 <- pfamily_list(ps)
-#'   print(pf1[["(Intercept)"]])
-#'
-#'   pf2 <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
-#' }
-#' }
+#' This is separate from observation-level \eqn{\sigma^2} priors: those
+#' use \code{\link{dGamma_list}} (per-group \code{dispformula}) or a
+#' single \code{\link[glmbayesCore]{dGamma}} built from
+#' \code{object$group.ing_prior} when dispersion is pooled.
 #'
 #' @export
 #' @method pfamily_list Prior_Setup_GLMM
@@ -220,5 +156,7 @@ pfamily_list.Prior_Setup_GLMM <- function(object,
     )
   }
 
+  attr(out, "ptypes") <- ptypes
+  class(out) <- c("pfamily_list", "list")
   out
 }

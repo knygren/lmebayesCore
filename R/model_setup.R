@@ -48,8 +48,8 @@
 #' and requires \code{popef.rank_ok = TRUE} to derive default hyperpriors
 #' automatically.
 #'
-#' The example uses \code{big_word_club} from the Suggested package
-#' \pkg{bayesrules} (see \code{?bayesrules::big_word_club}) and the same
+#' The example uses \code{big_word_club} from \pkg{bayesrules}
+#' (see \code{?bayesrules::big_word_club}) and the same
 #' formula as the full \code{lmerb()} demo in lmebayes
 #' (\code{demo("Ex_12_lmerb_BigWordClub", package = "lmebayes")}).
 #'
@@ -221,8 +221,7 @@
 #'   \code{\link{extract_re_hyper_matrices}},
 #'   \code{\link{lmerb_default_vcov_formula}},
 #'   \code{\link{extract_lmer_variance_components}}
-#' @examplesIf requireNamespace("bayesrules", quietly = TRUE)
-#' @example inst/examples/Ex_model_setup_big_word_club.R
+#' @example inst/examples/Ex_model_setup.R
 #' @export
 model_setup <- function(
     formula,
@@ -608,12 +607,12 @@ print.model_setup <- function(x, ...) {
     cat("Call:\n  ", deparse1(x$call), "\n\n", sep = "")
   }
 
-  # ---- Section 1: Measurement Model -----------------------------------------
-  cat("--- Measurement Model ---\n")
+  # ---- Section 1: Level 1 (within-group) ------------------------------------
+  cat("--- Level 1 (Within-Group) ---\n")
   cat(sprintf("  %s ~ %s\n\n", resp, paste(re_names, collapse = " + ")))
-  cat(sprintf("  Observations : %d\n", n_obs))
-  cat(sprintf("  RE predictors: %d\n", length(re_names)))
-  cat(sprintf("  Group        : %s  [%d levels]\n", grp, n_lev))
+  cat(sprintf("  Observations             : %d\n", n_obs))
+  cat(sprintf("  Group-effect coefficients: %d\n", length(re_names)))
+  cat(sprintf("  Group                    : %s  [%d levels]\n", grp, n_lev))
   if (!is.null(x$groupef.rank)) {
     n_full <- sum(x$groupef.rank)
     cat(sprintf("  Full-rank D_j: %d of %d groups\n", n_full, n_lev))
@@ -643,8 +642,8 @@ print.model_setup <- function(x, ...) {
   }
   cat("\n")
 
-  # ---- Section 2: Random Effects Model --------------------------------------
-  cat("--- Random Effects Model ---\n")
+  # ---- Section 2: Level 2 (across-group) ------------------------------------
+  cat("--- Level 2 (Across-Group) ---\n")
 
   w <- max(nchar(re_names))
 
@@ -661,7 +660,7 @@ print.model_setup <- function(x, ...) {
   # ---- Section 3: Hyper-design rank (estimable groups only) -----------------
   if (!is.null(x$popef.rank) && !is.null(x$groupef.estimable)) {
     n_est_groups <- sum(x$groupef.estimable)
-    cat("--- Random Effects Model: Hyper-Design Rank ---\n")
+    cat("--- Level 2 Rank ---\n")
     cat(sprintf("  (Restricted to %d estimable %s)\n\n", n_est_groups, grp))
     deficient_nms <- character(0)
     for (nm in re_names) {

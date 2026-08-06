@@ -517,7 +517,9 @@
 #'   \item Each RE variance \eqn{\tau^2_k} from the reference fit is strictly positive.
 #' }
 #' @seealso \code{\link{model_setup}}, \code{\link[glmbayesCore]{Prior_Setup}},
-#'   \code{\link{build_mu_all}}
+#'   \code{\link{build_mu_all}}, \code{\link{pfamily_list}},
+#'   \code{\link{dGamma_list}}
+#' @example inst/examples/Ex_Prior_Setup_GLMM.R
 #' @export
 Prior_Setup_GLMM <- function(formula,
                                  data,
@@ -1276,14 +1278,6 @@ Prior_Setup_GLMM <- function(formula,
     NULL
   }
 
-  ## Dev-only: print A12 3.3.4 rate vs A12 3.3.5 rate_gamma from same calibration; not stored.
-  if (is_gaussian && identical(dispformula_kind, "group") &&
-      !is.null(ing_prior_measurement_group)) {
-    .lmebayes_print_ing_prior_measurement_group_compare(
-      existing = ing_prior_measurement_group
-    )
-  }
-
   ## alpha_target_measurement: search for the smallest per-group
   ## pwt_measurement driving the predicted ellipsoid violation rate down to
   ## alpha_target_measurement (Section 16.6 exact/truncated criterion),
@@ -1869,115 +1863,40 @@ print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
 
   disp_src <- attr(x$pop.dispersion.pwt, "source")
 
-  cat("Call: Prior_Setup_GLMM()\n\n")
-  cat(sprintf("  family           : %s (%s link)\n",
-              x$family$family, x$family$link))
-  cat(sprintf("  pop.intercept_source : %s\n",
-              if (!is.null(x$pop.intercept_source)) x$pop.intercept_source else "full_model"))
-  cat(sprintf("  pop.effects_source   : %s\n",
-              if (!is.null(x$pop.effects_source)) x$pop.effects_source else "full_model"))
-  cat(sprintf("  dispformula      : %s\n",
-              if (!is.null(x$dispformula)) deparse(x$dispformula) else "~1"))
-  cat(sprintf("  calibration_source: %s  (fixef/tau2_k/sd_tau reference fit)\n",
-              if (!is.null(x$calibration_source)) x$calibration_source else "lme4"))
-  if (!is.null(x$group.dispersion)) {
-    disp_src <- attr(x$group.dispersion, "source")
-    if (length(x$group.dispersion) == 1L) {
-      cat(sprintf(
-        "  group.dispersion : %.4f  [%s]\n",
-        x$group.dispersion,
-        if (is.null(disp_src)) "unknown" else disp_src
-      ))
-    } else {
-      disp_txt <- paste(
-        sprintf("%s=%.4g", names(x$group.dispersion), x$group.dispersion),
-        collapse = ", "
-      )
-      cat(sprintf(
-        "  group.dispersion : %s  [%s]\n",
-        disp_txt,
-        if (is.null(disp_src)) "unknown" else disp_src
-      ))
-    }
-    ## group.ing_prior holds either the pooled calibration (a single flat
-    ## list) or the per-group calibration (a named list of per-group lists),
-    ## selected by dispformula; .lmebayes_ing_prior_is_grouped() tells them
-    ## apart structurally (see helper for details).
-    if (!is.null(x$group.ing_prior) &&
-        !.lmebayes_ing_prior_is_grouped(x$group.ing_prior)) {
-      ing_m <- x$group.ing_prior
-      mdp <- if (!is.null(ing_m$max_disp_perc)) ing_m$max_disp_perc else 0.99
-      cat(sprintf(
-        paste0(
-          "  ING sigma^2 window: [%.4g, %.4g]  ",
-          "(%.4g/%.4g quantiles from calibrated shape/rate; ",
-          "upper/sigma2 = %.3g)\n"
-        ),
-        ing_m$disp_lower, ing_m$disp_upper,
-        1 - mdp, mdp,
-        ing_m$disp_upper / unname(ing_m$sigma2_hat)
-      ))
-      cat(sprintf(
-        paste0(
-          "  ING sigma^2 shape, rate : %.4g, %.4g  ",
-          "(mean-matched IG; E[sigma^2] = rate/(shape-1) = %.4g)\n"
-        ),
-        ing_m$shape, ing_m$rate,
-        ing_m$rate / (ing_m$shape - 1)
-      ))
-      cat(sprintf(
-        "  ING sigma^2 n_prior   : %.4g  (= n * group.dispersion.pwt / (1 - group.dispersion.pwt); p_re = %d)\n",
-        ing_m$n_prior, ing_m$p_re
-      ))
-      if (!is.null(x$group.dispersion.pwt)) {
-        meas_src <- attr(x$group.dispersion.pwt, "source")
-        pwt_disp <- if (length(x$group.dispersion.pwt) == 1L) {
-          sprintf("%.4g", x$group.dispersion.pwt)
-        } else {
-          paste(
-            sprintf("%s=%.4g", names(x$group.dispersion.pwt), x$group.dispersion.pwt),
-            collapse = ", "
-          )
-        }
-        cat(sprintf(
-          "  group.dispersion.pwt : %s  [%s]\n",
-          pwt_disp,
-          if (is.null(meas_src)) "unknown" else meas_src
-        ))
-      }
-    } else if (!is.null(x$group.ing_prior)) {
-      ing_grp <- x$group.ing_prior
-      guard_df <- data.frame(
-        group     = names(ing_grp),
-        n_j       = vapply(ing_grp, `[[`, 0, "n_j"),
-        n_prior   = vapply(ing_grp, `[[`, 0, "n_prior"),
-        sigma2_hat = vapply(ing_grp, `[[`, 0, "sigma2_hat"),
-        pwt_group = vapply(ing_grp, `[[`, 0, "pwt_group"),
-        max_disp_perc = vapply(ing_grp, `[[`, 0, "max_disp_perc"),
-        stringsAsFactors = FALSE
-      )
-      cat("\n--- Per-group Block~1 sigma^2 calibration (dGamma_list) ---\n")
-      num_cols <- vapply(guard_df, is.numeric, logical(1L))
-      guard_df[num_cols] <- lapply(guard_df[num_cols], round, digits = digits)
-      print(guard_df, row.names = FALSE)
+  cat("Call: Prior_Setup_GLMM()\n")
 
-      if (!is.null(x$group.alpha_target) &&
-          !is.null(x$group.pwt_calibration)) {
-        cat(sprintf(
-          "\n--- group.dispersion.pwt calibrated to group.alpha_target = %.4g ---\n",
-          x$group.alpha_target
-        ))
-        calib_df <- x$group.pwt_calibration
-        num_cols <- vapply(calib_df, is.numeric, logical(1L))
-        calib_df[num_cols] <- lapply(calib_df[num_cols], round, digits = digits)
-        print(calib_df, row.names = FALSE)
-      }
-    }
+  ## ---- Setup ---------------------------------------------------------------
+  cat("\n--- Setup ---\n")
+  cat("  Model family, prior-mean sources, and reference fit used for calibration.\n\n")
+  cat(sprintf("  family                : %s (%s link)\n",
+              x$family$family, x$family$link))
+  cat(sprintf("  pop.intercept_source  : %s\n",
+              if (!is.null(x$pop.intercept_source)) x$pop.intercept_source else "full_model"))
+  cat(sprintf("  pop.effects_source    : %s\n",
+              if (!is.null(x$pop.effects_source)) x$pop.effects_source else "full_model"))
+  cat(sprintf("  dispformula           : %s\n",
+              if (!is.null(x$dispformula)) deparse(x$dispformula) else "~1"))
+  cat(sprintf("  calibration_source    : %s  (fixef / tau^2_k / sd_tau)\n",
+              if (!is.null(x$calibration_source)) x$calibration_source else "lme4"))
+
+  ## ---- Group dispersion ----------------------------------------------------
+  cat("\n--- Group dispersion (sigma^2) ---\n")
+  if (!is.null(x$group.ing_prior) &&
+      .lmebayes_ing_prior_is_grouped(x$group.ing_prior)) {
+    cat("  Per-group Gamma prior on sigma^2 is stored in group.ing_prior.\n")
+    cat("  Inspect with print(dGamma_list(<Prior_Setup_GLMM object>)).\n")
+  } else if (!is.null(x$group.ing_prior)) {
+    cat("  Pooled Gamma prior on sigma^2 is stored in group.ing_prior.\n")
+    cat("  (dGamma_list() requires a per-group dispformula.)\n")
   } else {
-    cat("  group.dispersion : NULL  (no observation-level dispersion)\n")
+    cat("  No group-dispersion Gamma prior (non-Gaussian or not calibrated).\n")
   }
+
+  ## ---- Design check --------------------------------------------------------
+  cat("\n--- Design check (from model_setup) ---\n")
+  cat("  Identifiability flags copied from the design object (not re-checked here).\n\n")
   cat(sprintf(
-    "  Full-rank groups (algebraic D_j): %d of %d %s  (design check only)\n",
+    "  Full-rank groups (algebraic D_j): %d of %d %s\n",
     n_fr, n_all, x$design$group_name
   ))
   if (!is.null(x$design$groupef.glm_check) &&
@@ -1991,12 +1910,15 @@ print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
       n_est, n_fr, n_est, n_all, x$design$group_name
     ))
   }
-  cat("\n")
 
-  cat("--- group.Sigma (diagonal RE covariance) ---\n")
+  ## ---- Group-effect covariance ---------------------------------------------
+  cat("\n--- Group-effect covariance (group.Sigma) ---\n")
+  cat("  Diagonal Psi with entries tau^2_k for each group-effect coefficient.\n\n")
   print(round(x$group.Sigma, digits))
 
-  cat("\n--- pop.prior_list: mu / Sigma / dispersion (Block 2) ---\n")
+  ## ---- Population priors ---------------------------------------------------
+  cat("\n--- Population priors (pop.prior_list) ---\n")
+  cat("  One prior list per group-effect coefficient (input to pfamily_list()).\n")
   for (nm in re_names) {
     pl <- x$pop.prior_list[[nm]]
     cat(sprintf("\n  [%s]\n", nm))
@@ -2006,38 +1928,45 @@ print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
     } else {
       paste(sprintf("%s=%.4g", names(pwt_k), pwt_k), collapse = ", ")
     }
-    cat(sprintf("  pop.pwt         : %s\n", pwt_str))
+    cat(sprintf("  pop.pwt               : %s\n", pwt_str))
     if (!is.null(x$pop.dispersion.pwt)) {
       cat(sprintf(
-        "  pop.dispersion.pwt : %.4g  [%s]\n",
+        "  pop.dispersion.pwt     : %.4g  [%s]\n",
         x$pop.dispersion.pwt[[nm]],
         if (is.null(disp_src)) "unknown" else disp_src
       ))
     }
     if (!is.null(x$pop.dispersion.nprior)) {
       cat(sprintf(
-        "  pop.dispersion.nprior : %.4g  (= J * pwt_disp / (1 - pwt_disp))\n",
+        "  pop.dispersion.nprior  : %.4g  (= J * pwt_disp / (1 - pwt_disp))\n",
         x$pop.dispersion.nprior[[nm]]
       ))
     }
-    cat("  mu:\n")
+    cat("\n  mu:\n")
     print(round(pl$mu, digits))
-    cat("  Sigma:\n")
+    cat("\n  Sigma:\n")
     print(round(pl$Sigma, digits))
+    cat("\n")
     cat(sprintf(
-      "  dispersion: %.4f  (RE variance tau^2_k; Block 2 scale)\n",
+      "  dispersion             : %.4f  (tau^2_k; population scale)\n",
       pl$dispersion))
     ing_k <- x$pop.ing_prior[[nm]]
     if (!is.null(ing_k)) {
       mdp_k <- if (!is.null(ing_k$max_disp_perc)) ing_k$max_disp_perc else 0.99
       cat(sprintf(
-        "  ING tau^2 window: [%.4g, %.4g]  (%.4g/%.4g limiting-posterior quantiles; upper/tau2 = %.3g)\n",
+        paste0(
+          "  ING tau^2 window       : [%.4g, %.4g]  ",
+          "(%.4g/%.4g limiting-posterior quantiles; upper/tau2 = %.3g)\n"
+        ),
         ing_k$disp_lower, ing_k$disp_upper,
         1 - mdp_k, mdp_k,
         ing_k$disp_upper / unname(pl$dispersion)
       ))
       cat(sprintf(
-        "  ING shape, rate : %.4g, %.4g  (Gamma prior on 1/tau^2_k; used only with ptypes = \"dIndependent_Normal_Gamma\")\n",
+        paste0(
+          "  ING shape, rate        : %.4g, %.4g  ",
+          "(Gamma on 1/tau^2_k; for ptypes = \"dIndependent_Normal_Gamma\")\n"
+        ),
         ing_k$shape, ing_k$rate
       ))
     }

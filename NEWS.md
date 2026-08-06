@@ -1,5 +1,46 @@
 # lmebayesCore (development version)
 
+* **`pfamily_list()` generic now includes `ptypes`**
+  (`pfamily_list(object, ptypes = "dNormal", ...)`), so the prior-family
+  type(s) are part of the shared interface rather than a method-only
+  formal passed through `...`.
+
+* **`pfamily_list()` returns class `"pfamily_list"`** with
+  `print.pfamily_list()` that prints each component via
+  `print.pfamily`, one after another. Use
+  `print(x, components = ...)` to print a subset of population /
+  group-effect models (e.g. `"(Intercept)"`, slopes); `NULL` prints
+  all. `[.pfamily_list` keeps the class and `ptypes` attribute.
+
+* **`dGamma_list()` returns class `"dGamma_list"`** with
+  `print.dGamma_list()` that prints each group's `dGamma()` via
+  `print.pfamily` only (does not dump list attributes such as
+  `window_diagnostics` or the stored `glmmTMB` fit). Use
+  `print(x, groups = ...)` to print a subset of group names (or
+  indices); `NULL` prints all. `[.dGamma_list` keeps the class and
+  trims per-group attributes.
+
+* **`print.model_setup()` section headers relabeled** to Level 1
+  (Within-Group) / Level 2 (Across-Group) / Level 2 Rank, with
+  `Group-effect coefficients` instead of `RE predictors` /
+  Measurement Model / Random Effects Model wording.
+
+* **`print.Prior_Setup_GLMM()` no longer dumps the per-group Block~1
+  `sigma^2` calibration table** (or the `group.pwt_calibration` table).
+  Those details stay on `group.ing_prior` / `dGamma_list()`; the print
+  keeps a one-line group count and pwt / `max_disp_perc` summary.
+  Also removed the construction-time A12 rate_gamma vs rate console dump.
+  Print layout now uses spaced sections (Setup / Group dispersion /
+  Design check / group.Sigma / Population priors) with a short description
+  under each header (no Block 1/2 labels in the printout). Group-dispersion
+  prior detail is omitted from the main print; it points to
+  `group.ing_prior` / `print(dGamma_list(...))` instead.
+
+* **`bayesrules` and `glmmTMB` moved from Suggests to Imports** so
+  installing \pkg{lmebayesCore} pulls them in and the Ex_13b /
+  `big_word_club` help examples (including per-group `dispformula`)
+  run without extra installs.
+
 * **Rename: `Prior_Setup_lmebayes()` is now `Prior_Setup_GLMM()`.**
   The returned S3 class is `"Prior_Setup_GLMM"` (was
   `"lmebayes_prior_setup"`). S3 methods

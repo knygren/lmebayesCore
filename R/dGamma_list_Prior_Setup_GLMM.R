@@ -1,88 +1,16 @@
-#' Build per-group dGamma priors from a Prior_Setup_GLMM object
-#'
-#' Converts the per-group Block~1 measurement-dispersion calibration stored
-#' in a \code{\link{Prior_Setup_GLMM}} object into a named list of
-#' \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
-#'
-#' Prior density (\code{shape_ING}, \code{rate}) both come from
-#' \code{object$group.ing_prior} (the per-group shape, when
-#' \code{dispformula} requested per-group dispersion), calibrated once in
-#' \code{\link{Prior_Setup_GLMM}()} via
-#' \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
-#' extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
-#' model-derived \code{Omega_j} folded into \code{Sigma_j}, so \code{rate}/
-#' \code{sigma2_hat} integrate out both the random effects \code{b_j} and
-#' the fixed effects \code{gamma}). Truncation bounds (\code{disp_lower},
-#' \code{disp_upper}) are the \eqn{(1-\mathrm{max\_disp\_perc})}/
-#' \code{max_disp_perc} quantiles of \code{Gamma(shape_ING + n_j/2,
-#' rate_post)}, \code{rate_post} being \code{sigma2_hat} mean-matched at
-#' that inflated shape -- i.e. the window tracks the \emph{posterior}
-#' spread the sampler's own envelope machinery actually draws
-#' \eqn{\sigma^2_j} from each sweep (\code{EnvelopeDispersionBuild.cpp}'s
-#' own \code{shape2 = Shape + n_w/2} fallback), not the prior
-#' \code{Gamma(shape_ING, rate)} alone. \code{shape_ING}/\code{rate}
-#' themselves -- what is actually fed to the sampler as the Gamma prior --
-#' are unaffected by this widening. See
-#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation.
-#'
-#' @param object An object of class \code{"Prior_Setup_GLMM"} as returned
-#'   by \code{\link{Prior_Setup_GLMM}} (Gaussian models only).
+#' @rdname dGamma_list
+#' @order 2
 #' @param max_disp_perc_measurement \code{NULL} (default), a scalar in
 #'   \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
-#'   per group level). \code{NULL} reuses each group's own stored
-#'   \code{disp_lower}/\code{disp_upper} (the value
-#'   \code{object$group.ing_prior[[lev]]$max_disp_perc} was
-#'   calibrated with in \code{\link{Prior_Setup_GLMM}}). Supplying a
-#'   scalar or vector recomputes the bounds as fresh quantiles of the same
-#'   posterior-shape \code{Gamma(shape_ING + n_j/2, rate_post)} (see above),
-#'   per group, for every group whose resolved value differs from its own
-#'   stored one.
-#' @param ... Currently ignored.
-#'
-#' @return A named list of \code{"pfamily"} objects keyed by group levels,
-#'   suitable for \code{lmerb(..., group.dispersion = dGamma_list(ps))}
-#'   \emph{or} passed directly as \code{prior_list} to
-#'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}}/
-#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} (both routes
-#'   accept a named list of \code{dGamma()} pfamilies directly; \code{mu}/
-#'   \code{Sigma} are derived internally from \code{pfamily_list} and are
-#'   never read from this object), with attributes
-#'   \code{"window_diagnostics"} (data frame, one row per group, with
-#'   \code{sigma2_hat}, \code{disp_lower}, \code{disp_upper}),
-#'   \code{"measurement_prior_group"} (list of four named-by-group-level
-#'   numeric vectors -- \code{shape_group}, \code{rate_group},
-#'   \code{disp_lower_group}, \code{disp_upper_group} -- the same
-#'   per-group quantities as \code{"window_diagnostics"}'s \code{shape_ING}/
-#'   \code{rate}/\code{disp_lower}/\code{disp_upper} columns, reshaped as
-#'   vectors; a convenience view, not needed for the primary use above),
-#'   \code{"group.dispersion.fit"} (\code{object$group.dispersion.fit}, the \code{glmmTMB}
-#'   reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
-#'   reuse it as their own \code{group.dispersion.fit} instead of re-fitting
-#'   \code{glmmTMB} when \code{group.dispersion} carries this attribute), and
-#'   \code{"calibration_source"} (\code{object$calibration_source}).
-#'
-#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{dGamma_list}},
-#'   \code{\link[glmbayesCore]{dGamma}}
-#'
-#' @examples
-#' \donttest{
-#' if (requireNamespace("bayesrules", quietly = TRUE)) {
-#'   data(big_word_club, package = "bayesrules")
-#'   dat <- big_word_club
-#'   dat$school_id <- factor(dat$school_id)
-#'   dat <- subset(dat, !is.na(score_ppvt))
-#'
-#'   ps <- Prior_Setup_GLMM(
-#'     score_ppvt ~ private_school + (1 | school_id),
-#'     data = dat,
-#'     group.dispersion.pwt = 0.01,
-#'     dispformula = ~school_id
-#'   )
-#'   disp_pf <- dGamma_list(ps)
-#'   print(disp_pf[[1L]])
-#' }
-#' }
-#'
+#'   per group level). \code{NULL} reuses each group's stored
+#'   \code{disp_lower}/\code{disp_upper}. A scalar or vector recomputes
+#'   those bounds per group.
+#' @details
+#' For \code{\link{Prior_Setup_GLMM}} with a per-group \code{dispformula},
+#' each group's \code{dGamma()} uses \code{shape_ING}/\code{rate} from
+#' \code{object$group.ing_prior} (Part VI calibration; see
+#' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md}). Truncation bounds are
+#' posterior-shape quantiles at that group's \code{max_disp_perc}.
 #' @export
 #' @method dGamma_list Prior_Setup_GLMM
 dGamma_list.Prior_Setup_GLMM <- function(
@@ -213,5 +141,6 @@ dGamma_list.Prior_Setup_GLMM <- function(
     disp_upper_group = stats::setNames(window_diagnostics$disp_upper, window_diagnostics$group)
   )
 
+  class(out) <- c("dGamma_list", "list")
   out
 }
