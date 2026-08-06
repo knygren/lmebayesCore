@@ -24,7 +24,7 @@ group_levels <- levels(block)
 
 for (pwt_meas in c(0.05, 0.1, 0.49)) {
   cat("\n--- pwt_measurement =", pwt_meas, "---\n")
-  ps <- lmebayes::Prior_Setup_lmebayes(
+  ps <- lmebayes::Prior_Setup_GLMM(
     form, data = dat, pwt = 0.05, pwt_measurement = pwt_meas,
     max_disp_perc_measurement = 0.8, dispformula = ~school_id
   )

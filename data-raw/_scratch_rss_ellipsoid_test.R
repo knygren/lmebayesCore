@@ -71,7 +71,7 @@
 ## untruncated/no-shrinkage-baseline test below.
 ##
 ## The whole point of calibrating disp_lower_j/disp_upper_j
-## (Prior_Setup_lmebayes()'s alpha_target_measurement search,
+## (Prior_Setup_GLMM()'s alpha_target_measurement search,
 ## R/pwt_measurement_group_calibration.R) is to keep the fraction of
 ## log-concavity violations below a target. That search is a PRE-RUN
 ## approximation: it simulates q_j from a plug-in NONCENTRAL GAUSSIAN full
@@ -99,7 +99,7 @@
 ## sampler enforces that truncation directly; it never happens).
 ##
 ## Pass `pwt_measurement_calibration = ps$pwt_measurement_calibration` (the
-## data.frame Prior_Setup_lmebayes() stores whenever alpha_target_measurement
+## data.frame Prior_Setup_GLMM() stores whenever alpha_target_measurement
 ## calibration ran) to attach each group's PRE-RUN predicted
 ## `pct_outside_after` alongside the POST-RUN empirical `pct_draws_outside`
 ## computed here, for direct comparison.

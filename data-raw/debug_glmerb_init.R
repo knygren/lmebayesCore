@@ -9,7 +9,7 @@ dat$violent_i <- as.integer(
   dat$violent == TRUE | dat$violent == 1L | dat$violent == "TRUE"
 )
 form <- removed_i ~ violent_i + (1 + violent_i || state)
-ps <- Prior_Setup_lmebayes(form, dat, binomial(), pwt = 0.01)
+ps <- Prior_Setup_GLMM(form, dat, binomial(), pwt = 0.01)
 
 set.seed(42L)
 fit <- glmerb(

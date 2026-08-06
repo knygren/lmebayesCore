@@ -2,7 +2,7 @@
 ## by the "convergence plot methods" plan step 4, and rGLMM_reg_known_vcov()/
 ## rGLMM_reg_estimated_vcov() share a new "rGLMM_reg" parent class.
 ##
-## Uses the real Prior_Setup_lmebayes()/pfamily_list()/dGamma_list() pipeline
+## Uses the real Prior_Setup_GLMM()/pfamily_list()/dGamma_list() pipeline
 ## (same pattern as demo/Ex_10...Ex_14), on a small synthetic random-intercept
 ## dataset, so priors are well-scaled to the data (no hand-rolled prior_list/
 ## pfamily_list numbers) and the whole thing still runs in seconds.
@@ -37,13 +37,13 @@ attr(grp, "group_name") <- design$group_name
 re_names <- design$re_coef_names
 
 ## --- Known observation dispersion + known/estimated vcov priors ------
-ps <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.05)
+ps <- Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.05)
 pf_known_vcov <- pfamily_list(ps)
 pf_est_vcov   <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 prior_list_disp <- list(dispersion = ps$dispersion_ranef)
 
 ## --- Estimated (per-group) observation dispersion prior ---------------
-ps_g <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.05, dispformula = ~group)
+ps_g <- Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.05, dispformula = ~group)
 disp_pf_list <- dGamma_list(ps_g)
 group_levels <- levels(grp)
 p_re <- length(re_names)
@@ -142,7 +142,7 @@ design_pois <- model_setup(form_lmer, data = dat_pois)
 grp_pois <- design_pois$group
 attr(grp_pois, "group_name") <- design_pois$group_name
 
-ps_pois        <- Prior_Setup_lmebayes(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
+ps_pois        <- Prior_Setup_GLMM(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
 pf_known_pois  <- pfamily_list(ps_pois)
 pf_est_pois    <- pfamily_list(ps_pois, ptypes = "dIndependent_Normal_Gamma")
 

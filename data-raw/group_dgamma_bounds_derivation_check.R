@@ -70,7 +70,7 @@ message(sprintf(
 ## ---------------------------------------------------------------------------
 ## 1. Current dGamma_list() bounds (mean-matched at sigma2_hat, BLUP upper tail)
 ## ---------------------------------------------------------------------------
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form, data = dat, pwt = 0.01, pwt_measurement = 0.1,
   max_disp_perc_measurement = max_disp_perc, dispformula = ~school_id
 )
@@ -85,7 +85,7 @@ RA            <- chol(P)
 fit_ref       <- ps$fit_ref
 group_name    <- ps$design$group_name
 ## fit_ref is a glmmTMB fit here (dispformula = ~school_id); dispatch through
-## the same helper Prior_Setup_lmebayes()/dGamma_list() use internally rather
+## the same helper Prior_Setup_GLMM()/dGamma_list() use internally rather
 ## than calling coef()/sigma() directly (glmmTMB's own generics return a
 ## $cond/$zi/$disp-nested structure, not a merMod-style named list).
 beta_blup     <- glmbayesCore:::.lmebayes_reference_coef(fit_ref)[[group_name]]

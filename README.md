@@ -4,7 +4,7 @@
 ![License: GPL-2](https://img.shields.io/badge/license-GPL--2-blue.svg)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/knygren/lmebayesCore/R-CMD-check.yaml?label=R%20CMD%20Check)
 
-**lmebayesCore** is the compiled two-block Gibbs sampling engine that powers [lmebayes](https://github.com/knygren/lmebayes). It started as a history-preserving fork of [glmbayesCore](https://github.com/knygren/glmbayesCore) (2026-07-15) and has since been trimmed down to the mixed-model layer only: formula-to-design-matrix setup (`model_setup()`), Block~2 hyperprior calibration (`Prior_Setup_lmebayes()`), and the matrix-level two-block samplers (`rlmerb()`/`rglmerb()`, the `rLMM_reg`/`rGLMM_reg` route families, and row-block engines). The iid GLM/LM prior, envelope, and sampling machinery that `lmebayesCore` originally forked now lives exclusively in `glmbayesCore` (an `Imports:` dependency); `lmebayesCore` calls it via `glmbayesCore::…` rather than shipping its own copy. End users should install `lmebayes` rather than this package directly.
+**lmebayesCore** is the compiled two-block Gibbs sampling engine that powers [lmebayes](https://github.com/knygren/lmebayes). It started as a history-preserving fork of [glmbayesCore](https://github.com/knygren/glmbayesCore) (2026-07-15) and has since been trimmed down to the mixed-model layer only: formula-to-design-matrix setup (`model_setup()`), Block~2 hyperprior calibration (`Prior_Setup_GLMM()`), and the matrix-level two-block samplers (`rlmerb()`/`rglmerb()`, the `rLMM_reg`/`rGLMM_reg` route families, and row-block engines). The iid GLM/LM prior, envelope, and sampling machinery that `lmebayesCore` originally forked now lives exclusively in `glmbayesCore` (an `Imports:` dependency); `lmebayesCore` calls it via `glmbayesCore::…` rather than shipping its own copy. End users should install `lmebayes` rather than this package directly.
 
 The relationship to the broader ecosystem parallels how `StanHeaders` / `rstan` serve as the compiled backbone for `rstanarm`: `lmebayesCore` is the infrastructure layer for mixed models; `lmebayes` is the user-facing package built on top of it. (`glmbayesCore` plays the same role for the iid `glmbayes` package, and `lmebayesCore` now depends on it directly for that iid layer.)
 
@@ -84,9 +84,9 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | File | Role |
 |---|---|
 | `model_setup.R` | lme4-style formula -> mixed-model design object (`model_setup()`) |
-| `Prior_Setup_lmebayes.R` | Block~2 hyperprior calibration from reference `lmer` / `glmer` |
-| `pfamily_list.R` / `pfamily_list_lmebayes_prior_setup.R` | S3 generic and `lmebayes_prior_setup` method -- Block~2 `pfamily` list from prior setup (embeds `glmbayesCore::dNormal()` / `dIndependent_Normal_Gamma()` objects) |
-| `dGamma_list.R` / `dGamma_list_lmebayes_prior_setup.R` | Per-group Block~1 measurement-dispersion `glmbayesCore::dGamma()` pfamily list |
+| `Prior_Setup_GLMM.R` | Block~2 hyperprior calibration from reference `lmer` / `glmer` |
+| `pfamily_list.R` / `pfamily_list_Prior_Setup_GLMM.R` | S3 generic and `Prior_Setup_GLMM` method -- Block~2 `pfamily` list from prior setup (embeds `glmbayesCore::dNormal()` / `dIndependent_Normal_Gamma()` objects) |
+| `dGamma_list.R` / `dGamma_list_Prior_Setup_GLMM.R` | Per-group Block~1 measurement-dispersion `glmbayesCore::dGamma()` pfamily list |
 | `lme4_design_utilities.R` | Internal lme4 design chain (`get_lme4_components`, `extract_re_hyper_matrices`, …) |
 | `rlmerb.R` / `rglmerb.R` | Matrix-level LMM / GLMM two-block samplers |
 | `rLMM_reg.R` | Four Gaussian LMM replicate-chain routes (`rLMMNormal_reg*`, `rLMMindepNormalGamma_reg*`) plus dispatchers |
@@ -142,9 +142,9 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 | Function | Role |
 |----------|------|
 | `model_setup()` | Parse an lme4-style formula into design matrices and variance components |
-| `Prior_Setup_lmebayes()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
-| `pfamily_list()` | S3 generic; `pfamily_list.lmebayes_prior_setup()` builds Block~2 `pfamily` objects |
-| `dGamma_list()` | S3 generic; `dGamma_list.lmebayes_prior_setup()` builds per-group Block~1 dispersion `pfamily` objects |
+| `Prior_Setup_GLMM()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
+| `pfamily_list()` | S3 generic; `pfamily_list.Prior_Setup_GLMM()` builds Block~2 `pfamily` objects |
+| `dGamma_list()` | S3 generic; `dGamma_list.Prior_Setup_GLMM()` builds per-group Block~1 dispersion `pfamily` objects |
 | `normalize_block()` | Row-block partition normalization (used by row-block engines and by **lmebayes**'s `lmbBlock()` / `glmbBlock()` / `Prior_SetupBlock()`) |
 | `build_mu_all()` | Observation-level prior means when `simulate = FALSE` |
 
@@ -193,7 +193,7 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 
 ### S3 methods
 
-`print.model_setup`, `print.lmebayes_prior_setup`, `print.two_block_sweep_history`, `print.two_block_rate`, `pfamily_list.lmebayes_prior_setup`, `dGamma_list.lmebayes_prior_setup`.
+`print.model_setup`, `print.Prior_Setup_GLMM`, `print.two_block_sweep_history`, `print.two_block_rate`, `pfamily_list.Prior_Setup_GLMM`, `dGamma_list.Prior_Setup_GLMM`.
 
 ---
 

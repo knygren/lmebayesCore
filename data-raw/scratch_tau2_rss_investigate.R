@@ -58,7 +58,7 @@ cat("J * var(ranef):", J * var(lmer_ranef[, k]), "\n")
 cat("J * VarCorr:", J * tau2, "\n\n")
 
 ## --- gamma from build_mu_all / case1 ICM ---
-ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
+ps <- Prior_Setup_GLMM(form, data = dat, pwt = 0.01)
 fit1 <- lmerb(form, dat, pfamily_list(ps), ps$dispersion_ranef, simulate = FALSE)
 g_icm <- fit1$fixef.mode[[k]]
 b_icm <- fit1$ranef.mode[, k]

@@ -1,4 +1,4 @@
-## Temporary smoke test for the pop.*/group.* rename of Prior_Setup_lmebayes().
+## Temporary smoke test for the pop.*/group.* rename of Prior_Setup_GLMM().
 ## Not package code -- investigation/verification only.
 
 devtools::load_all(".")
@@ -6,7 +6,7 @@ devtools::load_all(".")
 dat <- lme4::sleepstudy
 
 ## --- pooled mode ------------------------------------------------------------
-ps_pooled <- Prior_Setup_lmebayes(
+ps_pooled <- Prior_Setup_GLMM(
   Reaction ~ Days + (Days || Subject),
   data = dat,
   pop.pwt = 0.01
@@ -27,7 +27,7 @@ tryCatch(
 )
 
 ## --- group mode --------------------------------------------------------------
-ps_group <- Prior_Setup_lmebayes(
+ps_group <- Prior_Setup_GLMM(
   Reaction ~ Days + (Days || Subject),
   data                = dat,
   pop.pwt             = 0.01,

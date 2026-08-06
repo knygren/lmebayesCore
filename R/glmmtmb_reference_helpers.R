@@ -1,5 +1,5 @@
 ## Internal glmmTMB reference-fit helpers for model_setup() /
-## Prior_Setup_lmebayes() when dispformula requests per-group measurement
+## Prior_Setup_GLMM() when dispformula requests per-group measurement
 ## dispersion. These fit and read from a glmmTMB::glmmTMB() reference model
 ## as an alternative to the lme4 merMod reference used for dispformula = ~1;
 ## see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md for the calibration this feeds.
@@ -7,7 +7,7 @@
 ## Classify 'dispformula' as "pooled" (~1) or "group" (~<group_name>, matching
 ## the random-effects grouping factor exactly). Shared by model_setup()
 ## (gates whether it fits and stores design$glmmTMB_fit) and
-## Prior_Setup_lmebayes() (gates the analogous, fragile per-group
+## Prior_Setup_GLMM() (gates the analogous, fragile per-group
 ## within-group-regression calibration in
 ## .lmebayes_calibrate_ing_prior_measurement_group()). Mirrors
 ## lmebayes:::.lmebayes_validate_dispformula(), which performs the analogous
@@ -42,14 +42,14 @@
 #' Fit a \code{glmmTMB::glmmTMB()} reference model with per-group residual
 #' dispersion.
 #'
-#' Used by \code{\link{Prior_Setup_lmebayes}} as the calibration reference
+#' Used by \code{\link{Prior_Setup_GLMM}} as the calibration reference
 #' (fixed effects, RE variances, per-group coefficients and dispersion) when
 #' \code{dispformula} requests per-group measurement dispersion. The
 #' lme4-embedded \code{lmer}/\code{glmer} reference fit
 #' (\code{design$lmer} / \code{design$glmer}) is fit separately and
 #' unconditionally by \code{\link{model_setup}} for backward compatibility.
 #'
-#' @param formula Mixed-model formula (same as \code{Prior_Setup_lmebayes}).
+#' @param formula Mixed-model formula (same as \code{Prior_Setup_GLMM}).
 #' @param data Data frame.
 #' @param family A \code{\link[stats]{family}} object.
 #' @param dispformula One-sided formula for \code{glmmTMB}'s dispersion model.
@@ -65,7 +65,7 @@
 ) {
   if (!requireNamespace("glmmTMB", quietly = TRUE)) {
     stop(
-      "Package 'glmmTMB' is required to calibrate Prior_Setup_lmebayes() ",
+      "Package 'glmmTMB' is required to calibrate Prior_Setup_GLMM() ",
       "priors when 'dispformula' requests per-group measurement dispersion. ",
       "Install it with install.packages(\"glmmTMB\").",
       call. = FALSE

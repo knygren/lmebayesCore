@@ -10,7 +10,7 @@
 ##
 ## Same model as demo("Ex_12_lmerb_BigWordClub", package = "lmebayes"), but
 ## this script calls rLMMNormal_reg_known_vcov() directly instead of going
-## through lmerb()/rlmerb(): model_setup(), Prior_Setup_lmebayes(), and
+## through lmerb()/rlmerb(): model_setup(), Prior_Setup_GLMM(), and
 ## pfamily_list() (all exported from lmebayesCore) build the design and
 ## priors, then the script assembles by hand the exact 'group'/'prior_list'
 ## arguments that matrix_args_lmm() builds internally for rlmerb(), and calls
@@ -43,14 +43,14 @@ form_lmer <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 ## ---------------------------------------------------------------------------
-## 1. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 1. Design + priors: model_setup() / Prior_Setup_GLMM() / pfamily_list()
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup ===\n\n")
 print(design)
 
-ps <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.01)
-cat("\n=== Prior_Setup_lmebayes ===\n\n")
+ps <- Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.01)
+cat("\n=== Prior_Setup_GLMM ===\n\n")
 print(ps)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*

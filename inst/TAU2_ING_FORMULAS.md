@@ -89,7 +89,7 @@ $$
 
 Code: **`.two_block_tau2_plug_in_from_pfamily()`** / **`.two_block_tau2_plug_in_vector()`** (ICM and Σ_ranef). Conservative λ* bounds use **`.two_block_tau2_ref_from_pfamily()`** (`rate/shape`).
 
-From `Prior_Setup_lmebayes` calibration (per component k):
+From `Prior_Setup_GLMM` calibration (per component k):
 
 $$
 \mathrm{shape}_k = \frac{n_0 + 1 + p_k}{2}, \qquad

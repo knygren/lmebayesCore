@@ -658,8 +658,8 @@ by <strong>lmebayes</strong>, but <strong>not</strong> in
 <code>dNormal_Gamma()</code>, <code>dIndependent_Normal_Gamma()</code>,
 and <code>dGamma()</code> (listed under <strong>glmbayes</strong> shared
 API above). S3 <code>print.model_setup</code>,
-<code>print.lmebayes_prior_setup</code>, and
-<code>pfamily_list.lmebayes_prior_setup</code> register in Core;
+<code>print.Prior_Setup_GLMM</code>, and
+<code>pfamily_list.Prior_Setup_GLMM</code> register in Core;
 <strong>lmebayes</strong> <code>import(glmbayesCore)</code> dispatches
 them for re-exported objects.</p>
 <div id="re-exports-6-symbols" class="section level3">
@@ -688,8 +688,8 @@ them for re-exported objects.</p>
 (<code>&quot;model_setup&quot;</code>).</td>
 </tr>
 <tr class="even">
-<td><code>Prior_Setup_lmebayes()</code></td>
-<td><code>Prior_Setup_lmebayes.R</code></td>
+<td><code>Prior_Setup_GLMM()</code></td>
+<td><code>Prior_Setup_GLMM.R</code></td>
 <td>Calibrate Block~2 hyperpriors from reference <code>lmer</code> /
 <code>glmer</code>.</td>
 </tr>
@@ -706,8 +706,8 @@ them for re-exported objects.</p>
 <tr class="odd">
 <td><code>pfamily_list()</code></td>
 <td><code>pfamily_list.R</code>,
-<code>pfamily_list_lmebayes_prior_setup.R</code></td>
-<td>S3 generic; <code>lmebayes_prior_setup</code> method builds Block~2
+<code>pfamily_list_Prior_Setup_GLMM.R</code></td>
+<td>S3 generic; <code>Prior_Setup_GLMM</code> method builds Block~2
 priors.</td>
 </tr>
 <tr class="even">
@@ -719,7 +719,7 @@ priors.</td>
 </tbody>
 </table>
 <p><strong>lmebayes</strong> callers: <code>model_setup()</code> and
-<code>Prior_Setup_lmebayes()</code> from user workflows and
+<code>Prior_Setup_GLMM()</code> from user workflows and
 <code>Prior_SetupBlock()</code>; <code>pfamily_list()</code> from
 <code>lmerb()</code> / <code>glmerb()</code> (via
 <code>.lmebayes_priors_from_pfamily_list()</code>);
@@ -1613,15 +1613,15 @@ above).</p>
 <code>rlmb</code>.</td>
 </tr>
 <tr class="even">
-<td><code>pfamily_list.lmebayes_prior_setup()</code></td>
-<td><code>pfamily_list_lmebayes_prior_setup.R</code></td>
+<td><code>pfamily_list.Prior_Setup_GLMM()</code></td>
+<td><code>pfamily_list_Prior_Setup_GLMM.R</code></td>
 <td>lmebayes</td>
 <td>Build Block~2 <code>pfamily_list</code> from prior-setup
 object.</td>
 </tr>
 <tr class="odd">
-<td><code>print.lmebayes_prior_setup()</code></td>
-<td><code>Prior_Setup_lmebayes.R</code></td>
+<td><code>print.Prior_Setup_GLMM()</code></td>
+<td><code>Prior_Setup_GLMM.R</code></td>
 <td>lmebayes</td>
 <td>Print mixed-model prior-setup object.</td>
 </tr>

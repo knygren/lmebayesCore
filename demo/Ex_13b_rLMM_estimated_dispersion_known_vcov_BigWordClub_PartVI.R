@@ -27,11 +27,11 @@
 ## sigma2_hat,j'.
 ##
 ## UPDATE: Part VI's Omega_j fold-in is now wired into
-## Prior_Setup_lmebayes() itself (permanent default, not opt-in), and
+## Prior_Setup_GLMM() itself (permanent default, not opt-in), and
 ## disp_lower/disp_upper are now literal quantiles of the resulting
 ## Gamma(shape_ING, rate) (not the shape_w/rate_w/n_combined window below) --
 ## see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI and R/dGamma_list_
-## lmebayes_prior_setup.R. A plain `dGamma_list(ps)` call now reproduces
+## Prior_Setup_GLMM.R. A plain `dGamma_list(ps)` call now reproduces
 ## the Omega_j fold-in automatically; this demo's hand-rolled block below
 ## (part_vi_group, via the internal helpers
 ## .lmebayes_ing_prior_measurement_group_glm_inputs() and
@@ -97,10 +97,10 @@ dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 2. Design + priors: model_setup() / Prior_Setup_GLMM() / pfamily_list()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
-## Prior_Setup_lmebayes()'s per-group Block~1 calibration
+## Prior_Setup_GLMM()'s per-group Block~1 calibration
 ## (group.ing_prior), consumed below by the Part VI extension
 ## (in place of Ex_13's direct dGamma_list() call).
 ##
@@ -108,7 +108,7 @@ dat$school_id <- droplevels(dat$school_id)
 ## for clarity) folds the group-specific group.dispersion.pwt search --
 ## previously a hand-rolled ps_flat -> tab_pwt -> w_pwt_vec -> ps two-pass
 ## dance sourcing data-raw/_scratch_group_pwt_measurement_noncentral.R --
-## directly into this single Prior_Setup_lmebayes() call: it searches, per
+## directly into this single Prior_Setup_GLMM() call: it searches, per
 ## group, for the smallest group.dispersion.pwt driving the predicted ellipsoid
 ## violation rate (inst/BLOCK_GIBBS_ERGODICITY_ING.md Section 16.6) down to
 ## 1%, floored at group.dispersion.pwt = 0.1 below. 'ps' is what the Part VI
@@ -119,12 +119,12 @@ cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$groupef.rank))
 
-## Same group.max_disp_perc = 0.8 as Ex_13 (Prior_Setup_lmebayes()'s own per-group
+## Same group.max_disp_perc = 0.8 as Ex_13 (Prior_Setup_GLMM()'s own per-group
 ## sigma2_hat calibration is unchanged by Part VI -- only the window built
 ## from it, below, differs). group.dispersion.pwt = 0.1 here is only the floor
 ## the group.alpha_target calibration below sharpens from -- it is
 ## not necessarily what the Part VI derivation/sampler end up using.
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pop.pwt         = 0.01,
@@ -133,7 +133,7 @@ ps <- Prior_Setup_lmebayes(
   group.dispersion.pwt       = 0.1,
   group.alpha_target  = 0.01
 )
-cat("\n=== Prior_Setup_lmebayes (group.dispersion.pwt calibrated to group.alpha_target = 0.01) ===\n\n")
+cat("\n=== Prior_Setup_GLMM (group.dispersion.pwt calibrated to group.alpha_target = 0.01) ===\n\n")
 print(ps)
 
 ## group_name is not a formal on the routed export; attach it to 'group'
@@ -268,7 +268,7 @@ pf <- pfamily_list(ps)
 ##
 ## UPDATE: this used to be extracted from Section 2d's hand-rolled
 ## part_vi_group instead of dGamma_list(ps) directly, back when
-## Prior_Setup_lmebayes()'s own disp_lower/disp_upper hadn't yet been
+## Prior_Setup_GLMM()'s own disp_lower/disp_upper hadn't yet been
 ## corrected to match part_vi_group's shape_w/rate_w window (see
 ## inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VIII). Now that they agree
 ## to floating-point precision, this section (and everything downstream of
@@ -338,7 +338,7 @@ source("data-raw/_scratch_rss_ellipsoid_test.R", local = FALSE)  # defines .tmp_
 ## the n main-stage draws (independent parallel chains) is tested using ONLY
 ## that draw's own beta_j -- see .tmp_rss_ellipsoid_test_marginal()'s header
 ## comment. pct_outside_prerun/diff_vs_prerun compare this POST-RUN empirical
-## rate against Prior_Setup_lmebayes()'s own PRE-RUN (plug-in Monte Carlo)
+## rate against Prior_Setup_GLMM()'s own PRE-RUN (plug-in Monte Carlo)
 ## prediction, ps$group.pwt_calibration$pct_outside_after -- the whole
 ## point of calibrating disp_lower_group/disp_upper_group was to keep this
 ## below group.alpha_target, so this is the check on whether that
@@ -434,7 +434,7 @@ cat(
 ## 'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k across
 ## the main-stage MCMC draws) is compared directly to the same
 ## dispformula = ~school_id glmmTMB reference fit that calibrated
-## Prior_Setup_lmebayes()'s per-group Block~1 prior (ps$fit_ref), same
+## Prior_Setup_GLMM()'s per-group Block~1 prior (ps$fit_ref), same
 ## column layout as Ex_11's Section 6 (just without the 'iid' columns, since
 ## no iid engine exists here). 'diff(SE)' re-expresses the gibbs-mean vs
 ## glmmTMB gap in units of glmmTMB's own Std. Error -- the right scale to

@@ -86,12 +86,12 @@ routes differ in eigenvalue-bound complexity). Inner sweeps use
 
 For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
 Design matrices are built with \code{\link{model_setup}} and priors with
-\code{\link{Prior_Setup_lmebayes}}.
+\code{\link{Prior_Setup_GLMM}}.
 }
 \seealso{
 \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},
-\code{\link{Prior_Setup_lmebayes}}
+\code{\link{Prior_Setup_GLMM}}
 }

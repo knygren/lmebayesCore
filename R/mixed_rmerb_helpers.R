@@ -165,7 +165,7 @@
 #' (pooled) \code{dGamma()}: a named list with one \code{dGamma()} pfamily per
 #' group level. Each entry keeps its own \code{shape}/\code{rate}/\code{disp_lower}/
 #' \code{disp_upper} -- there is no requirement that groups share the same
-#' \code{shape}/\code{rate} (\code{Prior_Setup_lmebayes()} may choose to build
+#' \code{shape}/\code{rate} (\code{Prior_Setup_GLMM()} may choose to build
 #' them from a shared hyperprior, but the engine itself is agnostic).
 #' Requires every group to be full column rank (rank-deficient groups are not
 #' yet supported for this option).
@@ -396,7 +396,7 @@
 #'       \code{"gamma_list"}, the \code{"window_diagnostics"} attribute
 #'       carried on the \code{group.dispersion} list (if any), describing how
 #'       each group's \code{disp_lower}/\code{disp_upper} truncation window
-#'       was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
+#'       was calibrated (e.g. by \code{Prior_Setup_GLMM()}).}
 #'     \item{\code{group.Sigma}}{A \code{p_re x p_re} diagonal matrix (row/
 #'       column names \code{design$groupef.names}) holding each component's
 #'       Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
@@ -449,7 +449,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     stop(
       "'pfamily_list' must be a list with one pfamily per random-effect ",
       "component (", p_re, " expected: ", paste(re_names, collapse = ", "),
-      "). Build it with pfamily_list(Prior_Setup_lmebayes(...)).",
+      "). Build it with pfamily_list(Prior_Setup_GLMM(...)).",
       call. = FALSE
     )
   }
@@ -551,7 +551,7 @@ priors_from_pfamily_list <- function(pfamily_list,
           "dIndependent_Normal_Gamma and must supply a finite scalar ",
           "'disp_upper' > 'disp_lower' (upper dispersion truncation), so ",
           "the tau^2 truncation window is fixed across Gibbs sweeps. ",
-          "pfamily_list(Prior_Setup_lmebayes(...)) sets both bounds to the ",
+          "pfamily_list(Prior_Setup_GLMM(...)) sets both bounds to the ",
           "0.01/0.99 prior dispersion quantiles by default.",
           call. = FALSE
         )
@@ -1071,7 +1071,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' RE component's \code{mu_j[k]} stands in for the model's own conditional
 #' prior mean \code{W_j[[k]] \%*\% gamma_k} (the Block~2 hyper-regression),
 #' and \code{gamma_k}'s own calibrated uncertainty (\code{prior_list[[k]]$Sigma},
-#' already computed above in \code{Prior_Setup_lmebayes()}) propagates
+#' already computed above in \code{Prior_Setup_GLMM()}) propagates
 #' through group \code{j}'s own hyper-design row,
 #' \code{Omega_j[k, k] = W_j[[k]] \%*\% Sigma_k \%*\% t(W_j[[k]])}
 #' (diagonal across RE components -- each \code{gamma_k} is calibrated

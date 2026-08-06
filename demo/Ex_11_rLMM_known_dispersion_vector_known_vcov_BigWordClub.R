@@ -20,9 +20,9 @@
 ## mixed_rmerb_helpers.R) -- this demo exercises that vector form.
 ##
 ## The per-group sigma^2_j values used here are
-## Prior_Setup_lmebayes(..., dispformula = ~school_id)'s 'group.dispersion.ref'
+## Prior_Setup_GLMM(..., dispformula = ~school_id)'s 'group.dispersion.ref'
 ## field: per-group point estimates read off a glmmTMB heteroscedastic
-## reference fit's dispersion linear predictor. Prior_Setup_lmebayes()
+## reference fit's dispersion linear predictor. Prior_Setup_GLMM()
 ## documents 'group.dispersion.ref' as "diagnostic only -- not the value fed to the
 ## sampler" (its own sampler-facing use is the *estimated* per-group
 ## dGamma_list() route, Ex_13/Ex_14) -- this demo deliberately repurposes it
@@ -62,7 +62,7 @@ form_lmer <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 ## ---------------------------------------------------------------------------
-## 1. Prior_Setup_lmebayes(dispformula = ~school_id)'s per-group calibration
+## 1. Prior_Setup_GLMM(dispformula = ~school_id)'s per-group calibration
 ##    (ing_prior_measurement_group, used for group.dispersion.ref here) runs a
 ##    within-group regression for every group and requires each group's Z_j
 ##    to be full column rank (unlike the *engine*'s fixed_vector dispersion
@@ -89,10 +89,10 @@ dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes()
+## 2. Design + priors: model_setup() / Prior_Setup_GLMM()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
-## Prior_Setup_lmebayes()'s glmmTMB-based per-group calibration, which is
+## Prior_Setup_GLMM()'s glmmTMB-based per-group calibration, which is
 ## also where Block~2's prior_list/group.Sigma/tau^2_k plug-ins come from
 ## here (calibration_source == "glmmTMB").
 ## ---------------------------------------------------------------------------
@@ -101,13 +101,13 @@ cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$groupef.rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data        = dat,
   pwt         = 0.01,
   dispformula = ~school_id
 )
-cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
+cat("\n=== Prior_Setup_GLMM (per-group Block~1 calibration) ===\n\n")
 print(ps)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
@@ -125,7 +125,7 @@ attr(grp, "group_name") <- design$group_name
 group_levels <- levels(grp)
 re_names     <- design$groupef.names
 
-## group.dispersion.ref is a diagnostic-only field in Prior_Setup_lmebayes(); here we
+## group.dispersion.ref is a diagnostic-only field in Prior_Setup_GLMM(); here we
 ## deliberately treat it as KNOWN/fixed and pass it straight through as
 ## prior_list$dispersion's per-group vector (not sampled at all, unlike
 ## Ex_13/Ex_14's dGamma_list() route).
@@ -138,7 +138,7 @@ cat(sprintf(
 ))
 
 ## ---------------------------------------------------------------------------
-## 4. glmmTMB reference fit (the *same* fit Prior_Setup_lmebayes() calibrated
+## 4. glmmTMB reference fit (the *same* fit Prior_Setup_GLMM() calibrated
 ##    Block~2/group.dispersion.ref from -- no re-fitting needed).
 ## ---------------------------------------------------------------------------
 fit_ref <- ps$fit_ref
@@ -443,7 +443,7 @@ cat(
 
 ## ---------------------------------------------------------------------------
 ## 9. Known per-group sigma^2_j: the exact input fed to both samplers,
-##    reproduced here for reference (identical to Prior_Setup_lmebayes()'s
+##    reproduced here for reference (identical to Prior_Setup_GLMM()'s
 ##    printed 'ps$group.dispersion.ref', by construction -- shown for completeness,
 ##    not a new estimate).
 ## ---------------------------------------------------------------------------

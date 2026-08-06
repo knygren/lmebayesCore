@@ -1,5 +1,12 @@
 # lmebayesCore (development version)
 
+* **Rename: `Prior_Setup_lmebayes()` is now `Prior_Setup_GLMM()`.**
+  The returned S3 class is `"Prior_Setup_GLMM"` (was
+  `"lmebayes_prior_setup"`). S3 methods
+  `pfamily_list.Prior_Setup_GLMM()`, `dGamma_list.Prior_Setup_GLMM()`,
+  and `print.Prior_Setup_GLMM()` follow the new class name. Call sites
+  and re-exports (including in \pkg{lmebayes}) must use the new name.
+
 * **New: `two_block_rate_ing()`, an extended (lambda, Omega)-aware LOCAL
   rate diagnostic for the two-block Gibbs chain.**
     - Extends `two_block_rate()`'s `(gamma, beta)`-only Hessian with the
@@ -67,12 +74,12 @@
       `design$lmer_fit`/`design$glmer_fit` are never touched by this --
       they stay the plain pooled-dispersion fit in every case, exactly as
       documented before.
-    - `Prior_Setup_lmebayes()` now passes its own `dispformula` argument
+    - `Prior_Setup_GLMM()` now passes its own `dispformula` argument
       through to this new `model_setup()` argument and reuses
       `design$glmmTMB_fit` as its `fit_ref`/`dispersion_fit` calibration
       reference, instead of independently fitting `glmmTMB` a second time.
-    - Internal: `.lmebayes_prior_setup_dispformula_kind()` moved from
-      `Prior_Setup_lmebayes.R` to `glmmtmb_reference_helpers.R` and renamed
+    - Internal: `.Prior_Setup_GLMM_dispformula_kind()` moved from
+      `Prior_Setup_GLMM.R` to `glmmtmb_reference_helpers.R` and renamed
       to `.lmebayes_dispformula_kind()` so `model_setup()` can share the
       same `dispformula` classification/validation logic; behavior is
       unchanged. New internal dispatcher
@@ -97,7 +104,7 @@
       (and its `.lmerb_validate_design()` field check), `lmerb_posterior_mean()`
       / `glmerb_posterior_mode()` / `lmerb_posterior_covariance()`,
       `two_block_block2_one_chain()` / `two_block_block2_one_chain_cpp()`,
-      `Prior_Setup_lmebayes()`, `dGamma_list()`, `pfamily_list()`,
+      `Prior_Setup_GLMM()`, `dGamma_list()`, `pfamily_list()`,
       `rlmerb()`/`rglmerb()`, and the `plot_var_convergence()`/
       `plot_mean_convergence()` fit-object methods. The C++ boundary in
       `src/two_block_block1.cpp` (`design["Z"]`/`design["groups"]`/
@@ -145,10 +152,10 @@
       quasi-complete separation) is now flagged `re_estimable = FALSE`; other
       families currently set `re_estimable` equal to `re_rank` (no glm check
       yet -- Poisson and other families are a planned follow-up).
-    - This check previously lived inside `Prior_Setup_lmebayes()`
+    - This check previously lived inside `Prior_Setup_GLMM()`
       (`.lmebayes_block_glm_estimable()`, attached post-hoc to the `design`
       object `model_setup()` had already returned). It has moved into
-      `model_setup()` itself; `Prior_Setup_lmebayes()` now just reads
+      `model_setup()` itself; `Prior_Setup_GLMM()` now just reads
       `design$re_estimable`/`design$re_glm_check` instead of recomputing
       them. No argument was added to opt out -- for `family = binomial()`
       this check always runs.
@@ -192,7 +199,7 @@
       `Gamma()`/`gaussian()` models with small per-group sample sizes
       relative to the number of random-effect predictors, since
       non-estimable groups no longer count toward Level~2 identifiability.
-    - `print.model_setup()`/`print.lmebayes_prior_setup()`'s "Full-rank with
+    - `print.model_setup()`/`print.Prior_Setup_GLMM()`'s "Full-rank with
       glm MLE" line is renamed "Full-rank & estimable" and now fires for any
       family with a non-`NULL` `re_glm_check` (not just `binomial()`).
     - `quasipoisson()`/`quasibinomial()` and other families are unchanged
@@ -473,7 +480,7 @@
       and `coef_index` (its row/column stacking order) -- purely additive
       fields, required for `whitened = TRUE`.
 
-* **Bug fix: `Prior_Setup_lmebayes(..., dispformula = ~<group>)`'s internal
+* **Bug fix: `Prior_Setup_GLMM(..., dispformula = ~<group>)`'s internal
   `glmmTMB` reference fit (`$fit_ref`/`$dispersion_fit`) printed its entire
   training data inline whenever a caller ran `print(summary(fit_ref))` or
   `summary(fit_ref)$call`.** Root cause: `.lmebayes_fit_glmmtmb_reference()`
@@ -490,7 +497,7 @@
   downstream calibration quantity are computed from the fit's actual data
   (not from `$call`) and are unaffected.
 
-* **Bug fix: `Prior_Setup_lmebayes()`'s per-RE-component `Sigma_fixef`
+* **Bug fix: `Prior_Setup_GLMM()`'s per-RE-component `Sigma_fixef`
   (Block~2 hyperparameter prior covariance) could be numerically
   non-symmetric to floating-point precision**, causing
   `pfamily_list()`/`dGamma_list()` to fail downstream with `"matrix Sigma
@@ -504,9 +511,9 @@
   t(Sigma_fixef)) / 2`) right after construction; this only removes
   floating-point noise and does not change any calibration math.
 
-* **Bug fix: `print.lmebayes_prior_setup()` errored on R \eqn{\ge} 4.6 when
+* **Bug fix: `print.Prior_Setup_GLMM()` errored on R \eqn{\ge} 4.6 when
   printing per-group Block~1 dispersion calibration** (i.e. after
-  `Prior_Setup_lmebayes(..., dispformula = ~<group_name>)`). It called
+  `Prior_Setup_GLMM(..., dispformula = ~<group_name>)`). It called
   `round()` on a data frame with a non-numeric `group` column, which R 4.6's
   stricter `Math.data.frame` group generic now rejects
   (`"non-numeric-alike variable(s) in data frame: group"`). Now rounds only
@@ -771,7 +778,7 @@
   aliases:** callers that used `lmebayesCore::Prior_Setup()`,
   `lmebayesCore::rglmb()`, `lmebayesCore::dNormal()`, etc. must switch to
   `glmbayesCore::…` directly. Remaining internal call sites in
-  `lmebayesCore`'s own R/ (two-block engines, `Prior_Setup_lmebayes()`,
+  `lmebayesCore`'s own R/ (two-block engines, `Prior_Setup_GLMM()`,
   `lmebayes_posterior_icm.R`, etc.) were updated to call `glmbayesCore::…`
   explicitly. `lmebayesCore` now exports **42 symbols + 6 S3 methods**
   (mixed-model setup and two-block Gibbs sampling only).
@@ -802,7 +809,7 @@
 * **Forked from `glmbayesCore` as the full-featured backend for `lmebayes`:**
   `lmebayesCore` is a history-preserving fork of `glmbayesCore` (created
   2026-07-15) that keeps the complete glm/envelope engine *and* the
-  two-block Gibbs mixed-model stack (`model_setup()`, `Prior_Setup_lmebayes()`,
+  two-block Gibbs mixed-model stack (`model_setup()`, `Prior_Setup_GLMM()`,
   `rlmerb()`/`rglmerb()`, `rLMM_reg`/`rGLMM_reg` routes, etc.). `glmbayesCore`
   itself is being stripped down to only the glm/envelope engine that
   `glmbayes` needs; `lmebayes` now depends on `lmebayesCore` instead.
@@ -813,14 +820,14 @@
 
 
 * **Per-group `dGamma_list()` prior now uses the §3.3.4 marginal rate:**
-  **`dGamma_list.lmebayes_prior_setup()`** feeds each group's `dGamma()` the
+  **`dGamma_list.Prior_Setup_GLMM()`** feeds each group's `dGamma()` the
   Chapter A12 **§3.3.4** marginal ING rate (`beta` integrated out) instead of
   the **§3.3.5** fixed-`beta` `rate_gamma`. This is the theoretically correct
   choice for the Block~1 ING sampler, which draws `sigma2_j` from the
   marginal law and then `b_j | sigma2_j` (`beta` is never held fixed at a
   point estimate during that draw). `rate_gamma` remains on
   `ing_prior_measurement_group` for diagnostic comparison only (printed by
-  a dev-only table in **`Prior_Setup_lmebayes()`** whenever `dispformula`
+  a dev-only table in **`Prior_Setup_GLMM()`** whenever `dispformula`
   requests per-group dispersion); nothing downstream consumes it. Truncation
   bounds (`disp_lower`/`disp_upper`, `blup_infl`, `R_lo`/`R_hi`) are
   unaffected -- they were already mean-matched at `sigma2_hat`, which is now
@@ -1011,7 +1018,7 @@
 
 * **`pfamily_list()` generic:** New S3 generic for building a named list of
   pfamily objects from a prior-specification container.  Downstream
-  packages provide methods (e.g. `lmebayes` for `Prior_Setup_lmebayes()`
+  packages provide methods (e.g. `lmebayes` for `Prior_Setup_GLMM()`
   objects, mapping each random-effect component to `dNormal()` or
   `dIndependent_Normal_Gamma()`).
 

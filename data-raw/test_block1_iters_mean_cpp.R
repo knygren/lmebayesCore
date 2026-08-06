@@ -37,7 +37,7 @@ stopifnot(identical(r_val, cpp_val))
 ## Real Block 1 draw (binomial GLMM block path) if lmebayes available
 if (requireNamespace("lmebayes", quietly = TRUE)) {
   data(book_banning, package = "lmebayes")
-  ps <- lmebayes::Prior_Setup_lmebayes(
+  ps <- lmebayes::Prior_Setup_GLMM(
     formula = cbind(banned, unbanned) ~ 1 + logpop,
     data = book_banning,
     family = binomial(),

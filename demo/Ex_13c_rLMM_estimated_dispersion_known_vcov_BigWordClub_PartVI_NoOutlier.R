@@ -23,7 +23,7 @@
 ##
 ## UPDATE: see Ex_13b's header note -- Part VI's Omega_j fold-in and the
 ## disp_lower/disp_upper quantile-of-the-actual-prior construction below are
-## now Prior_Setup_lmebayes()'s permanent default; the hand-rolled
+## now Prior_Setup_GLMM()'s permanent default; the hand-rolled
 ## part_vi_group block below is kept as a from-scratch derivation check.
 ##
 ##   demo("Ex_13c_rLMM_estimated_dispersion_known_vcov_BigWordClub_PartVI_NoOutlier", package = "lmebayesCore")
@@ -96,10 +96,10 @@ if (length(drop)) {
 }
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 2. Design + priors: model_setup() / Prior_Setup_GLMM() / pfamily_list()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
-## Prior_Setup_lmebayes()'s per-group Block~1 calibration
+## Prior_Setup_GLMM()'s per-group Block~1 calibration
 ## (group.ing_prior), consumed below by the Part VI extension
 ## (in place of Ex_13's direct dGamma_list() call).
 ## ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ stopifnot(all(design$groupef.rank))
 ## Same group.max_disp_perc = 0.8 / group.dispersion.pwt = 0.1 as Ex_13/Ex_13b (Prior_
 ## Setup_lmebayes()'s own per-group sigma2_hat calibration is unchanged by
 ## Part VI -- only the window built from it, below, differs).
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pop.pwt         = 0.01,
@@ -119,7 +119,7 @@ ps <- Prior_Setup_lmebayes(
   group.max_disp_perc = 0.8,
   group.dispersion.pwt       = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes (per-group Block~1 calibration) ===\n\n")
+cat("\n=== Prior_Setup_GLMM (per-group Block~1 calibration) ===\n\n")
 print(ps)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
@@ -231,7 +231,7 @@ print(part_vi_tab, row.names = FALSE)
 ##
 ## UPDATE: this used to be extracted from Section 2b's hand-rolled
 ## part_vi_group instead of dGamma_list(ps) directly, back when
-## Prior_Setup_lmebayes()'s own disp_lower/disp_upper hadn't yet been
+## Prior_Setup_GLMM()'s own disp_lower/disp_upper hadn't yet been
 ## corrected to match part_vi_group's shape_w/rate_w window (see
 ## inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VIII). Now that they agree
 ## to floating-point precision, this section (and everything downstream of
@@ -389,7 +389,7 @@ cat(
 ## 'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k across
 ## the main-stage MCMC draws) is compared directly to the same
 ## dispformula = ~school_id glmmTMB reference fit that calibrated
-## Prior_Setup_lmebayes()'s per-group Block~1 prior (ps$fit_ref), same
+## Prior_Setup_GLMM()'s per-group Block~1 prior (ps$fit_ref), same
 ## column layout as Ex_11's Section 6 (just without the 'iid' columns, since
 ## no iid engine exists here). 'diff(SE)' re-expresses the gibbs-mean vs
 ## glmmTMB gap in units of glmmTMB's own Std. Error -- the right scale to

@@ -58,7 +58,7 @@ raw_lambda <- function(ps) {
   max(eigen(M, symmetric = TRUE, only.values = TRUE)$values)
 }
 
-ps_tmb <- Prior_Setup_lmebayes(
+ps_tmb <- Prior_Setup_GLMM(
   form, data = dat, pwt = 0.05, pwt_measurement = 0.1,
   max_disp_perc_measurement = 0.8, dispformula = ~school_id
 )
@@ -73,7 +73,7 @@ ps_cf$sd_tau[2] <- sqrt(vc_lmer)
 cat("lme4 slope var:", vc_lmer,
     " lambda* =", raw_lambda(ps_cf), "\n")
 
-ps_pool <- Prior_Setup_lmebayes(
+ps_pool <- Prior_Setup_GLMM(
   form, data = dat, pwt = 0.05, pwt_measurement = 0.1,
   max_disp_perc_measurement = 0.8, dispformula = ~1
 )

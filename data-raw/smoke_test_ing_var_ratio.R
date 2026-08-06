@@ -1,7 +1,7 @@
 ## Fast, fully-synthetic smoke test of plot_var_convergence() wired
 ## against the REAL rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov()
 ## sweeps-outer/chains-inner engines (same code path as Ex_13/Ex_14), bypassing
-## Prior_Setup_lmebayes()/dGamma_list() calibration (and bayesrules::big_word_club)
+## Prior_Setup_GLMM()/dGamma_list() calibration (and bayesrules::big_word_club)
 ## entirely so this runs in seconds rather than the demos' 10-20+ minutes.
 devtools::load_all(".", quiet = TRUE)
 grDevices::pdf(tempfile(fileext = ".pdf"))

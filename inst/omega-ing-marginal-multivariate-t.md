@@ -466,7 +466,7 @@ noncentrality this section derives.
 Fixing $\Omega_j$ at a plug-in value (its own Gaussian full-conditional
 structure is what makes this tractable, unlike the $\Omega_j$-integrated-out
 case of §§1-4), the real Gibbs sampler's Block~1 draw combines two Gaussian
-pieces exactly as `Prior_Setup_lmebayes.R`/`_scratch_rss_prerun_estimate.R`
+pieces exactly as `Prior_Setup_GLMM.R`/`_scratch_rss_prerun_estimate.R`
 already implement:
 
 $$

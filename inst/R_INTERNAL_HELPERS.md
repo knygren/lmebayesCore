@@ -42,19 +42,19 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
 | `.lmebayes_normalize_family()` | `model_setup.R` | Coerce `family` argument | `model_setup()` |
-| `.lmebayes_mer_convergence_issues()` | `model_setup.R` | Collect lme4 convergence warnings | `Prior_Setup_lmebayes()` |
+| `.lmebayes_mer_convergence_issues()` | `model_setup.R` | Collect lme4 convergence warnings | `Prior_Setup_GLMM()` |
 | `.lmebayes_mer_optional_args()` | `model_setup.R` | Optional `lmer` / `glmer` call args | `model_setup()`, **lmebayes** `glmerb()` |
 | `.lmebayes_block_glm_estimable()` | `check_identifiability.R` | Per-group estimability check (glm-fit for binomial/poisson/Gamma; residual-df for gaussian) | `check_identifiability()` |
 | `.lmebayes_glm_estimable_precheck()` | `check_identifiability.R` | Family-specific quick-reject pre-check used by `.lmebayes_block_glm_estimable()` | `.lmebayes_block_glm_estimable()` |
 
 ---
 
-## Mixed-model prior setup (`Prior_Setup_lmebayes.R`)
+## Mixed-model prior setup (`Prior_Setup_GLMM.R`)
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.lmebayes_resolve_pwt()` | `Prior_Setup_lmebayes.R` | Resolve `pwt` / per-RE weights | `Prior_Setup_lmebayes()` |
-| `.lmebayes_resolve_disp_prior()` | `Prior_Setup_lmebayes.R` | Resolve dispersion hyperprior fields | `Prior_Setup_lmebayes()` |
+| `.lmebayes_resolve_pwt()` | `Prior_Setup_GLMM.R` | Resolve `pwt` / per-RE weights | `Prior_Setup_GLMM()` |
+| `.lmebayes_resolve_disp_prior()` | `Prior_Setup_GLMM.R` | Resolve dispersion hyperprior fields | `Prior_Setup_GLMM()` |
 
 ---
 
@@ -128,7 +128,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 | `.two_block_icm_at_start` | `two_block_measurement_prior.R` | — | rGLMM_reg.R, rLMM_reg.R |
 | `.two_block_validate_gap_tol` | `two_block_measurement_prior.R` | Validate gap tolerance for pilot chain count derivation | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R, two_block_pilot_cost.R |
 | `.two_block_tau2_ref_from_pfamily` | `two_block_tau2_ref.R` | Precision-mean plug-in `rate/shape` for λ* / conservative bounds | two_block_batch_gibbs.R |
-| `.two_block_tau2_plug_in_from_pfamily` | `two_block_tau2_ref.R` | ICM / Σ_ranef plug-in `rate/(shape−1)` (reverse of `Prior_Setup_lmebayes` ING calibration) | `mixed_rmerb_helpers.R`, `two_block_measurement_prior.R` |
+| `.two_block_tau2_plug_in_from_pfamily` | `two_block_tau2_ref.R` | ICM / Σ_ranef plug-in `rate/(shape−1)` (reverse of `Prior_Setup_GLMM` ING calibration) | `mixed_rmerb_helpers.R`, `two_block_measurement_prior.R` |
 | `.two_block_tau2_plug_in_vector` | `two_block_tau2_ref.R` | Named vector of ICM τ² plug-ins from `pfamily_list` | *(internal)* |
 | `.two_block_tau2_start_from_dispersion_draws` | `two_block_tau2_ref.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 

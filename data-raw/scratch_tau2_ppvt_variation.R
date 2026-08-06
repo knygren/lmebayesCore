@@ -21,7 +21,7 @@ form <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 design <- model_setup(form, data = dat)
-ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
+ps <- Prior_Setup_GLMM(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 gl <- levels(design$group)
 J <- length(gl)

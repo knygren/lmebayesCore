@@ -27,7 +27,7 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 re_names <- design$re_coef_names
 
-ps <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.05)
+ps <- Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.05)
 pf_known_vcov <- pfamily_list(ps)
 pf_est_vcov   <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 prior_list_disp <- list(dispersion = ps$dispersion_ranef)
@@ -175,7 +175,7 @@ print(fit2$sweep_history)
 cat("print(fit2$sweep_history) shows RE precision table OK\n\n")
 
 ## --- rlmerb(): same underlying engine as fit1, via the model_setup()/
-## Prior_Setup_lmebayes() pipeline; result_class is lost (class == "rlmerb")
+## Prior_Setup_GLMM() pipeline; result_class is lost (class == "rlmerb")
 ## so exact-ref detection must come from fit$Prior$dispersion_mode. ---------
 prior_rlmerb <- list(
   Sigma_ranef  = as.matrix(ps$Sigma_ranef),
@@ -196,7 +196,7 @@ cat("fit3 (rlmerb(), exact ref via Prior$dispersion_mode) OK\n\n")
 
 ## --- rLMMindepNormalGamma_reg_known_vcov(): dispersion always estimated
 ## per group here -> never an exact reference, even though vcov is known. --
-ps_g <- Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.05, dispformula = ~group)
+ps_g <- Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.05, dispformula = ~group)
 disp_pf_list <- dGamma_list(ps_g)
 group_levels <- levels(grp)
 p_re <- length(re_names)
@@ -243,7 +243,7 @@ dat_pois$y <- stats::rpois(nrow(dat_pois), lambda = exp(eta_pois))
 design_pois <- model_setup(form_lmer, data = dat_pois)
 grp_pois <- design_pois$group
 attr(grp_pois, "group_name") <- design_pois$group_name
-ps_pois <- Prior_Setup_lmebayes(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
+ps_pois <- Prior_Setup_GLMM(form_lmer, data = dat_pois, family = poisson(), pwt = 0.05)
 pf_pois <- pfamily_list(ps_pois)
 fit5 <- rGLMM_reg_known_vcov(
   n = 15L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,

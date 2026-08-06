@@ -15,7 +15,7 @@ form <- score_ppvt ~
   free_reduced_lunch:distracted_a1 +
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form,
   data           = dat,
   pwt            = 0.01,

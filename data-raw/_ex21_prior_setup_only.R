@@ -1,4 +1,4 @@
-## Ex_21: Prior_Setup_lmebayes only (no lmerb sampling)
+## Ex_21: Prior_Setup_GLMM only (no lmerb sampling)
 pkgload::load_all(".", quiet = TRUE)
 
 if (!requireNamespace("bayesrules", quietly = TRUE)) {
@@ -32,14 +32,14 @@ design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup ===\n\n")
 print(design)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data           = dat,
   pwt            = 0.01,
   pwt_dispersion = 0.2
 )
 
-cat("\n=== print(Prior_Setup_lmebayes) ===\n\n")
+cat("\n=== print(Prior_Setup_GLMM) ===\n\n")
 print(ps)
 
 cat("\n=== DONE: Ex_21 prior setup only ===\n")

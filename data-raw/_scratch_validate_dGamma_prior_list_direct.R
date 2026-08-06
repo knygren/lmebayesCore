@@ -32,7 +32,7 @@ dat$school_id <- droplevels(dat$school_id)
 design <- model_setup(form_lmer, data = dat)
 stopifnot(all(design$re_rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,
@@ -129,7 +129,7 @@ cat("Both shapes ran end-to-end without error (m_convergence =", fit_old$m_conve
 ## (validator-level check only: the default *pooled* disp_lower/disp_upper
 ## window is wide and can trigger slow accept-reject envelope construction
 ## unrelated to this refactor -- not worth an end-to-end sampler run here.)
-ps_pooled <- Prior_Setup_lmebayes(
+ps_pooled <- Prior_Setup_GLMM(
   form_lmer,
   data = dat,
   pwt  = 0.01

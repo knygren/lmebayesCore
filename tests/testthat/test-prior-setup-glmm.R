@@ -1,14 +1,14 @@
-test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled group.dispersion", {
+test_that("Prior_Setup_GLMM: group.dispersion overrides pooled group.dispersion", {
   dat <- lme4::sleepstudy
 
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01
   )
 
   override <- as.numeric(ps_default$group.dispersion) * 1.25
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
@@ -30,12 +30,12 @@ test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled group.dispers
   )
 })
 
-test_that("Prior_Setup_lmebayes: group.dispersion vector overrides per-group dispersion", {
+test_that("Prior_Setup_GLMM: group.dispersion vector overrides per-group dispersion", {
   skip_if_not_installed("glmmTMB")
   dat <- lme4::sleepstudy
   J <- nlevels(dat$Subject)
 
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
@@ -44,7 +44,7 @@ test_that("Prior_Setup_lmebayes: group.dispersion vector overrides per-group dis
   )
 
   override <- ps_default$group.dispersion.ref * 1.1
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
@@ -133,16 +133,16 @@ test_that("model_setup: contrasts align design W with reference fixef coding", {
   )
 })
 
-test_that("Prior_Setup_lmebayes: forwards REML / weights to model_setup", {
+test_that("Prior_Setup_GLMM: forwards REML / weights to model_setup", {
   dat <- lme4::sleepstudy
 
-  ps_reml <- Prior_Setup_lmebayes(
+  ps_reml <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
     REML = TRUE
   )
-  ps_ml <- Prior_Setup_lmebayes(
+  ps_ml <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
@@ -156,14 +156,14 @@ test_that("Prior_Setup_lmebayes: forwards REML / weights to model_setup", {
   w[1:10] <- 2
   off <- rep(0, nrow(dat))
   off[1:5] <- 1
-  ps_w <- Prior_Setup_lmebayes(
+  ps_w <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
     weights = w,
     offset = off
   )
-  expect_s3_class(ps_w, "lmebayes_prior_setup")
+  expect_s3_class(ps_w, "Prior_Setup_GLMM")
   expect_true(is.numeric(ps_w$group.dispersion))
   expect_equal(ps_w$design$weights, w)
   expect_equal(ps_w$design$offset, off)
@@ -180,7 +180,7 @@ test_that("Prior_Setup_lmebayes: forwards REML / weights to model_setup", {
   ## are subset with the model frame.
   w_sub <- rep(1, nrow(dat))
   w_sub[dat$Days >= 5] <- 2
-  ps_sub <- Prior_Setup_lmebayes(
+  ps_sub <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
@@ -203,11 +203,11 @@ test_that("Prior_Setup_lmebayes: forwards REML / weights to model_setup", {
   )
 })
 
-test_that("Prior_Setup_lmebayes: group.dispersion validation", {
+test_that("Prior_Setup_GLMM: group.dispersion validation", {
   dat <- lme4::sleepstudy
 
   expect_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       group.dispersion = 1,
@@ -217,7 +217,7 @@ test_that("Prior_Setup_lmebayes: group.dispersion validation", {
   )
 
   expect_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       family = poisson(),
@@ -227,10 +227,10 @@ test_that("Prior_Setup_lmebayes: group.dispersion validation", {
   )
 })
 
-test_that("Prior_Setup_lmebayes: dispformula = ~1 keeps the pooled lme4 reference", {
+test_that("Prior_Setup_GLMM: dispformula = ~1 keeps the pooled lme4 reference", {
   dat <- lme4::sleepstudy
 
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt  = 0.01
@@ -246,11 +246,11 @@ test_that("Prior_Setup_lmebayes: dispformula = ~1 keeps the pooled lme4 referenc
   expect_false(lmebayesCore:::.lmebayes_ing_prior_is_grouped(ps$group.ing_prior))
 })
 
-test_that("Prior_Setup_lmebayes: dispformula = ~group routes calibration through glmmTMB", {
+test_that("Prior_Setup_GLMM: dispformula = ~group routes calibration through glmmTMB", {
   skip_if_not_installed("glmmTMB")
   dat <- lme4::sleepstudy
 
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data            = dat,
     pop.pwt         = 0.01,
@@ -289,15 +289,15 @@ test_that("Prior_Setup_lmebayes: dispformula = ~group routes calibration through
   expect_identical(attr(disp_pf, "calibration_source"), "glmmTMB")
 })
 
-test_that("Prior_Setup_lmebayes: pop.mu supports partial (NULL-entry) overrides", {
+test_that("Prior_Setup_GLMM: pop.mu supports partial (NULL-entry) overrides", {
   dat <- lme4::sleepstudy
 
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat
   )
 
-  ps_mu <- Prior_Setup_lmebayes(
+  ps_mu <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.mu = list("(Intercept)" = c("(Intercept)" = 250), Days = NULL)
@@ -323,16 +323,16 @@ test_that("Prior_Setup_lmebayes: pop.mu supports partial (NULL-entry) overrides"
   )
 })
 
-test_that("Prior_Setup_lmebayes: pop.sd converts to the expected Sigma scaling", {
+test_that("Prior_Setup_GLMM: pop.sd converts to the expected Sigma scaling", {
   dat <- lme4::sleepstudy
 
   sd_val <- 50
-  ps_sd <- Prior_Setup_lmebayes(
+  ps_sd <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.sd = list("(Intercept)" = sd_val, Days = NULL)
   )
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat
   )
@@ -357,11 +357,11 @@ test_that("Prior_Setup_lmebayes: pop.sd converts to the expected Sigma scaling",
   )
 })
 
-test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually exclusive", {
+test_that("Prior_Setup_GLMM: pop.pwt, pop.sd, and pop.nprior are mutually exclusive", {
   dat <- lme4::sleepstudy
 
   expect_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.pwt = 0.02,
@@ -371,7 +371,7 @@ test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually ex
   )
 
   expect_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.pwt    = 0.02,
@@ -381,7 +381,7 @@ test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually ex
   )
 
   expect_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.sd     = list("(Intercept)" = 50, Days = NULL),
@@ -393,14 +393,14 @@ test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually ex
   ## Relying on the pop.pwt default (not explicitly supplied) does not
   ## conflict with an explicit pop.sd/pop.nprior.
   expect_no_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.sd = list("(Intercept)" = 50, Days = NULL)
     )
   )
   expect_no_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.nprior = list("(Intercept)" = 5, Days = NULL)
@@ -408,17 +408,17 @@ test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually ex
   )
 })
 
-test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma scaling", {
+test_that("Prior_Setup_GLMM: pop.nprior converts to the expected Sigma scaling", {
   dat <- lme4::sleepstudy
   J   <- nlevels(dat$Subject)
 
   n_val <- 5
-  ps_nprior <- Prior_Setup_lmebayes(
+  ps_nprior <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.nprior = list("(Intercept)" = n_val, Days = NULL)
   )
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat
   )
@@ -426,7 +426,7 @@ test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma scali
   ## n_i = J*w_i/(1-w_i) <=> w_i = n_i/(n_i+J): an equivalent pop.pwt list
   ## must reproduce exactly the same Sigma for the overridden component.
   w_equiv <- n_val / (n_val + J)
-  ps_pwt_equiv <- Prior_Setup_lmebayes(
+  ps_pwt_equiv <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = list("(Intercept)" = w_equiv, Days = 0.01)
@@ -454,11 +454,11 @@ test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma scali
   expect_equal(ps_nprior$pop.nprior[["Days"]], ps_default$pop.nprior[["Days"]])
 })
 
-test_that("Prior_Setup_lmebayes: pop.mu/pop.sd/pop.nprior outputs are always populated and round-trip", {
+test_that("Prior_Setup_GLMM: pop.mu/pop.sd/pop.nprior outputs are always populated and round-trip", {
   dat <- lme4::sleepstudy
   J   <- nlevels(dat$Subject)
 
-  ps_default <- Prior_Setup_lmebayes(
+  ps_default <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat
   )
@@ -484,7 +484,7 @@ test_that("Prior_Setup_lmebayes: pop.mu/pop.sd/pop.nprior outputs are always pop
   ## Round-trip: feeding the default pop.mu/pop.sd straight back in as
   ## overrides reproduces the same prior exactly (calling once without
   ## pop.mu/pop.sd to inspect the defaults, then supplying them back in).
-  ps_roundtrip <- Prior_Setup_lmebayes(
+  ps_roundtrip <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.mu = ps_default$pop.mu,
@@ -498,7 +498,7 @@ test_that("Prior_Setup_lmebayes: pop.mu/pop.sd/pop.nprior outputs are always pop
   expect_equal(ps_roundtrip$pop.nprior, ps_default$pop.nprior)
 
   ## Same round-trip via pop.nprior instead of pop.sd.
-  ps_roundtrip_n <- Prior_Setup_lmebayes(
+  ps_roundtrip_n <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.mu     = ps_default$pop.mu,
@@ -511,7 +511,7 @@ test_that("Prior_Setup_lmebayes: pop.mu/pop.sd/pop.nprior outputs are always pop
   ## only the edited component/entry.
   mu_edit <- ps_default$pop.mu
   mu_edit[["(Intercept)"]]["(Intercept)"] <- 999
-  ps_edited <- Prior_Setup_lmebayes(
+  ps_edited <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.mu = mu_edit
@@ -546,11 +546,11 @@ high_d_prior_setup_fixture <- function(n_groups = 60L, n_cov = 13L, slope = "x1"
   list(data = dat, formula = form)
 }
 
-test_that("Prior_Setup_lmebayes: dimension-adaptive pop.pwt defaults per RE component", {
+test_that("Prior_Setup_GLMM: dimension-adaptive pop.pwt defaults per RE component", {
   dat <- lme4::sleepstudy
 
   ps_low <- suppressMessages(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat
     )
@@ -559,12 +559,12 @@ test_that("Prior_Setup_lmebayes: dimension-adaptive pop.pwt defaults per RE comp
 
   fix <- high_d_prior_setup_fixture()
   ps_high <- suppressMessages(
-    Prior_Setup_lmebayes(fix$formula, data = fix$data)
+    Prior_Setup_GLMM(fix$formula, data = fix$data)
   )
   expect_equal(unique(unname(ps_high$pop.pwt[["(Intercept)"]])), 0.05)
   expect_equal(unique(unname(ps_high$pop.pwt[["x1"]])), 0.01)
 
-  ps_explicit <- Prior_Setup_lmebayes(
+  ps_explicit <- Prior_Setup_GLMM(
     fix$formula,
     data = fix$data,
     pop.pwt = 0.01
@@ -572,7 +572,7 @@ test_that("Prior_Setup_lmebayes: dimension-adaptive pop.pwt defaults per RE comp
   expect_true(all(unlist(ps_explicit$pop.pwt) == 0.01))
 
   ps_custom <- suppressMessages(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       fix$formula,
       data = fix$data,
       pop.pwt_default_low  = 0.02,
@@ -590,7 +590,7 @@ test_that("Prior_Setup_lmebayes: dimension-adaptive pop.pwt defaults per RE comp
   }
 
   expect_no_error(
-    Prior_Setup_lmebayes(
+    Prior_Setup_GLMM(
       Reaction ~ Days + (Days || Subject),
       data = dat,
       pop.sd = list("(Intercept)" = 50, Days = NULL)

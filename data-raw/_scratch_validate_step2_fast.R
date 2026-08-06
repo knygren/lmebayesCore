@@ -43,7 +43,7 @@ if (length(drop)) {
 design <- model_setup(form_lmer, data = dat)
 stopifnot(all(design$re_rank))
 
-ps_flat <- Prior_Setup_lmebayes(
+ps_flat <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

@@ -16,7 +16,7 @@ prior_only_window <- function(n_prior, d_hat, n_obs, p_re) {
 
 cat("sigma2_hat =", sigma2_hat, " n =", n, " p_re =", p_re, "\n\n")
 for (pwt in c(0.2, 0.49)) {
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     fx$form, data = fx$dat, pwt = 0.01, pwt_measurement = pwt
   )
   m <- ps$ing_prior_measurement

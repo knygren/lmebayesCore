@@ -1098,7 +1098,7 @@ accept/reject envelope over that range, not the full \((0,\infty)\) support),
 which the untruncated derivation never accounts for.
 This subsection re-derives §16.2's marginal and Hessian accounting for that
 truncation exactly, in closed form, using only quantities already computed by
-`Prior_Setup_lmebayes()`/`dGamma_list()`. The exact formulas below are now
+`Prior_Setup_GLMM()`/`dGamma_list()`. The exact formulas below are now
 wired into the eigenvalue/`lambda_star_marginal` machinery at three call
 sites: the internal helper `.two_block_truncated_omega_moments()`
 (`R/two_block_ergodicity_ing_marginal.R`), which
@@ -1203,7 +1203,7 @@ Student-t at the other.
 \(\mathrm{Var}_t[\Omega_j]\) do not respond to the window the same way:
 
 - \(E_t[\Omega_j]\) is a *mean*. For the quantile-based windows
-  `Prior_Setup_lmebayes()` actually constructs (symmetric-ish quantiles of the
+  `Prior_Setup_GLMM()` actually constructs (symmetric-ish quantiles of the
   same untruncated \(\mathrm{Gamma}(s_j,t_j)\) around its own center),
   widening or narrowing the window symmetrically moves probability mass off
   *both* tails at once, and the two changes largely cancel in their effect on
@@ -1253,7 +1253,7 @@ systematically *conservative* relative to the exact ones (they overstate how
 far into the tail \(\mathrm{Var}_t[\Omega_j]\) actually reaches, hence
 understate the true threshold and overstate the true violation probability).
 Empirically (see `demo("Ex_13b_...")`/`demo("Ex_13c_...")`'s Section 7d/2b),
-the effect is often large: under the current `Prior_Setup_lmebayes()` default
+the effect is often large: under the current `Prior_Setup_GLMM()` default
 window (\(\texttt{max\_disp\_perc}=0.8\), i.e. the central 60% prior-mass
 window), even previously-flagged outlier groups can show an exact violation
 rate of essentially \(0\%\) although their *untruncated* rate was several

@@ -5,11 +5,11 @@
 ## ellipsoid test?
 ##
 ## Idea: for a plug-in point estimate of the group's own dispersion precision
-## Omega_hat_j (already available pre-run from Prior_Setup_lmebayes()'s own
+## Omega_hat_j (already available pre-run from Prior_Setup_GLMM()'s own
 ## calibration, ps$ing_prior_measurement_group[[j]]$sigma2_hat) and a plug-in
 ## gamma_hat (the glmmTMB/lmer reference fit's fixef, also already available
 ## pre-run), the model's OWN Block~1 full conditional for beta_j is EXACTLY
-## Gaussian (Prior_Setup_lmebayes.R's documented formula):
+## Gaussian (Prior_Setup_GLMM.R's documented formula):
 ##
 ##   beta_j | Omega_hat_j, gamma_hat  ~  N(beta_bar_j, Sigma_j)
 ##   Sigma_j^{-1} = Omega_hat_j * D_j'D_j + Psi^{-1}      (Psi = Sigma_ranef, known)
@@ -23,7 +23,7 @@
 ## values here), so it is an approximation, not a certified bound.
 
 ## ---------------------------------------------------------------------------
-## 1. Ex_13 setup only (model_setup/Prior_Setup_lmebayes/dGamma_list + the
+## 1. Ex_13 setup only (model_setup/Prior_Setup_GLMM/dGamma_list + the
 ##    prior_list/shape_group/rate_group construction) -- NO sampler call.
 ## ---------------------------------------------------------------------------
 library(lmebayesCore)
@@ -59,7 +59,7 @@ dat$school_id <- droplevels(dat$school_id)
 
 design <- model_setup(form_lmer, data = dat)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

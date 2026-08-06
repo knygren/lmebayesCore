@@ -7,7 +7,7 @@
 ##
 ## Same model as demo("Ex_21_lmerb_ING_BigWordClub", package = "lmebayes"),
 ## but this script calls rLMMNormal_reg_estimated_vcov() directly instead of
-## going through lmerb()/rlmerb(): model_setup(), Prior_Setup_lmebayes(), and
+## going through lmerb()/rlmerb(): model_setup(), Prior_Setup_GLMM(), and
 ## pfamily_list() (all exported from lmebayesCore) build the design and
 ## priors, then the script assembles by hand the exact 'group'/'prior_list'
 ## arguments that matrix_args_lmm() builds internally for rlmerb(), and calls
@@ -40,7 +40,7 @@ form_lmer <- score_ppvt ~
   (1 + distracted_ppvt + distracted_a1 || school_id)
 
 ## ---------------------------------------------------------------------------
-## 1. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 1. Design + priors: model_setup() / Prior_Setup_GLMM() / pfamily_list()
 ##
 ## pwt_dispersion = 0.2 calibrates the dIndependent_Normal_Gamma() Gamma
 ## window on each tau^2_k (wider/more diffuse than the pwt = 0.01 default).
@@ -49,13 +49,13 @@ design <- model_setup(form_lmer, data = dat)
 cat("\n=== model_setup ===\n\n")
 print(design)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data           = dat,
   pwt            = 0.01,
   pwt_dispersion = 0.2
 )
-cat("\n=== Prior_Setup_lmebayes (ING calibration) ===\n\n")
+cat("\n=== Prior_Setup_GLMM (ING calibration) ===\n\n")
 print(ps)
 
 ## Every Block~2 component is dIndependent_Normal_Gamma(): tau^2_k is

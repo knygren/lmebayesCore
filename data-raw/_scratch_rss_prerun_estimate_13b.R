@@ -44,7 +44,7 @@ dat$school_id <- droplevels(dat$school_id)
 
 design <- model_setup(form_lmer, data = dat)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

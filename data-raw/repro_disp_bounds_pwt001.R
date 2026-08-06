@@ -11,7 +11,7 @@ fx <- .prepare_small5_lmerb_manual(n_schools = 5L)
 dat  <- fx$dat
 form <- fx$form
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form,
   data            = dat,
   pwt             = 0.01,

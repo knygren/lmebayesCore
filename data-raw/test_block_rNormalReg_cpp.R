@@ -134,7 +134,7 @@ if (requireNamespace("bayesrules", quietly = TRUE) &&
       free_reduced_lunch:distracted_a1 +
       (1 + distracted_ppvt + distracted_a1 || school_id)
     ctrl <- lme4::lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e5))
-    ps <- lmebayes::Prior_Setup_lmebayes(form_lmer, data = dat, pwt = 0.01)
+    ps <- lmebayes::Prior_Setup_GLMM(form_lmer, data = dat, pwt = 0.01)
     design <- lmebayes::model_setup(form_lmer, data = dat, control = ctrl)
     fixef <- lapply(ps$prior_list, `[[`, "mu_fixef")
     names(fixef) <- design$re_coef_names

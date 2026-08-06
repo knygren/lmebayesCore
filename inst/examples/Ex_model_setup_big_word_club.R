@@ -1,7 +1,7 @@
 ## model_setup() on bayesrules::big_word_club
 ##
 ## Same model as the full lmerb demo, demo/Ex_12_lmerb_BigWordClub.R (see
-## also Prior_Setup_lmebayes / lmerb development scripts in data-raw/).
+## also Prior_Setup_GLMM / lmerb development scripts in data-raw/).
 ##
 ## Level 1 (students):
 ##   y ~ b0[j] + b_ppvt[j]*distracted_ppvt + b_a1[j]*distracted_a1
@@ -13,7 +13,7 @@
 ##                 (cross-level: free_reduced_lunch:distracted_a1 in formula)
 ##
 ## Each random slope has a matching fixed main effect (required for
-## Prior_Setup_lmebayes() default calibration).
+## Prior_Setup_GLMM() default calibration).
 
 data(big_word_club, package = "bayesrules")
 

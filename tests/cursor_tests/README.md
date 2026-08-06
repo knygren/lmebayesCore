@@ -10,7 +10,7 @@ All manual regression for the six matrix-level **reg route** engines in
 [lmebayes/README.md — Examples and Demos](https://github.com/knygren/lmebayes/blob/main/README.md)
 (plus `Ex_23` below for the full LMM 2×2). Workflow everywhere:
 
-`model_setup()` → `Prior_Setup_lmebayes()` → `pfamily_list(ps)` →
+`model_setup()` → `Prior_Setup_GLMM()` → `pfamily_list(ps)` →
 `lmerb()` / `glmerb()` (which call `rlmerb()` / `rglmerb()` →
 `.lmebayes_run_*_engine()` → `REG_ROUTE_TABLE`).
 
@@ -21,7 +21,7 @@ Requires **bayesrules** (and usually **lme4**) where noted in each demo.
 Formula drivers dispatch by `(family, σ² mode, Block~2 ING)`. Matrix exports
 are reached only through **`rlmerb()`** / **`rglmerb()`** unless you call them
 directly with the same **`prior_list`** / **`pfamily_list`** objects built from
-the demo’s **`Prior_Setup_lmebayes()`** output.
+the demo’s **`Prior_Setup_GLMM()`** output.
 
 | Matrix route (`glmbayesCore`) | Route key | σ² | Block~2 | Formula driver | Run this demo / example |
 |-------------------------------|-----------|----|---------|----------------|-------------------------|

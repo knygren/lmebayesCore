@@ -22,6 +22,6 @@ objects from a prior-specification object.  For mixed models, one
 \eqn{\sigma^2_j} priors for \code{lmerb(..., group.dispersion = ...)}.
 }
 \seealso{
-\code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_lmebayes}},
+\code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_GLMM}},
 \code{\link{pfamily_list}}
 }

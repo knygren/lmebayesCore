@@ -53,7 +53,7 @@ Both are reachable from the same dispatcher, `rLMMNormal_reg_known_vcov()`.
 
 Both sub-engines below are reached the same way: `lmerb()`/`glmerb()` ->
 ... -> `.lmebayes_run_lmm_engine()` -> `rLMMNormal_reg_known_vcov()`. That
-shared front door (`model_setup()`, `Prior_Setup_lmebayes()`,
+shared front door (`model_setup()`, `Prior_Setup_GLMM()`,
 `pfamily_list()`, `.lmebayes_priors_from_pfamily_list()`,
 `.lmebayes_run_lmm_engine()`, route-table lookup, `.lmebayes_matrix_args_lmm()`,
 etc.) is documented in `inst/README_LMERB_GLMERB_FRONT_DOOR.md`; the chains
@@ -135,7 +135,7 @@ primitive described in Section 3.
 
 `build_mu_all()` is used heavily by this model but is a shared dependency, not
 specific to it -- see Section 3. `lmerb()`, `glmerb()`, `rlmerb()`,
-`rglmerb()`, `model_setup()`, `Prior_Setup_lmebayes()`, `pfamily_list()`, and
+`rglmerb()`, `model_setup()`, `Prior_Setup_GLMM()`, `pfamily_list()`, and
 `glmbayesCore::dNormal()` are the shared front door and are documented in
 `inst/README_LMERB_GLMERB_FRONT_DOOR.md`, not here.
 

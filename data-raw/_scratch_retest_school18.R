@@ -43,7 +43,7 @@ cat("n_j for school 2:", sum(dat$school_id == "2"), "\n")
 design <- model_setup(form_lmer, data = dat)
 stopifnot(all(design$re_rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

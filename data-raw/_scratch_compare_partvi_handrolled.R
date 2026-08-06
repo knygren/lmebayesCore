@@ -1,5 +1,5 @@
 ## Scratch: compare Ex_13b's hand-rolled Part VI derivation against the new
-## Prior_Setup_lmebayes() default (should now match on shape_ING/rate/
+## Prior_Setup_GLMM() default (should now match on shape_ING/rate/
 ## sigma2_hat -- only the disp_lower/disp_upper window construction changed).
 devtools::load_all(".", quiet = TRUE)
 
@@ -28,7 +28,7 @@ dat <- subset(dat, !as.character(school_id) %in% c("18", "2"))
 dat$school_id <- droplevels(dat$school_id)
 design <- model_setup(form_lmer, data = dat)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer, data = dat, pwt = 0.01, dispformula = ~school_id,
   max_disp_perc_measurement = 0.8, pwt_measurement = 0.1
 )
@@ -84,5 +84,5 @@ diffs <- sapply(group_levels0, function(lev) {
 cat("Max abs diffs (hand-rolled Ex_13b Part VI vs new package default):\n")
 print(apply(abs(diffs), 1, max))
 stopifnot(all(apply(abs(diffs), 1, max) < 1e-8))
-cat("\nMatch confirmed: new Prior_Setup_lmebayes() default reproduces Ex_13b's\n")
+cat("\nMatch confirmed: new Prior_Setup_GLMM() default reproduces Ex_13b's\n")
 cat("hand-rolled Part VI shape_ING/rate/sigma2_hat exactly.\n")

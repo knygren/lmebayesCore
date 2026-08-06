@@ -37,7 +37,7 @@ dat$school_id <- droplevels(dat$school_id)
 design <- model_setup(form_lmer, data = dat)
 stopifnot(all(design$re_rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer, data = dat, pwt = 0.01, dispformula = ~school_id,
   max_disp_perc_measurement = 0.8, pwt_measurement = 0.1
 )

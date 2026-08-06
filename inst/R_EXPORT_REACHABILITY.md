@@ -59,7 +59,7 @@ column).
 |----------|------|
 | `lmerb()`, `glmerb()` | Formula mixed-model drivers |
 | `rlmerb()`, `rglmerb()` | Re-exported matrix samplers |
-| `model_setup()`, `Prior_Setup_lmebayes()`, `pfamily_list()` | Design + Block~2 priors (`model_setup()` → `check_identifiability()`) |
+| `model_setup()`, `Prior_Setup_GLMM()`, `pfamily_list()` | Design + Block~2 priors (`model_setup()` → `check_identifiability()`) |
 | `Prior_SetupBlock()`, `lmbBlock()`, `glmbBlock()` | Row blocks (`normalize_block`; block fits via **glmbayes** `lmb`/`glmb` → planned Core `rlmb`/`rglmb`) |
 | `plot_sweep_history_diag()` | Sweep-history plots |
 | Re-exported retain symbols | Same as glmbayes retain subset |

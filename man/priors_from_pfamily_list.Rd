@@ -72,7 +72,7 @@ Block~1 prior to carry -- the dispersion is a known constant). For
 \code{"gamma_list"}, the \code{"window_diagnostics"} attribute
 carried on the \code{group.dispersion} list (if any), describing how
 each group's \code{disp_lower}/\code{disp_upper} truncation window
-was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
+was calibrated (e.g. by \code{Prior_Setup_GLMM()}).}
 \item{\code{group.Sigma}}{A \code{p_re x p_re} diagonal matrix (row/
 column names \code{design$groupef.names}) holding each component's
 Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --

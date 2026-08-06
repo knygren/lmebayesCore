@@ -9,7 +9,7 @@ fx <- .prepare_small5_all_full_rank_manual()
 form <- fx$form
 dat  <- fx$dat
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form,
   data            = dat,
   pwt             = 0.01,

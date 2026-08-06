@@ -109,7 +109,7 @@ Mixed-model symbols defined in **glmbayesCore** and used by **lmebayes**, but
 **Note:** **lmebayes** also re-exports `Prior_Setup()`, `dNormal()`,
 `dNormal_Gamma()`, `dIndependent_Normal_Gamma()`, and `dGamma()` (listed under
 **glmbayes** shared API above). S3 `print.model_setup`,
-`print.lmebayes_prior_setup`, and `pfamily_list.lmebayes_prior_setup` register
+`print.Prior_Setup_GLMM`, and `pfamily_list.Prior_Setup_GLMM` register
 in Core; **lmebayes** `import(glmbayesCore)` dispatches them for re-exported
 objects.
 
@@ -121,13 +121,13 @@ Exported from **lmebayes** via `R/reexports_glmbayesCore.R` (`@export` /
 | Function | File | Role |
 |----------|------|------|
 | `model_setup()` | `model_setup.R` | Parse lme4-style formula → design object (`"model_setup"`). |
-| `Prior_Setup_lmebayes()` | `Prior_Setup_lmebayes.R` | Calibrate Block~2 hyperpriors from reference `lmer` / `glmer`. |
+| `Prior_Setup_GLMM()` | `Prior_Setup_GLMM.R` | Calibrate Block~2 hyperpriors from reference `lmer` / `glmer`. |
 | `rlmerb()` | `rlmerb.R` | Matrix-level Gaussian LMM two-block sampler. |
 | `rglmerb()` | `rglmerb.R` | Matrix-level GLMM two-block sampler. |
-| `pfamily_list()` | `pfamily_list.R`, `pfamily_list_lmebayes_prior_setup.R` | S3 generic; `lmebayes_prior_setup` method builds Block~2 priors. |
+| `pfamily_list()` | `pfamily_list.R`, `pfamily_list_Prior_Setup_GLMM.R` | S3 generic; `Prior_Setup_GLMM` method builds Block~2 priors. |
 | `plot_sweep_history_diag()` | `plot_sweep_history_diag.R` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history`. |
 
-**lmebayes** callers: `model_setup()` and `Prior_Setup_lmebayes()` from user
+**lmebayes** callers: `model_setup()` and `Prior_Setup_GLMM()` from user
 workflows and `Prior_SetupBlock()`; `pfamily_list()` from `lmerb()` / `glmerb()`
 (via `.lmebayes_priors_from_pfamily_list()`); `rlmerb()` / `rglmerb()` from
 `lmerb()` / `glmerb()` when `simulate = TRUE`; `plot_sweep_history_diag()` from
@@ -376,8 +376,8 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 | Method | File | Subgroup | Role |
 |--------|------|----------|------|
 | `residuals.rlmb()` | `residuals.rglmb.R` | Core alias | Same draw logic as `residuals.rglmb()`; **glmbayes** uses `residuals.rglmb` for `rlmb`. |
-| `pfamily_list.lmebayes_prior_setup()` | `pfamily_list_lmebayes_prior_setup.R` | lmebayes | Build Block~2 `pfamily_list` from prior-setup object. |
-| `print.lmebayes_prior_setup()` | `Prior_Setup_lmebayes.R` | lmebayes | Print mixed-model prior-setup object. |
+| `pfamily_list.Prior_Setup_GLMM()` | `pfamily_list_Prior_Setup_GLMM.R` | lmebayes | Build Block~2 `pfamily_list` from prior-setup object. |
+| `print.Prior_Setup_GLMM()` | `Prior_Setup_GLMM.R` | lmebayes | Print mixed-model prior-setup object. |
 | `print.model_setup()` | `model_setup.R` | lmebayes | Print mixed-model design object. |
 | `print.two_block_sweep_history()` | `two_block_sweep_history.R` | lmebayes | Print sweep-history diagnostics (`rglmerb()` / `rlmerb()`). |
 | `print.two_block_rate()` | `two_block_ergodicity.R` | Core-only | Print rate object with TV tolerances. |

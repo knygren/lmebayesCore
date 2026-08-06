@@ -65,7 +65,7 @@
   ## Map hyper-predictor 'col' of RE component 'k' to fe's name: a main
   ## effect for intercept-associated predictors, but the observation-level
   ## interaction term for a non-intercept RE component's own hyper-
-  ## predictors -- mirrors Prior_Setup_lmebayes()'s own private fe_name_for().
+  ## predictors -- mirrors Prior_Setup_GLMM()'s own private fe_name_for().
   fe_name_for <- function(k, col) {
     if (identical(k, "(Intercept)") && identical(col, "(Intercept)")) {
       return("(Intercept)")
@@ -140,10 +140,10 @@
     ## n_prior(w) = w/(1-w)*n_j moves them together; disp_lower(w)/
     ## disp_upper(w) are recomputed from the POSTERIOR-shape window (a0(w) +
     ## n_j/2, mean-matched at the same sigma2_hat), matching
-    ## Prior_Setup_lmebayes()'s own .lmebayes_calibrate_ing_prior_measurement_group()
+    ## Prior_Setup_GLMM()'s own .lmebayes_calibrate_ing_prior_measurement_group()
     ## construction -- so the window this search certifies w against is the
     ## same one that will actually be shipped to the sampler once w_final is
-    ## fed back into Prior_Setup_lmebayes().
+    ## fed back into Prior_Setup_GLMM().
     pct_outside_for_w <- function(w) {
       n_prior_w <- w / (1 - w) * n_j
       a0_w <- (n_prior_w + p_re + 1) / 2

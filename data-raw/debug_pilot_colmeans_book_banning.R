@@ -10,7 +10,7 @@ dat$violent_i <- as.integer(
 )
 form_glmerb <- removed_i ~ violent_i + (1 + violent_i || state)
 design <- model_setup(form_glmerb, dat, binomial(), fit_mer = FALSE)
-ps <- Prior_Setup_lmebayes(form_glmerb, dat, binomial(), pwt = 0.01)
+ps <- Prior_Setup_GLMM(form_glmerb, dat, binomial(), pwt = 0.01)
 prior <- lmebayesCore::priors_from_pfamily_list(
   pfamily_list(ps), ps$dispersion_ranef, design, binomial(), "glmerb"
 )

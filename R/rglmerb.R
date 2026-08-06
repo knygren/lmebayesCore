@@ -18,7 +18,7 @@
 #'
 #' For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
 #' Design matrices are built with \code{\link{model_setup}} and priors with
-#' \code{\link{Prior_Setup_lmebayes}}.
+#' \code{\link{Prior_Setup_GLMM}}.
 #'
 #' @param n Integer. Number of independent chains in the main stage.
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}}).
@@ -54,7 +54,7 @@
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},
-#'   \code{\link{Prior_Setup_lmebayes}}
+#'   \code{\link{Prior_Setup_GLMM}}
 #' @name rglmerb
 #' @title The Bayesian Generalized Linear Mixed-Effects Model Distribution
 NULL

@@ -9,7 +9,7 @@ N_DGAMMA <- 50L
 fx <- .prepare_small5_lmerb_manual(n_schools = 5L)
 
 for (pwt in c(0.01, 0.2, 0.49)) {
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     fx$form,
     data            = fx$dat,
     pwt             = 0.01,

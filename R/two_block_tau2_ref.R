@@ -2,7 +2,7 @@
 #'
 #' For \code{dNormal}, returns fixed \code{dispersion}.  For ING, returns the
 #' prior mean \eqn{E[\tau^2_k] = rate/(shape - 1)} from the calibrated
-#' \code{pfamily_list(Prior_Setup_lmebayes(...))} object.
+#' \code{pfamily_list(Prior_Setup_GLMM(...))} object.
 #' @noRd
 .two_block_tau2_plug_in_from_pfamily <- function(pf) {
   pl <- pf$prior_list

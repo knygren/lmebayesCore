@@ -27,7 +27,7 @@ cat("\n=== lmer reference fit ===\n\n")
 fit_lmer <- lme4::lmer(form, data = dat, REML = TRUE)
 summary(fit_lmer)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form,
   data            = dat,
   pwt             = 0.01,

@@ -30,7 +30,7 @@ supplying \code{y}, \code{D}, \code{group}, \code{W},
 \item{prior}{Normalized prior container with \code{group.Sigma},
 \code{pop.prior_list}, and related Block~2 fields (typically from
 \code{pfamily_list} and \code{group.dispersion} via
-\code{\link{Prior_Setup_lmebayes}} or an \code{lmerb()} workflow in
+\code{\link{Prior_Setup_GLMM}} or an \code{lmerb()} workflow in
 lmebayes).}
 
 \item{group.dispersion}{Required observation-level dispersion: a positive
@@ -105,6 +105,6 @@ For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sam
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},
-\code{\link{Prior_Setup_lmebayes}},
+\code{\link{Prior_Setup_GLMM}},
 \code{\link[glmbayesCore]{rlmb}}
 }

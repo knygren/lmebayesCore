@@ -10,7 +10,7 @@ matrix-level arguments are handed to a specific route export (e.g.
 
 This is deliberately **not** specific to any one route. In particular:
 
-- `model_setup()`, `Prior_Setup_lmebayes()`, `pfamily_list()`,
+- `model_setup()`, `Prior_Setup_GLMM()`, `pfamily_list()`,
   `.lmebayes_priors_from_pfamily_list()`, and the `dispersion_ranef`
   resolution helpers run identically for `disp_mode` in
   `{"fixed", "fixed_vector", "gamma", "gamma_list"}`.
@@ -45,8 +45,8 @@ lmerb() / glmerb()                              [lmebayes]
        -> .lmebayes_mer_optional_args()          [lmebayesCore]  (optional args forwarded to lmer()/glmer() for the reference fit)
        -> extract_re_hyper_matrices()            [lmebayesCore]  (Z / X_hyper from the reference fit)
        -> extract_mer_variance_components()       [lmebayesCore]  (variance components from the reference fit)
-  -> Prior_Setup_lmebayes()                      [lmebayesCore]  (calibrate Block-1 Sigma_ranef / dispersion, Block-2 hyperpriors)
-  -> pfamily_list(<lmebayes_prior_setup>)        [lmebayesCore]  (builds glmbayesCore::dNormal(...) objects)
+  -> Prior_Setup_GLMM()                      [lmebayesCore]  (calibrate Block-1 Sigma_ranef / dispersion, Block-2 hyperpriors)
+  -> pfamily_list(<Prior_Setup_GLMM>)        [lmebayesCore]  (builds glmbayesCore::dNormal(...) objects)
   -> lmebayesCore::rlmerb() / rglmerb()
        -> .lmebayes_priors_from_pfamily_list()
             -> .lmebayes_resolve_dispersion_ranef()
@@ -75,8 +75,8 @@ the Gaussian family it is routed through the identical
 | lmebayes | `lmerb()` | `R/lmerb.R` | Formula entry point; builds design/prior, calls `rlmerb()`. |
 | lmebayes | `glmerb()` | `R/glmerb.R` | Formula entry point; for `family = gaussian()` routes to the same LMM engine as `lmerb()`; otherwise the (not covered here) GLMM engine. |
 | lmebayesCore | `model_setup()` | `R/model_setup.R` | Builds `design` (y, Z, groups, X_hyper, ranks) from a formula; optional `lmer`/`glmer` reference fit. |
-| lmebayesCore | `Prior_Setup_lmebayes()` | `R/Prior_Setup_lmebayes.R` | Calibrates Block-1 `Sigma_ranef`/dispersion and Block-2 hyperpriors from the reference fit. |
-| lmebayesCore | `pfamily_list()` (S3, `lmebayes_prior_setup` method) | `R/pfamily_list_lmebayes_prior_setup.R` | Converts calibrated priors into a list of `glmbayesCore::dNormal()` objects. |
+| lmebayesCore | `Prior_Setup_GLMM()` | `R/Prior_Setup_GLMM.R` | Calibrates Block-1 `Sigma_ranef`/dispersion and Block-2 hyperpriors from the reference fit. |
+| lmebayesCore | `pfamily_list()` (S3, `Prior_Setup_GLMM` method) | `R/pfamily_list_Prior_Setup_GLMM.R` | Converts calibrated priors into a list of `glmbayesCore::dNormal()` objects. |
 | lmebayesCore | `rlmerb()` | `R/rlmerb.R` | Matrix-level LMM entry; validates inputs, calls `.lmebayes_run_lmm_engine()`, applies verbose ICM printing and fixef summaries. |
 | lmebayesCore | `rglmerb()` | `R/rglmerb.R` | Matrix-level GLMM entry; for Gaussian family calls the identical `.lmebayes_run_lmm_engine()`. |
 | lmebayesCore | `extract_mer_variance_components()` | `R/lme4_design_utilities.R` | Extracts variance components from an `lmer`/`glmer` reference fit (used by `model_setup()`). |

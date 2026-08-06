@@ -11,7 +11,7 @@ dat$violent_i <- as.integer(
 design <- model_setup(
   removed_i ~ violent_i + (1 + violent_i || state), dat, binomial(), fit_mer = FALSE
 )
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   removed_i ~ violent_i + (1 + violent_i || state), dat, binomial(), pwt = 0.01
 )
 prior <- lmebayesCore::priors_from_pfamily_list(

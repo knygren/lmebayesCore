@@ -10,7 +10,7 @@
 ## Same model as demo("Ex_25_lmerb_dGamma_ING_BigWordClub", package =
 ## "lmebayes"), but this script calls rLMMindepNormalGamma_reg_estimated_vcov()
 ## directly instead of going through lmerb()/rlmerb(): model_setup(),
-## Prior_Setup_lmebayes(), pfamily_list(), and dGamma_list() (all exported
+## Prior_Setup_GLMM(), pfamily_list(), and dGamma_list() (all exported
 ## from lmebayesCore) build the design and priors, then the script assembles
 ## by hand the exact 'group'/'prior_list' arguments that matrix_args_lmm()
 ## builds internally for rlmerb(), and calls the matrix-level export
@@ -80,13 +80,13 @@ if (length(drop)) {
 }
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() / pfamily_list()
+## 2. Design + priors: model_setup() / Prior_Setup_GLMM() / pfamily_list()
 ##    / dGamma_list()
 ##
 ## pwt_dispersion = 0.2 calibrates the dIndependent_Normal_Gamma() Gamma
 ## window on each tau^2_k (wider/more diffuse than the pwt = 0.01 default).
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
-## Prior_Setup_lmebayes()'s per-group Block~1 calibration
+## Prior_Setup_GLMM()'s per-group Block~1 calibration
 ## (ing_prior_measurement_group), consumed below by dGamma_list().
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
@@ -94,14 +94,14 @@ cat("\n=== model_setup (full-rank schools only) ===\n\n")
 print(design)
 stopifnot(all(design$groupef.rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data           = dat,
   pwt            = 0.01,
   pwt_dispersion = 0.2,
   dispformula    = ~school_id
 )
-cat("\n=== Prior_Setup_lmebayes (ING + per-group Block~1 calibration) ===\n\n")
+cat("\n=== Prior_Setup_GLMM (ING + per-group Block~1 calibration) ===\n\n")
 print(ps)
 
 ## Every Block~2 component is dIndependent_Normal_Gamma(): tau^2_k is
@@ -275,7 +275,7 @@ for (k in re_names) {
 ## mean'/'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k
 ## across the main-stage MCMC draws) is compared directly to the same
 ## dispformula = ~school_id glmmTMB reference fit that calibrated
-## Prior_Setup_lmebayes()'s per-group Block~1 prior (ps$fit_ref), same
+## Prior_Setup_GLMM()'s per-group Block~1 prior (ps$fit_ref), same
 ## column layout as Ex_11's Section 6 (just without the 'iid' columns, since
 ## no iid engine exists here). 'diff(SE)' re-expresses the gibbs-mean vs
 ## glmmTMB gap in units of glmmTMB's own Std. Error -- the right scale to

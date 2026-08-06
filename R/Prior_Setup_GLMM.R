@@ -265,7 +265,7 @@
 #'   is the Gamma prior \emph{weight} (an input to the prior), while
 #'   \code{group.alpha_target} is a target \emph{violation rate} (an
 #'   output being aimed at).  When non-\code{NULL} and \code{dispformula}
-#'   requests per-group dispersion, \code{Prior_Setup_lmebayes()} searches,
+#'   requests per-group dispersion, \code{Prior_Setup_GLMM()} searches,
 #'   for each group, for the smallest \code{group.dispersion.pwt} driving the
 #'   predicted violation rate down to \code{group.alpha_target},
 #'   \strong{floored at} the \code{group.dispersion.pwt} resolved from the
@@ -298,7 +298,7 @@
 #'   \code{max_disp_perc}.  A per-group vector lets outlier groups be given a
 #'   tighter (or looser) window than the rest; see \code{dGamma_list()}.
 #'
-#' @return Object of class \code{"lmebayes_prior_setup"} with fields:
+#' @return Object of class \code{"Prior_Setup_GLMM"} with fields:
 #'   \describe{
 #'     \item{\code{formula}}{Model formula.}
 #'     \item{\code{family}}{Family object.}
@@ -338,7 +338,7 @@
 #'     \item{\code{pop.dispersion.nprior}}{Named per-component vector of
 #'       effective prior sample sizes for the Block~2 dispersion prior
 #'       (always present; used by
-#'       \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} to
+#'       \code{\link[=pfamily_list.Prior_Setup_GLMM]{pfamily_list}()} to
 #'       calibrate \code{dIndependent_Normal_Gamma} components).}
 #'     \item{\code{group.dispersion.pwt}}{Gaussian models only: scalar or length-\eqn{J}
 #'       vector of relative prior weights for Block~1 \eqn{\sigma^2} -- a
@@ -378,7 +378,7 @@
 #'       Used by \code{dGamma_list()}.}
 #'     \item{\code{group.tau_sd}}{Named vector \code{sqrt(Psi)} from the reference
 #'       fit; shared population RE standard deviations for per-group calibration.}
-#'     \item{\code{data}}{Data frame passed to \code{Prior_Setup_lmebayes()}
+#'     \item{\code{data}}{Data frame passed to \code{Prior_Setup_GLMM()}
 #'       (reference for \code{dGamma_list()} diagnostics).}
 #'     \item{\code{design}}{Full \code{\link{model_setup}} object (all groups),
 #'       including length-\code{n} \code{weights} and \code{offset} vectors
@@ -436,7 +436,7 @@
 #'       of the exact posterior for every prior strength, and keeps the
 #'       envelope sampler's cost stable as priors weaken; see
 #'       \code{inst/ING_TRUNCATION_WINDOW.md}.  Used by
-#'       \code{\link[=pfamily_list.lmebayes_prior_setup]{pfamily_list}()} when
+#'       \code{\link[=pfamily_list.Prior_Setup_GLMM]{pfamily_list}()} when
 #'       \code{ptypes = "dIndependent_Normal_Gamma"}; ignored for
 #'       \code{dNormal} priors.}
 #'     \item{\code{group.ing_prior}}{Gaussian models only; \code{NULL}
@@ -498,7 +498,7 @@
 #' is the plug-in RE variance \eqn{\tau^2_k}).
 #'
 #' \strong{Why default calibration depends on classical estimates.}
-#' \code{Prior_Setup_lmebayes} scales Block~2 covariances from
+#' \code{Prior_Setup_GLMM} scales Block~2 covariances from
 #' \code{vcov(fit_ref)} by \eqn{(1-\mathrm{pwt})/\mathrm{pwt}} and plugs in
 #' RE variances from the full reference fit, where \code{fit_ref} is the
 #' pooled \code{lmer}/\code{glmer} fit when \code{dispformula = ~1}, or an
@@ -519,7 +519,7 @@
 #' @seealso \code{\link{model_setup}}, \code{\link[glmbayesCore]{Prior_Setup}},
 #'   \code{\link{build_mu_all}}
 #' @export
-Prior_Setup_lmebayes <- function(formula,
+Prior_Setup_GLMM <- function(formula,
                                  data,
                                  family = gaussian(),
                                  REML = TRUE,
@@ -716,11 +716,11 @@ Prior_Setup_lmebayes <- function(formula,
   )
   if (length(mer_issues) > 0L) {
     stop(
-      "Prior_Setup_lmebayes() requires converged ", mer_label,
+      "Prior_Setup_GLMM() requires converged ", mer_label,
       " reference fits:\n  - ",
       paste(mer_issues, collapse = "\n  - "),
       "\n\nRevise the model or supply hyperpriors manually without ",
-      "Prior_Setup_lmebayes().",
+      "Prior_Setup_GLMM().",
       call. = FALSE
     )
   }
@@ -770,11 +770,11 @@ Prior_Setup_lmebayes <- function(formula,
     )
     if (length(tmb_issues) > 0L) {
       stop(
-        "Prior_Setup_lmebayes() requires a converged glmmTMB reference fit ",
+        "Prior_Setup_GLMM() requires a converged glmmTMB reference fit ",
         "for dispformula = ~", design$group_name, ":\n  - ",
         paste(tmb_issues, collapse = "\n  - "),
         "\n\nRevise the model or supply hyperpriors manually without ",
-        "Prior_Setup_lmebayes().",
+        "Prior_Setup_GLMM().",
         call. = FALSE
       )
     }
@@ -874,11 +874,11 @@ Prior_Setup_lmebayes <- function(formula,
 
   if (length(re_issues) > 0L) {
     stop(
-      "Prior_Setup_lmebayes() cannot calibrate default hyperpriors:\n  - ",
+      "Prior_Setup_GLMM() cannot calibrate default hyperpriors:\n  - ",
       paste(re_issues, collapse = "\n  - "),
       "\n\nRevise the formula (e.g. add a fixed main effect for each random ",
       "slope and avoid RE terms with zero estimated variance), or supply ",
-      "hyperpriors manually without Prior_Setup_lmebayes().",
+      "hyperpriors manually without Prior_Setup_GLMM().",
       call. = FALSE
     )
   }
@@ -990,7 +990,7 @@ Prior_Setup_lmebayes <- function(formula,
     }
     if (length(null_issues) > 0L) {
       stop(
-        "Prior_Setup_lmebayes() requires a converged ", ref_label,
+        "Prior_Setup_GLMM() requires a converged ", ref_label,
         " random-intercept-only null fit for intercept_source = \"null_model\":\n  - ",
         paste(null_issues, collapse = "\n  - "),
         "\n\nUse intercept_source = \"full_model\" or revise the model.",
@@ -1441,7 +1441,7 @@ Prior_Setup_lmebayes <- function(formula,
         ing_prior_measurement_group
       }
     ),
-    class = "lmebayes_prior_setup"
+    class = "Prior_Setup_GLMM"
   )
 }
 
@@ -1854,14 +1854,14 @@ Prior_Setup_lmebayes <- function(formula,
   list(pwt_dispersion = w, n_prior_dispersion = n, source = src)
 }
 
-#' @rdname Prior_Setup_lmebayes
-#' @method print lmebayes_prior_setup
-#' @param x Object of class \code{"lmebayes_prior_setup"}.
+#' @rdname Prior_Setup_GLMM
+#' @method print Prior_Setup_GLMM
+#' @param x Object of class \code{"Prior_Setup_GLMM"}.
 #' @param digits Number of decimal places for numeric output. Default 4.
 #' @param ... Ignored.
 #' @return \code{x} invisibly.
 #' @export
-print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
+print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
 
   re_names <- x$design$groupef.names
   n_fr     <- sum(x$design$groupef.rank)
@@ -1869,7 +1869,7 @@ print.lmebayes_prior_setup <- function(x, digits = 4L, ...) {
 
   disp_src <- attr(x$pop.dispersion.pwt, "source")
 
-  cat("Call: Prior_Setup_lmebayes()\n\n")
+  cat("Call: Prior_Setup_GLMM()\n\n")
   cat(sprintf("  family           : %s (%s link)\n",
               x$family$family, x$family$link))
   cat(sprintf("  pop.intercept_source : %s\n",

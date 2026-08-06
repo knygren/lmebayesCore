@@ -9,7 +9,7 @@
 #' @param ... Additional arguments passed to methods (e.g.
 #'   \code{max_disp_perc}, \code{disp_upper_anchor}).
 #' @return A named list whose elements are objects of class \code{"pfamily"}.
-#' @seealso \code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_lmebayes}},
+#' @seealso \code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_GLMM}},
 #'   \code{\link{pfamily_list}}
 #' @export
 dGamma_list <- function(object, ...) UseMethod("dGamma_list")

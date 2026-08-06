@@ -18,7 +18,7 @@ form <- score_ppvt ~
   free_reduced_lunch:distracted_a1 +
   (1 + distracted_ppvt + distracted_a1 || school_id)
 design <- model_setup(form, data = dat)
-ps <- Prior_Setup_lmebayes(form, data = dat, pwt = 0.01)
+ps <- Prior_Setup_GLMM(form, data = dat, pwt = 0.01)
 pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
 re <- design$re_coef_names
 for (k in re) {

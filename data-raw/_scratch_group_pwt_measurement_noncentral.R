@@ -40,7 +40,7 @@
 ## used for the boundary itself, now extended to the truncation window too.
 ##
 ## THIS ONLY COMPUTES A VECTOR TO INSPECT -- nothing here feeds back into
-## Prior_Setup_lmebayes()/dGamma_list()/the sampler.
+## Prior_Setup_GLMM()/dGamma_list()/the sampler.
 
 ## Map hyper-predictor 'nm' of RE component 'k' to fixef(fit_ref)'s name:
 ## a main effect for intercept-associated predictors, but the OBSERVATION-
@@ -252,7 +252,7 @@
 ##   )
 ##   .tmp_print_group_pwt_measurement_noncentral(tab_pwt)
 ##
-##   ## Vector, ready to inspect (NOT fed into Prior_Setup_lmebayes() here):
+##   ## Vector, ready to inspect (NOT fed into Prior_Setup_GLMM() here):
 ##   w_vec <- stats::setNames(
 ##     tab_pwt$w_star_exact_floored[match(group_levels, tab_pwt$group)], group_levels
 ##   )

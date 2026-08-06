@@ -58,7 +58,7 @@ tau2_plug <- c(4, 0.2)
 prior_b1 <- list(Sigma = diag(tau2_plug, 2L), dispersion = sigma2, ddef = FALSE)
 
 ## ING priors are ALWAYS calibrated from a pwt_disp choice, mirroring
-## lmebayes::pfamily_list() on a Prior_Setup_lmebayes object:
+## lmebayes::pfamily_list() on a Prior_Setup_GLMM object:
 ##   n_prior  = J * pwt_disp / (1 - pwt_disp)
 ##   shape    = (n_prior + 1) / 2 + p_k / 2
 ##   rate     = d_k * (n_prior + p_k - 1) / 2   (d_k = dispersion guess tau2_k;

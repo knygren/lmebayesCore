@@ -1,7 +1,7 @@
-#' Build pfamily objects from a Prior_Setup_lmebayes object
+#' Build pfamily objects from a Prior_Setup_GLMM object
 #'
 #' Converts the per-component Block~2 hyperprior parameters stored in a
-#' \code{\link{Prior_Setup_lmebayes}} object into a named list of
+#' \code{\link{Prior_Setup_GLMM}} object into a named list of
 #' \code{\link[glmbayesCore]{pfamily}} objects, one per random-effect coefficient (e.g.
 #' \code{"(Intercept)"}, slope names).
 #'
@@ -17,7 +17,7 @@
 #'     \eqn{1/\tau^2_k} calibrated with the same convention as
 #'     \code{\link[glmbayesCore]{Prior_Setup}}.  The per-component effective prior sample
 #'     size \eqn{n_0} is taken from \code{object$pop.dispersion.nprior[[k]]}
-#'     (set by \code{\link{Prior_Setup_lmebayes}} via \code{pop.dispersion.pwt} /
+#'     (set by \code{\link{Prior_Setup_GLMM}} via \code{pop.dispersion.pwt} /
 #'     \code{pop.dispersion.nprior}, derived from \code{pop.pwt} by default).
 #'     Then
 #'     \deqn{shape = (n_0 + 1 + p_k)/2, \qquad
@@ -50,13 +50,13 @@
 #'     Quantiles of the limiting posterior -- rather than of the prior --
 #'     make the window independent of \eqn{n_0}.  See
 #'     \code{inst/ING_TRUNCATION_WINDOW.md} for the derivation.  The
-#'     values are computed once by \code{\link{Prior_Setup_lmebayes}}
+#'     values are computed once by \code{\link{Prior_Setup_GLMM}}
 #'     (stored in its \code{pop.ing_prior} field and shown by its print
 #'     method); this function reads them from the object.
 #' }
 #'
-#' @param object An object of class \code{"lmebayes_prior_setup"} as
-#'   returned by \code{\link{Prior_Setup_lmebayes}}.
+#' @param object An object of class \code{"Prior_Setup_GLMM"} as
+#'   returned by \code{\link{Prior_Setup_GLMM}}.
 #' @param ptypes Character: either a single string applied to every
 #'   random-effect component, or a character vector / list with one
 #'   string per component.  Allowed values are \code{"dNormal"} and
@@ -69,7 +69,7 @@
 #'   \code{names(object$pop.prior_list)} (the random-effect coefficient
 #'   names).
 #'
-#' @seealso \code{\link{Prior_Setup_lmebayes}}, \code{\link{pfamily_list}},
+#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{pfamily_list}},
 #'   \code{\link[glmbayesCore]{dNormal}}, \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
 #'
 #' @examples
@@ -80,7 +80,7 @@
 #'   dat$school_id <- factor(dat$school_id)
 #'   dat <- subset(dat, !is.na(score_ppvt))
 #'
-#'   ps <- Prior_Setup_lmebayes(
+#'   ps <- Prior_Setup_GLMM(
 #'     score_ppvt ~ private_school + (1 | school_id),
 #'     data = dat
 #'   )
@@ -93,8 +93,8 @@
 #' }
 #'
 #' @export
-#' @method pfamily_list lmebayes_prior_setup
-pfamily_list.lmebayes_prior_setup <- function(object,
+#' @method pfamily_list Prior_Setup_GLMM
+pfamily_list.Prior_Setup_GLMM <- function(object,
                                               ptypes = "dNormal",
                                               ...) {
 
@@ -192,7 +192,7 @@ pfamily_list.lmebayes_prior_setup <- function(object,
             ", but there are only J = ", J, " groups. ",
             "dIndependent_Normal_Gamma sampling requires ",
             "pop.dispersion.nprior <= J (pop.dispersion.pwt <= 0.5); lower ",
-            "'pop.dispersion.pwt'/'pop.dispersion.nprior' in Prior_Setup_lmebayes().",
+            "'pop.dispersion.pwt'/'pop.dispersion.nprior' in Prior_Setup_GLMM().",
             call. = FALSE
           )
         }

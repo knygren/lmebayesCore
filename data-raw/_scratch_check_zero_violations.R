@@ -31,7 +31,7 @@ full_rank_schools <- names(design_all$re_rank)[design_all$re_rank]
 dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

@@ -3,7 +3,7 @@
 ## gaussian() (new residual-degrees-of-freedom-for-dispersion check).
 ##
 ## Mirrors the earlier data-raw/verify_re_estimable_move.R pattern: exercise
-## this only through the real Prior_Setup_lmebayes()/model_setup() call
+## this only through the real Prior_Setup_GLMM()/model_setup() call
 ## chain -- no hand-rolled glm() calls or fabricated coefficient/vcov
 ## values.
 devtools::load_all(".", quiet = TRUE)
@@ -14,7 +14,7 @@ form <- y ~ x1 + (1 + x1 || group)
 ## 1. poisson(): one group with an all-zero count response.
 ##    (A within-group all-zero count is *not* a global domain violation --
 ##    the pooled glmer(poisson()) reference fit converges fine -- so this
-##    goes through the normal Prior_Setup_lmebayes() call chain.)
+##    goes through the normal Prior_Setup_GLMM() call chain.)
 ## ---------------------------------------------------------------------
 set.seed(1)
 J   <- 20L
@@ -30,7 +30,7 @@ eta <- 1.5 + b0[as.character(dat_pois$group)] +
 dat_pois$y <- stats::rpois(nrow(dat_pois), lambda = exp(eta))
 dat_pois$y[dat_pois$group == "g1"] <- 0L  ## force one group all-zero
 
-ps_pois <- Prior_Setup_lmebayes(form, data = dat_pois, family = poisson(), pwt = 0.05)
+ps_pois <- Prior_Setup_GLMM(form, data = dat_pois, family = poisson(), pwt = 0.05)
 d_pois  <- ps_pois$design
 
 cat("=== poisson(): all-zero-response group ===\n")
@@ -64,7 +64,7 @@ eta_g <- 1 + b0g[as.character(dat_gamma$group)] +
 mu_g <- exp(eta_g)
 dat_gamma$y <- stats::rgamma(nrow(dat_gamma), shape = 5, rate = 5 / mu_g)
 
-ps_gamma <- Prior_Setup_lmebayes(
+ps_gamma <- Prior_Setup_GLMM(
   form, data = dat_gamma, family = Gamma(link = "log"), pwt = 0.05
 )
 d_gamma <- ps_gamma$design
@@ -86,7 +86,7 @@ cat("OK\n\n")
 ##    A non-positive value anywhere breaks the *pooled* glmer(Gamma())
 ##    reference fit itself, so this is exercised via model_setup() directly
 ##    with fit_mer = FALSE (an existing, documented model_setup() mode used
-##    by glmerb() in lmebayes) rather than Prior_Setup_lmebayes().
+##    by glmerb() in lmebayes) rather than Prior_Setup_GLMM().
 ## ---------------------------------------------------------------------
 dat_gamma_bad <- dat_gamma
 bad_rows <- which(dat_gamma_bad$group == "h2")
@@ -125,7 +125,7 @@ dat_g$y <- 2 + b0k[as.character(dat_g$group)] +
   (1.5 + b1k[as.character(dat_g$group)]) * dat_g$x1 +
   stats::rnorm(nrow(dat_g), sd = 1)
 
-ps_g <- Prior_Setup_lmebayes(form, data = dat_g, pwt = 0.05)  ## family = gaussian() default
+ps_g <- Prior_Setup_GLMM(form, data = dat_g, pwt = 0.05)  ## family = gaussian() default
 d_g  <- ps_g$design
 
 cat("=== gaussian(): n_j == p_j group (zero residual df for dispersion) ===\n")

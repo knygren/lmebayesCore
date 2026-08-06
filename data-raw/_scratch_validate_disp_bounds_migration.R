@@ -1,5 +1,5 @@
 ## Scratch validation for the disp_lower/disp_upper migration into
-## Prior_Setup_lmebayes() (Part VI now the permanent default; dGamma_list()
+## Prior_Setup_GLMM() (Part VI now the permanent default; dGamma_list()
 ## no longer builds its own window). Not a permanent test -- ad hoc checks
 ## only, run by hand.
 ##
@@ -38,7 +38,7 @@ temp_drop_schools <- c("18", "2")
 dat <- subset(dat, !as.character(school_id) %in% temp_drop_schools)
 dat$school_id <- droplevels(dat$school_id)
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pwt             = 0.01,

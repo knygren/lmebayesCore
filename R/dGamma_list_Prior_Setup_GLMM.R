@@ -1,13 +1,13 @@
-#' Build per-group dGamma priors from a Prior_Setup_lmebayes object
+#' Build per-group dGamma priors from a Prior_Setup_GLMM object
 #'
 #' Converts the per-group Block~1 measurement-dispersion calibration stored
-#' in a \code{\link{Prior_Setup_lmebayes}} object into a named list of
+#' in a \code{\link{Prior_Setup_GLMM}} object into a named list of
 #' \code{\link[glmbayesCore]{dGamma}} \code{pfamily} objects, one per group level.
 #'
 #' Prior density (\code{shape_ING}, \code{rate}) both come from
 #' \code{object$group.ing_prior} (the per-group shape, when
 #' \code{dispformula} requested per-group dispersion), calibrated once in
-#' \code{\link{Prior_Setup_lmebayes}()} via
+#' \code{\link{Prior_Setup_GLMM}()} via
 #' \code{\link[glmbayesCore]{compute_gaussian_prior}()} with the Part VI
 #' extension of \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} (a
 #' model-derived \code{Omega_j} folded into \code{Sigma_j}, so \code{rate}/
@@ -25,14 +25,14 @@
 #' are unaffected by this widening. See
 #' \code{inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md} for the full derivation.
 #'
-#' @param object An object of class \code{"lmebayes_prior_setup"} as returned
-#'   by \code{\link{Prior_Setup_lmebayes}} (Gaussian models only).
+#' @param object An object of class \code{"Prior_Setup_GLMM"} as returned
+#'   by \code{\link{Prior_Setup_GLMM}} (Gaussian models only).
 #' @param max_disp_perc_measurement \code{NULL} (default), a scalar in
 #'   \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
 #'   per group level). \code{NULL} reuses each group's own stored
 #'   \code{disp_lower}/\code{disp_upper} (the value
 #'   \code{object$group.ing_prior[[lev]]$max_disp_perc} was
-#'   calibrated with in \code{\link{Prior_Setup_lmebayes}}). Supplying a
+#'   calibrated with in \code{\link{Prior_Setup_GLMM}}). Supplying a
 #'   scalar or vector recomputes the bounds as fresh quantiles of the same
 #'   posterior-shape \code{Gamma(shape_ING + n_j/2, rate_post)} (see above),
 #'   per group, for every group whose resolved value differs from its own
@@ -61,7 +61,7 @@
 #'   \code{glmmTMB} when \code{group.dispersion} carries this attribute), and
 #'   \code{"calibration_source"} (\code{object$calibration_source}).
 #'
-#' @seealso \code{\link{Prior_Setup_lmebayes}}, \code{\link{dGamma_list}},
+#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{dGamma_list}},
 #'   \code{\link[glmbayesCore]{dGamma}}
 #'
 #' @examples
@@ -72,7 +72,7 @@
 #'   dat$school_id <- factor(dat$school_id)
 #'   dat <- subset(dat, !is.na(score_ppvt))
 #'
-#'   ps <- Prior_Setup_lmebayes(
+#'   ps <- Prior_Setup_GLMM(
 #'     score_ppvt ~ private_school + (1 | school_id),
 #'     data = dat,
 #'     group.dispersion.pwt = 0.01,
@@ -84,15 +84,15 @@
 #' }
 #'
 #' @export
-#' @method dGamma_list lmebayes_prior_setup
-dGamma_list.lmebayes_prior_setup <- function(
+#' @method dGamma_list Prior_Setup_GLMM
+dGamma_list.Prior_Setup_GLMM <- function(
     object,
     max_disp_perc_measurement = NULL,
     ...
 ) {
   if (!identical(object$family$family, "gaussian")) {
     stop(
-      "dGamma_list() for lmebayes_prior_setup requires family = gaussian().",
+      "dGamma_list() for Prior_Setup_GLMM requires family = gaussian().",
       call. = FALSE
     )
   }
@@ -101,7 +101,7 @@ dGamma_list.lmebayes_prior_setup <- function(
   if (is.null(ing_grp) || !.lmebayes_ing_prior_is_grouped(ing_grp)) {
     grp_nm <- object$design$group_name
     stop(
-      "object's group.ing_prior is not per-group; call Prior_Setup_lmebayes(",
+      "object's group.ing_prior is not per-group; call Prior_Setup_GLMM(",
       "..., dispformula = ~", if (!is.null(grp_nm)) grp_nm else "<group_name>",
       ") on a Gaussian model to calibrate per-group measurement-dispersion ",
       "priors (dispformula = ~1, the default, skips this calibration).",
@@ -135,7 +135,7 @@ dGamma_list.lmebayes_prior_setup <- function(
       ## The bounds stored on g were computed at g$max_disp_perc; if the
       ## caller asks for a different value for this group, recompute fresh
       ## quantiles of Gamma(shape_ING + n_j/2, rate_post) -- the posterior-
-      ## shape window (see Prior_Setup_lmebayes()'s group.ing_prior
+      ## shape window (see Prior_Setup_GLMM()'s group.ing_prior
       ## docs), NOT g$shape_ING/g$rate directly (those are the prior fed to
       ## the sampler, unchanged) -- rather than reusing the stored bounds.
       mdp_lev <- if (!is.null(mdp_override)) {

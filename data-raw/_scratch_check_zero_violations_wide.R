@@ -31,7 +31,7 @@ dat <- subset(dat, school_id %in% full_rank_schools)
 dat$school_id <- droplevels(dat$school_id)
 
 for (mdp in c(0.8, 0.9, 0.95, 0.99)) {
-  ps <- Prior_Setup_lmebayes(
+  ps <- Prior_Setup_GLMM(
     form_lmer,
     data            = dat,
     pwt             = 0.01,

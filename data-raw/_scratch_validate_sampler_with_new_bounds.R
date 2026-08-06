@@ -1,6 +1,6 @@
 ## Scratch: end-to-end sanity check that rLMMindepNormalGamma_reg_known_vcov()
 ## still runs cleanly (envelope construction, accept/reject, pilot + main
-## stage) against the migrated Prior_Setup_lmebayes()/dGamma_list() bounds.
+## stage) against the migrated Prior_Setup_GLMM()/dGamma_list() bounds.
 ## Small n, verbose = FALSE -- speed/log-flooding is not the point here,
 ## just "does it run without error, on the exact Ex_13 fixture/priors".
 devtools::load_all(".", quiet = TRUE)
@@ -37,7 +37,7 @@ dat$school_id <- droplevels(dat$school_id)
 design <- model_setup(form_lmer, data = dat)
 stopifnot(all(design$re_rank))
 
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer, data = dat, pwt = 0.01, dispformula = ~school_id,
   max_disp_perc_measurement = 0.8, pwt_measurement = 0.1
 )

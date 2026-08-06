@@ -421,7 +421,7 @@ sampler.</li>
 <code>lmerb()</code>/<code>glmerb()</code> -&gt; … -&gt;
 <code>.lmebayes_run_lmm_engine()</code> -&gt;
 <code>rLMMNormal_reg_known_vcov()</code>. That shared front door
-(<code>model_setup()</code>, <code>Prior_Setup_lmebayes()</code>,
+(<code>model_setup()</code>, <code>Prior_Setup_GLMM()</code>,
 <code>pfamily_list()</code>,
 <code>.lmebayes_priors_from_pfamily_list()</code>,
 <code>.lmebayes_run_lmm_engine()</code>, route-table lookup,
@@ -600,7 +600,7 @@ conjugate branch.</td>
 shared dependency, not specific to it – see Section 3.
 <code>lmerb()</code>, <code>glmerb()</code>, <code>rlmerb()</code>,
 <code>rglmerb()</code>, <code>model_setup()</code>,
-<code>Prior_Setup_lmebayes()</code>, <code>pfamily_list()</code>, and
+<code>Prior_Setup_GLMM()</code>, <code>pfamily_list()</code>, and
 <code>glmbayesCore::dNormal()</code> are the shared front door and are
 documented in <code>inst/README_LMERB_GLMERB_FRONT_DOOR.md</code>, not
 here.</p>

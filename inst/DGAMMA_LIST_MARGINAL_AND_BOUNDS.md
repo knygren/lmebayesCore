@@ -1,6 +1,6 @@
 # Per-group `dGamma()` measurement dispersion: the marginal Gamma and its bounds
 
-How `dGamma_list()` (`R/dGamma_list_lmebayes_prior_setup.R`) builds a
+How `dGamma_list()` (`R/dGamma_list_Prior_Setup_GLMM.R`) builds a
 per-group Independent Normal--Gamma (ING) prior on Block~1 measurement
 dispersion `sigma^2_j`, and how it derives that prior's truncation window.
 Companion to `inst/TAU2_ING_FORMULAS.md` (the same conjugate machinery for
@@ -12,7 +12,7 @@ Companion to `inst/TAU2_ING_FORMULAS.md` (the same conjugate machinery for
 `g$rate` -- the Chapter A12 **?3.3.4 marginal ING rate** (`beta` integrated
 out) -- not `g$rate_gamma` (**?3.3.5**'s fixed-`beta` rate). `rate_gamma` is
 still computed and stored for diagnostic comparison only (see Part I and the
-dev-only print in `Prior_Setup_lmebayes()`). This is a change from an
+dev-only print in `Prior_Setup_GLMM()`). This is a change from an
 earlier version of this document/code, which fed `rate_gamma` to the
 sampler; Part I below explains why `rate` is the theoretically correct
 choice for this particular sampler, and Part II shows why it also improves
@@ -25,14 +25,14 @@ upstream.** Two things changed after Parts II/III/V below were written; see
 1. Part VI's model-derived `Omega_j` fold-in ("also integrating out the
    prior mean `mu_j`", i.e. the fixed effects `gamma`, not just `b_j`) is no
    longer an unimplemented extension -- it is now applied unconditionally
-   inside `Prior_Setup_lmebayes()`/`.lmebayes_calibrate_ing_prior_measurement_group()`.
+   inside `Prior_Setup_GLMM()`/`.lmebayes_calibrate_ing_prior_measurement_group()`.
    There is no opt-out.
 2. `disp_lower`/`disp_upper` are no longer built by `dGamma_list()` from a
    separate, `n_combined,j`-based `shape_w`/`rate_w` (Part II's construction,
    with the `disp_center = "dispersion2"` alternative from Part III). They
-   are now computed once inside `Prior_Setup_lmebayes()`, as literal
+   are now computed once inside `Prior_Setup_GLMM()`, as literal
    `(1-max_disp_perc_measurement)`/`max_disp_perc_measurement` quantiles
-   (scalar, or a per-group vector -- see `Prior_Setup_lmebayes()`'s
+   (scalar, or a per-group vector -- see `Prior_Setup_GLMM()`'s
    `max_disp_perc_measurement` argument) of the **same**
    `Gamma(shape_ING,j, rate,j)` that is the actual sampling prior (the
    Part-VI-extended one) -- i.e. a truncated version of the real prior,
@@ -148,11 +148,11 @@ in general.
 
 ### The Gamma actually fed to the sampler: `rate` (?3.3.4), not `rate_gamma` (?3.3.5)
 
-`dGamma_list.lmebayes_prior_setup()` passes `g$rate` -- **not**
+`dGamma_list.Prior_Setup_GLMM()` passes `g$rate` -- **not**
 `g$rate_gamma` -- to each group's `dGamma(shape = g$shape_ING, rate = g$rate,
 ...)`. `rate_gamma` remains on `object$ing_prior_measurement_group` (and is
 printed alongside `rate` by the dev-only comparison table
-`Prior_Setup_lmebayes()` emits whenever `dispformula` requests per-group
+`Prior_Setup_GLMM()` emits whenever `dispformula` requests per-group
 dispersion) purely for diagnostic comparison; it is not consumed downstream.
 
 **Why `rate`, not `rate_gamma` -- the choice is forced by what the sampler
@@ -216,7 +216,7 @@ use for Block~2's own `tau^2_k` priors (conditional on Block~1's `bhat`).
 
 ### Worked numbers: `rate` vs. `rate_gamma` (39-school `big_word_club` fixture)
 
-From the dev-only comparison table `Prior_Setup_lmebayes(..., dispformula =
+From the dev-only comparison table `Prior_Setup_GLMM(..., dispformula =
 ~school_id)` prints (`.lmebayes_print_ing_prior_measurement_group_compare()`,
 `R/mixed_rmerb_helpers.R`); `pct_rate = 100*(rate - rate_gamma)/rate_gamma`:
 
@@ -258,7 +258,7 @@ drift across Gibbs sweeps.
 
 ### Mean-matched construction
 
-`dGamma_list.lmebayes_prior_setup()` (`R/dGamma_list_lmebayes_prior_setup.R`)
+`dGamma_list.Prior_Setup_GLMM()` (`R/dGamma_list_Prior_Setup_GLMM.R`)
 does **not** reuse either Part I rate for the window. Instead it builds a
 fresh Gamma whose **mean is pinned to `sigma2_hat,j` by construction**, with
 `n_combined,j` controlling only the spread:
@@ -478,7 +478,7 @@ unrelated to the quad penalty.
 ### `glmmTMB` as the calibration reference itself, not just an external check
 
 The `nlme::lme()` fit above is an *external* validation: it never feeds back
-into `dGamma_list()`'s numbers. `Prior_Setup_lmebayes(..., dispformula =
+into `dGamma_list()`'s numbers. `Prior_Setup_GLMM(..., dispformula =
 ~<group_name>)` instead makes an equivalent `glmmTMB::glmmTMB()` fit --
 `glmmTMB(formula, data, dispformula = dispformula, REML = TRUE)` -- the
 *source* of every calibration quantity that would otherwise come from the
@@ -513,7 +513,7 @@ with both fits reporting a converged, positive-definite Hessian (so
 failure -- it is a legitimate, if inconvenient, local optimum). A
 near-zero `tau^2_k` inflates that component's prior precision and can stop
 the `dIndependent_Normal_Gamma` sampler from converging. There is currently
-no automatic fallback for this; if `Prior_Setup_lmebayes(..., dispformula =
+no automatic fallback for this; if `Prior_Setup_GLMM(..., dispformula =
 ~<group_name>)` produces an implausibly small `sd_tau` component, compare
 against the pooled (`dispformula = ~1`) fit's `Sigma_ranef` and consider
 whether the per-group model is over-parameterized for the available data.
@@ -526,7 +526,7 @@ whether the per-group model is over-parameterized for the available data.
   `rate_gamma`** (Part I). This is the current default and is not
   configurable via a public argument; `rate_gamma` is retained on
   `ing_prior_measurement_group` and shown alongside `rate` by
-  `Prior_Setup_lmebayes()`'s dev-only comparison print for anyone who wants
+  `Prior_Setup_GLMM()`'s dev-only comparison print for anyone who wants
   to inspect the gap, but nothing downstream consumes it. This does not
   change `sigma2_hat` or any other calibration quantity described elsewhere
   in this document -- see Part II's "Alignment with Part I's prior mean"
@@ -696,7 +696,7 @@ guise:
 
 **Implemented (permanent default, no opt-out) in
 `.lmebayes_calibrate_ing_prior_measurement_group()`
-(`R/mixed_rmerb_helpers.R`), wired from `Prior_Setup_lmebayes()`.** With one
+(`R/mixed_rmerb_helpers.R`), wired from `Prior_Setup_GLMM()`.** With one
 simplification relative to the general derivation above: `mu_j` itself is
 **not** changed (no `mu_j \to \bar\mu` substitution) -- only `Sigma_j \to
 Sigma_j + \Omega_j` is applied, i.e. the *same* per-group prior mean from
@@ -718,7 +718,7 @@ where `W_j[[k]]` is group `j`'s own row of `design$W[[k]]` (the Block~2
 hyper-design for RE component `k`) and `Sigma_fixef_k =
 prior_list[[k]]$Sigma_fixef` is that component's own calibrated
 fixed-effect/`gamma_k` covariance (already computed earlier in
-`Prior_Setup_lmebayes()`, the same object `pfamily_list()` uses to build
+`Prior_Setup_GLMM()`, the same object `pfamily_list()` uses to build
 `dNormal()`/Block~2 priors) -- i.e. `mu_j[k]`'s uncertainty stand-in is
 exactly the model's own Block~2 hyper-regression uncertainty about
 `W_j[[k]] %*% gamma_k`, propagated through group `j`'s own design row.
@@ -741,7 +741,7 @@ generally-accepted empirical-Bayes caveat already noted for
 
 Summarizes what actually ships today, after folding Part VI's `Omega_j` in
 as the permanent default and moving `disp_lower`/`disp_upper` out of
-`dGamma_list()` and into `Prior_Setup_lmebayes()`.
+`dGamma_list()` and into `Prior_Setup_GLMM()`.
 
 ### What changed, in one place
 
@@ -789,19 +789,19 @@ the Gamma prior, are unaffected either way.
 
 ### `dGamma_list()` after the migration
 
-`dGamma_list.lmebayes_prior_setup()` (`R/dGamma_list_lmebayes_prior_setup.R`)
+`dGamma_list.Prior_Setup_GLMM()` (`R/dGamma_list_Prior_Setup_GLMM.R`)
 is now a thin consumer: for each group it reads
 `g$shape_ING`/`g$rate`/`g$disp_lower`/`g$disp_upper` off
 `object$ing_prior_measurement_group` and calls `dGamma()` directly. Its
 override argument is `max_disp_perc_measurement` (`NULL` by default), a
 scalar or a named/positional length-`J` vector (one value per group level,
 via the same `.lmebayes_expand_scalar_or_vector()` resolver used inside
-`Prior_Setup_lmebayes()`). `NULL` (the default) reuses every group's own
+`Prior_Setup_GLMM()`). `NULL` (the default) reuses every group's own
 stored `g$max_disp_perc` bounds verbatim; supplying a scalar or vector
 recomputes fresh quantiles of the same `Gamma(shape_ING,j, rate,j)` for
 every group whose resolved override differs from its own stored
 `g$max_disp_perc` (a **per-group** comparison, not a single top-level
-`object$max_disp_perc` field -- `Prior_Setup_lmebayes()` itself now accepts
+`object$max_disp_perc` field -- `Prior_Setup_GLMM()` itself now accepts
 `max_disp_perc_measurement` as a scalar or per-group vector too, so
 different groups can already carry different stored windows before
 `dGamma_list()` is even called). The `disp_center`, `disp_upper_anchor`, and
@@ -820,7 +820,7 @@ separate upper/lower anchor to be asymmetric between. The
 ### Verified equivalence
 
 `data-raw/_scratch_compare_partvi_handrolled.R` confirms
-`Prior_Setup_lmebayes()`'s default `shape_ING,j`/`rate,j`/`sigma2_hat,j` now
+`Prior_Setup_GLMM()`'s default `shape_ING,j`/`rate,j`/`sigma2_hat,j` now
 match, to floating-point precision, the demo `Ex_13b`'s pre-migration
 hand-rolled reproduction of this same Part VI derivation (which called
 `.lmebayes_ing_prior_measurement_group_glm_inputs()` and
@@ -889,11 +889,11 @@ sigma2_hat,j * (n_prior,j + n_j + p_re - 1)/2)` when `n_combined,j =
 n_prior,j + n_j` -- confirmed to floating-point precision by
 `data-raw/_scratch_check_window_njfix.R`.
 
-`dGamma_list.lmebayes_prior_setup()`'s own recompute path (triggered when a
+`dGamma_list.Prior_Setup_GLMM()`'s own recompute path (triggered when a
 caller overrides `max_disp_perc_measurement` for a group away from its
 stored value) applies the identical `shape_ING + n_j/2` / mean-matched-rate
 construction, so overriding the window's `max_disp_perc_measurement` at
-`dGamma_list()` time stays consistent with what `Prior_Setup_lmebayes()`
+`dGamma_list()` time stays consistent with what `Prior_Setup_GLMM()`
 would have computed had it been called with that same value in the first
 place.
 

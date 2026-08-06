@@ -10,7 +10,7 @@
 ## Same model as demo("Ex_24_lmerb_dGamma_BigWordClub", package = "lmebayes"),
 ## but this script calls rLMMindepNormalGamma_reg_known_vcov() directly
 ## instead of going through lmerb()/rlmerb(): model_setup(),
-## Prior_Setup_lmebayes(), pfamily_list(), and dGamma_list() (all exported
+## Prior_Setup_GLMM(), pfamily_list(), and dGamma_list() (all exported
 ## from lmebayesCore) build the design and priors, then the script assembles
 ## by hand the exact 'group'/'prior_list' arguments that matrix_args_lmm()
 ## builds internally for rlmerb(), and calls the matrix-level export
@@ -80,12 +80,12 @@ if (length(drop)) {
 }
 
 ## ---------------------------------------------------------------------------
-## 2. Design + priors: model_setup() / Prior_Setup_lmebayes() (first pass) /
-##    per-group pwt_measurement calibration (2b) / Prior_Setup_lmebayes()
+## 2. Design + priors: model_setup() / Prior_Setup_GLMM() (first pass) /
+##    per-group pwt_measurement calibration (2b) / Prior_Setup_GLMM()
 ##    (final, tailored -- 2c) / pfamily_list() / dGamma_list()
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
-## Prior_Setup_lmebayes()'s per-group Block~1 calibration
+## Prior_Setup_GLMM()'s per-group Block~1 calibration
 ## (ing_prior_measurement_group), consumed below by dGamma_list().
 ##
 ## pwt_measurement is calibrated in two passes: 'ps_flat' below uses a flat
@@ -102,7 +102,7 @@ print(design)
 stopifnot(all(design$groupef.rank))
 
 ## max_disp_perc_measurement = 0.8 (tighter than the 0.99 package default).
-## disp_lower/disp_upper are now computed by Prior_Setup_lmebayes() itself,
+## disp_lower/disp_upper are now computed by Prior_Setup_GLMM() itself,
 ## as literal quantiles of the same Gamma(shape_ING, rate) marginal fed to
 ## the sampler -- including the Part VI model-derived Omega_j fold-in
 ## (inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md Part VI), which is now the
@@ -113,7 +113,7 @@ stopifnot(all(design$groupef.rank))
 ## pwt_measurement = 0.1 here is only the flat
 ## first-pass input to the per-group calibration in 2b/2c below -- it is not
 ## what the sampler ends up using.
-ps_flat <- Prior_Setup_lmebayes(
+ps_flat <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pop.pwt         = 0.01,
@@ -121,7 +121,7 @@ ps_flat <- Prior_Setup_lmebayes(
   group.max_disp_perc = 0.8,
   group.dispersion.pwt       = 0.1
 )
-cat("\n=== Prior_Setup_lmebayes, first pass (flat group.dispersion.pwt) ===\n\n")
+cat("\n=== Prior_Setup_GLMM, first pass (flat group.dispersion.pwt) ===\n\n")
 print(ps_flat)
 
 glmmTMB::ranef(ps_flat$fit_ref)
@@ -163,7 +163,7 @@ p_re         <- length(re_names)
 ##     the completed sampler's own draws.
 ##
 ## Uses the real Gaussian full conditional beta_j | Omega_hat_j, Lambda,
-## gamma_hat ~ N(beta_bar_j, Sigma_j) (Prior_Setup_lmebayes.R's own documented
+## gamma_hat ~ N(beta_bar_j, Sigma_j) (Prior_Setup_GLMM.R's own documented
 ## formula), so -- unlike Section 7-8's closed-form central-F alpha_j -- it
 ## correctly reflects each group's own noncentrality (how far Lambda/gamma
 ## pull beta_j away from beta_hat_ols_j), which is what actually
@@ -183,7 +183,7 @@ cat("\npwt_measurement vector (floored at 0.1), positional order matching levels
 print(round(w_pwt_vec, 4))
 
 ## ---------------------------------------------------------------------------
-## 2c. Feed w_pwt_vec into a SECOND, final Prior_Setup_lmebayes() call --
+## 2c. Feed w_pwt_vec into a SECOND, final Prior_Setup_GLMM() call --
 ##     same formula/data/dispformula/max_disp_perc_measurement as 'ps_flat'
 ##     above, but
 ##     with the tailored per-group pwt_measurement vector instead of the flat
@@ -193,7 +193,7 @@ print(round(w_pwt_vec, 4))
 ##     This 'ps' -- not 'ps_flat' -- is what pfamily_list()/dGamma_list()/
 ##     prior_list (Section 3) and the sampler (Section 5) below consume.
 ## ---------------------------------------------------------------------------
-ps <- Prior_Setup_lmebayes(
+ps <- Prior_Setup_GLMM(
   form_lmer,
   data            = dat,
   pop.pwt         = 0.01,
@@ -201,7 +201,7 @@ ps <- Prior_Setup_lmebayes(
   group.max_disp_perc = 0.8,
   group.dispersion.pwt       = w_pwt_vec
 )
-cat("\n=== Prior_Setup_lmebayes, final pass (tailored per-group group.dispersion.pwt) ===\n\n")
+cat("\n=== Prior_Setup_GLMM, final pass (tailored per-group group.dispersion.pwt) ===\n\n")
 print(ps)
 
 rows_pwt_cmp <- character(0L)
@@ -390,7 +390,7 @@ cat(
 ## 'gibbs SD' (the lmebayesCore output: posterior mean/SD of gamma_k across
 ## the main-stage MCMC draws) is compared directly to the same
 ## dispformula = ~school_id glmmTMB reference fit that calibrated
-## Prior_Setup_lmebayes()'s per-group Block~1 prior (ps$fit_ref), same
+## Prior_Setup_GLMM()'s per-group Block~1 prior (ps$fit_ref), same
 ## column layout as Ex_11's Section 6 (just without the 'iid' columns, since
 ## no iid engine exists here). 'diff(SE)' re-expresses the gibbs-mean vs
 ## glmmTMB gap in units of glmmTMB's own Std. Error -- the right scale to
