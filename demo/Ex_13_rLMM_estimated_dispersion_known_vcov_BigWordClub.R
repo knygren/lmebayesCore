@@ -90,7 +90,7 @@ if (length(drop)) {
 ##
 ## pwt_measurement is calibrated in two passes: 'ps_flat' below uses a flat
 ## scalar (0.1) purely as input to the per-group quantile-matching
-## calibration in 2b/2c (fit_ref/Sigma_ranef/gamma_hat are all independent of
+## calibration in 2b/2c (fit_ref/group.Sigma/gamma_hat are all independent of
 ## pwt_measurement, so ps_flat's glmmTMB reference fit is identical to the
 ## final 'ps' produced in 2c). 'ps' -- the tailored, per-group
 ## pwt_measurement result of 2c -- is what pfamily_list()/dGamma_list()/
@@ -236,7 +236,7 @@ cat(
 ## plus 'shape_group'/'rate_group'/'disp_lower_group'/'disp_upper_group'
 ## (one named-by-group-level numeric vector each), extracted here from each
 ## group's dGamma() pfamily -- mirroring
-## .lmebayes_resolve_dispersion_ranef_group_list() /
+## .lmebayes_resolve_group.dispersion_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ## ---------------------------------------------------------------------------
 
@@ -267,7 +267,7 @@ for (lev in group_levels) {
 
 prior_list <- list(
   mu               = matrix(0, nrow = p_re, ncol = 1L, dimnames = list(re_names, NULL)),
-  Sigma            = as.matrix(ps$Sigma_ranef),
+  Sigma            = as.matrix(ps$group.Sigma),
   shape_group      = shape_group,
   rate_group       = rate_group,
   disp_lower_group = disp_lower_group,
@@ -494,7 +494,7 @@ omega_ing <- list(
 )
 
 prior_list_block1_rate <- list(
-  Sigma      = as.matrix(ps$Sigma_ranef),
+  Sigma      = as.matrix(ps$group.Sigma),
   dispersion = disp_upper_group[group_levels]
 )
 prior_list_block2_rate <- lapply(pf, function(pfk) {

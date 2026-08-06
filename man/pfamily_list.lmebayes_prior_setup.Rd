@@ -34,8 +34,8 @@ Converts the per-component Block~2 hyperprior parameters stored in a
 For each random-effect coefficient \eqn{k}, the prior parameters come
 from \code{object$pop.prior_list[[k]]}:
 \itemize{
-\item \code{"dNormal"}: \code{dNormal(mu = mu_fixef, Sigma =
-    Sigma_fixef, dispersion = dispersion_fixef)}.  The Block~2
+\item \code{"dNormal"}: \code{dNormal(mu = mu, Sigma =
+    Sigma, dispersion = dispersion)}.  The Block~2
 dispersion (the random-effect variance \eqn{\tau^2_k}) is treated
 as known.
 \item \code{"dIndependent_Normal_Gamma"}: the same \code{mu} and

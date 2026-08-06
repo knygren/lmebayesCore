@@ -12,12 +12,12 @@
 ## invented one): mu_j[k] stands in for the model's own conditional prior
 ## mean for b_j, W_j[[k]] %*% gamma_k (the Block~2 hyper-regression).
 ## gamma_k's own prior uncertainty is already calibrated at
-## ps$pop.prior_list[[k]]$Sigma_fixef (the same object pfamily_list(ps) uses to
+## ps$pop.prior_list[[k]]$Sigma (the same object pfamily_list(ps) uses to
 ## build pf below), so the "fixed, known uncertainty about mu_j" Part VI
-## asks for is exactly that existing Sigma_fixef propagated through group
+## asks for is exactly that existing Sigma propagated through group
 ## j's own hyper-design row:
 ##
-##   Omega_j[k,k] = W_j[[k]] %*% Sigma_fixef_k %*% t(W_j[[k]])   (diagonal
+##   Omega_j[k,k] = W_j[[k]] %*% Sigma_k %*% t(W_j[[k]])   (diagonal
 ##                                                      across components k)
 ##
 ## folded in as Sigma_j' = Sigma_j + Omega_j before the same
@@ -147,7 +147,7 @@ p_re         <- length(re_names)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
 ## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
-## posterior -- no envelope/Gamma step. Also supplies Sigma_fixef below,
+## posterior -- no envelope/Gamma step. Also supplies Sigma below,
 ## the input the Part VI Omega_j extension propagates through W. Built from
 ## the TAILORED 'ps' (2c) -- pf itself is invariant to pwt_measurement, but
 ## this keeps it consistent with the ps that feeds everything else.
@@ -175,7 +175,7 @@ pf <- pfamily_list(ps)
 ## ---------------------------------------------------------------------------
 # max_disp_perc <- 0.8
 # block_formula <- ps$block_formula
-# sd_tau        <- sqrt(diag(ps$Sigma_ranef))
+# sd_tau        <- sqrt(diag(ps$group.Sigma))
 # re_names_all  <- design$groupef.names
 # group_levels0 <- levels(dat$school_id)
 #
@@ -209,8 +209,8 @@ pf <- pfamily_list(ps)
 #                        dimnames = list(inp$var_names, inp$var_names))
 #     for (k in re_names_all) {
 #       Wk_row <- design$W[[k]][lev, , drop = FALSE]
-#       Sigma_fixef_k <- ps$pop.prior_list[[k]]$Sigma_fixef
-#       Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+#       Sigma_k <- ps$pop.prior_list[[k]]$Sigma
+#       Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_k %*% t(Wk_row))
 #     }
 #
 #     cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
@@ -259,7 +259,7 @@ pf <- pfamily_list(ps)
 ## W_j %*% gamma, recomputed every sweep), and 'Sigma' -- the shared
 ## random-effects covariance every group's beta_j prior uses -- is always
 ## derived internally as solve(P) from 'pfamily_list' (Section 2's 'pf'),
-## which is exactly 'ps$Sigma_ranef' here (known_vcov: Sigma_ranef IS
+## which is exactly 'ps$group.Sigma' here (known_vcov: group.Sigma IS
 ## pfamily_list's implied covariance), just guaranteed never to drift out
 ## of sync with it. Section 7b/7d's diagnostics still want the flattened
 ## per-group vectors, so pull those from dGamma_list()'s own
@@ -528,7 +528,7 @@ omega_ing <- list(
 )
 
 prior_list_block1_rate <- list(
-  Sigma      = as.matrix(ps$Sigma_ranef),
+  Sigma      = as.matrix(ps$group.Sigma),
   dispersion = disp_upper_group[group_levels]
 )
 prior_list_block2_rate <- lapply(pf, function(pfk) {

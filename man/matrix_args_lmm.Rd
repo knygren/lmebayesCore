@@ -26,7 +26,7 @@ matrix_args_lmm(
 \item{prior}{The list returned by \code{\link{priors_from_pfamily_list}}.}
 
 \item{disp_info}{Resolved dispersion info, as returned by
-\code{.lmebayes_resolve_dispersion_ranef()} (must supply
+\code{.lmebayes_resolve_group_dispersion()} (must supply
 \code{mode} and \code{dispersion_fix}).}
 
 \item{tv_tol}{Total-variation tolerance passed through to the routed
@@ -65,7 +65,7 @@ precision from this internally; it is not built or passed here.}
 \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
 \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
 arguments, unchanged.}
-\item{\code{prior_list}}{Always present, but its shape depends on
+\item{\code{pop.prior_list}}{Always present, but its shape depends on
 \code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
 \code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
 (a scalar or named per-group numeric vector, passed through
@@ -101,7 +101,7 @@ it), so it is only forwarded here.}
 \description{
 Shared front-door helper that turns \code{design} + the \code{prior}
 returned by \code{\link{priors_from_pfamily_list}} + \code{disp_info}
-(from \code{.lmebayes_resolve_dispersion_ranef()}) into the flat,
+(from \code{.lmebayes_resolve_group_dispersion()}) into the flat,
 named argument list passed via \code{do.call()} to whichever
 \code{rLMM_reg} export \code{.lmebayes_reg_route_fn()} resolves to. There
 are exactly four possible targets, chosen by \code{disp_info$mode} and

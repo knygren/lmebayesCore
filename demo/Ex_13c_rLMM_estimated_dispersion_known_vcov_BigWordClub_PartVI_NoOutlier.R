@@ -124,7 +124,7 @@ print(ps)
 
 ## dNormal() Block~2 for every random-effect component: tau^2_k is *known*
 ## (fixed at its lmer REML estimate), so gamma_k has a conjugate Normal
-## posterior -- no envelope/Gamma step. Also supplies Sigma_fixef below,
+## posterior -- no envelope/Gamma step. Also supplies Sigma below,
 ## the input the Part VI Omega_j extension propagates through W.
 pf <- pfamily_list(ps)
 
@@ -141,7 +141,7 @@ pf <- pfamily_list(ps)
 ## ---------------------------------------------------------------------------
 max_disp_perc <- 0.8
 block_formula <- ps$block_formula
-sd_tau        <- sqrt(diag(ps$Sigma_ranef))
+sd_tau        <- sqrt(diag(ps$group.Sigma))
 re_names_all  <- design$groupef.names
 group_levels0 <- levels(dat$school_id)
 
@@ -175,8 +175,8 @@ part_vi_group <- stats::setNames(
                        dimnames = list(inp$var_names, inp$var_names))
     for (k in re_names_all) {
       Wk_row <- design$W[[k]][lev, , drop = FALSE]
-      Sigma_fixef_k <- ps$pop.prior_list[[k]]$Sigma_fixef
-      Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+      Sigma_k <- ps$pop.prior_list[[k]]$Sigma
+      Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_k %*% t(Wk_row))
     }
 
     cal <- lmebayesCore:::.lmebayes_compute_ing_prior_cal_from_sigma(
@@ -226,7 +226,7 @@ print(part_vi_tab, row.names = FALSE)
 ## (one named-by-group-level numeric vector each), extracted here from each
 ## group's dGamma() pfamily -- 'ps' (Section 2)'s own Part VI + calibrated
 ## group.dispersion.pwt default, mirroring Ex_13's Section 3 and
-## .lmebayes_resolve_dispersion_ranef_group_list() /
+## .lmebayes_resolve_group.dispersion_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ##
 ## UPDATE: this used to be extracted from Section 2b's hand-rolled
@@ -267,7 +267,7 @@ for (lev in group_levels) {
 
 prior_list <- list(
   mu               = matrix(0, nrow = p_re, ncol = 1L, dimnames = list(re_names, NULL)),
-  Sigma            = as.matrix(ps$Sigma_ranef),
+  Sigma            = as.matrix(ps$group.Sigma),
   shape_group      = shape_group,
   rate_group       = rate_group,
   disp_lower_group = disp_lower_group,
@@ -485,7 +485,7 @@ omega_ing <- list(
 )
 
 prior_list_block1_rate <- list(
-  Sigma      = as.matrix(ps$Sigma_ranef),
+  Sigma      = as.matrix(ps$group.Sigma),
   dispersion = disp_upper_group[group_levels]
 )
 prior_list_block2_rate <- lapply(pf, function(pfk) {

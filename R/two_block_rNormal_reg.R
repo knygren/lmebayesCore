@@ -171,7 +171,8 @@
 #' @param sampling Sampling scheme; only \code{"replicate"} is implemented.
 #' @param family Response \code{\link[stats]{family}} for Block~1 (default
 #'   \code{gaussian()}). Block~2 always uses \code{gaussian()}.
-#' @param offset,weights Passed to Block~1 (length \code{l2} or recycled).
+#' @param offset,weights Passed to Block~1 (length \code{l2} or recycled), as
+#'   in \code{\link[glmbayesCore]{rlmb}} / the glmbayesCore simfunctions.
 #' @param Gridtype,n_envopt,use_parallel,use_opencl,verbose Passed to Block~1
 #'   when \code{family} is not Gaussian.
 #' @param progbar Logical; show a text progress bar.
@@ -180,6 +181,8 @@
 #'   \code{mu_all_last}, \code{family}, \code{n}, \code{m_convergence},
 #'   \code{sampling}, \code{fixef_start}, \code{groupef.names},
 #'   \code{group_levels}, \code{group_name}, \code{call}, plus
+#'   \code{prior.weights} and \code{offset2} (normalized observation weights
+#'   and offset passed to Block~1, glmbayesCore simfunction naming),
 #'   \code{dispersion_fixef_draws}: an \code{n x p_re} matrix of the Block~2
 #'   dispersion (tau^2_k) at each stored draw (constant columns for
 #'   \code{dNormal} components), and \code{iters_fixef_draws}: an
@@ -377,6 +380,8 @@ two_block_rNormal_reg <- function(
     family          = family,
     m_convergence   = m_convergence,
     sampling        = sampling,
+    prior.weights   = wt,
+    offset2         = offset2,
     cl              = cl
   )
 }
@@ -394,6 +399,8 @@ two_block_rNormal_reg <- function(
     family,
     m_convergence,
     sampling,
+    prior.weights,
+    offset2,
     cl
 ) {
   J <- length(group_levels)
@@ -447,6 +454,8 @@ two_block_rNormal_reg <- function(
       mu_all_last            = mu_all,
       dispersion_fixef_draws = dispersion_fixef_draws,
       iters_fixef_draws      = iters_fixef_draws,
+      prior.weights          = prior.weights,
+      offset2                = offset2,
       pfamily_list           = pfamily_list,
       family                 = family,
       n                      = n,

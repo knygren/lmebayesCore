@@ -217,7 +217,7 @@ rLMMNormal_joint_iid <- function(
   }
 
   tau2 <- vapply(re_names, function(k) {
-    as.numeric(measurement_prior_list$prior_list[[k]]$dispersion_fixef)
+    as.numeric(measurement_prior_list$pop.prior_list[[k]]$dispersion)
   }, numeric(1L))
 
   fixef_draws <- stats::setNames(

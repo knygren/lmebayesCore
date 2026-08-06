@@ -8,7 +8,7 @@
 #' \code{\link{rLMMNormal_reg_estimated_vcov}},
 #' \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #' \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#' \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
+#' \code{group.dispersion} and Block~2 \code{pfamily_list}.
 #'
 #' For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sampler.
 #'
@@ -17,11 +17,12 @@
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}})
 #'   supplying \code{y}, \code{D}, \code{group}, \code{W},
 #'   \code{group_name}, and \code{groupef.names}.
-#' @param prior Normalized prior container with \code{Sigma_ranef}, \code{prior_list},
-#'   and related Block~2 fields (typically from \code{pfamily_list} and
-#'   \code{dispersion_ranef} via \code{\link{Prior_Setup_lmebayes}} or an
-#'   \code{lmerb()} workflow in lmebayes).
-#' @param dispersion_ranef Required observation-level dispersion: a positive
+#' @param prior Normalized prior container with \code{group.Sigma},
+#'   \code{pop.prior_list}, and related Block~2 fields (typically from
+#'   \code{pfamily_list} and \code{group.dispersion} via
+#'   \code{\link{Prior_Setup_lmebayes}} or an \code{lmerb()} workflow in
+#'   lmebayes).
+#' @param group.dispersion Required observation-level dispersion: a positive
 #'   scalar \eqn{\sigma^2} (fixed) or a \code{\link[glmbayesCore]{dGamma}()} pfamily with
 #'   \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.
 #' @param tv_tol Single numeric in \code{(0, 1)}. Total variation tolerance
@@ -46,7 +47,7 @@
 #' @param sim_method Sampling engine: \code{"DEFAULT"} or
 #'   \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 #'   known-variance-components route (scalar or per-group fixed
-#'   \code{dispersion_ranef}, all Block~2 \code{dNormal()}): \code{"DEFAULT"}
+#'   \code{group.dispersion}, all Block~2 \code{dNormal()}): \code{"DEFAULT"}
 #'   draws directly from the exact multivariate-normal posterior via
 #'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
 #'   burn-in); \code{"TWO_BLOCK_GIBBS"} forces the two-block Gibbs engine
@@ -57,7 +58,7 @@
 #' @return An object of class \code{c("rlmerb", "list")} with Block~2 fields in
 #'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
 #'   \code{ranef.mode}, \code{sigma2} (scalar when \eqn{\sigma^2} is fixed,
-#'   length-\code{n} vector when \code{dispersion_ranef} is \code{dGamma()}),
+#'   length-\code{n} vector when \code{group.dispersion} is \code{dGamma()}),
 #'   \code{sigma2.mean}, \code{m_convergence}, \code{convergence},
 #'   \code{sim_method_used} (\code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"},
 #'   whichever engine actually ran), \code{Prior}, and \code{design}.
@@ -73,7 +74,7 @@ rlmerb <- function(
     n,
     design,
     prior,
-    dispersion_ranef,
+    group.dispersion,
     tv_tol        = 0.01,
     progbar         = TRUE,
     verbose         = TRUE,
@@ -95,16 +96,16 @@ rlmerb <- function(
     stop("'design' must be a model_setup object.", call. = FALSE)
   }
 
-  if (missing(dispersion_ranef)) {
+  if (missing(group.dispersion)) {
     stop(
-      "'dispersion_ranef' is required for rlmerb(): a positive scalar or ",
+      "'group.dispersion' is required for rlmerb(): a positive scalar or ",
       "dGamma() pfamily with Inv_Dispersion = TRUE.",
       call. = FALSE
     )
   }
 
-  disp_info <- .lmebayes_resolve_dispersion_ranef(
-    dispersion_ranef = dispersion_ranef,
+  disp_info <- .lmebayes_resolve_group_dispersion(
+    group.dispersion = group.dispersion,
     family           = gaussian(),
     design           = design,
     fn_name          = "rlmerb"
@@ -127,7 +128,7 @@ rlmerb <- function(
   group_levels <- levels(design$group)
   block1_prior <- .lmebayes_block1_prior_list(
     prior,
-    dispersion_ranef = disp_info$dispersion_fix
+    group.dispersion = disp_info$dispersion_fix
   )
 
   out <- .lmebayes_run_lmm_engine(
@@ -147,7 +148,7 @@ rlmerb <- function(
   if (isTRUE(print_icm_table)) {
     icm_lbl <- .lmebayes_block2_icm_labels(prior, gaussian())
     .lmebayes_print_icm_fixef_table(
-      prior_list = prior$prior_list,
+      prior_list = prior$pop.prior_list,
       re_names   = re_names,
       fixef_icm  = out$fixef.mode,
       icm_info   = out$icm_info,
@@ -165,7 +166,7 @@ rlmerb <- function(
   out$Prior      <- list(
     block1_prior         = block1_prior,
     pfamily_list         = prior$pfamily_list,
-    dispersion_ranef     = disp_info$dispersion_fix,
+    group.dispersion     = disp_info$dispersion_fix,
     dispersion_mode      = disp_info$mode,
     dispersion_pfamily   = disp_info$dispersion_pfamily,
     dispersion_prior_list = disp_info$dispersion_prior_list

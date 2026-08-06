@@ -15,15 +15,15 @@
 ## rLMMNormal_reg_known_vcov()'s 'prior_list$dispersion' accepts either a
 ## single positive scalar (Ex_10) or a length-J named vector, one known
 ## value per group level (.rLMM_validate_fixed_dispersion_vector();
-## equivalently lmerb()'s 4th 'dispersion_ranef' mode, "fixed_vector", see
-## .lmebayes_resolve_dispersion_ranef_fixed_vector() in
+## equivalently lmerb()'s 4th 'group.dispersion' mode, "fixed_vector", see
+## .lmebayes_resolve_group.dispersion_fixed_vector() in
 ## mixed_rmerb_helpers.R) -- this demo exercises that vector form.
 ##
 ## The per-group sigma^2_j values used here are
-## Prior_Setup_lmebayes(..., dispformula = ~school_id)'s 'sigma2_group'
+## Prior_Setup_lmebayes(..., dispformula = ~school_id)'s 'group.dispersion.ref'
 ## field: per-group point estimates read off a glmmTMB heteroscedastic
 ## reference fit's dispersion linear predictor. Prior_Setup_lmebayes()
-## documents 'sigma2_group' as "diagnostic only -- not the value fed to the
+## documents 'group.dispersion.ref' as "diagnostic only -- not the value fed to the
 ## sampler" (its own sampler-facing use is the *estimated* per-group
 ## dGamma_list() route, Ex_13/Ex_14) -- this demo deliberately repurposes it
 ## as a *known, fixed* input instead, and (per the request that motivated
@@ -63,11 +63,11 @@ form_lmer <- score_ppvt ~
 
 ## ---------------------------------------------------------------------------
 ## 1. Prior_Setup_lmebayes(dispformula = ~school_id)'s per-group calibration
-##    (ing_prior_measurement_group, used for sigma2_group here) runs a
+##    (ing_prior_measurement_group, used for group.dispersion.ref here) runs a
 ##    within-group regression for every group and requires each group's Z_j
 ##    to be full column rank (unlike the *engine*'s fixed_vector dispersion
 ##    mode itself, which has no such requirement -- see
-##    .lmebayes_resolve_dispersion_ranef_fixed_vector()'s doc comment). No
+##    .lmebayes_resolve_group.dispersion_fixed_vector()'s doc comment). No
 ##    ING accept/reject envelope is built for this route, so -- unlike
 ##    Ex_13/Ex_14 -- school_id 2/18 do not need to be excluded here.
 ## ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ dat$school_id <- droplevels(dat$school_id)
 ##
 ## dispformula = ~school_id (matching the grouping factor exactly) requests
 ## Prior_Setup_lmebayes()'s glmmTMB-based per-group calibration, which is
-## also where Block~2's prior_list/Sigma_ranef/tau^2_k plug-ins come from
+## also where Block~2's prior_list/group.Sigma/tau^2_k plug-ins come from
 ## here (calibration_source == "glmmTMB").
 ## ---------------------------------------------------------------------------
 design <- model_setup(form_lmer, data = dat)
@@ -125,11 +125,11 @@ attr(grp, "group_name") <- design$group_name
 group_levels <- levels(grp)
 re_names     <- design$groupef.names
 
-## sigma2_group is a diagnostic-only field in Prior_Setup_lmebayes(); here we
+## group.dispersion.ref is a diagnostic-only field in Prior_Setup_lmebayes(); here we
 ## deliberately treat it as KNOWN/fixed and pass it straight through as
 ## prior_list$dispersion's per-group vector (not sampled at all, unlike
 ## Ex_13/Ex_14's dGamma_list() route).
-disp_known <- ps$sigma2_group[group_levels]
+disp_known <- ps$group.dispersion.ref[group_levels]
 prior_list <- list(dispersion = disp_known)
 
 cat(sprintf(
@@ -139,7 +139,7 @@ cat(sprintf(
 
 ## ---------------------------------------------------------------------------
 ## 4. glmmTMB reference fit (the *same* fit Prior_Setup_lmebayes() calibrated
-##    Block~2/sigma2_group from -- no re-fitting needed).
+##    Block~2/group.dispersion.ref from -- no re-fitting needed).
 ## ---------------------------------------------------------------------------
 fit_ref <- ps$fit_ref
 cat("\n=== glmmTMB reference fit (dispformula = ~school_id) ===\n\n")
@@ -159,7 +159,7 @@ print(summary(fit_ref))
 ##  (b) Section 8 below prints the same values already exponentiated back
 ##      to the natural (sigma^2) scale for every school -- this is exactly
 ##      predict(fit_ref, type = "disp"), averaged within each group, which
-##      is also precisely what ps$sigma2_group holds and what 'disp_known'
+##      is also precisely what ps$group.dispersion.ref holds and what 'disp_known'
 ##      (prior_list$dispersion) above was built from.
 ## As a spot check: Dispersion model (Intercept) = 3.37823 on the log scale
 ## for the reference school ('2') exponentiates to exp(3.37823) = 29.32,
@@ -289,7 +289,7 @@ cat(
 ##    (sim_method = "TWO_BLOCK_GIBBS") Block~2 fixed effects.
 ##
 ## Both the per-group observation dispersion vector (disp_known) and
-## Sigma_ranef are *known* here (the point of this demo) --
+## group.Sigma are *known* here (the point of this demo) --
 ## rLMMNormal_reg_known_vcov()'s TWO_BLOCK_GIBBS route now runs its sweeps via
 ## rGLMM_sweep() (sweeps-outer/chains-inner), so fit_gibbs$sweep_history
 ## carries cov_by_sweep. plot_mean_convergence()/plot_var_convergence()
@@ -444,7 +444,7 @@ cat(
 ## ---------------------------------------------------------------------------
 ## 9. Known per-group sigma^2_j: the exact input fed to both samplers,
 ##    reproduced here for reference (identical to Prior_Setup_lmebayes()'s
-##    printed 'ps$sigma2_group', by construction -- shown for completeness,
+##    printed 'ps$group.dispersion.ref', by construction -- shown for completeness,
 ##    not a new estimate).
 ## ---------------------------------------------------------------------------
 cat("\n=== Known per-group sigma^2_j fed to both samplers (all groups) ===\n\n")

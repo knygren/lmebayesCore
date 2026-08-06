@@ -8,7 +8,7 @@
 #'     \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'     \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #'     \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#'     \code{dispersion_ranef} and Block~2 \code{pfamily_list}.
+#'     \code{group.dispersion} and Block~2 \code{pfamily_list}.
 #'   \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}} routes
 #'     (through internal \code{.lmebayes_run_glmm_engine()} and
 #'     \code{REG_ROUTE_TABLE}; pilot stage always unless \code{n_pilot = 0L};
@@ -22,10 +22,10 @@
 #'
 #' @param n Integer. Number of independent chains in the main stage.
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}}).
-#' @param prior A normalized prior container with \code{Sigma_ranef},
-#'   \code{prior_list}, and \code{pfamily_list}.
+#' @param prior A normalized prior container with \code{group.Sigma},
+#'   \code{pop.prior_list}, and \code{pfamily_list}.
 #' @param family A \code{\link[stats]{family}} object. Default \code{poisson()}.
-#' @param dispersion_ranef Observation-level measurement dispersion \eqn{\sigma^2}:
+#' @param group.dispersion Observation-level measurement dispersion \eqn{\sigma^2}:
 #'   required positive scalar for \code{family = gaussian()}, or a
 #'   \code{\link[glmbayesCore]{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
 #'   \code{NULL} (default) for \code{poisson()} and \code{binomial()}.
@@ -66,7 +66,7 @@ rglmerb <- function(
     design,
     prior,
     family              = poisson(),
-    dispersion_ranef    = NULL,
+    group.dispersion    = NULL,
     gap_tol             = 0.0196,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
@@ -98,8 +98,8 @@ rglmerb <- function(
 
   is_gaussian <- identical(family$family, "gaussian")
 
-  disp_info <- .lmebayes_resolve_dispersion_ranef(
-    dispersion_ranef = dispersion_ranef,
+  disp_info <- .lmebayes_resolve_group_dispersion(
+    group.dispersion = group.dispersion,
     family           = family,
     design           = design,
     fn_name          = "rglmerb"
@@ -111,7 +111,7 @@ rglmerb <- function(
   if (is_gaussian) {
     block1_prior <- .lmebayes_block1_prior_list(
       prior,
-      dispersion_ranef = disp_info$dispersion_fix
+      group.dispersion = disp_info$dispersion_fix
     )
 
     out <- .lmebayes_run_lmm_engine(
@@ -129,7 +129,7 @@ rglmerb <- function(
 
     icm_lbl <- .lmebayes_block2_icm_labels(prior, family)
     .lmebayes_print_icm_fixef_table(
-      prior_list = prior$prior_list,
+      prior_list = prior$pop.prior_list,
       re_names   = re_names,
       fixef_icm  = out$fixef.mode,
       icm_info   = out$icm_info,
@@ -146,7 +146,7 @@ rglmerb <- function(
     out$Prior       <- list(
       block1_prior          = block1_prior,
       pfamily_list          = prior$pfamily_list,
-      dispersion_ranef      = disp_info$dispersion_fix,
+      group.dispersion      = disp_info$dispersion_fix,
       dispersion_mode       = disp_info$mode,
       dispersion_pfamily    = disp_info$dispersion_pfamily,
       dispersion_prior_list = disp_info$dispersion_prior_list
@@ -175,7 +175,7 @@ rglmerb <- function(
     }
   }
 
-  block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
+  block1_prior <- .lmebayes_block1_prior_list(prior, group.dispersion = NULL)
 
   out <- .lmebayes_run_glmm_engine(
     n              = n,
@@ -193,7 +193,7 @@ rglmerb <- function(
 
   icm_lbl <- .lmebayes_block2_icm_labels(prior, family)
   .lmebayes_print_icm_fixef_table(
-    prior_list = prior$prior_list,
+    prior_list = prior$pop.prior_list,
     re_names   = re_names,
     fixef_icm  = out$fixef.mode,
     icm_info   = out$icm_info,
@@ -223,7 +223,7 @@ rglmerb <- function(
   out$Prior       <- list(
     block1_prior          = block1_prior,
     pfamily_list          = prior$pfamily_list,
-    dispersion_ranef      = disp_info$dispersion_fix,
+    group.dispersion      = disp_info$dispersion_fix,
     dispersion_mode       = disp_info$mode,
     dispersion_pfamily    = disp_info$dispersion_pfamily,
     dispersion_prior_list = disp_info$dispersion_prior_list

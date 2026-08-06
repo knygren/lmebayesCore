@@ -76,7 +76,8 @@ chain is initialised.}
 \item{family}{Response \code{\link[stats]{family}} for Block~1 (default
 \code{gaussian()}). Block~2 always uses \code{gaussian()}.}
 
-\item{offset, weights}{Passed to Block~1 (length \code{l2} or recycled).}
+\item{offset, weights}{Passed to Block~1 (length \code{l2} or recycled), as
+in \code{\link[glmbayesCore]{rlmb}} / the glmbayesCore simfunctions.}
 
 \item{Gridtype, n_envopt, use_parallel, use_opencl, verbose}{Passed to Block~1
 when \code{family} is not Gaussian.}
@@ -89,6 +90,8 @@ Object of class \code{"two_block_rNormal_reg"} with fields \code{fixef_draws},
 \code{mu_all_last}, \code{family}, \code{n}, \code{m_convergence},
 \code{sampling}, \code{fixef_start}, \code{groupef.names},
 \code{group_levels}, \code{group_name}, \code{call}, plus
+\code{prior.weights} and \code{offset2} (normalized observation weights
+and offset passed to Block~1, glmbayesCore simfunction naming),
 \code{dispersion_fixef_draws}: an \code{n x p_re} matrix of the Block~2
 dispersion (tau^2_k) at each stored draw (constant columns for
 \code{dNormal} components), and \code{iters_fixef_draws}: an

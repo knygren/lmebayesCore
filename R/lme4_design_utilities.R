@@ -15,9 +15,12 @@ is_single_factor_model <- function(formula, data, ...) {
     return(FALSE)
   }
   
-  # 2. Parse the formula with lme4's formula module to evaluate actual grouping execution
+  # 2. Parse the formula with lme4's formula module to evaluate actual grouping
+  # execution. Capture ... before tryCatch -- `...` is not visible inside the
+  # tryCatch expression frame (`..1 used in an incorrect context`).
+  dots <- list(...)
   parsed_formula <- tryCatch({
-    lme4::lFormula(formula = formula, data = data, ...)
+    do.call(lme4::lFormula, c(list(formula = formula, data = data), dots))
   }, error = function(e) {
     # If it fails to parse structural components, return FALSE
     return(NULL)
@@ -58,9 +61,11 @@ is_fixed_effects_only <- function(formula, data = NULL, ...) {
     return(TRUE)
   }
   
-  # Double-check by attempting a lean formula parse via lme4
+  # Double-check by attempting a lean formula parse via lme4.
+  # Capture ... before tryCatch (see is_single_factor_model).
+  dots <- list(...)
   parsed_formula <- tryCatch({
-    lme4::lFormula(formula = formula, data = data, ...)
+    do.call(lme4::lFormula, c(list(formula = formula, data = data), dots))
   }, error = function(e) {
     return(NULL)
   })
@@ -88,8 +93,9 @@ is_fixed_effects_only <- function(formula, data = NULL, ...) {
     )
   }
 
+  dots <- list(...)
   parsed <- tryCatch(
-    lme4::lFormula(formula = formula, data = data, ...),
+    do.call(lme4::lFormula, c(list(formula = formula, data = data), dots)),
     error = function(e) {
       stop(
         "Could not parse random-effects formula: ", conditionMessage(e),
@@ -475,6 +481,10 @@ classify_crosslevel_re_moderation <- function(
 #'       \code{lme4}.}
 #'     \item{\code{y}}{Response vector, length \code{nrow(D)} (aligned with
 #'       \code{D} and \code{group}).}
+#'     \item{\code{weights}}{Prior-weight vector of length \code{length(y)}
+#'       from \code{model.weights(fr)} (ones when unspecified).}
+#'     \item{\code{offset}}{Offset vector of length \code{length(y)} from
+#'       \code{model.offset(fr)} (zeros when unspecified).}
 #'     \item{\code{D}}{Group-effects model matrix (\code{n_obs} x \code{p_re}):
 #'       per-observation loadings on the within-group group-effect coefficient
 #'       vector (columns \code{groupef.names}).}
@@ -589,6 +599,7 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
       call. = FALSE
     )
   }
+  wo <- .lmebayes_weights_offset_from_frame(parsed$fr, length(y))
 
   structure(
     list(
@@ -596,6 +607,8 @@ extract_re_hyper_matrices <- function(formula, data = NULL, ...) {
       group = group_factor,
       groupef.names = groupef.names,
       y = y,
+      weights = wo$weights,
+      offset = wo$offset,
       D = Z,
       W = X_hyper,
       popef.moderation = popef.moderation

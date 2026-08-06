@@ -1,4 +1,4 @@
-#' Bayesian mixed model setup (single-factor \code{lmer}/\code{glmer} gate)
+#' Model setup for generalized linear mixed models
 #'
 #' Wrapper around \code{\link[lme4]{lmer}} or \code{\link[lme4]{glmer}} for
 #' models with exactly one grouping factor. Design matrices come from
@@ -107,20 +107,33 @@
 #'   argument (\code{> 0} prints optimizer iterations; \code{> 1} also prints
 #'   inner PIRLS steps).
 #' @param subset An optional expression indicating the subset of rows of
-#'   \code{data} to use, as in \code{lmer}'s \code{subset} argument; passed
-#'   to the reference fit.
+#'   \code{data} to use, as in \code{lmer}'s \code{subset} argument.  Passed
+#'   to both \code{\link{extract_re_hyper_matrices}} (via
+#'   \code{\link[lme4]{lFormula}}) and the reference \code{lmer}/\code{glmer}
+#'   (and \code{glmmTMB} when used) so the sampler design matrices and the
+#'   classical reference fit share the same rows.
 #' @param weights An optional vector of prior weights, as in \code{lmer}'s
-#'   \code{weights} argument; passed to the reference fit. Unspecified means
-#'   equal weights.
+#'   \code{weights} argument.  Passed to design extraction
+#'   (\code{lFormula}), the reference \code{lmer}/\code{glmer} fit, and
+#'   \code{glmmTMB} when used, so dropped rows match \code{subset}/
+#'   \code{na.action}.  Stored on the returned design as length-\code{n}
+#'   \code{weights} (default all ones).  Mixed-model sampler engines that
+#'   still hard-code unit weights do not consume this vector yet; see
+#'   \code{\link{Prior_Setup_lmebayes}}.
 #' @param na.action A function indicating what should happen when \code{data}
-#'   contain \code{NA}s (default \code{na.omit}, as in \code{lmer}); passed
-#'   to the reference fit.
+#'   contain \code{NA}s (default \code{na.omit}, as in \code{lmer}).  Passed
+#'   to both design extraction (\code{lFormula}) and the reference fit so
+#'   dropped rows match.
 #' @param offset An optional a priori known component to include in the
-#'   linear predictor, as in \code{lmer}'s \code{offset} argument; passed to
-#'   the reference fit.
+#'   linear predictor, as in \code{lmer}'s \code{offset} argument (plus any
+#'   \code{offset()} term in \code{formula}).  Passed to design extraction
+#'   and the reference fit; stored on the returned design as length-\code{n}
+#'   \code{offset} (default all zeros).  Mixed-model sampler engines that
+#'   still hard-code a zero offset do not consume this vector yet.
 #' @param contrasts An optional list of contrasts (see the
-#'   \code{contrasts.arg} of \code{model.matrix.default}, as in \code{lmer});
-#'   passed to the reference fit.
+#'   \code{contrasts.arg} of \code{model.matrix.default}, as in \code{lmer}).
+#'   Passed to both design extraction (\code{lFormula}) and the reference
+#'   fit so factor coding in \code{W}/\code{D} matches \code{fixef}/\code{vcov}.
 #' @param devFunOnly Logical, as in \code{lmer}'s \code{devFunOnly} argument:
 #'   if \code{TRUE}, return only the deviance evaluation function instead of
 #'   a fitted model. Gaussian \code{lmer} fits only; ignored for \code{glmer}.
@@ -131,6 +144,12 @@
 #' @return Object of class \code{"model_setup"} with:
 #'   \describe{
 #'     \item{\code{y}}{Response vector, length \code{nrow(D)}.}
+#'     \item{\code{weights}}{Numeric prior-weight vector of length
+#'       \code{length(y)} (ones when unspecified), aligned with \code{y}/
+#'       \code{D}/\code{group} after \code{subset}/\code{na.action}.}
+#'     \item{\code{offset}}{Numeric offset vector of length \code{length(y)}
+#'       (zeros when unspecified and no formula \code{offset()}), aligned
+#'       with \code{y}/\code{D}/\code{group}.}
 #'     \item{\code{D}}{Group-effects model matrix (\code{n_obs} x
 #'       \code{p_re}): per-observation loadings on the within-group
 #'       group-effect coefficient vector (columns \code{groupef.names}).}
@@ -230,7 +249,35 @@ model_setup <- function(
     control <- lme4::lmerControl()
   }
 
-  design <- extract_re_hyper_matrices(formula = formula, data = data, ...)
+  ## Shared model-frame args for design extraction and reference fits so
+  ## design$y/D/group/W and lmer/glmer/glmmTMB see the same rows and
+  ## factor coding (lFormula + lmer both accept these).
+  ## Evaluate subset against data here (as model.frame does) so we can
+  ## forward a concrete index through do.call(); passing the language
+  ## object via do.call() would re-evaluate it in the wrong environment.
+  ## weights/offset are force-evaluated (concrete vectors) and passed into
+  ## lFormula so model.weights(fr)/model.offset(fr) match the design rows.
+  frame_args <- list()
+  if (!is.null(cl$subset)) {
+    frame_args$subset <- eval(cl$subset, envir = data, enclos = parent.frame())
+  }
+  if (!missing(weights)) {
+    frame_args$weights <- weights
+  }
+  if (!missing(offset)) {
+    frame_args$offset <- offset
+  }
+  if (!missing(na.action)) {
+    frame_args$na.action <- na.action
+  }
+  if (!is.null(contrasts)) {
+    frame_args$contrasts <- contrasts
+  }
+
+  design <- do.call(
+    extract_re_hyper_matrices,
+    c(list(formula = formula, data = data), frame_args, list(...))
+  )
   design$call    <- cl
   design$formula <- formula
   design$family  <- family
@@ -258,7 +305,7 @@ model_setup <- function(
       if (!is.null(control)) list(control = control),
       .lmebayes_mer_optional_args(
         start = start,
-        subset = subset,
+        subset = if (!is.null(frame_args$subset)) frame_args$subset,
         weights = weights,
         na.action = na.action,
         offset = offset,
@@ -287,6 +334,21 @@ model_setup <- function(
       )
     }
 
+    ## Guard: design extraction and the reference fit must agree on n.
+    n_design <- length(design$y)
+    n_fit <- length(stats::fitted(fit_full))
+    if (n_design != n_fit) {
+      stop(
+        "Internal error: design extraction used ", n_design,
+        " observation(s) but the reference ",
+        if (is_gaussian) "lmer" else "glmer",
+        " fit used ", n_fit,
+        ". Pass the same subset/na.action/contrasts to both paths ",
+        "(model_setup should do this automatically).",
+        call. = FALSE
+      )
+    }
+
     vc <- extract_mer_variance_components(
       fit_full,
       design$groupef.names
@@ -306,12 +368,20 @@ model_setup <- function(
     ## as their calibration reference instead of fitting glmmTMB a second
     ## time; see inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md.
     if (is_gaussian && identical(dispformula_kind, "group")) {
-      design$glmmTMB_fit <- .lmebayes_fit_glmmtmb_reference(
-        formula     = formula,
-        data        = data,
-        family      = family,
-        dispformula = dispformula,
-        REML        = REML
+      design$glmmTMB_fit <- do.call(
+        .lmebayes_fit_glmmtmb_reference,
+        c(
+          list(
+            formula     = formula,
+            data        = data,
+            family      = family,
+            dispformula = dispformula,
+            REML        = REML
+          ),
+          frame_args,
+          if (!missing(weights)) list(weights = weights),
+          if (!missing(offset)) list(offset = offset)
+        )
       )
     }
   }
@@ -421,6 +491,103 @@ model_setup <- function(
     args$contrasts <- contrasts
   }
   args
+}
+
+#' Normalize prior weights to length \code{n} (glmbayes / \code{rlmb} style).
+#' @noRd
+.lmebayes_normalize_weights <- function(weights, n, arg = "weights") {
+  if (is.null(weights)) {
+    return(rep(1, n))
+  }
+  if (!is.numeric(weights)) {
+    stop(sprintf("'%s' must be numeric.", arg), call. = FALSE)
+  }
+  wt <- as.numeric(weights)
+  if (length(wt) == 1L) {
+    wt <- rep(wt, n)
+  }
+  if (length(wt) != n) {
+    stop(
+      sprintf(
+        "'%s' must be scalar or length %d (number of observations).",
+        arg, n
+      ),
+      call. = FALSE
+    )
+  }
+  if (anyNA(wt) || any(wt < 0)) {
+    stop(sprintf("'%s' must be nonnegative and non-missing.", arg), call. = FALSE)
+  }
+  wt
+}
+
+#' Normalize offset to length \code{n} (glmbayes / \code{rlmb} style).
+#' @noRd
+.lmebayes_normalize_offset <- function(offset, n, arg = "offset") {
+  if (is.null(offset)) {
+    return(rep(0, n))
+  }
+  if (!is.numeric(offset)) {
+    stop(sprintf("'%s' must be numeric.", arg), call. = FALSE)
+  }
+  off <- as.numeric(offset)
+  if (length(off) == 1L) {
+    off <- rep(off, n)
+  }
+  if (length(off) != n) {
+    stop(
+      sprintf(
+        "'%s' must be scalar or length %d (number of observations).",
+        arg, n
+      ),
+      call. = FALSE
+    )
+  }
+  if (anyNA(off)) {
+    stop(sprintf("'%s' must be non-missing.", arg), call. = FALSE)
+  }
+  off
+}
+
+#' Resolve weights/offset from an \code{lFormula} model frame.
+#' @noRd
+.lmebayes_weights_offset_from_frame <- function(fr, n) {
+  list(
+    weights = .lmebayes_normalize_weights(stats::model.weights(fr), n),
+    offset  = .lmebayes_normalize_offset(stats::model.offset(fr), n)
+  )
+}
+
+#' Phase~1 gate: mixed-model engines that still hard-code unit weights / zero
+#' offset should call this before ignoring \code{design$weights}/
+#' \code{design$offset}.
+#' @noRd
+.lmebayes_stop_if_nondefault_weights_offset <- function(
+    weights,
+    offset,
+    where = "sampler"
+) {
+  n <- length(weights)
+  if (n < 1L) {
+    return(invisible(NULL))
+  }
+  if (!isTRUE(all.equal(as.numeric(weights), rep(1, n), tolerance = 0))) {
+    stop(
+      where, ": non-unit 'weights' are stored on the design but not yet ",
+      "consumed by this mixed-model sampling path (Phase 1 storage only). ",
+      "Use unit weights, or wait until sampler engines are wired.",
+      call. = FALSE
+    )
+  }
+  if (!isTRUE(all.equal(as.numeric(offset), rep(0, n), tolerance = 0))) {
+    stop(
+      where, ": non-zero 'offset' is stored on the design but not yet ",
+      "consumed by this mixed-model sampling path (Phase 1 storage only). ",
+      "Use a zero offset (or fold it into the formula once engines are wired).",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
 }
 
 #' @rdname model_setup

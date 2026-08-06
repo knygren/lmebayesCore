@@ -31,7 +31,7 @@
 #'   \code{W}, \code{group}, \code{groupef.names}).
 #' @param group_levels Character vector of group levels.
 #' @param groupef.names Character vector of random-coefficient names.
-#' @param Sigma_ranef Diagonal RE covariance matrix (Block~1's \eqn{\Psi}).
+#' @param group.Sigma Diagonal RE covariance matrix (Block~1's \eqn{\Psi}).
 #' @param ing_prior_measurement_group Pass-1 (seed) per-group Block~1
 #'   calibration list, as returned by
 #'   \code{.lmebayes_calibrate_ing_prior_measurement_group()}; supplies each
@@ -48,7 +48,7 @@
 #'   <data.frame>)}.
 #' @noRd
 .lmebayes_calibrate_pwt_measurement_group <- function(
-    fit_ref, design, group_levels, groupef.names, Sigma_ranef,
+    fit_ref, design, group_levels, groupef.names, group.Sigma,
     ing_prior_measurement_group, alpha_target, floor_vec,
     n_sim = 200000L, seed = 1L
 ) {
@@ -59,8 +59,8 @@
   ## a 1x1 diagonal matrix containing x -- must pass nrow explicitly to get
   ## the intended 1x1 result when p_re == 1 (a single RE component, e.g.
   ## (1 | group) with no other random slopes).
-  Psi_inv <- diag(1 / diag(Sigma_ranef), nrow = p_re)
-  dimnames(Psi_inv) <- dimnames(Sigma_ranef)
+  Psi_inv <- diag(1 / diag(group.Sigma), nrow = p_re)
+  dimnames(Psi_inv) <- dimnames(group.Sigma)
 
   ## Map hyper-predictor 'col' of RE component 'k' to fe's name: a main
   ## effect for intercept-associated predictors, but the observation-level

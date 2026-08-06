@@ -8,8 +8,8 @@
 #' For each random-effect coefficient \eqn{k}, the prior parameters come
 #' from \code{object$pop.prior_list[[k]]}:
 #' \itemize{
-#'   \item \code{"dNormal"}: \code{dNormal(mu = mu_fixef, Sigma =
-#'     Sigma_fixef, dispersion = dispersion_fixef)}.  The Block~2
+#'   \item \code{"dNormal"}: \code{dNormal(mu = mu, Sigma =
+#'     Sigma, dispersion = dispersion)}.  The Block~2
 #'     dispersion (the random-effect variance \eqn{\tau^2_k}) is treated
 #'     as known.
 #'   \item \code{"dIndependent_Normal_Gamma"}: the same \code{mu} and
@@ -171,9 +171,9 @@ pfamily_list.lmebayes_prior_setup <- function(object,
 
   for (k in re_names) {
     pl    <- object$pop.prior_list[[k]]
-    mu_k  <- pl$mu_fixef
-    Sig_k <- pl$Sigma_fixef
-    d_k   <- unname(pl$dispersion_fixef)
+    mu_k  <- pl$mu
+    Sig_k <- pl$Sigma
+    d_k   <- unname(pl$dispersion)
     p_k   <- length(mu_k)
 
     out[[k]] <- switch(

@@ -20,12 +20,12 @@ glmerb_posterior_mode(
 \item{design}{Design list with \code{y}, \code{D}, \code{group},
 \code{W}, and \code{groupef.names}.}
 
-\item{measurement_prior_list}{List with \code{Sigma_ranef} and
-\code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
+\item{measurement_prior_list}{List with \code{group.Sigma} and
+\code{pop.prior_list}.  \code{group.dispersion} (\eqn{\sigma^2}) is required
 for \code{lmerb_posterior_mean()} and for \code{glmerb_posterior_mode()}
 when \code{family = gaussian()}; omit for non-Gaussian GLMM families.
-Each \code{prior_list[[k]]} must contain \code{mu_fixef},
-\code{Sigma_fixef}, and \code{dispersion_fixef}.}
+Each \code{pop.prior_list[[k]]} must contain \code{mu},
+\code{Sigma}, and \code{dispersion}.}
 
 \item{tol}{Convergence tolerance for \code{glmerb_posterior_mode()}'s ICM
 loop, on the change in \code{fixef} between successive iterations,
@@ -72,7 +72,7 @@ For each RE component \eqn{k}:
 }
 where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
 \eqn{X_k =} \code{design$W[[k]]},
-\eqn{\tau^2_k =} \code{dispersion_fixef}, and
+\eqn{\tau^2_k =} \code{dispersion}, and
 \eqn{P_{\gamma_k} = \Sigma_{\gamma_k}^{-1}} from \code{prior_list}.
 
 \strong{Block~1 update} differs by function; see \code{\link{lmerb_posterior_mean}}

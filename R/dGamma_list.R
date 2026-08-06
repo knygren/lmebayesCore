@@ -3,7 +3,7 @@
 #' Generic for constructing a named list of \code{\link[glmbayesCore]{dGamma}} prior
 #' objects from a prior-specification object.  For mixed models, one
 #' \code{dGamma()} per group level supplies Block~1 observation-level
-#' \eqn{\sigma^2_j} priors for \code{lmerb(..., dispersion_ranef = ...)}.
+#' \eqn{\sigma^2_j} priors for \code{lmerb(..., group.dispersion = ...)}.
 #'
 #' @param object A prior-specification object.
 #' @param ... Additional arguments passed to methods (e.g.

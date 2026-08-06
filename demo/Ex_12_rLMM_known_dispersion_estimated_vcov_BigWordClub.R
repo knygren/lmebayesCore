@@ -73,11 +73,11 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 ## Known observation dispersion: fixed sigma^2 from the lmer REML fit.
-prior_list <- list(dispersion = ps$dispersion_ranef)
+prior_list <- list(dispersion = ps$group.dispersion)
 
 cat(sprintf(
   "\n=== Known observation dispersion: sigma^2 = %.4f (lmer REML) ===\n\n",
-  ps$dispersion_ranef
+  ps$group.dispersion
 ))
 
 ## ---------------------------------------------------------------------------
@@ -239,7 +239,7 @@ for (k in re_names) {
 ## 6. Block 2 fixed effects: Gibbs (MCMC) vs ICM mean vs lmer fixef
 ##    (+ uncertainty)
 ##
-## No exact-iid engine exists for this model (Sigma_ranef is estimated, so
+## No exact-iid engine exists for this model (group.Sigma is estimated, so
 ## the joint posterior is not exactly Gaussian) -- 'gibbs mean'/'gibbs SD'
 ## (the lmebayesCore output: posterior mean/SD of gamma_k across the main-
 ## stage MCMC draws) is compared directly to lmer's fixef/Std. Error instead
@@ -309,7 +309,7 @@ cat(
 ## demo("Ex_10_rLMM_known_dispersion_known_vcov_BigWordClub", package =
 ## "lmebayesCore")'s Section 6 for that fully-known case, which unlike here
 ## *does* have an exact reference mean/covariance available).
-## dispersion and Sigma_ranef are both *estimated* here (that is the point of
+## dispersion and group.Sigma are both *estimated* here (that is the point of
 ## this demo), so plot_mean_convergence()/plot_var_convergence()'s fit-object
 ## methods automatically find no exact reference available and fall back to
 ## the empirical mean_final/Var_final (last-sweep cross-chain mean/
@@ -331,7 +331,7 @@ for (stg in c("pilot", "main")) {
 }
 
 ## component = "precision" plots the *other* thing this demo estimates: the
-## RE variance-covariance itself, Sigma_ranef = diag(tau2_k), tracked as its
+## RE variance-covariance itself, group.Sigma = diag(tau2_k), tracked as its
 ## reciprocal 1/tau2_k (precision) rather than tau2_k -- E[1/tau2_k] stays
 ## well-defined under a weak/vague prior where E[tau2_k] need not be. Unlike
 ## the Block~2 fixed-effects charts above, there is no exact reference here
@@ -359,7 +359,7 @@ theta_prior <- unlist(lapply(re_names, function(k) {
   nms <- colnames(fit$fixef[[k]])
   ## Raw pfamily_list() objects (unlike lmerb()'s processed fit$prior) store
   ## the Block~2 prior mean as prior_list$mu, an ncol(W[[k]]) x 1 matrix
-  ## dimnamed by colnames(W[[k]]) -- not prior_list$mu_fixef.
+  ## dimnamed by colnames(W[[k]]) -- not prior_list$mu.
   unname(pf[[k]]$prior_list$mu[nms, 1L])
 }))
 theta_pilot <- unlist(lapply(re_names, function(k) {

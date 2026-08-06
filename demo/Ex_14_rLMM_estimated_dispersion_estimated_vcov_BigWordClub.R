@@ -124,7 +124,7 @@ disp_pf_list <- dGamma_list(ps)
 ## measurement_prior_list() expects) plus 'shape_group'/'rate_group'/
 ## 'disp_lower_group'/'disp_upper_group' (one named-by-group-level numeric
 ## vector each), extracted here from each group's dGamma() pfamily --
-## mirroring .lmebayes_resolve_dispersion_ranef_group_list() /
+## mirroring .lmebayes_resolve_group.dispersion_group_list() /
 ## .lmebayes_ing_measurement_prior_list_group() in mixed_rmerb_helpers.R.
 ## ---------------------------------------------------------------------------
 
@@ -151,7 +151,7 @@ for (lev in group_levels) {
 
 prior_list <- list(
   mu               = matrix(0, nrow = p_re, ncol = 1L, dimnames = list(re_names, NULL)),
-  Sigma            = as.matrix(ps$Sigma_ranef),
+  Sigma            = as.matrix(ps$group.Sigma),
   shape_group      = shape_group,
   rate_group       = rate_group,
   disp_lower_group = disp_lower_group,
@@ -474,7 +474,7 @@ cat(sprintf(
 ## fit$pilot$sweep_history and fit$sweep_history carry cov_by_sweep (as does
 ## rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")'s single main
 ## stage now that its engine is rGLMM_sweep()-based too). Both per-group
-## dispersion and Sigma_ranef are *estimated* here (that is the point of this
+## dispersion and group.Sigma are *estimated* here (that is the point of this
 ## demo), so plot_mean_convergence()/plot_var_convergence()'s fit-object
 ## methods automatically find no exact reference available and fall back to
 ## the empirical mean_final/Var_final (last-sweep cross-chain mean/
@@ -493,7 +493,7 @@ for (stg in c("pilot", "main")) {
 }
 
 ## component = "precision" plots the RE variance-covariance itself,
-## Sigma_ranef = diag(tau2_k), tracked as its reciprocal 1/tau2_k
+## group.Sigma = diag(tau2_k), tracked as its reciprocal 1/tau2_k
 ## (precision) rather than tau2_k -- E[1/tau2_k] stays well-defined under a
 ## weak/vague prior where E[tau2_k] need not be. Unlike the Block~2
 ## fixed-effects charts above, there is no exact reference here
@@ -521,7 +521,7 @@ theta_prior <- unlist(lapply(re_names, function(k) {
   nms <- colnames(fit$fixef[[k]])
   ## Raw pfamily_list() objects (unlike lmerb()'s processed fit$prior) store
   ## the Block~2 prior mean as prior_list$mu, an ncol(W[[k]]) x 1 matrix
-  ## dimnamed by colnames(W[[k]]) -- not prior_list$mu_fixef.
+  ## dimnamed by colnames(W[[k]]) -- not prior_list$mu.
   unname(pf[[k]]$prior_list$mu[nms, 1L])
 }))
 theta_pilot <- unlist(lapply(re_names, function(k) {

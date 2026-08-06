@@ -1,4 +1,4 @@
-test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled dispersion_ranef", {
+test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled group.dispersion", {
   dat <- lme4::sleepstudy
 
   ps_default <- Prior_Setup_lmebayes(
@@ -7,7 +7,7 @@ test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled dispersion_ra
     pop.pwt = 0.01
   )
 
-  override <- as.numeric(ps_default$dispersion_ranef) * 1.25
+  override <- as.numeric(ps_default$group.dispersion) * 1.25
   ps <- Prior_Setup_lmebayes(
     Reaction ~ Days + (Days || Subject),
     data = dat,
@@ -15,9 +15,8 @@ test_that("Prior_Setup_lmebayes: group.dispersion overrides pooled dispersion_ra
     group.dispersion = override
   )
 
-  expect_equal(ps$dispersion_ranef, override, ignore_attr = TRUE)
-  expect_equal(ps$group.dispersion, override)
-  expect_identical(attr(ps$dispersion_ranef, "source"), "user group.dispersion")
+  expect_equal(ps$group.dispersion, override, ignore_attr = TRUE)
+  expect_identical(attr(ps$group.dispersion, "source"), "user group.dispersion")
   expect_equal(ps$group.ing_prior$sigma2_hat, override)
   p_re <- length(ps$design$groupef.names)
   n_prior <- ps$group.ing_prior$n_prior
@@ -44,7 +43,7 @@ test_that("Prior_Setup_lmebayes: group.dispersion vector overrides per-group dis
     dispformula = ~Subject
   )
 
-  override <- ps_default$sigma2_group * 1.1
+  override <- ps_default$group.dispersion.ref * 1.1
   ps <- Prior_Setup_lmebayes(
     Reaction ~ Days + (Days || Subject),
     data = dat,
@@ -54,16 +53,15 @@ test_that("Prior_Setup_lmebayes: group.dispersion vector overrides per-group dis
     group.dispersion = override
   )
 
-  expect_length(ps$dispersion_ranef, J)
-  expect_named(ps$dispersion_ranef, levels(dat$Subject))
+  expect_length(ps$group.dispersion, J)
+  expect_named(ps$group.dispersion, levels(dat$Subject))
   expect_equal(
-    unname(ps$dispersion_ranef),
+    unname(ps$group.dispersion),
     unname(override),
     ignore_attr = TRUE
   )
-  expect_equal(ps$group.dispersion, override)
-  expect_identical(attr(ps$dispersion_ranef, "source"), "user group.dispersion")
-  expect_identical(ps$sigma2_group, ps_default$sigma2_group)
+  expect_identical(attr(ps$group.dispersion, "source"), "user group.dispersion")
+  expect_identical(ps$group.dispersion.ref, ps_default$group.dispersion.ref)
 
   p_re <- length(ps$design$groupef.names)
   for (lev in levels(dat$Subject)) {
@@ -74,6 +72,135 @@ test_that("Prior_Setup_lmebayes: group.dispersion vector overrides per-group dis
       unname(override[[lev]]) * (ing_j$n_prior + p_re - 1) / 2
     )
   }
+})
+
+test_that("model_setup: subset/na.action align design rows with reference fit", {
+  dat <- lme4::sleepstudy
+  dat$Reaction[1:5] <- NA_real_
+
+  ms <- model_setup(
+    Reaction ~ Days + (Days || Subject),
+    data = dat,
+    na.action = stats::na.omit
+  )
+  expect_equal(length(ms$y), length(stats::fitted(ms$lmer)))
+  expect_equal(length(ms$y), nrow(dat) - 5L)
+  expect_equal(nlevels(ms$group), nlevels(dat$Subject))
+
+  ms_sub <- model_setup(
+    Reaction ~ Days + (Days || Subject),
+    data = lme4::sleepstudy,
+    subset = Days >= 5
+  )
+  expect_equal(length(ms_sub$y), length(stats::fitted(ms_sub$lmer)))
+  expect_true(length(ms_sub$y) < nrow(lme4::sleepstudy))
+  expect_equal(length(ms_sub$y), sum(lme4::sleepstudy$Days >= 5))
+})
+
+test_that("model_setup: contrasts align design W with reference fixef coding", {
+  set.seed(1)
+  dat <- data.frame(
+    y = rnorm(40),
+    g = gl(10, 4),
+    f = factor(rep(c("A", "B"), each = 20))
+  )
+  ## f must be group-constant (level-2) for model_setup().
+  dat$f <- factor(ifelse(as.integer(dat$g) %% 2L == 0L, "A", "B"))
+
+  ms_tr <- model_setup(y ~ f + (1 | g), data = dat)
+  ms_sum <- model_setup(
+    y ~ f + (1 | g),
+    data = dat,
+    contrasts = list(f = "contr.sum")
+  )
+  expect_equal(length(ms_tr$y), length(stats::fitted(ms_tr$lmer)))
+  expect_equal(length(ms_sum$y), length(stats::fitted(ms_sum$lmer)))
+  ## Treatment vs sum contrasts change the fixed-effect column names on W
+  ## and on fixef() of the reference fit -- and those names must agree.
+  expect_identical(
+    colnames(ms_tr$W[["(Intercept)"]]),
+    names(lme4::fixef(ms_tr$lmer))
+  )
+  expect_identical(
+    colnames(ms_sum$W[["(Intercept)"]]),
+    names(lme4::fixef(ms_sum$lmer))
+  )
+  expect_false(
+    identical(
+      colnames(ms_tr$W[["(Intercept)"]]),
+      colnames(ms_sum$W[["(Intercept)"]])
+    )
+  )
+})
+
+test_that("Prior_Setup_lmebayes: forwards REML / weights to model_setup", {
+  dat <- lme4::sleepstudy
+
+  ps_reml <- Prior_Setup_lmebayes(
+    Reaction ~ Days + (Days || Subject),
+    data = dat,
+    pop.pwt = 0.01,
+    REML = TRUE
+  )
+  ps_ml <- Prior_Setup_lmebayes(
+    Reaction ~ Days + (Days || Subject),
+    data = dat,
+    pop.pwt = 0.01,
+    REML = FALSE
+  )
+  ## ML vs REML changes the classical reference used for calibration.
+  expect_false(isTRUE(all.equal(ps_reml$group.Sigma, ps_ml$group.Sigma)))
+
+  ## weights/offset are stored on design (Phase 1); reference fit uses them.
+  w <- rep(1, nrow(dat))
+  w[1:10] <- 2
+  off <- rep(0, nrow(dat))
+  off[1:5] <- 1
+  ps_w <- Prior_Setup_lmebayes(
+    Reaction ~ Days + (Days || Subject),
+    data = dat,
+    pop.pwt = 0.01,
+    weights = w,
+    offset = off
+  )
+  expect_s3_class(ps_w, "lmebayes_prior_setup")
+  expect_true(is.numeric(ps_w$group.dispersion))
+  expect_equal(ps_w$design$weights, w)
+  expect_equal(ps_w$design$offset, off)
+  expect_equal(length(ps_w$design$weights), length(ps_w$design$y))
+
+  ms_default <- model_setup(
+    Reaction ~ Days + (Days || Subject),
+    data = dat
+  )
+  expect_equal(ms_default$weights, rep(1, length(ms_default$y)))
+  expect_equal(ms_default$offset, rep(0, length(ms_default$y)))
+
+  ## subset expression is NSE-forwarded (same rows as model_setup); weights
+  ## are subset with the model frame.
+  w_sub <- rep(1, nrow(dat))
+  w_sub[dat$Days >= 5] <- 2
+  ps_sub <- Prior_Setup_lmebayes(
+    Reaction ~ Days + (Days || Subject),
+    data = dat,
+    pop.pwt = 0.01,
+    subset = Days >= 5,
+    weights = w_sub
+  )
+  expect_equal(length(ps_sub$design$y), sum(dat$Days >= 5))
+  expect_equal(
+    length(ps_sub$design$y),
+    length(stats::fitted(ps_sub$design$lmer))
+  )
+  expect_equal(ps_sub$design$weights, rep(2, length(ps_sub$design$y)))
+  expect_error(
+    .lmebayes_stop_if_nondefault_weights_offset(
+      ps_sub$design$weights,
+      ps_sub$design$offset,
+      where = "test"
+    ),
+    "non-unit 'weights'"
+  )
 })
 
 test_that("Prior_Setup_lmebayes: group.dispersion validation", {
@@ -113,8 +240,8 @@ test_that("Prior_Setup_lmebayes: dispformula = ~1 keeps the pooled lme4 referenc
   expect_s4_class(ps$fit_ref, "merMod")
   expect_identical(ps$fit_ref, ps$mer_fit)
   expect_identical(ps$fit_ref, ps$design$lmer)
-  expect_null(ps$dispersion_fit)
-  expect_null(ps$sigma2_group)
+  expect_null(ps$group.dispersion.fit)
+  expect_null(ps$group.dispersion.ref)
   expect_false(is.null(ps$group.ing_prior))
   expect_false(lmebayesCore:::.lmebayes_ing_prior_is_grouped(ps$group.ing_prior))
 })
@@ -134,13 +261,13 @@ test_that("Prior_Setup_lmebayes: dispformula = ~group routes calibration through
   expect_identical(ps$calibration_source, "glmmTMB")
   expect_s3_class(ps$fit_ref, "glmmTMB")
   expect_s4_class(ps$mer_fit, "merMod")
-  expect_identical(ps$dispersion_fit, ps$fit_ref)
+  expect_identical(ps$group.dispersion.fit, ps$fit_ref)
   expect_identical(ps$mer_fit, ps$design$lmer)
 
-  ## Pooled dispersion_ranef stays lme4-derived (design$dispersion from
+  ## Pooled group.dispersion stays lme4-derived (design$dispersion from
   ## mer_fit) regardless of dispformula.
   expect_equal(
-    unname(ps$dispersion_ranef),
+    unname(ps$group.dispersion),
     unname(ps$design$dispersion),
     ignore_attr = TRUE
   )
@@ -152,13 +279,13 @@ test_that("Prior_Setup_lmebayes: dispformula = ~group routes calibration through
   expect_true(lmebayesCore:::.lmebayes_ing_prior_is_grouped(ps$group.ing_prior))
   expect_length(ps$group.ing_prior, nlevels(dat$Subject))
 
-  expect_type(ps$sigma2_group, "double")
-  expect_named(ps$sigma2_group, levels(dat$Subject))
+  expect_type(ps$group.dispersion.ref, "double")
+  expect_named(ps$group.dispersion.ref, levels(dat$Subject))
 
   disp_pf <- dGamma_list(ps, warn_asymmetric = FALSE)
   expect_length(disp_pf, nlevels(dat$Subject))
   expect_true(all(vapply(disp_pf, inherits, logical(1L), "pfamily")))
-  expect_identical(attr(disp_pf, "dispersion_fit"), ps$dispersion_fit)
+  expect_identical(attr(disp_pf, "group.dispersion.fit"), ps$group.dispersion.fit)
   expect_identical(attr(disp_pf, "calibration_source"), "glmmTMB")
 })
 
@@ -176,27 +303,27 @@ test_that("Prior_Setup_lmebayes: pop.mu supports partial (NULL-entry) overrides"
     pop.mu = list("(Intercept)" = c("(Intercept)" = 250), Days = NULL)
   )
 
-  ## Overridden component: mu_fixef is exactly the supplied value.
+  ## Overridden component: mu is exactly the supplied value.
   expect_equal(
-    unname(ps_mu$pop.prior_list[["(Intercept)"]]$mu_fixef),
+    unname(ps_mu$pop.prior_list[["(Intercept)"]]$mu),
     250
   )
 
   ## Non-overridden component (NULL entry): unchanged from the usual
   ## pop.intercept_source/pop.effects_source-derived default.
   expect_identical(
-    ps_mu$pop.prior_list[["Days"]]$mu_fixef,
-    ps_default$pop.prior_list[["Days"]]$mu_fixef
+    ps_mu$pop.prior_list[["Days"]]$mu,
+    ps_default$pop.prior_list[["Days"]]$mu
   )
 
-  ## Sigma_fixef is untouched by pop.mu.
+  ## Sigma is untouched by pop.mu.
   expect_identical(
-    ps_mu$pop.prior_list[["(Intercept)"]]$Sigma_fixef,
-    ps_default$pop.prior_list[["(Intercept)"]]$Sigma_fixef
+    ps_mu$pop.prior_list[["(Intercept)"]]$Sigma,
+    ps_default$pop.prior_list[["(Intercept)"]]$Sigma
   )
 })
 
-test_that("Prior_Setup_lmebayes: pop.sd converts to the expected Sigma_fixef scaling", {
+test_that("Prior_Setup_lmebayes: pop.sd converts to the expected Sigma scaling", {
   dat <- lme4::sleepstudy
 
   sd_val <- 50
@@ -210,23 +337,23 @@ test_that("Prior_Setup_lmebayes: pop.sd converts to the expected Sigma_fixef sca
     data = dat
   )
 
-  ## For a single-column component, Sigma_fixef = V_ii * (1-w)/w with
+  ## For a single-column component, Sigma = V_ii * (1-w)/w with
   ## w = V_ii / (V_ii + sd^2) collapses to exactly sd^2, independent of V_ii.
   expect_equal(
-    ps_sd$pop.prior_list[["(Intercept)"]]$Sigma_fixef[1, 1],
+    ps_sd$pop.prior_list[["(Intercept)"]]$Sigma[1, 1],
     sd_val^2
   )
 
   ## Non-overridden component (NULL entry): unchanged pop.pwt-derived scaling.
   expect_identical(
-    ps_sd$pop.prior_list[["Days"]]$Sigma_fixef,
-    ps_default$pop.prior_list[["Days"]]$Sigma_fixef
+    ps_sd$pop.prior_list[["Days"]]$Sigma,
+    ps_default$pop.prior_list[["Days"]]$Sigma
   )
 
-  ## mu_fixef is untouched by pop.sd.
+  ## mu is untouched by pop.sd.
   expect_identical(
-    ps_sd$pop.prior_list[["(Intercept)"]]$mu_fixef,
-    ps_default$pop.prior_list[["(Intercept)"]]$mu_fixef
+    ps_sd$pop.prior_list[["(Intercept)"]]$mu,
+    ps_default$pop.prior_list[["(Intercept)"]]$mu
   )
 })
 
@@ -281,7 +408,7 @@ test_that("Prior_Setup_lmebayes: pop.pwt, pop.sd, and pop.nprior are mutually ex
   )
 })
 
-test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma_fixef scaling", {
+test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma scaling", {
   dat <- lme4::sleepstudy
   J   <- nlevels(dat$Subject)
 
@@ -297,7 +424,7 @@ test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma_fixef
   )
 
   ## n_i = J*w_i/(1-w_i) <=> w_i = n_i/(n_i+J): an equivalent pop.pwt list
-  ## must reproduce exactly the same Sigma_fixef for the overridden component.
+  ## must reproduce exactly the same Sigma for the overridden component.
   w_equiv <- n_val / (n_val + J)
   ps_pwt_equiv <- Prior_Setup_lmebayes(
     Reaction ~ Days + (Days || Subject),
@@ -305,20 +432,20 @@ test_that("Prior_Setup_lmebayes: pop.nprior converts to the expected Sigma_fixef
     pop.pwt = list("(Intercept)" = w_equiv, Days = 0.01)
   )
   expect_equal(
-    ps_nprior$pop.prior_list[["(Intercept)"]]$Sigma_fixef,
-    ps_pwt_equiv$pop.prior_list[["(Intercept)"]]$Sigma_fixef
+    ps_nprior$pop.prior_list[["(Intercept)"]]$Sigma,
+    ps_pwt_equiv$pop.prior_list[["(Intercept)"]]$Sigma
   )
 
   ## Non-overridden component (NULL entry): unchanged pop.pwt-derived scaling.
   expect_identical(
-    ps_nprior$pop.prior_list[["Days"]]$Sigma_fixef,
-    ps_default$pop.prior_list[["Days"]]$Sigma_fixef
+    ps_nprior$pop.prior_list[["Days"]]$Sigma,
+    ps_default$pop.prior_list[["Days"]]$Sigma
   )
 
-  ## mu_fixef is untouched by pop.nprior.
+  ## mu is untouched by pop.nprior.
   expect_identical(
-    ps_nprior$pop.prior_list[["(Intercept)"]]$mu_fixef,
-    ps_default$pop.prior_list[["(Intercept)"]]$mu_fixef
+    ps_nprior$pop.prior_list[["(Intercept)"]]$mu,
+    ps_default$pop.prior_list[["(Intercept)"]]$mu
   )
 
   ## pop.nprior output reproduces the supplied value for the overridden
@@ -337,13 +464,13 @@ test_that("Prior_Setup_lmebayes: pop.mu/pop.sd/pop.nprior outputs are always pop
   )
 
   ## Always present (derived defaults), one named vector per RE component,
-  ## matching pop.prior_list's mu_fixef / sqrt(diag(Sigma_fixef)).
+  ## matching pop.prior_list's mu / sqrt(diag(Sigma)).
   expect_named(ps_default$pop.mu, c("(Intercept)", "Days"))
   expect_named(ps_default$pop.sd, c("(Intercept)", "Days"))
   expect_named(ps_default$pop.nprior, c("(Intercept)", "Days"))
   for (k in c("(Intercept)", "Days")) {
-    expect_identical(ps_default$pop.mu[[k]], ps_default$pop.prior_list[[k]]$mu_fixef)
-    sd_k <- sqrt(diag(ps_default$pop.prior_list[[k]]$Sigma_fixef, names = FALSE))
+    expect_identical(ps_default$pop.mu[[k]], ps_default$pop.prior_list[[k]]$mu)
+    sd_k <- sqrt(diag(ps_default$pop.prior_list[[k]]$Sigma, names = FALSE))
     expect_equal(ps_default$pop.sd[[k]], sd_k, ignore_attr = TRUE)
     ## n_i = J*w_i/(1-w_i) with w_i from the low-d adaptive default (0.01
     ## for sleepstudy: both components have p_k < 14).

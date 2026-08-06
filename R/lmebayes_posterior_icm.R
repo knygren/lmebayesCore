@@ -19,7 +19,7 @@
 #' }
 #' where \eqn{b_k} is the \eqn{k}-th column of the current Block~1 matrix,
 #' \eqn{X_k =} \code{design$W[[k]]},
-#' \eqn{\tau^2_k =} \code{dispersion_fixef}, and
+#' \eqn{\tau^2_k =} \code{dispersion}, and
 #' \eqn{P_{\gamma_k} = \Sigma_{\gamma_k}^{-1}} from \code{prior_list}.
 #'
 #' \strong{Block~1 update} differs by function; see \code{\link{lmerb_posterior_mean}}
@@ -33,12 +33,12 @@
 #'
 #' @param design Design list with \code{y}, \code{D}, \code{group},
 #'   \code{W}, and \code{groupef.names}.
-#' @param measurement_prior_list List with \code{Sigma_ranef} and
-#'   \code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
+#' @param measurement_prior_list List with \code{group.Sigma} and
+#'   \code{pop.prior_list}.  \code{group.dispersion} (\eqn{\sigma^2}) is required
 #'   for \code{lmerb_posterior_mean()} and for \code{glmerb_posterior_mode()}
 #'   when \code{family = gaussian()}; omit for non-Gaussian GLMM families.
-#'   Each \code{prior_list[[k]]} must contain \code{mu_fixef},
-#'   \code{Sigma_fixef}, and \code{dispersion_fixef}.
+#'   Each \code{pop.prior_list[[k]]} must contain \code{mu},
+#'   \code{Sigma}, and \code{dispersion}.
 #' @param tol Convergence tolerance for \code{glmerb_posterior_mode()}'s ICM
 #'   loop, on the change in \code{fixef} between successive iterations,
 #'   measured as a Mahalanobis distance in each RE component's own
@@ -134,8 +134,8 @@ lmerb_posterior_mean <- function(design,
 #' that a two-block Gibbs sampler's cross-chain covariance converges to as the
 #' number of inner sweeps grows.
 #'
-#' Only meaningful when \code{measurement_prior_list$dispersion_ranef} and
-#' \code{measurement_prior_list$Sigma_ranef} are both \emph{fixed} (not
+#' Only meaningful when \code{measurement_prior_list$group.dispersion} and
+#' \code{measurement_prior_list$group.Sigma} are both \emph{fixed} (not
 #' sampled) -- i.e. the same restriction as
 #' \code{.lmerb_posterior_normal_system()} itself. For models with
 #' estimated dispersion or estimated random-effect variance components, no
@@ -193,10 +193,10 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
   p_re         <- length(re_names)
   g_chr        <- as.character(design$group)
 
-  sigma2 <- measurement_prior_list$dispersion_ranef
+  sigma2 <- measurement_prior_list$group.dispersion
   if (is.null(sigma2)) {
     stop(
-      "'measurement_prior_list' must contain 'dispersion_ranef' ",
+      "'measurement_prior_list' must contain 'group.dispersion' ",
       "for the exact two-block Gaussian posterior.",
       call. = FALSE
     )
@@ -204,25 +204,25 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
   sigma2 <- as.numeric(sigma2)
   if (!(length(sigma2) %in% c(1L, J))) {
     stop(
-      "'measurement_prior_list$dispersion_ranef' must have length 1 or the ",
+      "'measurement_prior_list$group.dispersion' must have length 1 or the ",
       "number of groups (", J, ").",
       call. = FALSE
     )
   }
-  P_b    <- solve(measurement_prior_list$Sigma_ranef)
+  P_b    <- solve(measurement_prior_list$group.Sigma)
 
   P_gamma  <- stats::setNames(
     lapply(re_names, function(k) {
-      solve(measurement_prior_list$prior_list[[k]]$Sigma_fixef)
+      solve(measurement_prior_list$pop.prior_list[[k]]$Sigma)
     }),
     re_names
   )
   mu_gamma <- stats::setNames(
-    lapply(re_names, function(k) measurement_prior_list$prior_list[[k]]$mu_fixef),
+    lapply(re_names, function(k) measurement_prior_list$pop.prior_list[[k]]$mu),
     re_names
   )
   tau2 <- stats::setNames(
-    lapply(re_names, function(k) measurement_prior_list$prior_list[[k]]$dispersion_fixef),
+    lapply(re_names, function(k) measurement_prior_list$pop.prior_list[[k]]$dispersion),
     re_names
   )
 
@@ -380,9 +380,9 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 #' assembles \code{M} one Block~2 component-row at a time using each
 #' component's own \eqn{\tau^2_k} (see that function's Details), which is
 #' only guaranteed to reproduce a symmetric \code{M} when
-#' \code{measurement_prior_list$Sigma_ranef} is diagonal \emph{and} its
-#' \eqn{k}-th diagonal entry equals component \eqn{k}'s \code{dispersion_fixef}
-#' (\eqn{\tau^2_k}) -- i.e. \code{Sigma_ranef = diag(tau2_k)}, exactly how
+#' \code{measurement_prior_list$group.Sigma} is diagonal \emph{and} its
+#' \eqn{k}-th diagonal entry equals component \eqn{k}'s \code{dispersion}
+#' (\eqn{\tau^2_k}) -- i.e. \code{group.Sigma = diag(tau2_k)}, exactly how
 #' \code{lmerb()}/\code{glmerb()} always construct it (see
 #' \code{lmebayes::lmerb} Details), but not a precondition enforced at this
 #' matrix level. \code{solve(M, v)} (the posterior \emph{mean}, used by
@@ -396,7 +396,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 #'   \code{max(abs(M - t(M))) / max(abs(M))} before erroring. Default
 #'   \code{1e-6} (well above floating-point roundoff, which is \code{~1e-16},
 #'   but far below the asymmetry produced by a genuinely inconsistent
-#'   \code{Sigma_ranef}/\code{pfamily_list} pairing).
+#'   \code{group.Sigma}/\code{pfamily_list} pairing).
 #' @return List with \code{R_M} (\code{chol(M)}, upper triangular) and
 #'   \code{R_j_list} (named list of \code{chol(post_P_j)} per group level).
 #' @noRd
@@ -408,13 +408,13 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
     stop(
       "rLMMNormal_joint_iid(): the Block~2 posterior precision is not ",
       "symmetric (relative asymmetry ", signif(asym / scale, 3), "). ",
-      "Exact iid sampling requires 'Sigma_ranef' (from 'prior_list_block1') ",
+      "Exact iid sampling requires 'group.Sigma' (from 'prior_list_block1') ",
       "to be diagonal with its k-th entry exactly equal to component k's ",
       "dNormal() dispersion (tau2_k) in 'pfamily_list' -- i.e. ",
-      "Sigma_ranef = diag(tau2_k), as lmerb()/glmerb() always construct it. ",
+      "group.Sigma = diag(tau2_k), as lmerb()/glmerb() always construct it. ",
       "Use sim_method = \"TWO_BLOCK_GIBBS\" (or call ",
       "rLMMNormal_reg_known_vcov_two_bg()/two_block_rNormal_reg() directly) ",
-      "for a 'Sigma_ranef' that is correlated or inconsistent with 'pfamily_list'.",
+      "for a 'group.Sigma' that is correlated or inconsistent with 'pfamily_list'.",
       call. = FALSE
     )
   }
@@ -456,19 +456,19 @@ glmerb_posterior_mode <- function(design,
   p_re         <- length(re_names)
   g_chr        <- as.character(design$group)
 
-  sigma2   <- measurement_prior_list$dispersion_ranef
-  Sigma_b  <- measurement_prior_list$Sigma_ranef
+  sigma2   <- measurement_prior_list$group.dispersion
+  Sigma_b  <- measurement_prior_list$group.Sigma
   is_gaussian <- identical(family$family, "gaussian")
   if (is_gaussian && is.null(sigma2)) {
     stop(
-      "'measurement_prior_list' must contain 'dispersion_ranef' ",
+      "'measurement_prior_list' must contain 'group.dispersion' ",
       "when family = gaussian().",
       call. = FALSE
     )
   }
   if (!is_gaussian && !is.null(sigma2)) {
     stop(
-      "'measurement_prior_list$dispersion_ranef' must be NULL ",
+      "'measurement_prior_list$group.dispersion' must be NULL ",
       "for non-Gaussian families.",
       call. = FALSE
     )
@@ -477,7 +477,7 @@ glmerb_posterior_mode <- function(design,
     sigma2 <- as.numeric(sigma2)
     if (!(length(sigma2) %in% c(1L, J))) {
       stop(
-        "'measurement_prior_list$dispersion_ranef' must have length 1 or ",
+        "'measurement_prior_list$group.dispersion' must have length 1 or ",
         "the number of groups (", J, ").",
         call. = FALSE
       )
@@ -497,20 +497,20 @@ glmerb_posterior_mode <- function(design,
 
   P_gamma  <- stats::setNames(
     lapply(re_names, function(k) {
-      solve(measurement_prior_list$prior_list[[k]]$Sigma_fixef)
+      solve(measurement_prior_list$pop.prior_list[[k]]$Sigma)
     }),
     re_names
   )
   mu_gamma <- stats::setNames(
-    lapply(re_names, function(k) measurement_prior_list$prior_list[[k]]$mu_fixef),
+    lapply(re_names, function(k) measurement_prior_list$pop.prior_list[[k]]$mu),
     re_names
   )
   tau2 <- stats::setNames(
-    lapply(re_names, function(k) measurement_prior_list$prior_list[[k]]$dispersion_fixef),
+    lapply(re_names, function(k) measurement_prior_list$pop.prior_list[[k]]$dispersion),
     re_names
   )
 
-  fixef <- lapply(measurement_prior_list$prior_list, `[[`, "mu_fixef")
+  fixef <- lapply(measurement_prior_list$pop.prior_list, `[[`, "mu")
   names(fixef) <- re_names
 
   b_mean <- matrix(
@@ -613,7 +613,7 @@ glmerb_posterior_mode <- function(design,
   if (!is.list(mpl)) {
     stop("'measurement_prior_list' must be a list.", call. = FALSE)
   }
-  for (nm in c("Sigma_ranef", "prior_list")) {
+  for (nm in c("group.Sigma", "pop.prior_list")) {
     if (is.null(mpl[[nm]])) {
       stop(
         "'measurement_prior_list' must contain '", nm, "'.",

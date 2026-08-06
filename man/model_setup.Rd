@@ -3,7 +3,7 @@
 \name{model_setup}
 \alias{model_setup}
 \alias{print.model_setup}
-\title{Bayesian mixed model setup (single-factor \code{lmer}/\code{glmer} gate)}
+\title{Model setup for generalized linear mixed models}
 \usage{
 model_setup(
   formula,
@@ -69,24 +69,37 @@ argument (\code{> 0} prints optimizer iterations; \code{> 1} also prints
 inner PIRLS steps).}
 
 \item{subset}{An optional expression indicating the subset of rows of
-\code{data} to use, as in \code{lmer}'s \code{subset} argument; passed
-to the reference fit.}
+\code{data} to use, as in \code{lmer}'s \code{subset} argument.  Passed
+to both \code{\link{extract_re_hyper_matrices}} (via
+\code{\link[lme4]{lFormula}}) and the reference \code{lmer}/\code{glmer}
+(and \code{glmmTMB} when used) so the sampler design matrices and the
+classical reference fit share the same rows.}
 
 \item{weights}{An optional vector of prior weights, as in \code{lmer}'s
-\code{weights} argument; passed to the reference fit. Unspecified means
-equal weights.}
+\code{weights} argument.  Passed to design extraction
+(\code{lFormula}), the reference \code{lmer}/\code{glmer} fit, and
+\code{glmmTMB} when used, so dropped rows match \code{subset}/
+\code{na.action}.  Stored on the returned design as length-\code{n}
+\code{weights} (default all ones).  Mixed-model sampler engines that
+still hard-code unit weights do not consume this vector yet; see
+\code{\link{Prior_Setup_lmebayes}}.}
 
 \item{na.action}{A function indicating what should happen when \code{data}
-contain \code{NA}s (default \code{na.omit}, as in \code{lmer}); passed
-to the reference fit.}
+contain \code{NA}s (default \code{na.omit}, as in \code{lmer}).  Passed
+to both design extraction (\code{lFormula}) and the reference fit so
+dropped rows match.}
 
 \item{offset}{An optional a priori known component to include in the
-linear predictor, as in \code{lmer}'s \code{offset} argument; passed to
-the reference fit.}
+linear predictor, as in \code{lmer}'s \code{offset} argument (plus any
+\code{offset()} term in \code{formula}).  Passed to design extraction
+and the reference fit; stored on the returned design as length-\code{n}
+\code{offset} (default all zeros).  Mixed-model sampler engines that
+still hard-code a zero offset do not consume this vector yet.}
 
 \item{contrasts}{An optional list of contrasts (see the
-\code{contrasts.arg} of \code{model.matrix.default}, as in \code{lmer});
-passed to the reference fit.}
+\code{contrasts.arg} of \code{model.matrix.default}, as in \code{lmer}).
+Passed to both design extraction (\code{lFormula}) and the reference
+fit so factor coding in \code{W}/\code{D} matches \code{fixef}/\code{vcov}.}
 
 \item{devFunOnly}{Logical, as in \code{lmer}'s \code{devFunOnly} argument:
 if \code{TRUE}, return only the deviance evaluation function instead of
@@ -121,6 +134,12 @@ independent arguments that must be kept consistent by the caller.}
 Object of class \code{"model_setup"} with:
 \describe{
 \item{\code{y}}{Response vector, length \code{nrow(D)}.}
+\item{\code{weights}}{Numeric prior-weight vector of length
+\code{length(y)} (ones when unspecified), aligned with \code{y}/
+\code{D}/\code{group} after \code{subset}/\code{na.action}.}
+\item{\code{offset}}{Numeric offset vector of length \code{length(y)}
+(zeros when unspecified and no formula \code{offset()}), aligned
+with \code{y}/\code{D}/\code{group}.}
 \item{\code{D}}{Group-effects model matrix (\code{n_obs} x
 \code{p_re}): per-observation loadings on the within-group
 group-effect coefficient vector (columns \code{groupef.names}).}

@@ -11,8 +11,8 @@
 #' @param x_hyper Named list of hyper design matrices (column names for
 #'   Block~2 parameters).
 #' @param family Response \code{family} object.
-#' @return List with \code{dispersion_ranef}, \code{Sigma_ranef}, and
-#'   \code{prior_list}.
+#' @return List with \code{group.dispersion}, \code{group.Sigma}, and
+#'   \code{pop.prior_list}.
 #' @noRd
 .two_block_measurement_prior_list <- function(
     prior_list_block1,
@@ -25,9 +25,9 @@
   is_gaussian <- identical(family$family, "gaussian")
 
   if (!is.null(prior_list_block1$Sigma)) {
-    Sigma_ranef <- as.matrix(prior_list_block1$Sigma)
+    group.Sigma <- as.matrix(prior_list_block1$Sigma)
   } else if (!is.null(prior_list_block1$P)) {
-    Sigma_ranef <- solve(as.matrix(prior_list_block1$P))
+    group.Sigma <- solve(as.matrix(prior_list_block1$P))
   } else {
     stop(
       "prior_list must contain 'P' or 'Sigma' for ICM.",
@@ -35,7 +35,7 @@
     )
   }
 
-  dispersion_ranef <- if (is_gaussian) {
+  group.dispersion <- if (is_gaussian) {
     d <- prior_list_block1$dispersion
     if (is.null(d)) {
       stop(
@@ -105,16 +105,16 @@
     }
 
     prior_list[[k]] <- list(
-      mu_fixef         = mu_k,
-      Sigma_fixef      = Sigma_k,
-      dispersion_fixef = as.numeric(d_k)
+      mu         = mu_k,
+      Sigma      = Sigma_k,
+      dispersion = as.numeric(d_k)
     )
   }
 
   list(
-    dispersion_ranef = dispersion_ranef,
-    Sigma_ranef      = Sigma_ranef,
-    prior_list       = prior_list
+    group.dispersion = group.dispersion,
+    group.Sigma      = group.Sigma,
+    pop.prior_list   = prior_list
   )
 }
 

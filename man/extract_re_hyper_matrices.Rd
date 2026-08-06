@@ -24,6 +24,10 @@ value as \code{group_name}).}
 \code{lme4}.}
 \item{\code{y}}{Response vector, length \code{nrow(D)} (aligned with
 \code{D} and \code{group}).}
+\item{\code{weights}}{Prior-weight vector of length \code{length(y)}
+from \code{model.weights(fr)} (ones when unspecified).}
+\item{\code{offset}}{Offset vector of length \code{length(y)} from
+\code{model.offset(fr)} (zeros when unspecified).}
 \item{\code{D}}{Group-effects model matrix (\code{n_obs} x \code{p_re}):
 per-observation loadings on the within-group group-effect coefficient
 vector (columns \code{groupef.names}).}

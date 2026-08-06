@@ -40,7 +40,7 @@
 #' @param ... Currently ignored.
 #'
 #' @return A named list of \code{"pfamily"} objects keyed by group levels,
-#'   suitable for \code{lmerb(..., dispersion_ranef = dGamma_list(ps))}
+#'   suitable for \code{lmerb(..., group.dispersion = dGamma_list(ps))}
 #'   \emph{or} passed directly as \code{prior_list} to
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}}/
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} (both routes
@@ -55,10 +55,10 @@
 #'   per-group quantities as \code{"window_diagnostics"}'s \code{shape_ING}/
 #'   \code{rate}/\code{disp_lower}/\code{disp_upper} columns, reshaped as
 #'   vectors; a convenience view, not needed for the primary use above),
-#'   \code{"dispersion_fit"} (\code{object$dispersion_fit}, the \code{glmmTMB}
+#'   \code{"group.dispersion.fit"} (\code{object$group.dispersion.fit}, the \code{glmmTMB}
 #'   reference fit used for calibration -- \code{lmerb()}/\code{glmerb()}
-#'   reuse it as their own \code{dispersion_fit} instead of re-fitting
-#'   \code{glmmTMB} when \code{dispersion_ranef} carries this attribute), and
+#'   reuse it as their own \code{group.dispersion.fit} instead of re-fitting
+#'   \code{glmmTMB} when \code{group.dispersion} carries this attribute), and
 #'   \code{"calibration_source"} (\code{object$calibration_source}).
 #'
 #' @seealso \code{\link{Prior_Setup_lmebayes}}, \code{\link{dGamma_list}},
@@ -187,9 +187,9 @@ dGamma_list.lmebayes_prior_setup <- function(
   rownames(window_diagnostics) <- NULL
   attr(out, "window_diagnostics")  <- window_diagnostics
   ## Carried forward so lmerb()/glmerb() can reuse this glmmTMB reference fit
-  ## as their diagnostic-only dispersion_fit instead of re-fitting it; see
+  ## as their diagnostic-only group.dispersion.fit instead of re-fitting it; see
   ## lmebayes:::.lmebayes_fit_glmmtmb_dispersion().
-  attr(out, "dispersion_fit")      <- object$dispersion_fit
+  attr(out, "group.dispersion.fit")      <- object$group.dispersion.fit
   attr(out, "calibration_source")  <- object$calibration_source
 
   ## Flattened view of the SAME four per-group quantities already collected

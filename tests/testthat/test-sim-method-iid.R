@@ -115,16 +115,16 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
     y = fx$y, D = fx$D, group = fx$group, W = fx$W,
     groupef.names = "(Intercept)", group_name = "group"
   )
-  ## Sigma_ranef must match what rLMMNormal_joint_iid() now derives
+  ## group.Sigma must match what rLMMNormal_joint_iid() now derives
   ## internally from pfamily_list (diag(tau2_k), here tau2_true), not an
   ## independently-supplied P/Sigma.
   mpl <- list(
-    Sigma_ranef      = matrix(fx$tau2_true, 1, 1),
-    dispersion_ranef = unname(fx$sigma2_true),
-    prior_list       = list(
+    group.Sigma      = matrix(fx$tau2_true, 1, 1),
+    group.dispersion = unname(fx$sigma2_true),
+    pop.prior_list       = list(
       "(Intercept)" = list(
-        mu_fixef = 0, Sigma_fixef = matrix(100),
-        dispersion_fixef = fx$tau2_true
+        mu = 0, Sigma = matrix(100),
+        dispersion = fx$tau2_true
       )
     )
   )
@@ -182,7 +182,7 @@ test_that("sim_method validation rejects unknown values", {
 
   expect_error(
     rlmerb(
-      n = 5L, design = list(), prior = list(), dispersion_ranef = 1,
+      n = 5L, design = list(), prior = list(), group.dispersion = 1,
       sim_method = "bogus"
     ),
     "sim_method"
@@ -191,7 +191,7 @@ test_that("sim_method validation rejects unknown values", {
   expect_error(
     rglmerb(
       n = 5L, design = list(), prior = list(), family = gaussian(),
-      dispersion_ranef = 1, sim_method = "bogus"
+      group.dispersion = 1, sim_method = "bogus"
     ),
     "sim_method"
   )

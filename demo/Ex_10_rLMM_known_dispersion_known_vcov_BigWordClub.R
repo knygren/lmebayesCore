@@ -69,11 +69,11 @@ grp <- design$group
 attr(grp, "group_name") <- design$group_name
 
 ## Known observation dispersion: fixed sigma^2 from the lmer REML fit.
-prior_list <- list(dispersion = ps$dispersion_ranef)
+prior_list <- list(dispersion = ps$group.dispersion)
 
 cat(sprintf(
   "\n=== Known observation dispersion: sigma^2 = %.4f (lmer REML) ===\n\n",
-  ps$dispersion_ranef
+  ps$group.dispersion
 ))
 
 ## ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ cat(
 ##    (inst/BLOCK_GIBBS_ERGODICITY.md), for fit_gibbs's
 ##    (sim_method = "TWO_BLOCK_GIBBS") Block~2 fixed effects.
 ##
-## Both observation dispersion and Sigma_ranef (the RE variance-covariance)
+## Both observation dispersion and group.Sigma (the RE variance-covariance)
 ## are *known* here (the point of this demo) -- rLMMNormal_reg_known_vcov()'s
 ## TWO_BLOCK_GIBBS route now runs its sweeps via rGLMM_sweep()
 ## (sweeps-outer/chains-inner), so fit_gibbs$sweep_history carries

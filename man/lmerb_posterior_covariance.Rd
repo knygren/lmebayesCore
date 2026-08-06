@@ -10,12 +10,12 @@ lmerb_posterior_covariance(design, measurement_prior_list)
 \item{design}{Design list with \code{y}, \code{D}, \code{group},
 \code{W}, and \code{groupef.names}.}
 
-\item{measurement_prior_list}{List with \code{Sigma_ranef} and
-\code{prior_list}.  \code{dispersion_ranef} (\eqn{\sigma^2}) is required
+\item{measurement_prior_list}{List with \code{group.Sigma} and
+\code{pop.prior_list}.  \code{group.dispersion} (\eqn{\sigma^2}) is required
 for \code{lmerb_posterior_mean()} and for \code{glmerb_posterior_mode()}
 when \code{family = gaussian()}; omit for non-Gaussian GLMM families.
-Each \code{prior_list[[k]]} must contain \code{mu_fixef},
-\code{Sigma_fixef}, and \code{dispersion_fixef}.}
+Each \code{pop.prior_list[[k]]} must contain \code{mu},
+\code{Sigma}, and \code{dispersion}.}
 }
 \value{
 A \code{P_total x P_total} covariance matrix (\code{P_total} = the
@@ -35,8 +35,8 @@ of Claim~3 in the two-block Gibbs ergodicity reference (see
 that a two-block Gibbs sampler's cross-chain covariance converges to as the
 number of inner sweeps grows.
 
-Only meaningful when \code{measurement_prior_list$dispersion_ranef} and
-\code{measurement_prior_list$Sigma_ranef} are both \emph{fixed} (not
+Only meaningful when \code{measurement_prior_list$group.dispersion} and
+\code{measurement_prior_list$group.Sigma} are both \emph{fixed} (not
 sampled) -- i.e. the same restriction as
 \code{.lmerb_posterior_normal_system()} itself. For models with
 estimated dispersion or estimated random-effect variance components, no

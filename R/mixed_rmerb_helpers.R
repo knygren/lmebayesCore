@@ -2,8 +2,8 @@
 ## lmebayes calls these via lmebayesCore::: from lmerb() / glmerb() only.
 
 #' @noRd
-.lmebayes_resolve_dispersion_ranef <- function(
-    dispersion_ranef,
+.lmebayes_resolve_group_dispersion <- function(
+    group.dispersion,
     family,
     design = NULL,
     fn_name = "lmerb"
@@ -12,9 +12,9 @@
     c("gaussian", "Gamma", "quasipoisson", "quasibinomial")
 
   if (!has_dispersion) {
-    if (!is.null(dispersion_ranef)) {
+    if (!is.null(group.dispersion)) {
       stop(
-        "'dispersion_ranef' must be NULL for family = ", family$family,
+        "'group.dispersion' must be NULL for family = ", family$family,
         "() (no observation-level dispersion).",
         call. = FALSE
       )
@@ -27,23 +27,23 @@
     ))
   }
 
-  if (is.list(dispersion_ranef) && !inherits(dispersion_ranef, "pfamily")) {
-    return(.lmebayes_resolve_dispersion_ranef_group_list(
-      dispersion_ranef = dispersion_ranef,
+  if (is.list(group.dispersion) && !inherits(group.dispersion, "pfamily")) {
+    return(.lmebayes_resolve_group_dispersion_group_list(
+      group.dispersion = group.dispersion,
       design           = design,
       fn_name          = fn_name
     ))
   }
 
-  if (inherits(dispersion_ranef, "pfamily")) {
-    if (!identical(dispersion_ranef$pfamily, "dGamma")) {
+  if (inherits(group.dispersion, "pfamily")) {
+    if (!identical(group.dispersion$pfamily, "dGamma")) {
       stop(
-        fn_name, "(): 'dispersion_ranef' pfamily must be dGamma(); got ",
-        dispersion_ranef$pfamily, ". RE priors belong in 'pfamily_list'.",
+        fn_name, "(): 'group.dispersion' pfamily must be dGamma(); got ",
+        group.dispersion$pfamily, ". RE priors belong in 'pfamily_list'.",
         call. = FALSE
       )
     }
-    pl <- dispersion_ranef$prior_list
+    pl <- group.dispersion$prior_list
     if (!isTRUE(pl$Inv_Dispersion)) {
       stop(
         fn_name, "(): dGamma() observation-dispersion prior requires ",
@@ -55,7 +55,7 @@
     rate  <- as.numeric(pl$rate[1L])
     if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
       stop(
-        fn_name, "(): dGamma() dispersion_ranef prior_list requires positive ",
+        fn_name, "(): dGamma() group.dispersion prior_list requires positive ",
         "'shape' and 'rate'.",
         call. = FALSE
       )
@@ -64,23 +64,23 @@
       mode                  = "gamma",
       dispersion_fix        = shape / rate,
       dispersion_prior_list = pl,
-      dispersion_pfamily    = dispersion_ranef
+      dispersion_pfamily    = group.dispersion
     ))
   }
 
-  if (is.numeric(dispersion_ranef) && length(dispersion_ranef) > 1L) {
-    return(.lmebayes_resolve_dispersion_ranef_fixed_vector(
-      dispersion_ranef = dispersion_ranef,
+  if (is.numeric(group.dispersion) && length(group.dispersion) > 1L) {
+    return(.lmebayes_resolve_group_dispersion_fixed_vector(
+      group.dispersion = group.dispersion,
       design           = design,
       fn_name          = fn_name
     ))
   }
 
-  if (is.null(dispersion_ranef) || !is.numeric(dispersion_ranef) ||
-      length(dispersion_ranef) != 1L || !is.finite(dispersion_ranef) ||
-      dispersion_ranef <= 0) {
+  if (is.null(group.dispersion) || !is.numeric(group.dispersion) ||
+      length(group.dispersion) != 1L || !is.finite(group.dispersion) ||
+      group.dispersion <= 0) {
     stop(
-      "'dispersion_ranef' must be a single positive number, a named numeric ",
+      "'group.dispersion' must be a single positive number, a named numeric ",
       "vector of positive per-group values, a dGamma() pfamily, or a named ",
       "list of dGamma() pfamilies (one per group) for family = ",
       family$family, "().",
@@ -89,15 +89,15 @@
   }
   list(
     mode                  = "fixed",
-    dispersion_fix        = as.numeric(dispersion_ranef),
+    dispersion_fix        = as.numeric(group.dispersion),
     dispersion_prior_list = NULL,
     dispersion_pfamily    = NULL
   )
 }
 
-#' Resolve a fixed per-group numeric vector for \code{dispersion_ranef}
+#' Resolve a fixed per-group numeric vector for \code{group.dispersion}
 #'
-#' Fourth \code{dispersion_ranef} option alongside a fixed scalar, a single
+#' Fourth \code{group.dispersion} option alongside a fixed scalar, a single
 #' (pooled) \code{dGamma()}, and a named list of \code{dGamma()} pfamilies: a
 #' plain named numeric vector with one known, fixed dispersion value per
 #' group. Unlike \code{dGamma_list(...)} (\code{"gamma_list"}), this is not a
@@ -106,14 +106,14 @@
 #' but allowed to vary by group. No \code{glmmTMB} reference fit or full-rank
 #' requirement applies (there is no ING accept/reject envelope to build).
 #' @noRd
-.lmebayes_resolve_dispersion_ranef_fixed_vector <- function(
-    dispersion_ranef,
+.lmebayes_resolve_group_dispersion_fixed_vector <- function(
+    group.dispersion,
     design,
     fn_name = "lmerb"
 ) {
   if (is.null(design) || is.null(design$group)) {
     stop(
-      fn_name, "(): a named numeric vector for 'dispersion_ranef' requires ",
+      fn_name, "(): a named numeric vector for 'group.dispersion' requires ",
       "'design' with grouping information.",
       call. = FALSE
     )
@@ -121,31 +121,31 @@
   group_levels <- levels(design$group)
   J <- length(group_levels)
 
-  if (length(dispersion_ranef) != J) {
+  if (length(group.dispersion) != J) {
     stop(
-      fn_name, "(): 'dispersion_ranef' is a vector of length ",
-      length(dispersion_ranef), " but there are ", J, " group level(s) (",
+      fn_name, "(): 'group.dispersion' is a vector of length ",
+      length(group.dispersion), " but there are ", J, " group level(s) (",
       paste(group_levels, collapse = ", "), "). Supply exactly one fixed ",
       "dispersion value per group.",
       call. = FALSE
     )
   }
-  nms <- names(dispersion_ranef)
+  nms <- names(group.dispersion)
   if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
     stop(
-      fn_name, "(): names(dispersion_ranef) must match the group levels (",
+      fn_name, "(): names(group.dispersion) must match the group levels (",
       paste(group_levels, collapse = ", "), ") exactly.",
       call. = FALSE
     )
   }
-  dispersion_ranef <- stats::setNames(
-    as.numeric(dispersion_ranef[group_levels]),
+  group.dispersion <- stats::setNames(
+    as.numeric(group.dispersion[group_levels]),
     group_levels
   )
 
-  if (any(!is.finite(dispersion_ranef)) || any(dispersion_ranef <= 0)) {
+  if (any(!is.finite(group.dispersion)) || any(group.dispersion <= 0)) {
     stop(
-      fn_name, "(): 'dispersion_ranef' values must all be positive and ",
+      fn_name, "(): 'group.dispersion' values must all be positive and ",
       "finite.",
       call. = FALSE
     )
@@ -153,15 +153,15 @@
 
   list(
     mode                  = "fixed_vector",
-    dispersion_fix        = dispersion_ranef,
+    dispersion_fix        = group.dispersion,
     dispersion_prior_list = NULL,
     dispersion_pfamily    = NULL
   )
 }
 
-#' Resolve a per-group list of \code{dGamma()} pfamilies for \code{dispersion_ranef}
+#' Resolve a per-group list of \code{dGamma()} pfamilies for \code{group.dispersion}
 #'
-#' Third \code{dispersion_ranef} option alongside a fixed scalar and a single
+#' Third \code{group.dispersion} option alongside a fixed scalar and a single
 #' (pooled) \code{dGamma()}: a named list with one \code{dGamma()} pfamily per
 #' group level. Each entry keeps its own \code{shape}/\code{rate}/\code{disp_lower}/
 #' \code{disp_upper} -- there is no requirement that groups share the same
@@ -170,14 +170,14 @@
 #' Requires every group to be full column rank (rank-deficient groups are not
 #' yet supported for this option).
 #' @noRd
-.lmebayes_resolve_dispersion_ranef_group_list <- function(
-    dispersion_ranef,
+.lmebayes_resolve_group_dispersion_group_list <- function(
+    group.dispersion,
     design,
     fn_name = "lmerb"
 ) {
   if (is.null(design) || is.null(design$group)) {
     stop(
-      fn_name, "(): a list of dGamma() priors for 'dispersion_ranef' requires ",
+      fn_name, "(): a list of dGamma() priors for 'group.dispersion' requires ",
       "'design' with grouping information.",
       call. = FALSE
     )
@@ -185,25 +185,25 @@
   group_levels <- levels(design$group)
   J <- length(group_levels)
 
-  if (length(dispersion_ranef) != J) {
+  if (length(group.dispersion) != J) {
     stop(
-      fn_name, "(): 'dispersion_ranef' is a list of length ",
-      length(dispersion_ranef), " but there are ", J, " group level(s) (",
+      fn_name, "(): 'group.dispersion' is a list of length ",
+      length(group.dispersion), " but there are ", J, " group level(s) (",
       paste(group_levels, collapse = ", "), "). Supply exactly one dGamma() ",
       "pfamily per group.",
       call. = FALSE
     )
   }
-  nms <- names(dispersion_ranef)
+  nms <- names(group.dispersion)
   if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
     stop(
-      fn_name, "(): names(dispersion_ranef) must match the group levels (",
+      fn_name, "(): names(group.dispersion) must match the group levels (",
       paste(group_levels, collapse = ", "), ") exactly.",
       call. = FALSE
     )
   }
-  window_diagnostics <- attr(dispersion_ranef, "window_diagnostics")
-  dispersion_ranef <- dispersion_ranef[group_levels]
+  window_diagnostics <- attr(group.dispersion, "window_diagnostics")
+  group.dispersion <- group.dispersion[group_levels]
 
   if (is.null(design$groupef.rank) || !all(design$groupef.rank[group_levels])) {
     deficient <- if (!is.null(design$groupef.rank)) {
@@ -215,7 +215,7 @@
       fn_name, "(): a list of per-group dGamma() dispersion priors currently ",
       "requires every group to be full column rank; rank-deficient group(s): ",
       paste(deficient, collapse = ", "), ". Use a single dGamma() or a fixed ",
-      "scalar 'dispersion_ranef' for models with rank-deficient groups.",
+      "scalar 'group.dispersion' for models with rank-deficient groups.",
       call. = FALSE
     )
   }
@@ -226,10 +226,10 @@
   disp_upper_group <- stats::setNames(numeric(J), group_levels)
 
   for (lev in group_levels) {
-    pf <- dispersion_ranef[[lev]]
+    pf <- group.dispersion[[lev]]
     if (!inherits(pf, "pfamily") || !identical(pf$pfamily, "dGamma")) {
       stop(
-        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must be a dGamma() ",
+        fn_name, "(): group.dispersion[[\"", lev, "\"]] must be a dGamma() ",
         "pfamily.",
         call. = FALSE
       )
@@ -237,7 +237,7 @@
     pl <- pf$prior_list
     if (!isTRUE(pl$Inv_Dispersion)) {
       stop(
-        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] dGamma() prior ",
+        fn_name, "(): group.dispersion[[\"", lev, "\"]] dGamma() prior ",
         "requires Inv_Dispersion = TRUE.",
         call. = FALSE
       )
@@ -246,7 +246,7 @@
     rate  <- as.numeric(pl$rate[1L])
     if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
       stop(
-        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must have positive, ",
+        fn_name, "(): group.dispersion[[\"", lev, "\"]] must have positive, ",
         "finite 'shape' and 'rate'.",
         call. = FALSE
       )
@@ -259,7 +259,7 @@
         !is.finite(lo) || !is.finite(hi) ||
         lo <= 0 || hi <= lo) {
       stop(
-        fn_name, "(): dispersion_ranef[[\"", lev, "\"]] must supply finite ",
+        fn_name, "(): group.dispersion[[\"", lev, "\"]] must supply finite ",
         "'disp_lower' and 'disp_upper' with 0 < disp_lower < disp_upper -- a ",
         "list of dGamma() priors requires explicit per-group truncation bounds.",
         call. = FALSE
@@ -280,19 +280,19 @@
       disp_lower_group = disp_lower_group,
       disp_upper_group = disp_upper_group
     ),
-    dispersion_pfamily    = dispersion_ranef,
+    dispersion_pfamily    = group.dispersion,
     window_diagnostics    = window_diagnostics
   )
 }
 
 #' @noRd
-.lmebayes_validate_dispersion_ranef <- function(
-    dispersion_ranef,
+.lmebayes_validate_group_dispersion_arg <- function(
+    group.dispersion,
     family,
     fn_name = "lmerb"
 ) {
-  resolved <- .lmebayes_resolve_dispersion_ranef(
-    dispersion_ranef = dispersion_ranef,
+  resolved <- .lmebayes_resolve_group_dispersion(
+    group.dispersion = group.dispersion,
     family           = family,
     design           = NULL,
     fn_name          = fn_name
@@ -300,14 +300,14 @@
   resolved$dispersion_fix
 }
 
-#' Normalize a Block~2 \code{pfamily_list} (+ \code{dispersion_ranef}) into a sampler \code{prior}
+#' Normalize a Block~2 \code{pfamily_list} (+ \code{group.dispersion}) into a sampler \code{prior}
 #'
 #' @description
 #' Shared front-door normalizer used by \code{lmerb()}/\code{glmerb()} (via
 #' \code{lmebayesCore::priors_from_pfamily_list()} in \strong{lmebayes}) to
 #' turn the two independent user-supplied prior specs -- the Block~2
 #' \code{pfamily_list} (one prior per random-effect coefficient) and the
-#' Block~1 \code{dispersion_ranef} (observation-level dispersion) -- into the
+#' Block~1 \code{group.dispersion} (observation-level dispersion) -- into the
 #' single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}},
 #' by \code{rlmerb()}/\code{rglmerb()}'s ICM/reporting code, and by the
 #' routed \code{rLMM_reg}/\code{rGLMM_reg} exports.
@@ -315,8 +315,8 @@
 #' @details
 #' Concretely, this function:
 #' \enumerate{
-#'   \item Resolves \code{dispersion_ranef} via
-#'     \code{.lmebayes_resolve_dispersion_ranef()} (dispatches on its type/
+#'   \item Resolves \code{group.dispersion} via
+#'     \code{.lmebayes_resolve_group_dispersion()} (dispatches on its type/
 #'     length to one of the \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}/
 #'     \code{"gamma"}/\code{"gamma_list"} Block~1 dispersion modes described
 #'     under \code{dispersion_mode} below).
@@ -335,18 +335,18 @@
 #'     \eqn{\tau^2_k} via \code{.two_block_tau2_plug_in_from_pfamily()} (the
 #'     \code{dNormal()} dispersion for \code{dNormal} components, or an
 #'     ICM-style plug-in for \code{dIndependent_Normal_Gamma} components) and
-#'     assembles \code{Sigma_ranef} and \code{prior_list} from those.
+#'     assembles \code{group.Sigma} and \code{pop.prior_list} from those.
 #' }
 #' It currently combines all of the above (dispersion resolution,
 #' \code{pfamily_list} validation/reordering, and deriving
-#' \code{Sigma_ranef}/\code{prior_list}/\code{ptypes}) into one function and
+#' \code{group.Sigma}/\code{pop.prior_list}/\code{ptypes}) into one function and
 #' is a refactor candidate; its argument list and return shape are not yet
 #' considered stable.
 #'
 #' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
 #'   random-effect coefficient in \code{design$groupef.names}.
-#' @param dispersion_ranef Block~1 dispersion spec, as accepted by
-#'   \code{.lmebayes_resolve_dispersion_ranef()} (\code{NULL}, a single
+#' @param group.dispersion Block~1 dispersion spec, as accepted by
+#'   \code{.lmebayes_resolve_group_dispersion()} (\code{NULL}, a single
 #'   scalar, a named/unnamed numeric vector, a \code{dGamma()} pfamily, or a
 #'   named list of \code{dGamma()} pfamily objects).
 #' @param design A \code{model_setup} object.
@@ -360,7 +360,7 @@
 #'       \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
 #'       column order of the corresponding \code{design$W[[k]]}. Safe
 #'       to pass straight through to the matrix-level samplers.}
-#'     \item{\code{dispersion_ranef}}{The \emph{resolved} Block~1 dispersion
+#'     \item{\code{group.dispersion}}{The \emph{resolved} Block~1 dispersion
 #'       value (i.e. \code{disp_res$dispersion_fix}, not the raw input):
 #'       \code{NULL} when \code{family} has no dispersion parameter
 #'       (\code{dispersion_mode == "none"}); a single positive scalar for
@@ -381,7 +381,7 @@
 #'     \item{\code{dispersion_pfamily}}{\code{NULL} for
 #'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}. For
 #'       \code{"gamma"}, the original \code{dGamma()} pfamily object passed
-#'       as \code{dispersion_ranef}. For \code{"gamma_list"}, the original
+#'       as \code{group.dispersion}. For \code{"gamma_list"}, the original
 #'       named list of per-group \code{dGamma()} pfamily objects.}
 #'     \item{\code{dispersion_prior_list}}{\code{NULL} for
 #'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"} (there is no
@@ -394,23 +394,23 @@
 #'       \code{disp_upper_group} (one value per group level).}
 #'     \item{\code{window_diagnostics}}{Usually \code{NULL}. For
 #'       \code{"gamma_list"}, the \code{"window_diagnostics"} attribute
-#'       carried on the \code{dispersion_ranef} list (if any), describing how
+#'       carried on the \code{group.dispersion} list (if any), describing how
 #'       each group's \code{disp_lower}/\code{disp_upper} truncation window
 #'       was calibrated (e.g. by \code{Prior_Setup_lmebayes()}).}
-#'     \item{\code{Sigma_ranef}}{A \code{p_re x p_re} diagonal matrix (row/
+#'     \item{\code{group.Sigma}}{A \code{p_re x p_re} diagonal matrix (row/
 #'       column names \code{design$groupef.names}) holding each component's
 #'       Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
 #'       the random-effect prior covariance implied by \code{pfamily_list}.
 #'       Its inverse is the Block~2 random-effect prior precision the
 #'       matrix-level samplers derive internally from \code{pfamily_list}
 #'       (there is no separate \code{P} argument).}
-#'     \item{\code{prior_list}}{A named list (one entry per
-#'       \code{design$groupef.names}), each a list with \code{mu_fixef}
+#'     \item{\code{pop.prior_list}}{A named list (one entry per
+#'       \code{design$groupef.names}), each a list with \code{mu}
 #'       (numeric vector, the Block~2 hyperparameter prior mean),
-#'       \code{Sigma_fixef} (matrix, the Block~2 hyperparameter prior
-#'       covariance), and \code{dispersion_fixef} (scalar, the same
+#'       \code{Sigma} (matrix, the Block~2 hyperparameter prior
+#'       covariance), and \code{dispersion} (scalar, the same
 #'       \eqn{\tau^2_k} plug-in stored on the diagonal of
-#'       \code{Sigma_ranef}). A restructured, per-component echo of
+#'       \code{group.Sigma}). A restructured, per-component echo of
 #'       \code{pfamily_list}'s contents keyed for direct use elsewhere (e.g.
 #'       ICM reporting).}
 #'     \item{\code{ptypes}}{A named character vector (names
@@ -427,7 +427,7 @@
 #' @keywords internal
 #' @export
 priors_from_pfamily_list <- function(pfamily_list,
-                                      dispersion_ranef,
+                                      group.dispersion,
                                       design,
                                       family,
                                       fn_name = "lmerb") {
@@ -435,14 +435,14 @@ priors_from_pfamily_list <- function(pfamily_list,
   re_names <- design$groupef.names
   p_re     <- length(re_names)
 
-  ## --- dispersion_ranef (Block 1 measurement dispersion) -------------------
-  disp_res <- .lmebayes_resolve_dispersion_ranef(
-    dispersion_ranef = dispersion_ranef,
+  ## --- group.dispersion (Block 1 measurement dispersion) -------------------
+  disp_res <- .lmebayes_resolve_group_dispersion(
+    group.dispersion = group.dispersion,
     family           = family,
     design           = design,
     fn_name          = fn_name
   )
-  dispersion_ranef <- disp_res$dispersion_fix
+  group.dispersion <- disp_res$dispersion_fix
 
   ## --- pfamily_list ---------------------------------------------------------
   if (!is.list(pfamily_list) || length(pfamily_list) != p_re) {
@@ -561,24 +561,24 @@ priors_from_pfamily_list <- function(pfamily_list,
     tau2_k <- .two_block_tau2_plug_in_from_pfamily(pf)
     tau2[[k]] <- tau2_k
     prior_list[[k]] <- list(
-      mu_fixef         = mu_k,
-      Sigma_fixef      = Sigma_k,
-      dispersion_fixef = tau2_k
+      mu         = mu_k,
+      Sigma      = Sigma_k,
+      dispersion = tau2_k
     )
   }
 
-  Sigma_ranef <- diag(unname(tau2), nrow = p_re, ncol = p_re)
-  dimnames(Sigma_ranef) <- list(re_names, re_names)
+  group.Sigma <- diag(unname(tau2), nrow = p_re, ncol = p_re)
+  dimnames(group.Sigma) <- list(re_names, re_names)
 
   list(
     pfamily_list          = pfamily_list,
-    dispersion_ranef      = dispersion_ranef,
+    group.dispersion      = group.dispersion,
     dispersion_mode       = disp_res$mode,
     dispersion_pfamily    = disp_res$dispersion_pfamily,
     dispersion_prior_list = disp_res$dispersion_prior_list,
     window_diagnostics    = disp_res$window_diagnostics,
-    Sigma_ranef           = Sigma_ranef,
-    prior_list            = prior_list,
+    group.Sigma           = group.Sigma,
+    pop.prior_list        = prior_list,
     ptypes         = ptypes,
     any_non_normal = any(ptypes != "dNormal")
   )
@@ -692,7 +692,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     }
     n_prior <- as.numeric(n_prior_measurement)
     w <- n_prior / (n_prior + n_obs)
-    src <- "user-supplied (group.dispersion.n_prior)"
+    src <- "user-supplied (group.dispersion.nprior)"
   } else {
     w <- 0.01
     n_prior <- w / (1 - w) * n_obs
@@ -793,7 +793,7 @@ priors_from_pfamily_list <- function(pfamily_list,
     w <- rep(0.01, J)
     n_prior <- w / (1 - w) * n_j
     src <- if (!is.null(n_prior_measurement)) {
-      "default per group (group.dispersion.pwt = 0.01; scalar group.dispersion.n_prior applies to pooled path only)"
+      "default per group (group.dispersion.pwt = 0.01; scalar group.dispersion.nprior applies to pooled path only)"
     } else {
       "default (group.dispersion.pwt = 0.01 per group)"
     }
@@ -1070,10 +1070,10 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' the prior mean \code{mu_j}" -- with a model-derived \code{Omega_j}: each
 #' RE component's \code{mu_j[k]} stands in for the model's own conditional
 #' prior mean \code{W_j[[k]] \%*\% gamma_k} (the Block~2 hyper-regression),
-#' and \code{gamma_k}'s own calibrated uncertainty (\code{prior_list[[k]]$Sigma_fixef},
+#' and \code{gamma_k}'s own calibrated uncertainty (\code{prior_list[[k]]$Sigma},
 #' already computed above in \code{Prior_Setup_lmebayes()}) propagates
 #' through group \code{j}'s own hyper-design row,
-#' \code{Omega_j[k, k] = W_j[[k]] \%*\% Sigma_fixef_k \%*\% t(W_j[[k]])}
+#' \code{Omega_j[k, k] = W_j[[k]] \%*\% Sigma_k \%*\% t(W_j[[k]])}
 #' (diagonal across RE components -- each \code{gamma_k} is calibrated
 #' independently). \code{Sigma_j' = Sigma_j + Omega_j} is then used in place
 #' of \code{Sigma_j} for \code{compute_gaussian_prior()}, so the resulting
@@ -1155,8 +1155,8 @@ priors_from_pfamily_list <- function(pfamily_list,
       )
       for (k in re_names) {
         Wk_row        <- design$W[[k]][lev, , drop = FALSE]
-        Sigma_fixef_k <- prior_list[[k]]$Sigma_fixef
-        Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_fixef_k %*% t(Wk_row))
+        Sigma_k <- prior_list[[k]]$Sigma
+        Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_k %*% t(Wk_row))
       }
 
       cal <- .lmebayes_compute_ing_prior_cal_from_sigma(
@@ -1292,14 +1292,14 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'
 #' Mean-matched inverse-Gamma hyperparameters for Block~1 ING (same algebra as
 #' \code{ing_prior} for \eqn{\tau^2_k}, with \eqn{\hat\sigma^2} =
-#' \code{dispersion_ranef}, \eqn{p = p_{\mathrm{re}}}, and
+#' \code{group.dispersion}, \eqn{p = p_{\mathrm{re}}}, and
 #' \eqn{n_{\mathrm{prior}} = \mathrm{pwt\_measurement}/(1-\mathrm{pwt\_measurement})\times n} on the total
 #' observation count).  Truncation bounds are the central 98% prior-mass
 #' interval from the same \code{shape}/\code{rate}.
 #' @noRd
 .lmebayes_calibrate_ing_prior_measurement <- function(
     design,
-    dispersion_ranef,
+    group.dispersion,
     n_prior,
     max_disp_perc = 0.99
 ) {
@@ -1328,7 +1328,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   }
 
   shape <- (n_prior + 1) / 2 + p_re / 2
-  rate  <- as.numeric(dispersion_ranef) * (n_prior + p_re - 1) / 2
+  rate  <- as.numeric(group.dispersion) * (n_prior + p_re - 1) / 2
   if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
     stop(
       "Measurement dispersion ING calibration produced non-positive shape/rate.",
@@ -1339,7 +1339,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   win <- .lmebayes_ing_prior_quantile_window(shape, rate, max_disp_perc)
 
   list(
-    sigma2_hat    = as.numeric(dispersion_ranef),
+    sigma2_hat    = as.numeric(group.dispersion),
     shape         = shape,
     rate          = rate,
     disp_lower    = win$disp_lower,
@@ -1437,7 +1437,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   pl       <- disp_info$dispersion_prior_list
   if (is.null(pl$shape) || is.null(pl$rate)) {
     stop(
-      "dGamma() dispersion_ranef prior_list must contain 'shape' and 'rate'.",
+      "dGamma() group.dispersion prior_list must contain 'shape' and 'rate'.",
       call. = FALSE
     )
   }
@@ -1447,10 +1447,10 @@ priors_from_pfamily_list <- function(pfamily_list,
     ncol = 1L,
     dimnames = list(re_names, NULL)
   )
-  Sigma <- as.matrix(prior$Sigma_ranef)
+  Sigma <- as.matrix(prior$group.Sigma)
   if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
     stop(
-      "prior$Sigma_ranef must be ", p_re, " x ", p_re, ".",
+      "prior$group.Sigma must be ", p_re, " x ", p_re, ".",
       call. = FALSE
     )
   }
@@ -1482,7 +1482,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 
 #' Build per-group ING Block~1 measurement \code{prior_list} for lmebayes glue
 #'
-#' Third \code{dispersion_ranef} option: a named list of \code{dGamma()}
+#' Third \code{group.dispersion} option: a named list of \code{dGamma()}
 #' pfamilies, one per group. Unlike \code{.lmebayes_ing_measurement_prior_list()}
 #' (single pooled \code{shape}/\code{rate}), each group keeps its own
 #' \code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper}.
@@ -1495,7 +1495,7 @@ priors_from_pfamily_list <- function(pfamily_list,
   miss <- req[!req %in% names(pl)]
   if (length(miss)) {
     stop(
-      "Internal error: per-group dGamma() dispersion_ranef prior_list must ",
+      "Internal error: per-group dGamma() group.dispersion prior_list must ",
       "contain ", paste(req, collapse = ", "), ".",
       call. = FALSE
     )
@@ -1506,10 +1506,10 @@ priors_from_pfamily_list <- function(pfamily_list,
     ncol = 1L,
     dimnames = list(re_names, NULL)
   )
-  Sigma <- as.matrix(prior$Sigma_ranef)
+  Sigma <- as.matrix(prior$group.Sigma)
   if (nrow(Sigma) != p_re || ncol(Sigma) != p_re) {
     stop(
-      "prior$Sigma_ranef must be ", p_re, " x ", p_re, ".",
+      "prior$group.Sigma must be ", p_re, " x ", p_re, ".",
       call. = FALSE
     )
   }
@@ -1529,7 +1529,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' @description
 #' Shared front-door helper that turns \code{design} + the \code{prior}
 #' returned by \code{\link{priors_from_pfamily_list}} + \code{disp_info}
-#' (from \code{.lmebayes_resolve_dispersion_ranef()}) into the flat,
+#' (from \code{.lmebayes_resolve_group_dispersion()}) into the flat,
 #' named argument list passed via \code{do.call()} to whichever
 #' \code{rLMM_reg} export \code{.lmebayes_reg_route_fn()} resolves to. There
 #' are exactly four possible targets, chosen by \code{disp_info$mode} and
@@ -1575,7 +1575,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #' @param design A \code{model_setup} object.
 #' @param prior The list returned by \code{\link{priors_from_pfamily_list}}.
 #' @param disp_info Resolved dispersion info, as returned by
-#'   \code{.lmebayes_resolve_dispersion_ranef()} (must supply
+#'   \code{.lmebayes_resolve_group_dispersion()} (must supply
 #'   \code{mode} and \code{dispersion_fix}).
 #' @param tv_tol Total-variation tolerance passed through to the routed
 #'   export.
@@ -1608,7 +1608,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
 #'     \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
 #'       arguments, unchanged.}
-#'     \item{\code{prior_list}}{Always present, but its shape depends on
+#'     \item{\code{pop.prior_list}}{Always present, but its shape depends on
 #'       \code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
 #'       \code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
 #'       (a scalar or named per-group numeric vector, passed through
@@ -1720,7 +1720,7 @@ matrix_args_lmm <- function(
     progbar       = FALSE,
     collect_block1 = TRUE
 ) {
-  block1_prior <- .lmebayes_block1_prior_list(prior, dispersion_ranef = NULL)
+  block1_prior <- .lmebayes_block1_prior_list(prior, group.dispersion = NULL)
 
   ## The routed export has no 'group_name' formal: attach it to 'group'
   ## itself (design$group is never a bare variable here, so the export's
@@ -1829,16 +1829,16 @@ matrix_args_lmm <- function(
 #' internally (from \code{pfamily_list}) by the routed \code{rGLMM_reg}/
 #' \code{rLMM_reg} exports, which reject a caller-supplied \code{P}/
 #' \code{Sigma}; this helper therefore no longer computes or returns one
-#' (previously \code{solve(measurement_prior_list$Sigma_ranef)}).
+#' (previously \code{solve(measurement_prior_list$group.Sigma)}).
 #' @noRd
 .lmebayes_block1_prior_list <- function(
     measurement_prior_list,
-    dispersion_ranef = NULL
+    group.dispersion = NULL
 ) {
-  dispersion <- if (!is.null(dispersion_ranef)) {
-    dispersion_ranef
+  dispersion <- if (!is.null(group.dispersion)) {
+    group.dispersion
   } else {
-    measurement_prior_list$dispersion_ranef
+    measurement_prior_list$group.dispersion
   }
   if (is.null(dispersion)) {
     list(ddef = TRUE)
@@ -1852,7 +1852,7 @@ matrix_args_lmm <- function(
 #' Fixed measurement dispersion returns a scalar; a fixed per-group vector
 #' returns that same named length-\code{J} vector (constant, not sampled); a
 #' single \code{dGamma()} returns the length-\code{n} vector from the final
-#' inner sweep (\code{dispersion_ranef}); a list of per-group \code{dGamma()}
+#' inner sweep (\code{group.dispersion}); a list of per-group \code{dGamma()}
 #' pfamilies returns an \code{n x J} matrix (one column per group); families
 #' without observation-level dispersion get \code{NULL}.
 #' @noRd
@@ -1876,6 +1876,7 @@ matrix_args_lmm <- function(
     return(out)
   }
   if (identical(mode, "gamma")) {
+    ## Fit draw field remains dispersion_ranef until a later rename pass.
     dr <- out$dispersion_ranef
     if (is.null(dr)) {
       stop(
@@ -1992,7 +1993,7 @@ matrix_args_lmm <- function(
   if (!isTRUE(verbose) || is.null(fixef_icm)) {
     return(invisible(NULL))
   }
-  fixef_ref <- lapply(prior_list, `[[`, "mu_fixef")
+  fixef_ref <- lapply(prior_list, `[[`, "mu")
   names(fixef_ref) <- re_names
   hdr <- sprintf("  %-18s  %-30s  %14s  %18s",
                  "RE component", "parameter", ref_label, icm_label)
