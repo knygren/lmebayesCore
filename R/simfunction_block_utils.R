@@ -1,15 +1,33 @@
 # Internal utilities for conditionally independent block simulation.
 # See inst/DESIGN_RGLM_BLOCKS.md.
 
-#' @describeIn block_simfuncs Normalize a row-block partition for BY-style fits
-#'   and block Gibbs samplers.
+#' Normalize a row-block partition
+#'
+#' Parse a block specification into a common partition layout used by
+#' BY-style fits and block Gibbs samplers. The returned list is the same
+#' shape as the \code{block_info} component on
+#' \code{\link{block_rNormalGLM}} / \code{\link{block_rNormalReg}} results
+#' (those engines build it via an equivalent C++ helper).
 #'
 #' @param block Block partition: \code{factor} or integer vector of length
 #'   \code{l2}, \code{l2_blocks} counts summing to \code{l2}, or a list of
 #'   disjoint row-index vectors covering \code{1:l2}.
 #' @param l2 Number of observations (rows) after \code{model.frame}.
-#' @return List with \code{k}, \code{ids}, \code{l2_blocks}, \code{starts},
-#'   and \code{rows} (per-block row indices).
+#' @return A list with:
+#'   \describe{
+#'     \item{\code{k}}{Number of blocks.}
+#'     \item{\code{ids}}{Character block labels (factor levels, list names, or
+#'       \code{"block1"}, \ldots).}
+#'     \item{\code{l2_blocks}}{Integer vector of length \code{k}: observations
+#'       per block.}
+#'     \item{\code{starts}}{Integer start index of each block in a contiguous
+#'       stacking of block rows (1-based).}
+#'     \item{\code{rows}}{List of length \code{k}: integer row indices in
+#'       \code{1:l2} for each block.}
+#'   }
+#' @seealso \code{\link{block_rNormalGLM}}, \code{\link{block_rNormalReg}},
+#'   \code{\link{Prior_SetupBlock}},
+#'   \code{inst/DESIGN_RGLM_BLOCKS.md}
 #' @example inst/examples/Ex_normalize_block.R
 #' @export
 normalize_block <- function(block, l2) {

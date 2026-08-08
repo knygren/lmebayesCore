@@ -1,33 +1,54 @@
-## Conditionally independent block Gaussian draw (3 school groups)
+## block_rNormalReg() — independent Gaussian regressions by school
+##
+## Same big_word_club data and first 3 school_id levels as printed in
+## Ex_rLMM_reg, but each school is its own model via Prior_SetupBlock()
+## (not Prior_Setup_GLMM / hierarchical Psi). Within-school formula is
+## intercept-only so every small school stays full rank. Requires bayesrules.
 
-set.seed(42)
+if (requireNamespace("bayesrules", quietly = TRUE)) {
+  data(big_word_club, package = "bayesrules")
+  dat <- big_word_club
+  dat$school_id <- factor(dat$school_id)
+  dat <- subset(
+    dat,
+    !is.na(score_ppvt) &
+      !is.na(invalid_ppvt) & invalid_ppvt == 0L &
+      complete.cases(dat[, c("score_ppvt", "school_id")])
+  )
+  keep <- levels(dat$school_id)[1:3]
+  dat <- droplevels(subset(dat, school_id %in% keep))
 
-## Simulate a simple two-level data set: 3 schools, ~10 students each
-n_schools <- 3L
-n_per     <- 10L
-school    <- rep(seq_len(n_schools), each = n_per)
-x         <- cbind(1, rnorm(n_schools * n_per))  # intercept + covariate
-b_true    <- matrix(c(5, 0.5, 3, -0.2, 7, 0.3), nrow = n_schools, byrow = TRUE)
-sigma2    <- 1.5    # residual variance
+  form_school <- score_ppvt ~ 1
+  ps_block <- Prior_SetupBlock(
+    form_school,
+    block = "school_id",
+    data = dat,
+    family = gaussian(),
+    pwt = 0.01
+  )
+  prior_lists <- lapply(ps_block, function(ps) {
+    list(
+      mu = as.numeric(ps$mu),
+      Sigma = ps$Sigma,
+      dispersion = ps$dispersion,
+      ddef = FALSE
+    )
+  })
 
-y <- rowSums(x * b_true[school, ]) + rnorm(nrow(x), sd = sqrt(sigma2))
+  mf <- model.frame(form_school, data = dat)
+  y <- model.response(mf)
+  x <- model.matrix(form_school, data = mf)
+  block <- dat$school_id
 
-## Flat prior (large Sigma) shared across all schools; dispersion = sigma2
-l1         <- ncol(x)
-prior_list <- list(
-  mu         = rep(0, l1),
-  Sigma      = diag(100, l1),
-  dispersion = sigma2,
-  ddef       = FALSE
-)
+  set.seed(1)
+  out <- block_rNormalReg(
+    n = 1L,
+    y = y,
+    x = x,
+    block = block,
+    prior_lists = prior_lists
+  )
 
-out <- block_rNormalReg(
-  n          = 1L,
-  y          = y,
-  x          = x,
-  block      = school,
-  prior_list = prior_list
-)
-
-out$coefficients   ## k x l1 matrix: one row of b_j draws per school
-out$coef.mode
+  out$coefficients
+  out$coef.mode
+}

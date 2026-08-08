@@ -128,8 +128,6 @@ Dispatchers **`rLMMNormal_reg()`** (fixed σ²) and legacy **`rLMMindepNormalGam
 | Export | File (approx.) | Why inactive |
 |--------|----------------|--------------|
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Parallel matrix API; not called by `multi_rlmb()` or retain/lmebayes drivers. |
-| `block_rNormalReg_update()` | `simfunction_block.R` | Not on `rGLMM_sweep` / `lmerb` chain; examples / roxygen only. |
-| `block_rNormalGLM_update()` | `simfunction_block.R` | Same. |
 | `simfunction()` | `simfunction.R` | Introspection generic; runtime uses `pfamily$simfun` directly. |
 
 **Note:** `block_rNormalReg()` and `block_rNormalGLM()` are **live** (called from
@@ -165,8 +163,7 @@ Dispatchers **`rLMMNormal_reg()`** (fixed σ²) and legacy **`rLMMindepNormalGam
 Candidates for `@noRd` / unexport after `data-raw` audit:
 
 1. `multi_rNormal_reg` (not part of `multi_rlmb()` chain)
-2. `block_rNormalReg_update` + `block_rNormalGLM_update`
-3. `simfunction()` generic
+2. `simfunction()` generic
 
 Do **not** unexport on reachability grounds alone: phase-out sim/envelope
 exports, mixed-model stack, lmebayes direct imports (`build_mu_all`, …), or

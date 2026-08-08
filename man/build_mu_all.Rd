@@ -39,16 +39,15 @@ the order supplied.}
 }
 }
 \description{
-Forms the \code{mu_all} matrix passed to
-\code{\link{block_rNormalReg_update}}: for each grouping level
-\eqn{j} and each random-effect column \eqn{k} of the level-1 design
-\code{D},
+Forms the \code{mu_all} matrix of per-group prior means for Block~1
+sampling: for each grouping level \eqn{j} and each random-effect column
+\eqn{k} of the level-1 design \code{D},
 \deqn{\mu\_\text{all}[k, j] = X_{\text{hyper},k}[j,]^\top \gamma_k,}
 where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
-(Block 2 state).
+(population / Block~2 state).
 }
 \seealso{
 \code{\link{lmerb_posterior_mean}},
 \code{\link{two_block_rNormal_reg}},
-\code{\link{block_rNormalReg_update}}
+\code{\link{block_rNormalReg}}
 }

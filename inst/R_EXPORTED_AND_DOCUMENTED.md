@@ -222,8 +222,6 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 | `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, D, group, W)` (same naming as `rLMM_reg()`/`rGLMM_reg()`); used internally by `model_setup()` (called with `D = design$D`, `group = design$group`, `W = design$W`). |
 | `block_rNormalReg()` | `simfunction_block.R` | Row-block Normal regression sampler. |
 | `block_rNormalGLM()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
-| `block_rNormalReg_update()` | `simfunction_block.R` | Block~1 Normal reg draw given `mu_all`. |
-| `block_rNormalGLM_update()` | `simfunction_block.R` | Block~1 GLM draw given `mu_all`. |
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Multi-response Normal regression sampler (matrix API; not called by `multi_rlmb()`). |
 | `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
 | `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |

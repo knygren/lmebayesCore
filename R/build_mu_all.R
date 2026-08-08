@@ -1,12 +1,11 @@
 #' Build per-group random-effect prior means for Block 1 sampling
 #'
-#' Forms the \code{mu_all} matrix passed to
-#' \code{\link{block_rNormalReg_update}}: for each grouping level
-#' \eqn{j} and each random-effect column \eqn{k} of the level-1 design
-#' \code{D},
+#' Forms the \code{mu_all} matrix of per-group prior means for Block~1
+#' sampling: for each grouping level \eqn{j} and each random-effect column
+#' \eqn{k} of the level-1 design \code{D},
 #' \deqn{\mu\_\text{all}[k, j] = X_{\text{hyper},k}[j,]^\top \gamma_k,}
 #' where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
-#' (Block 2 state).
+#' (population / Block~2 state).
 #'
 #' @param design List with components \code{W}, \code{groupef.names},
 #'   and \code{group} (typically supplied by a downstream mixed-effects
@@ -35,7 +34,7 @@
 #'   }
 #' @seealso \code{\link{lmerb_posterior_mean}},
 #'   \code{\link{two_block_rNormal_reg}},
-#'   \code{\link{block_rNormalReg_update}}
+#'   \code{\link{block_rNormalReg}}
 #' @export
 build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
   if (isTRUE(use_cpp)) {

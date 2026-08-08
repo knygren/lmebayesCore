@@ -171,8 +171,8 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 
 | Function | Role |
 |----------|------|
-| `block_rNormalReg()`, `block_rNormalReg_update()` | Row-block Gaussian regression sampler and its incremental-update variant |
-| `block_rNormalGLM()`, `block_rNormalGLM_update()` | Row-block GLM sampler and its incremental-update variant |
+| `block_rNormalReg()` | Row-block Gaussian regression sampler |
+| `block_rNormalGLM()` | Row-block GLM sampler |
 
 ### Two-block internals and diagnostics
 

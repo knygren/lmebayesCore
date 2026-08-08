@@ -133,8 +133,6 @@ per-block fits call **glmbayes** `lmb()` / `glmb()`, not the matrix APIs below.
 | `normalize_block()` | `simfunction_block_utils.R` | Core-only today | Direct — `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()`, `block_check_identifiability_xy()` |
 | `block_rNormalReg()` | `simfunction_block.R` | Core-only today | — |
 | `block_rNormalGLM()` | `simfunction_block.R` | Core-only today | — |
-| `block_rNormalReg_update()` | `simfunction_block.R` | Core-only today | — |
-| `block_rNormalGLM_update()` | `simfunction_block.R` | Core-only today | — |
 
 ---
 
