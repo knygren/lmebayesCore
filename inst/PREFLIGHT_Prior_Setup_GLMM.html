@@ -11,7 +11,7 @@
 
 
 
-<title>PREFLIGHT_model_setup</title>
+<title>PREFLIGHT_Prior_Setup_GLMM</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -352,139 +352,193 @@ display: none;
 </div>
 
 
-<div id="model_setup-design-reference-fit-identifiability" class="section level1">
-<h1><code>model_setup</code> — design, reference fit,
-identifiability</h1>
-<p><strong>Export:</strong> <code>model_setup()</code> /
-<code>print.model_setup()</code><br />
-<strong>Source:</strong> <code>R/model_setup.R</code> (plus helpers in
-<code>R/lme4_design_utilities.R</code>,
-<code>R/check_identifiability.R</code>,
-<code>R/glmmtmb_reference_helpers.R</code>)<br />
-<strong>Ex_13b role:</strong> Build <code>design</code> (<code>y</code>,
-<code>D</code>, <code>group</code>, <code>W</code>, ranks). Also used
-for the full-rank school filter before the final call.<br />
-<strong>Index:</strong> <a href="PREFLIGHT_Ex13b_OVERVIEW.md">PREFLIGHT_Ex13b_OVERVIEW.md</a></p>
+<div id="prior_setup_glmm-block1-block2-prior-calibration" class="section level1">
+<h1><code>Prior_Setup_GLMM</code> — Block~1 / Block~2 prior
+calibration</h1>
+<p><strong>Export:</strong> <code>Prior_Setup_GLMM()</code> /
+<code>print.Prior_Setup_GLMM()</code><br />
+<strong>Source:</strong> <code>R/Prior_Setup_GLMM.R</code> (helpers in
+<code>R/mixed_rmerb_helpers.R</code>,
+<code>R/pwt_measurement_group_calibration.R</code>,
+<code>R/glmmtmb_reference_helpers.R</code>,
+<code>R/ing_prior_guard.R</code>,
+<code>R/two_block_ergodicity_ing_marginal.R</code>)<br />
+<strong>Ex_13b role:</strong> Build <code>ps</code> with
+<code>dispformula = ~school_id</code>, <code>group.alpha_target</code>
+pwt search, Part VI <code>group.ing_prior</code>.<br />
+<strong>Index:</strong> <a href="PREFLIGHT_Ex13b_OVERVIEW.md">PREFLIGHT_Ex13b_OVERVIEW.md</a><br />
+<strong>Depends on:</strong> <a href="PREFLIGHT_model_setup.md">PREFLIGHT_model_setup.md</a></p>
 <hr />
 <div id="purpose" class="section level2">
 <h2>1. Purpose</h2>
-<p>Turn a single-grouping-factor mixed formula + data into:</p>
-<ol style="list-style-type: decimal">
-<li><strong>Sampler design</strong> — <code>y</code>, <code>D</code>
-(within-group loadings), <code>group</code>, <code>W</code>
-(hyper-design list), <code>weights</code>, <code>offset</code></li>
-<li><strong>Reference classical fit</strong> — <code>lmer</code> /
-<code>glmer</code> (optional <code>glmmTMB</code> when
-<code>dispformula = ~group</code>)</li>
-<li><strong>Identifiability diagnostics</strong> —
-<code>groupef.rank</code> / <code>groupef.estimable</code> /
-<code>popef.rank_ok</code></li>
-</ol>
-<p>Does <strong>not</strong> calibrate Bayesian priors (that is
-<code>Prior_Setup_GLMM</code>).</p>
-<hr />
-</div>
-<div id="signature-main-formals" class="section level2">
-<h2>2. Signature (main formals)</h2>
-<pre class="r"><code>model_setup(
-  formula, data = NULL, family = gaussian(),
-  REML = TRUE, control = NULL, start = NULL, verbose = 0L,
-  subset, weights, na.action, offset, contrasts = NULL,
-  devFunOnly = FALSE, fit_mer = TRUE, dispformula = ~1, ...
-)</code></pre>
-<p><code>subset</code> / <code>na.action</code> / <code>contrasts</code>
-/ <code>weights</code> / <code>offset</code> are shared between design
-extraction (<code>lFormula</code>) and the reference fit so rows and
-factor coding match.</p>
-<hr />
-</div>
-<div id="call-hierarchy" class="section level2">
-<h2>3. Call hierarchy</h2>
-<p>External packages in <strong>bold</strong>.</p>
-<pre class="text"><code>model_setup()
-│
-├─ .lmebayes_normalize_family()
-├─ lme4::lmerControl()                    [default when gaussian &amp; control NULL]
-│
-├─ extract_re_hyper_matrices()            [R/lme4_design_utilities.R]
-│   ├─ is_single_factor_model()
-│   │   ├─ reformulas::findbars()
-│   │   └─ lme4::lFormula()
-│   ├─ .lmebayes_validate_uncorrelated_re_formula()
-│   │   ├─ is_fixed_effects_only()
-│   │   │   ├─ reformulas::findbars()
-│   │   │   └─ lme4::lFormula()
-│   │   └─ lme4::lFormula()               [cnms: reject correlated RE]
-│   ├─ lme4::lFormula()                   [main parse → fr, X, reTrms]
-│   ├─ classify_lme4_fixed_columns()      [level-1 vs level-2 FE]
-│   ├─ classify_crosslevel_re_moderation()[slope means + moderator:slope]
-│   ├─ get_lme4_components()
-│   │   ├─ lme4::lFormula()
-│   │   ├─ lme4::mkLmerDevfun()           [expose pp$Zt]
-│   │   ├─ Matrix::t()
-│   │   └─ .lme4_label_Z_random_sparse()
-│   │       ├─ .lme4_Z_random_rownames() / _colnames()
-│   │       └─ .lme4_Z_random_column_map() / _row_map()
-│   ├─ extract_lme4_fixed_group_matrix()
-│   ├─ extract_re_Z_obs()                 [sparse Z → dense D (n × p_re)]
-│   ├─ stats::model.response(fr)
-│   └─ .lmebayes_weights_offset_from_frame()
-│       ├─ stats::model.weights / model.offset
-│       ├─ .lmebayes_normalize_weights()
-│       └─ .lmebayes_normalize_offset()
-│
-├─ stats::terms()
-├─ .lmebayes_dispformula_kind()           [R/glmmtmb_reference_helpers.R]
-│
-├─ [if fit_mer]
-│   ├─ .lmebayes_mer_optional_args()
-│   ├─ lme4::lmer()  OR  lme4::glmer()
-│   ├─ lme4::isSingular() → message()
-│   ├─ stats::fitted()                    [n_obs guard vs design$y]
-│   ├─ extract_mer_variance_components()
-│   │   ├─ lme4::VarCorr()
-│   │   └─ lme4::getME(fit, &quot;sigma&quot;)^2    [gaussian residual]
-│   └─ [gaussian &amp; dispformula = ~group]
-│       └─ .lmebayes_fit_glmmtmb_reference()
-│           └─ glmmTMB::glmmTMB()
-│
-└─ check_identifiability()                [export, R/check_identifiability.R]
-    ├─ .lmebayes_normalize_family()
-    ├─ Matrix::rankMatrix(D_j)            → groupef.rank
-    ├─ .lmebayes_block_glm_estimable()
-    │   ├─ .lmebayes_glm_estimable_precheck()
-    │   └─ stats::glm() / vcov()          [binomial/poisson/Gamma]
-    └─ Matrix::rankMatrix(W[[k]][estimable,]) → popef.*</code></pre>
-<div id="stages-same-tree-by-concern" class="section level3">
-<h3>Stages (same tree, by concern)</h3>
+<p>Calibrate Bayesian priors for the two-block mixed sampler:</p>
 <table>
+<colgroup>
+<col width="17%" />
+<col width="24%" />
+<col width="58%" />
+</colgroup>
 <thead>
 <tr class="header">
-<th>Stage</th>
-<th>What runs</th>
+<th>Block</th>
+<th>Quantity</th>
+<th>Typical Ex_13b product</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Design / model frame</td>
-<td><code>extract_re_hyper_matrices</code> and children</td>
+<td>Block~2</td>
+<td>Population FE priors + τ²</td>
+<td><code>pop.prior_list</code>, <code>pop.ing_prior</code> →
+<code>pfamily_list(ps)</code></td>
 </tr>
 <tr class="even">
-<td>Reference fit</td>
-<td><code>lmer</code>/<code>glmer</code>, VC extract, optional
-<code>glmmTMB</code></td>
-</tr>
-<tr class="odd">
-<td>Identifiability</td>
-<td><code>check_identifiability</code></td>
+<td>Block~1</td>
+<td>Measurement σ² (pooled or per-group)</td>
+<td><code>group.ing_prior</code> → <code>dGamma_list(ps)</code></td>
 </tr>
 </tbody>
 </table>
+<p>Always embeds a full <code>model_setup</code> object as
+<code>ps$design</code>.</p>
+<hr />
+</div>
+<div id="signature-main-formals" class="section level2">
+<h2>2. Signature (main formals)</h2>
+<pre class="r"><code>Prior_Setup_GLMM(
+  formula, data, family = gaussian(),
+  REML = TRUE, control = NULL, start = NULL, verbose = 0L,
+  subset, weights, na.action, offset, contrasts = NULL,
+  dispformula = ~1,
+  pop.pwt = NULL, pop.pwt_default_low = 0.01, pop.pwt_default_high = 0.05,
+  pop.nprior = NULL, pop.sd = NULL, pop.mu = NULL,
+  pop.dispersion.pwt = NULL, pop.dispersion.nprior = NULL,
+  pop.max_disp_perc = 0.99,
+  pop.intercept_source = c(&quot;null_model&quot;, &quot;full_model&quot;),
+  pop.effects_source   = c(&quot;null_effects&quot;, &quot;full_model&quot;),
+  group.dispersion = NULL,
+  group.dispersion.pwt = NULL, group.dispersion.nprior = NULL,
+  group.alpha_target = 0.01,
+  group.max_disp_perc = 0.99
+)</code></pre>
+<p>Ex_13b uses: <code>pop.pwt = 0.01</code>,
+<code>dispformula = ~school_id</code>,
+<code>group.max_disp_perc = 0.8</code>,
+<code>group.dispersion.pwt = 0.1</code> (floor),
+<code>group.alpha_target = 0.01</code>.</p>
+<hr />
+</div>
+<div id="call-hierarchy" class="section level2">
+<h2>3. Call hierarchy</h2>
+<pre class="text"><code>Prior_Setup_GLMM()
+│
+├─ [arg checks; family normalize; default lmerControl for gaussian]
+│
+├─ model_setup(...)                         ★ full tree: see PREFLIGHT_model_setup.md
+│
+├─ .lmebayes_dispformula_kind()
+├─ .lmebayes_mer_convergence_issues()
+├─ .lmebayes_validate_group_dispersion()
+│
+├─ [choose calibration_source]
+│   ├─ if gaussian &amp; dispformula = ~group:
+│   │   ├─ design$glmmTMB_fit (from model_setup) or refit
+│   │   ├─ .lmebayes_glmmtmb_convergence_issues()
+│   │   ├─ extract_glmmtmb_variance_components()
+│   │   └─ .lmebayes_glmmtmb_group_sigma2()
+│   └─ else: fit_ref = mer_fit; τ² = design$Psi
+│
+├─ .lmebayes_reference_fixef() / .lmebayes_reference_vcov()
+│
+├─ [Block~2 weight / override resolution]
+│   ├─ .lmebayes_default_pwt_list()
+│   ├─ .lmebayes_resolve_pwt()
+│   ├─ .lmebayes_resolve_mu_override() → .lmebayes_resolve_override_list()
+│   ├─ .lmebayes_resolve_nprior_override()
+│   ├─ .lmebayes_resolve_sd_override()
+│   └─ .lmebayes_resolve_disp_prior()       [pop.dispersion.*]
+│
+├─ [null intercept model] when pop.intercept_source == &quot;null_model&quot;
+│   ├─ stats::as.formula(y ~ 1 + (1 | group))
+│   ├─ .lmebayes_fit_glmmtmb_reference() OR lme4::lmer/glmer
+│   ├─ convergence checks
+│   └─ .lmebayes_reference_fixef(null_fit)
+│
+├─ [inline] build pop.prior_list: mu, Sigma ← V_fe × √((1−w)/w), τ²_k
+│
+├─ .lmebayes_expand_scalar_or_vector()      [pop.max_disp_perc]
+├─ .lmebayes_ing_limiting_posterior_window()→ stats::qgamma
+│     [pop.ing_prior shape/rate/bounds; same algebra as compute_gaussian_prior k=1]
+│
+├─ [Gaussian Block~1 measurement]
+│   ├─ .lmebayes_resolve_measurement_disp_prior()          [pooled]
+│   ├─ [dispformula = ~1]
+│   │   └─ .lmebayes_calibrate_ing_prior_measurement()
+│   │       └─ .lmebayes_ing_prior_quantile_window()
+│   │
+│   ├─ .lmebayes_block_formula_from_re()
+│   ├─ .lmebayes_resolve_measurement_disp_prior_group()
+│   ├─ .lmebayes_expand_scalar_or_vector()                 [group.max_disp_perc]
+│   │
+│   ├─ [dispformula = ~group]  ★ Ex_13b path
+│   │   └─ .lmebayes_calibrate_ing_prior_measurement_group()
+│   │       ├─ .lmebayes_ing_prior_measurement_group_glm_inputs()
+│   │       │   ├─ stats::model.frame / model.matrix / model.response
+│   │       │   ├─ stats::glm.fit / vcov
+│   │       │   └─ .lmebayes_block_formula_prior_mu() → stats::lm
+│   │       ├─ Omega_j ← W_j %*% pop.Sigma_k %*% t(W_j)   [Part VI]
+│   │       ├─ .lmebayes_compute_ing_prior_cal_from_sigma()
+│   │       │   └─ ★ glmbayesCore::compute_gaussian_prior()
+│   │       ├─ .ing_stop_if_prior_exceeds_data()
+│   │       │   └─ .ing_n_prior_from_shape()
+│   │       ├─ .lmebayes_ing_prior_quantile_window()
+│   │       └─ .lmebayes_ing_prior_list_from_cal()
+│   │
+│   ├─ .lmebayes_print_ing_prior_measurement_group_compare()  [dev table]
+│   │
+│   └─ [group.alpha_target]  ★ Ex_13b path
+│       ├─ .lmebayes_calibrate_pwt_measurement_group()
+│       │   ├─ .lmebayes_reference_fixef()
+│       │   ├─ stats::rnorm / uniroot
+│       │   ├─ .lmebayes_ing_prior_quantile_window()
+│       │   └─ .two_block_truncated_omega_moments()
+│       │         [R/two_block_ergodicity_ing_marginal.R]
+│       ├─ re-resolve meas pwt + re-calibrate group.ing_prior
+│       └─ store group.pwt_calibration
+│
+└─ [optional] .lmebayes_pin_ing_prior_measurement_group()
+    when user overrides group.dispersion</code></pre>
+<div id="only-direct-glmbayescore-runtime-call" class="section level3">
+<h3>Only direct <code>glmbayesCore</code> runtime call</h3>
+<table>
+<colgroup>
+<col width="30%" />
+<col width="40%" />
+<col width="30%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Call</th>
+<th>Where</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>glmbayesCore::compute_gaussian_prior</code></td>
+<td><code>.lmebayes_compute_ing_prior_cal_from_sigma</code></td>
+<td>Gaussian + per-group <code>dispformula</code></td>
+</tr>
+</tbody>
+</table>
+<p>Block~2 <code>pop.ing_prior</code> <strong>reimplements</strong> the
+same shape/rate algebra locally (no <code>compute_gaussian_prior</code>
+call).</p>
 <hr />
 </div>
 </div>
-<div id="return-class-model_setup" class="section level2">
-<h2>4. Return (class <code>&quot;model_setup&quot;</code>)</h2>
+<div id="return-class-prior_setup_glmm" class="section level2">
+<h2>4. Return (class <code>&quot;Prior_Setup_GLMM&quot;</code>)</h2>
 <table>
 <colgroup>
 <col width="53%" />
@@ -498,54 +552,112 @@ factor coding match.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>y</code>, <code>weights</code>, <code>offset</code></td>
-<td>Length-<code>n</code>, aligned after subset/NA</td>
+<td><code>design</code></td>
+<td>Full <code>&quot;model_setup&quot;</code> object</td>
 </tr>
 <tr class="even">
-<td><code>D</code></td>
-<td>Within-group design (<code>n × p_re</code>)</td>
+<td><code>mer_fit</code>, <code>fit_ref</code>,
+<code>calibration_source</code></td>
+<td>Classical references</td>
 </tr>
 <tr class="odd">
-<td><code>group</code>, <code>group_name</code>,
-<code>groupef.names</code></td>
-<td>Grouping factor + RE coef names</td>
+<td><code>pop.pwt</code>, <code>pop.nprior</code>, <code>pop.sd</code>,
+<code>pop.mu</code></td>
+<td>Resolved Block~2 strength / mean</td>
 </tr>
 <tr class="even">
-<td><code>W</code></td>
-<td>Named list of hyper-design matrices (one per RE coef)</td>
+<td><code>pop.prior_list</code></td>
+<td>Per-RE <code>{mu, Sigma, dispersion=τ²}</code></td>
 </tr>
 <tr class="odd">
-<td><code>popef.moderation</code></td>
-<td>Cross-level moderation metadata</td>
+<td><code>pop.ing_prior</code></td>
+<td>Per-RE τ² Gamma window</td>
 </tr>
 <tr class="even">
-<td><code>lmer</code> / <code>glmer</code>, <code>Psi</code>,
-<code>dispersion</code>, <code>varcorr</code></td>
-<td>Reference fit (if <code>fit_mer</code>)</td>
+<td><code>pop.dispersion.pwt</code> /
+<code>pop.dispersion.nprior</code></td>
+<td>τ² prior strength</td>
 </tr>
 <tr class="odd">
-<td><code>glmmTMB_fit</code></td>
-<td>Additive per-group-dispersion fit, or <code>NULL</code></td>
+<td><code>group.dispersion</code>, <code>group.Sigma</code>,
+<code>group.tau_sd</code></td>
+<td>Measurement / RE variances</td>
 </tr>
 <tr class="even">
-<td><code>groupef.rank</code>, <code>groupef.estimable</code>,
-<code>groupef.glm_check</code></td>
-<td>Level-1</td>
+<td><code>group.dispersion.pwt</code> /
+<code>group.dispersion.nprior</code></td>
+<td>Block~1 strength</td>
 </tr>
 <tr class="odd">
-<td><code>popef.rank</code>, <code>popef.deficient</code>,
-<code>popef.rank_ok</code></td>
-<td>Level-2</td>
+<td><code>group.ing_prior</code></td>
+<td>Pooled list <strong>or</strong> named per-group lists (Ex_13b)</td>
+</tr>
+<tr class="even">
+<td><code>group.alpha_target</code>,
+<code>group.pwt_calibration</code></td>
+<td>Ellipsoid pwt search</td>
+</tr>
+<tr class="odd">
+<td><code>group.max_disp_perc</code>, <code>block_formula</code></td>
+<td>Window / within-group formula</td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="reuse-vs-prior_setup-only" class="section level2">
+<h2>5. Reuse vs Prior_Setup-only</h2>
+<table>
+<colgroup>
+<col width="55%" />
+<col width="44%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Reused from <code>model_setup</code></th>
+<th>Prior_Setup-specific</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Design <code>y/D/W/group</code></td>
+<td><code>pop.pwt</code> / <code>pop.nprior</code> / <code>pop.sd</code>
+duality</td>
+</tr>
+<tr class="even">
+<td>merMod + optional <code>glmmTMB_fit</code></td>
+<td>Null intercept model for prior mean</td>
+</tr>
+<tr class="odd">
+<td><code>Psi</code>, pooled <code>dispersion</code></td>
+<td>Block~2 <code>Sigma</code> scaling from <code>vcov</code></td>
+</tr>
+<tr class="even">
+<td>Rank diagnostics (reported)</td>
+<td><code>pop.ing_prior</code>, <code>group.ing_prior</code></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Part VI Omega_j + <code>compute_gaussian_prior</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>group.alpha_target</code> Monte Carlo /
+<code>uniroot</code></td>
 </tr>
 </tbody>
 </table>
 <hr />
 </div>
 <div id="export-status-of-symbols-on-this-call-path" class="section level2">
-<h2>5. Export status of symbols on this call path</h2>
+<h2>6. Export status of symbols on this call path</h2>
 <div id="already-exported-lmebayescore-namespace" class="section level3">
 <h3>Already exported (<code>lmebayesCore</code> NAMESPACE)</h3>
 <table>
+<colgroup>
+<col width="33%" />
+<col width="66%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th>Symbol</th>
@@ -554,113 +666,73 @@ factor coding match.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>model_setup</code></td>
+<td><code>Prior_Setup_GLMM</code></td>
 <td>Entry point</td>
 </tr>
 <tr class="even">
-<td><code>print.model_setup</code></td>
+<td><code>print.Prior_Setup_GLMM</code></td>
 <td>S3 printer</td>
 </tr>
 <tr class="odd">
+<td><code>model_setup</code> (+ <code>print.model_setup</code>)</td>
+<td>Called internally for design / ref fits</td>
+</tr>
+<tr class="even">
 <td><code>check_identifiability</code></td>
-<td>Always called at end of <code>model_setup</code></td>
+<td>Via <code>model_setup</code></td>
 </tr>
 </tbody>
 </table>
+<p>Downstream list constructors (next Ex_13b steps, not called
+<em>by</em> Prior_Setup): <code>pfamily_list</code>,
+<code>dGamma_list</code> — already exported.</p>
 </div>
-<div id="external-exports-used-not-lmebayescore" class="section level3">
-<h3>External exports used (not lmebayesCore)</h3>
+<div id="external-exports-used" class="section level3">
+<h3>External exports used</h3>
 <table>
 <colgroup>
-<col width="47%" />
-<col width="52%" />
+<col width="34%" />
+<col width="39%" />
+<col width="26%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Symbol</th>
 <th>Package</th>
+<th>Role</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>lme4::lFormula</code>, <code>lmer</code>, <code>glmer</code>,
-<code>lmerControl</code>, <code>VarCorr</code>, <code>getME</code>,
-<code>isSingular</code>, <code>mkLmerDevfun</code></td>
-<td><strong>lme4</strong></td>
+<td><strong><code>glmbayesCore::compute_gaussian_prior</code></strong></td>
+<td>glmbayesCore</td>
+<td>Per-group Block~1 ING calibration (only glmbayesCore runtime
+call)</td>
 </tr>
 <tr class="even">
-<td><code>reformulas::findbars</code></td>
-<td><strong>reformulas</strong></td>
+<td><code>lme4::lmer</code> / <code>glmer</code> /
+<code>lmerControl</code> / …</td>
+<td>lme4</td>
+<td>Via <code>model_setup</code> + null intercept fit</td>
 </tr>
 <tr class="odd">
-<td><code>Matrix::rankMatrix</code>, <code>Matrix::t</code></td>
-<td><strong>Matrix</strong></td>
+<td><code>glmmTMB::glmmTMB</code>, <code>VarCorr</code>,
+<code>fixef</code></td>
+<td>glmmTMB</td>
+<td>Per-group dispformula path</td>
 </tr>
 <tr class="even">
-<td><code>glmmTMB::glmmTMB</code></td>
-<td><strong>glmmTMB</strong> (Suggests; only if
-<code>dispformula = ~group</code>)</td>
-</tr>
-<tr class="odd">
-<td><code>stats::terms</code>, <code>model.response</code>,
-<code>model.weights</code>, <code>model.offset</code>,
-<code>fitted</code>, <code>glm</code>, <code>vcov</code>, …</td>
-<td><strong>stats</strong></td>
-</tr>
-</tbody>
-</table>
-<p>No <strong>glmbayesCore</strong> exports on this path.</p>
-</div>
-<div id="internal-today-recommend-export-migration-advanced-api" class="section level3">
-<h3>Internal today — <strong>recommend export</strong> (migration /
-advanced API)</h3>
-<table>
-<colgroup>
-<col width="21%" />
-<col width="35%" />
-<col width="43%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Symbol</th>
-<th>Current tag</th>
-<th>Recommendation</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>extract_re_hyper_matrices</code></td>
-<td><code>@keywords internal</code></td>
-<td><strong>Recommend export.</strong> Design-only seam
-(<code>fit_mer</code>-free); Ex_13b-style tooling and glmbayesCore
-migration both need it as a public “formula → y/D/W/group”
-function.</td>
-</tr>
-<tr class="even">
-<td><code>extract_mer_variance_components</code></td>
-<td><code>@keywords internal</code></td>
-<td><strong>Recommend export.</strong> Stable “merMod → Ψ + dispersion”
-helper; useful without re-running full <code>model_setup</code>.</td>
-</tr>
-<tr class="odd">
-<td><code>extract_lmer_variance_components</code></td>
-<td><code>@keywords internal</code></td>
-<td>Thin alias of the mer extractor; export with the same docs or
-collapse into one name.</td>
-</tr>
-<tr class="even">
-<td><code>get_lme4_components</code></td>
-<td><code>@keywords internal</code></td>
-<td><strong>Optional export</strong> for advanced users / debugging (X,
-sparse Z, maps). Keep <code>extract_re_hyper_matrices</code> as the
-usual public surface.</td>
+<td><code>stats::qgamma</code>, <code>uniroot</code>,
+<code>rnorm</code>, <code>glm.fit</code>, <code>lm</code>, …</td>
+<td>stats</td>
+<td>Windows, α-target search, within-group fits</td>
 </tr>
 </tbody>
 </table>
 </div>
-<div id="internal-today-recommend-export-only-if-shipping-a-glmmtmb-surface" class="section level3">
-<h3>Internal today — <strong>recommend export only if</strong> shipping
-a glmmTMB surface</h3>
+<div id="internal-today-recommend-export-with-prior_setup-calibration-surface" class="section level3">
+<h3>Internal today — <strong>recommend export</strong> (with Prior_Setup
+/ calibration surface)</h3>
 <table>
 <colgroup>
 <col width="33%" />
@@ -674,183 +746,171 @@ a glmmTMB surface</h3>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>.lmebayes_fit_glmmtmb_reference</code></td>
-<td>Export under a non-dot name
-(e.g. <code>fit_glmmtmb_reference</code>) if glmmTMB calibration is a
-first-class glmbayesCore feature.</td>
+<td><code>extract_re_hyper_matrices</code>,
+<code>extract_mer_variance_components</code></td>
+<td>Same as <a href="PREFLIGHT_model_setup.md">PREFLIGHT_model_setup.md</a> §5 —
+Prior_Setup depends on them via <code>model_setup</code>.</td>
 </tr>
 <tr class="even">
-<td><code>.lmebayes_dispformula_kind</code></td>
-<td>Keep internal unless documenting a public dispformula grammar
-helper.</td>
+<td><code>.lmebayes_fit_glmmtmb_reference</code></td>
+<td>Export (rename without <code>.</code>) if glmmTMB is a public
+calibration backend.</td>
+</tr>
+<tr class="odd">
+<td><code>extract_glmmtmb_variance_components</code></td>
+<td>Export alongside mer VC extractor for a symmetric ref-fit API.</td>
+</tr>
+<tr class="even">
+<td><code>.lmebayes_glmmtmb_group_sigma2</code></td>
+<td>Export if users need per-group σ² diagnostics without full
+Prior_Setup.</td>
 </tr>
 </tbody>
 </table>
 </div>
-<div id="internal-today-keep-internal" class="section level3">
-<h3>Internal today — <strong>keep internal</strong></h3>
+<div id="internal-today-keep-internal-do-not-export" class="section level3">
+<h3>Internal today — <strong>keep internal</strong> (do not export)</h3>
+<p><strong>Prior_Setup-local resolvers</strong>
+(<code>R/Prior_Setup_GLMM.R</code>):<br />
+<code>.lmebayes_validate_group_dispersion</code>,
+<code>.lmebayes_default_pwt_list</code>,
+<code>.lmebayes_resolve_pwt</code>,
+<code>.lmebayes_resolve_override_list</code>,
+<code>.lmebayes_resolve_mu_override</code> / <code>_sd_override</code> /
+<code>_nprior_override</code>,
+<code>.lmebayes_resolve_disp_prior</code>,
+<code>.lmebayes_ing_prior_is_grouped</code>.</p>
+<p><strong>Measurement / ING helpers</strong>
+(<code>R/mixed_rmerb_helpers.R</code>):<br />
+<code>.lmebayes_expand_scalar_or_vector</code>,
+<code>.lmebayes_resolve_measurement_disp_prior</code> /
+<code>_group</code>, <code>.lmebayes_block_formula_from_re</code> /
+<code>_prior_mu</code>,
+<code>.lmebayes_ing_prior_measurement_group_glm_inputs</code>,
+<code>.lmebayes_compute_ing_prior_cal_from_sigma</code>,
+<code>.lmebayes_ing_prior_list_from_cal</code>,
+<code>.lmebayes_calibrate_ing_prior_measurement</code> /
+<code>_group</code>, <code>.lmebayes_ing_prior_quantile_window</code>,
+<code>.lmebayes_ing_limiting_posterior_window</code>,
+<code>.lmebayes_pin_ing_prior_measurement_group*</code>,
+<code>.lmebayes_print_ing_prior_measurement_group_compare</code>.</p>
+<p><strong>α-target / guards:</strong><br />
+<code>.lmebayes_calibrate_pwt_measurement_group</code>,
+<code>.two_block_truncated_omega_moments</code>,
+<code>.ing_stop_if_prior_exceeds_data</code>,
+<code>.ing_n_prior_from_shape</code>.</p>
+<p><strong>Dispatch / conv:</strong><br />
+<code>.lmebayes_mer_convergence_issues</code>,
+<code>.lmebayes_glmmtmb_convergence_issues</code>,
+<code>.lmebayes_reference_fixef</code> / <code>_vcov</code>,
+<code>.lmebayes_dispformula_kind</code>.</p>
+<p>Rationale: these encode calibration policy and numerical details; the
+stable user surface is <code>Prior_Setup_GLMM</code> itself (plus
+optional design/VC extractors above).</p>
+</div>
+<div id="optional-export-only-if-supporting-hand-rolled-part-vi-demos" class="section level3">
+<h3>Optional export (only if supporting hand-rolled Part VI demos)</h3>
+<p>Ex_13b historically called
+<code>.lmebayes_ing_prior_measurement_group_glm_inputs</code> and
+<code>.lmebayes_compute_ing_prior_cal_from_sigma</code> from demo code.
+Prefer keeping them internal and documenting
+<code>dGamma_list(ps)</code> as the public path (current Ex_13b
+production path).</p>
+<hr />
+</div>
+</div>
+<div id="migrating-to-glmbayescore" class="section level2">
+<h2>7. Migrating to glmbayesCore</h2>
+<p>This is <strong>not</strong> a single-file move. Suggested layers
+(export policy in §6):</p>
+<div id="layer-a-already-covered-by-migrating-model_setup" class="section level3">
+<h3>Layer A — already covered by migrating <code>model_setup</code></h3>
+<p>Entire <a href="PREFLIGHT_model_setup.md">PREFLIGHT_model_setup.md</a> on-path
+set, plus often:</p>
+<ul>
+<li><code>.lmebayes_mer_convergence_issues</code> (<strong>keep
+internal</strong>)</li>
+<li>Remaining <code>glmmtmb_reference_helpers.R</code> (export VC /
+group-σ² helpers if shipping TMB surface)</li>
+</ul>
+</div>
+<div id="layer-b-prior_setup-only-rprior_setup_glmm.r" class="section level3">
+<h3>Layer B — Prior_Setup-only (<code>R/Prior_Setup_GLMM.R</code>)</h3>
 <table>
 <colgroup>
-<col width="61%" />
-<col width="38%" />
+<col width="30%" />
+<col width="34%" />
+<col width="34%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Symbol</th>
-<th>Why</th>
+<th>Export?</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>.lmebayes_normalize_family</code></td>
-<td>Tiny coerce; not a user API</td>
+<td><code>Prior_Setup_GLMM</code>,
+<code>print.Prior_Setup_GLMM</code></td>
+<td><strong>Already / keep exported</strong></td>
+<td>Entry + printer</td>
 </tr>
 <tr class="even">
-<td><code>.lmebayes_mer_optional_args</code></td>
-<td>Call packing</td>
+<td>Resolvers / validators listed in §6</td>
+<td><strong>Keep internal</strong></td>
+<td>Policy plumbing</td>
 </tr>
 <tr class="odd">
-<td><code>.lmebayes_normalize_weights</code> / <code>_offset</code> /
-<code>_weights_offset_from_frame</code></td>
-<td>Frame plumbing</td>
-</tr>
-<tr class="even">
-<td><code>is_single_factor_model</code>,
-<code>is_fixed_effects_only</code></td>
-<td>Formula guards</td>
-</tr>
-<tr class="odd">
-<td><code>.lmebayes_validate_uncorrelated_re_formula</code></td>
-<td>Formula guard</td>
-</tr>
-<tr class="even">
-<td><code>classify_lme4_fixed_columns</code>,
-<code>classify_crosslevel_re_moderation</code></td>
-<td>Classification helpers</td>
-</tr>
-<tr class="odd">
-<td><code>extract_lme4_fixed_group_matrix</code>,
-<code>extract_re_Z_obs</code></td>
-<td>Steps inside <code>extract_re_hyper_matrices</code></td>
-</tr>
-<tr class="even">
-<td><code>.lme4_Z_random_*</code>,
-<code>.lme4_label_Z_random_sparse</code></td>
-<td>Sparse Z bookkeeping</td>
-</tr>
-<tr class="odd">
-<td><code>.lmebayes_block_glm_estimable</code>,
-<code>.lmebayes_glm_estimable_precheck</code></td>
-<td>Inside <code>check_identifiability</code></td>
+<td>Inline null-model + <code>pop.prior_list</code> /
+<code>pop.ing_prior</code> builders</td>
+<td><strong>Keep internal</strong></td>
+<td>Core Block~2 body</td>
 </tr>
 </tbody>
 </table>
-<hr />
 </div>
+<div id="layer-c-measurement-ing-rmixed_rmerb_helpers.r-path" class="section level3">
+<h3>Layer C — measurement / ING (<code>R/mixed_rmerb_helpers.R</code>
+path)</h3>
+<p>Move with Prior_Setup; <strong>keep internal</strong> (see §6).
+Public surface remains <code>Prior_Setup_GLMM</code> +
+<code>dGamma_list</code>.</p>
 </div>
-<div id="co-located-symbols-not-called-by-model_setup" class="section level2">
-<h2>6. Co-located symbols <strong>not</strong> called by
-<code>model_setup</code></h2>
-<p>These live nearby but are used by <code>Prior_Setup_GLMM</code> /
-samplers:</p>
+<div id="layer-d-pwt-α-target-guards" class="section level3">
+<h3>Layer D — pwt α-target + guards</h3>
+<p>Move with Prior_Setup; <strong>keep internal</strong>.</p>
+</div>
+<div id="already-in-glmbayescore-exported-there" class="section level3">
+<h3>Already in glmbayesCore (exported there)</h3>
 <ul>
-<li><code>.lmebayes_mer_convergence_issues</code> — <strong>keep
-internal</strong></li>
-<li><code>.lmebayes_glmmtmb_convergence_issues</code>,
-<code>.lmebayes_reference_fixef</code> / <code>_vcov</code> —
-<strong>keep internal</strong> (dispatch helpers)</li>
-<li><code>extract_glmmtmb_variance_components</code>,
-<code>.lmebayes_glmmtmb_group_sigma2</code> — <strong>recommend export
-with glmmTMB surface</strong> (see §5)</li>
-<li><code>.lmebayes_stop_if_nondefault_weights_offset</code> —
-<strong>keep internal</strong> (Phase~1 gate)</li>
-<li><code>lmerb_default_vcov_formula</code> — <strong>optional
-export</strong> if users need the stripped calibration formula outside
-lmerb</li>
+<li><code>compute_gaussian_prior</code> (used once on the per-group
+path)</li>
+<li>Conceptual twin: flat <code>Prior_Setup</code> (different API; do
+not confuse)</li>
 </ul>
-<p>Migrate them with the same modules if you want a complete
-mixed-design package surface.</p>
-<hr />
 </div>
-<div id="migrating-to-glmbayescore" class="section level2">
-<h2>7. Migrating to glmbayesCore</h2>
-<div id="already-in-glmbayescore" class="section level3">
-<h3>Already in glmbayesCore?</h3>
-<p><strong>Nothing</strong> on this call tree.
-<code>glmbayesCore::Prior_Setup</code> is flat-GLM prior setup
-(conceptual cousin only).</p>
-</div>
-<div id="public-api-to-expose-after-the-move" class="section level3">
-<h3>Public API to expose after the move</h3>
-<table>
-<colgroup>
-<col width="53%" />
-<col width="46%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Export</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>model_setup</code>, <code>print.model_setup</code></td>
-<td>Already exported here</td>
-</tr>
-<tr class="even">
-<td><code>check_identifiability</code></td>
-<td>Already exported here</td>
-</tr>
-<tr class="odd">
-<td><code>extract_re_hyper_matrices</code></td>
-<td><strong>Newly public</strong> (see §5)</td>
-</tr>
-<tr class="even">
-<td><code>extract_mer_variance_components</code></td>
-<td><strong>Newly public</strong> (see §5)</td>
-</tr>
-<tr class="odd">
-<td>Optional: <code>get_lme4_components</code>, glmmTMB helpers</td>
-<td>Advanced / Suggests surface</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="must-move-on-path-internals" class="section level3">
-<h3>Must move (on-path internals)</h3>
-<p>All symbols listed in §5 “keep internal” plus the recommend-export
-candidates — they travel with the modules even if not all become
-exports.</p>
-</div>
-<div id="external-deps-that-travel-with-the-move" class="section level3">
-<h3>External deps that travel with the move</h3>
-<p><code>lme4</code>, <code>Matrix</code>, <code>reformulas</code>,
-<code>stats</code>; Suggests /
-<code>requireNamespace(&quot;glmmTMB&quot;)</code>.</p>
-</div>
-<div id="suggested-packaging-split-inside-glmbayescore" class="section level3">
-<h3>Suggested packaging split inside glmbayesCore</h3>
-<ol style="list-style-type: decimal">
-<li><strong>Design-only</strong> (<code>fit_mer = FALSE</code> or bare
-<code>extract_re_hyper_matrices</code>): +
-<code>check_identifiability</code><br />
-</li>
-<li><strong>Reference fit</strong> layer: merMod + optional
-glmmTMB<br />
-</li>
-<li>Keep formula constraints (one group, uncorrelated RE, level-2 FE
-rules) documented as the GLMM design dialect shared by lmebayes.</li>
-</ol>
+<div id="do-not-need-for-prior_setup-alone" class="section level3">
+<h3>Do not need for Prior_Setup alone</h3>
+<p>Sampler glue in <code>mixed_rmerb_helpers.R</code> after the
+calibration helpers (<code>priors_from_pfamily_list</code> —
+<strong>already exported</strong> but sampler-facing; engine runners,
+ICM printers, etc.).</p>
 <hr />
 </div>
 </div>
 <div id="ex_13b-usage" class="section level2">
 <h2>8. Ex_13b usage</h2>
-<pre class="r"><code>design_all &lt;- model_setup(form_lmer, data = dat)          # filter ranks
-# … keep full_rank_schools …
-design &lt;- model_setup(form_lmer, data = dat)              # final design
-# sampler uses design$y, design$D, design$group, design$W</code></pre>
+<pre class="r"><code>ps &lt;- Prior_Setup_GLMM(
+  form_lmer, data = dat,
+  pop.pwt = 0.01,
+  dispformula = ~school_id,
+  group.max_disp_perc = 0.8,
+  group.dispersion.pwt = 0.1,
+  group.alpha_target = 0.01
+)
+# → pf &lt;- pfamily_list(ps)
+# → disp_pf_list &lt;- dGamma_list(ps, max_disp_perc_measurement = 0.8)</code></pre>
 </div>
 </div>
 

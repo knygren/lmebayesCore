@@ -312,8 +312,8 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = TRUE
 )
@@ -335,19 +335,19 @@ tab_13 <- .tmp_rss_ellipsoid_test(
 )
 print(tab_13[order(tab_13$p_value), ], row.names = FALSE, digits = 4)
 
-stopifnot(is.matrix(fit$dispersion_ranef))
-stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
-stopifnot(!is.null(fit$pilot_chisq))
-stopifnot(!is.null(fit$pilot) && !is.null(fit$pilot$sweep_history))
+stopifnot(is.matrix(fit$group.dispersion))
+stopifnot(all(is.finite(fit$group.dispersion)), all(fit$group.dispersion > 0))
+stopifnot(!is.null(fit$pilot$chisq))
+stopifnot(!is.null(fit$pilot) && !is.null(fit$pilot$draws$sweep_history))
 stopifnot(!is.null(fit$sweep_history))
 
-n_draws <- nrow(fit$fixef[[re_names[1L]]])
+n_draws <- nrow(fit$popef[[re_names[1L]]])
 
 cat(sprintf(
   "\nPilot vs ICM mode (chi-squared): p = %.4g (n_pilot = %d, m_convergence_pilot = %s)\n",
-  fit$pilot_chisq$p_value,
-  fit$pilot_chisq$n_pilot,
-  format(fit$m_convergence_pilot)
+  fit$pilot$chisq$p_value,
+  fit$pilot$chisq$n_pilot,
+  format(fit$pilot$m_convergence)
 ))
 cat(sprintf("m_convergence (main) = %d\n", fit$m_convergence))
 
@@ -363,7 +363,7 @@ rows_disp <- character(0L)
 for (lev in group_levels) {
   rows_disp <- c(rows_disp, sprintf(
     "  %-6s  %10.4f  %10.4f  [%.4f, %.4f]\n",
-    lev, fit$dispersion_ranef.mean[[lev]], disp_prior_mean[[lev]],
+    lev, fit$group.dispersion.mean[[lev]], disp_prior_mean[[lev]],
     disp_lower_group[[lev]], disp_upper_group[[lev]]
   ))
 }
@@ -405,9 +405,9 @@ se_ref  <- sqrt(diag(lmebayesCore:::.lmebayes_reference_vcov(fit_ref)))
 ## loop's own source between the header and the first data row.
 rows_fe <- character(0L)
 for (k in re_names) {
-  dm_gibbs <- colMeans(fit$fixef[[k]])
-  sd_gibbs <- apply(fit$fixef[[k]], 2L, sd)
-  icm_k    <- fit$fixef.mode[[k]]
+  dm_gibbs <- colMeans(fit$popef[[k]])
+  sd_gibbs <- apply(fit$popef[[k]], 2L, sd)
+  icm_k    <- fit$popef.mode[[k]]
   for (nm in names(dm_gibbs)) {
     fe_nm <- if (identical(k, "(Intercept)") && identical(nm, "(Intercept)")) {
       "(Intercept)"
@@ -463,8 +463,8 @@ cat(
 ## calibration ignores (Section 14, per-group case) were included?
 ##
 ## omega_ing$omega/$e are evaluated at the now-*completed* sampler's own
-## posterior-mean state -- 1/fit$dispersion_ranef.mean[[lev]] for Omega_j,
-## and e_j = y_j - D_j %*% (posterior-mean beta_j from fit$coefficients) --
+## posterior-mean state -- 1/fit$group.dispersion.mean[[lev]] for Omega_j,
+## and e_j = y_j - D_j %*% (posterior-mean beta_j from fit$groupef) --
 ## rather than the certified corner's disp_upper_group/fit_ref (glmmTMB)
 ## combination. Both quantities below therefore come from the SAME fitted
 ## object and describe one mutually-consistent reference state; mixing the
@@ -482,7 +482,7 @@ e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
-  1 / fit$dispersion_ranef.mean[group_levels], group_levels
+  1 / fit$group.dispersion.mean[group_levels], group_levels
 )
 
 omega_ing <- list(
@@ -517,8 +517,8 @@ print(rate_ext)
 ##     state above.
 ##
 ## Per-group dispersion sigma^2_j is estimated here, so each of the n
-## main-stage draws has its own sampled sigma^2_j (fit$dispersion_ranef[i, ])
-## and its own beta_j (fit$coefficients draw i) -- and hence its own e_j.
+## main-stage draws has its own sampled sigma^2_j (fit$group.dispersion[i, ])
+## and its own beta_j (fit$groupef draw i) -- and hence its own e_j.
 ## Treating the n draws as approximate posterior samples, this asks: what is
 ## the largest local rate actually realized across them, rather than at one
 ## plug-in point? Mirrors the pilot-draw pmax() scan
@@ -590,16 +590,16 @@ res_marg <- .tmp_lambda_star_marginal_over_draws(
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_known_vcov() goes
 ## through the sweeps-outer/chains-inner pilot/main engine, so both
-## fit$pilot$sweep_history and fit$sweep_history carry cov_by_sweep (as does
+## fit$pilot$draws$sweep_history and fit$sweep_history carry cov_by_sweep (as does
 ## rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")'s single main
 ## stage now that its engine is rGLMM_sweep()-based too). Per-group dispersion
 ## is *estimated* here (that is the point of this demo), so
 ## plot_mean_convergence()/plot_var_convergence()'s fit-object methods
 ## automatically find no exact reference available and fall back to the
 ## empirical mean_final/Var_final (last-sweep cross-chain mean/covariance).
-## 'stage' selects fit$pilot$sweep_history ("pilot") or fit$sweep_history
+## 'stage' selects fit$pilot$draws$sweep_history ("pilot") or fit$sweep_history
 ## ("main"); n_chains defaults to the correct chain count for each stage
-## (fit$pilot_chisq$n_pilot vs fit$n). The pilot stage's whole job is to
+## (fit$pilot$chisq$n_pilot vs fit$n). The pilot stage's whole job is to
 ## *recenter* the main stage's starting point away from the ICM mode, so the
 ## mean-bias chart is the more direct diagnostic there; the main stage is
 ## where the variance/uncertainty calibration check matters most -- both
@@ -646,24 +646,24 @@ for (stg in c("pilot", "main")) {
 ## ---------------------------------------------------------------------------
 ## 9. Random effects: MCMC mean (per group, per draw average) vs ICM mode
 ##
-## fit$coefficients: long data.frame with one row per (draw, group) -- beta_j
+## fit$groupef: long data.frame with one row per (draw, group) -- beta_j
 ## draws (the full, non-centered coefficient; see ?rLMM_reg's "Model and
-## notation" section). fit$ranef.mode is the ICM mode these Gibbs sweeps
+## notation" section). fit$groupef.mode is the ICM mode these Gibbs sweeps
 ## started from.
 ## ---------------------------------------------------------------------------
 grp_col  <- design$group_name
-grp_levs <- rownames(fit$ranef.mode)
+grp_levs <- rownames(fit$groupef.mode)
 
 re_draws_mean <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) colMeans(fit$coefficients[idx, re_names, drop = FALSE]),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) colMeans(fit$groupef[idx, re_names, drop = FALSE]),
   simplify = FALSE
 )
 re_draws_sd <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) apply(fit$coefficients[idx, re_names, drop = FALSE], 2L, sd),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) apply(fit$groupef[idx, re_names, drop = FALSE], 2L, sd),
   simplify = FALSE
 )
 
@@ -676,7 +676,7 @@ for (lev in grp_levs) {
   for (k in re_names) {
     mcmc_m <- re_draws_mean[[lev_chr]][[k]]
     mcmc_s <- re_draws_sd[[lev_chr]][[k]]
-    icm_m  <- fit$ranef.mode[lev_chr, k]
+    icm_m  <- fit$groupef.mode[lev_chr, k]
     se_val <- mcmc_s / sqrt(n_draws)
     z_val  <- (mcmc_m - icm_m) / se_val
     rows_re <- c(rows_re, sprintf(

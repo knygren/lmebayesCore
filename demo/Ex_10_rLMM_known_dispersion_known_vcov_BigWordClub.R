@@ -109,12 +109,12 @@ fit <- rLMMNormal_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = TRUE
 )
-cat(sprintf("\nsim_method_used: %s\n", fit$sim_method_used))
+cat(sprintf("\nsim_method_used: %s\n", fit$convergence_info$sim_method_used))
 
 fit_gibbs <- rLMMNormal_reg_known_vcov(
   n            = 1000L,
@@ -122,14 +122,14 @@ fit_gibbs <- rLMMNormal_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = TRUE,
   sim_method   = "TWO_BLOCK_GIBBS"
 )
 cat(sprintf("sim_method_used: %s (m_convergence = %d)\n",
-            fit_gibbs$sim_method_used, fit_gibbs$m_convergence))
+            fit_gibbs$convergence_info$sim_method_used, fit_gibbs$m_convergence))
 
 ## ---------------------------------------------------------------------------
 ## 5. Block 2 fixed effects: iid vs Gibbs vs ICM mean vs lmer fixef
@@ -144,7 +144,7 @@ cat(sprintf("sim_method_used: %s (m_convergence = %d)\n",
 ## reference instead of lmer).
 ## ---------------------------------------------------------------------------
 re_names <- design$groupef.names
-n_draws  <- nrow(fit$fixef[[re_names[1L]]])
+n_draws  <- nrow(fit$popef[[re_names[1L]]])
 
 fe_ref <- lmebayesCore:::.lmebayes_reference_fixef(fit_lmer)
 se_ref <- sqrt(diag(lmebayesCore:::.lmebayes_reference_vcov(fit_lmer)))
@@ -154,11 +154,11 @@ se_ref <- sqrt(diag(lmebayesCore:::.lmebayes_reference_vcov(fit_lmer)))
 ## loop's own source between the header and the first data row.
 rows_fe <- character(0L)
 for (k in re_names) {
-  dm_iid   <- colMeans(fit$fixef[[k]])
-  sd_iid   <- apply(fit$fixef[[k]], 2L, sd)
-  dm_gibbs <- colMeans(fit_gibbs$fixef[[k]])
-  sd_gibbs <- apply(fit_gibbs$fixef[[k]], 2L, sd)
-  icm_k    <- fit$fixef.mode[[k]]
+  dm_iid   <- colMeans(fit$popef[[k]])
+  sd_iid   <- apply(fit$popef[[k]], 2L, sd)
+  dm_gibbs <- colMeans(fit_gibbs$popef[[k]])
+  sd_gibbs <- apply(fit_gibbs$popef[[k]], 2L, sd)
+  icm_k    <- fit$popef.mode[[k]]
   for (nm in names(dm_iid)) {
     fe_nm <- if (identical(k, "(Intercept)") && identical(nm, "(Intercept)")) {
       "(Intercept)"
@@ -216,7 +216,7 @@ cat(
 ## fit_gibbs's own class (rLMMNormal_reg_known_vcov(): both dispersion and
 ## vcov fixed) and resolve the exact reference mean/covariance (via
 ## lmerb_posterior_mean()/lmerb_posterior_covariance()) from
-## fit_gibbs$design/$prior_list/$pfamily_list automatically -- no design/
+## fit_gibbs$design/$dispprior_list/$pfamily_list automatically -- no design/
 ## measurement_prior_list to build by hand. n_chains defaults to
 ## fit_gibbs$n. There is no pilot stage for this route (single main stage
 ## only), so unlike Ex_12/Ex_13/Ex_14 there is no "is the pilot recentering
@@ -231,25 +231,25 @@ plot_var_convergence(fit_gibbs, whitened = TRUE)
 ## ---------------------------------------------------------------------------
 ## 7. Random effects: MCMC mean (per group, per draw average) vs exact ICM
 ##
-## fit$coefficients: long data.frame with one row per (draw, group), columns
+## fit$groupef: long data.frame with one row per (draw, group), columns
 ## 'draw', the group-name column, and one column per RE component -- these
 ## are beta_j draws (the full, non-centered coefficient; see ?rLMM_reg's
 ## "Model and notation" section), directly comparable to lme4::coef(), not
-## lme4::ranef(). fit$ranef.mode is the matching exact-ICM posterior mean.
+## lme4::ranef(). fit$groupef.mode is the matching exact-ICM posterior mean.
 ## ---------------------------------------------------------------------------
 grp_col  <- design$group_name
-grp_levs <- rownames(fit$ranef.mode)
+grp_levs <- rownames(fit$groupef.mode)
 
 re_draws_mean <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) colMeans(fit$coefficients[idx, re_names, drop = FALSE]),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) colMeans(fit$groupef[idx, re_names, drop = FALSE]),
   simplify = FALSE
 )
 re_draws_sd <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) apply(fit$coefficients[idx, re_names, drop = FALSE], 2L, sd),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) apply(fit$groupef[idx, re_names, drop = FALSE], 2L, sd),
   simplify = FALSE
 )
 
@@ -263,7 +263,7 @@ for (lev in grp_levs) {
   for (k in re_names) {
     mcmc_m <- re_draws_mean[[lev_chr]][[k]]
     mcmc_s <- re_draws_sd[[lev_chr]][[k]]
-    icm_m  <- fit$ranef.mode[lev_chr, k]
+    icm_m  <- fit$groupef.mode[lev_chr, k]
     se_val <- mcmc_s / sqrt(n_draws)
     z_val  <- (mcmc_m - icm_m) / se_val
     flag   <- if (abs(z_val) > 3) " *" else "  "
@@ -301,7 +301,7 @@ cat(
 ## ---------------------------------------------------------------------------
 ## 8. Random effects: lmer "full" coefficient vs sampler ranef.mode
 ##
-## fit$ranef.mode is beta_j = W_j %*% gamma + u_j (see ?rLMM_reg's "Model and
+## fit$groupef.mode is beta_j = W_j %*% gamma + u_j (see ?rLMM_reg's "Model and
 ## notation"). lme4::coef()[[k]] is NOT beta_j whenever RE component k's
 ## hyper-design W_k has more than an intercept column: coef() only adds
 ## fixef(k) + ranef(k)_j, and silently leaves any cross-level covariate's
@@ -378,13 +378,13 @@ cmp <- do.call(rbind, lapply(grp_levs, function(lev) {
     lmer_full   = vapply(re_names, function(k) {
       mu_all_lmer[k, lev] + (coef_raw[lev, k] - coef_anchor[[k]])
     }, numeric(1L)),
-    sampler_icm = unname(fit$ranef.mode[lev, re_names]),
+    sampler_icm = unname(fit$groupef.mode[lev, re_names]),
     stringsAsFactors = FALSE
   )
 }))
 cat(
   "  lmer_full = build_mu_all(design, fixef_lmer)$mu_all + ",
-  "(coef(fit_lmer) - coef_anchor); compare to sampler_icm (fit$ranef.mode):\n\n"
+  "(coef(fit_lmer) - coef_anchor); compare to sampler_icm (fit$groupef.mode):\n\n"
 )
 print(round(cmp[, c("lmer_full", "sampler_icm")], 4), row.names = paste(cmp$group, cmp$re_coef, sep = "::"))
 
@@ -405,8 +405,8 @@ ranef_cmp <- do.call(rbind, lapply(grp_levs, function(lev) {
   data.frame(
     group        = lev,
     re_coef      = re_names,
-    iid_mode     = unname(fit$ranef.mode[lev, re_names]),
-    gibbs_mode   = unname(fit_gibbs$ranef.mode[lev, re_names]),
+    iid_mode     = unname(fit$groupef.mode[lev, re_names]),
+    gibbs_mode   = unname(fit_gibbs$groupef.mode[lev, re_names]),
     stringsAsFactors = FALSE
   )
 }))

@@ -127,10 +127,10 @@
 #' @details
 #' \code{n_chains} is not stored on \code{hist} itself, so it must be
 #' supplied from the fitted object that produced it: for the main-stage
-#' history (\code{fit$sweep_history}) use \code{nrow(fit$fixef[[k]])} for
+#' history (\code{fit$sweep_history}) use \code{nrow(fit$popef[[k]])} for
 #' any RE component \code{k} (all have the same number of rows, the \code{n}
 #' passed to the \verb{_run_with_pilot()} call); for the pilot-stage history
-#' (\code{fit$pilot$sweep_history}) use \code{fit$pilot_chisq$n_pilot}.
+#' (\code{fit$pilot$draws$sweep_history}) use \code{fit$pilot$n}.
 #' @param ... Passed to methods (e.g. \code{coef_focus}, \code{design},
 #'   \code{whitened}, \code{n_chains}, ...; see below). Ignored by
 #'   \code{\link{plot_var_convergence.default}} beyond the documented

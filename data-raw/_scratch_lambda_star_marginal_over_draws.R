@@ -98,7 +98,7 @@
   q    <- inp$q
   P_b  <- blocks$P_b
   cols <- inp$gamma_cols
-  co   <- fit$coefficients
+  co   <- fit$groupef
   re_coef_names <- inp$re_names
   group_levels  <- inp$group_levels
   co_group_chr  <- as.character(co[[group_name]])

@@ -17,7 +17,7 @@ fit <- glmerb(
   n = 500L, mode_gap_max = 1.0, progbar = FALSE, verbose = FALSE
 )
 
-init <- unlist(fit$fixef.init)
+init <- unlist(fit$popef.init)
 mode <- unlist(fit$coef.mode)
 cat("draw_engine:", fit$convergence$draw_engine, "\n")
 cat("m_pilot:", fit$convergence$m_convergence_pilot,

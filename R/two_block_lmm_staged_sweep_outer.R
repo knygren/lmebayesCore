@@ -14,10 +14,7 @@
     dispersion_fixef_draws = v6_out$dispersion_fixef_draws,
     iters_fixef_draws      = v6_out$iters_fixef_draws,
     iters_ranef_draws      = v6_out$iters_ranef_draws,
-    mu_all_last            = v6_out$mu_all_last,
     sweep_history          = v6_out$sweep_history,
-    groupef.names          = re_names,
-    group_levels           = group_levels,
     n                      = n
   )
   .two_block_as_staged_names(
@@ -417,33 +414,29 @@
     fixef_init   = fixef_init
   )
 
-  main_res$call                <- cl
-  main_res$n_pilot             <- n_pilot
-  main_res$gap_tol             <- gap_tol
-  main_res$m_convergence       <- m_convergence_used
-  main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
-  main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "rGLMM_sweep"
-  main_res$draw_engine_call    <- quote(rGLMM_sweep)
-  main_res$draw_engine_args    <- draw_engine_args
-  main_res$pfamily_list        <- pfamily_list
-  main_res$family              <- family
-  main_res$prior_list          <- prior_list_block1
-  main_res$ranef.mode          <- ranef_mode
-  main_res$icm_info            <- icm_info
-  main_res$ptypes              <- pf_summary$ptypes
-  main_res$any_non_normal      <- TRUE
-  main_res$design              <- design
-
-  if (run_pilot) {
-    main_res$pilot       <- pilot_res
-    main_res$pilot_chisq <- pilot_chisq
-  }
-  if (run_ub) {
-    main_res$pilot_ub <- pilot_ub
-    main_res$tv_tol   <- tv_tol
-  }
-
-  class(main_res) <- c(result_class, "rLMMNormal_reg", "list")
-  main_res
+  .lmebayes_assemble_reg_result(
+    staged              = main_res,
+    call                = cl,
+    m_convergence       = m_convergence_used,
+    convergence_info    = convergence_info,
+    pfamily_list        = pfamily_list,
+    dispprior_list      = prior_list_block1,
+    family              = family,
+    groupef.mode        = ranef_mode,
+    any_non_normal      = TRUE,
+    design              = design,
+    result_class        = result_class,
+    parent_class        = "rLMMNormal_reg",
+    draw_engine         = "rGLMM_sweep",
+    sim_method_used     = "TWO_BLOCK_GIBBS",
+    icm_info            = icm_info,
+    pilot_draws         = if (run_pilot) pilot_res else NULL,
+    n_pilot             = if (run_pilot) n_pilot else NULL,
+    m_convergence_pilot = if (run_pilot) m_convergence_pilot else NULL,
+    pilot_chisq         = if (run_pilot) pilot_chisq else NULL,
+    pilot_ub            = if (run_ub) pilot_ub else NULL,
+    tv_tol              = if (run_ub) tv_tol else NULL,
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
 }

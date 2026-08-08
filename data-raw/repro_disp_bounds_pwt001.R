@@ -54,17 +54,17 @@ t_fit <- system.time({
 })
 
 cat(sprintf("\nTiming: %.2f s\n", t_fit["elapsed"]))
-cat(sprintf("draw_engine: %s\n", fit$draw_engine))
+cat(sprintf("draw_engine: %s\n", fit$convergence_info$draw_engine))
 cat(sprintf(
   "sigma2: mean = %.4f, sd = %.4f, range = [%.1f, %.1f]\n",
-  fit$sigma2.mean, stats::sd(fit$sigma2),
-  min(fit$sigma2), max(fit$sigma2)
+  fit$group.dispersion.mean, stats::sd(fit$group.dispersion),
+  min(fit$group.dispersion), max(fit$group.dispersion)
 ))
 
 stopifnot(inherits(fit, "lmerb"))
-stopifnot(identical(fit$draw_engine, "rGLMM_sweep_ing_block1_ind"))
-stopifnot(is.finite(fit$sigma2.mean))
-stopifnot(all(fit$sigma2 >= m_disp$disp_lower))
-stopifnot(all(fit$sigma2 <= m_disp$disp_upper))
+stopifnot(identical(fit$convergence_info$draw_engine, "rGLMM_sweep_ing_block1_ind"))
+stopifnot(is.finite(fit$group.dispersion.mean))
+stopifnot(all(fit$group.dispersion >= m_disp$disp_lower))
+stopifnot(all(fit$group.dispersion <= m_disp$disp_upper))
 
 cat("\ntest_lmerb_dgamma_pwt001: OK\n")

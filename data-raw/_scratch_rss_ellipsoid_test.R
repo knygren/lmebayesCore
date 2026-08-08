@@ -109,7 +109,7 @@
                                               disp_lower_group, disp_upper_group,
                                               group_levels = levels(group),
                                               pwt_measurement_calibration = NULL) {
-  co <- fit$coefficients
+  co <- fit$groupef
   group_chr <- as.character(group)
 
   rows <- lapply(group_levels, function(lev) {
@@ -187,7 +187,7 @@
   beta_bar <- lmebayesCore:::.lmebayes_posterior_mean_group_coef(
     fit, group_name, re_coef_names
   )
-  co <- fit$coefficients
+  co <- fit$groupef
   group_chr <- as.character(group)
   p_re <- length(re_coef_names)
 

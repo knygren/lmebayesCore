@@ -115,12 +115,12 @@ cat("Check 2/3 PASSED: dGamma_list(ps) passed directly as prior_list resolves to
 set.seed(20260803L)
 fit_old <- rLMMindepNormalGamma_reg_known_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_old, pfamily_list = pf, progbar = FALSE, verbose = FALSE
+  pfamily_list = pf, dispprior_list = prior_list_old, progbar = FALSE, verbose = FALSE
 )
 set.seed(20260803L)
 fit_new <- rLMMindepNormalGamma_reg_known_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = disp_pf_list, pfamily_list = pf, progbar = FALSE, verbose = FALSE
+  pfamily_list = pf, dispprior_list = disp_pf_list, progbar = FALSE, verbose = FALSE
 )
 stopifnot(identical(fit_old$m_convergence, fit_new$m_convergence))
 cat("Both shapes ran end-to-end without error (m_convergence =", fit_old$m_convergence, ").\n")

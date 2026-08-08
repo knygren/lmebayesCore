@@ -51,7 +51,7 @@ pf_known <- list(
 cat("\n### rLMMindepNormalGamma_reg_known_vcov() ###\n")
 fit_known <- rLMMindepNormalGamma_reg_known_vcov(
   n = 200L, y = y, D = D, group = group, W = W,
-  prior_list = prior_list, pfamily_list = pf_known,
+  pfamily_list = pf_known, dispprior_list = prior_list,
   progbar = FALSE, verbose = FALSE
 )
 cat("fit_known class:", paste(class(fit_known), collapse = ", "), "\n")
@@ -79,7 +79,7 @@ pf_est <- list(
 cat("\n### rLMMindepNormalGamma_reg_estimated_vcov() ###\n")
 fit_est <- rLMMindepNormalGamma_reg_estimated_vcov(
   n = 200L, y = y, D = D, group = group, W = W,
-  prior_list = prior_list, pfamily_list = pf_est,
+  pfamily_list = pf_est, dispprior_list = prior_list,
   progbar = FALSE, verbose = FALSE
 )
 cat("fit_est class:", paste(class(fit_est), collapse = ", "), "\n")

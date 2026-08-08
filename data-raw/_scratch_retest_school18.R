@@ -94,8 +94,8 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = FALSE
 )
@@ -103,6 +103,6 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
 cat("\n=== Sampler completed with NO error ===\n")
 cat("m_convergence =", fit$m_convergence, "\n")
 cat("all dispersion_ranef finite/positive:",
-    all(is.finite(fit$dispersion_ranef)) && all(fit$dispersion_ranef > 0), "\n")
-cat("school 18 dispersion_ranef.mean:", fit$dispersion_ranef.mean[["18"]], "\n")
-cat("school 2 dispersion_ranef.mean:", fit$dispersion_ranef.mean[["2"]], "\n")
+    all(is.finite(fit$group.dispersion)) && all(fit$group.dispersion > 0), "\n")
+cat("school 18 dispersion_ranef.mean:", fit$group.dispersion.mean[["18"]], "\n")
+cat("school 2 dispersion_ranef.mean:", fit$group.dispersion.mean[["2"]], "\n")

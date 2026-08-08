@@ -11,12 +11,16 @@
 #' Shared by every \code{plot_var_convergence.*}/\code{plot_mean_convergence.*}/
 #' \code{plot_sweep_history_diag.*} fit-object method. \code{"main"} reads
 #' \code{fit$sweep_history}/\code{fit$n} (the \code{n} chains passed to the
-#' sampler); \code{"pilot"} reads \code{fit$pilot$sweep_history}/
-#' \code{fit$pilot_chisq$n_pilot}.
+#' sampler); \code{"pilot"} reads \code{fit$pilot$draws$sweep_history}/
+#' \code{fit$pilot$n}.
 #' @noRd
 .lmebayes_convergence_inputs <- function(fit, stage = c("main", "pilot")) {
   stage <- match.arg(stage)
-  hist <- if (identical(stage, "pilot")) fit$pilot$sweep_history else fit$sweep_history
+  hist <- if (identical(stage, "pilot")) {
+    fit$pilot$draws$sweep_history
+  } else {
+    fit$sweep_history
+  }
   if (is.null(hist)) {
     hint <- if (identical(stage, "main")) {
       paste0(
@@ -38,7 +42,7 @@
     hist                   = hist,
     design                 = fit$design,
     measurement_prior_list = .lmebayes_convergence_measurement_prior_list(fit),
-    n_chains               = if (identical(stage, "pilot")) fit$pilot_chisq$n_pilot else fit$n
+    n_chains               = if (identical(stage, "pilot")) fit$pilot$n else fit$n
   )
 }
 
@@ -75,18 +79,16 @@
   isTRUE(disp_ok) && !isTRUE(fit$any_non_normal)
 }
 
-#' Build \code{measurement_prior_list} from a fit's own \code{prior_list}/
-#' \code{pfamily_list}/\code{design}/\code{family}, or \code{NULL} when no
-#' exact reference is available (see \code{\link{.lmebayes_convergence_exact_ref_ok}})
+#' Build \code{measurement_prior_list} from a fit's own \code{dispprior_list}/
+#' \code{prior_list}/\code{pfamily_list}/\code{design}/\code{family}, or
+#' \code{NULL} when no exact reference is available (see
+#' \code{\link{.lmebayes_convergence_exact_ref_ok}})
 #'
-#' \code{fit$prior_list} is a Block~1 prior/precision container present
-#' (under that exact name) on every one of \code{rLMMNormal_reg_*()},
-#' \code{rLMMindepNormalGamma_reg_*()}, \code{rGLMM_reg_*()}, and (as an
-#' untouched pass-through field from whichever of those it delegates to)
-#' \code{rlmerb()}/\code{rglmerb()} -- so this needs no per-class branching.
+#' LMM routes store the Block~1 measurement prior as
+#' \code{fit$dispprior_list} (with fallback to legacy \code{fit$prior_list}).
 #' The exact-iid engine (\code{sim_method = "DEFAULT"}) does not store its
-#' internally-derived Block~1 precision back onto \code{prior_list$P}, so it
-#' is recomputed here via \code{.rLMM_P_from_pfamily_list()} whenever
+#' internally-derived Block~1 precision back onto that object's \code{P}, so
+#' it is recomputed here via \code{.rLMM_P_from_pfamily_list()} whenever
 #' missing (deterministic given \code{pfamily_list}, so this always agrees
 #' with whatever precision the sampler actually used).
 #' @noRd
@@ -96,7 +98,10 @@
   }
   design   <- fit$design
   re_names <- design$groupef.names
-  prior_list_block1 <- fit$prior_list
+  prior_list_block1 <- fit$dispprior_list
+  if (is.null(prior_list_block1)) {
+    prior_list_block1 <- fit$prior_list
+  }
   if (is.null(prior_list_block1$P) && is.null(prior_list_block1$Sigma)) {
     prior_list_block1$P <- .rLMM_P_from_pfamily_list(fit$pfamily_list, re_names)
   }
@@ -149,7 +154,7 @@
 
 #' @param stage \code{"main"} (default) or \code{"pilot"} -- which sweep
 #'   history to plot (\code{fit$sweep_history} or
-#'   \code{fit$pilot$sweep_history}). Ignored by
+#'   \code{fit$pilot$draws$sweep_history}). Ignored by
 #'   \code{\link{plot_var_convergence.default}}, which always takes
 #'   \code{hist} literally.
 #' @param stage_label Defaults to the resolved \code{hist$stage}; pass

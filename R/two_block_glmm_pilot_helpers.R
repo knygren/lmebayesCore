@@ -30,18 +30,19 @@
   flush.console()
 }
 
-#' Rename v2 result fields to the staged \code{fixef.*} namespace
+#' Rename engine fields to public group/pop (\code{groupef}/\code{popef}) names
+#'
+#' Internal engine keys (\code{fixef_draws}, \code{coefficients}, \ldots) are
+#' mapped to package notation: Block~1 \eqn{\beta_j} as \code{groupef*},
+#' Block~2 \eqn{\gamma} as \code{popef*}. Unused engine leftovers are dropped.
 #' @noRd
 .two_block_as_staged_names <- function(x, fixef_mode, fixef_init) {
   renames <- c(
-    fixef_draws            = "fixef",
-    fixef_last             = "fixef.last",
-    b_last                 = "coef.last",
-    mu_all_last            = "fixef.mu",
-    dispersion_fixef_draws = "fixef.dispersion",
-    iters_fixef_draws      = "fixef.iters",
-    iters_ranef_draws      = "ranef.iters",
-    groupef.names          = "coef.names"
+    fixef_draws            = "popef",
+    coefficients           = "groupef",
+    dispersion_fixef_draws = "popef.dispersion",
+    iters_fixef_draws      = "popef.iters",
+    iters_ranef_draws      = "groupef.iters"
   )
   for (old_nm in names(renames)) {
     if (!is.null(x[[old_nm]])) {
@@ -49,11 +50,16 @@
       x[[old_nm]] <- NULL
     }
   }
-  x$fixef_start <- NULL
-  x$sampling <- NULL
-  x$m_convergence <- NULL
-  x$fixef.mode <- fixef_mode
-  x$fixef.init <- fixef_init
+  drop <- c(
+    "fixef_last", "b_last", "mu_all_last", "groupef.names",
+    "group_levels", "fixef_start", "sampling", "m_convergence",
+    "fixef.last", "coef.last", "fixef.mu", "coef.names"
+  )
+  for (nm in drop) {
+    x[[nm]] <- NULL
+  }
+  x$popef.mode <- fixef_mode
+  x$popef.init <- fixef_init
   x
 }
 

@@ -4,7 +4,7 @@
 \alias{rGLMM_reg}
 \alias{rGLMM_reg_known_vcov}
 \alias{rGLMM_reg_estimated_vcov}
-\title{Matrix-level replicate-chain Gibbs engines for Bayesian GLMMs}
+\title{Simulation Functions for Generalized Linear Mixed Models}
 \usage{
 rGLMM_reg_known_vcov(
   n,
@@ -12,8 +12,8 @@ rGLMM_reg_known_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
@@ -39,8 +39,8 @@ rGLMM_reg_estimated_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
@@ -66,8 +66,8 @@ rGLMM_reg(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   offset = NULL,
@@ -99,11 +99,11 @@ names used to key \code{W} and \code{pfamily_list} (there is no
 separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
-\code{levels(group)} fixes the row order of Block~1 draws -- there is no
-separate \code{group_levels} argument. To use a level order/superset not
-present in the observed data, construct \code{group} as
+\code{levels(group)} fixes the row order of \code{groupef} draws -- there
+is no separate \code{group_levels} argument. To use a level order/superset
+not present in the observed data, construct \code{group} as
 \code{factor(observed_group, levels = full_superset)} yourself. The name
-used for the grouping column in \code{coefficients} (\code{group_name})
+used for the grouping column in \code{groupef} (\code{group_name})
 is resolved from \code{attr(group, "group_name")} if set, otherwise from
 \code{group}'s own variable name via \code{substitute()} -- this only
 works when \code{group} is passed as a bare variable (e.g.
@@ -113,22 +113,30 @@ works when \code{group} is passed as a bare variable (e.g.
 \item{W}{Named list of group-level design matrices (\code{J x q_k}),
 one per column of \code{D}.}
 
-\item{prior_list}{Prior for Block~1: \code{dispersion} (required for
-\code{gaussian()}), optional \code{ddef}. The Block~1 random-effect
-prior precision (formerly a separate \code{P}/\code{Sigma} field) is
-always derived internally from \code{pfamily_list} (see
-\code{pfamily_list} below); \code{prior_list} must not contain
-\code{P} or \code{Sigma}.}
-
-\item{pfamily_list}{Named list of \code{pfamily} objects for Block~2. One
+\item{pfamily_list}{Named list of population \code{pfamily} objects. One
 \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
 \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
-\code{dIndependent_Normal_Gamma}) is assembled into the diagonal Block~1
-precision used for \code{prior_list}.}
+\code{dIndependent_Normal_Gamma}) is assembled into the diagonal group
+random-effect prior precision.}
 
-\item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
+\item{dispprior_list}{Observation-dispersion prior container:
+\code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
+For non-Gaussian families this is often an empty list. The group
+random-effect prior precision (formerly a separate \code{P}/\code{Sigma}
+field) is always derived internally from \code{pfamily_list};
+\code{dispprior_list} must not contain \code{P} or \code{Sigma}.}
 
-\item{offset, weights, family}{Passed to Block~1 (length \code{l2} or recycled).}
+\item{icm_tol, icm_maxit}{ICM convergence controls for the internal population start.}
+
+\item{offset, weights}{Observation offset and prior weights (glmbayes-style
+formals: \code{offset = NULL}, \code{weights = 1}). Normalized to length
+\code{length(y)} and echoed on the return as \code{offset}/
+\code{offset2}/\code{prior.weights}. \strong{Not yet used} by the
+mixed-model sampling path (ICM / sweeps still assume unit weights and
+zero offset).}
+
+\item{family}{Likelihood family (length-\code{l2} recycling rules follow
+the group-level likelihood).}
 
 \item{gap_tol}{Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 is \code{NULL}.}
@@ -149,30 +157,74 @@ is \code{NULL}.}
 
 \item{rate_calibration}{Optional rate object for \code{stage_verbose}.}
 
-\item{collect_block1}{Collect Block~1 \code{coefficients} from main chains.}
+\item{collect_block1}{Collect \code{groupef} draws from main chains.}
+}
+\value{
+An object of class \code{c("<route>", "rGLMM_reg", "list")}, where
+\code{<route>} is \code{"rGLMM_reg_known_vcov"} or
+\code{"rGLMM_reg_estimated_vcov"}. Components use package
+\strong{group}/\strong{population} names (see \file{inst/notation.md}),
+in glm/glmbayes-style order:
+\describe{
+\item{\code{groupef}}{Draws of non-centered group coefficients
+\eqn{\beta_j} (when \code{collect_block1} is \code{TRUE}): grouping
+column plus one column per \code{colnames(D)}.}
+\item{\code{groupef.mode}}{\eqn{J \times p_{re}} matrix of ICM group
+coefficients \eqn{\hat\beta_j}. \strong{Not} \code{lme4}'s mean-zero
+\eqn{u_j}.}
+\item{\code{groupef.iters}}{Optional group-level envelope iteration counts.}
+\item{\code{popef}}{Named list of \code{n x q_k} matrices of population
+coefficient draws \eqn{\gamma_k}.}
+\item{\code{popef.mode}, \code{popef.init}}{ICM population point estimates
+and main-stage starts.}
+\item{\code{popef.dispersion}, \code{popef.iters}}{Optional population
+per-draw diagnostics when produced by the sampler.}
+\item{\code{pfamily_list}, \code{dispprior_list}}{Population and
+observation-dispersion priors that were used.}
+\item{\code{prior.weights}, \code{offset}, \code{offset2}}{Normalized
+copies of the \code{weights}/\code{offset} arguments (glmbayes
+naming). Not yet consumed by sampling.}
+\item{\code{any_non_normal}}{Whether any population component is not
+\code{dNormal}.}
+\item{\code{family}, \code{design}, \code{n}}{Likelihood family, matrix
+inputs (including echoed \code{weights}/\code{offset}), and chain
+count.}
+\item{\code{call}}{Matched call.}
+\item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
+draw.}
+\item{\code{convergence_info}}{Theorem~3 / UB calibration details,
+including \code{draw_engine} and \code{icm_info}.}
+\item{\code{pilot}}{When a pilot ran: list with \code{n},
+\code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
+\code{NULL}.}
+\item{\code{sweep_history}}{Main-stage sweep history when collected.}
+}
 }
 \description{
-Non-Gaussian (and optionally Gaussian) two-block GLMM samplers at matrix
-level. Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
-\code{\link{rGLMM_sweep}}. Formula-level fitting uses \code{\link{rglmerb}}
-in \strong{lmebayes}; Gaussian models with observation dispersion typically use
-the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
+Simulation functions for generating posterior draws from Bayesian
+generalized linear mixed models (and optionally Gaussian models). Parallel
+to the glmbayes \code{\link[glmbayes]{simfuncs}} for GLMs; typically called
+from \code{\link{rglmerb}} (and from \code{glmerb()} in \strong{lmebayes}).
+Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
+\code{\link{rGLMM_sweep}}. Gaussian models with observation dispersion
+usually use the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
 }
 \section{Functions}{
 \itemize{
-\item \code{rGLMM_reg_known_vcov()}: All Block~2 \code{dNormal} (known \eqn{\tau^2_k}).
-Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); standard
-fixed-dispersion eigenvalue rate bounds (no ING \code{disp_lower} path).
+\item \code{rGLMM_reg_known_vcov()}: All population components \code{dNormal} (known
+\eqn{\tau^2_k}). Non-Gaussian: pilot always (unless \code{n_pilot = 0L});
+standard fixed-dispersion eigenvalue rate bounds (no ING
+\code{disp_lower} path).
 
-\item \code{rGLMM_reg_estimated_vcov()}: ING Block~2 (estimated \eqn{\tau^2_k}).
+\item \code{rGLMM_reg_estimated_vcov()}: ING population components (estimated \eqn{\tau^2_k}).
 Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); conservative
 \code{disp_lower} eigenvalue bounds and pilot-updated \eqn{\tau^2} starts.
 
-\item \code{rGLMM_reg()}: Route by Block~2 \code{pfamily_list} to known or
-estimated \eqn{\tau^2} engines.
+\item \code{rGLMM_reg()}: Route by population \code{pfamily_list} to known or
+estimated \eqn{\tau^2} simulation routes.
 
 }}
-\section{Two route engines}{
+\section{Simulation routes}{
 
 Both routes run a \strong{pilot stage for non-Gaussian} families (local-Gaussian
 rate calibration and chain-mean initialisation; skip only with
@@ -181,19 +233,20 @@ but how \strong{eigenvalue bounds} are set for Theorem~3 and post-pilot
 upper-bound calibration:
 \describe{
 \item{\code{rGLMM_reg_known_vcov}}{
-All Block~2 \code{dNormal} (known \eqn{\tau^2_k}): standard fixed-dispersion
-rate at the mode; post-pilot eigenvalue upper bound from pilot
-\code{coefficients} without ING \code{disp_lower} conservatism.}
+All population components \code{dNormal} (known \eqn{\tau^2_k}): standard
+fixed-dispersion rate at the mode; post-pilot eigenvalue upper bound from
+pilot \code{groupef} without ING \code{disp_lower} conservatism.}
 \item{\code{rGLMM_reg_estimated_vcov}}{
-At least one ING Block~2 component: conservative \code{disp_lower} plug-in
-in \code{\link{two_block_rate_from_pfamily_list}} (upper bound over truncated
-\eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from dispersion draws.}
+At least one ING population component: conservative \code{disp_lower}
+plug-in in \code{\link{two_block_rate_from_pfamily_list}} (upper bound
+over truncated \eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from
+dispersion draws.}
 }
 }
 
 \section{Dispatcher}{
 
-\code{\link{rGLMM_reg}} validates Block~2 \code{pfamily_list} and delegates
+\code{\link{rGLMM_reg}} validates population \code{pfamily_list} and delegates
 to the appropriate route.
 }
 

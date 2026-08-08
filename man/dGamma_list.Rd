@@ -3,30 +3,46 @@
 \name{dGamma_list}
 \alias{dGamma_list}
 \alias{dGamma_list.Prior_Setup_GLMM}
+\alias{print.dGamma_list}
 \title{Build a named list of dGamma measurement-dispersion priors}
 \usage{
 dGamma_list(object, ...)
 
 \method{dGamma_list}{Prior_Setup_GLMM}(object, max_disp_perc_measurement = NULL, ...)
+
+\method{print}{dGamma_list}(x, groups = NULL, ...)
 }
 \arguments{
 \item{object}{A prior-specification object.}
 
 \item{...}{Additional arguments passed to methods (e.g.
-\code{max_disp_perc_measurement}).}
+\code{max_disp_perc_measurement}). For \code{print.dGamma_list()},
+passed to \code{print.pfamily}.}
 
 \item{max_disp_perc_measurement}{\code{NULL} (default), a scalar in
 \eqn{(0.5, 1)}, or a named/positional length-\eqn{J} vector (one value
 per group level). \code{NULL} reuses each group's stored
 \code{disp_lower}/\code{disp_upper}. A scalar or vector recomputes
 those bounds per group.}
+
+\item{x}{An object of class \code{"dGamma_list"}.}
+
+\item{groups}{For \code{print.dGamma_list()}: \code{NULL} (default;
+print all groups), a character vector of group names
+(\code{names(x)}), or integer indices into \code{x}. Each selected
+group's \code{dGamma()} is printed with
+\code{\link[glmbayesCore]{print.pfamily}}. List attributes
+(\code{window_diagnostics}, \code{group.dispersion.fit}, etc.) are
+omitted; use \code{attr(x, "...")} to inspect them.}
 }
 \value{
-An object of class \code{"dGamma_list"} (also inherits from
-\code{"list"}): a named list of \code{"pfamily"} objects (one per
-group).  Attributes such as \code{window_diagnostics} and
-\code{measurement_prior_group} are retained for downstream use but
-are not shown by \code{\link{print.dGamma_list}}.
+For \code{dGamma_list()}, an object of class
+\code{"dGamma_list"} (also inherits from \code{"list"}): a named
+list of \code{"pfamily"} objects (one per group).  Attributes such
+as \code{window_diagnostics} and \code{measurement_prior_group}
+are retained for downstream use but are not shown by
+\code{print.dGamma_list()}.  For \code{print.dGamma_list()},
+\code{x} invisibly.
 }
 \description{
 Generic for constructing a named list of \code{\link[glmbayesCore]{dGamma}} prior
@@ -45,62 +61,62 @@ posterior-shape quantiles at that group's \code{max_disp_perc}.
 ## dGamma_list() — per-group dGamma from Prior_Setup_GLMM (Ex_13b data)
 ##
 ## Requires dispformula = ~school_id so group.ing_prior is per-group.
+## Requires suggested package bayesrules.
 
-data(big_word_club, package = "bayesrules")
+if (requireNamespace("bayesrules", quietly = TRUE)) {
+  data(big_word_club, package = "bayesrules")
 
-dat <- big_word_club
-dat$school_id <- factor(dat$school_id)
-dat <- subset(
-  dat,
-  !is.na(score_ppvt) &
-    !is.na(invalid_ppvt) & invalid_ppvt == 0L &
-    complete.cases(dat[, c(
-      "score_ppvt", "distracted_a1", "distracted_ppvt",
-      "private_school", "title1", "free_reduced_lunch", "school_id"
-    )])
-)
+  dat <- big_word_club
+  dat$school_id <- factor(dat$school_id)
+  dat <- subset(
+    dat,
+    !is.na(score_ppvt) &
+      !is.na(invalid_ppvt) & invalid_ppvt == 0L &
+      complete.cases(dat[, c(
+        "score_ppvt", "distracted_a1", "distracted_ppvt",
+        "private_school", "title1", "free_reduced_lunch", "school_id"
+      )])
+  )
 
-form_lmer <- score_ppvt ~
-  private_school + title1 + free_reduced_lunch +
-  distracted_ppvt + distracted_a1 +
-  free_reduced_lunch:distracted_a1 +
-  (1 + distracted_ppvt + distracted_a1 || school_id)
+  form_lmer <- score_ppvt ~
+    private_school + title1 + free_reduced_lunch +
+    distracted_ppvt + distracted_a1 +
+    free_reduced_lunch:distracted_a1 +
+    (1 + distracted_ppvt + distracted_a1 || school_id)
 
-design0 <- model_setup(form_lmer, data = dat)
-dat <- subset(dat, school_id \%in\% names(design0$groupef.rank)[design0$groupef.rank])
-dat$school_id <- droplevels(dat$school_id)
+  design0 <- model_setup(form_lmer, data = dat)
+  dat <- subset(dat, school_id \%in\% names(design0$groupef.rank)[design0$groupef.rank])
+  dat$school_id <- droplevels(dat$school_id)
 
-ps <- Prior_Setup_GLMM(
-  form_lmer,
-  data = dat,
-  pop.pwt = 0.01,
-  dispformula = ~school_id,
-  group.max_disp_perc = 0.8,
-  group.dispersion.pwt = 0.1,
-  group.alpha_target = NULL
-)
+  ps <- Prior_Setup_GLMM(
+    form_lmer,
+    data = dat,
+    pop.pwt = 0.01,
+    dispformula = ~school_id,
+    group.max_disp_perc = 0.8,
+    group.dispersion.pwt = 0.1,
+    group.alpha_target = NULL
+  )
 
-disp_pf <- dGamma_list(ps)
+  disp_pf <- dGamma_list(ps)
 
-## Group names (school_id levels)
-g <- names(disp_pf)
-utils::head(g, 10L)
+  ## Group names (school_id levels)
+  g <- names(disp_pf)
+  utils::head(g, 10L)
 
-## Print a subset (recommended when J is large)
-print(disp_pf, groups = c("2", "18", "47"))
+  ## Print a subset (recommended when J is large)
+  print(disp_pf, groups = c("2", "18", "47"))
 
-## Same idea via subsetting (class preserved)
-print(disp_pf[c("2", "18")])
+  ## Variation: rebuild truncation windows; print one group
+  disp_pf_tight <- dGamma_list(ps, max_disp_perc_measurement = 0.9)
+  print(disp_pf_tight, groups = "2")
 
-## Variation: rebuild truncation windows; print one group
-disp_pf_tight <- dGamma_list(ps, max_disp_perc_measurement = 0.9)
-print(disp_pf_tight, groups = "2")
-
-## Downstream attributes (not shown by print.dGamma_list)
-names(attributes(disp_pf))
-utils::head(attr(disp_pf, "window_diagnostics"), 3L)
+  ## Downstream attributes (not shown by print.dGamma_list)
+  names(attributes(disp_pf))
+  utils::head(attr(disp_pf, "window_diagnostics"), 3L)
+}
 }
 \seealso{
 \code{\link[glmbayesCore]{dGamma}}, \code{\link{Prior_Setup_GLMM}},
-\code{\link{pfamily_list}}, \code{\link{print.dGamma_list}}
+\code{\link{pfamily_list}}
 }

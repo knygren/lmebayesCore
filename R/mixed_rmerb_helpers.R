@@ -1524,6 +1524,42 @@ priors_from_pfamily_list <- function(pfamily_list,
   )
 }
 
+#' Pooled measurement prior for v2 (observation \eqn{\sigma^2} with population block)
+#'
+#' Same \code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper} as
+#' \code{.lmebayes_ing_measurement_prior_list()}, but \strong{without}
+#' \code{mu}/\code{Sigma}: v2 draws \eqn{\Omega=1/\sigma^2} in the population
+#' block given residuals, so those ING joint-Block~1 fields are unused.
+#' See \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
+#' @noRd
+.lmebayes_ing_measurement_prior_list_v2 <- function(prior, disp_info, design) {
+  pl_v1 <- .lmebayes_ing_measurement_prior_list(prior, disp_info, design)
+  list(
+    shape         = pl_v1$shape,
+    rate          = pl_v1$rate,
+    disp_lower    = pl_v1$disp_lower,
+    disp_upper    = pl_v1$disp_upper,
+    max_disp_perc = pl_v1$max_disp_perc
+  )
+}
+
+#' Per-group measurement prior for v2 (observation \eqn{\sigma^2_j} with population block)
+#'
+#' Same group-named windows as
+#' \code{.lmebayes_ing_measurement_prior_list_group()}, without
+#' \code{mu}/\code{Sigma}. See \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
+#' @noRd
+.lmebayes_ing_measurement_prior_list_group_v2 <- function(prior, disp_info, design) {
+  pl_v1 <- .lmebayes_ing_measurement_prior_list_group(prior, disp_info, design)
+  list(
+    shape_group      = pl_v1$shape_group,
+    rate_group       = pl_v1$rate_group,
+    disp_lower_group = pl_v1$disp_lower_group,
+    disp_upper_group = pl_v1$disp_upper_group,
+    max_disp_perc    = pl_v1$max_disp_perc
+  )
+}
+
 #' Assemble the flat argument list for the routed LMM \code{rLMM_reg} export
 #'
 #' @description
@@ -1551,7 +1587,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     the naming/control arguments (\code{tv_tol}, \code{progbar},
 #'     \code{verbose}), with \code{group_name} attached to \code{group} as
 #'     an attribute rather than a separate argument.
-#'   \item Builds \code{args$prior_list} (the Block~1/measurement prior),
+#'   \item Builds \code{args$dispprior_list} (the Block~1/measurement prior),
 #'     whose \emph{shape} depends on \code{disp_info$mode}: a plain known
 #'     \code{dispersion} value for \code{"none"}/\code{"fixed"}/
 #'     \code{"fixed_vector"}, or a shared/per-group ING measurement prior
@@ -1566,7 +1602,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     (the only route with more than one sampling engine).
 #' }
 #' It currently combines all of the above (base argument assembly,
-#' route-specific \code{prior_list} branching, and conditional pilot-stage/
+#' route-specific \code{dispprior_list} branching, and conditional pilot-stage/
 #' \code{sim_method} fields) into a single flat list and is a refactor
 #' candidate; its argument list and return shape are not yet considered
 #' stable.
@@ -1605,23 +1641,18 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'     \item{\code{pfamily_list}}{\code{prior$pfamily_list} unchanged. The
 #'       routed export derives its own Block~2 random-effect prior
 #'       precision from this internally; it is not built or passed here.}
+#'     \item{\code{dispprior_list}}{Always present; shape depends on
+#'       \code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
+#'       \code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
+#'       (a scalar or named per-group numeric vector -- a \emph{known}, fixed
+#'       observation dispersion); for \code{"gamma"} it is the pooled ING
+#'       measurement prior list from
+#'       \code{.lmebayes_ing_measurement_prior_list()}; for
+#'       \code{"gamma_list"} it is the per-group ING measurement prior list
+#'       from \code{.lmebayes_ing_measurement_prior_list_group()}.}
 #'     \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
 #'     \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
 #'       arguments, unchanged.}
-#'     \item{\code{pop.prior_list}}{Always present, but its shape depends on
-#'       \code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
-#'       \code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
-#'       (a scalar or named per-group numeric vector, passed through
-#'       unchanged -- a \emph{known}, fixed observation dispersion); for
-#'       \code{"gamma"} it is the pooled ING measurement prior list from
-#'       \code{.lmebayes_ing_measurement_prior_list()} (\code{mu},
-#'       \code{Sigma}, \code{shape}, \code{rate}, \code{max_disp_perc},
-#'       \code{disp_lower}, \code{disp_upper}); for \code{"gamma_list"} it
-#'       is the per-group ING measurement prior list from
-#'       \code{.lmebayes_ing_measurement_prior_list_group()} (\code{mu},
-#'       \code{Sigma}, \code{shape_group}, \code{rate_group},
-#'       \code{disp_lower_group}, \code{disp_upper_group},
-#'       \code{max_disp_perc}).}
 #'     \item{\code{gap_tol}, \code{mode_gap_max}, \code{diag_sweeps},
 #'       \code{stage_verbose}}{Present \strong{only} when
 #'       \code{prior$any_non_normal} is \code{TRUE} (an ING/estimated-vcov
@@ -1668,25 +1699,27 @@ matrix_args_lmm <- function(
     group         = grp,
     W             = design$W,
     pfamily_list  = prior$pfamily_list,
+    offset        = if (!is.null(design$offset)) design$offset else NULL,
+    weights       = if (!is.null(design$weights)) design$weights else 1,
     tv_tol        = tv_tol,
     progbar       = progbar,
     verbose       = verbose
   )
 
   if (identical(disp_info$mode, "gamma")) {
-    args$prior_list <- .lmebayes_ing_measurement_prior_list(
+    args$dispprior_list <- .lmebayes_ing_measurement_prior_list(
       prior     = prior,
       disp_info = disp_info,
       design    = design
     )
   } else if (identical(disp_info$mode, "gamma_list")) {
-    args$prior_list <- .lmebayes_ing_measurement_prior_list_group(
+    args$dispprior_list <- .lmebayes_ing_measurement_prior_list_group(
       prior     = prior,
       disp_info = disp_info,
       design    = design
     )
   } else {
-    args$prior_list <- list(dispersion = disp_info$dispersion_fix)
+    args$dispprior_list <- list(dispersion = disp_info$dispersion_fix)
   }
 
   if (isTRUE(prior$any_non_normal)) {
@@ -1734,8 +1767,10 @@ matrix_args_lmm <- function(
     D               = design$D,
     group           = grp,
     W               = design$W,
-    prior_list      = block1_prior,
     pfamily_list    = prior$pfamily_list,
+    dispprior_list  = block1_prior,
+    offset          = if (!is.null(design$offset)) design$offset else NULL,
+    weights         = if (!is.null(design$weights)) design$weights else 1,
     family          = family,
     gap_tol         = gap_tol,
     tv_tol          = tv_tol,
@@ -1781,10 +1816,10 @@ matrix_args_lmm <- function(
     sim_method    = sim_method
   )
   out <- do.call(route$export_fn, args)
-  if (is.null(out$sim_method_used)) {
-    out$sim_method_used <- "TWO_BLOCK_GIBBS"
+  if (is.null(out$convergence_info$sim_method_used)) {
+    out$convergence_info$sim_method_used <- "TWO_BLOCK_GIBBS"
   }
-  .lmebayes_attach_sigma2(out, disp_info)
+  .lmebayes_attach_group_dispersion(out, disp_info)
 }
 
 #' @noRd
@@ -1820,7 +1855,7 @@ matrix_args_lmm <- function(
   )
   out <- do.call(route$export_fn, args)
   disp_none <- list(mode = "none")
-  .lmebayes_attach_sigma2(out, disp_none)
+  .lmebayes_attach_group_dispersion(out, disp_none)
 }
 
 #' Build a P/Sigma-free Block~1 prior list (\code{dispersion}/\code{ddef} only)
@@ -1847,82 +1882,220 @@ matrix_args_lmm <- function(
   }
 }
 
-#' Attach \code{sigma2} / \code{sigma2.mean} from dispersion mode and sampler draws.
+#' Attach \code{group.dispersion} / \code{group.dispersion.mean} from mode + draws.
 #'
-#' Fixed measurement dispersion returns a scalar; a fixed per-group vector
-#' returns that same named length-\code{J} vector (constant, not sampled); a
-#' single \code{dGamma()} returns the length-\code{n} vector from the final
-#' inner sweep (\code{group.dispersion}); a list of per-group \code{dGamma()}
-#' pfamilies returns an \code{n x J} matrix (one column per group); families
-#' without observation-level dispersion get \code{NULL}.
+#' Observation residual variance \eqn{\sigma^2} / \eqn{\sigma^2_j} (not RE
+#' \eqn{\tau^2}). Fixed modes return a scalar or named length-\code{J} vector;
+#' \code{dGamma()} returns length-\code{n} draws; a per-group
+#' \code{dGamma()} list returns an \code{n x J} matrix. Families without
+#' observation-level dispersion get \code{NULL}. Clears legacy
+#' \code{dispersion_ranef}/\code{sigma2} slots if present.
 #' @noRd
-.lmebayes_attach_sigma2 <- function(out, disp_info) {
+.lmebayes_attach_group_dispersion <- function(out, disp_info) {
   mode <- disp_info$mode
+  ## Drop legacy public names if an older path left them on.
+  out$dispersion_ranef <- NULL
+  out$dispersion_ranef.mean <- NULL
+  out$sigma2 <- NULL
+  out$sigma2.mean <- NULL
+
   if (identical(mode, "none")) {
-    out$sigma2 <- NULL
-    out$sigma2.mean <- NULL
+    out$group.dispersion <- NULL
+    out$group.dispersion.mean <- NULL
     return(out)
   }
   if (identical(mode, "fixed")) {
     val <- as.numeric(disp_info$dispersion_fix)
-    out$sigma2 <- val
-    out$sigma2.mean <- val
+    out$group.dispersion <- val
+    out$group.dispersion.mean <- val
     return(out)
   }
   if (identical(mode, "fixed_vector")) {
     val <- disp_info$dispersion_fix
-    out$sigma2 <- val
-    out$sigma2.mean <- val
+    out$group.dispersion <- val
+    out$group.dispersion.mean <- val
     return(out)
   }
   if (identical(mode, "gamma")) {
-    ## Fit draw field remains dispersion_ranef until a later rename pass.
-    dr <- out$dispersion_ranef
+    dr <- out$group.dispersion
     if (is.null(dr)) {
       stop(
         "Internal error: dGamma measurement dispersion requires ",
-        "'dispersion_ranef' draws on the sampler output.",
+        "'group.dispersion' draws on the sampler output.",
         call. = FALSE
       )
     }
-    out$sigma2 <- as.numeric(dr)
-    out$sigma2.mean <- mean(out$sigma2)
+    out$group.dispersion <- as.numeric(dr)
+    out$group.dispersion.mean <- mean(out$group.dispersion)
     return(out)
   }
   if (identical(mode, "gamma_list")) {
-    dr <- out$dispersion_ranef
+    dr <- out$group.dispersion
     if (is.null(dr)) {
       stop(
         "Internal error: per-group dGamma() measurement dispersion requires ",
-        "'dispersion_ranef' draws on the sampler output.",
+        "'group.dispersion' draws on the sampler output.",
         call. = FALSE
       )
     }
-    out$sigma2 <- as.matrix(dr)
-    out$sigma2.mean <- colMeans(out$sigma2)
+    out$group.dispersion <- as.matrix(dr)
+    out$group.dispersion.mean <- colMeans(out$group.dispersion)
     return(out)
   }
   stop("Unknown dispersion mode: ", mode, call. = FALSE)
 }
 
 #' @noRd
-.lmebayes_add_fixef_summaries <- function(x) {
-  if (!is.null(x$fixef)) {
-    x$fixef.means <- lapply(x$fixef, colMeans)
+.lmebayes_add_popef_summaries <- function(x) {
+  if (!is.null(x$popef)) {
+    x$popef.means <- lapply(x$popef, colMeans)
   }
-  if (!is.null(x$fixef.dispersion)) {
-    x$fixef.dispersion.mean <- colMeans(x$fixef.dispersion)
+  if (!is.null(x$popef.dispersion)) {
+    x$popef.dispersion.mean <- colMeans(x$popef.dispersion)
   }
-  if (!is.null(x$fixef.iters) && !is.null(x$m_convergence)) {
-    x$fixef.iters.mean <- colMeans(x$fixef.iters) / x$m_convergence
+  if (!is.null(x$popef.iters) && !is.null(x$m_convergence)) {
+    x$popef.iters.mean <- colMeans(x$popef.iters) / x$m_convergence
   }
-  if (!is.null(x$ranef.iters) && !is.null(x$m_convergence)) {
-    x$ranef.iters.mean <- mean(x$ranef.iters) / x$m_convergence
+  if (!is.null(x$groupef.iters) && !is.null(x$m_convergence)) {
+    x$groupef.iters.mean <- mean(x$groupef.iters) / x$m_convergence
   }
-  if (!is.null(x$sigma2.iters) && !is.null(x$m_convergence)) {
-    x$sigma2.iters.mean <- colMeans(x$sigma2.iters) / x$m_convergence
+  if (!is.null(x$group.dispersion.iters) && !is.null(x$m_convergence)) {
+    x$group.dispersion.iters.mean <-
+      colMeans(x$group.dispersion.iters) / x$m_convergence
   }
   x
+}
+
+#' Assemble a public \code{rLMM_reg}/\code{rGLMM_reg} return list
+#'
+#' Enforces group/pop slot names, nests pilot and convergence metadata, and
+#' returns components in a fixed glm/glmbayes-style order.
+#' @noRd
+.lmebayes_assemble_reg_result <- function(
+    staged,
+    call,
+    m_convergence,
+    convergence_info,
+    pfamily_list,
+    dispprior_list,
+    family,
+    groupef.mode,
+    any_non_normal,
+    design,
+    result_class,
+    parent_class,
+    draw_engine       = NULL,
+    sim_method_used   = NULL,
+    icm_info          = NULL,
+    pilot_draws       = NULL,
+    n_pilot           = NULL,
+    m_convergence_pilot = NULL,
+    pilot_chisq       = NULL,
+    pilot_ub          = NULL,
+    tv_tol            = NULL,
+    offset            = NULL,
+    weights           = 1
+) {
+  if (!is.list(convergence_info)) {
+    convergence_info <- list()
+  }
+  if (!is.null(draw_engine)) {
+    convergence_info$draw_engine <- draw_engine
+  }
+  if (!is.null(sim_method_used)) {
+    convergence_info$sim_method_used <- sim_method_used
+  }
+  if (!is.null(icm_info)) {
+    convergence_info$icm_info <- icm_info
+  }
+  if (!is.null(pilot_ub)) {
+    convergence_info$pilot_ub <- pilot_ub
+  }
+  if (!is.null(tv_tol)) {
+    convergence_info$tv_tol <- tv_tol
+  }
+
+  run_pilot <- !is.null(pilot_draws) ||
+    (!is.null(n_pilot) && is.finite(n_pilot) && as.integer(n_pilot) > 0L)
+  pilot <- if (isTRUE(run_pilot)) {
+    list(
+      n              = if (!is.null(n_pilot)) as.integer(n_pilot) else NULL,
+      m_convergence  = m_convergence_pilot,
+      chisq          = pilot_chisq,
+      draws          = pilot_draws
+    )
+  } else {
+    NULL
+  }
+
+  ## Echo glmbayes-style prior.weights / offset / offset2 (normalized).
+  ## Not yet consumed by the mixed-model sampling paths.
+  n_obs <- length(design$y)
+  prior.weights <- .lmebayes_normalize_weights(weights, n_obs)
+  offset_v <- .lmebayes_normalize_offset(offset, n_obs)
+  design$weights <- prior.weights
+  design$offset <- offset_v
+
+  ## Fixed public order (omit absent optional slots).
+  out <- list()
+  out$groupef <- staged$groupef
+  out$groupef.mode <- groupef.mode
+  if (!is.null(staged$groupef.iters)) {
+    out$groupef.iters <- staged$groupef.iters
+  }
+  out$popef <- staged$popef
+  out$popef.mode <- staged$popef.mode
+  out$popef.init <- staged$popef.init
+  if (!is.null(staged$popef.dispersion)) {
+    out$popef.dispersion <- staged$popef.dispersion
+  }
+  if (!is.null(staged$popef.iters)) {
+    out$popef.iters <- staged$popef.iters
+  }
+  if (!is.null(staged[["group.dispersion"]])) {
+    out[["group.dispersion"]] <- staged[["group.dispersion"]]
+    out[["group.dispersion.mean"]] <- staged[["group.dispersion.mean"]]
+    if (is.null(out[["group.dispersion.mean"]])) {
+      dr <- out[["group.dispersion"]]
+      out[["group.dispersion.mean"]] <- if (is.matrix(dr)) {
+        colMeans(dr)
+      } else if (length(dr) > 1L) {
+        mean(dr)
+      } else {
+        dr
+      }
+    }
+  } else if (identical(family$family, "gaussian") &&
+             !is.null(dispprior_list$dispersion)) {
+    ## Fixed observation dispersion: expose on the return even when the
+    ## sampler did not draw it.
+    out[["group.dispersion"]] <- dispprior_list$dispersion
+    out[["group.dispersion.mean"]] <- dispprior_list$dispersion
+  }
+  if (!is.null(staged[["group.dispersion.iters"]])) {
+    out[["group.dispersion.iters"]] <- staged[["group.dispersion.iters"]]
+  }
+  out$pfamily_list <- pfamily_list
+  out$dispprior_list <- dispprior_list
+  out$prior.weights <- prior.weights
+  out$offset <- offset_v
+  out$offset2 <- offset_v
+  out$any_non_normal <- any_non_normal
+  out$family <- family
+  out$design <- design
+  out$n <- staged$n
+  out$call <- call
+  out$m_convergence <- m_convergence
+  out$convergence_info <- convergence_info
+  if (!is.null(pilot)) {
+    out$pilot <- pilot
+  }
+  if (!is.null(staged$sweep_history)) {
+    out$sweep_history <- staged$sweep_history
+  }
+
+  class(out) <- unique(c(result_class, parent_class, "list"))
+  out
 }
 
 #' @noRd

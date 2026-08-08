@@ -127,14 +127,14 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = FALSE
 )
 cat("Fit done.\n")
 
-n_draws <- nrow(fit$fixef[[re_names[1L]]])
+n_draws <- nrow(fit$popef[[re_names[1L]]])
 n_group <- stats::setNames(as.numeric(table(grp)), group_levels)
 
 prior_list_block1_rate <- list(

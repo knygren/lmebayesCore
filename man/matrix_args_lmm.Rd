@@ -62,23 +62,18 @@ coefficient).}
 \item{\code{pfamily_list}}{\code{prior$pfamily_list} unchanged. The
 routed export derives its own Block~2 random-effect prior
 precision from this internally; it is not built or passed here.}
+\item{\code{dispprior_list}}{Always present; shape depends on
+\code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
+\code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
+(a scalar or named per-group numeric vector -- a \emph{known}, fixed
+observation dispersion); for \code{"gamma"} it is the pooled ING
+measurement prior list from
+\code{.lmebayes_ing_measurement_prior_list()}; for
+\code{"gamma_list"} it is the per-group ING measurement prior list
+from \code{.lmebayes_ing_measurement_prior_list_group()}.}
 \item{\code{tv_tol}}{The \code{tv_tol} argument, unchanged.}
 \item{\code{progbar}, \code{verbose}}{The \code{progbar}/\code{verbose}
 arguments, unchanged.}
-\item{\code{pop.prior_list}}{Always present, but its shape depends on
-\code{disp_info$mode}: for \code{"none"}/\code{"fixed"}/
-\code{"fixed_vector"} it is \code{list(dispersion = disp_info$dispersion_fix)}
-(a scalar or named per-group numeric vector, passed through
-unchanged -- a \emph{known}, fixed observation dispersion); for
-\code{"gamma"} it is the pooled ING measurement prior list from
-\code{.lmebayes_ing_measurement_prior_list()} (\code{mu},
-\code{Sigma}, \code{shape}, \code{rate}, \code{max_disp_perc},
-\code{disp_lower}, \code{disp_upper}); for \code{"gamma_list"} it
-is the per-group ING measurement prior list from
-\code{.lmebayes_ing_measurement_prior_list_group()} (\code{mu},
-\code{Sigma}, \code{shape_group}, \code{rate_group},
-\code{disp_lower_group}, \code{disp_upper_group},
-\code{max_disp_perc}).}
 \item{\code{gap_tol}, \code{mode_gap_max}, \code{diag_sweeps},
 \code{stage_verbose}}{Present \strong{only} when
 \code{prior$any_non_normal} is \code{TRUE} (an ING/estimated-vcov
@@ -123,7 +118,7 @@ derives its own Block~2 random-effect prior precision from
 the naming/control arguments (\code{tv_tol}, \code{progbar},
 \code{verbose}), with \code{group_name} attached to \code{group} as
 an attribute rather than a separate argument.
-\item Builds \code{args$prior_list} (the Block~1/measurement prior),
+\item Builds \code{args$dispprior_list} (the Block~1/measurement prior),
 whose \emph{shape} depends on \code{disp_info$mode}: a plain known
 \code{dispersion} value for \code{"none"}/\code{"fixed"}/
 \code{"fixed_vector"}, or a shared/per-group ING measurement prior
@@ -138,7 +133,7 @@ whose \emph{shape} depends on \code{disp_info$mode}: a plain known
 (the only route with more than one sampling engine).
 }
 It currently combines all of the above (base argument assembly,
-route-specific \code{prior_list} branching, and conditional pilot-stage/
+route-specific \code{dispprior_list} branching, and conditional pilot-stage/
 \code{sim_method} fields) into a single flat list and is a refactor
 candidate; its argument list and return shape are not yet considered
 stable.

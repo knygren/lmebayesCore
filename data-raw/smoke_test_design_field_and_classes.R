@@ -83,7 +83,7 @@ check_design <- function(fit, label, expect_classes) {
 ## --- rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS") --------
 fit1 <- rLMMNormal_reg_known_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
 )
 check_design(fit1, "rLMMNormal_reg_known_vcov(TWO_BLOCK_GIBBS)", c("rLMMNormal_reg_known_vcov", "rLMMNormal_reg"))
@@ -94,7 +94,7 @@ check_design(fit1, "rLMMNormal_reg_known_vcov(TWO_BLOCK_GIBBS)", c("rLMMNormal_r
 ## had it. Exercise this route explicitly so a regression here is caught.
 fit1b <- rLMMNormal_reg_known_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
 )
 check_design(fit1b, "rLMMNormal_reg_known_vcov(DEFAULT)", c("rLMMNormal_reg_known_vcov", "rLMMNormal_reg"))
@@ -102,7 +102,7 @@ check_design(fit1b, "rLMMNormal_reg_known_vcov(DEFAULT)", c("rLMMNormal_reg_know
 ## --- rLMMNormal_reg_estimated_vcov() ----------------------------------
 fit2 <- rLMMNormal_reg_estimated_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_est_vcov,
+  pfamily_list = pf_est_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE
 )
 check_design(fit2, "rLMMNormal_reg_estimated_vcov()", c("rLMMNormal_reg_estimated_vcov", "rLMMNormal_reg"))
@@ -110,14 +110,14 @@ check_design(fit2, "rLMMNormal_reg_estimated_vcov()", c("rLMMNormal_reg_estimate
 ## --- rLMMindepNormalGamma_reg_known_vcov()/_estimated_vcov() ----------
 fit3 <- rLMMindepNormalGamma_reg_known_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp_group, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp_group,
   progbar = FALSE, verbose = FALSE
 )
 check_design(fit3, "rLMMindepNormalGamma_reg_known_vcov()", c("rLMMindepNormalGamma_reg_known_vcov", "rLMMindepNormalGamma_reg"))
 
 fit4 <- rLMMindepNormalGamma_reg_estimated_vcov(
   n = 20L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp_group, pfamily_list = pf_est_vcov,
+  pfamily_list = pf_est_vcov, dispprior_list = prior_list_disp_group,
   progbar = FALSE, verbose = FALSE
 )
 check_design(fit4, "rLMMindepNormalGamma_reg_estimated_vcov()", c("rLMMindepNormalGamma_reg_estimated_vcov", "rLMMindepNormalGamma_reg"))
@@ -148,14 +148,14 @@ pf_est_pois    <- pfamily_list(ps_pois, ptypes = "dIndependent_Normal_Gamma")
 
 fit5 <- rGLMM_reg_known_vcov(
   n = 20L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
-  prior_list = list(), pfamily_list = pf_known_pois,
+  pfamily_list = pf_known_pois, dispprior_list = list(),
   family = poisson(), progbar = FALSE, verbose = FALSE
 )
 check_design(fit5, "rGLMM_reg_known_vcov(poisson)", c("rGLMM_reg_known_vcov", "rGLMM_reg"))
 
 fit6 <- rGLMM_reg_estimated_vcov(
   n = 20L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
-  prior_list = list(), pfamily_list = pf_est_pois,
+  pfamily_list = pf_est_pois, dispprior_list = list(),
   family = poisson(), progbar = FALSE, verbose = FALSE
 )
 check_design(fit6, "rGLMM_reg_estimated_vcov(poisson)", c("rGLMM_reg_estimated_vcov", "rGLMM_reg"))

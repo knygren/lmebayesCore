@@ -196,8 +196,8 @@ fit <- rLMMindepNormalGamma_reg_estimated_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   gap_tol      = 0.05,
   mode_gap_max = 1.0,
   diag_sweeps  = FALSE,
@@ -206,19 +206,19 @@ fit <- rLMMindepNormalGamma_reg_estimated_vcov(
 )
 
 stopifnot(isTRUE(fit$any_non_normal))
-stopifnot(is.matrix(fit$dispersion_ranef))
-stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
-stopifnot(!is.null(fit$pilot_chisq))
-stopifnot(!is.null(fit$pilot) && !is.null(fit$pilot$sweep_history))
+stopifnot(is.matrix(fit$group.dispersion))
+stopifnot(all(is.finite(fit$group.dispersion)), all(fit$group.dispersion > 0))
+stopifnot(!is.null(fit$pilot$chisq))
+stopifnot(!is.null(fit$pilot) && !is.null(fit$pilot$draws$sweep_history))
 stopifnot(!is.null(fit$sweep_history))
 
-n_draws <- nrow(fit$fixef[[re_names[1L]]])
+n_draws <- nrow(fit$popef[[re_names[1L]]])
 
 cat(sprintf(
   "\nPilot vs ICM mode (chi-squared): p = %.4g (n_pilot = %d, m_convergence_pilot = %s)\n",
-  fit$pilot_chisq$p_value,
-  fit$pilot_chisq$n_pilot,
-  format(fit$m_convergence_pilot)
+  fit$pilot$chisq$p_value,
+  fit$pilot$chisq$n_pilot,
+  format(fit$pilot$m_convergence)
 ))
 cat(sprintf("m_convergence (main) = %d\n", fit$m_convergence))
 
@@ -234,7 +234,7 @@ rows_disp <- character(0L)
 for (lev in group_levels) {
   rows_disp <- c(rows_disp, sprintf(
     "  %-6s  %10.4f  %10.4f  [%.4f, %.4f]\n",
-    lev, fit$dispersion_ranef.mean[[lev]], disp_prior_mean[[lev]],
+    lev, fit$group.dispersion.mean[[lev]], disp_prior_mean[[lev]],
     disp_lower_group[[lev]], disp_upper_group[[lev]]
   ))
 }
@@ -259,7 +259,7 @@ cat(
 cat("\n=== tau^2_k: post mean vs calibrated window ===\n\n")
 for (k in re_names) {
   pr_k <- pf[[k]]$prior_list
-  t2   <- fit$fixef.dispersion[, k]
+  t2   <- fit$popef.dispersion[, k]
   cat(sprintf(
     "  %-18s post mean = %8.4f  [window (%.4f, %.4f)]\n",
     k, mean(t2), pr_k$disp_lower, pr_k$disp_upper
@@ -290,9 +290,9 @@ se_ref  <- sqrt(diag(lmebayesCore:::.lmebayes_reference_vcov(fit_ref)))
 ## loop's own source between the header and the first data row.
 rows_fe <- character(0L)
 for (k in re_names) {
-  dm_gibbs <- colMeans(fit$fixef[[k]])
-  sd_gibbs <- apply(fit$fixef[[k]], 2L, sd)
-  icm_k    <- fit$fixef.mode[[k]]
+  dm_gibbs <- colMeans(fit$popef[[k]])
+  sd_gibbs <- apply(fit$popef[[k]], 2L, sd)
+  icm_k    <- fit$popef.mode[[k]]
   for (nm in names(dm_gibbs)) {
     fe_nm <- if (identical(k, "(Intercept)") && identical(nm, "(Intercept)")) {
       "(Intercept)"
@@ -345,8 +345,8 @@ cat(
 ##
 ## lambda_ing/omega_ing's reference precisions and residuals are ALL
 ## evaluated at the now-*completed* sampler's own posterior-mean state
-## (fit$fixef.dispersion for tau^2_k, fit$dispersion_ranef.mean for
-## sigma^2_j, fit$coefficients/fit$fixef for beta_j/gamma_k), rather than
+## (fit$popef.dispersion for tau^2_k, fit$group.dispersion.mean for
+## sigma^2_j, fit$groupef/fit$popef for beta_j/gamma_k), rather than
 ## the certified corner's P_b/disp_upper_group plug-ins or an external
 ## dispformula = ~school_id glmmTMB reference fit (fit_ref). Every quantity
 ## below therefore comes from the SAME fitted object and describes one
@@ -361,7 +361,7 @@ cat(
 ## Theorem~3/Corollary~1 exists for the extended chain.
 ## ---------------------------------------------------------------------------
 lambda_post <- stats::setNames(
-  1 / vapply(re_names, function(k) mean(fit$fixef.dispersion[, k]), numeric(1L)),
+  1 / vapply(re_names, function(k) mean(fit$popef.dispersion[, k]), numeric(1L)),
   re_names
 )
 u_post <- lmebayesCore:::.lmebayes_posterior_u(
@@ -382,7 +382,7 @@ e_post   <- lmebayesCore:::.lmebayes_posterior_group_residuals(
   group_name = design$group_name, groupef.names = re_names
 )
 omega_post <- stats::setNames(
-  1 / fit$dispersion_ranef.mean[group_levels], group_levels
+  1 / fit$group.dispersion.mean[group_levels], group_levels
 )
 omega_ing <- list(
   scope = "per_group",
@@ -426,9 +426,9 @@ print(rate_ext)
 ##     posterior-mean reference state above.
 ##
 ## Both tau^2_k and sigma^2_j are estimated here, so each of the n
-## main-stage draws has its own sampled tau^2_k (fit$fixef.dispersion[i, ])
-## AND sigma^2_j (fit$dispersion_ranef[i, ]), together with its own
-## beta_j/gamma_p (fit$coefficients/fit$fixef draw i) -- and hence its own
+## main-stage draws has its own sampled tau^2_k (fit$popef.dispersion[i, ])
+## AND sigma^2_j (fit$group.dispersion[i, ]), together with its own
+## beta_j/gamma_p (fit$groupef/fit$popef draw i) -- and hence its own
 ## u_jp/e_j. Treating the n draws as approximate posterior samples, this
 ## asks: what is the largest local rate actually realized across them,
 ## rather than at one plug-in point? Mirrors the pilot-draw pmax() scan
@@ -471,16 +471,16 @@ cat(sprintf(
 ## Combined mean-bias/Var_final-ratio charts (Claims 1 and 3 of the two-block
 ## Gibbs ergodicity reference): rLMMindepNormalGamma_reg_estimated_vcov() goes
 ## through the sweeps-outer/chains-inner pilot/main engine, so both
-## fit$pilot$sweep_history and fit$sweep_history carry cov_by_sweep (as does
+## fit$pilot$draws$sweep_history and fit$sweep_history carry cov_by_sweep (as does
 ## rLMMNormal_reg_known_vcov(sim_method = "TWO_BLOCK_GIBBS")'s single main
 ## stage now that its engine is rGLMM_sweep()-based too). Both per-group
 ## dispersion and group.Sigma are *estimated* here (that is the point of this
 ## demo), so plot_mean_convergence()/plot_var_convergence()'s fit-object
 ## methods automatically find no exact reference available and fall back to
 ## the empirical mean_final/Var_final (last-sweep cross-chain mean/
-## covariance). 'stage' selects fit$pilot$sweep_history ("pilot") or
+## covariance). 'stage' selects fit$pilot$draws$sweep_history ("pilot") or
 ## fit$sweep_history ("main"); n_chains defaults to the correct chain count
-## for each stage (fit$pilot_chisq$n_pilot vs fit$n). The pilot stage's whole
+## for each stage (fit$pilot$chisq$n_pilot vs fit$n). The pilot stage's whole
 ## job is to *recenter* the main stage's starting point away from the ICM
 ## mode, so the mean-bias chart is the more direct diagnostic there; the main
 ## stage is where the variance/uncertainty calibration check matters most --
@@ -513,20 +513,20 @@ for (stg in c("pilot", "main")) {
 ##    pilot-stage recentering moved the starting point away from the prior).
 ## ---------------------------------------------------------------------------
 cn <- unlist(lapply(re_names, function(k) {
-  paste0(k, "::", colnames(fit$fixef[[k]]))
+  paste0(k, "::", colnames(fit$popef[[k]]))
 }))
-beta_bar    <- unlist(lapply(re_names, function(k) colMeans(fit$fixef[[k]])))
-theta_icm   <- unlist(lapply(re_names, function(k) fit$fixef.mode[[k]]))
+beta_bar    <- unlist(lapply(re_names, function(k) colMeans(fit$popef[[k]])))
+theta_icm   <- unlist(lapply(re_names, function(k) fit$popef.mode[[k]]))
 theta_prior <- unlist(lapply(re_names, function(k) {
-  nms <- colnames(fit$fixef[[k]])
+  nms <- colnames(fit$popef[[k]])
   ## Raw pfamily_list() objects (unlike lmerb()'s processed fit$prior) store
   ## the Block~2 prior mean as prior_list$mu, an ncol(W[[k]]) x 1 matrix
   ## dimnamed by colnames(W[[k]]) -- not prior_list$mu.
   unname(pf[[k]]$prior_list$mu[nms, 1L])
 }))
 theta_pilot <- unlist(lapply(re_names, function(k) {
-  nms <- colnames(fit$fixef[[k]])
-  unname(fit$fixef.init[[k]][nms])
+  nms <- colnames(fit$popef[[k]])
+  unname(fit$popef.init[[k]][nms])
 }))
 names(beta_bar) <- names(theta_icm) <- names(theta_prior) <- names(theta_pilot) <- cn
 
@@ -576,24 +576,24 @@ for (stg in c("pilot", "main")) {
 ## ---------------------------------------------------------------------------
 ## 11. Random effects: MCMC mean (per group, per draw average) vs ICM mode
 ##
-## fit$coefficients: long data.frame with one row per (draw, group) -- beta_j
+## fit$groupef: long data.frame with one row per (draw, group) -- beta_j
 ## draws (the full, non-centered coefficient; see ?rLMM_reg's "Model and
-## notation" section). fit$ranef.mode is the ICM mode these Gibbs sweeps
+## notation" section). fit$groupef.mode is the ICM mode these Gibbs sweeps
 ## started from.
 ## ---------------------------------------------------------------------------
 grp_col  <- design$group_name
-grp_levs <- rownames(fit$ranef.mode)
+grp_levs <- rownames(fit$groupef.mode)
 
 re_draws_mean <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) colMeans(fit$coefficients[idx, re_names, drop = FALSE]),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) colMeans(fit$groupef[idx, re_names, drop = FALSE]),
   simplify = FALSE
 )
 re_draws_sd <- tapply(
-  seq_len(nrow(fit$coefficients)),
-  fit$coefficients[[grp_col]],
-  function(idx) apply(fit$coefficients[idx, re_names, drop = FALSE], 2L, sd),
+  seq_len(nrow(fit$groupef)),
+  fit$groupef[[grp_col]],
+  function(idx) apply(fit$groupef[idx, re_names, drop = FALSE], 2L, sd),
   simplify = FALSE
 )
 
@@ -606,7 +606,7 @@ for (lev in grp_levs) {
   for (k in re_names) {
     mcmc_m <- re_draws_mean[[lev_chr]][[k]]
     mcmc_s <- re_draws_sd[[lev_chr]][[k]]
-    icm_m  <- fit$ranef.mode[lev_chr, k]
+    icm_m  <- fit$groupef.mode[lev_chr, k]
     se_val <- mcmc_s / sqrt(n_draws)
     z_val  <- (mcmc_m - icm_m) / se_val
     rows_re <- c(rows_re, sprintf(

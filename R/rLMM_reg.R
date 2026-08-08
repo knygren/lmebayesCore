@@ -1,29 +1,31 @@
-#' Matrix-level replicate-chain Gibbs engines for Bayesian LMMs
+#' Simulation Functions for Linear Mixed Models
 #'
 #' @description
-#' Gaussian two-block LMM samplers at matrix level (\code{y}, \code{D},
-#' \code{W}, \code{pfamily_list}). Each stored draw runs
-#' \code{m_convergence} inner Gibbs sweeps (Block~1 random effects, then
-#' Block~2 hyperparameters). There is no standalone \code{rLMM()} function;
-#' use the \code{\link{rGLMM_reg}} routes via \code{\link{rglmerb}}; Gaussian LMMs
-#' use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
+#' Simulation functions for generating posterior draws from Bayesian linear
+#' mixed models, given design matrices \code{y}, \code{D}, \code{W} and
+#' population priors \code{pfamily_list}. Parallel to the glmbayes
+#' \code{\link[glmbayes]{simfuncs}} for GLMs; typically called from
+#' \code{\link{rlmerb}} (and from \code{lmerb()} in \strong{lmebayes}).
+#' Each stored draw runs \code{m_convergence} inner Gibbs sweeps (group
+#' coefficients \eqn{\beta_j}, then population hyperparameters
+#' \eqn{\gamma}/\eqn{\tau^2}), except the exact iid known-vcov route.
 #'
 #' @section Model and notation:
 #' For group \eqn{j = 1, \ldots, J} (\eqn{J = }\code{length(group_levels)}),
 #' with \eqn{n_j} observations in group \eqn{j} and \eqn{p_{re} = }
 #' \code{ncol(D)} group-varying coefficients:
 #'
-#' \strong{Likelihood (stage 1):}
+#' \strong{Likelihood (group level):}
 #' \deqn{y_j \mid \beta_j, \sigma_j^2 \ \sim\ N\bigl(D_j\beta_j,\ \sigma_j^2 I_{n_j}\bigr)}
-#' \strong{Hierarchical prior (stage 2):}
+#' \strong{Hierarchical prior (population level):}
 #' \deqn{\beta_j \mid \gamma, \Psi \ \sim\ N\bigl(\mathcal{W}_j\gamma,\ \Psi\bigr)}
 #'
 #' The full, non-centered coefficient vector \eqn{\beta_j} -- not a mean-zero
 #' deviation -- appears directly in the likelihood. This is a \emph{centered
 #' parameterization} in the sense of \insertCite{LindleySmith1972}{lmebayesCore}:
-#' \eqn{\beta_j} is the first-stage parameter, \eqn{\gamma} the second-stage
-#' (population/hyper-mean) parameter, and \eqn{\Psi} the second-stage
-#' covariance. \eqn{\mathcal{W}_j} is block-diagonal across the \eqn{p_{re}}
+#' \eqn{\beta_j} is the group parameter, \eqn{\gamma} the population
+#' (hyper-mean) parameter, and \eqn{\Psi} the population covariance.
+#' \eqn{\mathcal{W}_j} is block-diagonal across the \eqn{p_{re}}
 #' coefficient dimensions,
 #' \deqn{\mathcal{W}_j = \mathrm{blockdiag}\bigl(W_{1j}, \ldots, W_{p_{re}j}\bigr),
 #'   \qquad W_{kj} \in \mathbb{R}^{1 \times q_k},}
@@ -39,22 +41,22 @@
 #'     \eqn{W_{kj}} is row \eqn{j} of \code{W[[k]]}, so \code{W} \emph{is}
 #'     \code{list(}\eqn{W_1, \ldots, W_{p_{re}}}\code{)}, one
 #'     \eqn{J \times q_k} matrix per RE column \eqn{k}.}
-#'   \item{\eqn{\gamma}}{\code{fixef}/\code{fixef.mode} in the returned object
+#'   \item{\eqn{\gamma}}{\code{popef}/\code{popef.mode} in the returned object
 #'     (one entry per RE column, named by \code{colnames(W[[k]])}).}
-#'   \item{\eqn{\beta_j}}{The group-\eqn{j} row of \code{coefficients}/
-#'     \code{ranef.mode} -- \strong{not} \code{lme4}'s mean-zero \eqn{b_j}
+#'   \item{\eqn{\beta_j}}{The group-\eqn{j} row of \code{groupef}/
+#'     \code{groupef.mode} -- \strong{not} \code{lme4}'s mean-zero \eqn{b_j}
 #'     (see below).}
 #'   \item{\eqn{\Psi}}{Diagonal, \eqn{\Psi = \mathrm{diag}(\tau^2_1, \ldots,
 #'     \tau^2_{p_{re}})}, one \eqn{\tau^2_k} plug-in per \code{pfamily_list}
-#'     component (see \code{pfamily_list} below); \eqn{\Psi^{-1}} is exactly
-#'     the internally-derived Block~2 precision referred to as \code{P}
-#'     elsewhere in this file's internals/history.}
+#'     component (see \code{pfamily_list} below); \eqn{\Psi^{-1}} is the
+#'     internally-derived group prior precision \code{P}.}
 #'   \item{group index \eqn{j}}{\code{group} (\code{levels(group)} fixes the
 #'     order \eqn{j = 1, \ldots, J}).}
 #' }
 #'
 #' \strong{Correspondence to \code{lme4}/Laird-Ware:} marginalizing (substituting
-#' the stage-2 equation into stage 1) recovers the standard \code{lme4} form
+#' the population equation into the group likelihood) recovers the standard
+#' \code{lme4} form
 #' \deqn{y_j = D_j(\mathcal{W}_j\gamma + u_j) + \varepsilon_j =
 #'   \underbrace{(D_j\mathcal{W}_j)}_{X_j}\gamma + \underbrace{D_j}_{Z_j}u_j + \varepsilon_j,}
 #' where \eqn{u_j := \beta_j - \mathcal{W}_j\gamma} is the mean-zero deviation
@@ -64,8 +66,8 @@
 #' (random-effects design, used as-is). \eqn{\gamma} corresponds to
 #' \code{lme4}'s \eqn{\beta} (fixed effects), and \eqn{\Psi} to the per-group
 #' block of \code{lme4}'s \eqn{G} matrix (\eqn{G = I_J \otimes \Psi}); the
-#' engines documented here never materialize \eqn{u_j}/\eqn{b_j} -- \eqn{\beta_j}
-#' is sampled directly against \eqn{y_j} at every Block~1 Gibbs sweep (the
+#' functions documented here never materialize \eqn{u_j}/\eqn{b_j} -- \eqn{\beta_j}
+#' is sampled directly against \eqn{y_j} at every group-level Gibbs update (the
 #' per-group/shared-\eqn{\gamma} conjugate updates for \eqn{\beta_j} and
 #' \eqn{\gamma} are the \eqn{Z_j}/\eqn{b_j}-lettered formulas in
 #' \code{\link{lmebayes_posterior_icm}}, with \eqn{Z_j \equiv D_j} and
@@ -81,17 +83,22 @@
 #' derivation) see \code{notation.md} in \code{system.file(package =
 #' "lmebayesCore")} (source: \code{inst/notation.md}).
 #'
-#' @section Four route engines:
+#' @section Simulation routes:
 #' \describe{
 #'   \item{\code{rLMMNormal_reg_known_vcov}}{
-#'     Fixed observation \eqn{\sigma^2}; all Block~2 components \code{dNormal}
-#'     (known \eqn{\tau^2_k}).}
+#'     Fixed observation \eqn{\sigma^2}; all population components
+#'     \code{dNormal} (known \eqn{\tau^2_k}).}
 #'   \item{\code{rLMMNormal_reg_estimated_vcov}}{
-#'     Fixed \eqn{\sigma^2}; at least one ING Block~2 component.}
+#'     Fixed \eqn{\sigma^2}; at least one ING population component.}
 #'   \item{\code{rLMMindepNormalGamma_reg_known_vcov}}{
-#'     Random \eqn{\sigma^2} (per-group ING Block~1); all Block~2 \code{dNormal}.}
+#'     Random \eqn{\sigma^2} (pooled or per-group ING observation prior, with
+#'     group coefficients); all population components \code{dNormal}.}
 #'   \item{\code{rLMMindepNormalGamma_reg_estimated_vcov}}{
-#'     Random \eqn{\sigma^2}; at least one ING Block~2 component.}
+#'     Random \eqn{\sigma^2} (pooled or per-group); at least one ING population
+#'     component.}
+#'   \item{\code{rLMMindepNormalGamma_reg_*_v2}}{
+#'     Stubs: same priors, but observation \eqn{\sigma^2} is intended to update
+#'     with the population block (not yet implemented).}
 #' }
 #'
 #' @section Dispatchers:
@@ -108,11 +115,11 @@
 #'   coefficient names used to key \code{W} and \code{pfamily_list}
 #'   (there is no separate \code{groupef.names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
-#'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
-#'   separate \code{group_levels} argument. To use a level order/superset not
-#'   present in the observed data, construct \code{group} as
+#'   \code{levels(group)} fixes the row order of \code{groupef} draws -- there
+#'   is no separate \code{group_levels} argument. To use a level order/superset
+#'   not present in the observed data, construct \code{group} as
 #'   \code{factor(observed_group, levels = full_superset)} yourself. The name
-#'   used for the grouping column in \code{coefficients} (\code{group_name})
+#'   used for the grouping column in \code{groupef} (\code{group_name})
 #'   is resolved from \code{attr(group, "group_name")} if set, otherwise from
 #'   \code{group}'s own variable name via \code{substitute()} -- this only
 #'   works when \code{group} is passed as a bare variable (e.g.
@@ -122,32 +129,8 @@
 #'   one per column of \code{D}; this is \eqn{\mathcal{W}} in \dQuote{Model
 #'   and notation} below: \code{W[[k]]} is \eqn{W_k} and \code{W[[k]][j, ]}
 #'   is the block \eqn{W_{kj}} of \eqn{\mathcal{W}_j}.
-#' @param prior_list Block~1 prior: \code{list(dispersion = sigma2)} for fixed
-#'   \eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
-#'   across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
-#'   \code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
-#'   \code{length(group_levels)} giving one fixed, known dispersion per
-#'   group, matched to \code{group_levels} either positionally or by name),
-#'   \code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or,
-#'   for \code{rLMMindepNormalGamma_reg_known_vcov}/
-#'   \code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
-#'   the ING measurement-dispersion prior: (1) a single
-#'   \code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
-#'   shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
-#'   one per \code{group_levels} entry, as returned by
-#'   \code{\link{dGamma_list}()} (per-group \eqn{\sigma^2_j}) -- both
-#'   preferred, since \code{shape}/\code{rate}/\code{disp_lower}/
-#'   \code{disp_upper} are read straight from each pfamily's own
-#'   \code{prior_list} -- or (3) the legacy flat list itself
-#'   (\code{shape}/\code{rate}/\code{disp_upper}\code{[}/\code{disp_lower]},
-#'   or \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
-#'   \code{disp_upper_group}). In every case, \code{mu} and \code{Sigma} are
-#'   never read from \code{prior_list}: \code{mu} is always \eqn{W_j\gamma}
-#'   (recomputed every sweep), and \code{Sigma} is always derived internally
-#'   as \code{solve(P)} from \code{pfamily_list} (see \code{pfamily_list}
-#'   below), so it can never drift out of sync with it.
-#' @param pfamily_list Named list of Block~2 \code{pfamily} objects. The
-#'   Block~2 random-effect prior precision (formerly a separate \code{P}
+#' @param pfamily_list Named list of population \code{pfamily} objects. The
+#'   group random-effect prior precision (formerly a separate \code{P}
 #'   argument) is always derived internally from \code{pfamily_list}: one
 #'   \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
 #'   \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
@@ -155,14 +138,95 @@
 #'   matrix -- this is \eqn{\Psi^{-1}} in \dQuote{Model and notation} below.
 #'   There is no way to supply a precision inconsistent with
 #'   \code{pfamily_list}.
-#' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
+#' @param dispprior_list Observation-dispersion prior:
+#'   \code{list(dispersion = sigma2)} for fixed \eqn{\sigma^2} routes
+#'   (\code{sigma2} a single positive scalar, pooled across groups, or -- for
+#'   \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
+#'   \code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
+#'   \code{nlevels(group)} giving one fixed, known dispersion per group,
+#'   matched to \code{levels(group)} either positionally or by name);
+#'   \code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}; or,
+#'   for \code{rLMMindepNormalGamma_reg_known_vcov}/
+#'   \code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
+#'   the ING observation-dispersion prior: (1) a single
+#'   \code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
+#'   shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
+#'   one per group level, as returned by \code{\link{dGamma_list}()}
+#'   (per-group \eqn{\sigma^2_j}) -- both preferred, since
+#'   \code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper} are read
+#'   straight from each pfamily's own \code{prior_list} -- or (3) the legacy
+#'   flat list itself (\code{shape}/\code{rate}/\code{disp_upper}/
+#'   \code{disp_lower}, or \code{shape_group}/\code{rate_group}/
+#'   \code{disp_lower_group}/\code{disp_upper_group}). In every case,
+#'   group-level \code{mu} and \code{Sigma} for the random-effect coefficients
+#'   are \emph{not} read from \code{dispprior_list}: \code{mu} is always
+#'   \eqn{\mathcal{W}_j\gamma} (recomputed every sweep), and \code{Sigma} is
+#'   always derived internally as \code{solve(P)} from \code{pfamily_list}.
+#' @param offset,weights Observation offset and prior weights (glmbayes-style
+#'   formals: \code{offset = NULL}, \code{weights = 1}). Normalized to length
+#'   \code{length(y)} and echoed on the return as \code{offset}/
+#'   \code{offset2}/\code{prior.weights}. \strong{Not yet used} by the
+#'   mixed-model sampling path (ICM / sweeps still assume unit weights and
+#'   zero offset).
+#' @param icm_tol,icm_maxit ICM convergence controls for the internal population start.
 #' @param tv_tol Total-variation tolerance in \code{(0, 1)} for calibration.
 #'   Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
-#'   Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.
+#'   Theorem~3 at the ICM population start; pilot chain counts likewise.
 #' @param progbar Show a text progress bar during sampling.
 #' @param verbose Print convergence calibration / ICM lines.
 #' @param gap_tol,mode_gap_max,diag_sweeps,stage_verbose Pilot-stage controls for
 #'   \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).
+#'
+#' @return An object of class \code{c("<route>", "rLMMNormal_reg", "list")}
+#'   (or \code{c("rLMMindepNormalGamma_reg", "list")} for the legacy outer-loop
+#'   engine), where \code{<route>} is the specific export that ran (e.g.
+#'   \code{"rLMMNormal_reg_known_vcov"}). Components use package
+#'   \strong{group}/\strong{population} names (see \file{inst/notation.md}),
+#'   in glm/glmbayes-style order:
+#'   \describe{
+#'     \item{\code{groupef}}{Draws of non-centered group coefficients
+#'       \eqn{\beta_j}: a data frame with the grouping column plus one column
+#'       per \code{colnames(D)}. Each row is one group in one stored draw.}
+#'     \item{\code{groupef.mode}}{\eqn{J \times p_{re}} matrix of ICM (or
+#'       exact posterior-mean) group coefficients \eqn{\hat\beta_j}; rows
+#'       are \code{levels(group)}, columns are \code{colnames(D)}.
+#'       \strong{Not} \code{lme4}'s mean-zero \eqn{u_j}.}
+#'     \item{\code{groupef.iters}}{Optional group-level envelope iteration counts.}
+#'     \item{\code{popef}}{Named list of \code{n x q_k} matrices of population
+#'       coefficient draws \eqn{\gamma_k}.}
+#'     \item{\code{popef.mode}, \code{popef.init}}{ICM (or exact) population
+#'       point estimates and main-stage starts.}
+#'     \item{\code{popef.dispersion}, \code{popef.iters}}{Optional population
+#'       per-draw diagnostics when produced by the sampler.}
+#'     \item{\code{group.dispersion}}{Observation residual variance
+#'       \eqn{\sigma^2}/\eqn{\sigma^2_j} when present (fixed scalar/vector or
+#'       draws under a Gamma measurement prior). Optional
+#'       \code{group.dispersion.mean} / \code{group.dispersion.iters}.
+#'       Distinct from \code{popef.dispersion} (\eqn{\tau^2_k}).}
+#'     \item{\code{pfamily_list}, \code{dispprior_list}}{Population
+#'       (\code{pfamily_list}) and observation-dispersion (\code{dispprior_list})
+#'       priors that were used.}
+#'     \item{\code{prior.weights}, \code{offset}, \code{offset2}}{Normalized
+#'       copies of the \code{weights}/\code{offset} arguments (glmbayes
+#'       naming). Not yet consumed by sampling.}
+#'     \item{\code{any_non_normal}}{Whether any population component is not
+#'       \code{dNormal}.}
+#'     \item{\code{family}, \code{design}, \code{n}}{Likelihood family, matrix
+#'       inputs (\code{y}, \code{D}, \code{group}, \code{W},
+#'       \code{groupef.names}, \code{group_name}, plus echoed
+#'       \code{weights}/\code{offset}), and chain count.}
+#'     \item{\code{call}}{Matched call.}
+#'     \item{\code{m_convergence}}{Inner Gibbs sweeps per stored draw
+#'       (always \code{1L} for the exact-iid known-vcov route).}
+#'     \item{\code{convergence_info}}{Calibration details, including
+#'       \code{draw_engine}, \code{sim_method_used}, \code{icm_info}, and
+#'       optional pilot UB fields.}
+#'     \item{\code{pilot}}{When a pilot ran: list with \code{n},
+#'       \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
+#'       \code{NULL}.}
+#'     \item{\code{sweep_history}}{Main-stage sweep history when collected.}
+#'   }
+#'
 #' @references
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt
@@ -302,7 +366,7 @@ NULL
 ) {
   if (!is.list(prior_list) || is.null(prior_list$dispersion)) {
     stop(
-      fn_name, "(): 'prior_list' must contain 'dispersion' (fixed sigma^2).",
+      fn_name, "(): 'dispprior_list' must contain 'dispersion' (fixed sigma^2).",
       call. = FALSE
     )
   }
@@ -317,7 +381,7 @@ NULL
   )
   if (length(extra)) {
     stop(
-      fn_name, "(): 'prior_list' must contain fixed dispersion only; ",
+      fn_name, "(): 'dispprior_list' must contain fixed dispersion only; ",
       "unexpected fields: ", paste(extra, collapse = ", "), ".",
       call. = FALSE
     )
@@ -374,13 +438,13 @@ NULL
     fn_name = "rLMMindepNormalGamma_reg"
 ) {
   if (!is.list(prior_list)) {
-    stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
+    stop(fn_name, "(): 'dispprior_list' must be a list.", call. = FALSE)
   }
   req <- c("shape", "rate", "beta", "Inv_Dispersion")
   miss <- req[!req %in% names(prior_list)]
   if (length(miss)) {
     stop(
-      fn_name, "(): 'prior_list' must contain ",
+      fn_name, "(): 'dispprior_list' must contain ",
       paste(req, collapse = ", "), " (from dGamma()).",
       call. = FALSE
     )
@@ -396,18 +460,18 @@ NULL
   rate  <- prior_list$rate
   if (!is.numeric(shape) || length(shape) != 1L || !is.finite(shape) ||
       shape <= 0) {
-    stop(fn_name, "(): 'prior_list$shape' must be a positive scalar.",
+    stop(fn_name, "(): 'dispprior_list$shape' must be a positive scalar.",
          call. = FALSE)
   }
   if (!is.numeric(rate) || length(rate) != 1L || !is.finite(rate) ||
       rate <= 0) {
-    stop(fn_name, "(): 'prior_list$rate' must be a positive scalar.",
+    stop(fn_name, "(): 'dispprior_list$rate' must be a positive scalar.",
          call. = FALSE)
   }
   beta <- as.matrix(prior_list$beta)
   if (nrow(beta) != 1L || ncol(beta) != 1L) {
     stop(
-      fn_name, "(): 'prior_list$beta' must be a 1 x 1 matrix for ",
+      fn_name, "(): 'dispprior_list$beta' must be a 1 x 1 matrix for ",
       "observation-level dispersion.",
       call. = FALSE
     )
@@ -415,7 +479,7 @@ NULL
   if (!is.null(prior_list$disp_lower) && !is.null(prior_list$disp_upper)) {
     if (prior_list$disp_upper <= prior_list$disp_lower) {
       stop(
-        fn_name, "(): 'prior_list$disp_upper' must exceed 'disp_lower'.",
+        fn_name, "(): 'dispprior_list$disp_upper' must exceed 'disp_lower'.",
         call. = FALSE
       )
     }
@@ -430,7 +494,7 @@ NULL
     fn_name = "rLMM_reg"
 ) {
   if (!is.list(prior_list)) {
-    stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
+    stop(fn_name, "(): 'dispprior_list' must be a list.", call. = FALSE)
   }
   if (!is.null(prior_list$shape_group) || !is.null(prior_list$rate_group)) {
     shape_group <- as.numeric(prior_list$shape_group)
@@ -439,7 +503,7 @@ NULL
         any(!is.finite(shape_group)) || any(shape_group <= 0) ||
         any(!is.finite(rate_group)) || any(rate_group <= 0)) {
       stop(
-        fn_name, "(): 'prior_list$shape_group' and 'prior_list$rate_group' ",
+        fn_name, "(): 'dispprior_list$shape_group' and 'dispprior_list$rate_group' ",
         "must be positive, finite, and of the same length.",
         call. = FALSE
       )
@@ -450,7 +514,7 @@ NULL
   }
   if (is.null(prior_list$shape) || is.null(prior_list$rate)) {
     stop(
-      fn_name, "(): 'prior_list' must contain 'shape' and 'rate' ",
+      fn_name, "(): 'dispprior_list' must contain 'shape' and 'rate' ",
       "(plug-in sigma^2 = shape / rate is derived internally).",
       call. = FALSE
     )
@@ -459,7 +523,7 @@ NULL
   rate  <- as.numeric(prior_list$rate[1L])
   if (!is.finite(shape) || shape <= 0 || !is.finite(rate) || rate <= 0) {
     stop(
-      fn_name, "(): 'prior_list$shape' and 'prior_list$rate' must be positive scalars.",
+      fn_name, "(): 'dispprior_list$shape' and 'dispprior_list$rate' must be positive scalars.",
       call. = FALSE
     )
   }
@@ -647,7 +711,7 @@ NULL
 .rLMM_ing_measurement_prior_from_dGamma_pooled <- function(pf, fn_name) {
   if (!identical(pf$pfamily, "dGamma")) {
     stop(
-      fn_name, "(): a 'prior_list' pfamily object must be dGamma() (pooled ",
+      fn_name, "(): a 'dispprior_list' pfamily object must be dGamma() (pooled ",
       "measurement-dispersion prior); got \"", pf$pfamily, "\".",
       call. = FALSE
     )
@@ -657,13 +721,13 @@ NULL
   rate  <- as.numeric(pl$rate[1L])
   if (!is.finite(shape) || shape <= 0) {
     stop(
-      fn_name, "(): dGamma() 'prior_list$shape' must be a positive scalar.",
+      fn_name, "(): dGamma() 'dispprior_list$shape' must be a positive scalar.",
       call. = FALSE
     )
   }
   if (!is.finite(rate) || rate <= 0) {
     stop(
-      fn_name, "(): dGamma() 'prior_list$rate' must be a positive scalar.",
+      fn_name, "(): dGamma() 'dispprior_list$rate' must be a positive scalar.",
       call. = FALSE
     )
   }
@@ -671,14 +735,14 @@ NULL
   disp_upper <- pl$disp_upper
   if (!is.null(disp_lower) && !is.null(disp_upper) && disp_upper <= disp_lower) {
     stop(
-      fn_name, "(): dGamma() 'prior_list$disp_upper' must exceed 'disp_lower'.",
+      fn_name, "(): dGamma() 'dispprior_list$disp_upper' must exceed 'disp_lower'.",
       call. = FALSE
     )
   }
   if (is.null(disp_upper) || !is.numeric(disp_upper) || length(disp_upper) != 1L ||
       !is.finite(disp_upper) || disp_upper <= 0) {
     stop(
-      fn_name, "(): dGamma() 'prior_list$disp_upper' is required ",
+      fn_name, "(): dGamma() 'dispprior_list$disp_upper' is required ",
       "(conservative measurement-dispersion plug-in for lambda* calibration).",
       call. = FALSE
     )
@@ -699,15 +763,15 @@ NULL
   if (is.null(group_levels)) {
     stop(
       fn_name, "(): 'group_levels' is required to validate a per-group ",
-      "measurement dispersion prior_list.",
+      "measurement dispersion dispprior_list.",
       call. = FALSE
     )
   }
   nms <- names(prior_list)
   if (is.null(nms) || any(!nzchar(nms)) || !setequal(nms, group_levels)) {
     stop(
-      fn_name, "(): names(prior_list) must match every group level (",
-      paste(group_levels, collapse = ", "), ") exactly when 'prior_list' is ",
+      fn_name, "(): names(dispprior_list) must match every group level (",
+      paste(group_levels, collapse = ", "), ") exactly when 'dispprior_list' is ",
       "a named list of dGamma() pfamilies.",
       call. = FALSE
     )
@@ -794,7 +858,7 @@ NULL
     group_levels = NULL
 ) {
   if (!is.list(prior_list)) {
-    stop(fn_name, "(): 'prior_list' must be a list.", call. = FALSE)
+    stop(fn_name, "(): 'dispprior_list' must be a list.", call. = FALSE)
   }
 
   if (inherits(prior_list, "pfamily")) {
@@ -812,7 +876,7 @@ NULL
     if (is.null(group_levels)) {
       stop(
         fn_name, "(): 'group_levels' is required to validate a per-group ",
-        "measurement dispersion prior_list.",
+        "measurement dispersion dispprior_list.",
         call. = FALSE
       )
     }
@@ -820,7 +884,7 @@ NULL
     miss <- req_grp[!req_grp %in% names(prior_list)]
     if (length(miss)) {
       stop(
-        fn_name, "(): per-group 'prior_list' must contain ",
+        fn_name, "(): per-group 'dispprior_list' must contain ",
         paste(req_grp, collapse = ", "), ".",
         call. = FALSE
       )
@@ -830,7 +894,7 @@ NULL
       if (!is.numeric(v) || is.null(names(v)) ||
           !setequal(names(v), group_levels)) {
         stop(
-          fn_name, "(): 'prior_list$", nm, "' must be a numeric vector ",
+          fn_name, "(): 'dispprior_list$", nm, "' must be a numeric vector ",
           "named by every group level (", paste(group_levels, collapse = ", "),
           ").",
           call. = FALSE
@@ -838,7 +902,7 @@ NULL
       }
       if (any(!is.finite(v)) || any(v <= 0)) {
         stop(
-          fn_name, "(): 'prior_list$", nm, "' must be positive and finite ",
+          fn_name, "(): 'dispprior_list$", nm, "' must be positive and finite ",
           "for every group.",
           call. = FALSE
         )
@@ -847,7 +911,7 @@ NULL
     if (any(prior_list$disp_upper_group[group_levels] <=
             prior_list$disp_lower_group[group_levels])) {
       stop(
-        fn_name, "(): 'prior_list$disp_upper_group' must exceed ",
+        fn_name, "(): 'dispprior_list$disp_upper_group' must exceed ",
         "'disp_lower_group' for every group.",
         call. = FALSE
       )
@@ -859,7 +923,7 @@ NULL
   miss <- req[!req %in% names(prior_list)]
   if (length(miss)) {
     stop(
-      fn_name, "(): 'prior_list' must contain ",
+      fn_name, "(): 'dispprior_list' must contain ",
       paste(req, collapse = ", "),
       " (from dIndependent_Normal_Gamma()).",
       call. = FALSE
@@ -869,18 +933,18 @@ NULL
   rate  <- prior_list$rate
   if (!is.numeric(shape) || length(shape) != 1L || !is.finite(shape) ||
       shape <= 0) {
-    stop(fn_name, "(): 'prior_list$shape' must be a positive scalar.",
+    stop(fn_name, "(): 'dispprior_list$shape' must be a positive scalar.",
          call. = FALSE)
   }
   if (!is.numeric(rate) || length(rate) != 1L || !is.finite(rate) ||
       rate <= 0) {
-    stop(fn_name, "(): 'prior_list$rate' must be a positive scalar.",
+    stop(fn_name, "(): 'dispprior_list$rate' must be a positive scalar.",
          call. = FALSE)
   }
   if (!is.null(prior_list$disp_lower) && !is.null(prior_list$disp_upper)) {
     if (prior_list$disp_upper <= prior_list$disp_lower) {
       stop(
-        fn_name, "(): 'prior_list$disp_upper' must exceed 'disp_lower'.",
+        fn_name, "(): 'dispprior_list$disp_upper' must exceed 'disp_lower'.",
         call. = FALSE
       )
     }
@@ -889,7 +953,7 @@ NULL
       length(prior_list$disp_upper) != 1L || !is.finite(prior_list$disp_upper) ||
       prior_list$disp_upper <= 0) {
     stop(
-      fn_name, "(): 'prior_list$disp_upper' is required (conservative ",
+      fn_name, "(): 'dispprior_list$disp_upper' is required (conservative ",
       "measurement-dispersion plug-in for lambda* calibration).",
       call. = FALSE
     )
@@ -910,7 +974,7 @@ NULL
   if (is.null(d) || !is.numeric(d) || length(d) != 1L || !is.finite(d) ||
       d <= 0) {
     stop(
-      fn_name, "(): 'prior_list$disp_upper' is required for lambda* ",
+      fn_name, "(): 'dispprior_list$disp_upper' is required for lambda* ",
       "calibration when measurement dispersion is random.",
       call. = FALSE
     )
@@ -939,7 +1003,7 @@ NULL
     miss <- setdiff(group_levels, names(du))
     if (length(miss)) {
       stop(
-        fn_name, "(): 'prior_list$disp_upper_group' is missing group ",
+        fn_name, "(): 'dispprior_list$disp_upper_group' is missing group ",
         "level(s): ", paste(miss, collapse = ", "), ".",
         call. = FALSE
       )
@@ -948,7 +1012,7 @@ NULL
     if (any(!is.finite(w))) {
       stop(
         fn_name, "(): non-finite per-observation weights derived from ",
-        "'prior_list$disp_upper_group'.",
+        "'dispprior_list$disp_upper_group'.",
         call. = FALSE
       )
     }
@@ -1793,14 +1857,14 @@ NULL
     fixef_mode   = fixef_mode,
     fixef_init   = fixef_init
   )
-  staged$dispersion_ranef      <- sweep_out$dispersion_ranef
-  staged$dispersion_ranef.mean <- if (is.matrix(sweep_out$dispersion_ranef)) {
+  staged[["group.dispersion"]] <- sweep_out$dispersion_ranef
+  staged[["group.dispersion.mean"]] <- if (is.matrix(sweep_out$dispersion_ranef)) {
     colMeans(sweep_out$dispersion_ranef)
   } else {
     mean(sweep_out$dispersion_ranef)
   }
   if (!is.null(sweep_out$iters_sigma2_draws)) {
-    staged$sigma2.iters <- sweep_out$iters_sigma2_draws
+    staged[["group.dispersion.iters"]] <- sweep_out$iters_sigma2_draws
   }
   staged$sweep_history         <- sweep_out$sweep_history
   staged
@@ -2321,37 +2385,31 @@ NULL
     fixef_init   = fixef_init
   )
 
-  main_res$call                <- cl
-  main_res$n_pilot             <- n_pilot
-  main_res$gap_tol             <- gap_tol
-  main_res$m_convergence       <- m_convergence_used
-  main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
-  main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "rGLMM_sweep_ing_block1_ind"
-  main_res$draw_engine_call    <- quote(.rGLMM_sweep_ing_block1)
-  main_res$draw_engine_args    <- draw_engine_args
-  main_res$pfamily_list        <- pfamily_list
-  main_res$family              <- family
-  main_res$prior_list          <- ing_prior_list
-  main_res$dispersion_fix      <- dispersion_fix
-  main_res$ing_prior_list      <- ing_prior_list
-  main_res$ranef.mode          <- ranef_mode
-  main_res$icm_info            <- icm_info
-  main_res$ptypes              <- pf_summary$ptypes
-  main_res$any_non_normal      <- any_non_normal
-  main_res$design              <- design
-
-  if (run_pilot) {
-    main_res$pilot       <- pilot_res
-    main_res$pilot_chisq <- pilot_chisq
-  }
-  if (run_ub) {
-    main_res$pilot_ub <- pilot_ub
-    main_res$tv_tol   <- tv_tol
-  }
-
-  class(main_res) <- c(result_class, "rLMMindepNormalGamma_reg", "list")
-  main_res
+  .lmebayes_assemble_reg_result(
+    staged              = main_res,
+    call                = cl,
+    m_convergence       = m_convergence_used,
+    convergence_info    = convergence_info,
+    pfamily_list        = pfamily_list,
+    dispprior_list      = ing_prior_list,
+    family              = family,
+    groupef.mode        = ranef_mode,
+    any_non_normal      = any_non_normal,
+    design              = design,
+    result_class        = result_class,
+    parent_class        = "rLMMindepNormalGamma_reg",
+    draw_engine         = "rGLMM_sweep_ing_block1_ind",
+    sim_method_used     = "TWO_BLOCK_GIBBS",
+    icm_info            = icm_info,
+    pilot_draws         = if (run_pilot) pilot_res else NULL,
+    n_pilot             = if (run_pilot) n_pilot else NULL,
+    m_convergence_pilot = if (run_pilot) m_convergence_pilot else NULL,
+    pilot_chisq         = if (run_pilot) pilot_chisq else NULL,
+    pilot_ub            = if (run_ub) pilot_ub else NULL,
+    tv_tol              = if (run_ub) tv_tol else NULL,
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
 }
 
 #' Shared sampling pipeline for \code{rLMMNormal_reg_*_vcov} routes
@@ -2488,22 +2546,25 @@ NULL
     fixef_init   = fixef_mode
   )
 
-  staged$call             <- cl
-  staged$m_convergence    <- m_convergence
-  staged$convergence_info <- convergence_info
-  staged$draw_engine      <- draw_engine
-  staged$pfamily_list     <- pfamily_list
-  staged$prior_list       <- prior_list_block1
-  staged$family           <- gaussian()
-  staged$ranef.mode       <- ranef_mode
-  staged$icm_info         <- icm_info
-  staged$ptypes           <- pf_summary$ptypes
-  staged$any_non_normal   <- any_non_normal
-  staged$sim_method_used  <- "TWO_BLOCK_GIBBS"
-  staged$design           <- design
-
-  class(staged) <- c(result_class, "rLMMNormal_reg", "list")
-  staged
+  .lmebayes_assemble_reg_result(
+    staged           = staged,
+    call             = cl,
+    m_convergence    = m_convergence,
+    convergence_info = convergence_info,
+    pfamily_list     = pfamily_list,
+    dispprior_list   = prior_list_block1,
+    family           = gaussian(),
+    groupef.mode     = ranef_mode,
+    any_non_normal   = any_non_normal,
+    design           = design,
+    result_class     = result_class,
+    parent_class     = "rLMMNormal_reg",
+    draw_engine      = draw_engine,
+    sim_method_used  = "TWO_BLOCK_GIBBS",
+    icm_info         = icm_info,
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
 }
 
 #' Shared exact-iid sampling pipeline for \code{rLMMNormal_reg_known_vcov_iid}
@@ -2558,42 +2619,44 @@ NULL
     fixef_init   = out$fixef_mean
   )
 
-  staged$call             <- cl
-  staged$m_convergence    <- 1L
-  staged$convergence_info <- list(
-    method        = "exact_iid",
-    m_convergence = 1L,
-    m_min         = 0L,
-    lambda_star   = 0,
-    eigenvalues   = NULL,
-    draw_engine   = "rLMMNormal_joint_iid"
+  .lmebayes_assemble_reg_result(
+    staged           = staged,
+    call             = cl,
+    m_convergence    = 1L,
+    convergence_info = list(
+      method        = "exact_iid",
+      m_convergence = 1L,
+      m_min         = 0L,
+      lambda_star   = 0,
+      eigenvalues   = NULL
+    ),
+    pfamily_list     = pfamily_list,
+    dispprior_list   = prior_list_block1,
+    family           = gaussian(),
+    groupef.mode     = out$b_mean,
+    any_non_normal   = FALSE,
+    design           = list(
+      y             = inp$y,
+      D             = inp$D,
+      group         = factor(group, levels = inp$group_levels),
+      W             = inp$W,
+      groupef.names = inp$re_names,
+      group_name    = inp$group_name
+    ),
+    result_class     = result_class,
+    parent_class     = "rLMMNormal_reg",
+    draw_engine      = "rLMMNormal_joint_iid",
+    sim_method_used  = "DEFAULT",
+    icm_info         = list(converged = TRUE, iterations = 1L, delta = 0),
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
   )
-  staged$draw_engine     <- "rLMMNormal_joint_iid"
-  staged$pfamily_list    <- pfamily_list
-  staged$prior_list      <- prior_list_block1
-  staged$family          <- gaussian()
-  staged$ranef.mode      <- out$b_mean
-  staged$icm_info        <- list(converged = TRUE, iterations = 1L, delta = 0)
-  staged$ptypes          <- pf_summary$ptypes
-  staged$any_non_normal  <- FALSE
-  staged$sim_method_used <- "DEFAULT"
-  staged$design          <- list(
-    y             = inp$y,
-    D             = inp$D,
-    group         = factor(group, levels = inp$group_levels),
-    W             = inp$W,
-    groupef.names = inp$re_names,
-    group_name    = inp$group_name
-  )
-
-  class(staged) <- c(result_class, "rLMMNormal_reg", "list")
-  staged
 }
 
 #' @describeIn rLMM_reg Dispatcher for fixed \eqn{\sigma^2}: routes to
 #'   \code{\link{rLMMNormal_reg_known_vcov}} or
-#'   \code{\link{rLMMNormal_reg_estimated_vcov}} by Block~2 \code{pfamily_list}.
-#' @param sim_method Sampling engine for \code{rLMMNormal_reg_known_vcov}:
+#'   \code{\link{rLMMNormal_reg_estimated_vcov}} by population \code{pfamily_list}.
+#' @param sim_method Simulation method for \code{rLMMNormal_reg_known_vcov}:
 #'   \code{"DEFAULT"} (exact iid draws, see
 #'   \code{\link{rLMMNormal_reg_known_vcov_iid}}) or
 #'   \code{"TWO_BLOCK_GIBBS"} (two-block Gibbs sweeps, see
@@ -2608,8 +2671,10 @@ rLMMNormal_reg <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2627,8 +2692,10 @@ rLMMNormal_reg <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, group_levels = inp$group_levels
+    dispprior_list, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2647,13 +2714,14 @@ rLMMNormal_reg <- function(
   out
 }
 
-#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-#'   \eqn{\tau^2_k}). Dispatches on \code{sim_method}: \code{"DEFAULT"} draws
-#'   directly from the exact multivariate-normal posterior via
-#'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
-#'   burn-in, no autocorrelation between draws); \code{"TWO_BLOCK_GIBBS"}
-#'   runs \code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block
-#'   Gibbs with Theorem~3 rate calibration -- the only engine available for
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all population components
+#'   \code{dNormal} (known \eqn{\tau^2_k}). Dispatches on \code{sim_method}:
+#'   \code{"DEFAULT"} draws directly from the exact multivariate-normal
+#'   posterior via \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs
+#'   sweeps, no burn-in, no autocorrelation between draws);
+#'   \code{"TWO_BLOCK_GIBBS"} runs
+#'   \code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block Gibbs
+#'   with Theorem~3 rate calibration -- the only option available for
 #'   \code{rLMMNormal_reg_estimated_vcov} and the GLMM routes).
 #' @export
 rLMMNormal_reg_known_vcov <- function(
@@ -2662,8 +2730,10 @@ rLMMNormal_reg_known_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2688,10 +2758,11 @@ rLMMNormal_reg_known_vcov <- function(
   out
 }
 
-#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal};
-#'   exact iid draws from the closed-form multivariate-normal posterior via
-#'   \code{\link{rLMMNormal_joint_iid}} (\code{sim_method = "DEFAULT"} route
-#'   of \code{\link{rLMMNormal_reg_known_vcov}}).
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all population components
+#'   \code{dNormal}; exact iid draws from the closed-form multivariate-normal
+#'   posterior via \code{\link{rLMMNormal_joint_iid}}
+#'   (\code{sim_method = "DEFAULT"} route of
+#'   \code{\link{rLMMNormal_reg_known_vcov}}).
 #' @export
 rLMMNormal_reg_known_vcov_iid <- function(
     n,
@@ -2699,8 +2770,10 @@ rLMMNormal_reg_known_vcov_iid <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2718,8 +2791,10 @@ rLMMNormal_reg_known_vcov_iid <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, fn_name = fn_name, group_levels = inp$group_levels
+    dispprior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2727,7 +2802,7 @@ rLMMNormal_reg_known_vcov_iid <- function(
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): all Block~2 components must be dNormal(); ",
+      fn_name, "(): all population components must be dNormal(); ",
       "use rLMMNormal_reg_estimated_vcov() or rLMMNormal_reg().",
       call. = FALSE
     )
@@ -2747,9 +2822,9 @@ rLMMNormal_reg_known_vcov_iid <- function(
   )
 }
 
-#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-#'   \eqn{\tau^2_k}). Exact Theorem~3 rate calibration; two-block Gibbs
-#'   sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; all population components
+#'   \code{dNormal} (known \eqn{\tau^2_k}). Exact Theorem~3 rate calibration;
+#'   two-block Gibbs sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
 #'   \code{\link{rLMMNormal_reg_known_vcov}}).
 #' @export
 rLMMNormal_reg_known_vcov_two_bg <- function(
@@ -2758,8 +2833,10 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2777,8 +2854,10 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, fn_name = fn_name, group_levels = inp$group_levels
+    dispprior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2787,7 +2866,7 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): all Block~2 components must be dNormal(); ",
+      fn_name, "(): all population components must be dNormal(); ",
       "use rLMMNormal_reg_estimated_vcov() or rLMMNormal_reg().",
       call. = FALSE
     )
@@ -2812,11 +2891,12 @@ rLMMNormal_reg_known_vcov_two_bg <- function(
   )
 }
 
-#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; ING Block~2 (estimated \eqn{\tau^2_k}).
-#'   Optional pilot stage; conservative \code{disp_lower} rate bound.
-#'   \code{sim_method} is accepted but has no effect: variance components
-#'   are estimated here, so the joint posterior is not exactly Gaussian and
-#'   only the two-block Gibbs engine is implemented.
+#' @describeIn rLMM_reg Fixed \eqn{\sigma^2}; ING population components
+#'   (estimated \eqn{\tau^2_k}). Optional pilot stage; conservative
+#'   \code{disp_lower} rate bound. \code{sim_method} is accepted but has no
+#'   effect: variance components are estimated here, so the joint posterior
+#'   is not exactly Gaussian and only two-block Gibbs sampling is
+#'   implemented.
 #' @export
 rLMMNormal_reg_estimated_vcov <- function(
     n,
@@ -2824,8 +2904,10 @@ rLMMNormal_reg_estimated_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2849,8 +2931,10 @@ rLMMNormal_reg_estimated_vcov <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   dispersion <- .rLMM_validate_fixed_dispersion_prior_list(
-    prior_list, fn_name = fn_name, group_levels = inp$group_levels
+    dispprior_list, fn_name = fn_name, group_levels = inp$group_levels
   )
   pfamily_list <- .two_block_validate_pfamily_list(
     pfamily_list, inp$re_names, J = length(inp$group_levels)
@@ -2859,7 +2943,7 @@ rLMMNormal_reg_estimated_vcov <- function(
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): at least one Block~2 component must not be dNormal(); ",
+      fn_name, "(): at least one population component must not be dNormal(); ",
       "use rLMMNormal_reg_known_vcov() or rLMMNormal_reg().",
       call. = FALSE
     )
@@ -2886,11 +2970,11 @@ rLMMNormal_reg_estimated_vcov <- function(
   )
 }
 
-#' @describeIn rLMM_reg Legacy outer-loop engine: draws \eqn{\sigma^2} via
+#' @describeIn rLMM_reg Legacy outer-loop sampler: draws \eqn{\sigma^2} via
 #'   \code{\link[glmbayesCore]{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
 #'   replicate. Prefer \code{\link{rLMMindepNormalGamma_reg_known_vcov}} or
-#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING Block~1
-#'   sweep engine used by \code{\link{rlmerb}}.
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING
+#'   observation-dispersion path used by \code{\link{rlmerb}}.
 #' @export
 rLMMindepNormalGamma_reg <- function(
     n,
@@ -2898,8 +2982,10 @@ rLMMindepNormalGamma_reg <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -2916,9 +3002,11 @@ rLMMindepNormalGamma_reg <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
-  prior_list <- .rLMM_validate_dGamma_dispersion_prior_list(prior_list)
+  inp$offset <- offset
+  inp$weights <- weights
+  dispprior_list <- .rLMM_validate_dGamma_dispersion_prior_list(dispprior_list)
   dispersion_fix <- .rLMM_dispersion_fix_from_prior_list(
-    prior_list, fn_name = "rLMMindepNormalGamma_reg"
+    dispprior_list, fn_name = "rLMMindepNormalGamma_reg"
   )
 
   pfamily_list <- .two_block_validate_pfamily_list(
@@ -3013,7 +3101,7 @@ rLMMindepNormalGamma_reg <- function(
       n           = 1L,
       y           = inp$y,
       x           = x_disp,
-      prior_list  = prior_list,
+      prior_list  = dispprior_list,
       offset      = mu_hat,
       weights     = wt,
       family      = gaussian(),
@@ -3050,24 +3138,24 @@ rLMMindepNormalGamma_reg <- function(
     )
 
     for (k in re_names) {
-      fixef_draws[[k]][i, ] <- lmm_i$fixef[[k]][1L, ]
+      fixef_draws[[k]][i, ] <- lmm_i$popef[[k]][1L, ]
     }
-    coef_parts[[i]] <- lmm_i$coefficients
-    fixef_cur <- lapply(lmm_i$fixef, function(m) {
+    coef_parts[[i]] <- lmm_i$groupef
+    fixef_cur <- lapply(lmm_i$popef, function(m) {
       stats::setNames(m[1L, ], colnames(m))
     })
     b_mat <- .rLMM_b_matrix_from_coefficients(
-      lmm_i$coefficients,
+      lmm_i$groupef,
       re_names,
       inp$group_levels,
       inp$group_name
     )
     if (i == 1L) {
-      disp_fixef_draws  <- lmm_i$fixef.dispersion
-      iters_fixef_draws <- lmm_i$fixef.iters
+      disp_fixef_draws  <- lmm_i$popef.dispersion
+      iters_fixef_draws <- lmm_i$popef.iters
     } else {
-      disp_fixef_draws  <- rbind(disp_fixef_draws, lmm_i$fixef.dispersion)
-      iters_fixef_draws <- rbind(iters_fixef_draws, lmm_i$fixef.iters)
+      disp_fixef_draws  <- rbind(disp_fixef_draws, lmm_i$popef.dispersion)
+      iters_fixef_draws <- rbind(iters_fixef_draws, lmm_i$popef.iters)
     }
 
     if (isTRUE(progbar) && n > 1L) {
@@ -3102,31 +3190,42 @@ rLMMindepNormalGamma_reg <- function(
     fixef_mode   = fixef_start,
     fixef_init   = fixef_start
   )
+  staged[["group.dispersion"]] <- dispersion_ranef_draws
+  staged[["group.dispersion.mean"]] <- mean(dispersion_ranef_draws)
 
-  staged$call                  <- cl
-  staged$m_convergence         <- m_convergence
-  staged$convergence_info      <- convergence_info
-  staged$draw_engine           <- "rLMMindepNormalGamma_reg_outer"
-  staged$pfamily_list          <- pfamily_list
-  staged$prior_list            <- prior_list
-  staged$dispersion_prior_list <- prior_list
-  staged$dispersion_ranef      <- dispersion_ranef_draws
-  staged$dispersion_ranef.mean <- mean(dispersion_ranef_draws)
-  staged$family                <- gaussian()
-  staged$ranef.mode            <- ranef_mode
-  staged$icm_info              <- icm_info
-  staged$P                     <- P
-  staged$dispersion_fix          <- dispersion_fix
-  staged$ptypes         <- pf_summary$ptypes
-  staged$any_non_normal <- pf_summary$any_non_normal
-
-  class(staged) <- c("rLMMindepNormalGamma_reg", "list")
-  staged
+  .lmebayes_assemble_reg_result(
+    staged           = staged,
+    call             = cl,
+    m_convergence    = m_convergence,
+    convergence_info = convergence_info,
+    pfamily_list     = pfamily_list,
+    dispprior_list   = dispprior_list,
+    family           = gaussian(),
+    groupef.mode     = ranef_mode,
+    any_non_normal   = pf_summary$any_non_normal,
+    design           = list(
+      y             = inp$y,
+      D             = inp$D,
+      group         = factor(group, levels = inp$group_levels),
+      W             = inp$W,
+      groupef.names = re_names,
+      group_name    = inp$group_name
+    ),
+    result_class     = "rLMMindepNormalGamma_reg",
+    parent_class     = "rLMMindepNormalGamma_reg",
+    draw_engine      = "rLMMindepNormalGamma_reg_outer",
+    sim_method_used  = "TWO_BLOCK_GIBBS",
+    icm_info         = icm_info,
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
 }
 
-#' @describeIn rLMM_reg Random \eqn{\sigma^2} (per-group ING Block~1); all
-#'   Block~2 \code{dNormal}. Used by \code{\link{rlmerb}} when
-#'   \code{dispersion_ranef} is dGamma and Block~2 is all \code{dNormal}.
+#' @describeIn rLMM_reg Random \eqn{\sigma^2} (pooled or per-group ING
+#'   observation prior, drawn jointly with group coefficients); all population
+#'   components \code{dNormal}. Used by \code{\link{rlmerb}} when
+#'   \code{group.dispersion} is \code{dGamma()} / \code{dGamma_list()} and
+#'   population priors are all \code{dNormal}.
 #' @export
 rLMMindepNormalGamma_reg_known_vcov <- function(
     n,
@@ -3134,8 +3233,10 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -3153,8 +3254,10 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
-    prior_list, length(inp$re_names), fn_name = fn_name,
+    dispprior_list, length(inp$re_names), fn_name = fn_name,
     group_levels = inp$group_levels
   )
 
@@ -3164,13 +3267,13 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
   P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   ## The shared random-effects covariance every group's beta_j prior uses is
   ## always Psi = solve(P) -- P already derived above from pfamily_list --
-  ## never a value read from 'prior_list' (see
+  ## never a value read from 'dispprior_list' (see
   ## .rLMM_validate_ing_measurement_prior_list()'s header comment).
   ing_prior_list$Sigma <- solve(P)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (!pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): all Block~2 components must be dNormal(); ",
+      fn_name, "(): all population components must be dNormal(); ",
       "use rLMMindepNormalGamma_reg_estimated_vcov().",
       call. = FALSE
     )
@@ -3195,9 +3298,11 @@ rLMMindepNormalGamma_reg_known_vcov <- function(
   )
 }
 
-#' @describeIn rLMM_reg Random \eqn{\sigma^2} (per-group ING Block~1); ING Block~2.
-#'   Pilot/UB calibration via sweep-outer engine. Default path for
-#'   \code{\link{rlmerb}} with dGamma \code{dispersion_ranef} and ING Block~2.
+#' @describeIn rLMM_reg Random \eqn{\sigma^2} (pooled or per-group ING
+#'   observation prior, drawn jointly with group coefficients); ING population
+#'   components. Pilot/UB calibration via the sweep-outer sampler. Default path
+#'   for \code{\link{rlmerb}} with \code{dGamma()} / \code{dGamma_list()}
+#'   \code{group.dispersion} and ING population priors.
 #' @export
 rLMMindepNormalGamma_reg_estimated_vcov <- function(
     n,
@@ -3205,8 +3310,10 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
     icm_tol         = 1e-10,
     icm_maxit       = 200L,
     tv_tol          = 0.01,
@@ -3228,8 +3335,10 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     n, y, D, W, tv_tol,
     group_name, group
   )
+  inp$offset <- offset
+  inp$weights <- weights
   ing_prior_list <- .rLMM_validate_ing_measurement_prior_list(
-    prior_list, length(inp$re_names), fn_name = fn_name,
+    dispprior_list, length(inp$re_names), fn_name = fn_name,
     group_levels = inp$group_levels
   )
 
@@ -3239,13 +3348,13 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
   P <- .rLMM_P_from_pfamily_list(pfamily_list, inp$re_names)
   ## The shared random-effects covariance every group's beta_j prior uses is
   ## always Psi = solve(P) -- P already derived above from pfamily_list --
-  ## never a value read from 'prior_list' (see
+  ## never a value read from 'dispprior_list' (see
   ## .rLMM_validate_ing_measurement_prior_list()'s header comment).
   ing_prior_list$Sigma <- solve(P)
   pf_summary <- .two_block_summarize_pfamily_list(pfamily_list)
   if (pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): at least one Block~2 component must not be dNormal(); ",
+      fn_name, "(): at least one population component must not be dNormal(); ",
       "use rLMMindepNormalGamma_reg_known_vcov().",
       call. = FALSE
     )
@@ -3289,14 +3398,83 @@ rLMMindepNormalGamma_reg_estimated_vcov <- function(
     dispersion_fixef_draws = v2_out$dispersion_fixef_draws,
     iters_fixef_draws      = v2_out$iters_fixef_draws,
     iters_ranef_draws      = v2_out$iters_ranef_draws,
-    mu_all_last            = v2_out$mu_all_last,
-    groupef.names          = re_names,
-    group_levels           = group_levels,
     n                      = n
   )
   .two_block_as_staged_names(
     x,
     fixef_mode = fixef_mode,
     fixef_init = fixef_init
+  )
+}
+
+#' Shared stub body for \code{rLMMindepNormalGamma_reg_*_v2} exports
+#' @noRd
+.rLMMindepNormalGamma_reg_v2_not_implemented <- function(fn_name) {
+  stop(
+    fn_name, "(): not implemented yet. Intended Gibbs partition draws ",
+    "observation dispersion with the population block (Gaussian group ",
+    "update at fixed Omega), instead of joint ING with group coefficients. ",
+    "See system.file('DERIVATION_sigma2_with_block2_v2.md', package = ",
+    "'lmebayesCore') for lambda*/eigenvalue formula changes. Use ",
+    "rLMMindepNormalGamma_reg_known_vcov() / ",
+    "rLMMindepNormalGamma_reg_estimated_vcov() for the current sampler.",
+    call. = FALSE
+  )
+}
+
+#' @describeIn rLMM_reg \strong{v2 (stub).} Random \eqn{\sigma^2} (pooled or
+#'   per-group), but drawn with the \strong{population} block; group block is
+#'   Gaussian at fixed \eqn{\Omega=1/\sigma^2}. Same formals as
+#'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}}. Sampling not yet
+#'   implemented; see \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
+#' @export
+rLMMindepNormalGamma_reg_known_vcov_v2 <- function(
+    n,
+    y,
+    D,
+    group,
+    W,
+    pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
+    icm_tol         = 1e-10,
+    icm_maxit       = 200L,
+    tv_tol          = 0.01,
+    progbar         = TRUE,
+    verbose         = FALSE
+) {
+  .rLMMindepNormalGamma_reg_v2_not_implemented(
+    "rLMMindepNormalGamma_reg_known_vcov_v2"
+  )
+}
+
+#' @describeIn rLMM_reg \strong{v2 (stub).} Random \eqn{\sigma^2} with the
+#'   population block (and ING population components). Same formals as
+#'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}. Sampling not yet
+#'   implemented; see \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
+#' @export
+rLMMindepNormalGamma_reg_estimated_vcov_v2 <- function(
+    n,
+    y,
+    D,
+    group,
+    W,
+    pfamily_list,
+    dispprior_list,
+    offset          = NULL,
+    weights         = 1,
+    icm_tol         = 1e-10,
+    icm_maxit       = 200L,
+    tv_tol          = 0.01,
+    progbar         = TRUE,
+    verbose         = FALSE,
+    gap_tol         = 0.0196,
+    mode_gap_max    = 1.0,
+    diag_sweeps     = FALSE,
+    stage_verbose   = FALSE
+) {
+  .rLMMindepNormalGamma_reg_v2_not_implemented(
+    "rLMMindepNormalGamma_reg_estimated_vcov_v2"
   )
 }

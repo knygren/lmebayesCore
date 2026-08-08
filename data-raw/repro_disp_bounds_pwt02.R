@@ -75,28 +75,28 @@ summary(fit)
 
 stopifnot(inherits(fit, "lmerb"))
 stopifnot(identical(fit$prior$dispersion_mode, "gamma"))
-stopifnot(identical(fit$draw_engine, "rGLMM_sweep_ing_block1_ind"))
+stopifnot(identical(fit$convergence_info$draw_engine, "rGLMM_sweep_ing_block1_ind"))
 
 re_names <- fit$model_setup$re_coef_names
 stopifnot(identical(re_names, expected_re))
-stopifnot(identical(nrow(fit$fixef[[re_names[1L]]]), N_DGAMMA))
-stopifnot(!is.null(fit$pilot_chisq))
-stopifnot(is.finite(fit$pilot_chisq$p_value))
+stopifnot(identical(nrow(fit$popef[[re_names[1L]]]), N_DGAMMA))
+stopifnot(!is.null(fit$pilot$chisq))
+stopifnot(is.finite(fit$pilot$chisq$p_value))
 
 # Block~1 sigma^2 draws (dGamma measurement dispersion)
-stopifnot(is.numeric(fit$sigma2), length(fit$sigma2) == N_DGAMMA)
-stopifnot(is.finite(fit$sigma2.mean))
+stopifnot(is.numeric(fit$group.dispersion), length(fit$group.dispersion) == N_DGAMMA)
+stopifnot(is.finite(fit$group.dispersion.mean))
 cat(sprintf(
   "sigma2: mean = %.4f, sd = %.4f\n",
-  fit$sigma2.mean, stats::sd(fit$sigma2)
+  fit$group.dispersion.mean, stats::sd(fit$group.dispersion)
 ))
 
 cat(sprintf(
   "\nPilot vs mode: p = %.4g (n_pilot = %d, m_convergence = %d, m_pilot = %s)\n",
-  fit$pilot_chisq$p_value,
-  fit$pilot_chisq$n_pilot,
+  fit$pilot$chisq$p_value,
+  fit$pilot$chisq$n_pilot,
   fit$m_convergence,
-  if (is.null(fit$m_convergence_pilot)) NA else fit$m_convergence_pilot
+  if (is.null(fit$pilot$m_convergence)) NA else fit$pilot$m_convergence
 ))
 
 cat("\ntest_lmerb_dgamma_small5_validation: OK\n")

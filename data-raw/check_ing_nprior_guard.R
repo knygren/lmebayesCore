@@ -25,7 +25,7 @@ shape_ok <- (20 + 1 + 2) / 2
 pf_ok <- dIndependent_Normal_Gamma(mu = mu, Sigma = Sigma,
                                    shape = shape_ok, rate = shape_ok)
 fit <- rlmb(n = 25, y = y, x = x, pfamily = pf_ok, progbar = FALSE)
-stopifnot(is.matrix(fit$coefficients), nrow(fit$coefficients) == 25L)
+stopifnot(is.matrix(fit$groupef), nrow(fit$groupef) == 25L)
 cat("2. compliant prior (n_prior = n_w = 20) samples: OK\n")
 
 cat("\nAll n_prior guard checks passed.\n")

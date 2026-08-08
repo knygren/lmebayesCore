@@ -12,7 +12,7 @@
 ## Block~2 pfamily component is dNormal(), so tau^2_k is fixed, not
 ## sampled).
 ##
-## rLMMNormal_reg_known_vcov()'s 'prior_list$dispersion' accepts either a
+## rLMMNormal_reg_known_vcov()'s 'dispprior_list$dispersion' accepts either a
 ## single positive scalar (Ex_10) or a length-J named vector, one known
 ## value per group level (.rLMM_validate_fixed_dispersion_vector();
 ## equivalently lmerb()'s 4th 'group.dispersion' mode, "fixed_vector", see
@@ -183,13 +183,13 @@ fit_iid <- rLMMNormal_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = TRUE,
   sim_method   = "DEFAULT"
 )
-cat(sprintf("\nsim_method_used (fit_iid): %s\n", fit_iid$sim_method_used))
+cat(sprintf("\nsim_method_used (fit_iid): %s\n", fit_iid$convergence_info$sim_method_used))
 
 fit_gibbs <- rLMMNormal_reg_known_vcov(
   n            = 10000L,
@@ -197,16 +197,16 @@ fit_gibbs <- rLMMNormal_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = TRUE,
   sim_method   = "TWO_BLOCK_GIBBS"
 )
 cat(sprintf("sim_method_used (fit_gibbs): %s (m_convergence = %d)\n",
-            fit_gibbs$sim_method_used, fit_gibbs$m_convergence))
+            fit_gibbs$convergence_info$sim_method_used, fit_gibbs$m_convergence))
 
-n_draws <- nrow(fit_iid$fixef[[re_names[1L]]])
+n_draws <- nrow(fit_iid$popef[[re_names[1L]]])
 
 ## ---------------------------------------------------------------------------
 ## 6. Block 2 fixed effects: DEFAULT (iid) vs TWO_BLOCK_GIBBS draws means vs
@@ -234,11 +234,11 @@ se_ref  <- sqrt(diag(lmebayesCore:::.lmebayes_reference_vcov(fit_ref)))
 ## loop's own source between the header and the first data row.
 rows_fe <- character(0L)
 for (k in re_names) {
-  dm_iid   <- colMeans(fit_iid$fixef[[k]])
-  sd_iid   <- apply(fit_iid$fixef[[k]], 2L, sd)
-  dm_gibbs <- colMeans(fit_gibbs$fixef[[k]])
-  sd_gibbs <- apply(fit_gibbs$fixef[[k]], 2L, sd)
-  icm_k    <- fit_iid$fixef.mode[[k]]
+  dm_iid   <- colMeans(fit_iid$popef[[k]])
+  sd_iid   <- apply(fit_iid$popef[[k]], 2L, sd)
+  dm_gibbs <- colMeans(fit_gibbs$popef[[k]])
+  sd_gibbs <- apply(fit_gibbs$popef[[k]], 2L, sd)
+  icm_k    <- fit_iid$popef.mode[[k]]
   for (nm in names(dm_iid)) {
     fe_nm <- if (identical(k, "(Intercept)") && identical(nm, "(Intercept)")) {
       "(Intercept)"
@@ -296,7 +296,7 @@ cat(
 ## dispatch on fit_gibbs's own class (rLMMNormal_reg_known_vcov(): both
 ## dispersion and vcov fixed) and resolve the exact reference mean/covariance
 ## (via lmerb_posterior_mean()/lmerb_posterior_covariance()) from
-## fit_gibbs$design/$prior_list/$pfamily_list automatically --
+## fit_gibbs$design/$dispprior_list/$pfamily_list automatically --
 ## fit_gibbs$prior_list$dispersion is already the length-J disp_known vector
 ## passed to rLMMNormal_reg_known_vcov() above. n_chains defaults to
 ## fit_gibbs$n. There is no pilot stage for this route (single main stage
@@ -325,33 +325,33 @@ plot_var_convergence(fit_gibbs, whitened = TRUE)
 ## instead of an lme4::lmer() fit.
 ## ---------------------------------------------------------------------------
 grp_col  <- design$group_name
-grp_levs <- rownames(fit_iid$ranef.mode)
+grp_levs <- rownames(fit_iid$groupef.mode)
 
 ## Per-group, per-RE-component mean/SD of beta_j across each engine's own
 ## draws (fit_*$coefficients: long data.frame, one row per (draw, group)) --
 ## same construction as Ex_10/Ex_12/Ex_13/Ex_14's "MCMC mean vs ICM" tables.
 re_draws_mean_iid <- tapply(
-  seq_len(nrow(fit_iid$coefficients)),
-  fit_iid$coefficients[[grp_col]],
-  function(idx) colMeans(fit_iid$coefficients[idx, re_names, drop = FALSE]),
+  seq_len(nrow(fit_iid$groupef)),
+  fit_iid$groupef[[grp_col]],
+  function(idx) colMeans(fit_iid$groupef[idx, re_names, drop = FALSE]),
   simplify = FALSE
 )
 re_draws_sd_iid <- tapply(
-  seq_len(nrow(fit_iid$coefficients)),
-  fit_iid$coefficients[[grp_col]],
-  function(idx) apply(fit_iid$coefficients[idx, re_names, drop = FALSE], 2L, sd),
+  seq_len(nrow(fit_iid$groupef)),
+  fit_iid$groupef[[grp_col]],
+  function(idx) apply(fit_iid$groupef[idx, re_names, drop = FALSE], 2L, sd),
   simplify = FALSE
 )
 re_draws_mean_gibbs <- tapply(
-  seq_len(nrow(fit_gibbs$coefficients)),
-  fit_gibbs$coefficients[[grp_col]],
-  function(idx) colMeans(fit_gibbs$coefficients[idx, re_names, drop = FALSE]),
+  seq_len(nrow(fit_gibbs$groupef)),
+  fit_gibbs$groupef[[grp_col]],
+  function(idx) colMeans(fit_gibbs$groupef[idx, re_names, drop = FALSE]),
   simplify = FALSE
 )
 re_draws_sd_gibbs <- tapply(
-  seq_len(nrow(fit_gibbs$coefficients)),
-  fit_gibbs$coefficients[[grp_col]],
-  function(idx) apply(fit_gibbs$coefficients[idx, re_names, drop = FALSE], 2L, sd),
+  seq_len(nrow(fit_gibbs$groupef)),
+  fit_gibbs$groupef[[grp_col]],
+  function(idx) apply(fit_gibbs$groupef[idx, re_names, drop = FALSE], 2L, sd),
   simplify = FALSE
 )
 
@@ -403,7 +403,7 @@ for (lev in grp_levs) {
   glmm_k <- vapply(re_names, function(k) {
     mu_all_ref[k, lev] + (coef_raw[lev, k] - coef_anchor[[k]])
   }, numeric(1L))
-  icm_k <- unname(fit_iid$ranef.mode[lev, re_names])
+  icm_k <- unname(fit_iid$groupef.mode[lev, re_names])
   for (i in seq_along(re_names)) {
     k        <- re_names[[i]]
     dm_iid   <- re_draws_mean_iid[[lev]][[k]]

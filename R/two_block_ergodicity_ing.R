@@ -442,31 +442,31 @@ print.two_block_rate_ing <- function(x, ...) {
 ## describe one mutually-consistent reference state.
 
 #' Posterior-mean per-group coefficients from a completed \code{rLMM_reg}/
-#' \code{rGLMM_reg} fit's \code{$coefficients} draws
+#' \code{rGLMM_reg} fit's \code{$groupef} draws
 #'
-#' @param fit A fitted object with a \code{coefficients} data frame (one row
+#' @param fit A fitted object with a \code{groupef} data frame (one row
 #'   per (draw, group)), as returned by the matrix-level \code{rLMM_reg}/
 #'   \code{rGLMM_reg} exports.
 #' @param group_name Name of the grouping-factor column in
-#'   \code{fit$coefficients}.
+#'   \code{fit$groupef}.
 #' @param groupef.names Random coefficient names (columns of
-#'   \code{fit$coefficients} and of \code{D}).
-#' @return Named list (one entry per group level in \code{fit$coefficients})
+#'   \code{fit$groupef} and of \code{D}).
+#' @return Named list (one entry per group level in \code{fit$groupef})
 #'   of posterior-mean coefficient vectors (length \code{length(groupef.names)}).
 #' @keywords internal
 #' @noRd
 .lmebayes_posterior_mean_group_coef <- function(fit, group_name, groupef.names) {
-  co <- fit$coefficients
+  co <- fit$groupef
   if (is.null(co) || is.null(co[[group_name]])) {
     stop(
-      "fit$coefficients must contain a '", group_name, "' grouping column.",
+      "fit$groupef must contain a '", group_name, "' grouping column.",
       call. = FALSE
     )
   }
   missing_coefs <- setdiff(groupef.names, colnames(co))
   if (length(missing_coefs) > 0L) {
     stop(
-      "fit$coefficients is missing column(s): ",
+      "fit$groupef is missing column(s): ",
       paste(missing_coefs, collapse = ", "),
       call. = FALSE
     )
@@ -495,7 +495,7 @@ print.two_block_rate_ing <- function(x, ...) {
   beta_mat <- do.call(rbind, beta_bar)
   rownames(beta_mat) <- levs
   gamma_bar <- stats::setNames(
-    lapply(groupef.names, function(k) colMeans(fit$fixef[[k]])),
+    lapply(groupef.names, function(k) colMeans(fit$popef[[k]])),
     groupef.names
   )
   u <- as.data.frame(beta_mat)
@@ -514,7 +514,7 @@ print.two_block_rate_ing <- function(x, ...) {
 #' @param D Level-1 design matrix (as in \code{design$D}).
 #' @param group Grouping factor, length \code{length(y)}, aligned to
 #'   \code{y}/\code{D}.
-#' @return Named list (one entry per group level in \code{fit$coefficients})
+#' @return Named list (one entry per group level in \code{fit$groupef})
 #'   of numeric residual vectors \eqn{e_j}.
 #' @keywords internal
 #' @noRd
@@ -544,8 +544,8 @@ print.two_block_rate_ing <- function(x, ...) {
 ## loop-and-pmax() pattern (R/two_block_glmm_pilot_helpers.R), but (a) runs
 ## over the *main*-stage draws already returned by rLMM*_reg()/rGLMM_reg()
 ## rather than a separate pilot batch, and (b) plugs each draw's own sampled
-## RE-precision (fit$fixef.dispersion) and/or per-group measurement precision
-## (fit$dispersion_ranef) into the *extended* two_block_rate_ing() system,
+## RE-precision (fit$popef.dispersion) and/or per-group measurement precision
+## (fit$group.dispersion) into the *extended* two_block_rate_ing() system,
 ## rather than holding those at a fixed pilot-corner value and only letting
 ## beta vary. Treats the n returned draws as approximate posterior samples
 ## and asks: what is the largest local rate actually realized across them?
@@ -562,23 +562,23 @@ print.two_block_rate_ing <- function(x, ...) {
 #' \code{colMeans()} over whatever rows they are given) returns that draw's
 #' own values unchanged -- no separate per-draw residual code is needed.
 #'
-#' @param fit A fitted object with \code{$coefficients} (data frame with a
-#'   \code{draw} column) and \code{$fixef} (named list of \code{n x p_k}
+#' @param fit A fitted object with \code{$groupef} (data frame with a
+#'   \code{draw} column) and \code{$popef} (named list of \code{n x p_k}
 #'   matrices), as returned by the matrix-level \code{rLMM_reg}/
 #'   \code{rGLMM_reg} exports.
 #' @param i Integer draw index (\code{1..fit$n}).
-#' @return List with \code{coefficients} (that draw's rows only) and
-#'   \code{fixef} (that draw's row from each component, as 1-row matrices).
+#' @return List with \code{groupef} (that draw's rows only) and
+#'   \code{popef} (that draw's row from each component, as 1-row matrices).
 #' @keywords internal
 #' @noRd
 .lmebayes_fit_at_draw <- function(fit, i) {
-  co <- fit$coefficients
+  co <- fit$groupef
   if (is.null(co) || is.null(co[["draw"]])) {
-    stop("fit$coefficients must contain a 'draw' column.", call. = FALSE)
+    stop("fit$groupef must contain a 'draw' column.", call. = FALSE)
   }
   list(
-    coefficients = co[co[["draw"]] == i, , drop = FALSE],
-    fixef        = lapply(fit$fixef, function(m) m[i, , drop = FALSE])
+    groupef = co[co[["draw"]] == i, , drop = FALSE],
+    popef   = lapply(fit$popef, function(m) m[i, , drop = FALSE])
   )
 }
 
@@ -587,9 +587,9 @@ print.two_block_rate_ing <- function(x, ...) {
 #'
 #' Evaluates \code{\link{two_block_rate_ing}} once per main-stage draw
 #' (treating the draws as approximate posterior samples), plugging in that
-#' draw's own sampled RE precision (\code{1 / fit$fixef.dispersion[i, ]}, if
+#' draw's own sampled RE precision (\code{1 / fit$popef.dispersion[i, ]}, if
 #' \code{lambda_spec} is supplied) and/or per-group measurement precision
-#' (\code{1 / fit$dispersion_ranef[i, ]}, if \code{omega_spec} is supplied)
+#' (\code{1 / fit$group.dispersion[i, ]}, if \code{omega_spec} is supplied)
 #' together with that draw's own \eqn{u_{jp}}/\eqn{e_j} residuals (via
 #' \code{\link{.lmebayes_fit_at_draw}}). Tracks the pointwise maximum
 #' eigenvalues and the largest \code{lambda_star} across all draws -- an
@@ -597,9 +597,9 @@ print.two_block_rate_ing <- function(x, ...) {
 #' pilot-draw scan, but for the extended system and the main-stage output.
 #'
 #' @param fit A fitted object as returned by the matrix-level
-#'   \code{rLMM_reg}/\code{rGLMM_reg} exports (needs \code{$coefficients},
-#'   \code{$fixef}, and -- as required by \code{lambda_spec}/\code{omega_spec}
-#'   -- \code{$fixef.dispersion}/\code{$dispersion_ranef}).
+#'   \code{rLMM_reg}/\code{rGLMM_reg} exports (needs \code{$groupef},
+#'   \code{$popef}, and -- as required by \code{lambda_spec}/\code{omega_spec}
+#'   -- \code{$popef.dispersion}/\code{$group.dispersion}).
 #' @param n_draws Number of main-stage draws to scan (typically \code{fit$n}).
 #' @param x,block,x_hyper,prior_list_block1,prior_list_block2,family,group_levels
 #'   As in \code{\link{two_block_rate_ing}}; held fixed across draws (only
@@ -655,7 +655,7 @@ print.two_block_rate_ing <- function(x, ...) {
       u_i <- .lmebayes_posterior_u(fit_i, group_name, groupef.names, x_hyper)
       lambda_ing_i <- stats::setNames(lapply(lambda_names, function(k) {
         list(
-          lambda = 1 / fit$fixef.dispersion[i, k],
+          lambda = 1 / fit$popef.dispersion[i, k],
           shape  = lambda_spec[[k]]$shape,
           u      = stats::setNames(u_i[[k]], rownames(u_i))
         )
@@ -668,7 +668,7 @@ print.two_block_rate_ing <- function(x, ...) {
         fit_i, y = y, D = D, group = block, group_name = group_name,
         groupef.names = groupef.names
       )
-      omega_i <- 1 / fit$dispersion_ranef[i, group_levels]
+      omega_i <- 1 / fit[["group.dispersion"]][i, group_levels]
       names(omega_i) <- group_levels
       omega_ing_i <- list(
         scope = omega_spec$scope,

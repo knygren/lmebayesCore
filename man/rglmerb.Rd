@@ -35,7 +35,7 @@ required positive scalar for \code{family = gaussian()}, or a
 \code{NULL} (default) for \code{poisson()} and \code{binomial()}.}
 
 \item{gap_tol}{Legacy mode--mean gap for deriving the pilot chain count when
-\code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING Block~2
+\code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING population
 components.}
 
 \item{tv_tol}{Total variation tolerance for convergence calibration.
@@ -44,49 +44,45 @@ Inner Gibbs sweeps and pilot chain counts are derived internally.}
 \item{mode_gap_max}{Pilot inner-sweep calibration (non-Gaussian and
 Gaussian+ING only).}
 
-\item{collect_block1}{Collect Block~1 \code{coefficients} from main chains
+\item{collect_block1}{Collect \code{groupef} draws from main chains
 (non-Gaussian only).}
 
 \item{verbose}{Print stage headers and diagnostics.}
 
 \item{progbar}{Progress bars when \code{verbose} is \code{FALSE}.}
 
-\item{sim_method}{Sampling engine for \code{family = gaussian()}:
+\item{sim_method}{Simulation method for \code{family = gaussian()}:
 \code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"}; see \code{\link{rlmerb}}.
-Ignored (two-block Gibbs is the only engine) for non-Gaussian families.}
+Ignored (two-block Gibbs only) for non-Gaussian families.}
 }
 \value{
-Object of class \code{c("rglmerb", "list")} with Block~2 fields in
-the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{sigma2}
-(Gaussian only: scalar or length-\code{n} vector as for \code{\link{rlmerb}}),
-\code{sigma2.mean}, \code{Prior}, \code{design}, and \code{family}. When a
-pilot stage runs (ING Block~2 and/or dGamma measurement dispersion),
-\code{n_pilot}, \code{pilot}, and \code{pilot_chisq} are included;
-otherwise \code{n_pilot} is \code{0L}.
+Object of class \code{c("rglmerb", "list")} with \code{popef.*},
+\code{groupef}/\code{groupef.mode}, and (Gaussian only)
+\code{group.dispersion}/\code{group.dispersion.mean}, plus
+\code{Prior}, \code{design}, and \code{family}. When a pilot stage runs,
+nested \code{pilot} (\code{n}, \code{chisq}, \code{draws}) is included.
 }
 \description{
-Bayesian generalized linear mixed-effects model sampler
-}
-\details{
-Matrix-level sampler for \code{model_setup} design objects and normalized
-prior containers. Routes by response family:
+\code{rglmerb} generates posterior draws for Bayesian generalized linear
+mixed models from \code{model_setup} design objects and normalized prior
+containers. Routes by response family:
 \itemize{
 \item \code{family = gaussian()} delegates to
 \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-\code{group.dispersion} and Block~2 \code{pfamily_list}.
-\item Non-Gaussian families delegate via \code{\link{rGLMM_reg}} routes
-(through internal \code{.lmebayes_run_glmm_engine()} and
-\code{REG_ROUTE_TABLE}; pilot stage always unless \code{n_pilot = 0L};
-routes differ in eigenvalue-bound complexity). Inner sweeps use
+\code{group.dispersion} and population \code{pfamily_list}.
+\item Non-Gaussian families delegate via \code{\link{rGLMM_reg}}
+(pilot stage always unless \code{n_pilot = 0L}; routes differ in
+eigenvalue-bound complexity). Inner sweeps use
 \code{\link{rGLMM_sweep}}.
 }
-
-For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
-Design matrices are built with \code{\link{model_setup}} and priors with
-\code{\link{Prior_Setup_GLMM}}.
+}
+\details{
+For formula interfaces, \code{glmerb()} in the lmebayes package wraps this
+function. Design matrices are built with \code{\link{model_setup}} and
+priors with \code{\link{Prior_Setup_GLMM}}.
 }
 \seealso{
 \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},

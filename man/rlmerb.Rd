@@ -28,7 +28,7 @@ supplying \code{y}, \code{D}, \code{group}, \code{W},
 \code{group_name}, and \code{groupef.names}.}
 
 \item{prior}{Normalized prior container with \code{group.Sigma},
-\code{pop.prior_list}, and related Block~2 fields (typically from
+\code{pop.prior_list}, and related population fields (typically from
 \code{pfamily_list} and \code{group.dispersion} via
 \code{\link{Prior_Setup_GLMM}} or an \code{lmerb()} workflow in
 lmebayes).}
@@ -48,57 +48,57 @@ Default \code{TRUE}.}
 calibration line. Default \code{TRUE}.}
 
 \item{print_icm_table}{Logical. When \code{FALSE}, skip the reference-vs-ICM
-table. The convergence calibration line from the Core engine still follows
+table. The convergence calibration line from the Core sampler still follows
 \code{verbose}. Default \code{TRUE}.}
 
 \item{gap_tol}{Legacy mode--mean gap tolerance for the pilot stage when
-any Block~2 component uses \code{dIndependent_Normal_Gamma} and
+any population component uses \code{dIndependent_Normal_Gamma} and
 \code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.}
 
-\item{mode_gap_max}{Pilot inner-sweep calibration for ING Block~2 models
+\item{mode_gap_max}{Pilot inner-sweep calibration for ING population models
 (default \code{1.0}). Ignored for all-\code{dNormal} models.}
 
-\item{diag_sweeps}{Diagnostic flag for ING Block~2 models with a pilot stage.
-When \code{TRUE}, auto-print one combined Block~2 chain-mean table per
+\item{diag_sweeps}{Diagnostic flag for ING population models with a pilot stage.
+When \code{TRUE}, auto-print one combined population chain-mean table per
 stage when each stage finishes; \code{sweep_history} is always stored on
 the fit. Default \code{FALSE}.}
 
-\item{sim_method}{Sampling engine: \code{"DEFAULT"} or
+\item{sim_method}{Simulation method: \code{"DEFAULT"} or
 \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 known-variance-components route (scalar or per-group fixed
-\code{group.dispersion}, all Block~2 \code{dNormal()}): \code{"DEFAULT"}
+\code{group.dispersion}, all population \code{dNormal()}): \code{"DEFAULT"}
 draws directly from the exact multivariate-normal posterior via
 \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
-burn-in); \code{"TWO_BLOCK_GIBBS"} forces the two-block Gibbs engine
+burn-in); \code{"TWO_BLOCK_GIBBS"} forces two-block Gibbs sampling
 (\code{\link{rLMMNormal_reg_known_vcov_two_bg}}) instead. Every other
 route (\code{dGamma()}/\code{dIndependent_Normal_Gamma} components,
-variance components estimated) only has a two-block Gibbs engine, so
-both values behave identically there.}
+variance components estimated) only supports two-block Gibbs, so both
+values behave identically there.}
 }
 \value{
-An object of class \code{c("rlmerb", "list")} with Block~2 fields in
-the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
-\code{ranef.mode}, \code{sigma2} (scalar when \eqn{\sigma^2} is fixed,
-length-\code{n} vector when \code{group.dispersion} is \code{dGamma()}),
-\code{sigma2.mean}, \code{m_convergence}, \code{convergence},
-\code{sim_method_used} (\code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"},
-whichever engine actually ran), \code{Prior}, and \code{design}.
+An object of class \code{c("rlmerb", "list")} with population fields
+in the \code{popef.*} namespace, group draws in \code{groupef}/
+\code{groupef.mode}, observation residual variance in
+\code{group.dispersion}/\code{group.dispersion.mean} (fixed scalar or
+vector, or draws when a Gamma measurement prior was used),
+\code{m_convergence}, \code{convergence},
+\code{convergence_info$sim_method_used} (\code{"DEFAULT"} or
+\code{"TWO_BLOCK_GIBBS"}), \code{Prior}, and \code{design}.
 }
 \description{
-Bayesian linear mixed-effects model sampler (two-block Gibbs engine)
-}
-\details{
-Matrix-level sampling engine for Gaussian linear mixed models, parallel to
-\code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. Takes structured \code{design}
-and \code{prior} objects, computes the ICM posterior mean internally, and
-delegates replicate-chain sampling to
+\code{rlmerb} generates posterior draws for Bayesian linear mixed models,
+parallel to \code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. It
+takes structured \code{design} and \code{prior} objects, computes the ICM
+posterior mean internally, and delegates sampling to
 \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-\code{group.dispersion} and Block~2 \code{pfamily_list}.
-
-For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sampler.
+\code{group.dispersion} and population \code{pfamily_list}.
+}
+\details{
+For formula interfaces, \code{lmerb()} in the lmebayes package wraps this
+function.
 }
 \seealso{
 \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},

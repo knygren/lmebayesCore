@@ -601,10 +601,14 @@ recovers the standard <code>lme4</code> form:</p>
 <td><span class="math inline">\(G = I_J \otimes \Psi\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\beta_j\)</span></td>
-<td><em>(no direct analog)</em></td>
-<td>closest is <code>lme4::coef()</code> output, <span class="math inline">\(\hat\beta + \hat b_j\)</span>, computed post
-hoc</td>
+<td><span class="math inline">\(\beta_j = u_j +
+\mathcal{W}_j\gamma\)</span></td>
+<td><span class="math inline">\(\hat\beta + \hat b_j\)</span></td>
+<td>recovered exactly from the two rows above (<span class="math inline">\(u_j \leftrightarrow b_j\)</span>, <span class="math inline">\(\gamma \leftrightarrow \beta\)</span>); coincides
+with <code>lme4::coef()</code>’s <span class="math inline">\(\hat\beta +
+\hat b_j\)</span> when <span class="math inline">\(\mathcal{W}_j\)</span> is intercept-only (<span class="math inline">\(q_p = 1\ \forall p\)</span>), and generalizes it
+(via the <span class="math inline">\(\mathcal{W}_j\)</span> weighting)
+otherwise</td>
 </tr>
 </tbody>
 </table>

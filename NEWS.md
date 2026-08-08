@@ -1,5 +1,43 @@
 # lmebayesCore (development version)
 
+* **`rLMMindepNormalGamma_reg_*_v2` stubs + rate derivation.** New exports
+  `rLMMindepNormalGamma_reg_known_vcov_v2()` and
+  `rLMMindepNormalGamma_reg_estimated_vcov_v2()` (same formals as v1) for a
+  future Gibbs partition that updates observation \(\sigma^2\) with the
+  population block instead of jointly with group coefficients. Currently
+  `stop()` with a pointer to
+  `inst/DERIVATION_sigma2_with_block2_v2.md` (lambda*/eigenvalue changes
+  relative to §10/§14 of `BLOCK_GIBBS_ERGODICITY_ING.md`). Helpers
+  `.lmebayes_ing_measurement_prior_list_v2()` /
+  `_group_v2()` drop unused ING `mu`/`Sigma`.
+
+* **`rLMM*` / `rGLMM*`: `offset` / `weights` formals (Phase 1 echo).**
+  Matrix engines now accept glmbayes-style `offset = NULL` and
+  `weights = 1`, normalize them to `length(y)`, and return
+  `$prior.weights`, `$offset`, and `$offset2` (also stored on
+  `$design`). `rlmerb` / `rglmerb` forward `design$weights` /
+  `design$offset` from `model_setup`. **Not yet used** in ICM or
+  Gibbs sweeps (sampling still assumes unit weights and zero offset).
+
+* **`rLMM*` / `rGLMM*` return objects use group/pop names.** Public slots
+  rename from lme4-style `coefficients`/`fixef`/`ranef.*` to package
+  notation: `groupef` / `groupef.mode` / `groupef.iters` (group
+  \(\beta_j\)) and `popef` / `popef.mode` / `popef.init` /
+  `popef.dispersion` / `popef.iters` (population \(\gamma\)). Observation
+  residual variance is `$group.dispersion` / `$group.dispersion.mean`
+  (replacing `$dispersion_ranef` and `$sigma2`). Pilot metadata nests
+  under `$pilot`; engine labels and ICM info nest under
+  `$convergence_info`. Unused slots dropped. Shared assembler
+  `.lmebayes_assemble_reg_result()` enforces order.
+
+* **`rLMM*` / `rGLMM*` engines: `prior_list` renamed to `dispprior_list`**
+  and moved after `pfamily_list` in the formals
+  (`…, W, pfamily_list, dispprior_list, …`). Return objects store the
+  Block~1 measurement prior as `$dispprior_list`. Call sites
+  (`matrix_args_lmm()`, `.lmebayes_matrix_args_glmm()`, demos, tests)
+  updated. `\value` documentation added for `?rLMM_reg` and
+  `?rGLMM_reg`.
+
 * **`pfamily_list()` generic now includes `ptypes`**
   (`pfamily_list(object, ptypes = "dNormal", ...)`), so the prior-family
   type(s) are part of the shared interface rather than a method-only
@@ -10,15 +48,14 @@
   `print.pfamily`, one after another. Use
   `print(x, components = ...)` to print a subset of population /
   group-effect models (e.g. `"(Intercept)"`, slopes); `NULL` prints
-  all. `[.pfamily_list` keeps the class and `ptypes` attribute.
+  all.
 
 * **`dGamma_list()` returns class `"dGamma_list"`** with
   `print.dGamma_list()` that prints each group's `dGamma()` via
   `print.pfamily` only (does not dump list attributes such as
   `window_diagnostics` or the stored `glmmTMB` fit). Use
   `print(x, groups = ...)` to print a subset of group names (or
-  indices); `NULL` prints all. `[.dGamma_list` keeps the class and
-  trims per-group attributes.
+  indices); `NULL` prints all.
 
 * **`print.model_setup()` section headers relabeled** to Level 1
   (Within-Group) / Level 2 (Across-Group) / Level 2 Rank, with
@@ -36,10 +73,12 @@
   prior detail is omitted from the main print; it points to
   `group.ing_prior` / `print(dGamma_list(...))` instead.
 
-* **`bayesrules` and `glmmTMB` moved from Suggests to Imports** so
-  installing \pkg{lmebayesCore} pulls them in and the Ex_13b /
-  `big_word_club` help examples (including per-group `dispformula`)
-  run without extra installs.
+* **`glmmTMB` moved from Suggests to Imports** (used from `R/` for
+  per-group dispersion reference fits). **`bayesrules` stays in
+  Suggests**: it is only needed for example/demo data
+  (`big_word_club`). Help examples that use it are wrapped in
+  `requireNamespace("bayesrules", quietly = TRUE)` so
+  `example()` skips quietly when the Suggests package is not installed.
 
 * **Rename: `Prior_Setup_lmebayes()` is now `Prior_Setup_GLMM()`.**
   The returned S3 class is `"Prior_Setup_GLMM"` (was

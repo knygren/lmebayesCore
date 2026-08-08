@@ -1,13 +1,15 @@
-#' Matrix-level replicate-chain Gibbs engines for Bayesian GLMMs
+#' Simulation Functions for Generalized Linear Mixed Models
 #'
 #' @description
-#' Non-Gaussian (and optionally Gaussian) two-block GLMM samplers at matrix
-#' level. Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
-#' \code{\link{rGLMM_sweep}}. Formula-level fitting uses \code{\link{rglmerb}}
-#' in **lmebayes**; Gaussian models with observation dispersion typically use
-#' the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
+#' Simulation functions for generating posterior draws from Bayesian
+#' generalized linear mixed models (and optionally Gaussian models). Parallel
+#' to the glmbayes \code{\link[glmbayes]{simfuncs}} for GLMs; typically called
+#' from \code{\link{rglmerb}} (and from \code{glmerb()} in \strong{lmebayes}).
+#' Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
+#' \code{\link{rGLMM_sweep}}. Gaussian models with observation dispersion
+#' usually use the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
 #'
-#' @section Two route engines:
+#' @section Simulation routes:
 #' Both routes run a \strong{pilot stage for non-Gaussian} families (local-Gaussian
 #' rate calibration and chain-mean initialisation; skip only with
 #' \code{n_pilot = 0L}). The route split is \strong{not} whether a pilot runs,
@@ -15,17 +17,18 @@
 #' upper-bound calibration:
 #' \describe{
 #'   \item{\code{rGLMM_reg_known_vcov}}{
-#'     All Block~2 \code{dNormal} (known \eqn{\tau^2_k}): standard fixed-dispersion
-#'     rate at the mode; post-pilot eigenvalue upper bound from pilot
-#'     \code{coefficients} without ING \code{disp_lower} conservatism.}
+#'     All population components \code{dNormal} (known \eqn{\tau^2_k}): standard
+#'     fixed-dispersion rate at the mode; post-pilot eigenvalue upper bound from
+#'     pilot \code{groupef} without ING \code{disp_lower} conservatism.}
 #'   \item{\code{rGLMM_reg_estimated_vcov}}{
-#'     At least one ING Block~2 component: conservative \code{disp_lower} plug-in
-#'     in \code{\link{two_block_rate_from_pfamily_list}} (upper bound over truncated
-#'     \eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from dispersion draws.}
+#'     At least one ING population component: conservative \code{disp_lower}
+#'     plug-in in \code{\link{two_block_rate_from_pfamily_list}} (upper bound
+#'     over truncated \eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from
+#'     dispersion draws.}
 #' }
 #'
 #' @section Dispatcher:
-#' \code{\link{rGLMM_reg}} validates Block~2 \code{pfamily_list} and delegates
+#' \code{\link{rGLMM_reg}} validates population \code{pfamily_list} and delegates
 #' to the appropriate route.
 #'
 #' @param n Number of stored main-stage draws. If \code{length(n) > 1}, the
@@ -36,11 +39,11 @@
 #'   names used to key \code{W} and \code{pfamily_list} (there is no
 #'   separate \code{groupef.names} argument to override them).
 #' @param group Grouping factor of length \code{l2} (must be a \code{factor};
-#'   \code{levels(group)} fixes the row order of Block~1 draws -- there is no
-#'   separate \code{group_levels} argument. To use a level order/superset not
-#'   present in the observed data, construct \code{group} as
+#'   \code{levels(group)} fixes the row order of \code{groupef} draws -- there
+#'   is no separate \code{group_levels} argument. To use a level order/superset
+#'   not present in the observed data, construct \code{group} as
 #'   \code{factor(observed_group, levels = full_superset)} yourself. The name
-#'   used for the grouping column in \code{coefficients} (\code{group_name})
+#'   used for the grouping column in \code{groupef} (\code{group_name})
 #'   is resolved from \code{attr(group, "group_name")} if set, otherwise from
 #'   \code{group}'s own variable name via \code{substitute()} -- this only
 #'   works when \code{group} is passed as a bare variable (e.g.
@@ -48,19 +51,26 @@
 #'   \code{attr(group, "group_name") <- "school_id"}.
 #' @param W Named list of group-level design matrices (\code{J x q_k}),
 #'   one per column of \code{D}.
-#' @param prior_list Prior for Block~1: \code{dispersion} (required for
-#'   \code{gaussian()}), optional \code{ddef}. The Block~1 random-effect
-#'   prior precision (formerly a separate \code{P}/\code{Sigma} field) is
-#'   always derived internally from \code{pfamily_list} (see
-#'   \code{pfamily_list} below); \code{prior_list} must not contain
-#'   \code{P} or \code{Sigma}.
-#' @param pfamily_list Named list of \code{pfamily} objects for Block~2. One
+#' @param pfamily_list Named list of population \code{pfamily} objects. One
 #'   \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
 #'   \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
-#'   \code{dIndependent_Normal_Gamma}) is assembled into the diagonal Block~1
-#'   precision used for \code{prior_list}.
-#' @param icm_tol,icm_maxit ICM convergence controls for the internal Block~2 start.
-#' @param offset,weights,family Passed to Block~1 (length \code{l2} or recycled).
+#'   \code{dIndependent_Normal_Gamma}) is assembled into the diagonal group
+#'   random-effect prior precision.
+#' @param dispprior_list Observation-dispersion prior container:
+#'   \code{dispersion} (required for \code{gaussian()}), optional \code{ddef}.
+#'   For non-Gaussian families this is often an empty list. The group
+#'   random-effect prior precision (formerly a separate \code{P}/\code{Sigma}
+#'   field) is always derived internally from \code{pfamily_list};
+#'   \code{dispprior_list} must not contain \code{P} or \code{Sigma}.
+#' @param icm_tol,icm_maxit ICM convergence controls for the internal population start.
+#' @param offset,weights Observation offset and prior weights (glmbayes-style
+#'   formals: \code{offset = NULL}, \code{weights = 1}). Normalized to length
+#'   \code{length(y)} and echoed on the return as \code{offset}/
+#'   \code{offset2}/\code{prior.weights}. \strong{Not yet used} by the
+#'   mixed-model sampling path (ICM / sweeps still assume unit weights and
+#'   zero offset).
+#' @param family Likelihood family (length-\code{l2} recycling rules follow
+#'   the group-level likelihood).
 #' @param gap_tol Legacy mode--mean gap for pilot chain count when \code{tv_tol}
 #'   is \code{NULL}.
 #' @param tv_tol Total-variation tolerance for Theorem~3 calibration.
@@ -72,7 +82,48 @@
 #' @param progbar Progress bars during sampling.
 #' @param stage_verbose Print pilot chi-squared and post-pilot UB diagnostics.
 #' @param rate_calibration Optional rate object for \code{stage_verbose}.
-#' @param collect_block1 Collect Block~1 \code{coefficients} from main chains.
+#' @param collect_block1 Collect \code{groupef} draws from main chains.
+#'
+#' @return An object of class \code{c("<route>", "rGLMM_reg", "list")}, where
+#'   \code{<route>} is \code{"rGLMM_reg_known_vcov"} or
+#'   \code{"rGLMM_reg_estimated_vcov"}. Components use package
+#'   \strong{group}/\strong{population} names (see \file{inst/notation.md}),
+#'   in glm/glmbayes-style order:
+#'   \describe{
+#'     \item{\code{groupef}}{Draws of non-centered group coefficients
+#'       \eqn{\beta_j} (when \code{collect_block1} is \code{TRUE}): grouping
+#'       column plus one column per \code{colnames(D)}.}
+#'     \item{\code{groupef.mode}}{\eqn{J \times p_{re}} matrix of ICM group
+#'       coefficients \eqn{\hat\beta_j}. \strong{Not} \code{lme4}'s mean-zero
+#'       \eqn{u_j}.}
+#'     \item{\code{groupef.iters}}{Optional group-level envelope iteration counts.}
+#'     \item{\code{popef}}{Named list of \code{n x q_k} matrices of population
+#'       coefficient draws \eqn{\gamma_k}.}
+#'     \item{\code{popef.mode}, \code{popef.init}}{ICM population point estimates
+#'       and main-stage starts.}
+#'     \item{\code{popef.dispersion}, \code{popef.iters}}{Optional population
+#'       per-draw diagnostics when produced by the sampler.}
+#'     \item{\code{pfamily_list}, \code{dispprior_list}}{Population and
+#'       observation-dispersion priors that were used.}
+#'     \item{\code{prior.weights}, \code{offset}, \code{offset2}}{Normalized
+#'       copies of the \code{weights}/\code{offset} arguments (glmbayes
+#'       naming). Not yet consumed by sampling.}
+#'     \item{\code{any_non_normal}}{Whether any population component is not
+#'       \code{dNormal}.}
+#'     \item{\code{family}, \code{design}, \code{n}}{Likelihood family, matrix
+#'       inputs (including echoed \code{weights}/\code{offset}), and chain
+#'       count.}
+#'     \item{\code{call}}{Matched call.}
+#'     \item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
+#'       draw.}
+#'     \item{\code{convergence_info}}{Theorem~3 / UB calibration details,
+#'       including \code{draw_engine} and \code{icm_info}.}
+#'     \item{\code{pilot}}{When a pilot ran: list with \code{n},
+#'       \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
+#'       \code{NULL}.}
+#'     \item{\code{sweep_history}}{Main-stage sweep history when collected.}
+#'   }
+#'
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rLMM_reg}},
 #'   \code{\link{rglmerb}}
@@ -85,8 +136,8 @@ NULL
 #' arguments: they are always \code{colnames(D)} and \code{levels(group)}
 #' respectively. \code{group_name} must already be resolved by the caller
 #' (see \code{\link{.lmebayes_resolve_group_name}}); this function only
-#' sanity-checks it. \code{prior_list} must not contain \code{P}/
-#' \code{Sigma}: the Block~1 random-effect prior precision is derived
+#' sanity-checks it. \code{dispprior_list} must not contain \code{P}/
+#' \code{Sigma}: the group random-effect prior precision is derived
 #' internally from \code{pfamily_list} and injected here.
 #' @noRd
 .rGLMM_validate_matrix_inputs <- function(
@@ -100,8 +151,8 @@ NULL
     family,
     mode_gap_max,
     gap_tol,
-    prior_list,
-    pfamily_list
+    pfamily_list,
+    dispprior_list
 ) {
   family <- .two_block_normalize_family(family)
   is_gaussian <- identical(family$family, "gaussian")
@@ -185,16 +236,16 @@ NULL
     }
   }
 
-  if (!is.null(prior_list$P) || !is.null(prior_list$Sigma)) {
+  if (!is.null(dispprior_list$P) || !is.null(dispprior_list$Sigma)) {
     stop(
-      "'prior_list' must not contain 'P'/'Sigma'; the Block~1 random-effect ",
+      "'dispprior_list' must not contain 'P'/'Sigma'; the group random-effect ",
       "prior precision is derived internally from 'pfamily_list'.",
       call. = FALSE
     )
   }
-  prior_list$P <- .rLMM_P_from_pfamily_list(pfamily_list, re_names)
+  dispprior_list$P <- .rLMM_P_from_pfamily_list(pfamily_list, re_names)
 
-  .two_block_validate_block1_prior(prior_list, family = family)
+  .two_block_validate_block1_prior(dispprior_list, family = family)
 
   list(
     n              = n,
@@ -207,7 +258,7 @@ NULL
     group_name     = group_name,
     family         = family,
     is_gaussian    = is_gaussian,
-    prior_list     = prior_list,
+    dispprior_list = dispprior_list,
     pfamily_list   = pfamily_list,
     pf_summary     = pf_summary,
     ptypes         = pf_summary$ptypes,
@@ -308,7 +359,7 @@ NULL
   group_name     <- inp$group_name
   family         <- inp$family
   is_gaussian    <- inp$is_gaussian
-  prior_list     <- inp$prior_list
+  dispprior_list     <- inp$dispprior_list
   pfamily_list   <- inp$pfamily_list
   pf_summary     <- inp$pf_summary
   ptypes         <- inp$ptypes
@@ -344,7 +395,7 @@ NULL
   )
   icm <- .two_block_icm_at_start(
     design       = design_icm,
-    prior_list   = prior_list,
+    prior_list   = dispprior_list,
     pfamily_list = pfamily_list,
     re_names     = re_names,
     family       = family,
@@ -357,7 +408,7 @@ NULL
   icm_info   <- icm$icm
   if (isTRUE(verbose)) {
     if (isTRUE(any_non_normal)) {
-      icm_what <- "Block 2 start at lmer tau^2 plug-in"
+      icm_what <- "population start at lmer tau^2 plug-in"
     } else if (is_gaussian) {
       icm_what <- "ICM posterior mean"
     } else {
@@ -388,7 +439,7 @@ NULL
 
   rate <- .rGLMM_rate_at_mode(
     design       = design,
-    prior_list   = prior_list,
+    dispprior_list   = dispprior_list,
     pfamily_list = pfamily_list,
     family       = family,
     b_mode       = b_start,
@@ -534,7 +585,7 @@ NULL
       start_fixef    = fixef_mode,
       inner_sweeps   = m_convergence_pilot,
       design         = design,
-      block1_prior   = prior_list,
+      block1_prior   = dispprior_list,
       pfamily_list   = pfamily_list,
       family         = family,
       re_names       = re_names,
@@ -583,7 +634,7 @@ NULL
         x                  = D,
         group              = group,
         x_hyper            = W,
-        prior_list         = prior_list,
+        prior_list         = dispprior_list,
         pfamily_list       = pfamily_list,
         family             = family,
         tv_tol             = tv_tol
@@ -634,7 +685,7 @@ NULL
     start_fixef    = fixef_init,
     inner_sweeps   = m_convergence_used,
     design         = design,
-    block1_prior   = prior_list,
+    block1_prior   = dispprior_list,
     pfamily_list   = pfamily_list,
     family         = family,
     re_names       = re_names,
@@ -654,7 +705,7 @@ NULL
     start_fixef    = fixef_init,
     inner_sweeps   = m_convergence_used,
     design         = design,
-    block1_prior   = prior_list,
+    block1_prior   = dispprior_list,
     pfamily_list   = pfamily_list,
     family         = family,
     re_names       = re_names,
@@ -678,42 +729,37 @@ NULL
     fixef_init   = fixef_init
   )
 
-  main_res$call                <- cl
-  main_res$n_pilot             <- n_pilot
-  main_res$gap_tol             <- gap_tol
-  main_res$m_convergence       <- m_convergence_used
-  main_res$m_convergence_pilot <- if (run_pilot) m_convergence_pilot else NULL
-  main_res$convergence_info    <- convergence_info
-  main_res$draw_engine         <- "rGLMM_sweep"
-  main_res$draw_engine_call    <- quote(rGLMM_sweep)
-  main_res$draw_engine_args    <- draw_engine_args
-  main_res$pfamily_list        <- pfamily_list
-  main_res$family              <- family
-  main_res$prior_list          <- prior_list
-  main_res$ranef.mode          <- ranef_mode
-  main_res$icm_info            <- icm_info
-  main_res$ptypes              <- pf_summary$ptypes
-  main_res$any_non_normal      <- pf_summary$any_non_normal
-  main_res$design              <- design
-
-  if (run_pilot) {
-    main_res$pilot       <- pilot_res
-    main_res$pilot_chisq <- pilot_chisq
-  }
-  if (run_ub) {
-    main_res$pilot_ub <- pilot_ub
-    main_res$tv_tol   <- tv_tol
-  }
-
-  class(main_res) <- c(result_class, "rGLMM_reg", "list")
-  main_res
+  .lmebayes_assemble_reg_result(
+    staged              = main_res,
+    call                = cl,
+    m_convergence       = m_convergence_used,
+    convergence_info    = convergence_info,
+    pfamily_list        = pfamily_list,
+    dispprior_list      = dispprior_list,
+    family              = family,
+    groupef.mode        = ranef_mode,
+    any_non_normal      = pf_summary$any_non_normal,
+    design              = design,
+    result_class        = result_class,
+    parent_class        = "rGLMM_reg",
+    draw_engine         = "rGLMM_sweep",
+    icm_info            = icm_info,
+    pilot_draws         = if (run_pilot) pilot_res else NULL,
+    n_pilot             = if (run_pilot) n_pilot else NULL,
+    m_convergence_pilot = if (run_pilot) m_convergence_pilot else NULL,
+    pilot_chisq         = if (run_pilot) pilot_chisq else NULL,
+    pilot_ub            = if (run_ub) pilot_ub else NULL,
+    tv_tol              = if (run_ub) tv_tol else NULL,
+    offset              = inp$offset,
+    weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
 }
 
 #' Local-Gaussian rate at the ICM mode
 #' @noRd
 .rGLMM_rate_at_mode <- function(
     design,
-    prior_list,
+    dispprior_list,
     pfamily_list,
     family,
     b_mode,
@@ -725,7 +771,7 @@ NULL
       x                 = design$D,
       block             = design$group,
       x_hyper           = design$W,
-      prior_list_block1 = prior_list,
+      prior_list_block1 = dispprior_list,
       pfamily_list      = pfamily_list,
       family            = gaussian(),
       group_levels      = group_levels
@@ -742,7 +788,7 @@ NULL
       x                 = design$D,
       block             = design$group,
       x_hyper           = design$W,
-      prior_list_block1 = prior_list,
+      prior_list_block1 = dispprior_list,
       pfamily_list      = pfamily_list,
       weights           = mode_w$weights,
       family            = family,
@@ -767,10 +813,7 @@ NULL
     dispersion_fixef_draws = v6_out$dispersion_fixef_draws,
     iters_fixef_draws      = v6_out$iters_fixef_draws,
     iters_ranef_draws      = v6_out$iters_ranef_draws,
-    mu_all_last            = v6_out$mu_all_last,
     sweep_history          = v6_out$sweep_history,
-    groupef.names          = re_names,
-    group_levels           = group_levels,
     n                      = n
   )
   .two_block_as_staged_names(
@@ -780,9 +823,10 @@ NULL
   )
 }
 
-#' @describeIn rGLMM_reg All Block~2 \code{dNormal} (known \eqn{\tau^2_k}).
-#'   Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); standard
-#'   fixed-dispersion eigenvalue rate bounds (no ING \code{disp_lower} path).
+#' @describeIn rGLMM_reg All population components \code{dNormal} (known
+#'   \eqn{\tau^2_k}). Non-Gaussian: pilot always (unless \code{n_pilot = 0L});
+#'   standard fixed-dispersion eigenvalue rate bounds (no ING
+#'   \code{disp_lower} path).
 #' @export
 rGLMM_reg_known_vcov <- function(
     n,
@@ -790,8 +834,8 @@ rGLMM_reg_known_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
@@ -820,15 +864,17 @@ rGLMM_reg_known_vcov <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, prior_list, pfamily_list
+    gap_tol, pfamily_list, dispprior_list
   )
   if (!inp$pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): all Block~2 components must be dNormal(); ",
+      fn_name, "(): all population components must be dNormal(); ",
       "use rGLMM_reg_estimated_vcov() or rGLMM_reg().",
       call. = FALSE
     )
   }
+  inp$offset <- offset
+  inp$weights <- weights
 
   .rGLMM_reg_run(
     inp                = inp,
@@ -846,7 +892,7 @@ rGLMM_reg_known_vcov <- function(
   )
 }
 
-#' @describeIn rGLMM_reg ING Block~2 (estimated \eqn{\tau^2_k}).
+#' @describeIn rGLMM_reg ING population components (estimated \eqn{\tau^2_k}).
 #'   Non-Gaussian: pilot always (unless \code{n_pilot = 0L}); conservative
 #'   \code{disp_lower} eigenvalue bounds and pilot-updated \eqn{\tau^2} starts.
 #' @export
@@ -856,8 +902,8 @@ rGLMM_reg_estimated_vcov <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
@@ -886,15 +932,17 @@ rGLMM_reg_estimated_vcov <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, prior_list, pfamily_list
+    gap_tol, pfamily_list, dispprior_list
   )
   if (inp$pf_summary$all_dNormal) {
     stop(
-      fn_name, "(): at least one Block~2 component must not be dNormal(); ",
+      fn_name, "(): at least one population component must not be dNormal(); ",
       "use rGLMM_reg_known_vcov() or rGLMM_reg().",
       call. = FALSE
     )
   }
+  inp$offset <- offset
+  inp$weights <- weights
 
   .rGLMM_reg_run_with_pilot(
     inp                = inp,
@@ -912,8 +960,8 @@ rGLMM_reg_estimated_vcov <- function(
   )
 }
 
-#' @describeIn rGLMM_reg Route by Block~2 \code{pfamily_list} to known or
-#'   estimated \eqn{\tau^2} engines.
+#' @describeIn rGLMM_reg Route by population \code{pfamily_list} to known or
+#'   estimated \eqn{\tau^2} simulation routes.
 #' @export
 rGLMM_reg <- function(
     n,
@@ -921,8 +969,8 @@ rGLMM_reg <- function(
     D,
     group,
     W,
-    prior_list,
     pfamily_list,
+    dispprior_list,
     icm_tol             = 1e-10,
     icm_maxit           = 200L,
     offset              = NULL,
@@ -950,7 +998,7 @@ rGLMM_reg <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, prior_list, pfamily_list
+    gap_tol, pfamily_list, dispprior_list
   )
 
   route_fn <- if (inp$pf_summary$all_dNormal) {

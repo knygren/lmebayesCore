@@ -39,12 +39,12 @@ Imports:
     Rdpack (>= 0.11-0),
     opencltools (>= 0.8.1),
     nmathopencl,
-    bayesrules,
     glmmTMB
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 Depends: MASS, R (>= 3.5.0)
 Suggests:
+    bayesrules,
     glmbayes,
     coda,
     ggplot2,

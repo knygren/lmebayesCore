@@ -40,14 +40,14 @@ for (pwt in c(0.01, 0.2, 0.49)) {
   ))
   cat(sprintf(
     "  Block 1 ranef.iters.mean (candidates per stored draw): %.2f\n",
-    fit$ranef.iters.mean
+    fit$groupef.iters.mean
   ))
-  if (!is.null(fit$fixef.iters.mean)) {
+  if (!is.null(fit$popef.iters.mean)) {
     cat("  Block 2 fixef.iters.mean (per RE component):\n")
-    print(round(fit$fixef.iters.mean, 2))
+    print(round(fit$popef.iters.mean, 2))
   }
   cat(sprintf(
     "  mean(ranef.iters) raw total per chain: %.0f\n",
-    mean(fit$ranef.iters)
+    mean(fit$groupef.iters)
   ))
 }

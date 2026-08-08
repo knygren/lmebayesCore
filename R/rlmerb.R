@@ -1,16 +1,17 @@
-#' Bayesian linear mixed-effects model sampler (two-block Gibbs engine)
+#' The Bayesian Linear Mixed-Effects Model Distribution
 #'
-#' Matrix-level sampling engine for Gaussian linear mixed models, parallel to
-#' \code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. Takes structured \code{design}
-#' and \code{prior} objects, computes the ICM posterior mean internally, and
-#' delegates replicate-chain sampling to
+#' \code{rlmerb} generates posterior draws for Bayesian linear mixed models,
+#' parallel to \code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. It
+#' takes structured \code{design} and \code{prior} objects, computes the ICM
+#' posterior mean internally, and delegates sampling to
 #' \code{\link{rLMMNormal_reg_known_vcov}},
 #' \code{\link{rLMMNormal_reg_estimated_vcov}},
 #' \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #' \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#' \code{group.dispersion} and Block~2 \code{pfamily_list}.
+#' \code{group.dispersion} and population \code{pfamily_list}.
 #'
-#' For formula-level fitting, \code{lmerb()} in the lmebayes package wraps this sampler.
+#' For formula interfaces, \code{lmerb()} in the lmebayes package wraps this
+#' function.
 #'
 #' @param n Integer. Number of stored draws (each draw is one full pass through
 #'   \code{m_convergence} inner Gibbs sweeps).
@@ -18,7 +19,7 @@
 #'   supplying \code{y}, \code{D}, \code{group}, \code{W},
 #'   \code{group_name}, and \code{groupef.names}.
 #' @param prior Normalized prior container with \code{group.Sigma},
-#'   \code{pop.prior_list}, and related Block~2 fields (typically from
+#'   \code{pop.prior_list}, and related population fields (typically from
 #'   \code{pfamily_list} and \code{group.dispersion} via
 #'   \code{\link{Prior_Setup_GLMM}} or an \code{lmerb()} workflow in
 #'   lmebayes).
@@ -29,46 +30,46 @@
 #'   used for convergence calibration. Default \code{0.01}.
 #'   Inner Gibbs sweeps per stored draw are derived from Theorem~3.
 #' @param gap_tol Legacy mode--mean gap tolerance for the pilot stage when
-#'   any Block~2 component uses \code{dIndependent_Normal_Gamma} and
+#'   any population component uses \code{dIndependent_Normal_Gamma} and
 #'   \code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.
-#' @param mode_gap_max Pilot inner-sweep calibration for ING Block~2 models
+#' @param mode_gap_max Pilot inner-sweep calibration for ING population models
 #'   (default \code{1.0}). Ignored for all-\code{dNormal} models.
 #' @param progbar Logical. Show a text progress bar during sampling.
 #'   Default \code{TRUE}.
 #' @param verbose Logical. Print the reference-vs-ICM table and the convergence
 #'   calibration line. Default \code{TRUE}.
 #' @param print_icm_table Logical. When \code{FALSE}, skip the reference-vs-ICM
-#'   table. The convergence calibration line from the Core engine still follows
+#'   table. The convergence calibration line from the Core sampler still follows
 #'   \code{verbose}. Default \code{TRUE}.
-#' @param diag_sweeps Diagnostic flag for ING Block~2 models with a pilot stage.
-#'   When \code{TRUE}, auto-print one combined Block~2 chain-mean table per
+#' @param diag_sweeps Diagnostic flag for ING population models with a pilot stage.
+#'   When \code{TRUE}, auto-print one combined population chain-mean table per
 #'   stage when each stage finishes; \code{sweep_history} is always stored on
 #'   the fit. Default \code{FALSE}.
-#' @param sim_method Sampling engine: \code{"DEFAULT"} or
+#' @param sim_method Simulation method: \code{"DEFAULT"} or
 #'   \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 #'   known-variance-components route (scalar or per-group fixed
-#'   \code{group.dispersion}, all Block~2 \code{dNormal()}): \code{"DEFAULT"}
+#'   \code{group.dispersion}, all population \code{dNormal()}): \code{"DEFAULT"}
 #'   draws directly from the exact multivariate-normal posterior via
 #'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
-#'   burn-in); \code{"TWO_BLOCK_GIBBS"} forces the two-block Gibbs engine
+#'   burn-in); \code{"TWO_BLOCK_GIBBS"} forces two-block Gibbs sampling
 #'   (\code{\link{rLMMNormal_reg_known_vcov_two_bg}}) instead. Every other
 #'   route (\code{dGamma()}/\code{dIndependent_Normal_Gamma} components,
-#'   variance components estimated) only has a two-block Gibbs engine, so
-#'   both values behave identically there.
-#' @return An object of class \code{c("rlmerb", "list")} with Block~2 fields in
-#'   the \code{fixef.*} namespace, Block~1 draws in \code{coefficients},
-#'   \code{ranef.mode}, \code{sigma2} (scalar when \eqn{\sigma^2} is fixed,
-#'   length-\code{n} vector when \code{group.dispersion} is \code{dGamma()}),
-#'   \code{sigma2.mean}, \code{m_convergence}, \code{convergence},
-#'   \code{sim_method_used} (\code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"},
-#'   whichever engine actually ran), \code{Prior}, and \code{design}.
+#'   variance components estimated) only supports two-block Gibbs, so both
+#'   values behave identically there.
+#' @return An object of class \code{c("rlmerb", "list")} with population fields
+#'   in the \code{popef.*} namespace, group draws in \code{groupef}/
+#'   \code{groupef.mode}, observation residual variance in
+#'   \code{group.dispersion}/\code{group.dispersion.mean} (fixed scalar or
+#'   vector, or draws when a Gamma measurement prior was used),
+#'   \code{m_convergence}, \code{convergence},
+#'   \code{convergence_info$sim_method_used} (\code{"DEFAULT"} or
+#'   \code{"TWO_BLOCK_GIBBS"}), \code{Prior}, and \code{design}.
 #' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},
 #'   \code{\link{Prior_Setup_GLMM}},
 #'   \code{\link[glmbayesCore]{rlmb}}
-#' @title The Bayesian Linear Mixed-Effects Model Distribution
 #' @export
 rlmerb <- function(
     n,
@@ -150,17 +151,17 @@ rlmerb <- function(
     .lmebayes_print_icm_fixef_table(
       prior_list = prior$pop.prior_list,
       re_names   = re_names,
-      fixef_icm  = out$fixef.mode,
-      icm_info   = out$icm_info,
+      fixef_icm  = out$popef.mode,
+      icm_info   = out$convergence_info$icm_info,
       ref_label  = icm_lbl$ref_label,
       icm_label  = icm_lbl$icm_label,
       conv_label = icm_lbl$conv_label,
-      header     = "--- rlmerb: Block 2 fixed effects ---",
+      header     = "--- rlmerb: population effects ---",
       verbose    = verbose
     )
   }
 
-  out <- .lmebayes_add_fixef_summaries(out)
+  out <- .lmebayes_add_popef_summaries(out)
   out$call       <- cl
   out$convergence <- out$convergence_info
   out$Prior      <- list(
@@ -173,12 +174,12 @@ rlmerb <- function(
   )
   out$design     <- design
 
-  if (!is.null(out$n_pilot) && out$n_pilot > 0L) {
+  if (!is.null(out$pilot$n) && out$pilot$n > 0L) {
     .lmebayes_print_fixef_init(
-      out$fixef.init,
+      out$popef.init,
       re_names,
       verbose,
-      header = "--- rlmerb: main-stage fixef.init (pilot colMeans) ---"
+      header = "--- rlmerb: main-stage popef.init (pilot colMeans) ---"
     )
   }
 

@@ -157,8 +157,8 @@ pf <- pfamily_list(ps)   # default dNormal for each RE component
 # …
 fit <- rLMMindepNormalGamma_reg_known_vcov(
   …,
-  pfamily_list = pf,
-  prior_list   = disp_pf_list,   # from dGamma_list
+  pfamily_list   = pf,
+  dispprior_list = disp_pf_list,   # from dGamma_list
   …
 )
 ```

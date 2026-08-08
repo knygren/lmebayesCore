@@ -39,7 +39,7 @@ png_dev <- function(name) grDevices::png(file.path(out_dir, name), width = 900, 
 ## qualifies for the *exact* reference (dispersion fixed, vcov known). ------
 fit1 <- rLMMNormal_reg_known_vcov(
   n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
 )
 stopifnot(lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit1))
@@ -102,7 +102,7 @@ cat(".convergence_split_whitened() batching OK\n\n")
 ## --- rLMMNormal_reg_known_vcov(DEFAULT): no sweep_history -> clear error --
 fit1b <- rLMMNormal_reg_known_vcov(
   n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
 )
 err <- tryCatch(plot_var_convergence(fit1b), error = function(e) e)
@@ -113,7 +113,7 @@ cat("fit1b (DEFAULT/iid, no sweep_history) -> clear error OK:\n  ", conditionMes
 ## estimated -> empirical fallback (no exact reference). --------------------
 fit2 <- rLMMNormal_reg_estimated_vcov(
   n = 30L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp, pfamily_list = pf_est_vcov,
+  pfamily_list = pf_est_vcov, dispprior_list = prior_list_disp,
   progbar = FALSE, verbose = FALSE
 )
 stopifnot(!lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit2))
@@ -221,7 +221,7 @@ prior_list_disp_group <- list(
 )
 fit4 <- rLMMindepNormalGamma_reg_known_vcov(
   n = 15L, y = design$y, D = design$D, group = grp, W = design$W,
-  prior_list = prior_list_disp_group, pfamily_list = pf_known_vcov,
+  pfamily_list = pf_known_vcov, dispprior_list = prior_list_disp_group,
   progbar = FALSE, verbose = FALSE
 )
 stopifnot(!lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit4))
@@ -247,7 +247,7 @@ ps_pois <- Prior_Setup_GLMM(form_lmer, data = dat_pois, family = poisson(), pwt 
 pf_pois <- pfamily_list(ps_pois)
 fit5 <- rGLMM_reg_known_vcov(
   n = 15L, y = design_pois$y, D = design_pois$D, group = grp_pois, W = design_pois$W,
-  prior_list = list(), pfamily_list = pf_pois, family = poisson(),
+  pfamily_list = pf_pois, dispprior_list = list(), family = poisson(),
   progbar = FALSE, verbose = FALSE
 )
 stopifnot(!lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit5))

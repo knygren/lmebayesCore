@@ -22,7 +22,7 @@ run_fit <- function(engine) {
     form, data = dat, family = binomial(), pfamily_list = pfamily_list(ps),
     n = 500L, mode_gap_max = 1.0, progbar = FALSE, verbose = FALSE
   )
-  init <- unlist(fit$fixef.init)
+  init <- unlist(fit$popef.init)
   list(
     engine = fit$convergence$draw_engine,
     m_pilot = fit$convergence$m_convergence_pilot,

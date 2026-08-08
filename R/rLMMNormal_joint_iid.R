@@ -1,9 +1,9 @@
 #' Exact iid draws from the two-block Gaussian posterior (no Gibbs sweeps)
 #'
 #' @description
-#' Matrix-level sampler for the same target as
+#' Exact iid simulation for the same target as
 #' \code{\link{two_block_rNormal_reg}}, restricted to \code{family =
-#' gaussian()} with fixed (known) observation dispersion and every Block~2
+#' gaussian()} with fixed (known) observation dispersion and every population
 #' component \code{\link[glmbayesCore]{dNormal}} (known/fixed variance
 #' components) -- the "known \eqn{\tau^2_k}" route documented in
 #' \code{inst/README_KNOWN_VCOV_GAUSSIAN.md}. Under these conditions the

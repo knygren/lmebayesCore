@@ -1,24 +1,24 @@
-#' Bayesian generalized linear mixed-effects model sampler
+#' The Bayesian Generalized Linear Mixed-Effects Model Distribution
 #'
-#' Matrix-level sampler for \code{model_setup} design objects and normalized
-#' prior containers. Routes by response family:
+#' \code{rglmerb} generates posterior draws for Bayesian generalized linear
+#' mixed models from \code{model_setup} design objects and normalized prior
+#' containers. Routes by response family:
 #' \itemize{
 #'   \item \code{family = gaussian()} delegates to
 #'     \code{\link{rLMMNormal_reg_known_vcov}},
 #'     \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'     \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #'     \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#'     \code{group.dispersion} and Block~2 \code{pfamily_list}.
-#'   \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}} routes
-#'     (through internal \code{.lmebayes_run_glmm_engine()} and
-#'     \code{REG_ROUTE_TABLE}; pilot stage always unless \code{n_pilot = 0L};
-#'     routes differ in eigenvalue-bound complexity). Inner sweeps use
+#'     \code{group.dispersion} and population \code{pfamily_list}.
+#'   \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}}
+#'     (pilot stage always unless \code{n_pilot = 0L}; routes differ in
+#'     eigenvalue-bound complexity). Inner sweeps use
 #'     \code{\link{rGLMM_sweep}}.
 #' }
 #'
-#' For formula-level fitting, \code{glmerb()} in the lmebayes package wraps this sampler.
-#' Design matrices are built with \code{\link{model_setup}} and priors with
-#' \code{\link{Prior_Setup_GLMM}}.
+#' For formula interfaces, \code{glmerb()} in the lmebayes package wraps this
+#' function. Design matrices are built with \code{\link{model_setup}} and
+#' priors with \code{\link{Prior_Setup_GLMM}}.
 #'
 #' @param n Integer. Number of independent chains in the main stage.
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}}).
@@ -30,33 +30,30 @@
 #'   \code{\link[glmbayesCore]{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
 #'   \code{NULL} (default) for \code{poisson()} and \code{binomial()}.
 #' @param gap_tol Legacy mode--mean gap for deriving the pilot chain count when
-#'   \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING Block~2
+#'   \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING population
 #'   components.
 #' @param tv_tol Total variation tolerance for convergence calibration.
 #'   Inner Gibbs sweeps and pilot chain counts are derived internally.
 #' @param mode_gap_max Pilot inner-sweep calibration (non-Gaussian and
 #'   Gaussian+ING only).
-#' @param collect_block1 Collect Block~1 \code{coefficients} from main chains
+#' @param collect_block1 Collect \code{groupef} draws from main chains
 #'   (non-Gaussian only).
 #' @param verbose Print stage headers and diagnostics.
 #' @param progbar Progress bars when \code{verbose} is \code{FALSE}.
-#' @param sim_method Sampling engine for \code{family = gaussian()}:
+#' @param sim_method Simulation method for \code{family = gaussian()}:
 #'   \code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"}; see \code{\link{rlmerb}}.
-#'   Ignored (two-block Gibbs is the only engine) for non-Gaussian families.
-#' @return Object of class \code{c("rglmerb", "list")} with Block~2 fields in
-#'   the \code{fixef.*} namespace, plus \code{ranef.mode}, \code{sigma2}
-#'   (Gaussian only: scalar or length-\code{n} vector as for \code{\link{rlmerb}}),
-#'   \code{sigma2.mean}, \code{Prior}, \code{design}, and \code{family}. When a
-#'   pilot stage runs (ING Block~2 and/or dGamma measurement dispersion),
-#'   \code{n_pilot}, \code{pilot}, and \code{pilot_chisq} are included;
-#'   otherwise \code{n_pilot} is \code{0L}.
+#'   Ignored (two-block Gibbs only) for non-Gaussian families.
+#' @return Object of class \code{c("rglmerb", "list")} with \code{popef.*},
+#'   \code{groupef}/\code{groupef.mode}, and (Gaussian only)
+#'   \code{group.dispersion}/\code{group.dispersion.mean}, plus
+#'   \code{Prior}, \code{design}, and \code{family}. When a pilot stage runs,
+#'   nested \code{pilot} (\code{n}, \code{chisq}, \code{draws}) is included.
 #' @seealso \code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},
 #'   \code{\link{Prior_Setup_GLMM}}
 #' @name rglmerb
-#' @title The Bayesian Generalized Linear Mixed-Effects Model Distribution
 NULL
 
 #' @rdname rglmerb
@@ -131,16 +128,16 @@ rglmerb <- function(
     .lmebayes_print_icm_fixef_table(
       prior_list = prior$pop.prior_list,
       re_names   = re_names,
-      fixef_icm  = out$fixef.mode,
-      icm_info   = out$icm_info,
+      fixef_icm  = out$popef.mode,
+      icm_info   = out$convergence_info$icm_info,
       ref_label  = icm_lbl$ref_label,
       icm_label  = icm_lbl$icm_label,
       conv_label = icm_lbl$conv_label,
-      header     = "--- rglmerb: Block 2 fixed effects ---",
+      header     = "--- rglmerb: population effects ---",
       verbose    = verbose
     )
 
-    out <- .lmebayes_add_fixef_summaries(out)
+    out <- .lmebayes_add_popef_summaries(out)
     out$call        <- cl
     out$convergence <- out$convergence_info
     out$Prior       <- list(
@@ -154,12 +151,12 @@ rglmerb <- function(
     out$design      <- design
     out$family      <- family
 
-    if (!is.null(out$n_pilot) && out$n_pilot > 0L) {
+    if (!is.null(out$pilot$n) && out$pilot$n > 0L) {
       .lmebayes_print_fixef_init(
-        out$fixef.init,
+        out$popef.init,
         re_names,
         verbose,
-        header = "--- rglmerb: main-stage fixef.init (pilot colMeans) ---"
+        header = "--- rglmerb: main-stage popef.init (pilot colMeans) ---"
       )
     }
 
@@ -195,29 +192,29 @@ rglmerb <- function(
   .lmebayes_print_icm_fixef_table(
     prior_list = prior$pop.prior_list,
     re_names   = re_names,
-    fixef_icm  = out$fixef.mode,
-    icm_info   = out$icm_info,
+    fixef_icm  = out$popef.mode,
+    icm_info   = out$convergence_info$icm_info,
     ref_label  = icm_lbl$ref_label,
     icm_label  = icm_lbl$icm_label,
     conv_label = icm_lbl$conv_label,
-    header     = "--- rglmerb: Block 2 fixed effects ---",
+    header     = "--- rglmerb: population effects ---",
     verbose    = verbose
   )
 
   .lmebayes_print_ranef_mode_reference(
-    out$ranef.mode, re_names, group_levels, verbose
+    out$groupef.mode, re_names, group_levels, verbose
   )
 
-  if (!is.null(out$n_pilot) && out$n_pilot > 0L) {
+  if (!is.null(out$pilot$n) && out$pilot$n > 0L) {
     .lmebayes_print_fixef_init(
-      out$fixef.init,
+      out$popef.init,
       re_names,
       verbose,
-      header = "--- rglmerb: main-stage fixef.init (pilot colMeans) ---"
+      header = "--- rglmerb: main-stage popef.init (pilot colMeans) ---"
     )
   }
 
-  out <- .lmebayes_add_fixef_summaries(out)
+  out <- .lmebayes_add_popef_summaries(out)
   out$call        <- cl
   out$convergence <- out$convergence_info
   out$Prior       <- list(

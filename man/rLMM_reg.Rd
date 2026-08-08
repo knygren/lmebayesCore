@@ -10,7 +10,9 @@
 \alias{rLMMindepNormalGamma_reg}
 \alias{rLMMindepNormalGamma_reg_known_vcov}
 \alias{rLMMindepNormalGamma_reg_estimated_vcov}
-\title{Matrix-level replicate-chain Gibbs engines for Bayesian LMMs}
+\alias{rLMMindepNormalGamma_reg_known_vcov_v2}
+\alias{rLMMindepNormalGamma_reg_estimated_vcov_v2}
+\title{Simulation Functions for Linear Mixed Models}
 \usage{
 rLMMNormal_reg(
   n,
@@ -18,8 +20,10 @@ rLMMNormal_reg(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -34,8 +38,10 @@ rLMMNormal_reg_known_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -50,8 +56,10 @@ rLMMNormal_reg_known_vcov_iid(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -65,8 +73,10 @@ rLMMNormal_reg_known_vcov_two_bg(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -80,8 +90,10 @@ rLMMNormal_reg_estimated_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -100,8 +112,10 @@ rLMMindepNormalGamma_reg(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -115,8 +129,10 @@ rLMMindepNormalGamma_reg_known_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -130,8 +146,48 @@ rLMMindepNormalGamma_reg_estimated_vcov(
   D,
   group,
   W,
-  prior_list,
   pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
+  icm_tol = 1e-10,
+  icm_maxit = 200L,
+  tv_tol = 0.01,
+  progbar = TRUE,
+  verbose = FALSE,
+  gap_tol = 0.0196,
+  mode_gap_max = 1,
+  diag_sweeps = FALSE,
+  stage_verbose = FALSE
+)
+
+rLMMindepNormalGamma_reg_known_vcov_v2(
+  n,
+  y,
+  D,
+  group,
+  W,
+  pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
+  icm_tol = 1e-10,
+  icm_maxit = 200L,
+  tv_tol = 0.01,
+  progbar = TRUE,
+  verbose = FALSE
+)
+
+rLMMindepNormalGamma_reg_estimated_vcov_v2(
+  n,
+  y,
+  D,
+  group,
+  W,
+  pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   icm_tol = 1e-10,
   icm_maxit = 200L,
   tv_tol = 0.01,
@@ -155,11 +211,11 @@ coefficient names used to key \code{W} and \code{pfamily_list}
 (there is no separate \code{groupef.names} argument to override them).}
 
 \item{group}{Grouping factor of length \code{l2} (must be a \code{factor};
-\code{levels(group)} fixes the row order of Block~1 draws -- there is no
-separate \code{group_levels} argument. To use a level order/superset not
-present in the observed data, construct \code{group} as
+\code{levels(group)} fixes the row order of \code{groupef} draws -- there
+is no separate \code{group_levels} argument. To use a level order/superset
+not present in the observed data, construct \code{group} as
 \code{factor(observed_group, levels = full_superset)} yourself. The name
-used for the grouping column in \code{coefficients} (\code{group_name})
+used for the grouping column in \code{groupef} (\code{group_name})
 is resolved from \code{attr(group, "group_name")} if set, otherwise from
 \code{group}'s own variable name via \code{substitute()} -- this only
 works when \code{group} is passed as a bare variable (e.g.
@@ -171,33 +227,8 @@ one per column of \code{D}; this is \eqn{\mathcal{W}} in \dQuote{Model
 and notation} below: \code{W[[k]]} is \eqn{W_k} and \code{W[[k]][j, ]}
 is the block \eqn{W_{kj}} of \eqn{\mathcal{W}_j}.}
 
-\item{prior_list}{Block~1 prior: \code{list(dispersion = sigma2)} for fixed
-\eqn{\sigma^2} routes (\code{sigma2} a single positive scalar, pooled
-across groups, or -- for \code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
-\code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
-\code{length(group_levels)} giving one fixed, known dispersion per
-group, matched to \code{group_levels} either positionally or by name),
-\code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}, or,
-for \code{rLMMindepNormalGamma_reg_known_vcov}/
-\code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
-the ING measurement-dispersion prior: (1) a single
-\code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
-shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
-one per \code{group_levels} entry, as returned by
-\code{\link{dGamma_list}()} (per-group \eqn{\sigma^2_j}) -- both
-preferred, since \code{shape}/\code{rate}/\code{disp_lower}/
-\code{disp_upper} are read straight from each pfamily's own
-\code{prior_list} -- or (3) the legacy flat list itself
-(\code{shape}/\code{rate}/\code{disp_upper}\code{[}/\code{disp_lower]},
-or \code{shape_group}/\code{rate_group}/\code{disp_lower_group}/
-\code{disp_upper_group}). In every case, \code{mu} and \code{Sigma} are
-never read from \code{prior_list}: \code{mu} is always \eqn{W_j\gamma}
-(recomputed every sweep), and \code{Sigma} is always derived internally
-as \code{solve(P)} from \code{pfamily_list} (see \code{pfamily_list}
-below), so it can never drift out of sync with it.}
-
-\item{pfamily_list}{Named list of Block~2 \code{pfamily} objects. The
-Block~2 random-effect prior precision (formerly a separate \code{P}
+\item{pfamily_list}{Named list of population \code{pfamily} objects. The
+group random-effect prior precision (formerly a separate \code{P}
 argument) is always derived internally from \code{pfamily_list}: one
 \eqn{\tau^2_k} plug-in per component (fixed \code{dispersion} for
 \code{dNormal}, prior mean \eqn{rate/(shape - 1)} for
@@ -206,17 +237,49 @@ matrix -- this is \eqn{\Psi^{-1}} in \dQuote{Model and notation} below.
 There is no way to supply a precision inconsistent with
 \code{pfamily_list}.}
 
-\item{icm_tol, icm_maxit}{ICM convergence controls for the internal Block~2 start.}
+\item{dispprior_list}{Observation-dispersion prior:
+\code{list(dispersion = sigma2)} for fixed \eqn{\sigma^2} routes
+(\code{sigma2} a single positive scalar, pooled across groups, or -- for
+\code{rLMMNormal_reg}/\code{rLMMNormal_reg_known_vcov}/
+\code{rLMMNormal_reg_estimated_vcov} only -- a numeric vector of length
+\code{nlevels(group)} giving one fixed, known dispersion per group,
+matched to \code{levels(group)} either positionally or by name);
+\code{dGamma()} fields for legacy \code{rLMMindepNormalGamma_reg}; or,
+for \code{rLMMindepNormalGamma_reg_known_vcov}/
+\code{rLMMindepNormalGamma_reg_estimated_vcov}, one of three shapes for
+the ING observation-dispersion prior: (1) a single
+\code{\link[glmbayesCore]{dGamma}()} pfamily (pooled \eqn{\sigma^2}
+shared across groups) or (2) a named list of \code{dGamma()} pfamilies,
+one per group level, as returned by \code{\link{dGamma_list}()}
+(per-group \eqn{\sigma^2_j}) -- both preferred, since
+\code{shape}/\code{rate}/\code{disp_lower}/\code{disp_upper} are read
+straight from each pfamily's own \code{prior_list} -- or (3) the legacy
+flat list itself (\code{shape}/\code{rate}/\code{disp_upper}/
+\code{disp_lower}, or \code{shape_group}/\code{rate_group}/
+\code{disp_lower_group}/\code{disp_upper_group}). In every case,
+group-level \code{mu} and \code{Sigma} for the random-effect coefficients
+are \emph{not} read from \code{dispprior_list}: \code{mu} is always
+\eqn{\mathcal{W}_j\gamma} (recomputed every sweep), and \code{Sigma} is
+always derived internally as \code{solve(P)} from \code{pfamily_list}.}
+
+\item{offset, weights}{Observation offset and prior weights (glmbayes-style
+formals: \code{offset = NULL}, \code{weights = 1}). Normalized to length
+\code{length(y)} and echoed on the return as \code{offset}/
+\code{offset2}/\code{prior.weights}. \strong{Not yet used} by the
+mixed-model sampling path (ICM / sweeps still assume unit weights and
+zero offset).}
+
+\item{icm_tol, icm_maxit}{ICM convergence controls for the internal population start.}
 
 \item{tv_tol}{Total-variation tolerance in \code{(0, 1)} for calibration.
 Inner Gibbs sweeps per stored draw (\code{m_convergence}) are derived from
-Theorem~3 at the ICM Block~2 start; pilot chain counts likewise.}
+Theorem~3 at the ICM population start; pilot chain counts likewise.}
 
 \item{progbar}{Show a text progress bar during sampling.}
 
 \item{verbose}{Print convergence calibration / ICM lines.}
 
-\item{sim_method}{Sampling engine for \code{rLMMNormal_reg_known_vcov}:
+\item{sim_method}{Simulation method for \code{rLMMNormal_reg_known_vcov}:
 \code{"DEFAULT"} (exact iid draws, see
 \code{\link{rLMMNormal_reg_known_vcov_iid}}) or
 \code{"TWO_BLOCK_GIBBS"} (two-block Gibbs sweeps, see
@@ -228,58 +291,129 @@ same argument to either route without branching.}
 \item{gap_tol, mode_gap_max, diag_sweeps, stage_verbose}{Pilot-stage controls for
 \code{rLMMNormal_reg_estimated_vcov} and ING estimated routes (see route docs).}
 }
+\value{
+An object of class \code{c("<route>", "rLMMNormal_reg", "list")}
+(or \code{c("rLMMindepNormalGamma_reg", "list")} for the legacy outer-loop
+engine), where \code{<route>} is the specific export that ran (e.g.
+\code{"rLMMNormal_reg_known_vcov"}). Components use package
+\strong{group}/\strong{population} names (see \file{inst/notation.md}),
+in glm/glmbayes-style order:
+\describe{
+\item{\code{groupef}}{Draws of non-centered group coefficients
+\eqn{\beta_j}: a data frame with the grouping column plus one column
+per \code{colnames(D)}. Each row is one group in one stored draw.}
+\item{\code{groupef.mode}}{\eqn{J \times p_{re}} matrix of ICM (or
+exact posterior-mean) group coefficients \eqn{\hat\beta_j}; rows
+are \code{levels(group)}, columns are \code{colnames(D)}.
+\strong{Not} \code{lme4}'s mean-zero \eqn{u_j}.}
+\item{\code{groupef.iters}}{Optional group-level envelope iteration counts.}
+\item{\code{popef}}{Named list of \code{n x q_k} matrices of population
+coefficient draws \eqn{\gamma_k}.}
+\item{\code{popef.mode}, \code{popef.init}}{ICM (or exact) population
+point estimates and main-stage starts.}
+\item{\code{popef.dispersion}, \code{popef.iters}}{Optional population
+per-draw diagnostics when produced by the sampler.}
+\item{\code{group.dispersion}}{Observation residual variance
+\eqn{\sigma^2}/\eqn{\sigma^2_j} when present (fixed scalar/vector or
+draws under a Gamma measurement prior). Optional
+\code{group.dispersion.mean} / \code{group.dispersion.iters}.
+Distinct from \code{popef.dispersion} (\eqn{\tau^2_k}).}
+\item{\code{pfamily_list}, \code{dispprior_list}}{Population
+(\code{pfamily_list}) and observation-dispersion (\code{dispprior_list})
+priors that were used.}
+\item{\code{prior.weights}, \code{offset}, \code{offset2}}{Normalized
+copies of the \code{weights}/\code{offset} arguments (glmbayes
+naming). Not yet consumed by sampling.}
+\item{\code{any_non_normal}}{Whether any population component is not
+\code{dNormal}.}
+\item{\code{family}, \code{design}, \code{n}}{Likelihood family, matrix
+inputs (\code{y}, \code{D}, \code{group}, \code{W},
+\code{groupef.names}, \code{group_name}, plus echoed
+\code{weights}/\code{offset}), and chain count.}
+\item{\code{call}}{Matched call.}
+\item{\code{m_convergence}}{Inner Gibbs sweeps per stored draw
+(always \code{1L} for the exact-iid known-vcov route).}
+\item{\code{convergence_info}}{Calibration details, including
+\code{draw_engine}, \code{sim_method_used}, \code{icm_info}, and
+optional pilot UB fields.}
+\item{\code{pilot}}{When a pilot ran: list with \code{n},
+\code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
+\code{NULL}.}
+\item{\code{sweep_history}}{Main-stage sweep history when collected.}
+}
+}
 \description{
-Gaussian two-block LMM samplers at matrix level (\code{y}, \code{D},
-\code{W}, \code{pfamily_list}). Each stored draw runs
-\code{m_convergence} inner Gibbs sweeps (Block~1 random effects, then
-Block~2 hyperparameters). There is no standalone \code{rLMM()} function;
-use the \code{\link{rGLMM_reg}} routes via \code{\link{rglmerb}}; Gaussian LMMs
-use \code{\link{rLMM_reg}} via \code{\link{rlmerb}}.
+Simulation functions for generating posterior draws from Bayesian linear
+mixed models, given design matrices \code{y}, \code{D}, \code{W} and
+population priors \code{pfamily_list}. Parallel to the glmbayes
+\code{\link[glmbayes]{simfuncs}} for GLMs; typically called from
+\code{\link{rlmerb}} (and from \code{lmerb()} in \strong{lmebayes}).
+Each stored draw runs \code{m_convergence} inner Gibbs sweeps (group
+coefficients \eqn{\beta_j}, then population hyperparameters
+\eqn{\gamma}/\eqn{\tau^2}), except the exact iid known-vcov route.
 }
 \section{Functions}{
 \itemize{
 \item \code{rLMMNormal_reg()}: Dispatcher for fixed \eqn{\sigma^2}: routes to
 \code{\link{rLMMNormal_reg_known_vcov}} or
-\code{\link{rLMMNormal_reg_estimated_vcov}} by Block~2 \code{pfamily_list}.
+\code{\link{rLMMNormal_reg_estimated_vcov}} by population \code{pfamily_list}.
 
-\item \code{rLMMNormal_reg_known_vcov()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-\eqn{\tau^2_k}). Dispatches on \code{sim_method}: \code{"DEFAULT"} draws
-directly from the exact multivariate-normal posterior via
-\code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
-burn-in, no autocorrelation between draws); \code{"TWO_BLOCK_GIBBS"}
-runs \code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block
-Gibbs with Theorem~3 rate calibration -- the only engine available for
+\item \code{rLMMNormal_reg_known_vcov()}: Fixed \eqn{\sigma^2}; all population components
+\code{dNormal} (known \eqn{\tau^2_k}). Dispatches on \code{sim_method}:
+\code{"DEFAULT"} draws directly from the exact multivariate-normal
+posterior via \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs
+sweeps, no burn-in, no autocorrelation between draws);
+\code{"TWO_BLOCK_GIBBS"} runs
+\code{\link{rLMMNormal_reg_known_vcov_two_bg}} instead (two-block Gibbs
+with Theorem~3 rate calibration -- the only option available for
 \code{rLMMNormal_reg_estimated_vcov} and the GLMM routes).
 
-\item \code{rLMMNormal_reg_known_vcov_iid()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal};
-exact iid draws from the closed-form multivariate-normal posterior via
-\code{\link{rLMMNormal_joint_iid}} (\code{sim_method = "DEFAULT"} route
-of \code{\link{rLMMNormal_reg_known_vcov}}).
-
-\item \code{rLMMNormal_reg_known_vcov_two_bg()}: Fixed \eqn{\sigma^2}; all Block~2 \code{dNormal} (known
-\eqn{\tau^2_k}). Exact Theorem~3 rate calibration; two-block Gibbs
-sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
+\item \code{rLMMNormal_reg_known_vcov_iid()}: Fixed \eqn{\sigma^2}; all population components
+\code{dNormal}; exact iid draws from the closed-form multivariate-normal
+posterior via \code{\link{rLMMNormal_joint_iid}}
+(\code{sim_method = "DEFAULT"} route of
 \code{\link{rLMMNormal_reg_known_vcov}}).
 
-\item \code{rLMMNormal_reg_estimated_vcov()}: Fixed \eqn{\sigma^2}; ING Block~2 (estimated \eqn{\tau^2_k}).
-Optional pilot stage; conservative \code{disp_lower} rate bound.
-\code{sim_method} is accepted but has no effect: variance components
-are estimated here, so the joint posterior is not exactly Gaussian and
-only the two-block Gibbs engine is implemented.
+\item \code{rLMMNormal_reg_known_vcov_two_bg()}: Fixed \eqn{\sigma^2}; all population components
+\code{dNormal} (known \eqn{\tau^2_k}). Exact Theorem~3 rate calibration;
+two-block Gibbs sweeps (\code{sim_method = "TWO_BLOCK_GIBBS"} route of
+\code{\link{rLMMNormal_reg_known_vcov}}).
 
-\item \code{rLMMindepNormalGamma_reg()}: Legacy outer-loop engine: draws \eqn{\sigma^2} via
+\item \code{rLMMNormal_reg_estimated_vcov()}: Fixed \eqn{\sigma^2}; ING population components
+(estimated \eqn{\tau^2_k}). Optional pilot stage; conservative
+\code{disp_lower} rate bound. \code{sim_method} is accepted but has no
+effect: variance components are estimated here, so the joint posterior
+is not exactly Gaussian and only two-block Gibbs sampling is
+implemented.
+
+\item \code{rLMMindepNormalGamma_reg()}: Legacy outer-loop sampler: draws \eqn{\sigma^2} via
 \code{\link[glmbayesCore]{rGamma_reg}}, then calls \code{\link{rLMMNormal_reg}} each
 replicate. Prefer \code{\link{rLMMindepNormalGamma_reg_known_vcov}} or
-\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING Block~1
-sweep engine used by \code{\link{rlmerb}}.
+\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} for the ING
+observation-dispersion path used by \code{\link{rlmerb}}.
 
-\item \code{rLMMindepNormalGamma_reg_known_vcov()}: Random \eqn{\sigma^2} (per-group ING Block~1); all
-Block~2 \code{dNormal}. Used by \code{\link{rlmerb}} when
-\code{dispersion_ranef} is dGamma and Block~2 is all \code{dNormal}.
+\item \code{rLMMindepNormalGamma_reg_known_vcov()}: Random \eqn{\sigma^2} (pooled or per-group ING
+observation prior, drawn jointly with group coefficients); all population
+components \code{dNormal}. Used by \code{\link{rlmerb}} when
+\code{group.dispersion} is \code{dGamma()} / \code{dGamma_list()} and
+population priors are all \code{dNormal}.
 
-\item \code{rLMMindepNormalGamma_reg_estimated_vcov()}: Random \eqn{\sigma^2} (per-group ING Block~1); ING Block~2.
-Pilot/UB calibration via sweep-outer engine. Default path for
-\code{\link{rlmerb}} with dGamma \code{dispersion_ranef} and ING Block~2.
+\item \code{rLMMindepNormalGamma_reg_estimated_vcov()}: Random \eqn{\sigma^2} (pooled or per-group ING
+observation prior, drawn jointly with group coefficients); ING population
+components. Pilot/UB calibration via the sweep-outer sampler. Default path
+for \code{\link{rlmerb}} with \code{dGamma()} / \code{dGamma_list()}
+\code{group.dispersion} and ING population priors.
+
+\item \code{rLMMindepNormalGamma_reg_known_vcov_v2()}: \strong{v2 (stub).} Random \eqn{\sigma^2} (pooled or
+per-group), but drawn with the \strong{population} block; group block is
+Gaussian at fixed \eqn{\Omega=1/\sigma^2}. Same formals as
+\code{\link{rLMMindepNormalGamma_reg_known_vcov}}. Sampling not yet
+implemented; see \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
+
+\item \code{rLMMindepNormalGamma_reg_estimated_vcov_v2()}: \strong{v2 (stub).} Random \eqn{\sigma^2} with the
+population block (and ING population components). Same formals as
+\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}. Sampling not yet
+implemented; see \file{inst/DERIVATION_sigma2_with_block2_v2.md}.
 
 }}
 \section{Model and notation}{
@@ -288,17 +422,17 @@ For group \eqn{j = 1, \ldots, J} (\eqn{J = }\code{length(group_levels)}),
 with \eqn{n_j} observations in group \eqn{j} and \eqn{p_{re} = }
 \code{ncol(D)} group-varying coefficients:
 
-\strong{Likelihood (stage 1):}
+\strong{Likelihood (group level):}
 \deqn{y_j \mid \beta_j, \sigma_j^2 \ \sim\ N\bigl(D_j\beta_j,\ \sigma_j^2 I_{n_j}\bigr)}
-\strong{Hierarchical prior (stage 2):}
+\strong{Hierarchical prior (population level):}
 \deqn{\beta_j \mid \gamma, \Psi \ \sim\ N\bigl(\mathcal{W}_j\gamma,\ \Psi\bigr)}
 
 The full, non-centered coefficient vector \eqn{\beta_j} -- not a mean-zero
 deviation -- appears directly in the likelihood. This is a \emph{centered
 parameterization} in the sense of \insertCite{LindleySmith1972}{lmebayesCore}:
-\eqn{\beta_j} is the first-stage parameter, \eqn{\gamma} the second-stage
-(population/hyper-mean) parameter, and \eqn{\Psi} the second-stage
-covariance. \eqn{\mathcal{W}_j} is block-diagonal across the \eqn{p_{re}}
+\eqn{\beta_j} is the group parameter, \eqn{\gamma} the population
+(hyper-mean) parameter, and \eqn{\Psi} the population covariance.
+\eqn{\mathcal{W}_j} is block-diagonal across the \eqn{p_{re}}
 coefficient dimensions,
 \deqn{\mathcal{W}_j = \mathrm{blockdiag}\bigl(W_{1j}, \ldots, W_{p_{re}j}\bigr),
   \qquad W_{kj} \in \mathbb{R}^{1 \times q_k},}
@@ -314,22 +448,22 @@ submatrix \code{D[group == } \eqn{j}\code{, ]}.}
 \eqn{W_{kj}} is row \eqn{j} of \code{W[[k]]}, so \code{W} \emph{is}
 \code{list(}\eqn{W_1, \ldots, W_{p_{re}}}\code{)}, one
 \eqn{J \times q_k} matrix per RE column \eqn{k}.}
-\item{\eqn{\gamma}}{\code{fixef}/\code{fixef.mode} in the returned object
+\item{\eqn{\gamma}}{\code{popef}/\code{popef.mode} in the returned object
 (one entry per RE column, named by \code{colnames(W[[k]])}).}
-\item{\eqn{\beta_j}}{The group-\eqn{j} row of \code{coefficients}/
-\code{ranef.mode} -- \strong{not} \code{lme4}'s mean-zero \eqn{b_j}
+\item{\eqn{\beta_j}}{The group-\eqn{j} row of \code{groupef}/
+\code{groupef.mode} -- \strong{not} \code{lme4}'s mean-zero \eqn{b_j}
 (see below).}
 \item{\eqn{\Psi}}{Diagonal, \eqn{\Psi = \mathrm{diag}(\tau^2_1, \ldots,
     \tau^2_{p_{re}})}, one \eqn{\tau^2_k} plug-in per \code{pfamily_list}
-component (see \code{pfamily_list} below); \eqn{\Psi^{-1}} is exactly
-the internally-derived Block~2 precision referred to as \code{P}
-elsewhere in this file's internals/history.}
+component (see \code{pfamily_list} below); \eqn{\Psi^{-1}} is the
+internally-derived group prior precision \code{P}.}
 \item{group index \eqn{j}}{\code{group} (\code{levels(group)} fixes the
 order \eqn{j = 1, \ldots, J}).}
 }
 
 \strong{Correspondence to \code{lme4}/Laird-Ware:} marginalizing (substituting
-the stage-2 equation into stage 1) recovers the standard \code{lme4} form
+the population equation into the group likelihood) recovers the standard
+\code{lme4} form
 \deqn{y_j = D_j(\mathcal{W}_j\gamma + u_j) + \varepsilon_j =
   \underbrace{(D_j\mathcal{W}_j)}_{X_j}\gamma + \underbrace{D_j}_{Z_j}u_j + \varepsilon_j,}
 where \eqn{u_j := \beta_j - \mathcal{W}_j\gamma} is the mean-zero deviation
@@ -339,8 +473,8 @@ design, after right-multiplying by \eqn{\mathcal{W}_j}) and \eqn{Z_j}
 (random-effects design, used as-is). \eqn{\gamma} corresponds to
 \code{lme4}'s \eqn{\beta} (fixed effects), and \eqn{\Psi} to the per-group
 block of \code{lme4}'s \eqn{G} matrix (\eqn{G = I_J \otimes \Psi}); the
-engines documented here never materialize \eqn{u_j}/\eqn{b_j} -- \eqn{\beta_j}
-is sampled directly against \eqn{y_j} at every Block~1 Gibbs sweep (the
+functions documented here never materialize \eqn{u_j}/\eqn{b_j} -- \eqn{\beta_j}
+is sampled directly against \eqn{y_j} at every group-level Gibbs update (the
 per-group/shared-\eqn{\gamma} conjugate updates for \eqn{\beta_j} and
 \eqn{\gamma} are the \eqn{Z_j}/\eqn{b_j}-lettered formulas in
 \code{\link{lmebayes_posterior_icm}}, with \eqn{Z_j \equiv D_j} and
@@ -357,18 +491,23 @@ derivation) see \code{notation.md} in \code{system.file(package =
 "lmebayesCore")} (source: \code{inst/notation.md}).
 }
 
-\section{Four route engines}{
+\section{Simulation routes}{
 
 \describe{
 \item{\code{rLMMNormal_reg_known_vcov}}{
-Fixed observation \eqn{\sigma^2}; all Block~2 components \code{dNormal}
-(known \eqn{\tau^2_k}).}
+Fixed observation \eqn{\sigma^2}; all population components
+\code{dNormal} (known \eqn{\tau^2_k}).}
 \item{\code{rLMMNormal_reg_estimated_vcov}}{
-Fixed \eqn{\sigma^2}; at least one ING Block~2 component.}
+Fixed \eqn{\sigma^2}; at least one ING population component.}
 \item{\code{rLMMindepNormalGamma_reg_known_vcov}}{
-Random \eqn{\sigma^2} (per-group ING Block~1); all Block~2 \code{dNormal}.}
+Random \eqn{\sigma^2} (pooled or per-group ING observation prior, with
+group coefficients); all population components \code{dNormal}.}
 \item{\code{rLMMindepNormalGamma_reg_estimated_vcov}}{
-Random \eqn{\sigma^2}; at least one ING Block~2 component.}
+Random \eqn{\sigma^2} (pooled or per-group); at least one ING population
+component.}
+\item{\code{rLMMindepNormalGamma_reg_*_v2}}{
+Stubs: same priors, but observation \eqn{\sigma^2} is intended to update
+with the population block (not yet implemented).}
 }
 }
 

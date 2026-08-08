@@ -224,7 +224,7 @@ ignored otherwise.}
 
 \item{stage}{\code{"main"} (default) or \code{"pilot"} -- which sweep
 history to plot (\code{fit$sweep_history} or
-\code{fit$pilot$sweep_history}). Ignored by
+\code{fit$pilot$draws$sweep_history}). Ignored by
 \code{\link{plot_var_convergence.default}}, which always takes
 \code{hist} literally.}
 }
@@ -248,10 +248,10 @@ increase toward it as \code{l} grows.
 \details{
 \code{n_chains} is not stored on \code{hist} itself, so it must be
 supplied from the fitted object that produced it: for the main-stage
-history (\code{fit$sweep_history}) use \code{nrow(fit$fixef[[k]])} for
+history (\code{fit$sweep_history}) use \code{nrow(fit$popef[[k]])} for
 any RE component \code{k} (all have the same number of rows, the \code{n}
 passed to the \verb{_run_with_pilot()} call); for the pilot-stage history
-(\code{fit$pilot$sweep_history}) use \code{fit$pilot_chisq$n_pilot}.
+(\code{fit$pilot$draws$sweep_history}) use \code{fit$pilot$n}.
 }
 \seealso{
 \code{\link{plot_mean_convergence}}, \code{\link{plot_sweep_history_diag}},

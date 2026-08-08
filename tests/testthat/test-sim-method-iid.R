@@ -26,7 +26,7 @@
   W <- list(
     "(Intercept)" = matrix(1, J, 1, dimnames = list(NULL, "(Intercept)"))
   )
-  prior_list <- list(dispersion = unname(sigma2_true))
+  dispprior_list <- list(dispersion = unname(sigma2_true))
   pfamily_list <- list(
     "(Intercept)" = glmbayesCore::dNormal(
       mu = 0, Sigma = matrix(100), dispersion = tau2_true
@@ -36,7 +36,7 @@
   list(
     n_obs = n_obs, J = J, group = group, y = y,
     D = D, W = W,
-    prior_list = prior_list, pfamily_list = pfamily_list,
+    pfamily_list = pfamily_list, dispprior_list = dispprior_list,
     sigma2_true = sigma2_true, tau2_true = tau2_true
   )
 }
@@ -47,51 +47,51 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
   set.seed(1)
   fit_default <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE
   )
-  expect_identical(fit_default$sim_method_used, "DEFAULT")
+  expect_identical(fit_default$convergence_info$sim_method_used, "DEFAULT")
   expect_identical(fit_default$m_convergence, 1L)
   expect_identical(fit_default$convergence_info$method, "exact_iid")
-  expect_identical(fit_default$draw_engine, "rLMMNormal_joint_iid")
+  expect_identical(fit_default$convergence_info$draw_engine, "rLMMNormal_joint_iid")
 
   set.seed(1)
   fit_iid <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
-  expect_identical(fit_iid$sim_method_used, "DEFAULT")
-  expect_equal(fit_iid$fixef, fit_default$fixef)
+  expect_identical(fit_iid$convergence_info$sim_method_used, "DEFAULT")
+  expect_equal(fit_iid$popef, fit_default$popef)
 
   set.seed(1)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
     n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
-  expect_identical(fit_gibbs$sim_method_used, "TWO_BLOCK_GIBBS")
+  expect_identical(fit_gibbs$convergence_info$sim_method_used, "TWO_BLOCK_GIBBS")
   expect_gt(fit_gibbs$m_convergence, 1L)
-  expect_false(identical(fit_gibbs$draw_engine, "rLMMNormal_joint_iid"))
+  expect_false(identical(fit_gibbs$convergence_info$draw_engine, "rLMMNormal_joint_iid"))
 
   ## Direct calls to the two named engines behind the dispatcher.
   set.seed(1)
   fit_iid_direct <- rLMMNormal_reg_known_vcov_iid(
     n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE
   )
-  expect_identical(fit_iid_direct$sim_method_used, "DEFAULT")
-  expect_equal(fit_iid_direct$fixef, fit_default$fixef)
+  expect_identical(fit_iid_direct$convergence_info$sim_method_used, "DEFAULT")
+  expect_equal(fit_iid_direct$popef, fit_default$popef)
 
   set.seed(1)
   fit_bg_direct <- rLMMNormal_reg_known_vcov_two_bg(
     n = 20L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE
   )
-  expect_identical(fit_bg_direct$sim_method_used, "TWO_BLOCK_GIBBS")
-  expect_equal(fit_bg_direct$fixef, fit_gibbs$fixef)
+  expect_identical(fit_bg_direct$convergence_info$sim_method_used, "TWO_BLOCK_GIBBS")
+  expect_equal(fit_bg_direct$popef, fit_gibbs$popef)
 
   for (cls in c("rLMMNormal_reg_known_vcov", "rLMMNormal_reg", "list")) {
     expect_true(cls %in% class(fit_default))
@@ -144,27 +144,27 @@ test_that("iid and two-block Gibbs engines agree on the posterior mean (Monte Ca
   set.seed(2026)
   fit_iid <- rLMMNormal_reg_known_vcov(
     n = 2000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
   set.seed(2026)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
     n = 2000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
 
-  mean_iid   <- mean(fit_iid$fixef[["(Intercept)"]][, "(Intercept)"])
-  mean_gibbs <- mean(fit_gibbs$fixef[["(Intercept)"]][, "(Intercept)"])
+  mean_iid   <- mean(fit_iid$popef[["(Intercept)"]][, "(Intercept)"])
+  mean_gibbs <- mean(fit_gibbs$popef[["(Intercept)"]][, "(Intercept)"])
   expect_equal(mean_iid, mean_gibbs, tolerance = 0.1)
 
   ## Every draw should differ from the previous one for both engines (no
   ## degenerate/constant chain).
   expect_gt(
-    stats::sd(fit_iid$fixef[["(Intercept)"]][, "(Intercept)"]), 0
+    stats::sd(fit_iid$popef[["(Intercept)"]][, "(Intercept)"]), 0
   )
   expect_gt(
-    stats::sd(fit_gibbs$fixef[["(Intercept)"]][, "(Intercept)"]), 0
+    stats::sd(fit_gibbs$popef[["(Intercept)"]][, "(Intercept)"]), 0
   )
 })
 
@@ -174,7 +174,7 @@ test_that("sim_method validation rejects unknown values", {
   expect_error(
     rLMMNormal_reg_known_vcov(
       n = 5L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-      prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+      pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
       progbar = FALSE, sim_method = "bogus"
     ),
     "sim_method"
@@ -227,7 +227,7 @@ test_that("rLMMNormal_joint_iid()'s b_mean is the exact posterior mean of beta_j
   )
 
   ## b_mean must be a stable point estimate: it should be far closer to the
-  ## across-draw average of fit$coefficients than the single last draw
+  ## across-draw average of fit$groupef than the single last draw
   ## (b_last) is, on average across groups.
   mcmc_mean_j <- tapply(
     out$coefficients[["(Intercept)"]], out$coefficients$group, mean
@@ -244,13 +244,13 @@ test_that("rLMMNormal_reg_known_vcov()'s ranef.mode is a stable point estimate f
   set.seed(2026)
   fit_iid <- rLMMNormal_reg_known_vcov(
     n = 3000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "DEFAULT"
   )
   set.seed(2026)
   fit_gibbs <- rLMMNormal_reg_known_vcov(
     n = 3000L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-    prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+    pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
     progbar = FALSE, verbose = FALSE, sim_method = "TWO_BLOCK_GIBBS"
   )
 
@@ -259,18 +259,18 @@ test_that("rLMMNormal_reg_known_vcov()'s ranef.mode is a stable point estimate f
   ## exact posterior mean for this fully Gaussian-conjugate model) should
   ## agree closely -- unlike a raw last-draw comparison, which would not.
   expect_equal(
-    fit_iid$ranef.mode[, "(Intercept)"],
-    fit_gibbs$ranef.mode[, "(Intercept)"],
+    fit_iid$groupef.mode[, "(Intercept)"],
+    fit_gibbs$groupef.mode[, "(Intercept)"],
     tolerance = 1e-6
   )
 
   ## And each engine's own ranef.mode should track its own MCMC mean.
   for (fit in list(fit_iid, fit_gibbs)) {
     mcmc_mean_j <- tapply(
-      fit$coefficients[["(Intercept)"]], fit$coefficients$group, mean
-    )[rownames(fit$ranef.mode)]
+      fit$groupef[["(Intercept)"]], fit$groupef$group, mean
+    )[rownames(fit$groupef.mode)]
     expect_equal(
-      unname(fit$ranef.mode[, "(Intercept)"]),
+      unname(fit$groupef.mode[, "(Intercept)"]),
       as.numeric(mcmc_mean_j),
       tolerance = 0.05
     )
@@ -291,7 +291,7 @@ test_that("sim_method is accepted-but-inert on routes with only a two-block Gibb
   expect_error(
     rLMMNormal_reg_estimated_vcov(
       n = 5L, y = fx$y, D = fx$D, group = fx$group, W = fx$W,
-      prior_list = fx$prior_list, pfamily_list = fx$pfamily_list,
+      pfamily_list = fx$pfamily_list, dispprior_list = fx$dispprior_list,
       progbar = FALSE, sim_method = "bogus"
     ),
     "sim_method"

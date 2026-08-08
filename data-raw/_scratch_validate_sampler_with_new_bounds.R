@@ -83,23 +83,23 @@ fit <- rLMMindepNormalGamma_reg_known_vcov(
   D            = design$D,
   group        = grp,
   W            = design$W,
-  prior_list   = prior_list,
   pfamily_list = pf,
+  dispprior_list = prior_list,
   progbar      = FALSE,
   verbose      = FALSE
 )
 cat(sprintf("Completed in %.1f s\n", as.numeric(Sys.time() - t0, units = "secs")))
 
-stopifnot(is.matrix(fit$dispersion_ranef))
-stopifnot(all(is.finite(fit$dispersion_ranef)), all(fit$dispersion_ranef > 0))
-stopifnot(!is.null(fit$pilot_chisq))
+stopifnot(is.matrix(fit$group.dispersion))
+stopifnot(all(is.finite(fit$group.dispersion)), all(fit$group.dispersion > 0))
+stopifnot(!is.null(fit$pilot$chisq))
 stopifnot(!is.null(fit$sweep_history))
-n_draws <- nrow(fit$fixef[[re_names[1L]]])
+n_draws <- nrow(fit$popef[[re_names[1L]]])
 stopifnot(n_draws == 50L)
 
 cat(sprintf(
   "OK: %d draws, dispersion_ranef range [%.3f, %.3f], m_convergence = %s\n",
-  n_draws, min(fit$dispersion_ranef), max(fit$dispersion_ranef),
+  n_draws, min(fit$group.dispersion), max(fit$group.dispersion),
   if (!is.null(fit$convergence_info$m_convergence)) fit$convergence_info$m_convergence else NA
 ))
 if (!is.null(fit$convergence_info$lambda_star_marginal)) {
