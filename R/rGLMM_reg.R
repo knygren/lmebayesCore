@@ -124,10 +124,13 @@
 #'     \item{\code{sweep_history}}{Main-stage sweep history when collected.}
 #'   }
 #'
+#' @param ... further arguments passed to or from other methods.
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rLMM_reg}},
-#'   \code{\link{rglmerb}}
+#'   \code{\link{rglmerb}}, \code{\link{print_groupef}}
+#' @example inst/examples/Ex_rGLMM_reg.R
 #' @name rGLMM_reg
+#' @order 1
 NULL
 
 #' Shared matrix-level validation for GLMM replicate-chain engines

@@ -231,9 +231,13 @@
 #' \insertAllCited{}
 #' @importFrom Rdpack reprompt
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link[glmbayesCore]{rindepNormalGamma_reg}},
+#' @param ... further arguments passed to or from other methods.
+#' @seealso \code{\link{rGLMM_reg}}, \code{\link{rlmerb}}, \code{\link{print_groupef}},
+#'   \code{\link[glmbayesCore]{rindepNormalGamma_reg}},
 #'   \code{\link{lmebayes_posterior_icm}}
+#' @example inst/examples/Ex_rLMM_reg.R
 #' @name rLMM_reg
+#' @order 1
 NULL
 
 #' Shared matrix-level validation for LMM replicate-chain engines
