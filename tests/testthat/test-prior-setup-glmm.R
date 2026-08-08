@@ -482,19 +482,19 @@ test_that("Prior_Setup_GLMM: pop.mu/pop.sd/pop.nprior outputs are always populat
   }
 
   ## Round-trip: feeding the default pop.mu/pop.sd straight back in as
-  ## overrides reproduces the same prior exactly (calling once without
+  ## overrides reproduces the same prior (calling once without
   ## pop.mu/pop.sd to inspect the defaults, then supplying them back in).
+  ## Sigma is rebuilt as sd^2 after extracting sd = sqrt(diag(Sigma)), so
+  ## expect_equal (not identical) -- MacOS x86_64 can differ by 1 ULP.
   ps_roundtrip <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.mu = ps_default$pop.mu,
     pop.sd = ps_default$pop.sd
   )
-  expect_identical(ps_roundtrip$pop.prior_list, ps_default$pop.prior_list)
-  expect_identical(ps_roundtrip$pop.mu, ps_default$pop.mu)
-  expect_identical(ps_roundtrip$pop.sd, ps_default$pop.sd)
-  ## pop.nprior is re-derived from the pop.sd round-trip (sqrt()/division),
-  ## so it matches only up to floating-point noise, not bit-for-bit.
+  expect_equal(ps_roundtrip$pop.prior_list, ps_default$pop.prior_list)
+  expect_equal(ps_roundtrip$pop.mu, ps_default$pop.mu)
+  expect_equal(ps_roundtrip$pop.sd, ps_default$pop.sd)
   expect_equal(ps_roundtrip$pop.nprior, ps_default$pop.nprior)
 
   ## Same round-trip via pop.nprior instead of pop.sd.

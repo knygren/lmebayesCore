@@ -1,4 +1,8 @@
-data("BikeSharing")
+## BikeSharing ships in glmbayesCore (not duplicated here).
+if (!requireNamespace("glmbayesCore", quietly = TRUE)) {
+  stop("This demo requires the 'glmbayesCore' package.", call. = FALSE)
+}
+data("BikeSharing", package = "glmbayesCore")
 
 # Center continuous predictors
 cont_vars <- c("temp", "atemp", "hum", "windspeed", "hr_sin", "hr_cos", "mon_sin", "mon_cos")

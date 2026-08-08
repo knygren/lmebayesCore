@@ -24,7 +24,7 @@ if (!requireNamespace("pkgload", quietly = TRUE)) {
 
 pkgload::load_all(export_all = FALSE)
 
-data(carinsca)
+data(carinsca, package = "glmbayesCore")
 carinsca$Merit <- ordered(carinsca$Merit)
 carinsca$Class <- factor(carinsca$Class)
 oldopt <- options(contrasts = c("contr.treatment", "contr.treatment"))

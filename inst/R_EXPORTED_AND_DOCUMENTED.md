@@ -394,7 +394,7 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 |--------------|----------|
 | `glmbayesCore-package.R` | Package meta, imports (`"_PACKAGE"`). |
 | `gpu_diagnostics.R` | Links to OpenCL diagnostics topics. |
-| `data-*.R` | Lazy data docs (`Boston_centered`, `BikeSharing`, `carinsca`, etc.). |
+| ~~`data-*.R`~~ | Removed: shared datasets live in **glmbayesCore** only. |
 
 ---
 

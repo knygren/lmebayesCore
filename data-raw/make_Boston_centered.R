@@ -1,10 +1,6 @@
-# Build data/Boston_centered.rda from MASS::Boston (mean-centered predictors).
-#
-# Run from package root:
-#   Rscript data-raw/make_Boston_centered.R
-#
-# Requires MASS (listed in glmbayes Depends). The data-raw/ tree is in
-# .Rbuildignore so this script is not part of the CRAN tarball.
+# Historical builder for Boston_centered.rda (mean-centered MASS::Boston).
+# That dataset now ships only in glmbayesCore; keep this script for reference
+# if regenerating there.
 
 args <- commandArgs(trailingOnly = TRUE)
 root <- if (length(args) >= 1L) {
