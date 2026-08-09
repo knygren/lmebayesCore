@@ -36,7 +36,7 @@
 #' @param data Data frame containing all variables in \code{formula}.
 #' @param family Model \code{\link[stats]{family}}.  Default \code{gaussian()}.
 #'   Non-Gaussian families use \code{\link[lme4]{glmer}} for calibration;
-#'   \code{group.dispersion} is omitted (analogous to
+#'   Block~1 dispersion Gamma calibration is omitted (analogous to
 #'   \code{\link[glmbayesCore]{Prior_Setup}} for flat GLMs).
 #' @param REML Logical scalar passed to \code{\link{model_setup}} (and thus
 #'   to the Gaussian reference \code{lmer} / \code{glmmTMB} fits).  Default
@@ -224,19 +224,6 @@
 #'   \code{pop.mu} is not supplied), in the same shape this argument
 #'   expects -- call once without \code{pop.mu} to inspect the defaults,
 #'   then feed a modified copy of \code{ps$pop.mu} back in to override.
-#' @param group.dispersion Optional override for Block~1 observation-level
-#'   dispersion \eqn{\sigma^2} (Gaussian models only).  When \code{dispformula =
-#'   ~1}, a single positive scalar replaces the pooled \code{lmer} estimate.
-#'   When \code{dispformula} requests per-group dispersion, a named length-\eqn{J}
-#'   vector (one positive value per group level) replaces the per-group values
-#'   used for fixed per-group \eqn{\sigma^2_j} and mean-matches each per-group
-#'   \code{dGamma()} \code{group.ing_prior} entry.  The returned
-#'   \code{group.dispersion} field always holds the resolved value actually used
-#'   (override or reference fit), with \code{attr(., "source")} recording
-#'   provenance.  \code{group.dispersion.ref} remains the glmmTMB reference-fit
-#'   diagnostic.  Ignored (must be \code{NULL}) for non-Gaussian families.
-#'   Pass \code{group.dispersion = ps$group.dispersion} to
-#'   \code{rlmerb()}/\code{rglmerb()} for fixed-\eqn{\sigma^2} routes.
 #' @param group.dispersion.pwt Optional relative prior weight(s) in \eqn{(0, 1)} for
 #'   the Block~1 observation \eqn{\sigma^2} Gamma prior (Gaussian models only),
 #'   decoupled from \code{pop.pwt} (Block~2 fixef) and from
@@ -406,16 +393,28 @@
 #'       which reference fit produced \code{fit_ref} (and therefore
 #'       \code{pop.prior_list}, \code{pop.ing_prior}, \code{group.tau_sd}, and
 #'       \code{group.ing_prior}).}
-#'     \item{\code{group.dispersion}}{For Gaussian models: always the resolved
-#'       Block~1 observation \eqn{\sigma^2} (scalar when \code{dispformula = ~1},
-#'       or a named length-\eqn{J} vector when a per-group override was supplied).
-#'       Defaults come from the reference fit; overridden by the
-#'       \code{group.dispersion} argument when supplied.
-#'       \code{attr(., "source")} records provenance.  \code{NULL} for
-#'       non-Gaussian families.  Pass to \code{rlmerb()}/\code{rglmerb()} as
-#'       \code{group.dispersion}.}
-#'     \item{\code{group.Sigma}}{Diagonal RE covariance matrix (Block~1).}
-#'     \item{\code{pop.prior_list}}{Named Block~2 prior list per RE coefficient.}
+#'     \item{\code{group.dispersion}}{For Gaussian models: resolved Block~1
+#'       observation \eqn{\sigma^2} used to mean-match the Gamma prior.
+#'       When \code{dispformula = ~1}, the pooled A12 §3.3.4 aggregate
+#'       \eqn{\hat\sigma^2 =
+#'       (\sum_j S_{\mathrm{marg},j})/(n - J p_{\mathrm{re}})} (Part VI
+#'       \code{Omega_j} included); classical lmer residual in
+#'       \code{attr(., "classical")}. When \code{dispformula} is per-group,
+#'       a named length-\eqn{J} vector of per-group
+#'       \code{group.ing_prior[[j]]$sigma2_hat}. \code{attr(., "source")}
+#'       records provenance.  \code{NULL} for non-Gaussian families.
+#'       Pass to \code{rlmerb()}/\code{rglmerb()} as
+#'       \code{group.dispersion} for fixed-\eqn{\sigma^2} routes.}
+#'     \item{\code{group.Sigma}}{Diagonal RE covariance matrix (Block~1),
+#'       classical reference-fit \eqn{\Psi} diagonals.}
+#'     \item{\code{pop.dispersion.ref}}{Named vector of classical reference-fit
+#'       \eqn{\hat\tau^2_k} (VarCorr / \code{Psi}) before the A12 §3.3.4
+#'       hyper-regression remargin; compare to
+#'       \code{pop.prior_list[[k]]$dispersion}.}
+#'     \item{\code{pop.prior_list}}{Named Block~2 prior list per RE coefficient.
+#'       For Gaussian models \code{dispersion} is the A12 §3.3.4 marginal
+#'       hyper-regression center for \eqn{\tau^2_k} (not the raw VarCorr
+#'       plug-in; see \code{pop.dispersion.ref}).}
 #'     \item{\code{pop.ing_prior}}{Named per-component list of the prospective
 #'       \code{dIndependent_Normal_Gamma} calibration: Gamma precision-prior
 #'       \code{shape} \eqn{= (n_0 + 1 + p_k)/2} and \code{rate}
@@ -423,8 +422,10 @@
 #'       calibration with \eqn{n_0 =} \code{pop.dispersion.nprior}; since
 #'       \code{rate} \eqn{= \hat\tau^2_k (\code{shape} - 1)}, the implied
 #'       inverse-Gamma prior on \eqn{\tau^2_k} has mean exactly
-#'       \eqn{\hat\tau^2_k}), and the default \eqn{\tau^2_k} truncation
-#'       window \code{disp_lower} / \code{disp_upper}: the
+#'       \eqn{\hat\tau^2_k}), where \eqn{\hat\tau^2_k} is the A12 §3.3.4
+#'       marginal hyper-regression center in
+#'       \code{pop.prior_list[[k]]$dispersion}, and the default \eqn{\tau^2_k}
+#'       truncation window \code{disp_lower} / \code{disp_upper}: the
 #'       \eqn{(1-\mathrm{pop.max\_disp\_perc})} /
 #'       \eqn{\mathrm{pop.max\_disp\_perc}}
 #'       quantiles of the \emph{limiting posterior}
@@ -448,8 +449,10 @@
 #'           levels) -- mean-matched \code{shape} / \code{rate} with
 #'           \eqn{n_{\mathrm{prior}} = \mathrm{group.dispersion.pwt}/(1-\mathrm{group.dispersion.pwt})\times n},
 #'           \eqn{p = p_{\mathrm{re}}}, and \eqn{\hat\sigma^2} =
-#'           \code{group.dispersion} (same ING algebra as \code{pop.ing_prior}
-#'           for \eqn{\tau^2_k}; requires \code{group.dispersion.pwt} \eqn{\le 0.5}),
+#'           \code{group.dispersion} (pooled A12 §3.3.4 aggregate of
+#'           per-group \eqn{S_{\mathrm{marg},j}} by default; same ING algebra
+#'           as \code{pop.ing_prior} for \eqn{\tau^2_k}; requires
+#'           \code{group.dispersion.pwt} \eqn{\le 0.5}),
 #'           plus \code{disp_lower} / \code{disp_upper} as the central
 #'           \eqn{2 \times \mathrm{group.max\_disp\_perc} - 1} prior-mass
 #'           interval from the same calibrated \code{shape}/\code{rate}
@@ -545,7 +548,6 @@ Prior_Setup_GLMM <- function(formula,
                                  pop.intercept_source = c("null_model", "full_model"),
                                  pop.effects_source   = c("null_effects", "full_model"),
                                  pop.mu = NULL,
-                                 group.dispersion = NULL,
                                  group.dispersion.pwt = NULL,
                                  group.dispersion.nprior = NULL,
                                  group.alpha_target = 0.01,
@@ -622,13 +624,6 @@ Prior_Setup_GLMM <- function(formula,
 
   is_gaussian <- identical(family$family, "gaussian")
   mer_label   <- if (is_gaussian) "lmer" else "glmer"
-
-  if (!is.null(group.dispersion) && !is_gaussian) {
-    stop(
-      "'group.dispersion' is only supported for family = gaussian().",
-      call. = FALSE
-    )
-  }
 
   if (is.null(control)) {
     if (is_gaussian) {
@@ -728,23 +723,13 @@ Prior_Setup_GLMM <- function(formula,
   }
 
   group_levels <- levels(design$group)
-  group_dispersion_resolved <- .lmebayes_validate_group_dispersion(
-    group.dispersion,
-    dispformula_kind = dispformula_kind,
-    group_levels     = group_levels
-  )
 
+  ## Placeholder until marginal centers overwrite below (pooled S_marg or
+  ## per-group sigma2_hat). Classical lmer residual kept as diagnostic.
   group_dispersion <- if (is_gaussian) {
-    if (identical(dispformula_kind, "pooled") &&
-        !is.null(group_dispersion_resolved)) {
-      val <- as.numeric(group_dispersion_resolved)
-      attr(val, "source") <- "user group.dispersion"
-      val
-    } else {
-      val <- as.numeric(design$dispersion)
-      attr(val, "source") <- "lmer reference fit"
-      val
-    }
+    val <- as.numeric(design$dispersion)
+    attr(val, "source") <- "lmer reference fit"
+    val
   } else {
     NULL
   }
@@ -1120,6 +1105,42 @@ Prior_Setup_GLMM <- function(formula,
 
   pwt_out <- if (is.numeric(pwt)) pwt else pwt_list
 
+  block_formula <- .lmebayes_block_formula_from_re(formula, re_names)
+  ## Classical VarCorr / Psi plug-ins (diagnostic); ING centers below use
+  ## A12 §3.3.4 marginal RSS instead.
+  pop_dispersion_ref <- stats::setNames(as.numeric(tau2_vec), re_names)
+  group_tau_sd_out <- if (is_gaussian) {
+    stats::setNames(sqrt(unname(tau2_vec)), re_names)
+  } else {
+    NULL
+  }
+
+  ## Block~2 tau^2_k center: compute_gaussian_prior on the hyper-regression
+  ## b·k ~ N(W_k gamma_k, tau^2_k I_J) with prior gamma_k ~ N(mu_k, Sigma_k).
+  ## Replaces the classical Psi_kk plug-in in prior_list$dispersion /
+  ## pop.ing_prior while keeping pop.dispersion.ref = Psi.
+  if (is_gaussian) {
+    for (k in re_names) {
+      Y_k <- .lmebayes_reference_b_component(
+        fit_ref, design$group_name, k, group_levels
+      )
+      X_k <- as.matrix(design$W[[k]])
+      if (!is.null(rownames(X_k)) && setequal(rownames(X_k), group_levels)) {
+        X_k <- X_k[group_levels, , drop = FALSE]
+      }
+      n0_k <- unname(disp$n_prior_dispersion[[k]])
+      cal_k <- .lmebayes_compute_ing_prior_cal_tau2_hyper(
+        Y       = Y_k,
+        X       = X_k,
+        mu      = prior_list[[k]]$mu,
+        Sigma   = prior_list[[k]]$Sigma,
+        n_prior = n0_k,
+        k_arg   = 1
+      )
+      prior_list[[k]]$dispersion <- as.numeric(cal_k$dispersion)
+    }
+  }
+
   ## Prospective dIndependent_Normal_Gamma calibration per component (used
   ## only when pfamily_list(ptypes = "dIndependent_Normal_Gamma") is chosen):
   ## Gamma precision prior shape/rate from the lmebayesCore default
@@ -1127,6 +1148,9 @@ Prior_Setup_GLMM <- function(formula,
   ##   shape_ING = (n0 + 1 + p_k)/2,  b_0 = tau2_k * (n0 + p_k - 1)/2.
   ## Since b_0 = tau2_k * (shape_ING - 1), the implied inverse-Gamma prior on
   ## tau^2_k has mean exactly tau2_k for every n0 and p_k.
+  ##
+  ## Here tau2_k is the A12 §3.3.4 marginal hyper-regression center stored in
+  ## prior_list[[k]]$dispersion (classical Psi is in pop.dispersion.ref).
   ##
   ## The tau^2 truncation window (disp_lower / disp_upper) uses the
   ## *limiting posterior* of lmebayesCore Chapter A12, Theorem 2 -- the
@@ -1216,6 +1240,22 @@ Prior_Setup_GLMM <- function(formula,
     ## max_disp_perc_measurement fallback values used further down whenever
     ## no vector/calibration override applies, regardless of dispformula.
     if (identical(dispformula_kind, "pooled")) {
+      ## Aggregate per-group S_marg,j (A12 §3.3.4 + Part VI).
+      classical_sigma2 <- as.numeric(group_dispersion)
+      smarg_pool <- .lmebayes_pooled_measurement_smarg_from_groups(
+        design           = design,
+        data             = data,
+        block_formula    = block_formula,
+        sd_tau           = group_tau_sd_out,
+        prior_list       = prior_list,
+        group_levels     = group_levels,
+        family           = family,
+        intercept_source = intercept_source,
+        effects_source   = effects_source
+      )
+      group_dispersion <- smarg_pool$sigma2_pool
+      attr(group_dispersion, "source") <- "pooled S_marg (A12 3.3.4)"
+      attr(group_dispersion, "classical") <- classical_sigma2
       ing_prior_measurement <- .lmebayes_calibrate_ing_prior_measurement(
         design           = design,
         group.dispersion = group_dispersion,
@@ -1223,13 +1263,6 @@ Prior_Setup_GLMM <- function(formula,
         max_disp_perc    = mdp_measurement_pooled
       )
     }
-  }
-
-  block_formula <- .lmebayes_block_formula_from_re(formula, re_names)
-  group_tau_sd_out <- if (is_gaussian) {
-    stats::setNames(sqrt(unname(tau2_vec)), re_names)
-  } else {
-    NULL
   }
 
   n_j_group <- if (is_gaussian) {
@@ -1384,17 +1417,16 @@ Prior_Setup_GLMM <- function(formula,
   }
 
   if (is_gaussian && identical(dispformula_kind, "group") &&
-      !is.null(group_dispersion_resolved)) {
-    group_dispersion <- as.numeric(group_dispersion_resolved)
-    names(group_dispersion) <- names(group_dispersion_resolved)
-    attr(group_dispersion, "source") <- "user group.dispersion"
-    if (!is.null(ing_prior_measurement_group)) {
-      ing_prior_measurement_group <- .lmebayes_pin_ing_prior_measurement_group(
-        ing_prior_measurement_group,
-        group_dispersion_resolved,
-        length(re_names)
-      )
-    }
+      !is.null(ing_prior_measurement_group)) {
+    group_dispersion <- vapply(
+      group_levels,
+      function(lev) {
+        as.numeric(ing_prior_measurement_group[[lev]]$sigma2_hat)
+      },
+      numeric(1L)
+    )
+    names(group_dispersion) <- group_levels
+    attr(group_dispersion, "source") <- "per-group S_marg (A12 3.3.4)"
   }
 
   structure(
@@ -1425,6 +1457,7 @@ Prior_Setup_GLMM <- function(formula,
       fit_ref                  = fit_ref,
       group.dispersion.fit     = if (identical(calibration_source, "glmmTMB")) fit_ref else NULL,
       group.dispersion.ref     = group_dispersion_ref,
+      pop.dispersion.ref       = pop_dispersion_ref,
       calibration_source       = calibration_source,
       group.Sigma              = group.Sigma,
       pop.prior_list       = prior_list,
@@ -1449,71 +1482,6 @@ Prior_Setup_GLMM <- function(formula,
 #' @noRd
 .lmebayes_ing_prior_is_grouped <- function(x) {
   !is.null(x) && length(x) > 0L && is.list(x[[1L]])
-}
-
-## Validate optional Block~1 observation-dispersion override(s).
-#' @keywords internal
-#' @noRd
-.lmebayes_validate_group_dispersion <- function(x,
-                                                dispformula_kind,
-                                                group_levels) {
-  if (is.null(x)) {
-    return(NULL)
-  }
-  if (identical(dispformula_kind, "pooled")) {
-    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x <= 0) {
-      stop(
-        "'group.dispersion' must be a single positive finite numeric value ",
-        "when dispformula = ~1.",
-        call. = FALSE
-      )
-    }
-    return(as.numeric(x))
-  }
-  if (!is.numeric(x)) {
-    stop(
-      "'group.dispersion' must be numeric: a scalar when dispformula = ~1, ",
-      "or a named length-J vector when dispformula requests per-group ",
-      "dispersion.",
-      call. = FALSE
-    )
-  }
-  J <- length(group_levels)
-  if (length(x) == 1L && is.null(names(x))) {
-    stop(
-      "'group.dispersion' must be a named length-J vector (J = ", J,
-      ") when dispformula requests per-group dispersion; got a scalar.",
-      call. = FALSE
-    )
-  }
-  if (is.null(names(x))) {
-    if (length(x) != J) {
-      stop(
-        "'group.dispersion' must have length J = ", J,
-        " (one value per group level) when dispformula requests per-group ",
-        "dispersion; got length ", length(x), ".",
-        call. = FALSE
-      )
-    }
-    names(x) <- group_levels
-  } else {
-    miss <- setdiff(group_levels, names(x))
-    if (length(miss) > 0L) {
-      stop(
-        "'group.dispersion' is missing group level(s): ",
-        paste(miss, collapse = ", "),
-        call. = FALSE
-      )
-    }
-    x <- x[group_levels]
-  }
-  if (any(!is.finite(x)) || any(x <= 0)) {
-    stop(
-      "All elements of 'group.dispersion' must be positive and finite.",
-      call. = FALSE
-    )
-  }
-  stats::setNames(as.numeric(x), group_levels)
 }
 
 ## Dimension-adaptive default Block~2 prior weights: one population model
@@ -1888,6 +1856,24 @@ print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
   } else if (!is.null(x$group.ing_prior)) {
     cat("  Pooled Gamma prior on sigma^2 is stored in group.ing_prior.\n")
     cat("  (dGamma_list() requires a per-group dispformula.)\n")
+    if (!is.null(x$group.dispersion)) {
+      cat(sprintf(
+        "  group.dispersion       : %.4g  [%s]\n",
+        as.numeric(x$group.dispersion),
+        if (is.null(attr(x$group.dispersion, "source"))) {
+          "unknown"
+        } else {
+          attr(x$group.dispersion, "source")
+        }
+      ))
+      classical <- attr(x$group.dispersion, "classical")
+      if (!is.null(classical)) {
+        cat(sprintf(
+          "  classical lmer sigma^2 : %.4g  (diagnostic)\n",
+          as.numeric(classical)
+        ))
+      }
+    }
   } else {
     cat("  No group-dispersion Gamma prior (non-Gaussian or not calibrated).\n")
   }
@@ -1948,8 +1934,14 @@ print.Prior_Setup_GLMM <- function(x, digits = 4L, ...) {
     print(round(pl$Sigma, digits))
     cat("\n")
     cat(sprintf(
-      "  dispersion             : %.4f  (tau^2_k; population scale)\n",
+      "  dispersion             : %.4f  (tau^2_k; A12 3.3.4 marginal)\n",
       pl$dispersion))
+    if (!is.null(x$pop.dispersion.ref) && nm %in% names(x$pop.dispersion.ref)) {
+      cat(sprintf(
+        "  pop.dispersion.ref     : %.4f  (classical VarCorr / Psi)\n",
+        unname(x$pop.dispersion.ref[[nm]])
+      ))
+    }
     ing_k <- x$pop.ing_prior[[nm]]
     if (!is.null(ing_k)) {
       mdp_k <- if (!is.null(ing_k$max_disp_perc)) ing_k$max_disp_perc else 0.99

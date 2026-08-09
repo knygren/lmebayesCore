@@ -358,10 +358,18 @@ precisions have truncated Gamma priors</h1>
 <p>A short companion to <code>BLOCK_GIBBS_ERGODICITY_ING.md</code>
 §14–§16. Keep only the two-block coordinates <span class="math inline">\((\gamma,\beta)\)</span> and integrate
 <strong>both</strong> measurement precisions <span class="math inline">\(\Omega_j\)</span> and population precisions <span class="math inline">\(\lambda_p\)</span> out under truncated-Gamma
-priors. Notation: <code>inst/notation.md</code> (<span class="math inline">\(e_j=y_j-D_j\beta_j\)</span>, <span class="math inline">\(u_p=\beta_{\cdot p}-W_p\gamma_p\)</span>).</p>
+priors. Notation: <code>inst/notation.md</code>. Residuals are
+<strong>functions of the two-block coordinates</strong>, never fixed
+plugs:</p>
+<p><span class="math display">\[
+e_j(\beta_j)\;:=\;y_j-D_j\beta_j,
+\qquad
+u_p(\beta_{\cdot p},\gamma_p)\;:=\;\beta_{\cdot p}-W_p\gamma_p.
+\]</span></p>
 <p>Moments <span class="math inline">\(E_t[\cdot]\)</span>, <span class="math inline">\(\mathrm{Var}_t[\cdot]\)</span> are
 tilted-truncated posterior moments
-(<code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.6).</p>
+(<code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.6); they inherit that
+dependence through the updated rates below.</p>
 <hr />
 <div id="the-p-matrix-both-omega_j-and-lambda_p-truncated" class="section level2">
 <h2>1. The <span class="math inline">\(P\)</span> matrix (both <span class="math inline">\(\Omega_j\)</span> and <span class="math inline">\(\lambda_p\)</span> truncated)</h2>
@@ -380,12 +388,13 @@ tilted-truncated posterior moments
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(e_j=y_j-D_j\beta_j\)</span></td>
-<td>measurement residual, group <span class="math inline">\(j\)</span></td>
+<td><span class="math inline">\(e_j(\beta_j)=y_j-D_j\beta_j\)</span></td>
+<td>measurement residual, group <span class="math inline">\(j\)</span>
+(length <span class="math inline">\(n_j\)</span>)</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(u_p=\beta_{\cdot
-p}-W_p\gamma_p\)</span></td>
+<td><span class="math inline">\(u_p(\beta_{\cdot
+p},\gamma_p)=\beta_{\cdot p}-W_p\gamma_p\)</span></td>
 <td>RE residual for component <span class="math inline">\(p\)</span>
 (length <span class="math inline">\(J\)</span>)</td>
 </tr>
@@ -411,7 +420,25 @@ p}-W_p\gamma_p\)</span></td>
 </table>
 <p>Tilted truncated posterior moments <span class="math inline">\(E_t[\cdot]\)</span>, <span class="math inline">\(\mathrm{Var}_t[\cdot]\)</span> are as in
 <code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.6 (three
-<code>pgamma</code> calls at the updated rate). For <span class="math inline">\(\Omega_j\)</span> the updated rate is <span class="math inline">\(t_j=r_j^0+\tfrac12 e_j&#39;e_j\)</span>; for <span class="math inline">\(\lambda_p\)</span> it is <span class="math inline">\(t_p^{(\lambda)}=r_p^{0(\lambda)}+\tfrac12\|u_p\|^2\)</span>.</p>
+<code>pgamma</code> calls at the updated rate). For <span class="math inline">\(\Omega_j\)</span> the updated rate is</p>
+<p><span class="math display">\[
+t_j(\beta_j)
+\;=\;
+r_j^0+\tfrac12\,\|e_j(\beta_j)\|^2
+\;=\;
+r_j^0+\tfrac12\,\|y_j-D_j\beta_j\|^2;
+\]</span></p>
+<p>for <span class="math inline">\(\lambda_p\)</span> it is</p>
+<p><span class="math display">\[
+t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)
+\;=\;
+r_p^{0(\lambda)}+\tfrac12\,\|u_p(\beta_{\cdot p},\gamma_p)\|^2
+\;=\;
+r_p^{0(\lambda)}+\tfrac12\,\|\beta_{\cdot p}-W_p\gamma_p\|^2.
+\]</span></p>
+<p>Thus <span class="math inline">\(E_t[\Omega_j]=E_t[\Omega_j;t_j(\beta_j)]\)</span>
+and <span class="math inline">\(E_t[\lambda_p]=E_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot
+p},\gamma_p)]\)</span> (and likewise <span class="math inline">\(\mathrm{Var}_t\)</span>).</p>
 </div>
 <div id="ellipsoid-scores-as-functions" class="section level3">
 <h3>1.2 Ellipsoid scores (as functions)</h3>
@@ -420,7 +447,7 @@ p}-W_p\gamma_p\)</span></td>
 <p><span class="math display">\[\begin{align*}
 q_j(\beta_j)
 &amp;\;:=\;
-\bigl(D_j&#39;(y_j-D_j\beta_j)\bigr)&#39;(D_j&#39;D_j)^{-1}\bigl(D_j&#39;(y_j-D_j\beta_j)\bigr)
+\bigl(D_j&#39;e_j(\beta_j)\bigr)&#39;(D_j&#39;D_j)^{-1}\bigl(D_j&#39;e_j(\beta_j)\bigr)
 \\[4pt]
 &amp;\;=\;
 \bigl\|\beta_j-\hat\beta_j^{\mathrm{ols}}\bigr\|^2_{D_j&#39;D_j}
@@ -428,11 +455,13 @@ q_j(\beta_j)
 (\beta_j-\hat\beta_j^{\mathrm{ols}})&#39;(D_j&#39;D_j)\,(\beta_j-\hat\beta_j^{\mathrm{ols}}).
 \end{align*}\]</span></p>
 <p>With <span class="math inline">\(\mathrm{RSS}_j^{\mathrm{ols}}=\|y_j-D_j\hat\beta_j^{\mathrm{ols}}\|^2\)</span>
-fixed, the OLS split also gives <span class="math inline">\(q_j(\beta_j)=\|y_j-D_j\beta_j\|^2-\mathrm{RSS}_j^{\mathrm{ols}}\)</span>.</p>
+fixed, the OLS split also gives <span class="math inline">\(q_j(\beta_j)=\|e_j(\beta_j)\|^2-\mathrm{RSS}_j^{\mathrm{ols}}\)</span>.</p>
 <p><strong>Population / RE (component <span class="math inline">\(p\)</span>).</strong> Define</p>
 <p><span class="math display">\[\begin{align*}
 q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)
 &amp;\;:=\;
+\|u_p(\beta_{\cdot p},\gamma_p)\|^2
+\;=\;
 \|\beta_{\cdot p}-W_p\gamma_p\|^2
 \\[4pt]
 &amp;\;=\;
@@ -463,7 +492,7 @@ is positive (semi)definite iff the score that <span class="math inline">\(v\)</s
 <td><span class="math inline">\(\displaystyle q_j(\beta_j) \;\le\;
 \frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\)</span></td>
 <td><span class="math inline">\(K_j^{(\Omega)}(\beta_j):=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span>
-(depends on <span class="math inline">\(\beta_j\)</span> through <span class="math inline">\(t_j\)</span>)</td>
+(depends on <span class="math inline">\(\beta_j\)</span> through <span class="math inline">\(e_j(\beta_j)\)</span> and <span class="math inline">\(t_j(\beta_j)\)</span>)</td>
 </tr>
 <tr class="even">
 <td><span class="math inline">\(\lambda_p\)</span></td>
@@ -472,7 +501,10 @@ q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p) \;\le\;
 \frac{E_t[\lambda_p]}{\mathrm{Var}_t[\lambda_p]}\)</span></td>
 <td><span class="math inline">\(K_p^{(\lambda)}(\beta_{\cdot
 p},\gamma_p):=E_t[\lambda_p]/\mathrm{Var}_t[\lambda_p]\)</span> (depends
-on <span class="math inline">\(u_p\)</span> through <span class="math inline">\(t_p^{(\lambda)}\)</span>)</td>
+on <span class="math inline">\((\beta_{\cdot p},\gamma_p)\)</span>
+through <span class="math inline">\(u_p(\beta_{\cdot
+p},\gamma_p)\)</span> and <span class="math inline">\(t_p^{(\lambda)}(\beta_{\cdot
+p},\gamma_p)\)</span>)</td>
 </tr>
 </tbody>
 </table>
@@ -535,14 +567,18 @@ weight.)</p>
 </div>
 <div id="hessians-psd-inside-the-ellipsoids" class="section level3">
 <h3>1.4 Hessians (PSD inside the ellipsoids)</h3>
+<p>Write <span class="math inline">\(e_j=e_j(\beta_j)\)</span> and <span class="math inline">\(u_p=u_p(\beta_{\cdot p},\gamma_p)\)</span> for
+short. Moments and rank-one directions both move with <span class="math inline">\((\gamma,\beta)\)</span>:</p>
 <p><span class="math display">\[\begin{align*}
-H_j^{(\Omega)}
-&amp;= E_t[\Omega_j]\,D_j&#39;D_j
-- \mathrm{Var}_t[\Omega_j]\,(D_j&#39;e_j)(D_j&#39;e_j)&#39;,
+H_j^{(\Omega)}(\beta_j)
+&amp;= E_t[\Omega_j;t_j(\beta_j)]\,D_j&#39;D_j
+- \mathrm{Var}_t[\Omega_j;t_j(\beta_j)]\,
+\bigl(D_j&#39;e_j(\beta_j)\bigr)\bigl(D_j&#39;e_j(\beta_j)\bigr)&#39;,
 \\[4pt]
-H_u^{(p)}
-&amp;= E_t[\lambda_p]\,I_J
-- \mathrm{Var}_t[\lambda_p]\,u_p u_p&#39;.
+H_u^{(p)}(\beta_{\cdot p},\gamma_p)
+&amp;= E_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)]\,I_J
+- \mathrm{Var}_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)]\,
+u_p(\beta_{\cdot p},\gamma_p)\,u_p(\beta_{\cdot p},\gamma_p)&#39;.
 \end{align*}\]</span></p>
 <table>
 <colgroup>
@@ -557,23 +593,26 @@ H_u^{(p)}
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(H_j^{(\Omega)}\)</span></td>
+<td><span class="math inline">\(H_j^{(\Omega)}(\beta_j)\)</span></td>
 <td>inside the <span class="math inline">\(\Omega_j\)</span> ellipsoid
 of §1.3 (<span class="math inline">\(D_j\)</span> full column rank <span class="math inline">\(\Rightarrow\)</span> PD on the nose of the
 boundary)</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(H_u^{(p)}\)</span></td>
+<td><span class="math inline">\(H_u^{(p)}(\beta_{\cdot
+p},\gamma_p)\)</span></td>
 <td>inside the <span class="math inline">\(\lambda_p\)</span> ellipsoid
 of §1.3</td>
 </tr>
 </tbody>
 </table>
-<p>Stack <span class="math inline">\(H^{(\Omega)}:=\mathrm{blockdiag}_j(H_j^{(\Omega)})\)</span>
-and <span class="math inline">\(H^{(u)}:=\sum_p\mathrm{embed}_p(H_u^{(p)})\)</span>.</p>
+<p>Stack <span class="math inline">\(H^{(\Omega)}(\beta):=\mathrm{blockdiag}_j\bigl(H_j^{(\Omega)}(\beta_j)\bigr)\)</span>
+and <span class="math inline">\(H^{(u)}(\gamma,\beta):=\sum_p\mathrm{embed}_p\bigl(H_u^{(p)}(\beta_{\cdot
+p},\gamma_p)\bigr)\)</span>.</p>
 </div>
 <div id="joint-precision-blocks" class="section level3">
 <h3>1.5 Joint precision blocks</h3>
+<p>All blocks below are functions of <span class="math inline">\((\gamma,\beta)\)</span> through <span class="math inline">\(e_j(\beta_j)\)</span> and <span class="math inline">\(u_p(\beta_{\cdot p},\gamma_p)\)</span>.</p>
 <table>
 <colgroup>
 <col width="50%" />
@@ -587,29 +626,30 @@ and <span class="math inline">\(H^{(u)}:=\sum_p\mathrm{embed}_p(H_u^{(p)})\)</sp
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(P_{11}\)</span></td>
+<td><span class="math inline">\(P_{11}(\gamma,\beta)\)</span></td>
 <td><span class="math inline">\(\displaystyle\sum_p
-W_p&#39;\,H_u^{(p)}\,W_p \;+\;
+W_p&#39;\,H_u^{(p)}(\beta_{\cdot p},\gamma_p)\,W_p \;+\;
 \mathrm{blockdiag}_p(V_p^{-1})\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(P_{12}\)</span></td>
-<td>row-strips <span class="math inline">\(\bigl(-W_p&#39;\,H_u^{(p)}\bigr)_{p=1}^{P}\)</span>
-over the <span class="math inline">\(\beta_{\cdot p}\)</span> columns
-(zeros for <span class="math inline">\(p\neq p&#39;\)</span>)</td>
+<td><span class="math inline">\(P_{12}(\gamma,\beta)\)</span></td>
+<td>row-strips <span class="math inline">\(\bigl(-W_p&#39;\,H_u^{(p)}(\beta_{\cdot
+p},\gamma_p)\bigr)_{p=1}^{P}\)</span> over the <span class="math inline">\(\beta_{\cdot p}\)</span> columns (zeros for <span class="math inline">\(p\neq p&#39;\)</span>)</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(P_{21}\)</span></td>
-<td><span class="math inline">\(P_{12}^{\top}\)</span></td>
+<td><span class="math inline">\(P_{21}(\gamma,\beta)\)</span></td>
+<td><span class="math inline">\(P_{12}(\gamma,\beta)^{\top}\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(P_{22}\)</span></td>
-<td><span class="math inline">\(H^{(\Omega)}+H^{(u)}\)</span></td>
+<td><span class="math inline">\(P_{22}(\gamma,\beta)\)</span></td>
+<td><span class="math inline">\(H^{(\Omega)}(\beta)+H^{(u)}(\gamma,\beta)\)</span></td>
 </tr>
 </tbody>
 </table>
-<p><span class="math inline">\(\mathrm{embed}_p(H_u^{(p)})\)</span>
-places the <span class="math inline">\(J\times J\)</span> matrix <span class="math inline">\(H_u^{(p)}\)</span> into the <span class="math inline">\(\beta_{\cdot p}\)</span> slots of the full <span class="math inline">\(JP\times JP\)</span> array.</p>
+<p><span class="math inline">\(\mathrm{embed}_p\bigl(H_u^{(p)}(\beta_{\cdot
+p},\gamma_p)\bigr)\)</span> places the <span class="math inline">\(J\times J\)</span> matrix <span class="math inline">\(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\)</span> into
+the <span class="math inline">\(\beta_{\cdot p}\)</span> slots of the
+full <span class="math inline">\(JP\times JP\)</span> array.</p>
 <table>
 <colgroup>
 <col width="20%" />
@@ -654,7 +694,10 @@ places the <span class="math inline">\(J\times J\)</span> matrix <span class="ma
 </tbody>
 </table>
 <p><strong>Normal / fixed-precision limit</strong> (<span class="math inline">\(\mathrm{Var}_t\to 0\)</span> of §1.3 with <span class="math inline">\(E_t[\Omega_j]=\omega_j\)</span>, <span class="math inline">\(E_t[\lambda_p]=\lambda_p\)</span> held fixed;
-ellipsoids become all of <span class="math inline">\(\beta\)</span>/<span class="math inline">\(u\)</span>-space)</p>
+ellipsoids become all of <span class="math inline">\((\gamma,\beta)\)</span>-space. Rank-one terms in
+<span class="math inline">\(e_j(\beta_j)\)</span> and <span class="math inline">\(u_p(\beta_{\cdot p},\gamma_p)\)</span> drop out,
+so the limiting <span class="math inline">\(P\)</span> no longer depends
+on those residuals.)</p>
 <table>
 <colgroup>
 <col width="50%" />
@@ -690,25 +733,214 @@ D_j&#39;D_j)+\mathrm{diag}(\lambda)\)</span> on each <span class="math inline">\
 </div>
 <div id="rate-matrix-and-sufficient-condition" class="section level3">
 <h3>1.6 Rate matrix and sufficient condition</h3>
-<p>Whenever <span class="math inline">\(P_{11}\succ 0\)</span> and <span class="math inline">\(P_{22}\succ 0\)</span>, define</p>
+<p>Whenever <span class="math inline">\(P_{11}(\gamma,\beta)\succ
+0\)</span> and <span class="math inline">\(P_{22}(\gamma,\beta)\succ
+0\)</span>, define</p>
 <p><span class="math display">\[
-A \;=\; P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
+A(\gamma,\beta)
+\;=\;
+P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
 \qquad
-\lambda^\star:=\lambda_{\max}(A).
+\lambda^\star(\gamma,\beta):=\lambda_{\max}\bigl(A(\gamma,\beta)\bigr)
 \]</span></p>
+<p>(with each <span class="math inline">\(P_{ij}=P_{ij}(\gamma,\beta)\)</span>).</p>
 <p><strong>Sufficient condition (matched <span class="math inline">\(P_{12}=-W&#39;H_u\)</span>).</strong> If every
 group is inside its <span class="math inline">\(\Omega_j\)</span>
-ellipsoid and every RE component is inside its <span class="math inline">\(\lambda_p\)</span> ellipsoid (§1.3), then <span class="math inline">\(H^{(\Omega)}\succ 0\)</span> and <span class="math inline">\(H^{(u)}\succeq 0\)</span>. With also <span class="math inline">\(P_{11}\succ 0\)</span>,</p>
+ellipsoid and every RE component is inside its <span class="math inline">\(\lambda_p\)</span> ellipsoid (§1.3), then <span class="math inline">\(H^{(\Omega)}(\beta)\succ 0\)</span> and <span class="math inline">\(H^{(u)}(\gamma,\beta)\succeq 0\)</span>. With also
+<span class="math inline">\(P_{11}(\gamma,\beta)\succ 0\)</span>,</p>
 <p><span class="math display">\[
-\lambda_{\max}(A) \;&lt;\; 1.
+\lambda_{\max}\bigl(A(\gamma,\beta)\bigr) \;&lt;\; 1.
 \]</span></p>
-<p>Equivalently: <span class="math inline">\(P_{22}\succ 0\)</span>
-alone is not enough — one needs the measurement ellipsoids (so <span class="math inline">\(H^{(\Omega)}\succ 0\)</span>). Matching through
-<span class="math inline">\(P_{12}/P_{21}\)</span> does not remove the
-need for the <span class="math inline">\(\lambda_p\)</span> ellipsoids
-(so <span class="math inline">\(H^{(u)}\succeq 0\)</span>); see
+<p>Equivalently: <span class="math inline">\(P_{22}(\gamma,\beta)\succ
+0\)</span> alone is not enough — one needs the measurement ellipsoids
+(so <span class="math inline">\(H^{(\Omega)}(\beta)\succ 0\)</span>).
+Matching through <span class="math inline">\(P_{12}/P_{21}\)</span> does
+not remove the need for the <span class="math inline">\(\lambda_p\)</span> ellipsoids (so <span class="math inline">\(H^{(u)}(\gamma,\beta)\succeq 0\)</span>); see
 §5.2.</p>
+</div>
+<div id="special-case-default-dgamma-priors-prior_setup_glmm" class="section level3">
+<h3>1.7 Special case: default <code>dGamma</code> priors
+(<code>Prior_Setup_GLMM</code>)</h3>
+<p>Focus: the default <strong>Gamma priors on measurement and population
+dispersion</strong> (Block~1 <code>dGamma</code> /
+<code>group.ing_prior</code>; Block~2 Gamma factor of
+<code>dIndependent_Normal_Gamma</code> / <code>pop.ing_prior</code>).
+Both are mean-matched at A12 §3.3.4 marginal centers (<span class="math inline">\(\hat\sigma^2\)</span> pooled or per-group; <span class="math inline">\(\hat\tau^2_p\)</span> from the hyper-regression on
+<span class="math inline">\(b_{\cdot p}\)</span>). See
+<code>R/Prior_Setup_GLMM.R</code>.</p>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Prior</th>
+<th>Weight default</th>
+<th><span class="math inline">\(n_0=\dfrac{w}{1-w}\times(\text{units})\)</span></th>
+<th>Shape / rate</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Measurement <span class="math inline">\(\Omega\)</span>
+(pooled)</td>
+<td><code>group.dispersion.pwt</code> <span class="math inline">\(=w_\Omega=0.01\)</span></td>
+<td><span class="math inline">\(n_0=\dfrac{w_\Omega}{1-w_\Omega}\,n\)</span></td>
+<td><span class="math inline">\(s_\Omega=\tfrac{n_0+1}{2}+\tfrac{p_{\mathrm{re}}}{2}\)</span>,
+<span class="math inline">\(r_\Omega=\hat\sigma^2\cdot\tfrac{n_0+p_{\mathrm{re}}-1}{2}\)</span></td>
+</tr>
+<tr class="even">
+<td>Measurement <span class="math inline">\(\Omega_j\)</span>
+(per-group)</td>
+<td>seed <span class="math inline">\(w_{\Omega,j}=0.01\)</span>; may
+rise under <code>group.alpha_target</code> <span class="math inline">\(=0.01\)</span></td>
+<td><span class="math inline">\(n_{0,j}=\dfrac{w_{\Omega,j}}{1-w_{\Omega,j}}\,n_j\)</span></td>
+<td>same with <span class="math inline">\((n_{0,j},\hat\sigma^2_j,p_{\mathrm{re}})\)</span></td>
+</tr>
+<tr class="odd">
+<td>Population <span class="math inline">\(\lambda_p=1/\tau_p^2\)</span></td>
+<td><code>pop.dispersion.pwt</code> <span class="math inline">\(=w_{\lambda,p}\)</span> defaults to
+<code>pop.pwt</code> ( <span class="math inline">\(0.01\)</span> if
+<span class="math inline">\(p_p&lt;14\)</span>, else <span class="math inline">\(0.05\)</span> )</td>
+<td><span class="math inline">\(n_{0,p}=\dfrac{w_{\lambda,p}}{1-w_{\lambda,p}}\,J\)</span></td>
+<td><span class="math inline">\(s_{\lambda,p}=\tfrac{n_{0,p}+1}{2}+\tfrac{p_p}{2}\)</span>,
+<span class="math inline">\(r_{\lambda,p}=\hat\tau^2_p\cdot\tfrac{n_{0,p}+p_p-1}{2}\)</span></td>
+</tr>
+</tbody>
+</table>
+<div id="marginal-centers-filled-in" class="section level4">
+<h4>Marginal centers (filled in)</h4>
+<p><strong>Per-group measurement.</strong> For group <span class="math inline">\(j\)</span>, let <span class="math inline">\(\hat\beta_j\)</span> be the within-group OLS fit
+on <span class="math inline">\(D_j\)</span>, <span class="math inline">\(\mu_j\)</span> the Block~1 prior mean for <span class="math inline">\(\beta_j\)</span>, and <span class="math inline">\(\Sigma_j&#39;= \Sigma_j+\Omega_j\)</span> the
+Part-0 / Part VI prior covariance (RE shrinkage plus hyper-mean
+uncertainty through <span class="math inline">\(W_j\Sigma_\gamma
+W_j&#39;\)</span>). With <span class="math inline">\(M_j=\bigl(\Sigma_j&#39;+(D_j&#39;D_j)^{-1}\bigr)^{-1}\)</span>,</p>
+<p><span class="math display">\[\begin{align*}
+S_{\mathrm{marg},j}
+&amp;=\mathrm{RSS}_{\mathrm{ols},j}
++(\hat\beta_j-\mu_j)&#39;M_j(\hat\beta_j-\mu_j),
+\\[4pt]
+\hat\sigma^2_j
+&amp;=\frac{S_{\mathrm{marg},j}}{n_j-p_{\mathrm{re}}}.
+\end{align*}\]</span></p>
+<p>(<code>compute_gaussian_prior</code> /
+<code>.lmebayes_measurement_group_smarg_cal</code>.)</p>
+<p><strong>Pooled measurement.</strong> Aggregate the independent-group
+contributions:</p>
+<p><span class="math display">\[
+\hat\sigma^2
+=\frac{\sum_{j=1}^{J}
+S_{\mathrm{marg},j}}{\sum_{j=1}^{J}(n_j-p_{\mathrm{re}})}
+=\frac{\sum_{j=1}^{J} S_{\mathrm{marg},j}}{n-J\,p_{\mathrm{re}}}
+\]</span></p>
+<p>(when every group is full rank; singular within-group designs fall
+back to intercept-only residual SS for that <span class="math inline">\(j\)</span>, with df <span class="math inline">\(n_j-1\)</span>).</p>
+<p><strong>Population <span class="math inline">\(\tau^2_p\)</span>.</strong> Treat the reference
+group coefficients <span class="math inline">\(b_{\cdot p}\)</span>
+(length <span class="math inline">\(J\)</span>) as the response in <span class="math inline">\(b_{\cdot p}\sim N(W_p\gamma_p,\tau_p^2
+I_J)\)</span> with prior <span class="math inline">\(\gamma_p\sim
+N(\mu_p,\Sigma_p)\)</span>. Let <span class="math inline">\(\hat\gamma_p\)</span> be OLS of <span class="math inline">\(b_{\cdot p}\)</span> on <span class="math inline">\(W_p\)</span> and</p>
+<p><span class="math display">\[\begin{align*}
+S_{\mathrm{marg},p}^{(\tau)}
+&amp;=\|b_{\cdot p}-W_p\hat\gamma_p\|^2
++(\hat\gamma_p-\mu_p)&#39;
+\bigl(\Sigma_p+(W_p&#39;W_p)^{-1}\bigr)^{-1}
+(\hat\gamma_p-\mu_p),
+\\[4pt]
+\hat\tau^2_p
+&amp;=\frac{S_{\mathrm{marg},p}^{(\tau)}}{J-p_p}.
+\end{align*}\]</span></p>
+<p>(<code>compute_gaussian_prior</code> on the hyper-regression /
+<code>.lmebayes_compute_ing_prior_cal_tau2_hyper</code>.)</p>
+<p>Truncation: <code>group.max_disp_perc</code> /
+<code>pop.max_disp_perc</code> default <code>0.99</code>. By
+construction <span class="math inline">\(r/(s-1)\)</span> equals the
+corresponding hat, so</p>
+<p><span class="math display">\[\begin{align*}
+\omega_\star
+&amp;=\frac1{\hat\sigma^2}
+=\frac{n-J\,p_{\mathrm{re}}}{\sum_j S_{\mathrm{marg},j}}
+\quad\text{(pooled)},
+\\[4pt]
+\omega_{\star,j}
+&amp;=\frac1{\hat\sigma^2_j}
+=\frac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}
+\quad\text{(per-group)},
+\\[4pt]
+\lambda_{\star,p}
+&amp;=\frac1{\hat\tau^2_p}
+=\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}.
+\end{align*}\]</span></p>
+</div>
+<div id="default-p-normal-small-mathrmvar_t-reading" class="section level4">
+<h4>Default <span class="math inline">\(P\)</span> (Normal / small-<span class="math inline">\(\mathrm{Var}_t\)</span> reading)</h4>
+<p>With the filled-in <code>dGamma</code> plugs above, §1.5 specializes
+to (pooled measurement; per-group replaces <span class="math inline">\(\dfrac{n-J\,p_{\mathrm{re}}}{\sum_\ell
+S_{\mathrm{marg},\ell}}\)</span> by <span class="math inline">\(\dfrac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}\)</span>
+in each <span class="math inline">\(j\)</span>-block of <span class="math inline">\(P_{22}\)</span>)</p>
+<p><span class="math display">\[\begin{align*}
+P_{11}
+&amp;=\sum_p \frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\,W_p&#39;W_p
++\mathrm{blockdiag}_p(V_p^{-1}),
+\\[6pt]
+P_{12}
+&amp;=\Biggl(-\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\,W_p&#39;\Biggr)_p,
+\qquad
+P_{21}=P_{12}^{\top},
+\\[6pt]
+P_{22}
+&amp;=\mathrm{blockdiag}_j\Biggl(
+\frac{n-J\,p_{\mathrm{re}}}{\sum_\ell
+S_{\mathrm{marg},\ell}}\,D_j&#39;D_j
+\Biggr)
++\mathrm{diag}\Biggl(
+\biggl(\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\biggr)_p
+\Biggr)
+\quad\text{on each }\beta_j.
+\end{align*}\]</span></p>
+<p>Here <span class="math inline">\(V_p^{-1}\)</span> is the Block~2
+Normal prior precision on <span class="math inline">\(\gamma_p\)</span>
+(separate from the <code>dGamma</code> factor; under default scalar
+<code>pop.pwt</code> <span class="math inline">\(=w_\gamma\)</span>,
+<span class="math inline">\(V_p^{-1}=\dfrac{w_\gamma}{1-w_\gamma}\,V_{\mathrm{fe},p}^{-1}\)</span>).
+The <code>dGamma</code> defaults enter <span class="math inline">\(P\)</span> only through these <span class="math inline">\(S_{\mathrm{marg}}\)</span> ratios.</p>
+</div>
+<div id="default-rate-matrix-a" class="section level4">
+<h4>Default rate matrix <span class="math inline">\(A\)</span></h4>
+<p><span class="math display">\[
+A
+=P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
+\qquad
+\lambda^\star=\lambda_{\max}(A).
+\]</span></p>
+<p>Writing <span class="math inline">\(\Lambda_\star=\mathrm{diag}\bigl((J-p_p)/S_{\mathrm{marg},p}^{(\tau)}\bigr)_p\)</span>
+in the <span class="math inline">\(\beta\)</span>-ordering of the <span class="math inline">\(P_{12}\)</span> strips and <span class="math inline">\(H_\Omega^\star=\mathrm{blockdiag}_j\bigl(
+\tfrac{n-J\,p_{\mathrm{re}}}{\sum_\ell
+S_{\mathrm{marg},\ell}}\,D_j&#39;D_j\bigr)\)</span> (or per-group <span class="math inline">\(\tfrac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}\)</span>),</p>
+<p><span class="math display">\[
+P_{22}=H_\Omega^\star+\Lambda_\star,
+\qquad
+P_{12}=-W&#39;\Lambda_\star,
+\qquad
+A
+=P_{11}^{-1/2}\,
+W&#39;\Lambda_\star\,(H_\Omega^\star+\Lambda_\star)^{-1}\,\Lambda_\star
+W\,
+P_{11}^{-1/2}.
+\]</span></p>
+<p>Whenever <span class="math inline">\(H_\Omega^\star\succ 0\)</span>
+and <span class="math inline">\(P_{11}\succ 0\)</span>, §1.6 gives <span class="math inline">\(\lambda^\star&lt;1\)</span>. With the default
+weights <span class="math inline">\(w_\Omega=w_{\lambda,p}=0.01\)</span>
+(low-<span class="math inline">\(d\)</span>) one sits at the
+<strong>weak</strong> end of the §1.3 prior-weight continuum (<span class="math inline">\(n_0=\dfrac{w}{1-w}\,N\)</span> small; <span class="math inline">\(K\)</span> finite). Truncation and (per-group)
+<code>alpha_target</code> keep mass inside the ellipsoids without taking
+<span class="math inline">\(w\to 1\)</span>. Full truncated Hessians of
+§1.4 still apply when <span class="math inline">\(\mathrm{Var}_t&gt;0\)</span>.</p>
 <hr />
+</div>
 </div>
 </div>
 <div id="one-normalgamma-factor-one-pattern" class="section level2">
@@ -716,16 +948,20 @@ need for the <span class="math inline">\(\lambda_p\)</span> ellipsoids
 <p>Whenever a scalar precision <span class="math inline">\(\theta&gt;0\)</span> enters only through a Normal
 factor</p>
 <p><span class="math display">\[
-\tfrac12\,\theta\,\|r\|^2 - \tfrac12\log\theta
+\tfrac12\,\theta\,\|r(x)\|^2 - \tfrac12\log\theta
 \]</span></p>
 <p>and <span class="math inline">\(\theta\)</span> has a (possibly
-truncated) Gamma prior, integrating <span class="math inline">\(\theta\)</span> out yields a Student-<span class="math inline">\(t\)</span>-type marginal in <span class="math inline">\(r\)</span> with Hessian</p>
+truncated) Gamma prior, integrating <span class="math inline">\(\theta\)</span> out yields a Student-<span class="math inline">\(t\)</span>-type marginal in the residual map <span class="math inline">\(r(x)\)</span> with Hessian (in <span class="math inline">\(x\)</span>)</p>
 <p><span class="math display">\[
-H_r \;=\; E_t[\theta]\,I \;-\; \mathrm{Var}_t[\theta]\,rr&#39;.
+H_r(x)
+\;=\;
+E_t[\theta;t(x)]\,I
+\;-\;
+\mathrm{Var}_t[\theta;t(x)]\,r(x)\,r(x)&#39;.
 \]</span></p>
 <p>As <span class="math inline">\(\mathrm{Var}_t[\theta]\to 0\)</span>
-with <span class="math inline">\(E_t[\theta]\to\theta_0\)</span>, <span class="math inline">\(H_r\to\theta_0 I\)</span> (Normal /
-fixed-precision limit).</p>
+with <span class="math inline">\(E_t[\theta]\to\theta_0\)</span>, <span class="math inline">\(H_r(x)\to\theta_0 I\)</span> (Normal /
+fixed-precision limit; residual dependence drops out).</p>
 <table>
 <colgroup>
 <col width="25%" />
@@ -737,7 +973,7 @@ fixed-precision limit).</p>
 <tr class="header">
 <th>Precision</th>
 <th>Role</th>
-<th>Residual <span class="math inline">\(r\)</span></th>
+<th>Residual map <span class="math inline">\(r(x)\)</span></th>
 <th>Couples to</th>
 </tr>
 </thead>
@@ -745,14 +981,14 @@ fixed-precision limit).</p>
 <tr class="odd">
 <td><span class="math inline">\(\Omega_j=1/\sigma_j^2\)</span></td>
 <td>measurement</td>
-<td><span class="math inline">\(e_j=y_j-D_j\beta_j\)</span></td>
+<td><span class="math inline">\(e_j(\beta_j)=y_j-D_j\beta_j\)</span></td>
 <td><span class="math inline">\(\beta_j\)</span> only <span class="math inline">\(\to P_{22}\)</span></td>
 </tr>
 <tr class="even">
 <td><span class="math inline">\(\lambda_p=1/\tau_p^2\)</span></td>
 <td>population / RE</td>
-<td><span class="math inline">\(u_p=\beta_{\cdot
-p}-W_p\gamma_p\)</span></td>
+<td><span class="math inline">\(u_p(\beta_{\cdot
+p},\gamma_p)=\beta_{\cdot p}-W_p\gamma_p\)</span></td>
 <td><span class="math inline">\(\gamma_p\)</span> and <span class="math inline">\(\beta_{\cdot p}\)</span> <span class="math inline">\(\to P_{11},P_{12},P_{21},P_{22}\)</span></td>
 </tr>
 </tbody>
@@ -761,7 +997,7 @@ p}-W_p\gamma_p\)</span></td>
 </div>
 <div id="why-omega_j-hits-only-p_22" class="section level2">
 <h2>3. Why <span class="math inline">\(\Omega_j\)</span> hits only <span class="math inline">\(P_{22}\)</span></h2>
-<p>Chain rule through <span class="math inline">\(e_j=y_j-D_j\beta_j\)</span> gives <span class="math inline">\(H_j^{(\Omega)}\)</span> in <span class="math inline">\(\beta_j\)</span> alone. The likelihood never
+<p>Chain rule through <span class="math inline">\(e_j(\beta_j)=y_j-D_j\beta_j\)</span> gives <span class="math inline">\(H_j^{(\Omega)}(\beta_j)\)</span> in <span class="math inline">\(\beta_j\)</span> alone. The likelihood never
 involves <span class="math inline">\(\gamma\)</span> in the centered
 parameterization, so <span class="math inline">\(P_{11}\)</span> and
 <span class="math inline">\(P_{12}/P_{21}\)</span> are untouched by
@@ -771,21 +1007,19 @@ parameterization, so <span class="math inline">\(P_{11}\)</span> and
 <div id="why-lambda_p-hits-p_11-p_12p_21-and-p_22" class="section level2">
 <h2>4. Why <span class="math inline">\(\lambda_p\)</span> hits <span class="math inline">\(P_{11}\)</span>, <span class="math inline">\(P_{12}/P_{21}\)</span>, and <span class="math inline">\(P_{22}\)</span></h2>
 <p>The RE prior links <span class="math inline">\(\gamma_p\)</span> to
-<span class="math inline">\(\beta_{\cdot p}\)</span> through <span class="math inline">\(u_p=\beta_{\cdot p}-W_p\gamma_p\)</span>.
-Marginalizing <span class="math inline">\(\lambda_p\)</span> leaves a
-<span class="math inline">\(t\)</span>-prior on that link, so one <span class="math inline">\(H_u^{(p)}\)</span> feeds the matched triple</p>
+<span class="math inline">\(\beta_{\cdot p}\)</span> through <span class="math inline">\(u_p(\beta_{\cdot p},\gamma_p)=\beta_{\cdot
+p}-W_p\gamma_p\)</span>. Marginalizing <span class="math inline">\(\lambda_p\)</span> leaves a <span class="math inline">\(t\)</span>-prior on that link, so one <span class="math inline">\(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\)</span> feeds
+the matched triple</p>
 <p><span class="math display">\[
-P_{11}\gets W_p&#39;H_u^{(p)}W_p,
+P_{11}\gets W_p&#39;H_u^{(p)}(\beta_{\cdot p},\gamma_p)\,W_p,
 \quad
-P_{12}\gets -W_p&#39;H_u^{(p)},
+P_{12}\gets -W_p&#39;H_u^{(p)}(\beta_{\cdot p},\gamma_p),
 \quad
-P_{22}\gets H_u^{(p)}
+P_{22}\gets H_u^{(p)}(\beta_{\cdot p},\gamma_p)
 \]</span></p>
-<p>(plus likelihood <span class="math inline">\(H_j^{(\Omega)}\)</span>
-in <span class="math inline">\(P_{22}\)</span>). Cross-component blocks
-(<span class="math inline">\(p\neq p&#39;\)</span>) stay zero under
-diagonal <span class="math inline">\(\Psi^{-1}\)</span> and independent
-ING priors.</p>
+<p>(plus likelihood <span class="math inline">\(H_j^{(\Omega)}(\beta_j)\)</span> in <span class="math inline">\(P_{22}\)</span>). Cross-component blocks (<span class="math inline">\(p\neq p&#39;\)</span>) stay zero under diagonal
+<span class="math inline">\(\Psi^{-1}\)</span> and independent ING
+priors.</p>
 <hr />
 </div>
 <div id="spectral-roles-two-different-settings-do-not-conflate" class="section level2">
@@ -969,7 +1203,7 @@ from 1</td>
 <td><strong>This note</strong></td>
 <td>Marginal <span class="math inline">\(\Omega\)</span>
 <strong>and</strong> <span class="math inline">\(\lambda\)</span>: §1
-table; spectral roles in §5</td>
+table; default <span class="math inline">\(P\)</span>/<span class="math inline">\(A\)</span> in §1.7; spectral roles in §5</td>
 </tr>
 <tr class="odd">
 <td><code>DERIVATION_sigma2_with_block2_v2.md</code></td>

@@ -1058,6 +1058,286 @@ priors_from_pfamily_list <- function(pfamily_list,
   )
 }
 
+#' Per-group Part-0 \code{Sigma_j} + Part VI \code{Omega_j}, then
+#' \code{compute_gaussian_prior()} (shared by pooled aggregator and group path).
+#' @noRd
+.lmebayes_measurement_group_smarg_cal <- function(
+    lev,
+    dat_j,
+    design,
+    block_formula,
+    sd_tau,
+    prior_list,
+    n_prior_j,
+    family = gaussian(),
+    intercept_source = "null_model",
+    effects_source = "null_effects"
+) {
+  re_names <- design$groupef.names
+  inp <- .lmebayes_ing_prior_measurement_group_glm_inputs(
+    lev              = lev,
+    dat_j            = dat_j,
+    block_formula    = block_formula,
+    sd_tau           = sd_tau,
+    family           = family,
+    intercept_source = intercept_source,
+    effects_source   = effects_source
+  )
+
+  pwt_j <- diag(inp$V0)
+  pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
+  names(pwt_j) <- inp$var_names
+
+  if (length(pwt_j) == 1L) {
+    Sigma <- ((1 - pwt_j) / pwt_j) * inp$V0
+  } else {
+    scale_vec <- sqrt((1 - pwt_j) / pwt_j)
+    Sigma <- inp$V0 * outer(scale_vec, scale_vec)
+  }
+
+  Omega_j <- matrix(
+    0, nrow = length(inp$var_names), ncol = length(inp$var_names),
+    dimnames = list(inp$var_names, inp$var_names)
+  )
+  for (k in re_names) {
+    Wk_row <- design$W[[k]][lev, , drop = FALSE]
+    Sigma_k <- prior_list[[k]]$Sigma
+    Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_k %*% t(Wk_row))
+  }
+
+  cal <- .lmebayes_compute_ing_prior_cal_from_sigma(
+    inp, Sigma + Omega_j, n_prior_j
+  )
+  list(inp = inp, cal = cal, Sigma = Sigma, Omega_j = Omega_j, pwt_j = pwt_j)
+}
+
+#' Aggregate per-group \eqn{S_{\mathrm{marg},j}} into a pooled \eqn{\hat\sigma^2}.
+#'
+#' \eqn{\hat\sigma^2_{\mathrm{pool}} =
+#' (\sum_j S_{\mathrm{marg},j}) / (n - J p_{\mathrm{re}})} under the
+#' block-diagonal joint (independent group priors). Uses a dummy
+#' \code{n_prior,j} only to call \code{compute_gaussian_prior()}; the
+#' returned center does not depend on that weight.
+#' @noRd
+.lmebayes_pooled_measurement_smarg_from_groups <- function(
+    design,
+    data,
+    block_formula,
+    sd_tau,
+    prior_list,
+    group_levels,
+    family = gaussian(),
+    intercept_source = "null_model",
+    effects_source = "null_effects"
+) {
+  p_re <- length(design$groupef.names)
+  if (p_re < 1L) {
+    stop(
+      "Pooled measurement S_marg aggregation requires at least one random coefficient.",
+      call. = FALSE
+    )
+  }
+  J <- length(group_levels)
+  n <- length(design$y)
+
+  S_marg <- stats::setNames(numeric(J), group_levels)
+  sigma2_j <- stats::setNames(numeric(J), group_levels)
+  n_j_vec <- stats::setNames(integer(J), group_levels)
+  df_j <- stats::setNames(numeric(J), group_levels)
+
+  for (lev in group_levels) {
+    idx <- design$group == lev
+    dat_j <- data[idx, , drop = FALSE]
+    n_j <- sum(idx)
+    n_j_vec[[lev]] <- as.integer(n_j)
+    ## Dummy n_prior: S_marg / sigma2_hat do not depend on it.
+    n_prior_j <- max(1e-8, 0.01 / 0.99 * n_j)
+    piece <- tryCatch(
+      .lmebayes_measurement_group_smarg_cal(
+        lev              = lev,
+        dat_j            = dat_j,
+        design           = design,
+        block_formula    = block_formula,
+        sd_tau           = sd_tau,
+        prior_list       = prior_list,
+        n_prior_j        = n_prior_j,
+        family           = family,
+        intercept_source = intercept_source,
+        effects_source   = effects_source
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(piece)) {
+      ## Within-group RE design singular (e.g. slope constant in group):
+      ## fall back to intercept-only residual SS for that group's contribution.
+      Y <- as.numeric(design$y[idx])
+      if (n_j < 2L) {
+        stop(
+          "Pooled measurement S_marg aggregation: group '", lev,
+          "' has n_j < 2 and a singular within-group design.",
+          call. = FALSE
+        )
+      }
+      S_marg[[lev]] <- sum((Y - mean(Y))^2)
+      df_j[[lev]] <- n_j - 1
+      sigma2_j[[lev]] <- S_marg[[lev]] / df_j[[lev]]
+    } else {
+      df_j[[lev]] <- piece$inp$n_j - p_re
+      sigma2_j[[lev]] <- piece$cal$dispersion
+      S_marg[[lev]] <- piece$cal$dispersion * df_j[[lev]]
+    }
+  }
+
+  den <- sum(df_j)
+  if (!is.finite(den) || den <= 0) {
+    stop(
+      "Pooled measurement S_marg aggregation produced a non-positive residual df.",
+      call. = FALSE
+    )
+  }
+
+  sigma2_pool <- sum(S_marg) / den
+  if (!is.finite(sigma2_pool) || sigma2_pool <= 0) {
+    stop(
+      "Pooled measurement S_marg aggregation produced a non-positive center.",
+      call. = FALSE
+    )
+  }
+
+  list(
+    sigma2_pool = as.numeric(sigma2_pool),
+    S_marg      = S_marg,
+    sigma2_j    = sigma2_j,
+    n_j         = n_j_vec,
+    df_j        = df_j,
+    n           = n,
+    J           = J,
+    p_re        = p_re,
+    den         = den
+  )
+}
+
+#' Block~2 hyper-regression marginal \eqn{\hat\tau^2_k} via
+#' \code{compute_gaussian_prior()} (A12 Sec. 3.3.4).
+#'
+#' Treats group-level coefficients \eqn{b_{\cdot k}} as the response for
+#' \eqn{b_{\cdot k}\sim N(W_k\gamma_k,\tau^2_k I_J)} with prior
+#' \eqn{\gamma_k\sim N(\mu_k,\Sigma_k)}.
+#' @noRd
+.lmebayes_compute_ing_prior_cal_tau2_hyper <- function(
+    Y,
+    X,
+    mu,
+    Sigma,
+    n_prior,
+    k_arg = 1
+) {
+  Y <- as.numeric(Y)
+  if (!is.matrix(X)) {
+    X <- as.matrix(X)
+  }
+  J <- length(Y)
+  p_k <- ncol(X)
+  if (nrow(X) != J) {
+    stop(
+      "Block~2 tau2 marginal: nrow(X) must equal length(Y) (= J).",
+      call. = FALSE
+    )
+  }
+  if (J <= p_k) {
+    stop(
+      "Block~2 tau2 marginal requires J > p_k; got J = ", J,
+      ", p_k = ", p_k, ".",
+      call. = FALSE
+    )
+  }
+  if (!is.numeric(mu) || length(mu) != p_k || any(!is.finite(mu))) {
+    stop("Block~2 tau2 marginal: 'mu' must be a finite length-p_k vector.",
+         call. = FALSE)
+  }
+  if (!is.matrix(Sigma) || nrow(Sigma) != p_k || ncol(Sigma) != p_k ||
+      anyNA(Sigma)) {
+    stop("Block~2 tau2 marginal: 'Sigma' must be a finite [p_k x p_k] matrix.",
+         call. = FALSE)
+  }
+  if (!is.numeric(n_prior) || length(n_prior) != 1L || !is.finite(n_prior) ||
+      n_prior <= 0) {
+    stop("Block~2 tau2 marginal: 'n_prior' must be a positive finite scalar.",
+         call. = FALSE)
+  }
+
+  weights <- rep(1, J)
+  offset <- rep(0, J)
+  fit <- stats::lm.fit(x = X, y = Y)
+  bhat <- as.numeric(fit$coefficients)
+  if (any(!is.finite(bhat))) {
+    stop("Block~2 tau2 marginal: OLS fit for b.k on W_k failed.",
+         call. = FALSE)
+  }
+  names(bhat) <- colnames(X)
+  rss <- sum((Y - as.numeric(X %*% bhat))^2)
+  if (!is.finite(rss) || rss <= 0) {
+    stop(
+      "Block~2 tau2 marginal: classical RSS for b.k on W_k must be positive.",
+      call. = FALSE
+    )
+  }
+  dispersion_classical <- rss / (J - p_k)
+  Sigma_0 <- Sigma / dispersion_classical
+
+  glmbayesCore::compute_gaussian_prior(
+    X           = X,
+    Y           = Y,
+    weights     = weights,
+    offset      = offset,
+    dispersion  = NULL,
+    n_effective = J,
+    bhat        = bhat,
+    mu          = as.numeric(mu),
+    Sigma_0     = Sigma_0,
+    Sigma       = Sigma,
+    n_prior     = n_prior,
+    k           = k_arg
+  )
+}
+
+#' Extract group-level coefficient vector \eqn{b_{\cdot k}} from a reference fit.
+#' @noRd
+.lmebayes_reference_b_component <- function(
+    fit,
+    group_name,
+    component,
+    group_levels
+) {
+  co <- .lmebayes_reference_coef(fit)[[group_name]]
+  if (is.null(co)) {
+    stop(
+      "Could not find grouping factor '", group_name, "' in coef(fit).",
+      call. = FALSE
+    )
+  }
+  if (!component %in% colnames(co)) {
+    stop(
+      "coef(fit)[[\"", group_name, "\"]] is missing column '", component, "'.",
+      call. = FALSE
+    )
+  }
+  rn <- rownames(co)
+  if (is.null(rn)) {
+    stop(
+      "coef(fit)[[\"", group_name, "\"]] must have row names (group levels).",
+      call. = FALSE
+    )
+  }
+  if (!setequal(rn, group_levels)) {
+    stop(
+      "coef(fit) group levels do not match design group levels.",
+      call. = FALSE
+    )
+  }
+  stats::setNames(as.numeric(co[group_levels, component]), group_levels)
+}
+
 #' Per-group Block~1 measurement-dispersion calibration for \code{dGamma_list()}.
 #'
 #' \code{sigma2_hat}, \code{shape_ING}, and \code{rate_gamma} from shared
@@ -1118,50 +1398,26 @@ priors_from_pfamily_list <- function(pfamily_list,
       call. = FALSE
     )
   }
-  re_names <- design$groupef.names
-
   stats::setNames(
     lapply(group_levels, function(lev) {
       idx   <- design$group == lev
       dat_j <- data[idx, , drop = FALSE]
       n_prior_j <- unname(n_prior_group[[lev]])
 
-      inp <- .lmebayes_ing_prior_measurement_group_glm_inputs(
+      piece <- .lmebayes_measurement_group_smarg_cal(
         lev              = lev,
         dat_j            = dat_j,
+        design           = design,
         block_formula    = block_formula,
         sd_tau           = sd_tau,
+        prior_list       = prior_list,
+        n_prior_j        = n_prior_j,
         family           = family,
         intercept_source = intercept_source,
         effects_source   = effects_source
       )
-
-      pwt_j <- diag(inp$V0)
-      pwt_j <- pwt_j / (pwt_j + inp$sd_vec^2)
-      names(pwt_j) <- inp$var_names
-
-      if (length(pwt_j) == 1L) {
-        Sigma <- ((1 - pwt_j) / pwt_j) * inp$V0
-      } else {
-        scale_vec <- sqrt((1 - pwt_j) / pwt_j)
-        Sigma <- inp$V0 * outer(scale_vec, scale_vec)
-      }
-
-      ## Part VI: model-derived Omega_j (fixed-effect/gamma uncertainty
-      ## about b_j's prior mean), diagonal across RE components.
-      Omega_j <- matrix(
-        0, nrow = length(inp$var_names), ncol = length(inp$var_names),
-        dimnames = list(inp$var_names, inp$var_names)
-      )
-      for (k in re_names) {
-        Wk_row        <- design$W[[k]][lev, , drop = FALSE]
-        Sigma_k <- prior_list[[k]]$Sigma
-        Omega_j[k, k] <- as.numeric(Wk_row %*% Sigma_k %*% t(Wk_row))
-      }
-
-      cal <- .lmebayes_compute_ing_prior_cal_from_sigma(
-        inp, Sigma + Omega_j, n_prior_j
-      )
+      inp <- piece$inp
+      cal <- piece$cal
 
       .ing_stop_if_prior_exceeds_data(
         shape       = cal$shape_ING,
@@ -1191,13 +1447,13 @@ priors_from_pfamily_list <- function(pfamily_list,
         n_prior_j   = n_prior_j,
         n_j         = inp$n_j,
         p_re        = p_re,
-        pwt_record  = pwt_j,
+        pwt_record  = piece$pwt_j,
         pwt_group_j = unname(pwt_group[[lev]])
       )
       out$disp_lower    <- win$disp_lower
       out$disp_upper    <- win$disp_upper
       out$max_disp_perc <- mdp_j
-      out$omega_j       <- Omega_j
+      out$omega_j       <- piece$Omega_j
       out
     }),
     group_levels
@@ -1348,53 +1604,6 @@ priors_from_pfamily_list <- function(pfamily_list,
     n_prior       = n_prior,
     n_effective = n,
     p_re        = p_re
-  )
-}
-
-#' Mean-match one per-group Block~1 \code{group.ing_prior} entry to a fixed \eqn{\sigma^2_j}.
-#' @noRd
-.lmebayes_pin_ing_prior_measurement_group_entry <- function(ing, sigma2, p_re) {
-  n_prior_j <- ing$n_prior
-  shape_ING <- ing$shape_ING
-  rate_gamma <- sigma2 * (n_prior_j + p_re - 1) / 2
-  shape_post <- shape_ING + ing$n_j / 2
-  rate_post <- sigma2 * (shape_post - 1)
-  win <- .lmebayes_ing_prior_quantile_window(
-    shape_post, rate_post, ing$max_disp_perc
-  )
-  ing$sigma2_hat <- sigma2
-  ing$rate_gamma <- rate_gamma
-  if ("E_sigma2" %in% names(ing)) {
-    ing$E_sigma2 <- if (is.finite(shape_ING) && shape_ING > 1 &&
-                        is.finite(rate_gamma) && rate_gamma > 0) {
-      rate_gamma / (shape_ING - 1)
-    } else {
-      NA_real_
-    }
-  }
-  if ("inv_E" %in% names(ing)) {
-    ing$inv_E <- if (is.finite(shape_ING) && shape_ING > 0 &&
-                     is.finite(rate_gamma) && rate_gamma > 0) {
-      rate_gamma / shape_ING
-    } else {
-      NA_real_
-    }
-  }
-  ing$disp_lower <- win$disp_lower
-  ing$disp_upper <- win$disp_upper
-  ing
-}
-
-#' Mean-match every per-group Block~1 \code{group.ing_prior} entry from \code{group.dispersion}.
-#' @noRd
-.lmebayes_pin_ing_prior_measurement_group <- function(ing_grp, override_vec, p_re) {
-  stats::setNames(
-    lapply(names(ing_grp), function(lev) {
-      .lmebayes_pin_ing_prior_measurement_group_entry(
-        ing_grp[[lev]], unname(override_vec[[lev]]), p_re
-      )
-    }),
-    names(ing_grp)
   )
 }
 

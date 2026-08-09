@@ -3,11 +3,18 @@
 A short companion to `BLOCK_GIBBS_ERGODICITY_ING.md` §14–§16. Keep only
 the two-block coordinates \((\gamma,\beta)\) and integrate **both**
 measurement precisions \(\Omega_j\) and population precisions \(\lambda_p\)
-out under truncated-Gamma priors. Notation: `inst/notation.md`
-(\(e_j=y_j-D_j\beta_j\), \(u_p=\beta_{\cdot p}-W_p\gamma_p\)).
+out under truncated-Gamma priors. Notation: `inst/notation.md`. Residuals
+are **functions of the two-block coordinates**, never fixed plugs:
+
+\[
+e_j(\beta_j)\;:=\;y_j-D_j\beta_j,
+\qquad
+u_p(\beta_{\cdot p},\gamma_p)\;:=\;\beta_{\cdot p}-W_p\gamma_p.
+\]
 
 Moments \(E_t[\cdot]\), \(\mathrm{Var}_t[\cdot]\) are tilted-truncated
-posterior moments (`BLOCK_GIBBS_ERGODICITY_ING.md` §16.6).
+posterior moments (`BLOCK_GIBBS_ERGODICITY_ING.md` §16.6); they inherit
+that dependence through the updated rates below.
 
 ---
 
@@ -17,8 +24,8 @@ posterior moments (`BLOCK_GIBBS_ERGODICITY_ING.md` §16.6).
 
 | Symbol | Definition |
 |---|---|
-| \(e_j=y_j-D_j\beta_j\) | measurement residual, group \(j\) |
-| \(u_p=\beta_{\cdot p}-W_p\gamma_p\) | RE residual for component \(p\) (length \(J\)) |
+| \(e_j(\beta_j)=y_j-D_j\beta_j\) | measurement residual, group \(j\) (length \(n_j\)) |
+| \(u_p(\beta_{\cdot p},\gamma_p)=\beta_{\cdot p}-W_p\gamma_p\) | RE residual for component \(p\) (length \(J\)) |
 | \(a_j^0,r_j^0\) | Gamma shape/rate for \(\Omega_j\) (before data update) |
 | \(a_p^{0(\lambda)},r_p^{0(\lambda)}\) | Gamma shape/rate for \(\lambda_p\) |
 | \([\omega_{L,j},\omega_{U,j}]\) | truncation window for \(\Omega_j\) (precision scale) |
@@ -27,8 +34,28 @@ posterior moments (`BLOCK_GIBBS_ERGODICITY_ING.md` §16.6).
 Tilted truncated posterior moments \(E_t[\cdot]\), \(\mathrm{Var}_t[\cdot]\)
 are as in `BLOCK_GIBBS_ERGODICITY_ING.md` §16.6 (three `pgamma` calls at
 the updated rate). For \(\Omega_j\) the updated rate is
-\(t_j=r_j^0+\tfrac12 e_j'e_j\); for \(\lambda_p\) it is
-\(t_p^{(\lambda)}=r_p^{0(\lambda)}+\tfrac12\|u_p\|^2\).
+
+\[
+t_j(\beta_j)
+\;=\;
+r_j^0+\tfrac12\,\|e_j(\beta_j)\|^2
+\;=\;
+r_j^0+\tfrac12\,\|y_j-D_j\beta_j\|^2;
+\]
+
+for \(\lambda_p\) it is
+
+\[
+t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)
+\;=\;
+r_p^{0(\lambda)}+\tfrac12\,\|u_p(\beta_{\cdot p},\gamma_p)\|^2
+\;=\;
+r_p^{0(\lambda)}+\tfrac12\,\|\beta_{\cdot p}-W_p\gamma_p\|^2.
+\]
+
+Thus \(E_t[\Omega_j]=E_t[\Omega_j;t_j(\beta_j)]\) and
+\(E_t[\lambda_p]=E_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)]\)
+(and likewise \(\mathrm{Var}_t\)).
 
 ### 1.2 Ellipsoid scores (as functions)
 
@@ -39,7 +66,7 @@ depend on \(\beta_j\)). Define
 \begin{align*}
 q_j(\beta_j)
 &\;:=\;
-\bigl(D_j'(y_j-D_j\beta_j)\bigr)'(D_j'D_j)^{-1}\bigl(D_j'(y_j-D_j\beta_j)\bigr)
+\bigl(D_j'e_j(\beta_j)\bigr)'(D_j'D_j)^{-1}\bigl(D_j'e_j(\beta_j)\bigr)
 \\[4pt]
 &\;=\;
 \bigl\|\beta_j-\hat\beta_j^{\mathrm{ols}}\bigr\|^2_{D_j'D_j}
@@ -49,13 +76,15 @@ q_j(\beta_j)
 
 With \(\mathrm{RSS}_j^{\mathrm{ols}}=\|y_j-D_j\hat\beta_j^{\mathrm{ols}}\|^2\)
 fixed, the OLS split also gives
-\(q_j(\beta_j)=\|y_j-D_j\beta_j\|^2-\mathrm{RSS}_j^{\mathrm{ols}}\).
+\(q_j(\beta_j)=\|e_j(\beta_j)\|^2-\mathrm{RSS}_j^{\mathrm{ols}}\).
 
 **Population / RE (component \(p\)).** Define
 
 \begin{align*}
 q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)
 &\;:=\;
+\|u_p(\beta_{\cdot p},\gamma_p)\|^2
+\;=\;
 \|\beta_{\cdot p}-W_p\gamma_p\|^2
 \\[4pt]
 &\;=\;
@@ -71,8 +100,8 @@ exceed the threshold \(E_t[\theta]/\mathrm{Var}_t[\theta]\)
 
 | Case | Inside the ellipsoid iff | Radius |
 |---|---|---|
-| \(\Omega_j\) | \(\displaystyle q_j(\beta_j) \;\le\; \frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\) | \(K_j^{(\Omega)}(\beta_j):=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) (depends on \(\beta_j\) through \(t_j\)) |
-| \(\lambda_p\) | \(\displaystyle q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p) \;\le\; \frac{E_t[\lambda_p]}{\mathrm{Var}_t[\lambda_p]}\) | \(K_p^{(\lambda)}(\beta_{\cdot p},\gamma_p):=E_t[\lambda_p]/\mathrm{Var}_t[\lambda_p]\) (depends on \(u_p\) through \(t_p^{(\lambda)}\)) |
+| \(\Omega_j\) | \(\displaystyle q_j(\beta_j) \;\le\; \frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\) | \(K_j^{(\Omega)}(\beta_j):=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) (depends on \(\beta_j\) through \(e_j(\beta_j)\) and \(t_j(\beta_j)\)) |
+| \(\lambda_p\) | \(\displaystyle q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p) \;\le\; \frac{E_t[\lambda_p]}{\mathrm{Var}_t[\lambda_p]}\) | \(K_p^{(\lambda)}(\beta_{\cdot p},\gamma_p):=E_t[\lambda_p]/\mathrm{Var}_t[\lambda_p]\) (depends on \((\beta_{\cdot p},\gamma_p)\) through \(u_p(\beta_{\cdot p},\gamma_p)\) and \(t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)\)) |
 
 **Limit \(\mathrm{Var}_t\to 0\)** (hold \(E_t\) fixed). Treat this as its
 own limit (not as a statement about the truncation ends). With
@@ -134,36 +163,47 @@ weight.)
 
 ### 1.4 Hessians (PSD inside the ellipsoids)
 
+Write \(e_j=e_j(\beta_j)\) and
+\(u_p=u_p(\beta_{\cdot p},\gamma_p)\) for short. Moments and rank-one
+directions both move with \((\gamma,\beta)\):
+
 \begin{align*}
-H_j^{(\Omega)}
-&= E_t[\Omega_j]\,D_j'D_j
-- \mathrm{Var}_t[\Omega_j]\,(D_j'e_j)(D_j'e_j)',
+H_j^{(\Omega)}(\beta_j)
+&= E_t[\Omega_j;t_j(\beta_j)]\,D_j'D_j
+- \mathrm{Var}_t[\Omega_j;t_j(\beta_j)]\,
+\bigl(D_j'e_j(\beta_j)\bigr)\bigl(D_j'e_j(\beta_j)\bigr)',
 \\[4pt]
-H_u^{(p)}
-&= E_t[\lambda_p]\,I_J
-- \mathrm{Var}_t[\lambda_p]\,u_p u_p'.
+H_u^{(p)}(\beta_{\cdot p},\gamma_p)
+&= E_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)]\,I_J
+- \mathrm{Var}_t[\lambda_p;t_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)]\,
+u_p(\beta_{\cdot p},\gamma_p)\,u_p(\beta_{\cdot p},\gamma_p)'.
 \end{align*}
 
 | Hessian | PSD / PD precisely when |
 |---|---|
-| \(H_j^{(\Omega)}\) | inside the \(\Omega_j\) ellipsoid of §1.3 (\(D_j\) full column rank \(\Rightarrow\) PD on the nose of the boundary) |
-| \(H_u^{(p)}\) | inside the \(\lambda_p\) ellipsoid of §1.3 |
+| \(H_j^{(\Omega)}(\beta_j)\) | inside the \(\Omega_j\) ellipsoid of §1.3 (\(D_j\) full column rank \(\Rightarrow\) PD on the nose of the boundary) |
+| \(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\) | inside the \(\lambda_p\) ellipsoid of §1.3 |
 
-Stack \(H^{(\Omega)}:=\mathrm{blockdiag}_j(H_j^{(\Omega)})\) and
-\(H^{(u)}:=\sum_p\mathrm{embed}_p(H_u^{(p)})\).
+Stack
+\(H^{(\Omega)}(\beta):=\mathrm{blockdiag}_j\bigl(H_j^{(\Omega)}(\beta_j)\bigr)\)
+and
+\(H^{(u)}(\gamma,\beta):=\sum_p\mathrm{embed}_p\bigl(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\bigr)\).
 
 ### 1.5 Joint precision blocks
 
+All blocks below are functions of \((\gamma,\beta)\) through
+\(e_j(\beta_j)\) and \(u_p(\beta_{\cdot p},\gamma_p)\).
+
 | Block | Formula |
 |---|---|
-| \(P_{11}\) | \(\displaystyle\sum_p W_p'\,H_u^{(p)}\,W_p \;+\; \mathrm{blockdiag}_p(V_p^{-1})\) |
-| \(P_{12}\) | row-strips \(\bigl(-W_p'\,H_u^{(p)}\bigr)_{p=1}^{P}\) over the \(\beta_{\cdot p}\) columns (zeros for \(p\neq p'\)) |
-| \(P_{21}\) | \(P_{12}^{\top}\) |
-| \(P_{22}\) | \(H^{(\Omega)}+H^{(u)}\) |
+| \(P_{11}(\gamma,\beta)\) | \(\displaystyle\sum_p W_p'\,H_u^{(p)}(\beta_{\cdot p},\gamma_p)\,W_p \;+\; \mathrm{blockdiag}_p(V_p^{-1})\) |
+| \(P_{12}(\gamma,\beta)\) | row-strips \(\bigl(-W_p'\,H_u^{(p)}(\beta_{\cdot p},\gamma_p)\bigr)_{p=1}^{P}\) over the \(\beta_{\cdot p}\) columns (zeros for \(p\neq p'\)) |
+| \(P_{21}(\gamma,\beta)\) | \(P_{12}(\gamma,\beta)^{\top}\) |
+| \(P_{22}(\gamma,\beta)\) | \(H^{(\Omega)}(\beta)+H^{(u)}(\gamma,\beta)\) |
 
-\(\mathrm{embed}_p(H_u^{(p)})\) places the \(J\times J\) matrix
-\(H_u^{(p)}\) into the \(\beta_{\cdot p}\) slots of the full
-\(JP\times JP\) array.
+\(\mathrm{embed}_p\bigl(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\bigr)\) places
+the \(J\times J\) matrix \(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\) into the
+\(\beta_{\cdot p}\) slots of the full \(JP\times JP\) array.
 
 | Source | \(P_{11}\) | \(P_{12}\) | \(P_{21}\) | \(P_{22}\) |
 |---|---|---|---|---|
@@ -173,7 +213,9 @@ Stack \(H^{(\Omega)}:=\mathrm{blockdiag}_j(H_j^{(\Omega)})\) and
 
 **Normal / fixed-precision limit** (\(\mathrm{Var}_t\to 0\) of §1.3 with
 \(E_t[\Omega_j]=\omega_j\), \(E_t[\lambda_p]=\lambda_p\) held fixed;
-ellipsoids become all of \(\beta\)/\(u\)-space)
+ellipsoids become all of \((\gamma,\beta)\)-space. Rank-one terms in
+\(e_j(\beta_j)\) and \(u_p(\beta_{\cdot p},\gamma_p)\) drop out, so the
+limiting \(P\) no longer depends on those residuals.)
 
 | Block | Limit |
 |---|---|
@@ -184,27 +226,189 @@ ellipsoids become all of \(\beta\)/\(u\)-space)
 
 ### 1.6 Rate matrix and sufficient condition
 
-Whenever \(P_{11}\succ 0\) and \(P_{22}\succ 0\), define
+Whenever \(P_{11}(\gamma,\beta)\succ 0\) and \(P_{22}(\gamma,\beta)\succ 0\),
+define
 
 \[
-A \;=\; P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
+A(\gamma,\beta)
+\;=\;
+P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
 \qquad
-\lambda^\star:=\lambda_{\max}(A).
+\lambda^\star(\gamma,\beta):=\lambda_{\max}\bigl(A(\gamma,\beta)\bigr)
 \]
+
+(with each \(P_{ij}=P_{ij}(\gamma,\beta)\)).
 
 **Sufficient condition (matched \(P_{12}=-W'H_u\)).** If every group is
 inside its \(\Omega_j\) ellipsoid and every RE component is inside its
-\(\lambda_p\) ellipsoid (§1.3), then \(H^{(\Omega)}\succ 0\) and
-\(H^{(u)}\succeq 0\). With also \(P_{11}\succ 0\),
+\(\lambda_p\) ellipsoid (§1.3), then
+\(H^{(\Omega)}(\beta)\succ 0\) and \(H^{(u)}(\gamma,\beta)\succeq 0\).
+With also \(P_{11}(\gamma,\beta)\succ 0\),
 
 \[
-\lambda_{\max}(A) \;<\; 1.
+\lambda_{\max}\bigl(A(\gamma,\beta)\bigr) \;<\; 1.
 \]
 
-Equivalently: \(P_{22}\succ 0\) alone is not enough — one needs the
-measurement ellipsoids (so \(H^{(\Omega)}\succ 0\)). Matching through
-\(P_{12}/P_{21}\) does not remove the need for the \(\lambda_p\)
-ellipsoids (so \(H^{(u)}\succeq 0\)); see §5.2.
+Equivalently: \(P_{22}(\gamma,\beta)\succ 0\) alone is not enough — one
+needs the measurement ellipsoids (so \(H^{(\Omega)}(\beta)\succ 0\)).
+Matching through \(P_{12}/P_{21}\) does not remove the need for the
+\(\lambda_p\) ellipsoids (so \(H^{(u)}(\gamma,\beta)\succeq 0\)); see
+§5.2.
+
+### 1.7 Special case: default `dGamma` priors (`Prior_Setup_GLMM`)
+
+Focus: the default **Gamma priors on measurement and population
+dispersion** (Block~1 `dGamma` / `group.ing_prior`; Block~2 Gamma factor
+of `dIndependent_Normal_Gamma` / `pop.ing_prior`). Both are mean-matched
+at A12 §3.3.4 marginal centers
+(\(\hat\sigma^2\) pooled or per-group; \(\hat\tau^2_p\) from the
+hyper-regression on \(b_{\cdot p}\)). See `R/Prior_Setup_GLMM.R`.
+
+| Prior | Weight default | \(n_0=\dfrac{w}{1-w}\times(\text{units})\) | Shape / rate |
+|---|---|---|---|
+| Measurement \(\Omega\) (pooled) | `group.dispersion.pwt` \(=w_\Omega=0.01\) | \(n_0=\dfrac{w_\Omega}{1-w_\Omega}\,n\) | \(s_\Omega=\tfrac{n_0+1}{2}+\tfrac{p_{\mathrm{re}}}{2}\), \(r_\Omega=\hat\sigma^2\cdot\tfrac{n_0+p_{\mathrm{re}}-1}{2}\) |
+| Measurement \(\Omega_j\) (per-group) | seed \(w_{\Omega,j}=0.01\); may rise under `group.alpha_target` \(=0.01\) | \(n_{0,j}=\dfrac{w_{\Omega,j}}{1-w_{\Omega,j}}\,n_j\) | same with \((n_{0,j},\hat\sigma^2_j,p_{\mathrm{re}})\) |
+| Population \(\lambda_p=1/\tau_p^2\) | `pop.dispersion.pwt` \(=w_{\lambda,p}\) defaults to `pop.pwt` ( \(0.01\) if \(p_p<14\), else \(0.05\) ) | \(n_{0,p}=\dfrac{w_{\lambda,p}}{1-w_{\lambda,p}}\,J\) | \(s_{\lambda,p}=\tfrac{n_{0,p}+1}{2}+\tfrac{p_p}{2}\), \(r_{\lambda,p}=\hat\tau^2_p\cdot\tfrac{n_{0,p}+p_p-1}{2}\) |
+
+#### Marginal centers (filled in)
+
+**Per-group measurement.** For group \(j\), let \(\hat\beta_j\) be the
+within-group OLS fit on \(D_j\), \(\mu_j\) the Block~1 prior mean for
+\(\beta_j\), and \(\Sigma_j'= \Sigma_j+\Omega_j\) the Part-0 /
+Part VI prior covariance (RE shrinkage plus hyper-mean uncertainty
+through \(W_j\Sigma_\gamma W_j'\)). With
+\(M_j=\bigl(\Sigma_j'+(D_j'D_j)^{-1}\bigr)^{-1}\),
+
+\begin{align*}
+S_{\mathrm{marg},j}
+&=\mathrm{RSS}_{\mathrm{ols},j}
++(\hat\beta_j-\mu_j)'M_j(\hat\beta_j-\mu_j),
+\\[4pt]
+\hat\sigma^2_j
+&=\frac{S_{\mathrm{marg},j}}{n_j-p_{\mathrm{re}}}.
+\end{align*}
+
+(`compute_gaussian_prior` / `.lmebayes_measurement_group_smarg_cal`.)
+
+**Pooled measurement.** Aggregate the independent-group contributions:
+
+\[
+\hat\sigma^2
+=\frac{\sum_{j=1}^{J} S_{\mathrm{marg},j}}{\sum_{j=1}^{J}(n_j-p_{\mathrm{re}})}
+=\frac{\sum_{j=1}^{J} S_{\mathrm{marg},j}}{n-J\,p_{\mathrm{re}}}
+\]
+
+(when every group is full rank; singular within-group designs fall back
+to intercept-only residual SS for that \(j\), with df \(n_j-1\)).
+
+**Population \(\tau^2_p\).** Treat the reference group coefficients
+\(b_{\cdot p}\) (length \(J\)) as the response in
+\(b_{\cdot p}\sim N(W_p\gamma_p,\tau_p^2 I_J)\) with prior
+\(\gamma_p\sim N(\mu_p,\Sigma_p)\). Let \(\hat\gamma_p\) be OLS of
+\(b_{\cdot p}\) on \(W_p\) and
+
+\begin{align*}
+S_{\mathrm{marg},p}^{(\tau)}
+&=\|b_{\cdot p}-W_p\hat\gamma_p\|^2
++(\hat\gamma_p-\mu_p)'
+\bigl(\Sigma_p+(W_p'W_p)^{-1}\bigr)^{-1}
+(\hat\gamma_p-\mu_p),
+\\[4pt]
+\hat\tau^2_p
+&=\frac{S_{\mathrm{marg},p}^{(\tau)}}{J-p_p}.
+\end{align*}
+
+(`compute_gaussian_prior` on the hyper-regression /
+`.lmebayes_compute_ing_prior_cal_tau2_hyper`.)
+
+Truncation: `group.max_disp_perc` / `pop.max_disp_perc` default `0.99`.
+By construction \(r/(s-1)\) equals the corresponding hat, so
+
+\begin{align*}
+\omega_\star
+&=\frac1{\hat\sigma^2}
+=\frac{n-J\,p_{\mathrm{re}}}{\sum_j S_{\mathrm{marg},j}}
+\quad\text{(pooled)},
+\\[4pt]
+\omega_{\star,j}
+&=\frac1{\hat\sigma^2_j}
+=\frac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}
+\quad\text{(per-group)},
+\\[4pt]
+\lambda_{\star,p}
+&=\frac1{\hat\tau^2_p}
+=\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}.
+\end{align*}
+
+#### Default \(P\) (Normal / small-\(\mathrm{Var}_t\) reading)
+
+With the filled-in `dGamma` plugs above, §1.5 specializes to
+(pooled measurement; per-group replaces
+\(\dfrac{n-J\,p_{\mathrm{re}}}{\sum_\ell S_{\mathrm{marg},\ell}}\) by
+\(\dfrac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}\) in each \(j\)-block of
+\(P_{22}\))
+
+\begin{align*}
+P_{11}
+&=\sum_p \frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\,W_p'W_p
++\mathrm{blockdiag}_p(V_p^{-1}),
+\\[6pt]
+P_{12}
+&=\Biggl(-\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\,W_p'\Biggr)_p,
+\qquad
+P_{21}=P_{12}^{\top},
+\\[6pt]
+P_{22}
+&=\mathrm{blockdiag}_j\Biggl(
+\frac{n-J\,p_{\mathrm{re}}}{\sum_\ell S_{\mathrm{marg},\ell}}\,D_j'D_j
+\Biggr)
++\mathrm{diag}\Biggl(
+\biggl(\frac{J-p_p}{S_{\mathrm{marg},p}^{(\tau)}}\biggr)_p
+\Biggr)
+\quad\text{on each }\beta_j.
+\end{align*}
+
+Here \(V_p^{-1}\) is the Block~2 Normal prior precision on \(\gamma_p\)
+(separate from the `dGamma` factor; under default scalar `pop.pwt`
+\(=w_\gamma\), \(V_p^{-1}=\dfrac{w_\gamma}{1-w_\gamma}\,V_{\mathrm{fe},p}^{-1}\)).
+The `dGamma` defaults enter \(P\) only through these \(S_{\mathrm{marg}}\)
+ratios.
+
+#### Default rate matrix \(A\)
+
+\[
+A
+=P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
+\qquad
+\lambda^\star=\lambda_{\max}(A).
+\]
+
+Writing
+\(\Lambda_\star=\mathrm{diag}\bigl((J-p_p)/S_{\mathrm{marg},p}^{(\tau)}\bigr)_p\)
+in the \(\beta\)-ordering of the \(P_{12}\) strips and
+\(H_\Omega^\star=\mathrm{blockdiag}_j\bigl(
+\tfrac{n-J\,p_{\mathrm{re}}}{\sum_\ell S_{\mathrm{marg},\ell}}\,D_j'D_j\bigr)\)
+(or per-group
+\(\tfrac{n_j-p_{\mathrm{re}}}{S_{\mathrm{marg},j}}\)),
+
+\[
+P_{22}=H_\Omega^\star+\Lambda_\star,
+\qquad
+P_{12}=-W'\Lambda_\star,
+\qquad
+A
+=P_{11}^{-1/2}\,
+W'\Lambda_\star\,(H_\Omega^\star+\Lambda_\star)^{-1}\,\Lambda_\star W\,
+P_{11}^{-1/2}.
+\]
+
+Whenever \(H_\Omega^\star\succ 0\) and \(P_{11}\succ 0\), §1.6 gives
+\(\lambda^\star<1\). With the default weights
+\(w_\Omega=w_{\lambda,p}=0.01\) (low-\(d\)) one sits at the **weak** end of
+the §1.3 prior-weight continuum (\(n_0=\dfrac{w}{1-w}\,N\) small; \(K\)
+finite). Truncation and (per-group) `alpha_target` keep mass inside the
+ellipsoids without taking \(w\to 1\). Full truncated Hessians of §1.4
+still apply when \(\mathrm{Var}_t>0\).
 
 ---
 
@@ -213,52 +417,59 @@ ellipsoids (so \(H^{(u)}\succeq 0\)); see §5.2.
 Whenever a scalar precision \(\theta>0\) enters only through a Normal factor
 
 \[
-\tfrac12\,\theta\,\|r\|^2 - \tfrac12\log\theta
+\tfrac12\,\theta\,\|r(x)\|^2 - \tfrac12\log\theta
 \]
 
 and \(\theta\) has a (possibly truncated) Gamma prior, integrating \(\theta\)
-out yields a Student-\(t\)-type marginal in \(r\) with Hessian
+out yields a Student-\(t\)-type marginal in the residual map \(r(x)\) with
+Hessian (in \(x\))
 
 \[
-H_r \;=\; E_t[\theta]\,I \;-\; \mathrm{Var}_t[\theta]\,rr'.
+H_r(x)
+\;=\;
+E_t[\theta;t(x)]\,I
+\;-\;
+\mathrm{Var}_t[\theta;t(x)]\,r(x)\,r(x)'.
 \]
 
 As \(\mathrm{Var}_t[\theta]\to 0\) with \(E_t[\theta]\to\theta_0\),
-\(H_r\to\theta_0 I\) (Normal / fixed-precision limit).
+\(H_r(x)\to\theta_0 I\) (Normal / fixed-precision limit; residual
+dependence drops out).
 
-| Precision | Role | Residual \(r\) | Couples to |
+| Precision | Role | Residual map \(r(x)\) | Couples to |
 |---|---|---|---|
-| \(\Omega_j=1/\sigma_j^2\) | measurement | \(e_j=y_j-D_j\beta_j\) | \(\beta_j\) only \(\to P_{22}\) |
-| \(\lambda_p=1/\tau_p^2\) | population / RE | \(u_p=\beta_{\cdot p}-W_p\gamma_p\) | \(\gamma_p\) and \(\beta_{\cdot p}\) \(\to P_{11},P_{12},P_{21},P_{22}\) |
+| \(\Omega_j=1/\sigma_j^2\) | measurement | \(e_j(\beta_j)=y_j-D_j\beta_j\) | \(\beta_j\) only \(\to P_{22}\) |
+| \(\lambda_p=1/\tau_p^2\) | population / RE | \(u_p(\beta_{\cdot p},\gamma_p)=\beta_{\cdot p}-W_p\gamma_p\) | \(\gamma_p\) and \(\beta_{\cdot p}\) \(\to P_{11},P_{12},P_{21},P_{22}\) |
 
 ---
 
 ## 3. Why \(\Omega_j\) hits only \(P_{22}\)
 
-Chain rule through \(e_j=y_j-D_j\beta_j\) gives \(H_j^{(\Omega)}\) in
-\(\beta_j\) alone. The likelihood never involves \(\gamma\) in the centered
-parameterization, so \(P_{11}\) and \(P_{12}/P_{21}\) are untouched by
-\(\Omega_j\).
+Chain rule through \(e_j(\beta_j)=y_j-D_j\beta_j\) gives
+\(H_j^{(\Omega)}(\beta_j)\) in \(\beta_j\) alone. The likelihood never
+involves \(\gamma\) in the centered parameterization, so \(P_{11}\) and
+\(P_{12}/P_{21}\) are untouched by \(\Omega_j\).
 
 ---
 
 ## 4. Why \(\lambda_p\) hits \(P_{11}\), \(P_{12}/P_{21}\), and \(P_{22}\)
 
 The RE prior links \(\gamma_p\) to \(\beta_{\cdot p}\) through
-\(u_p=\beta_{\cdot p}-W_p\gamma_p\). Marginalizing \(\lambda_p\) leaves a
-\(t\)-prior on that link, so one \(H_u^{(p)}\) feeds the matched triple
+\(u_p(\beta_{\cdot p},\gamma_p)=\beta_{\cdot p}-W_p\gamma_p\).
+Marginalizing \(\lambda_p\) leaves a \(t\)-prior on that link, so one
+\(H_u^{(p)}(\beta_{\cdot p},\gamma_p)\) feeds the matched triple
 
 \[
-P_{11}\gets W_p'H_u^{(p)}W_p,
+P_{11}\gets W_p'H_u^{(p)}(\beta_{\cdot p},\gamma_p)\,W_p,
 \quad
-P_{12}\gets -W_p'H_u^{(p)},
+P_{12}\gets -W_p'H_u^{(p)}(\beta_{\cdot p},\gamma_p),
 \quad
-P_{22}\gets H_u^{(p)}
+P_{22}\gets H_u^{(p)}(\beta_{\cdot p},\gamma_p)
 \]
 
-(plus likelihood \(H_j^{(\Omega)}\) in \(P_{22}\)). Cross-component blocks
-(\(p\neq p'\)) stay zero under diagonal \(\Psi^{-1}\) and independent ING
-priors.
+(plus likelihood \(H_j^{(\Omega)}(\beta_j)\) in \(P_{22}\)).
+Cross-component blocks (\(p\neq p'\)) stay zero under diagonal
+\(\Psi^{-1}\) and independent ING priors.
 
 ---
 
@@ -372,7 +583,7 @@ S=W'\Lambda\,P_{22}^{-1}\,\Lambda\,W.
 | `BLOCK_GIBBS_ERGODICITY_ING.md` §14–15 | Joint Hessian **keeping** \(\Omega,\lambda\) as \(x_1\) coordinates |
 | `BLOCK_GIBBS_ERGODICITY_ING.md` §16 | Marginal \(\Omega\) only (feeds \(P_{22}\); implemented in `R/two_block_ergodicity_ing_marginal.R`) |
 | `BLOCK_GIBBS_ERGODICITY_ING.md` §10 | Truncation corners for \(\lambda_p,\Omega\) give a certified gap from 1 |
-| **This note** | Marginal \(\Omega\) **and** \(\lambda\): §1 table; spectral roles in §5 |
+| **This note** | Marginal \(\Omega\) **and** \(\lambda\): §1 table; default \(P\)/\(A\) in §1.7; spectral roles in §5 |
 | `DERIVATION_sigma2_with_block2_v2.md` | Sampler partition that *samples* \(\Omega\) with Block~2 |
 
 Implementation: measurement-marginal \(P_{22}\) path exists

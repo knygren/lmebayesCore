@@ -1,75 +1,51 @@
-test_that("Prior_Setup_GLMM: group.dispersion overrides pooled group.dispersion", {
+test_that("Prior_Setup_GLMM: pooled group.dispersion is A12 3.3.4 S_marg center", {
   dat <- lme4::sleepstudy
 
-  ps_default <- Prior_Setup_GLMM(
+  ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01
   )
 
-  override <- as.numeric(ps_default$group.dispersion) * 1.25
-  ps <- Prior_Setup_GLMM(
-    Reaction ~ Days + (Days || Subject),
-    data = dat,
-    pop.pwt = 0.01,
-    group.dispersion = override
+  expect_identical(attr(ps$group.dispersion, "source"), "pooled S_marg (A12 3.3.4)")
+  expect_true(is.finite(attr(ps$group.dispersion, "classical")))
+  expect_equal(
+    ps$group.ing_prior$sigma2_hat,
+    as.numeric(ps$group.dispersion),
+    ignore_attr = TRUE
   )
-
-  expect_equal(ps$group.dispersion, override, ignore_attr = TRUE)
-  expect_identical(attr(ps$group.dispersion, "source"), "user group.dispersion")
-  expect_equal(ps$group.ing_prior$sigma2_hat, override)
   p_re <- length(ps$design$groupef.names)
   n_prior <- ps$group.ing_prior$n_prior
   expect_equal(
     ps$group.ing_prior$rate,
-    override * (n_prior + p_re - 1) / 2
-  )
-  expect_identical(
-    ps$pop.prior_list,
-    ps_default$pop.prior_list
+    as.numeric(ps$group.dispersion) * (n_prior + p_re - 1) / 2
   )
 })
 
-test_that("Prior_Setup_GLMM: group.dispersion vector overrides per-group dispersion", {
+test_that("Prior_Setup_GLMM: per-group group.dispersion follows sigma2_hat", {
   skip_if_not_installed("glmmTMB")
   dat <- lme4::sleepstudy
   J <- nlevels(dat$Subject)
 
-  ps_default <- Prior_Setup_GLMM(
-    Reaction ~ Days + (Days || Subject),
-    data = dat,
-    pop.pwt = 0.01,
-    group.dispersion.pwt = 0.1,
-    dispformula = ~Subject
-  )
-
-  override <- ps_default$group.dispersion.ref * 1.1
   ps <- Prior_Setup_GLMM(
     Reaction ~ Days + (Days || Subject),
     data = dat,
     pop.pwt = 0.01,
     group.dispersion.pwt = 0.1,
-    dispformula = ~Subject,
-    group.dispersion = override
+    group.alpha_target = NULL,
+    dispformula = ~Subject
   )
 
   expect_length(ps$group.dispersion, J)
   expect_named(ps$group.dispersion, levels(dat$Subject))
-  expect_equal(
-    unname(ps$group.dispersion),
-    unname(override),
-    ignore_attr = TRUE
+  expect_identical(
+    attr(ps$group.dispersion, "source"),
+    "per-group S_marg (A12 3.3.4)"
   )
-  expect_identical(attr(ps$group.dispersion, "source"), "user group.dispersion")
-  expect_identical(ps$group.dispersion.ref, ps_default$group.dispersion.ref)
-
-  p_re <- length(ps$design$groupef.names)
   for (lev in levels(dat$Subject)) {
-    ing_j <- ps$group.ing_prior[[lev]]
-    expect_equal(ing_j$sigma2_hat, unname(override[[lev]]))
     expect_equal(
-      ing_j$rate_gamma,
-      unname(override[[lev]]) * (ing_j$n_prior + p_re - 1) / 2
+      unname(ps$group.dispersion[[lev]]),
+      ps$group.ing_prior[[lev]]$sigma2_hat
     )
   }
 })
@@ -203,30 +179,6 @@ test_that("Prior_Setup_GLMM: forwards REML / weights to model_setup", {
   )
 })
 
-test_that("Prior_Setup_GLMM: group.dispersion validation", {
-  dat <- lme4::sleepstudy
-
-  expect_error(
-    Prior_Setup_GLMM(
-      Reaction ~ Days + (Days || Subject),
-      data = dat,
-      group.dispersion = 1,
-      dispformula = ~Subject
-    ),
-    "got a scalar"
-  )
-
-  expect_error(
-    Prior_Setup_GLMM(
-      Reaction ~ Days + (Days || Subject),
-      data = dat,
-      family = poisson(),
-      group.dispersion = 1
-    ),
-    "only supported for family = gaussian"
-  )
-})
-
 test_that("Prior_Setup_GLMM: dispformula = ~1 keeps the pooled lme4 reference", {
   dat <- lme4::sleepstudy
 
@@ -264,13 +216,14 @@ test_that("Prior_Setup_GLMM: dispformula = ~group routes calibration through glm
   expect_identical(ps$group.dispersion.fit, ps$fit_ref)
   expect_identical(ps$mer_fit, ps$design$lmer)
 
-  ## Pooled group.dispersion stays lme4-derived (design$dispersion from
-  ## mer_fit) regardless of dispformula.
-  expect_equal(
-    unname(ps$group.dispersion),
-    unname(ps$design$dispersion),
-    ignore_attr = TRUE
+  ## Per-group dispformula: group.dispersion is the named vector of
+  ## per-group S_marg centers (not the pooled lmer residual).
+  expect_identical(
+    attr(ps$group.dispersion, "source"),
+    "per-group S_marg (A12 3.3.4)"
   )
+  expect_length(ps$group.dispersion, nlevels(dat$Subject))
+  expect_named(ps$group.dispersion, levels(dat$Subject))
 
   ## group.ing_prior holds either the pooled (flat) or per-group (named
   ## list of lists) calibration, selected by dispformula: only the
@@ -278,6 +231,12 @@ test_that("Prior_Setup_GLMM: dispformula = ~group routes calibration through glm
   expect_false(is.null(ps$group.ing_prior))
   expect_true(lmebayesCore:::.lmebayes_ing_prior_is_grouped(ps$group.ing_prior))
   expect_length(ps$group.ing_prior, nlevels(dat$Subject))
+  for (lev in levels(dat$Subject)) {
+    expect_equal(
+      unname(ps$group.dispersion[[lev]]),
+      ps$group.ing_prior[[lev]]$sigma2_hat
+    )
+  }
 
   expect_type(ps$group.dispersion.ref, "double")
   expect_named(ps$group.dispersion.ref, levels(dat$Subject))

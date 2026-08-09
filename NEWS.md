@@ -1,5 +1,22 @@
 # lmebayesCore (development version)
 
+* **`Prior_Setup_GLMM` marginal dispersion centers.** Pooled Block~1
+  \(\sigma^2\) (`dispformula = ~1`) and Block~2 \(\tau^2_k\) Gamma priors
+  are now centered on A12 §3.3.4 marginal RSS via
+  `compute_gaussian_prior` (same idea as per-group measurement /
+  Gaussian `Prior_Setup`), not raw lmer residual / VarCorr plug-ins.
+  Pooled \(\hat\sigma^2\) aggregates per-group \(S_{\mathrm{marg},j}\)
+  (Part VI \(\Omega_j\) included); \(\tau^2_k\) uses the hyper-regression
+  \(b_{\cdot k}\sim N(W_k\gamma_k,\tau^2_k I)\). Classical plugs remain in
+  `attr(group.dispersion,"classical")` and `pop.dispersion.ref`.
+
+* **`Prior_Setup_GLMM`: drop `group.dispersion=` pin.** Removed the
+  argument that overrode / mean-matched Gamma centers to a user plug-in
+  (pooled or per-group). Centers always come from the marginal
+  calibration above; pass `ps$group.dispersion` into
+  `rlmerb()`/`rglmerb()` only when you want a fixed-\(\sigma^2\) sampling
+  route.
+
 * **Configure policy:** Removed `tools/rcpp_include.R` /
   `tools/patch_rcpp_function_h.R` and the
   `glmbayes_getRegisteredNamespace` compatibility shim

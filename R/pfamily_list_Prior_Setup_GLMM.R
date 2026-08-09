@@ -6,12 +6,16 @@
 #' \code{object$pop.prior_list[[k]]}:
 #' \itemize{
 #'   \item \code{"dNormal"}: \code{dNormal(mu, Sigma, dispersion)} with
-#'     known group-effect variance \eqn{\tau^2_k}.
+#'     group-effect variance \eqn{\tau^2_k} from
+#'     \code{pop.prior_list[[k]]$dispersion} (A12 §3.3.4 marginal
+#'     hyper-regression center for Gaussian models; classical VarCorr in
+#'     \code{pop.dispersion.ref}).
 #'   \item \code{"dIndependent_Normal_Gamma"}: the same \code{mu} and
 #'     \code{Sigma}, plus a Gamma prior on precision \eqn{1/\tau^2_k}
 #'     from \code{object$pop.ing_prior[[k]]} (calibrated by
 #'     \code{\link{Prior_Setup_GLMM}} via \code{pop.dispersion.pwt} /
-#'     \code{pop.dispersion.nprior}).  With effective prior sample size
+#'     \code{pop.dispersion.nprior}, mean-matched at that same marginal
+#'     \eqn{\tau^2_k}).  With effective prior sample size
 #'     \eqn{n_0} and \eqn{p_k} population predictors for component
 #'     \eqn{k},
 #'     \deqn{shape = (n_0 + 1 + p_k)/2, \qquad

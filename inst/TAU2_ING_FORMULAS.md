@@ -96,7 +96,14 @@ $$
 \mathrm{rate}_k = \hat\tau^2_k \,\frac{n_0 + p_k - 1}{2}
 $$
 
-where \(\hat\tau^2_k\) is the reference `lmer` RE variance and \(n_0\) is the effective prior sample size for dispersion. Then \(\mathrm{rate}_k / (\mathrm{shape}_k - 1) = \hat\tau^2_k\).
+where \(\hat\tau^2_k\) is the A12 §3.3.4 **marginal** hyper-regression
+center from `compute_gaussian_prior` on
+\(b_{\cdot k}\sim N(W_k\gamma_k,\tau^2_k I_J)\) with prior
+\(\gamma_k\sim N(\mu_k,\Sigma_k)\) (stored in
+`pop.prior_list[[k]]$dispersion`), and \(n_0\) is the effective prior
+sample size for dispersion. The classical VarCorr / `Psi` plug-in is kept
+in `pop.dispersion.ref`. Then
+\(\mathrm{rate}_k / (\mathrm{shape}_k - 1) = \hat\tau^2_k\).
 
 ---
 

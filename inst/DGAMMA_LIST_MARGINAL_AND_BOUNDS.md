@@ -901,11 +901,16 @@ place.
 
 - `shape_ING,j`/`rate,j` (the actual Gamma prior handed to the sampler) --
   unchanged; this correction only widens/narrows the *window*.
-- The pooled Block~1 case (`ing_prior_measurement`, `dispformula = ~1`) and
-  Block~2's `ing_prior` (`tau^2_k`) windows are untouched by this fix; only
-  the per-group `ing_prior_measurement_group` window is corrected here (the
-  pooled case has a superficially similar gap -- its window also skips an
-  analogous `+n/2` term -- but that has not been revisited in this pass).
+- The pooled Block~1 **window** still uses prior quantiles of the pooled
+  shape/rate (no `+n/2` inflation); that gap is unchanged here.
+- **Centers (updated separately):** pooled `dispformula = ~1` now aggregates
+  per-group \(S_{\mathrm{marg},j}\) (Part I / Part VI) into
+  \(\hat\sigma^2_{\mathrm{pool}}=(\sum_j S_{\mathrm{marg},j})/(n-J p_{\mathrm{re}})\),
+  and Block~2 `pop.ing_prior` centers \(\tau^2_k\) on the same A12 §3.3.4
+  hyper-regression marginal (see `Prior_Setup_GLMM` /
+  `inst/TAU2_ING_FORMULAS.md`). Only the per-group
+  `ing_prior_measurement_group` **window** construction is the subject of
+  this Part VII note.
 
 ---
 

@@ -35,7 +35,6 @@ Prior_Setup_GLMM(
   pop.max_disp_perc = 0.99,
   pop.intercept_source = c("null_model", "full_model"),
   pop.effects_source   = c("null_effects", "full_model"),
-  group.dispersion = NULL,
   group.dispersion.pwt = NULL, group.dispersion.nprior = NULL,
   group.alpha_target = 0.01,
   group.max_disp_perc = 0.99
