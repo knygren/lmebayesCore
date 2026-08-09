@@ -39,7 +39,8 @@
 #'     \item{block_results}{List of length \code{k} with each block's sampler output.}
 #'   }
 #' @seealso \code{\link[glmbayesCore]{rNormal_reg}}, \code{\link[glmbayesCore]{simfunction}},
-#'   \code{\link{normalize_block}}, \code{inst/DESIGN_RGLM_BLOCKS.md}
+#'   \code{\link{normalize_block}}, \code{\link{Prior_SetupBlock}},
+#'   \code{inst/DESIGN_RGLM_BLOCKS.md}
 #' @example inst/examples/Ex_block_rNormalGLM.R
 #' @name block_simfuncs
 #' @aliases block_rNormalGLM block_rNormalReg

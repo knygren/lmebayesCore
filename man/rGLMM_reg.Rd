@@ -302,6 +302,8 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   ps <- Prior_Setup_GLMM(form, data = dat, family = binomial(), pop.pwt = 0.01)
   pf <- pfamily_list(ps)
 
+   design$y
+  
   set.seed(1)
   fit <- rGLMM_reg_known_vcov(
     n = 10L,

@@ -2,6 +2,7 @@
 % Please edit documentation in R/Prior_SetupBlock.R
 \name{Prior_SetupBlock}
 \alias{Prior_SetupBlock}
+\alias{print.Prior_SetupBlock}
 \title{Prior setup for row-block regressions}
 \usage{
 Prior_SetupBlock(
@@ -26,6 +27,8 @@ Prior_SetupBlock(
   k = 1,
   ...
 )
+
+\method{print}{Prior_SetupBlock}(x, blocks = NULL, ...)
 }
 \arguments{
 \item{formula}{A \code{\link{formula}} with a single response.}
@@ -94,16 +97,21 @@ dimension is 14 or greater. Defaults to 0.05.}
 
 \item{effects_source}{Specifies the method through which the prior means for the effects terms are set. Options are null_effects (prior means set to zero) or full_model (effect means set to match maximum likelihood estimates).}
 
-\item{...}{
-    For \code{glm}: arguments to be used to form the default
-    \code{control} argument if it is not supplied directly.
+\item{...}{Further arguments passed to \code{print.PriorSetup} when
+\code{blocks} selects individual blocks.}
 
-    For \code{weights}: further arguments passed to or from other methods.
-  }
+\item{x}{Object of class \code{"Prior_SetupBlock"}.}
+
+\item{blocks}{For \code{print.Prior_SetupBlock}: \code{NULL} (default;
+print a short header only), a character vector of block IDs
+(\code{names(x)}), or integer indices. Selected blocks are printed
+with \code{\link[glmbayesCore]{print.PriorSetup}}.}
 }
 \value{
-A named list of class \code{"block_PriorSetup"}. Each element is a
+A named list of class \code{"Prior_SetupBlock"}. Each element is a
 \code{\link[glmbayesCore]{Prior_Setup}} result for one block.
+
+\code{x} invisibly.
 }
 \description{
 Runs \code{\link[glmbayesCore]{Prior_Setup}} on each block subset of the data.
@@ -123,13 +131,24 @@ ps_block <- Prior_SetupBlock(
   family = gaussian()
 )
 
+print(ps_block)
 names(ps_block)
 ps_block$setosa$mu
-length(ps_block$setosa$mu)
+
+## Default: dNormal() per block (also valid for binomial/poisson blocks)
+pf <- pfamily_list(ps_block)
+names(pf)
+attr(pf, "ptypes")
+
+## Gaussian-only alternatives
+pf_ng <- pfamily_list(ps_block, ptypes = "dNormal_Gamma")
+pf_ing <- pfamily_list(ps_block, ptypes = "dIndependent_Normal_Gamma")
+print(pf_ng, components = "setosa")
 }
 \seealso{
 \code{\link[glmbayesCore]{Prior_Setup}},
 \code{\link[glmbayesCore]{multi_prior_setup}},
-\code{\link{Prior_Setup_GLMM}}, \code{\link{normalize_block}},
+\code{\link{Prior_Setup_GLMM}}, \code{\link{pfamily_list}},
+\code{\link{normalize_block}},
 \code{\link{block_rNormalReg}}, \code{\link{block_rNormalGLM}}
 }

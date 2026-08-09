@@ -11,7 +11,7 @@
 
 
 
-<title>BLOCK_GIBBS_ERGODICITY_ING</title>
+<title>P_MATRIX_MARGINAL_PRECISIONS</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -352,980 +352,514 @@ display: none;
 </div>
 
 
-<div id="the-joint-hessian-for-fixed-effects-random-effects-precision-and-the-state-dependent-extension-of-claims-13" class="section level1">
-<h1>The Joint Hessian for (Fixed Effects, Random Effects, Precision) and
-the State-Dependent Extension of Claims 1/3</h1>
-<p>This document is the concrete derivation promised as “future work” at
-the end of <code>inst/BLOCK_GIBBS_ERGODICITY.md</code>. It extends the
-multivariate-normal two-block theory (Nygren 2020, as implemented in
-<code>R/two_block_ergodicity.R</code> and used by
-<code>two_block_rate()</code>) to a model where the random-effects
-precision <span class="math inline">\(\lambda_p := 1/\tau^2_p\)</span>
-is <strong>also</strong> sampled, under the
-<code>dIndependent_Normal_Gamma()</code> (“ING”) Block~2 prior.</p>
-<p><strong>Scope.</strong> This is a theory note only — no code changes
-are implied or made here. It derives the Hessian of the negative
-log-posterior over <span class="math inline">\((\gamma, \beta,
-\lambda)\)</span> jointly, shows exactly which blocks of the existing
-<span class="math inline">\(P_{11}\)</span>/<span class="math inline">\(P_{12}\)</span>/<span class="math inline">\(P_{22}\)</span> construction stay the same and
-which are new, and explains precisely why the resulting analogue of the
-Claim 1 / Claim 3 contraction matrix <span class="math inline">\(A\)</span> is <strong>state-dependent</strong> —
-i.e. why it is not a constant, unlike the fixed-<span class="math inline">\(\Psi\)</span> case <code>two_block_rate()</code>
-currently handles.</p>
+<div id="marginal-p-blocks-when-precisions-have-truncated-gamma-priors" class="section level1">
+<h1>Marginal <span class="math inline">\(P\)</span>-blocks when
+precisions have truncated Gamma priors</h1>
+<p>A short companion to <code>BLOCK_GIBBS_ERGODICITY_ING.md</code>
+§14–§16. Keep only the two-block coordinates <span class="math inline">\((\gamma,\beta)\)</span> and integrate
+<strong>both</strong> measurement precisions <span class="math inline">\(\Omega_j\)</span> and population precisions <span class="math inline">\(\lambda_p\)</span> out under truncated-Gamma
+priors. Notation: <code>inst/notation.md</code> (<span class="math inline">\(e_j=y_j-D_j\beta_j\)</span>, <span class="math inline">\(u_p=\beta_{\cdot p}-W_p\gamma_p\)</span>).</p>
+<p>Moments <span class="math inline">\(E_t[\cdot]\)</span>, <span class="math inline">\(\mathrm{Var}_t[\cdot]\)</span> are
+tilted-truncated posterior moments
+(<code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.6).</p>
 <hr />
-<div id="notation" class="section level2">
-<h2>1. Notation</h2>
-<p>This note follows <code>inst/notation.md</code>’s “centered” Lindley
-&amp; Smith (1972) parameterization (<span class="math inline">\(\beta_j\)</span>, <span class="math inline">\(\gamma\)</span>, <span class="math inline">\(\mathcal{W}_j\)</span>, <span class="math inline">\(\Psi\)</span>), since that is the notation used in
-<code>rLMM_reg.R</code>’s current documentation. A translation table to
-the code symbols used in <code>R/two_block_ergodicity.R</code> (<span class="math inline">\(Z\)</span>, <span class="math inline">\(b\)</span>, <span class="math inline">\(H_j\)</span>, <span class="math inline">\(P_b\)</span>) is given at the end of §2.</p>
+<div id="the-p-matrix-both-omega_j-and-lambda_p-truncated" class="section level2">
+<h2>1. The <span class="math inline">\(P\)</span> matrix (both <span class="math inline">\(\Omega_j\)</span> and <span class="math inline">\(\lambda_p\)</span> truncated)</h2>
+<div id="residuals-and-truncated-gamma-moments" class="section level3">
+<h3>1.1 Residuals and truncated-Gamma moments</h3>
 <table>
 <colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
+<col width="50%" />
+<col width="50%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Symbol</th>
-<th>Role</th>
-<th>Dimension</th>
+<th>Definition</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(y_j\)</span></td>
-<td>response, group <span class="math inline">\(j\)</span></td>
-<td><span class="math inline">\(n_j \times 1\)</span></td>
+<td><span class="math inline">\(e_j=y_j-D_j\beta_j\)</span></td>
+<td>measurement residual, group <span class="math inline">\(j\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(D_j\)</span></td>
-<td>likelihood design, group <span class="math inline">\(j\)</span></td>
-<td><span class="math inline">\(n_j \times P\)</span></td>
+<td><span class="math inline">\(u_p=\beta_{\cdot
+p}-W_p\gamma_p\)</span></td>
+<td>RE residual for component <span class="math inline">\(p\)</span>
+(length <span class="math inline">\(J\)</span>)</td>
 </tr>
+<tr class="odd">
+<td><span class="math inline">\(a_j^0,r_j^0\)</span></td>
+<td>Gamma shape/rate for <span class="math inline">\(\Omega_j\)</span>
+(before data update)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(a_p^{0(\lambda)},r_p^{0(\lambda)}\)</span></td>
+<td>Gamma shape/rate for <span class="math inline">\(\lambda_p\)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\([\omega_{L,j},\omega_{U,j}]\)</span></td>
+<td>truncation window for <span class="math inline">\(\Omega_j\)</span>
+(precision scale)</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\([\lambda_{L,p},\lambda_{U,p}]\)</span></td>
+<td>truncation window for <span class="math inline">\(\lambda_p\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Tilted truncated posterior moments <span class="math inline">\(E_t[\cdot]\)</span>, <span class="math inline">\(\mathrm{Var}_t[\cdot]\)</span> are as in
+<code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.6 (three
+<code>pgamma</code> calls at the updated rate). For <span class="math inline">\(\Omega_j\)</span> the updated rate is <span class="math inline">\(t_j=r_j^0+\tfrac12 e_j&#39;e_j\)</span>; for <span class="math inline">\(\lambda_p\)</span> it is <span class="math inline">\(t_p^{(\lambda)}=r_p^{0(\lambda)}+\tfrac12\|u_p\|^2\)</span>.</p>
+</div>
+<div id="ellipsoid-scores-as-functions" class="section level3">
+<h3>1.2 Ellipsoid scores (as functions)</h3>
+<p><strong>Measurement (group <span class="math inline">\(j\)</span>).</strong> Assume <span class="math inline">\(D_j\)</span> has full column rank. Let <span class="math inline">\(\hat\beta_j^{\mathrm{ols}}=(D_j&#39;D_j)^{-1}D_j&#39;y_j\)</span>
+(data-only; does not depend on <span class="math inline">\(\beta_j\)</span>). Define</p>
+<p><span class="math display">\[\begin{align*}
+q_j(\beta_j)
+&amp;\;:=\;
+\bigl(D_j&#39;(y_j-D_j\beta_j)\bigr)&#39;(D_j&#39;D_j)^{-1}\bigl(D_j&#39;(y_j-D_j\beta_j)\bigr)
+\\[4pt]
+&amp;\;=\;
+\bigl\|\beta_j-\hat\beta_j^{\mathrm{ols}}\bigr\|^2_{D_j&#39;D_j}
+\;=\;
+(\beta_j-\hat\beta_j^{\mathrm{ols}})&#39;(D_j&#39;D_j)\,(\beta_j-\hat\beta_j^{\mathrm{ols}}).
+\end{align*}\]</span></p>
+<p>With <span class="math inline">\(\mathrm{RSS}_j^{\mathrm{ols}}=\|y_j-D_j\hat\beta_j^{\mathrm{ols}}\|^2\)</span>
+fixed, the OLS split also gives <span class="math inline">\(q_j(\beta_j)=\|y_j-D_j\beta_j\|^2-\mathrm{RSS}_j^{\mathrm{ols}}\)</span>.</p>
+<p><strong>Population / RE (component <span class="math inline">\(p\)</span>).</strong> Define</p>
+<p><span class="math display">\[\begin{align*}
+q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p)
+&amp;\;:=\;
+\|\beta_{\cdot p}-W_p\gamma_p\|^2
+\\[4pt]
+&amp;\;=\;
+\sum_{j=1}^{J}(\beta_{jp}-W_{pj}\gamma_p)^2.
+\end{align*}\]</span></p>
+</div>
+<div id="inside-the-ellipsoid-both-cases" class="section level3">
+<h3>1.3 Inside the ellipsoid (both cases)</h3>
+<p>A rank-one Hessian of the form <span class="math inline">\(E_t[\theta]\,M-\mathrm{Var}_t[\theta]\,vv&#39;\)</span>
+is positive (semi)definite iff the score that <span class="math inline">\(v\)</span> induces on <span class="math inline">\(M\)</span> does not exceed the threshold <span class="math inline">\(E_t[\theta]/\mathrm{Var}_t[\theta]\)</span>
+(<code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16.3 / §16.6).</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Case</th>
+<th>Inside the ellipsoid iff</th>
+<th>Radius</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
 <td><span class="math inline">\(\Omega_j\)</span></td>
-<td>per-observation likelihood precision (diag; <span class="math inline">\(1/\sigma^2\)</span> for Gaussian, Fisher weights
-otherwise)</td>
-<td><span class="math inline">\(n_j \times n_j\)</span></td>
+<td><span class="math inline">\(\displaystyle q_j(\beta_j) \;\le\;
+\frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\)</span></td>
+<td><span class="math inline">\(K_j^{(\Omega)}(\beta_j):=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span>
+(depends on <span class="math inline">\(\beta_j\)</span> through <span class="math inline">\(t_j\)</span>)</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\beta_j\)</span></td>
-<td>group-level coefficients (Block 1)</td>
-<td><span class="math inline">\(P \times 1\)</span></td>
+<td><span class="math inline">\(\lambda_p\)</span></td>
+<td><span class="math inline">\(\displaystyle
+q_p^{(\lambda)}(\beta_{\cdot p},\gamma_p) \;\le\;
+\frac{E_t[\lambda_p]}{\mathrm{Var}_t[\lambda_p]}\)</span></td>
+<td><span class="math inline">\(K_p^{(\lambda)}(\beta_{\cdot
+p},\gamma_p):=E_t[\lambda_p]/\mathrm{Var}_t[\lambda_p]\)</span> (depends
+on <span class="math inline">\(u_p\)</span> through <span class="math inline">\(t_p^{(\lambda)}\)</span>)</td>
 </tr>
+</tbody>
+</table>
+<p><strong>Limit <span class="math inline">\(\mathrm{Var}_t\to
+0\)</span></strong> (hold <span class="math inline">\(E_t\)</span>
+fixed). Treat this as its own limit (not as a statement about the
+truncation ends). With <span class="math inline">\(E_t[\Omega_j]\)</span> and <span class="math inline">\(E_t[\lambda_p]\)</span> held fixed,</p>
+<p><span class="math display">\[
+K_j^{(\Omega)}(\beta_j)\;=\;\frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}
+\;\to\; +\infty,
+\qquad
+K_p^{(\lambda)}(\beta_{\cdot
+p},\gamma_p)\;=\;\frac{E_t[\lambda_p]}{\mathrm{Var}_t[\lambda_p]}
+\;\to\; +\infty,
+\]</span></p>
+<p>so every finite <span class="math inline">\((\beta,\gamma)\)</span>
+lies inside both ellipsoids: the PSD constraints become vacuous and one
+recovers the Normal / fixed-precision Hessians <span class="math inline">\(H_j^{(\Omega)}\to
+E_t[\Omega_j]\,D_j&#39;D_j\)</span>, <span class="math inline">\(H_u^{(p)}\to E_t[\lambda_p]\,I_J\)</span>
+(rank-one corrections vanish).</p>
+<p><strong>Prior-weight limit <span class="math inline">\(w\to
+1\)</span></strong> (hold <span class="math inline">\(E_t\)</span>
+fixed; the interesting end). Let <span class="math inline">\(w\in(0,1)\)</span> be the Gamma prior weight on
+the precision (<code>pwt_measurement</code> for <span class="math inline">\(\Omega_j\)</span>; analogously the population
+prior weight for <span class="math inline">\(\lambda_p\)</span>),
+entering through <span class="math inline">\(n_{\mathrm{prior}}=w/(1-w)\,n\)</span> into the
+tilted shape/rate <span class="math inline">\((s_j,t_j)\)</span>.
+Truncated moments (<code>BLOCK_GIBBS_ERGODICITY_ING.md</code>
+§16.6):</p>
+<p><span class="math display">\[
+E_t[\Omega_j]
+=\frac{s_j}{t_j}\,\frac{\Delta P(s_j+1,t_j)}{\Delta P(s_j,t_j)},
+\qquad
+\mathrm{Var}_t[\Omega_j]
+=E_t[\Omega_j^2]-\bigl(E_t[\Omega_j]\bigr)^2.
+\]</span></p>
+<p>Under the usual calibration the prior mean is anchored, so raising
+<span class="math inline">\(w\)</span> shrinks <span class="math inline">\(\mathrm{Var}_t\)</span> at essentially fixed <span class="math inline">\(E_t\)</span>. Thus</p>
+<p><span class="math display">\[
+w\;\to\;1
+\qquad\Rightarrow\qquad
+n_{\mathrm{prior}}\;\to\;+\infty
+\qquad\Rightarrow\qquad
+\mathrm{Var}_t[\Omega_j]\;\to\;0
+\qquad\Rightarrow\qquad
+K_j^{(\Omega)}(\beta_j)=\frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}
+\;\to\;+\infty.
+\]</span></p>
+<p>The ellipsoid <span class="math inline">\(\{q_j(\beta_j)\le
+K_j^{(\Omega)}(\beta_j)\}\)</span> therefore expands without bound. In
+theory one can give the prior enough weight that the posterior mass on
+the outside (where <span class="math inline">\(H_j^{(\Omega)}\)</span>
+can fail to be PSD) becomes arbitrarily small — a concrete route to the
+<span class="math inline">\(\mathrm{Var}_t\to 0\)</span> Normal end
+above. The same reading applies to <span class="math inline">\(K_p^{(\lambda)}\)</span> with <span class="math inline">\(E_t[\lambda_p]\)</span> held fixed.</p>
+<p>(The opposite end <span class="math inline">\(w\to 0\)</span> only
+lowers <span class="math inline">\(K\)</span> toward a finite floor; the
+truncation window is a different <span class="math inline">\(\mathrm{Var}_t\)</span>-knob, not a prior
+weight.)</p>
+</div>
+<div id="hessians-psd-inside-the-ellipsoids" class="section level3">
+<h3>1.4 Hessians (PSD inside the ellipsoids)</h3>
+<p><span class="math display">\[\begin{align*}
+H_j^{(\Omega)}
+&amp;= E_t[\Omega_j]\,D_j&#39;D_j
+- \mathrm{Var}_t[\Omega_j]\,(D_j&#39;e_j)(D_j&#39;e_j)&#39;,
+\\[4pt]
+H_u^{(p)}
+&amp;= E_t[\lambda_p]\,I_J
+- \mathrm{Var}_t[\lambda_p]\,u_p u_p&#39;.
+\end{align*}\]</span></p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Hessian</th>
+<th>PSD / PD precisely when</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
-<td><span class="math inline">\(\beta_{jp}\)</span></td>
-<td><span class="math inline">\(p\)</span>-th entry of <span class="math inline">\(\beta_j\)</span></td>
-<td>scalar</td>
+<td><span class="math inline">\(H_j^{(\Omega)}\)</span></td>
+<td>inside the <span class="math inline">\(\Omega_j\)</span> ellipsoid
+of §1.3 (<span class="math inline">\(D_j\)</span> full column rank <span class="math inline">\(\Rightarrow\)</span> PD on the nose of the
+boundary)</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\gamma\)</span></td>
-<td>population / hyper coefficients (Block 2), stacked over <span class="math inline">\(p = 1,\dots,P\)</span></td>
-<td><span class="math inline">\(q \times 1,\ q = \sum_p
-q_p\)</span></td>
+<td><span class="math inline">\(H_u^{(p)}\)</span></td>
+<td>inside the <span class="math inline">\(\lambda_p\)</span> ellipsoid
+of §1.3</td>
 </tr>
+</tbody>
+</table>
+<p>Stack <span class="math inline">\(H^{(\Omega)}:=\mathrm{blockdiag}_j(H_j^{(\Omega)})\)</span>
+and <span class="math inline">\(H^{(u)}:=\sum_p\mathrm{embed}_p(H_u^{(p)})\)</span>.</p>
+</div>
+<div id="joint-precision-blocks" class="section level3">
+<h3>1.5 Joint precision blocks</h3>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Block</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
-<td><span class="math inline">\(\gamma_p\)</span></td>
-<td>sub-vector of <span class="math inline">\(\gamma\)</span> for RE
-dimension <span class="math inline">\(p\)</span></td>
-<td><span class="math inline">\(q_p \times 1\)</span></td>
+<td><span class="math inline">\(P_{11}\)</span></td>
+<td><span class="math inline">\(\displaystyle\sum_p
+W_p&#39;\,H_u^{(p)}\,W_p \;+\;
+\mathrm{blockdiag}_p(V_p^{-1})\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\mathcal{W}_j\)</span></td>
-<td>level-2 design, group <span class="math inline">\(j\)</span>;
-block-diag<span class="math inline">\((W_{1j},\dots,W_{Pj})\)</span></td>
-<td><span class="math inline">\(P \times q\)</span></td>
+<td><span class="math inline">\(P_{12}\)</span></td>
+<td>row-strips <span class="math inline">\(\bigl(-W_p&#39;\,H_u^{(p)}\bigr)_{p=1}^{P}\)</span>
+over the <span class="math inline">\(\beta_{\cdot p}\)</span> columns
+(zeros for <span class="math inline">\(p\neq p&#39;\)</span>)</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(W_p\)</span></td>
-<td>stacked level-2 design for dimension <span class="math inline">\(p\)</span> (<span class="math inline">\(J\times
-q_p\)</span>; row <span class="math inline">\(j\)</span> is <span class="math inline">\(W_{pj}\)</span>)</td>
-<td><span class="math inline">\(J \times q_p\)</span></td>
+<td><span class="math inline">\(P_{21}\)</span></td>
+<td><span class="math inline">\(P_{12}^{\top}\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\Psi\)</span></td>
-<td>covariance of <span class="math inline">\(\beta_j\)</span> about
-<span class="math inline">\(\mathcal{W}_j\gamma\)</span></td>
-<td><span class="math inline">\(P \times P\)</span></td>
+<td><span class="math inline">\(P_{22}\)</span></td>
+<td><span class="math inline">\(H^{(\Omega)}+H^{(u)}\)</span></td>
 </tr>
+</tbody>
+</table>
+<p><span class="math inline">\(\mathrm{embed}_p(H_u^{(p)})\)</span>
+places the <span class="math inline">\(J\times J\)</span> matrix <span class="math inline">\(H_u^{(p)}\)</span> into the <span class="math inline">\(\beta_{\cdot p}\)</span> slots of the full <span class="math inline">\(JP\times JP\)</span> array.</p>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Source</th>
+<th><span class="math inline">\(P_{11}\)</span></th>
+<th><span class="math inline">\(P_{12}\)</span></th>
+<th><span class="math inline">\(P_{21}\)</span></th>
+<th><span class="math inline">\(P_{22}\)</span></th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
-<td><span class="math inline">\(\lambda_p :=
-(\Psi^{-1})_{pp}\)</span></td>
-<td>precision of RE dimension <span class="math inline">\(p\)</span></td>
-<td>scalar</td>
+<td>Truncated prior on <span class="math inline">\(\Omega_j\)</span>
+<span class="math inline">\(\to H_j^{(\Omega)}\)</span></td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>yes</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(u_{jp} := \beta_{jp} -
-W_{pj}\gamma_p\)</span></td>
-<td>Block<sub>1/Block</sub>2 residual</td>
-<td>scalar</td>
+<td>Truncated prior on <span class="math inline">\(\lambda_p\)</span>
+<span class="math inline">\(\to H_u^{(p)}\)</span></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(\mu_p^0, V_p\)</span></td>
-<td>Normal prior mean/covariance for <span class="math inline">\(\gamma_p\)</span></td>
-<td><span class="math inline">\(q_p\times 1,\ q_p\times
-q_p\)</span></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(a_p^0, r_p^0\)</span></td>
-<td>Gamma <strong>shape/rate</strong> prior for <span class="math inline">\(\lambda_p\)</span>
-(<code>dIndependent_Normal_Gamma(shape=, rate=)</code>)</td>
-<td>scalar</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\mathrm{ING} \subseteq
-\{1,\dots,P\}\)</span></td>
-<td>RE dimensions with a sampled (ING) precision; the complement has
-fixed, known <span class="math inline">\(\lambda_p\)</span>
-(<code>dNormal()</code>)</td>
+<td>Fixed <span class="math inline">\(\gamma\)</span> prior <span class="math inline">\(V_p^{-1}\)</span></td>
+<td>yes</td>
+<td>—</td>
+<td>—</td>
 <td>—</td>
 </tr>
 </tbody>
 </table>
-<p>Package convention: <strong><span class="math inline">\(\Psi^{-1} =
-\mathrm{diag}(\lambda_1,\dots,\lambda_P)\)</span> is always
-diagonal</strong> — there is no cross-dimension RE covariance in the
-current model family. This is what makes the block structure below
-tractable (no dense <span class="math inline">\(P\times P\)</span>
-precision to track — only the <span class="math inline">\(P\)</span>
-scalars <span class="math inline">\(\lambda_p\)</span>).</p>
-<hr />
-</div>
-<div id="the-model-and-why-gamma-and-lambda-form-one-gibbs-block" class="section level2">
-<h2>2. The model, and why <span class="math inline">\(\gamma\)</span>
-and <span class="math inline">\(\lambda\)</span> form one Gibbs
-block</h2>
-<p><strong>Stage 1 (likelihood):</strong> <span class="math inline">\(y_j \mid \beta_j \sim N(D_j\beta_j,
-\Omega_j^{-1})\)</span> (or a GLM likelihood, with <span class="math inline">\(\Omega_j\)</span> the working/Fisher precision at
-the current <span class="math inline">\(\beta_j\)</span>; this note
-keeps the Gaussian case exact and notes the GLM extension only
-informally, exactly as <code>two_block_rate()</code> already does via
-<code>two_block_mode_weights()</code>).</p>
-<p><strong>Stage 2 (RE prior / hyper-regression):</strong> <span class="math inline">\(\beta_{jp} \mid \gamma_p, \lambda_p \sim
-N(W_{pj}\gamma_p,\ 1/\lambda_p)\)</span>, independent across <span class="math inline">\(p\)</span> (diagonal <span class="math inline">\(\Psi^{-1}\)</span>) and across <span class="math inline">\(j\)</span> (independent groups).</p>
-<p><strong>Stage 3 (Block~2 priors):</strong></p>
-<ul>
-<li><span class="math inline">\(\gamma_p \sim N(\mu_p^0, V_p)\)</span> —
-<strong>independent of <span class="math inline">\(\lambda_p\)</span></strong> (this is the
-“Independent” in <code>dIndependent_Normal_Gamma</code>, as opposed to a
-classical conjugate Normal-Gamma prior in which <span class="math inline">\(\gamma_p\)</span>’s prior precision would itself
-be scaled by <span class="math inline">\(\lambda_p\)</span>).</li>
-<li>For <span class="math inline">\(p \in \mathrm{ING}\)</span>: <span class="math inline">\(\lambda_p \sim \mathrm{Gamma}(a_p^0,
-r_p^0)\)</span> (shape/rate). For <span class="math inline">\(p \notin
-\mathrm{ING}\)</span>, <span class="math inline">\(\lambda_p\)</span> is
-a fixed known constant (<code>dNormal()</code>), contributing no state
-dimension.</li>
-</ul>
-<p>The sampler updates <strong>Block 1</strong> (<span class="math inline">\(\beta\)</span>) first, then <strong>Block
-2</strong> (<span class="math inline">\((\gamma_p,\lambda_p)\)</span>
-jointly, per ING component, via the exact Normal-Gamma conjugate full
-conditional) second. This is exactly the point of this note:
-<strong>Block 2’s state is <span class="math inline">\((\gamma,\lambda)\)</span>, not just <span class="math inline">\(\gamma\)</span></strong>, once any component is
-ING. The two-block Gibbs cycle is therefore already <span class="math inline">\(x_1 = (\gamma,\lambda_{\mathrm{ING}})\)</span>,
-<span class="math inline">\(x_2 = \beta\)</span> — the same “<span class="math inline">\(x_1\)</span> updated second / <span class="math inline">\(x_2\)</span> updated first” convention
-<code>R/two_block_ergodicity.R</code> uses, just with <span class="math inline">\(x_1\)</span> enlarged.</p>
-<p><strong>Translation to <code>R/two_block_ergodicity.R</code> code
-symbols:</strong></p>
-<table>
-<thead>
-<tr class="header">
-<th>This note</th>
-<th>Code (<code>two_block_ergodicity.R</code>)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><span class="math inline">\(D_j\)</span> (likelihood design)</td>
-<td><code>x[rows, ]</code> (a.k.a. <span class="math inline">\(Z_j\)</span>)</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\beta_j\)</span></td>
-<td><code>b[j, ]</code></td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\mathcal{W}_j\)</span>, <span class="math inline">\(W_{pj}\)</span></td>
-<td><code>H_j</code>, <code>x_j[[k]]</code></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\gamma_p\)</span></td>
-<td><code>gamma[cols[[k]]]</code></td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\Psi^{-1} =
-\mathrm{diag}(\lambda_p)\)</span></td>
-<td><code>P_b</code></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\Omega_j\)</span></td>
-<td><code>w[rows]</code> (diag)</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(V_p\)</span></td>
-<td><code>prior_list_block2[[k]]$Sigma</code> inverted</td>
-</tr>
-</tbody>
-</table>
-<hr />
-</div>
-<div id="the-negative-log-posterior" class="section level2">
-<h2>3. The negative log-posterior</h2>
-<p>Dropping additive constants that do not involve <span class="math inline">\(\gamma\)</span>, <span class="math inline">\(\beta\)</span>, or <span class="math inline">\(\lambda\)</span>:</p>
-<p><span class="math display">\[
-\ell(\gamma,\beta,\lambda) \;=\;
-\underbrace{\tfrac12\sum_j (y_j - D_j\beta_j)&#39;\Omega_j(y_j -
-D_j\beta_j)}_{\text{Block 1 likelihood}}
-\;+\;
-\underbrace{\tfrac12\sum_j\sum_p \lambda_p\, u_{jp}^2 \;-\;
-\tfrac{J}{2}\sum_{p \in \mathrm{ING}} \log\lambda_p}_{\text{RE prior }
-\beta_{jp}\mid\gamma_p,\lambda_p}
-\;+\;
-\underbrace{\tfrac12\sum_p (\gamma_p - \mu_p^0)&#39;V_p^{-1}(\gamma_p -
-\mu_p^0)}_{\text{Block 2 prior on }\gamma}
-\;+\;
-\underbrace{\sum_{p \in \mathrm{ING}} \Big[(1-a_p^0)\log\lambda_p +
-r_p^0\lambda_p\Big]}_{\text{Block 2 prior on }\lambda}
-\]</span></p>
-<p>The <span class="math inline">\(-\tfrac{J}{2}\log\lambda_p\)</span>
-term is the normalizing constant of the Gaussian RE-prior density (it
-depends on <span class="math inline">\(\lambda_p\)</span> only for <span class="math inline">\(p \in \mathrm{ING}\)</span>; for fixed-<span class="math inline">\(\lambda_p\)</span> dimensions it is a constant and
-drops out of the Hessian entirely, so those dimensions reduce exactly to
-the existing fixed-<span class="math inline">\(\Psi\)</span>
-theory).</p>
-<p>This is the <strong>exact</strong> joint negative log-density (up to
-an additive constant); no Laplace approximation has been used yet. The
-only place a local/quadratic approximation enters is in treating the
-resulting Hessian as a <em>rate matrix</em> for a nonlinear one-step
-Gibbs map (§7) — the model itself is unchanged.</p>
-<hr />
-</div>
-<div id="first-derivatives-needed-for-two-things-the-score-equations-that" class="section level2">
-<h2>4. First derivatives (needed for two things: the score equations
-that</h2>
-<p>define the joint mode, and to compute the <em>second</em>
-derivatives)</p>
-<p><span class="math display">\[
-\frac{\partial \ell}{\partial \beta_{jp}}
-= \big[D_j&#39;\Omega_j(D_j\beta_j - y_j)\big]_p \;+\; \lambda_p u_{jp}
-\]</span></p>
-<p><span class="math display">\[
-\frac{\partial \ell}{\partial \gamma_p}
-= -\lambda_p \sum_j u_{jp} W_{pj}&#39; \;+\; V_p^{-1}(\gamma_p -
-\mu_p^0)
-= -\lambda_p W_p&#39; u_p + V_p^{-1}(\gamma_p-\mu_p^0), \quad u_p :=
-(u_{1p},\dots,u_{Jp})&#39;
-\]</span></p>
-<p><span class="math display">\[
-\frac{\partial \ell}{\partial \lambda_p}
-= \tfrac12\sum_j u_{jp}^2 - \tfrac{J}{2\lambda_p} +
-\frac{1-a_p^0}{\lambda_p} + r_p^0
-\qquad (p \in \mathrm{ING})
-\]</span></p>
-<p>Setting the last equation’s negative to zero and solving reproduces
-exactly the Block~2 Gibbs step’s exact conjugate full conditional <span class="math inline">\(\lambda_p \mid \beta,\gamma \sim
-\mathrm{Gamma}\big(a_p^0 + J/2,\ r_p^0 + \tfrac12\sum_j
-u_{jp}^2\big)\)</span> — i.e. the same
-<code>shape2 = shape + n_w/2.0</code> update implemented in
-<code>src/rIndepNormalGammaReg.cpp</code> /
-<code>src/block_rIndepNormalGammaReg.cpp</code>. This is a useful
-correctness check before trusting the second derivatives below.</p>
-<hr />
-</div>
-<div id="second-derivatives-the-hessian-blocks" class="section level2">
-<h2>5. Second derivatives (the Hessian blocks)</h2>
-<p>Write <span class="math inline">\(r_{jk\text{-type}}\)</span> terms
-out fully; every cross term not listed below is <strong>exactly
-zero</strong> (see the “why zero” column) — this is what keeps the
-extended Hessian nearly as sparse as the original.</p>
+<p><strong>Normal / fixed-precision limit</strong> (<span class="math inline">\(\mathrm{Var}_t\to 0\)</span> of §1.3 with <span class="math inline">\(E_t[\Omega_j]=\omega_j\)</span>, <span class="math inline">\(E_t[\lambda_p]=\lambda_p\)</span> held fixed;
+ellipsoids become all of <span class="math inline">\(\beta\)</span>/<span class="math inline">\(u\)</span>-space)</p>
 <table>
 <colgroup>
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
+<col width="50%" />
+<col width="50%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Block</th>
-<th>Formula</th>
-<th>New vs. original?</th>
-<th>Why (non)zero</th>
+<th>Limit</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}^2\)</span> (same
-<span class="math inline">\(j,p\)</span>)</td>
-<td><span class="math inline">\([D_j&#39;\Omega_jD_j]_{pp} +
-\lambda_p\)</span></td>
-<td>same <em>formula</em>; <span class="math inline">\(\lambda_p\)</span> now a variable</td>
-<td>direct</td>
+<td><span class="math inline">\(P_{11}\)</span></td>
+<td><span class="math inline">\(\sum_p \lambda_p\,W_p&#39;W_p +
+\mathrm{blockdiag}_p(V_p^{-1})\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\beta_{jp&#39;}\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\([D_j&#39;\Omega_jD_j]_{pp&#39;}\)</span></td>
-<td>unchanged (likelihood-only)</td>
-<td>RE-prior term is diagonal in <span class="math inline">\(p\)</span></td>
+<td><span class="math inline">\(P_{12}\)</span></td>
+<td><span class="math inline">\(\bigl(-\lambda_p\,W_p&#39;\bigr)_p\)</span></td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\beta_{j&#39;p}\)</span>,
-<span class="math inline">\(j\ne j&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td>unchanged</td>
-<td>groups conditionally independent</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\gamma_p&#39;\)</span></td>
-<td><span class="math inline">\(-\lambda_p W_{pj}&#39;\)</span></td>
-<td>same <em>formula</em>, <span class="math inline">\(\lambda_p\)</span> now a variable</td>
-<td>direct</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\gamma_{p&#39;}&#39;\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td>unchanged</td>
-<td><span class="math inline">\(u_{jp}\)</span> does not involve <span class="math inline">\(\gamma_{p&#39;}\)</span></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\lambda_p\)</span></td>
-<td><span class="math inline">\(u_{jp}\)</span></td>
-<td><strong>new</strong></td>
-<td><span class="math inline">\(\partial(\lambda_p
-u_{jp})/\partial\lambda_p = u_{jp}\)</span></td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\lambda_{p&#39;}\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td><strong>new (trivially zero)</strong></td>
-<td><span class="math inline">\(\beta_{jp}\)</span> only enters the
-<span class="math inline">\(p\)</span>-th RE-prior term</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\gamma_p\partial\gamma_p&#39;^\top\)</span></td>
-<td><span class="math inline">\(\lambda_p W_p&#39;W_p +
-V_p^{-1}\)</span></td>
-<td>same <em>formula</em>, <span class="math inline">\(\lambda_p\)</span> now a variable</td>
-<td>direct</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\gamma_p\partial\gamma_{p&#39;}&#39;^\top\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td>unchanged</td>
-<td>diagonal <span class="math inline">\(\Psi^{-1}\)</span> +
-independent priors</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\gamma_p\partial\lambda_p\)</span></td>
-<td><span class="math inline">\(-W_p&#39;u_p\)</span></td>
-<td><strong>new</strong></td>
-<td><span class="math inline">\(\partial(-\lambda_pW_p&#39;u_p)/\partial\lambda_p\)</span>,
-holding <span class="math inline">\(u_p\)</span> fixed</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\gamma_p\partial\lambda_{p&#39;}\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td><strong>new (trivially zero)</strong></td>
-<td>independence across <span class="math inline">\(p\)</span></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\lambda_p^2\)</span></td>
-<td><span class="math inline">\(\dfrac{J/2 + a_p^0 -
-1}{\lambda_p^2}\)</span></td>
-<td><strong>new</strong></td>
-<td>see derivation and sanity check below</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\lambda_p\partial\lambda_{p&#39;}\)</span>,
-<span class="math inline">\(p\ne p&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td><strong>new (trivially zero)</strong></td>
-<td>independent Gamma priors, no shared term</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Deriving <span class="math inline">\(\partial^2\ell/\partial\lambda_p^2\)</span>:</strong>
-the RE-prior quadratic term <span class="math inline">\(\tfrac12\lambda_p\sum_j u_{jp}^2\)</span> is
-<em>linear</em> in <span class="math inline">\(\lambda_p\)</span>, so it
-contributes nothing to <span class="math inline">\(\partial^2/\partial\lambda_p^2\)</span> (only to
-the <span class="math inline">\(\beta\)</span>/<span class="math inline">\(\gamma\)</span>-<span class="math inline">\(\lambda\)</span> cross terms above). What remains
-is purely the two <span class="math inline">\(\log\lambda_p\)</span>
-terms: <span class="math inline">\(-\tfrac{J}{2}\log\lambda_p\)</span>
-contributes <span class="math inline">\((J/2)/\lambda_p^2\)</span>, and
-<span class="math inline">\((1-a_p^0)\log\lambda_p\)</span> contributes
-<span class="math inline">\((a_p^0-1)/\lambda_p^2\)</span>. Summing
-gives <span class="math inline">\((J/2 + a_p^0 -
-1)/\lambda_p^2\)</span>.</p>
-<p><strong>Sanity check.</strong> This must equal minus the second
-derivative of the log of the exact Gamma <strong>full
-conditional</strong> density <span class="math inline">\(\mathrm{Gamma}(a_p^0+J/2,\ \cdot)\)</span> with
-respect to its own argument, since partial derivatives don’t care what
-else is held fixed. For <span class="math inline">\(X \sim
-\mathrm{Gamma}(a,\text{rate})\)</span>, <span class="math inline">\(-\partial^2\log f(x)/\partial x^2 =
-(a-1)/x^2\)</span>. With <span class="math inline">\(a = a_p^0 +
-J/2\)</span> this is exactly <span class="math inline">\((a_p^0 + J/2 -
-1)/\lambda_p^2\)</span> — matches. <span class="math inline">\(\blacksquare\)</span></p>
-<hr />
-</div>
-<div id="assembling-the-extended-p_11-p_12-p_22" class="section level2">
-<h2>6. Assembling the extended <span class="math inline">\(P_{11}\)</span>, <span class="math inline">\(P_{12}\)</span>, <span class="math inline">\(P_{22}\)</span></h2>
-<p>Let <span class="math inline">\(x_1 = (\gamma,\
-\lambda_{\mathrm{ING}})\)</span>, dimension <span class="math inline">\(q + |\mathrm{ING}|\)</span>, and <span class="math inline">\(x_2 = \beta\)</span>, dimension <span class="math inline">\(JP\)</span> (matching
-<code>two_block_ergodicity.R</code>’s <span class="math inline">\(x_1\)</span>/<span class="math inline">\(x_2\)</span> convention, just with <span class="math inline">\(x_1\)</span> enlarged by the ING precisions).</p>
-<p><strong>Extended <span class="math inline">\(P_{22}\)</span></strong>
-(<span class="math inline">\(JP \times JP\)</span>, block-diagonal in
-<span class="math inline">\(j\)</span>, unchanged in <em>form</em>):</p>
-<p><span class="math display">\[
-P_{22} = \mathrm{blockdiag}_j\big(B_j\big), \qquad B_j =
-D_j&#39;\Omega_jD_j + \Psi^{-1} = D_j&#39;\Omega_jD_j +
-\mathrm{diag}(\lambda_1,\dots,\lambda_P)
-\]</span></p>
-<p>Identical to the original
-<code>B_j &lt;- crossprod(Z_j, Z_j * w_j) + P_b</code>. The
-<em>only</em> difference is that <span class="math inline">\(\mathrm{diag}(\lambda)\)</span> is now the
-<strong>current state</strong>, not a fixed constant plugged in
-once.</p>
-<p><strong>Extended <span class="math inline">\(P_{12}\)</span></strong>
-(size <span class="math inline">\((q+|\mathrm{ING}|) \times
-JP\)</span>): for each group <span class="math inline">\(j\)</span>,</p>
-<p><span class="math display">\[
-P_{12}[\,\cdot,\ \beta_j\,] =
-\begin{pmatrix} -\mathcal{W}_j&#39;\,\Psi^{-1} \\[4pt]
-u_{j,\mathrm{ING}}&#39; \end{pmatrix}
-\]</span></p>
-<p>where the top <span class="math inline">\(q \times P\)</span> block
-is exactly the original <span class="math inline">\(-H_j&#39;P_b\)</span>, and the
-<strong>new</strong> bottom <span class="math inline">\(|\mathrm{ING}|
-\times P\)</span> block has row <span class="math inline">\(p \in
-\mathrm{ING}\)</span> equal to <span class="math inline">\(u_{jp}\)</span> in column <span class="math inline">\(p\)</span> and <span class="math inline">\(0\)</span> elsewhere (from <span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\lambda_p
-= u_{jp}\)</span>, <span class="math inline">\(\partial^2\ell/\partial\beta_{jp&#39;}\partial\lambda_p
-= 0\)</span> for <span class="math inline">\(p&#39;\ne p\)</span>).</p>
-<p><strong>Extended <span class="math inline">\(P_{11}\)</span></strong>
-(size <span class="math inline">\((q+|\mathrm{ING}|)\times(q+|\mathrm{ING}|)\)</span>),
-in <span class="math inline">\((\gamma,\lambda)\)</span> partitioned
-form:</p>
-<pre><code>        ┌ P11^(γγ)     P11^(γλ) ┐
-P11  =  │                        │
-        └ P11^(γλ)&#39;    P11^(λλ) ┘</code></pre>
-<ul>
-<li><span class="math inline">\(P_{11}^{(\gamma\gamma)}\)</span>: same
-formula as the original <span class="math inline">\(P_{11}\)</span>
-(block-diagonal in <span class="math inline">\(p\)</span>: <span class="math inline">\(\lambda_p W_p&#39;W_p + V_p^{-1}\)</span>), <span class="math inline">\(\lambda\)</span> now state-dependent.</li>
-<li><span class="math inline">\(P_{11}^{(\lambda\lambda)}\)</span>:
-<strong>new</strong>, diagonal, <span class="math inline">\(\mathrm{diag}_{p\in\mathrm{ING}}\big((J/2+a_p^0-1)/\lambda_p^2\big)\)</span>.</li>
-<li><span class="math inline">\(P_{11}^{(\gamma\lambda)}\)</span>:
-<strong>new</strong>, block-sparse — column <span class="math inline">\(p\in\mathrm{ING}\)</span> has <span class="math inline">\(-W_p&#39;u_p\)</span> in the <span class="math inline">\(\gamma_p\)</span> rows and <span class="math inline">\(0\)</span> in every <span class="math inline">\(\gamma_{p&#39;}\)</span> row for <span class="math inline">\(p&#39;\ne p\)</span>.</li>
-</ul>
-<p>Every zero pattern above is a <em>structural</em> consequence of (i)
-diagonal <span class="math inline">\(\Psi^{-1}\)</span>, (ii)
-independent Block~2 priors across <span class="math inline">\(p\)</span>, and (iii) independent groups — exactly
-the same three assumptions the original theory already relies on for its
-own block-diagonal-in-<span class="math inline">\(p\)</span> structure.
-Nothing extra had to be assumed to get this sparsity.</p>
-<p><strong>Comparison table</strong> (what changes
-vs. <code>.two_block_S_P11()</code>’s current assembly):</p>
-<table>
-<colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Quantity</th>
-<th>Fixed-<span class="math inline">\(\Psi\)</span> theory
-(current)</th>
-<th>ING extension (this note)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><span class="math inline">\(x_1\)</span> dimension</td>
-<td><span class="math inline">\(q\)</span></td>
-<td><span class="math inline">\(q +
-\lvert\mathrm{ING}\rvert\)</span></td>
+<td><span class="math inline">\(P_{21}\)</span></td>
+<td><span class="math inline">\(P_{12}^{\top}\)</span></td>
 </tr>
 <tr class="even">
 <td><span class="math inline">\(P_{22}\)</span></td>
-<td><span class="math inline">\(B_j = D_j&#39;\Omega_jD_j +
-\Psi^{-1}\)</span>, <span class="math inline">\(\Psi\)</span> fixed</td>
-<td>same formula, <span class="math inline">\(\Psi^{-1}\)</span> =
-current state</td>
+<td><span class="math inline">\(\mathrm{blockdiag}_j(\omega_j
+D_j&#39;D_j)+\mathrm{diag}(\lambda)\)</span> on each <span class="math inline">\(\beta_j\)</span></td>
 </tr>
+</tbody>
+</table>
+</div>
+<div id="rate-matrix-and-sufficient-condition" class="section level3">
+<h3>1.6 Rate matrix and sufficient condition</h3>
+<p>Whenever <span class="math inline">\(P_{11}\succ 0\)</span> and <span class="math inline">\(P_{22}\succ 0\)</span>, define</p>
+<p><span class="math display">\[
+A \;=\; P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2},
+\qquad
+\lambda^\star:=\lambda_{\max}(A).
+\]</span></p>
+<p><strong>Sufficient condition (matched <span class="math inline">\(P_{12}=-W&#39;H_u\)</span>).</strong> If every
+group is inside its <span class="math inline">\(\Omega_j\)</span>
+ellipsoid and every RE component is inside its <span class="math inline">\(\lambda_p\)</span> ellipsoid (§1.3), then <span class="math inline">\(H^{(\Omega)}\succ 0\)</span> and <span class="math inline">\(H^{(u)}\succeq 0\)</span>. With also <span class="math inline">\(P_{11}\succ 0\)</span>,</p>
+<p><span class="math display">\[
+\lambda_{\max}(A) \;&lt;\; 1.
+\]</span></p>
+<p>Equivalently: <span class="math inline">\(P_{22}\succ 0\)</span>
+alone is not enough — one needs the measurement ellipsoids (so <span class="math inline">\(H^{(\Omega)}\succ 0\)</span>). Matching through
+<span class="math inline">\(P_{12}/P_{21}\)</span> does not remove the
+need for the <span class="math inline">\(\lambda_p\)</span> ellipsoids
+(so <span class="math inline">\(H^{(u)}\succeq 0\)</span>); see
+§5.2.</p>
+<hr />
+</div>
+</div>
+<div id="one-normalgamma-factor-one-pattern" class="section level2">
+<h2>2. One Normal–Gamma factor, one pattern</h2>
+<p>Whenever a scalar precision <span class="math inline">\(\theta&gt;0\)</span> enters only through a Normal
+factor</p>
+<p><span class="math display">\[
+\tfrac12\,\theta\,\|r\|^2 - \tfrac12\log\theta
+\]</span></p>
+<p>and <span class="math inline">\(\theta\)</span> has a (possibly
+truncated) Gamma prior, integrating <span class="math inline">\(\theta\)</span> out yields a Student-<span class="math inline">\(t\)</span>-type marginal in <span class="math inline">\(r\)</span> with Hessian</p>
+<p><span class="math display">\[
+H_r \;=\; E_t[\theta]\,I \;-\; \mathrm{Var}_t[\theta]\,rr&#39;.
+\]</span></p>
+<p>As <span class="math inline">\(\mathrm{Var}_t[\theta]\to 0\)</span>
+with <span class="math inline">\(E_t[\theta]\to\theta_0\)</span>, <span class="math inline">\(H_r\to\theta_0 I\)</span> (Normal /
+fixed-precision limit).</p>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Precision</th>
+<th>Role</th>
+<th>Residual <span class="math inline">\(r\)</span></th>
+<th>Couples to</th>
+</tr>
+</thead>
+<tbody>
 <tr class="odd">
-<td><span class="math inline">\(P_{12}\)</span></td>
-<td><span class="math inline">\(-\mathcal{W}_j&#39;\Psi^{-1}\)</span>
-only</td>
-<td><span class="math inline">\(+\)</span> new <span class="math inline">\(u_{j,\mathrm{ING}}&#39;\)</span> row block</td>
+<td><span class="math inline">\(\Omega_j=1/\sigma_j^2\)</span></td>
+<td>measurement</td>
+<td><span class="math inline">\(e_j=y_j-D_j\beta_j\)</span></td>
+<td><span class="math inline">\(\beta_j\)</span> only <span class="math inline">\(\to P_{22}\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(P_{11}\)</span></td>
-<td><span class="math inline">\(\sum_j
-\mathcal{W}_j&#39;\Psi^{-1}\mathcal{W}_j +
-\mathrm{blockdiag}(V_p^{-1})\)</span></td>
-<td><span class="math inline">\(+\)</span> new <span class="math inline">\(\lambda\lambda\)</span> diagonal block, <span class="math inline">\(+\)</span> new <span class="math inline">\(\gamma\lambda\)</span> cross block</td>
-</tr>
-<tr class="odd">
-<td>Constant in state?</td>
-<td><strong>Yes</strong> (given fixed <span class="math inline">\(\Psi\)</span>)</td>
-<td><strong>No</strong> — every block above depends on <span class="math inline">\((\gamma,\beta,\lambda)\)</span> through <span class="math inline">\(\lambda\)</span> itself and/or the residuals <span class="math inline">\(u_{jp}\)</span></td>
+<td><span class="math inline">\(\lambda_p=1/\tau_p^2\)</span></td>
+<td>population / RE</td>
+<td><span class="math inline">\(u_p=\beta_{\cdot
+p}-W_p\gamma_p\)</span></td>
+<td><span class="math inline">\(\gamma_p\)</span> and <span class="math inline">\(\beta_{\cdot p}\)</span> <span class="math inline">\(\to P_{11},P_{12},P_{21},P_{22}\)</span></td>
 </tr>
 </tbody>
 </table>
 <hr />
 </div>
-<div id="the-extended-rate-matrix-a-and-why-claims-13-no-longer-apply-as-stated" class="section level2">
-<h2>7. The extended rate matrix <span class="math inline">\(A\)</span>,
-and why Claims 1/3 no longer apply as stated</h2>
-<p>Formally define, exactly as <code>.two_block_gen_eigen()</code>
-does,</p>
+<div id="why-omega_j-hits-only-p_22" class="section level2">
+<h2>3. Why <span class="math inline">\(\Omega_j\)</span> hits only <span class="math inline">\(P_{22}\)</span></h2>
+<p>Chain rule through <span class="math inline">\(e_j=y_j-D_j\beta_j\)</span> gives <span class="math inline">\(H_j^{(\Omega)}\)</span> in <span class="math inline">\(\beta_j\)</span> alone. The likelihood never
+involves <span class="math inline">\(\gamma\)</span> in the centered
+parameterization, so <span class="math inline">\(P_{11}\)</span> and
+<span class="math inline">\(P_{12}/P_{21}\)</span> are untouched by
+<span class="math inline">\(\Omega_j\)</span>.</p>
+<hr />
+</div>
+<div id="why-lambda_p-hits-p_11-p_12p_21-and-p_22" class="section level2">
+<h2>4. Why <span class="math inline">\(\lambda_p\)</span> hits <span class="math inline">\(P_{11}\)</span>, <span class="math inline">\(P_{12}/P_{21}\)</span>, and <span class="math inline">\(P_{22}\)</span></h2>
+<p>The RE prior links <span class="math inline">\(\gamma_p\)</span> to
+<span class="math inline">\(\beta_{\cdot p}\)</span> through <span class="math inline">\(u_p=\beta_{\cdot p}-W_p\gamma_p\)</span>.
+Marginalizing <span class="math inline">\(\lambda_p\)</span> leaves a
+<span class="math inline">\(t\)</span>-prior on that link, so one <span class="math inline">\(H_u^{(p)}\)</span> feeds the matched triple</p>
 <p><span class="math display">\[
-A(\gamma,\beta,\lambda) \;=\;
-P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2}
+P_{11}\gets W_p&#39;H_u^{(p)}W_p,
+\quad
+P_{12}\gets -W_p&#39;H_u^{(p)},
+\quad
+P_{22}\gets H_u^{(p)}
 \]</span></p>
-<p>using the <em>extended</em> blocks of §6, evaluated at the current
-state <span class="math inline">\((\gamma,\beta,\lambda)\)</span>. The
-original Claims 1/3 (<code>two_block_rate()</code>’s <span class="math inline">\(\lambda^*\)</span>, and the geometric TV bounds of
-<code>two_block_tv_bound()</code>) rely critically on <span class="math inline">\(A\)</span> being a <strong>single,
-state-independent matrix</strong>, because that is exactly what makes
-the two-block Gibbs kernel an <em>exactly linear</em> Gaussian map: each
-sweep contracts the (centered) state by the same matrix <span class="math inline">\(A\)</span> regardless of where the chain currently
-is, which is what licenses writing the <span class="math inline">\(l\)</span>-step contraction as <span class="math inline">\(A^l\)</span>/<span class="math inline">\(A^{2l}\)</span> and citing Nygren’s exact
-finite-sample TV bounds.</p>
-<p>Once <span class="math inline">\(\lambda\)</span> is part of the
-sampled state, <span class="math inline">\(A(\gamma,\beta,\lambda)\)</span> is a genuine
-<strong>function of the current draw</strong> — through <span class="math inline">\(\lambda\)</span> itself (in <span class="math inline">\(P_{22}\)</span> and <span class="math inline">\(P_{11}^{(\gamma\gamma)}\)</span>) and through the
-residuals <span class="math inline">\(u_{jp}\)</span> (in the new <span class="math inline">\(P_{12}\)</span> and <span class="math inline">\(P_{11}^{(\gamma\lambda)}\)</span> blocks). The
-one-step Gibbs map is therefore <strong>nonlinear</strong> in <span class="math inline">\((\gamma,\beta,\lambda)\)</span> jointly
-(consistent with the earlier observation, in this same conversation,
-that the mean-map for <span class="math inline">\(\lambda\)</span> is
-nonlinear and its fixed point need not coincide with any single plug-in
-“starting value”). <span class="math inline">\(A(\cdot)\)</span> above
-is precisely the <strong>local linearization (Jacobian) of that
-nonlinear map</strong> around a given state — the same role a Jacobian
-plays in classical local stability analysis of a nonlinear dynamical
-system, rather than the <em>global</em> transition operator Claims 1/3
-need.</p>
-<p>Concretely, this means:</p>
-<ul>
-<li><strong>A single global <span class="math inline">\(\lambda^*\)</span></strong> (in the sense of
-<code>two_block_rate()</code>) does not exist for the joint <span class="math inline">\((\gamma,\beta,\lambda)\)</span> chain in general;
-at best one can define a <strong>local</strong> rate <span class="math inline">\(A(\gamma,\beta,\lambda)\)</span> at a reference
-point (e.g. the joint mode, or the current sweep’s draw) and interpret
-its spectral radius as an <em>instantaneous</em> contraction diagnostic,
-not a certified global TV bound.</li>
-<li>Nygren’s Theorem 3 / Corollary 1 (<code>two_block_tv_bound()</code>)
-are proved for an <em>exactly</em> Gaussian target with a
-state-independent kernel; they do not apply to <span class="math inline">\(A(\cdot)\)</span> as defined above without
-re-derivation for a state-dependent (non-Gaussian-kernel) Gibbs chain.
-No such re-derivation is attempted here.</li>
-<li><code>plot_var_convergence()</code>/<code>plot_mean_convergence()</code>’s
-existing <code>component = &quot;precision&quot;</code> mode (which only tracks
-each <span class="math inline">\(1/\tau_p^2\)</span>’s own marginal
-cross-chain variance against its empirical last-sweep value) is
-therefore, in this light, best understood as tracking one
-<strong>diagonal entry</strong> of <span class="math inline">\(P_{11}^{(\lambda\lambda)-1}\)</span> computed
-<em>locally</em> — a reasonable and honest diagnostic, but not (yet)
-backed by a global contraction theorem the way
-<code>two_block_rate()</code>’s <span class="math inline">\(\lambda^*\)</span> is for the fixed-<span class="math inline">\(\Psi\)</span> case.</li>
-</ul>
+<p>(plus likelihood <span class="math inline">\(H_j^{(\Omega)}\)</span>
+in <span class="math inline">\(P_{22}\)</span>). Cross-component blocks
+(<span class="math inline">\(p\neq p&#39;\)</span>) stay zero under
+diagonal <span class="math inline">\(\Psi^{-1}\)</span> and independent
+ING priors.</p>
 <hr />
 </div>
-<div id="special-cases-and-sanity-checks" class="section level2">
-<h2>8. Special cases and sanity checks</h2>
-<p><strong>Reduction to the original theory.</strong> If <span class="math inline">\(\mathrm{ING} = \varnothing\)</span> (all RE
-dimensions use <code>dNormal()</code>, i.e. fixed <span class="math inline">\(\Psi\)</span>), every “new” row/column above
-vanishes identically — <span class="math inline">\(x_1\)</span>
-collapses back to <span class="math inline">\(\gamma\)</span> alone, and
-<span class="math inline">\(P_{11}\)</span>, <span class="math inline">\(P_{12}\)</span>, <span class="math inline">\(P_{22}\)</span> reduce exactly to
-<code>.two_block_S_P11()</code>’s current formulas, with <span class="math inline">\(A(\gamma,\beta,\lambda)\)</span> collapsing to the
-fixed, state-independent <span class="math inline">\(A\)</span> of
-<code>two_block_rate()</code>. The extension is a strict generalization,
-not a different theory.</p>
-<p><strong>When does the <span class="math inline">\(\gamma_p\)</span>-<span class="math inline">\(\lambda_p\)</span> cross term vanish?</strong> At
-a stationary point of <span class="math inline">\(\ell\)</span> with
-respect to <span class="math inline">\(\gamma_p\)</span> (<span class="math inline">\(\partial\ell/\partial\gamma_p = 0\)</span>), <span class="math inline">\(\lambda_p W_p&#39;u_p =
-V_p^{-1}(\gamma_p-\mu_p^0)\)</span>. If the Block~2 prior on <span class="math inline">\(\gamma_p\)</span> is flat/improper (<span class="math inline">\(V_p^{-1}=0\)</span>) — or negligible relative to
-the data — this forces <span class="math inline">\(W_p&#39;u_p =
-0\)</span> exactly, so the new <span class="math inline">\(P_{11}^{(\gamma\lambda)}\)</span> cross-block
-vanishes <em>at the mode</em> even though it is nonzero away from it.
-With a genuinely informative <span class="math inline">\(\gamma_p\)</span>-prior, the cross term persists
-at the mode too.</p>
-<p><strong>When does the <span class="math inline">\(\lambda_p\)</span>-<span class="math inline">\(\beta\)</span> cross term vanish?</strong> Row
-<span class="math inline">\(j\)</span> of the new <span class="math inline">\(P_{12}\)</span> block for component <span class="math inline">\(p\)</span> is <span class="math inline">\(u_{jp}\)</span>, the <em>residual for group <span class="math inline">\(j\)</span></em>. At the joint mode, <span class="math inline">\(\partial\ell/\partial\beta_{jp}=0\)</span> gives
-<span class="math inline">\(\lambda_p u_{jp} =
--[D_j&#39;\Omega_j(D_j\beta_j-y_j)]_p\)</span>: the coupling survives at
-the mode too, in general, and vanishes only when group <span class="math inline">\(j\)</span> carries <strong>no likelihood
-information</strong> in dimension <span class="math inline">\(p\)</span>
-(the <span class="math inline">\([D_j&#39;\Omega_j(\cdot)]_p =
-0\)</span> case) — the same “data-free block” failure mode already
-discussed for <span class="math inline">\(C_b=0\)</span> in §2 of
-<code>BLOCK_GIBBS_ERGODICITY.md</code>, now recurring one level up in
-the <span class="math inline">\(\lambda\)</span>-coupling.</p>
-<hr />
-</div>
-<div id="what-this-does-not-yet-give-still-future-work" class="section level2">
-<h2>9. What this does <em>not</em> yet give (still future work)</h2>
-<p>This note supplies the algebra; it deliberately stops short of:</p>
+<div id="spectral-roles-two-different-settings-do-not-conflate" class="section level2">
+<h2>5. Spectral roles: two different settings (do not conflate)</h2>
+<div id="setting-a-gaussian-fixed-precision-or-joint-sub-chain" class="section level3">
+<h3>5.1 Setting A — Gaussian / fixed-precision (or joint) sub-chain</h3>
+<p>No marginal <span class="math inline">\(E_t-\mathrm{Var}_t\)</span>
+Hessians: usual <code>.two_block_S_P11()</code> <span class="math inline">\(P\)</span>, and Remark 8 always returns <span class="math inline">\(\lambda^\star\in[0,1)\)</span>.</p>
 <ul>
-<li><strong>Cross-chain covariance capture.</strong> §6-7 need the
-<em>cross-chain covariance</em> between precision components, and
-between precision and <span class="math inline">\(\gamma_{\mathrm{full}}\)</span>, to build a
-whitened/eigen-decomposed diagnostic analogous to
-<code>whitened = TRUE</code> for <code>component = &quot;fixef&quot;</code>. Only
-the marginal variance of each <span class="math inline">\(1/\tau_p^2\)</span> is currently captured
-(<code>disp_table</code>).</li>
-<li><strong>A certified, re-derived TV bound.</strong> As discussed in
-§7, Nygren’s exact finite-<span class="math inline">\(l\)</span> bounds
-do not carry over to a state-dependent <span class="math inline">\(A(\cdot)\)</span> without new theory (or a
-different proof strategy, e.g. a drift/minorization argument for the
-nonlinear kernel, which is a meaningfully different undertaking from
-re-scaling Nygren’s Gaussian result).</li>
-<li><strong>An implementation.</strong> No
-<code>.two_block_S_P11_ing()</code>-style helper has been written; §6 is
-written so that, if implemented later, it would extend
-<code>.two_block_rate_inputs()</code>/<code>.two_block_S_P11()</code> by
-(a) appending the ING <span class="math inline">\(\lambda\)</span>’s to
-<code>gamma_cols</code>/<code>gamma_names</code>, (b) extending each
-group’s <span class="math inline">\(H_j\)</span> with a residual row per
-ING component, and (c) plugging the current <span class="math inline">\(\lambda\)</span> into <span class="math inline">\(B_j\)</span> and <span class="math inline">\(P_{11}^{(\gamma\gamma)}\)</span> in place of the
-fixed <span class="math inline">\(P_b\)</span> used today. The needed
-<span class="math inline">\(u_{jp}\)</span> residuals are already
-computed as a byproduct of the existing Block~2 ING update.</li>
-<li><strong>A marginal (Omega-integrated-out) alternative to the joint
-extension.</strong> §16 derives, for the <span class="math inline">\(\Omega_j\)</span>-only case, an exact
-PSD/log-concavity criterion on the residuals by integrating <span class="math inline">\(\Omega_j\)</span> out analytically instead of
-extending the joint Hessian — a genuinely different diagnostic from
-§5-8/§14 above, and (like the rest of this list) not implemented.</li>
+<li>Raising <span class="math inline">\(\lambda_p\)</span> pushes <span class="math inline">\(\lambda^\star\)</span> <strong>toward</strong> 1,
+never above (<span class="math inline">\(H_u=\lambda_p I\succ
+0\)</span>; Gaussian likelihood precision <span class="math inline">\(\omega D&#39;D\succeq 0\)</span> keeps <span class="math inline">\(P_{22}\)</span> PD).</li>
+<li>Truncation on <span class="math inline">\(\lambda_p\)</span> / <span class="math inline">\(\tau_p^2\)</span> supplies a <strong>gap</strong>
+away from 1 (§10 of <code>BLOCK_GIBBS_ERGODICITY_ING.md</code>). Without
+truncation there is no uniform <span class="math inline">\(\varepsilon&gt;0\)</span> with <span class="math inline">\(\lambda^\star\le 1-\varepsilon\)</span>.</li>
 </ul>
-<hr />
 </div>
-<div id="a-certified-worst-case-bound-for-the-gammabeta-given-lambdaomega-sub-chain" class="section level2">
-<h2>10. A certified worst-case bound for the <span class="math inline">\((\gamma,\beta)\)</span>-given-<span class="math inline">\((\lambda,\Omega)\)</span> sub-chain</h2>
-<p>Sections 7-9 concluded that the <em>fully joint</em> <span class="math inline">\((\gamma,\beta,\lambda)\)</span> chain has a
-genuinely state-dependent rate matrix <span class="math inline">\(A(\gamma,\beta,\lambda)\)</span>, with no
-certified global TV bound. This section proves a <strong>weaker but
-rigorous and immediately useful</strong> claim: because the package’s
-own prior specification already <em>bounds</em> <span class="math inline">\(\lambda\)</span> from above and (for an
-ING-estimated measurement dispersion) <span class="math inline">\(\Omega\)</span> from below, plugging in those
-bounds to the <strong>original, fixed-<span class="math inline">\((\lambda,\Omega)\)</span></strong> theory gives a
-<strong>valid worst-case rate for the <span class="math inline">\((\gamma,\beta)\)</span> sub-chain, uniformly over
-every value <span class="math inline">\((\lambda,\Omega)\)</span> the
-sampler can ever actually visit.</strong></p>
-<div id="this-is-already-implemented-this-section-supplies-the-missing-proof" class="section level3">
-<h3>10.1 This is already implemented — this section supplies the missing
-proof</h3>
-<ul>
-<li><strong>RE-precision side.</strong>
-<code>dIndependent_Normal_Gamma()</code> requires a finite
-<code>disp_lower</code> (§2
-<code>disp_lower</code>/<code>disp_upper</code> truncation window on
-<span class="math inline">\(\tau_p^2\)</span> for every ING component),
-and <code>two_block_rate_from_pfamily_list()</code> already plugs in
-<code>disp_lower</code> (not the prior mean) for every ING component:
-<em>“for <code>dIndependent_Normal_Gamma</code> components the
-conservative <code>disp_lower</code> plug-in is used (the rate is then
-an upper bound over the truncated <code>tau^2</code> range)”</em>
-(<code>R/two_block_ergodicity.R</code>).</li>
-<li><strong>Measurement-dispersion side.</strong> When the
-observation-level dispersion is itself ING-estimated,
-<code>.rLMM_measurement_disp_upper_for_rate()</code>
-(<code>R/rLMM_reg.R</code>) plugs in <code>disp_upper</code> (not the
-prior mean <code>shape/rate</code> used for ICM) specifically “for rate
-calibration” — i.e. exactly the <span class="math inline">\(\Omega
-\succeq \Omega_{\min} = 1/\text{disp\_upper}\)</span> bound this section
-needs.</li>
-<li><strong>Combined, plus an empirical safeguard.</strong>
-<code>.two_block_pilot_ub_from_coefficients()</code>
-(<code>R/rLMM_reg.R</code>,
-<code>R/two_block_glmm_pilot_helpers.R</code>) calls
-<code>two_block_rate_from_pfamily_list()</code> with the conservative
-<code>dispersion</code> plug-in <em>at every pilot draw’s
-<code>b_mode</code></em> and keeps the <strong>maximum</strong> observed
-<code>lambda_star</code> across pilot chains
-(<code>pmax(max_eigenvalues, ...)</code>, <code>lambda_star_best</code>)
-— i.e. it already combines the analytic bound with an empirical
-max-over-realized-states safeguard, then certifies
-<code>m_min_upper</code> from that maximum via
-<code>two_block_l_for_tv()</code>.</li>
-</ul>
-<p>What was missing — and is the point of this section — is a proof that
-this practice is <em>sound</em>: that no value of <span class="math inline">\((\lambda,\Omega)\)</span> the sampler could visit
-gives a <strong>worse</strong> rate than the one computed at the
-bounds.</p>
-</div>
-<div id="the-claim" class="section level3">
-<h3>10.2 The claim</h3>
-<p>Fix the design (<span class="math inline">\(D,\mathcal{W},V\)</span>)
-and consider the <strong>original</strong> (Nygren 2020 /
-<code>two_block_rate()</code>) rate matrix <span class="math inline">\(A(\lambda,\Omega) =
-P_{11}^{-1/2}(\lambda)\,S(\lambda,\Omega)\,P_{11}^{-1/2}(\lambda)\)</span>
-for <em>fixed</em> <span class="math inline">\(\Psi^{-1}=\mathrm{diag}(\lambda_1,\dots,\lambda_P)=:\Lambda\)</span>
-and <em>fixed</em> likelihood precision <span class="math inline">\(\Omega\)</span> (block-diagonal over groups) —
-i.e. exactly what <code>two_block_rate()</code> computes for a
-plugged-in <span class="math inline">\(\Lambda,\Omega\)</span>,
-<strong>not</strong> the extended <span class="math inline">\((\gamma,\beta,\lambda)\)</span>-Hessian of
-§5-7.</p>
-<p><strong>Claim.</strong> <span class="math inline">\(\lambda^*(\Lambda,\Omega) :=
-\lambda_{\max}(A(\Lambda,\Omega))\)</span> is, for every <span class="math inline">\(p\)</span>, non-decreasing in <span class="math inline">\(\lambda_p\)</span> (holding <span class="math inline">\(\Omega\)</span> and every <span class="math inline">\(\lambda_{p&#39;}\)</span>, <span class="math inline">\(p&#39;\ne p\)</span>, fixed) and
-Loewner-non-increasing in <span class="math inline">\(\Omega\)</span>
-(holding <span class="math inline">\(\Lambda\)</span> fixed).
-Consequently, for <span class="math inline">\(\lambda_p \in
-[\lambda_p^{\min},\lambda_p^{\max}]\ \forall p\)</span> and <span class="math inline">\(\Omega \succeq \Omega_{\min}\)</span>:</p>
+<div id="why-matching-helps-and-why-h_usucceq-0-is-still-needed" class="section level3">
+<h3>5.2 Why matching helps — and why <span class="math inline">\(H_u\succeq 0\)</span> is still needed</h3>
+<p>Do <strong>not</strong> write “<span class="math inline">\(L=H^{(\Omega)}\)</span>” and then assume <span class="math inline">\(L\succ 0\)</span>. The measurement block <span class="math inline">\(H^{(\Omega)}\)</span> is itself a marginal Hessian
+and may fail to be PD; that is a separate gate. Keep the two
+contributions distinct:</p>
 <p><span class="math display">\[
-\lambda^*(\Lambda,\Omega) \;\le\;
-\lambda^*(\Lambda^{\max},\Omega_{\min}), \qquad
-\Lambda^{\max} := \mathrm{diag}(\lambda_1^{\max},\dots,\lambda_P^{\max})
+P_{22}=H^{(\Omega)}+H_u,
+\qquad
+P_{12}=-W&#39;H_u,
+\qquad
+P_{11}=W&#39;H_u W,
+\qquad
+S=W&#39;H_u\,P_{22}^{-1}\,H_u\,W
 \]</span></p>
-<p>i.e. evaluating at the corner of the box (every precision at its own
-upper truncation bound, the likelihood precision at its lower bound)
-gives a valid upper bound on the rate for <strong>every</strong> <span class="math inline">\((\Lambda,\Omega)\)</span> consistent with the
-priors — exactly what <code>two_block_rate_from_pfamily_list()</code> +
-<code>.rLMM_measurement_disp_upper_for_rate()</code> compute.</p>
-</div>
-<div id="proof-monotonicity-in-omega-general-complete" class="section level3">
-<h3>10.3 Proof: monotonicity in <span class="math inline">\(\Omega\)</span> (general, complete)</h3>
-<p>Recall from §6 (dropping <span class="math inline">\(\lambda\)</span>
-as a variable here — this is the <em>original</em>, fixed-<span class="math inline">\(\Lambda\)</span> theory) that <span class="math inline">\(P_{11}\)</span> does <strong>not</strong> depend
-on <span class="math inline">\(\Omega\)</span> at all: <span class="math inline">\(P_{11} =
-\mathcal{W}&#39;\Lambda_{\text{full}}\mathcal{W} + V^{-1}\)</span>
-(<span class="math inline">\(\Lambda_{\text{full}} =
-I_J\otimes\Lambda\)</span>). Marginalizing <span class="math inline">\(\beta\)</span> out of the joint Gaussian gives,
-exactly (not approximately — this is a linear Gaussian marginalization
-identity),</p>
+<p>(one RE component; <span class="math inline">\(H_u\equiv
+H_u^{(p)}\)</span> on the <span class="math inline">\(\beta_{\cdot
+p}\)</span> slots).</p>
+<p><strong>Claim (matched).</strong> If <span class="math inline">\(H_u\succeq 0\)</span>, <span class="math inline">\(H^{(\Omega)}\succ 0\)</span>, and <span class="math inline">\(P_{11}\succ 0\)</span> (hence <span class="math inline">\(P_{22}=H^{(\Omega)}+H_u\succ 0\)</span>), then
+<span class="math inline">\(\lambda^\star&lt;1\)</span>.</p>
+<p><strong>Proof.</strong> Let <span class="math inline">\(B:=P_{22}=H^{(\Omega)}+H_u\)</span>. For <span class="math inline">\(z=Wv\)</span>,</p>
+<p><span class="math display">\[\begin{align*}
+v&#39;(P_{11}-S)v
+&amp;= z&#39;H_u z - z&#39;H_u B^{-1}H_u z
+= z&#39;H_u B^{-1}H^{(\Omega)} z.
+\end{align*}\]</span></p>
+<p>Under <span class="math inline">\(H_u\succeq 0\)</span> and <span class="math inline">\(H^{(\Omega)}\succ 0\)</span>, one has <span class="math inline">\(B\succeq H^{(\Omega)}\succ 0\)</span>, so <span class="math inline">\((H^{(\Omega)})^{1/2}B^{-1}(H^{(\Omega)})^{1/2}\prec
+I\)</span>, and</p>
 <p><span class="math display">\[
-M(\Omega) \;=\; V^{-1} +
-\underbrace{\mathcal{W}&#39;D&#39;\big(D\Lambda_{\text{full}}^{-1}D&#39;
-+ \Omega^{-1}\big)^{-1}D\mathcal{W}}_{K(\Omega)}
+z&#39;H_u B^{-1}H_u z - z&#39;H_u z
+=
+-\,z&#39;(H^{(\Omega)})^{1/2}\Bigl(I-(H^{(\Omega)})^{1/2}B^{-1}(H^{(\Omega)})^{1/2}\Bigr)(H^{(\Omega)})^{1/2}z
+\;&lt;\; 0
 \]</span></p>
-<p>the Schur-complement / marginal precision of <span class="math inline">\(\gamma\)</span>, with <span class="math inline">\(\lambda^*(\Omega) = 1 -
-\lambda_{\min}\big(M(\Omega), P_{11}\big)\)</span> (generalized
-eigenvalue of the pencil <span class="math inline">\((M,P_{11})\)</span>; recall <span class="math inline">\(A = I - P_{11}^{-1/2}MP_{11}^{-1/2}\)</span> since
-<span class="math inline">\(M = P_{11}-S\)</span>).</p>
-<p>If <span class="math inline">\(\Omega_1 \preceq \Omega_2\)</span>
-(Loewner), then <span class="math inline">\(\Omega_1^{-1}\succeq\Omega_2^{-1}\)</span> (matrix
-inversion reverses the Loewner order on the PD cone), so <span class="math inline">\(D\Lambda_{\text{full}}^{-1}D&#39;+\Omega_1^{-1}
-\succeq D\Lambda_{\text{full}}^{-1}D&#39;+\Omega_2^{-1}\)</span>, so
-their inverses reverse again, and congruence by <span class="math inline">\(\mathcal{W}&#39;D&#39;(\cdot)D\mathcal{W}\)</span>
-preserves the order: <span class="math inline">\(K(\Omega_1)\preceq
-K(\Omega_2)\)</span>, hence <span class="math inline">\(M(\Omega_1)\preceq M(\Omega_2)\)</span>. For any
-fixed unit <span class="math inline">\(v\)</span>, <span class="math inline">\(v&#39;M(\Omega_1)v \le
-v&#39;M(\Omega_2)v\)</span>, so <span class="math inline">\(v&#39;M(\Omega_1)v/v&#39;P_{11}v \le
-v&#39;M(\Omega_2)v/v&#39;P_{11}v\)</span> for every <span class="math inline">\(v\)</span> (only the numerator moves; <span class="math inline">\(P_{11}\)</span> is fixed), hence the minimum over
-<span class="math inline">\(v\)</span> satisfies <span class="math inline">\(\lambda_{\min}(M(\Omega_1),P_{11}) \le
-\lambda_{\min}(M(\Omega_2),P_{11})\)</span> (the min of a
-pointwise-smaller function is itself smaller — no envelope theorem or
-extra regularity needed). Therefore <span class="math inline">\(\lambda^*(\Omega_1) =
-1-\lambda_{\min}(M(\Omega_1),P_{11}) \ge
-1-\lambda_{\min}(M(\Omega_2),P_{11}) = \lambda^*(\Omega_2)\)</span>:
-<strong><span class="math inline">\(\lambda^*\)</span> is
-Loewner-non-increasing in <span class="math inline">\(\Omega\)</span>.</strong> <span class="math inline">\(\blacksquare\)</span></p>
-<p>This holds for <strong>any</strong> <span class="math inline">\(D\)</span>, any correlation structure in <span class="math inline">\(\Omega\)</span> (heterogeneous
-per-group/per-observation precisions included), and any <span class="math inline">\(\Lambda\)</span> — it is not restricted to
-diagonal or scalar <span class="math inline">\(\Omega\)</span>. It is
-exactly why “more/better data can only help mixing” (§3 of
-<code>BLOCK_GIBBS_ERGODICITY.md</code>) generalizes cleanly, and it
-fully justifies <code>.rLMM_measurement_disp_upper_for_rate()</code>’s
-use of <code>disp_upper</code> (the least favorable, most diffuse
-admissible measurement dispersion).</p>
-</div>
-<div id="proof-monotonicity-in-lambda_p-complete-for-p_re1-cited-for-p_re1" class="section level3">
-<h3>10.4 Proof: monotonicity in <span class="math inline">\(\lambda_p\)</span> (complete for <span class="math inline">\(p_{re}=1\)</span>; cited for <span class="math inline">\(p_{re}&gt;1\)</span>)</h3>
-<p>Write <span class="math inline">\(\lambda^* = \max_v
-v&#39;Sv/v&#39;P_{11}v\)</span>, <span class="math inline">\(v&#39;P_{11}v = \sum_{p&#39;} \lambda_{p&#39;}
-c_{p&#39;}(v) + \kappa(v)\)</span> (linear, non-decreasing in each <span class="math inline">\(\lambda_{p&#39;}\)</span>; <span class="math inline">\(c_{p&#39;}(v)=v_{p&#39;}&#39;W_{p&#39;}&#39;W_{p&#39;}v_{p&#39;}\ge0\)</span>),
-and <span class="math inline">\(v&#39;Sv = \sum_j
-(\mathcal{W}_jv)&#39;\,g_j(\Lambda)\,(\mathcal{W}_jv)\)</span> with
-<span class="math inline">\(g_j(\Lambda) = \Lambda(\Lambda +
-C_j)^{-1}\Lambda\)</span>, <span class="math inline">\(C_j :=
-D_j&#39;\Omega_jD_j\)</span> (the per-group likelihood precision
-restricted to <span class="math inline">\(\beta\)</span>-space; this is
-exactly <code>.two_block_S_P11()</code>’s
-<code>C_j &lt;- P_b %*% solve(B_j, P_b)</code>, generalized to a
-state-dependent <span class="math inline">\(\Lambda\)</span>).</p>
-<p><strong><span class="math inline">\(p_{re}=1\)</span> case (single RE
-dimension per group, e.g. random-intercept-only models).</strong> Here
-<span class="math inline">\(\Lambda=\lambda\)</span> and <span class="math inline">\(C_j\)</span> are both <strong>scalars</strong>, so
-<span class="math inline">\(g_j(\lambda) =
-\lambda^2/(\lambda+C_j)\)</span>, and directly <span class="math inline">\(g_j&#39;(\lambda) =
-\lambda(2C_j+\lambda)/(\lambda+C_j)^2 &gt; 0\)</span> for <span class="math inline">\(\lambda,C_j&gt;0\)</span>. So <span class="math inline">\(v&#39;Sv\)</span> is strictly increasing in <span class="math inline">\(\lambda\)</span> for every <span class="math inline">\(v\)</span>, <em>and</em> <span class="math inline">\(v&#39;P_{11}v\)</span> is non-decreasing in <span class="math inline">\(\lambda\)</span> with the same sign — but we only
-need the <strong>ratio</strong>’s numerator to move favorably relative
-to a <em>non-decreasing</em> denominator applied <em>pointwise in <span class="math inline">\(v\)</span></em>, which is exactly Section 3 of
-<code>BLOCK_GIBBS_ERGODICITY.md</code>’s scalar formula <span class="math inline">\(r = A/(A+C_b)\)</span> (there <span class="math inline">\(A\leftrightarrow\lambda\)</span>): a direct
-calculation (<span class="math inline">\(dr/dA = C_b/(A+C_b)^2 &gt;
-0\)</span>) already proves this case, and the multivariate
-Rayleigh-quotient machinery above just re-derives the same scalar fact
-generically per group before summing. <span class="math inline">\(\lambda^*\)</span> is therefore rigorously
-non-decreasing in <span class="math inline">\(\lambda\)</span> whenever
-<span class="math inline">\(p_{re}=1\)</span>. <span class="math inline">\(\blacksquare\)</span></p>
-<p><strong><span class="math inline">\(p_{re}&gt;1\)</span> case
-(correlated RE dimensions, e.g. random intercept + slope).</strong>
-<span class="math inline">\(g(\Lambda)=\Lambda(\Lambda+C)^{-1}\Lambda\)</span>
-for a general (non-diagonal) <span class="math inline">\(C\succ0\)</span> is exactly the classical
-<strong>information-filter / Riccati precision update</strong> studied
-in Kalman filtering and Riccati-equation theory: it is the precision
-contributed to a linear-Gaussian estimate after combining a “prior”
-precision <span class="math inline">\(\Lambda\)</span> with a
-“measurement” precision <span class="math inline">\(C\)</span>, then
-marginalizing one side out — the same object whose <em>operator
-monotonicity</em> (non-decreasing in <span class="math inline">\(\Lambda\)</span> along any
-Loewner/diagonal-coordinate direction, for fixed <span class="math inline">\(C\succ0\)</span>, and correspondingly
-non-increasing in <span class="math inline">\(C\)</span> for fixed <span class="math inline">\(\Lambda\)</span>) is a standard, well-established
-result in that literature (see e.g. Anderson &amp; Moore, <em>Optimal
-Filtering</em>, on monotonicity of the Riccati recursion in the noise
-covariances; equivalently, <span class="math inline">\(g(\Lambda) =
-\Lambda - (\Lambda^{-1}+C^{-1})^{-1}\)</span> in terms of the
-operator-monotone matrix <strong>parallel sum</strong> <span class="math inline">\((\Lambda^{-1}+C^{-1})^{-1}\)</span> of Anderson
-&amp; Duffin (1969)). This note does not re-derive that
-operator-monotonicity result from scratch for general non-commuting
-<span class="math inline">\((\Lambda,C)\)</span>; it is cited here as
-the fact needed to extend the <span class="math inline">\(p_{re}=1\)</span> proof above to the general
-diagonal-<span class="math inline">\(\Lambda\)</span>, correlated-<span class="math inline">\(C_j\)</span> case. Given it, the same
-“pointwise-in-<span class="math inline">\(v\)</span>,
-coordinatewise-in-<span class="math inline">\(\lambda_p\)</span>”
-argument as §10.3 applies verbatim (each term <span class="math inline">\((\mathcal{W}_jv)&#39;g_j(\Lambda)(\mathcal{W}_jv)\)</span>
-is non-decreasing in each <span class="math inline">\(\lambda_p\)</span>
-for fixed <span class="math inline">\(v\)</span>, fixed other <span class="math inline">\(\lambda_{p&#39;}\)</span>, fixed <span class="math inline">\(\Omega\)</span>), giving the same “min/max of
-pointwise-monotone functions is itself monotone” conclusion.</p>
-</div>
-<div id="assembling-the-box-bound" class="section level3">
-<h3>10.5 Assembling the box bound</h3>
-<p>§10.3-10.4 show <span class="math inline">\(\lambda^*(\Lambda,\Omega)\)</span> is monotone in
-<strong>each</strong> coordinate of <span class="math inline">\((\lambda_1,\dots,\lambda_P,\Omega)\)</span>
-separately, for <strong>every</strong> fixed value of the others in the
-box — not just at one reference point. A function monotone
-coordinatewise everywhere on a box attains its supremum at a corner,
-so</p>
+<p>whenever <span class="math inline">\(H^{(\Omega)}z\neq 0\)</span>.
+Thus <span class="math inline">\(S\prec P_{11}\)</span> and <span class="math inline">\(\lambda_{\max}(A)&lt;1\)</span>. Matching (<span class="math inline">\(H_u\)</span> in <span class="math inline">\(P_{12}/P_{21}\)</span> as well as <span class="math inline">\(P_{11}/P_{22}\)</span>) produces the identity; the
+hypothesis <span class="math inline">\(H^{(\Omega)}\succ 0\)</span> is
+stated on its own, not hidden inside a symbol <span class="math inline">\(L\)</span> that looks like a Gaussian likelihood
+precision. <span class="math inline">\(\square\)</span></p>
+<p><strong>Matching alone is not enough if <span class="math inline">\(H_u\)</span> is indefinite.</strong> Numerically,
+there exist <span class="math inline">\(H_u\not\succeq 0\)</span>, <span class="math inline">\(H^{(\Omega)}\succ 0\)</span>, <span class="math inline">\(P_{22}\succ 0\)</span>, and <span class="math inline">\(P_{11}\succ 0\)</span> with <span class="math inline">\(\lambda^\star\gg 1\)</span>. So keep <span class="math inline">\(H_u\succeq 0\)</span> in the sufficient
+condition.</p>
+<p><strong>Unmatched <span class="math inline">\(\Omega_j\)</span>
+blocks</strong> (current §16 diagnostic; fixed RE precision <span class="math inline">\(\Lambda\succ 0\)</span>, not <span class="math inline">\(H_u\)</span>):</p>
 <p><span class="math display">\[
-\sup_{\lambda_p \in [\lambda_p^{\min},\lambda_p^{\max}],\
-\Omega\succeq\Omega_{\min}} \lambda^*(\Lambda,\Omega)
-\;=\; \lambda^*(\Lambda^{\max}, \Omega_{\min})
+P_{22}=H^{(\Omega)}+\Lambda,
+\qquad
+P_{12}=-W&#39;\Lambda,
+\qquad
+P_{11}=W&#39;\Lambda W,
+\qquad
+S=W&#39;\Lambda\,P_{22}^{-1}\,\Lambda\,W.
 \]</span></p>
-<p>exactly the corner <code>two_block_rate_from_pfamily_list()</code>
-(<code>disp_lower</code> per ING component <span class="math inline">\(\Rightarrow \lambda_p^{\max}\)</span>) and
-<code>.rLMM_measurement_disp_upper_for_rate()</code>
-(<code>disp_upper</code> <span class="math inline">\(\Rightarrow
-\Omega_{\min}\)</span>) already evaluate.
-<code>.two_block_pilot_ub_from_coefficients()</code>’s
-max-over-pilot-draws is then a (harmless, conservative)
-<em>additional</em> margin on top of this already-valid analytic bound —
-it does not by itself certify anything beyond what §10.2-10.4 already
-prove, but it does guard against the bound derivation above having
-missed some other source of state-dependence (e.g. non-Gaussian
-<code>weights</code> computed at a specific <code>b_mode</code>, which
-is a local-Gaussian heuristic, not itself covered by Nygren’s exact
-theorem).</p>
-</div>
-<div id="scope-what-this-does-and-does-not-give" class="section level3">
-<h3>10.6 Scope: what this does, and does not, give</h3>
-<ul>
-<li><strong>What it gives:</strong> a <em>certified</em>, non-asymptotic
-statement that the <span class="math inline">\((\gamma,\beta)\)</span>
-two-block sub-chain’s rate is at most <span class="math inline">\(\lambda^*(\Lambda^{\max},\Omega_{\min})\)</span>,
-for <strong>any</strong> value of <span class="math inline">\((\lambda,\Omega)\)</span> actually realized during
-sampling (since the ING truncation windows force every sampled <span class="math inline">\(\lambda_p,\Omega\)</span> to lie in the box by
-construction). This is exactly the quantity needed to pick a safe
-<code>m_convergence</code> for the <span class="math inline">\(\beta\)</span>-given-<span class="math inline">\((\gamma,\lambda)\)</span> / <span class="math inline">\(\gamma\)</span>-given-<span class="math inline">\((\beta,\lambda)\)</span> alternation
-<em>conditional on whatever <span class="math inline">\(\lambda\)</span>
-is currently plugged in</em> — precisely the pilot-calibration use case
-<code>.two_block_pilot_ub_from_coefficients()</code> serves.</li>
-<li><strong>What it does not give:</strong> a bound on how fast <span class="math inline">\(\lambda\)</span> <em>itself</em> mixes, nor on the
-full <strong>joint</strong> <span class="math inline">\((\gamma,\beta,\lambda)\)</span> chain’s TV
-distance to stationarity (the open problem of §7-9). Freezing <span class="math inline">\(\lambda\)</span> at a worst-case corner and
-bounding the resulting <em>linear</em> sub-chain says nothing about the
-<em>nonlinear</em> coupling terms (the <span class="math inline">\(\gamma\)</span>-<span class="math inline">\(\lambda\)</span> and <span class="math inline">\(\beta\)</span>-<span class="math inline">\(\lambda\)</span> Hessian blocks of §5-6) that make
-the full chain’s actual rate matrix state-dependent in the first place.
-The two results are complementary, not substitutes: §10 certifies the
-sub-chain conditional on <span class="math inline">\(\lambda\)</span>;
-§7-9 explain why no analogous global certificate yet exists for <span class="math inline">\(\lambda\)</span>’s own dynamics or the fully joint
-chain.</li>
-</ul>
-<hr />
-</div>
-</div>
-<div id="freezing-the-residuals-at-zero-gives-the-smallest-not-largest-eigenvalue" class="section level2">
-<h2>11. Freezing the residuals at zero gives the <em>smallest</em>, not
-largest, eigenvalue</h2>
-<p>A natural question about §5-7’s genuinely new blocks — <span class="math inline">\(P_{11}^{(\gamma\lambda)} = -W_p&#39;u_p\)</span>
-and <span class="math inline">\(P_{12}\)</span>’s <span class="math inline">\(\lambda\)</span>-rows <span class="math inline">\(= u_{jp}\)</span>, both linear in the residuals
-<span class="math inline">\(u_{jp} = \beta_{jp}-W_{pj}\gamma_p\)</span>
-— is whether setting them to zero (the <em>only</em> natural “no
-correlation” reference point, since there is no prior-truncation bound
-on <span class="math inline">\(u\)</span> the way §10 has for <span class="math inline">\(\lambda,\Omega\)</span>) gives a worst case,
-analogous to evaluating <span class="math inline">\(\Lambda,\Omega\)</span> at their bounds.
-<strong>It does not — it gives the exact opposite extreme.</strong></p>
-<p><strong>Claim.</strong> For fixed <span class="math inline">\(\Lambda,\Omega\)</span>, <span class="math inline">\(\lambda_{\max}(A(u))\)</span> — the top eigenvalue
-of the <em>extended</em> rate matrix as a function of the residual
-vector <span class="math inline">\(u =
-(u_{jp})_{j,p\in\mathrm{ING}}\)</span> — attains its
-<strong>minimum</strong> at <span class="math inline">\(u=0\)</span>,
-where it equals <strong>exactly</strong> <span class="math inline">\(\lambda^*_{\text{original}}(\Lambda,\Omega)\)</span>
-(§10’s already-bounded quantity, with the <span class="math inline">\(\lambda\)</span>-directions contributing nothing).
-For every other <span class="math inline">\(u\)</span>, <span class="math inline">\(\lambda_{\max}(A(u)) \ge
-\lambda^*_{\text{original}}(\Lambda,\Omega)\)</span>.</p>
-<p><strong>Proof.</strong> Write <span class="math inline">\(x_1=(\gamma,\lambda)\)</span>, <span class="math inline">\(x_2=\beta\)</span>, and use <span class="math inline">\(\lambda_{\max}(A(u)) =
-\max_{z=(z_\gamma,z_\lambda)\ne0}\, z&#39;S(u)z /
-z&#39;P_{11}(u)z\)</span>, <span class="math inline">\(S(u):=P_{12}(u)P_{22}^{-1}P_{21}(u)\)</span>
-(<span class="math inline">\(P_{22}\)</span> does not depend on <span class="math inline">\(u\)</span> at all — only on <span class="math inline">\(\Lambda,\Omega\)</span>). Restrict the max to the
-subspace <span class="math inline">\(z_\lambda = 0\)</span>:</p>
-<ul>
-<li><strong>Numerator.</strong> <span class="math inline">\(P_{12}(u)\)</span>’s <span class="math inline">\(\gamma\)</span>-rows are <span class="math inline">\(-\Lambda\mathcal{W}\)</span> (fixed) and its <span class="math inline">\(\lambda\)</span>-rows are <span class="math inline">\(u\)</span>; with <span class="math inline">\(z_\lambda=0\)</span> the <span class="math inline">\(\lambda\)</span>-rows are never touched, so <span class="math inline">\(z&#39;S(u)z =
-z_\gamma&#39;\big(P_{12,\gamma}P_{22}^{-1}P_{12,\gamma}&#39;\big)z_\gamma\)</span>
-— <strong>exactly</strong> the original (non-extended) <span class="math inline">\(S_{\gamma\gamma}\)</span>, independent of <span class="math inline">\(u\)</span>.</li>
-<li><strong>Denominator.</strong> Likewise <span class="math inline">\(z&#39;P_{11}(u)z =
-z_\gamma&#39;P_{11}^{(\gamma\gamma)}z_\gamma\)</span> (the <span class="math inline">\(-W_p&#39;u_p\)</span> cross-block is never touched
-since <span class="math inline">\(z_\lambda=0\)</span>) — independent of
-<span class="math inline">\(u\)</span>.</li>
-</ul>
-<p>So on <span class="math inline">\(\{z_\lambda=0\}\)</span> the ratio
-is <strong>identically</strong> <span class="math inline">\(\lambda^*_{\text{original}}(\Lambda,\Omega)\)</span>
-for <em>every</em> <span class="math inline">\(u\)</span>. Two
-consequences: (i) at <span class="math inline">\(u=0\)</span>, any <span class="math inline">\(z_\lambda\ne0\)</span> strictly <em>hurts</em> —
-the numerator gains nothing from <span class="math inline">\(z_\lambda\)</span> (the <span class="math inline">\(\lambda\)</span>-rows of <span class="math inline">\(P_{12}(0)\)</span> are literally zero) while the
-denominator strictly gains <span class="math inline">\(z_\lambda&#39;P_{11}^{(\lambda\lambda)}z_\lambda&gt;0\)</span>
-— so the unrestricted max at <span class="math inline">\(u=0\)</span> is
-attained at <span class="math inline">\(z_\lambda=0\)</span>, giving
-<span class="math inline">\(\lambda_{\max}(A(0)) =
-\lambda^*_{\text{original}}(\Lambda,\Omega)\)</span> exactly. (ii) For
-<em>any</em> <span class="math inline">\(u\)</span>, the unrestricted
-max (over all <span class="math inline">\(z\)</span>) is a max over a
-superset of <span class="math inline">\(\{z_\lambda=0\}\)</span>, hence
-<span class="math inline">\(\ge\)</span> the restricted value <span class="math inline">\(\lambda^*_{\text{original}}(\Lambda,\Omega)\)</span>,
-which is the same for every <span class="math inline">\(u\)</span>.
-<span class="math inline">\(\blacksquare\)</span></p>
-<p><strong>Interpretation.</strong> The residual terms are exactly what
-§7 already said they are — the <em>only</em> channel through which <span class="math inline">\(\lambda\)</span> is correlated with <span class="math inline">\((\gamma,\beta)\)</span> in this local picture. At
-<span class="math inline">\(u=0\)</span> that channel is silent and
-<span class="math inline">\(\lambda\)</span> decouples completely (its
-own directions contribute zero to the top eigenvalue); switching it on
-can only <em>add</em> correlation where there was none, consistent with
-the theory’s central theme (more cross-block correlation <span class="math inline">\(\Rightarrow\)</span> slower mixing, §3 of
-<code>BLOCK_GIBBS_ERGODICITY.md</code>). So <span class="math inline">\(u=0\)</span> is the <em>best</em> case, not the
-worst one.</p>
-<p><strong>Consequence for §10.</strong> Freezing <span class="math inline">\(u=0\)</span> is <strong>not</strong> a valid way
-to extend the §10 box bound to cover the new residual-driven blocks —
-doing so would <em>understate</em> the true worst-case rate for the
-extended system. A genuine worst-case bound accounting for <span class="math inline">\(u\)</span> would need an upper bound on the size
-of <span class="math inline">\(u\)</span> (or the relevant quadratic
-forms it enters), and unlike <span class="math inline">\(\Lambda,\Omega\)</span> there is no
-prior-truncation window that bounds <span class="math inline">\(u\)</span> directly. §12 outlines an empirical
-safeguard for this, mirroring the package’s existing treatment of the
-analogous problem for non-Gaussian likelihoods.</p>
-<hr />
-</div>
-<div id="proposed-empirical-safeguard-for-u-mirroring-the-non-gaussian-pilot-machinery" class="section level2">
-<h2>12. Proposed empirical safeguard for <span class="math inline">\(u\)</span>, mirroring the non-Gaussian pilot
-machinery</h2>
-<p>The package already faces a structurally identical problem for
-non-Gaussian families: the likelihood precision <span class="math inline">\(\Omega\)</span> is not fixed either (Fisher
-information depends on the current fit), and there is no way to bound it
-from prior truncation the way <span class="math inline">\(\Lambda\)</span> is bounded. It is handled with
-two mechanisms, which this section proposes reusing verbatim for <span class="math inline">\(u\)</span> (not implemented here — an outline
-only, per §9’s scope).</p>
+<p><strong>Claim (unmatched).</strong> <span class="math inline">\(P_{22}\succ 0\)</span> is <strong>not</strong>
+enough for <span class="math inline">\(\lambda^\star\le 1\)</span>. One
+needs <span class="math inline">\(H^{(\Omega)}\succeq 0\)</span>
+(equivalently <span class="math inline">\(P_{22}\succeq\Lambda\)</span>).</p>
+<p><strong>Scalar counterexample.</strong> <span class="math inline">\(W=1\)</span>, <span class="math inline">\(\Lambda=1\)</span>, <span class="math inline">\(H^{(\Omega)}=-1/2\)</span>: <span class="math inline">\(P_{22}=1/2\succ 0\)</span>, <span class="math inline">\(P_{11}=1\)</span>, but <span class="math inline">\(S=2&gt;1\)</span>, so <span class="math inline">\(\lambda^\star=2&gt;1\)</span>.</p>
 <table>
 <colgroup>
 <col width="33%" />
@@ -1334,248 +868,36 @@ only, per §9’s scope).</p>
 </colgroup>
 <thead>
 <tr class="header">
-<th></th>
-<th>Non-Gaussian <span class="math inline">\(\Omega\)</span>
-(existing)</th>
-<th>ING residual <span class="math inline">\(u\)</span> (proposed)</th>
+<th>Gate</th>
+<th>Matched <span class="math inline">\(\lambda_p\)</span> (<span class="math inline">\(P_{12}=-W&#39;H_u\)</span>)</th>
+<th>Unmatched <span class="math inline">\(\Omega_j\)</span> (<span class="math inline">\(P_{12}=-W&#39;\Lambda\)</span>)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Unknown quantity</td>
-<td><span class="math inline">\(\Omega\)</span> (state-dependent Fisher
-info)</td>
-<td><span class="math inline">\(u_{jp}\)</span> (no prior bound
-exists)</td>
+<td><span class="math inline">\(P_{22}\succ 0\)</span></td>
+<td>follows from <span class="math inline">\(H_u\succeq 0\)</span> and
+<span class="math inline">\(H^{(\Omega)}\succ 0\)</span></td>
+<td>needed; <strong>not</strong> sufficient alone</td>
 </tr>
 <tr class="even">
-<td>Mechanism 1: plug-in at a state</td>
-<td><code>two_block_mode_weights()</code> evaluates IRLS/Fisher weights
-at a specific <code>b_mode</code></td>
-<td>Compute <span class="math inline">\(u_{i,jp} = b_{i,jp} -
-W_{pj}\gamma_{i,p}\)</span> at a specific pilot draw <span class="math inline">\((\gamma_i,b_i)\)</span></td>
+<td><span class="math inline">\(P_{11}\succ 0\)</span></td>
+<td>needed to form <span class="math inline">\(A\)</span></td>
+<td>usually from <span class="math inline">\(\Lambda\succ
+0\)</span></td>
 </tr>
 <tr class="odd">
-<td>Mechanism 2: worst-of-pilot search</td>
-<td><code>.two_block_pilot_eigenvalue_ub()</code> loops over
-<code>n_pilot</code> draws, <code>pmax</code>s the eigenvalue
-spectrum</td>
-<td>Same loop, calling the <em>extended</em> rate (§6-7) at each <span class="math inline">\(u_i\)</span> instead of the plain rate</td>
-</tr>
-<tr class="even">
-<td>Certification</td>
-<td><code>two_block_l_for_tv()</code> on the worst observed spectrum
-<span class="math inline">\(\to\)</span> <code>m_min_upper</code></td>
-<td>Same, on the extended worst spectrum <span class="math inline">\(\to\)</span> <code>m_min_upper_ing</code></td>
-</tr>
-<tr class="odd">
-<td>Caveat already on record</td>
-<td>“local-Gaussian heuristic… no theorem applies”
-(<code>two_block_rate()</code> docs)</td>
-<td>Same caveat, <strong>plus</strong> an additional one: unlike <span class="math inline">\(\Omega\)</span>, <span class="math inline">\(u\)</span> has <em>no</em> prior-enforced ceiling,
-so even this heuristic is only as good as the pilot sample, with no
-fallback certified bound the way
-<code>disp_lower</code>/<code>disp_upper</code> still back the <span class="math inline">\(\Omega\)</span>-heuristic</td>
+<td>Extra</td>
+<td>need <span class="math inline">\(H_u\succeq 0\)</span>
+<strong>and</strong> <span class="math inline">\(H^{(\Omega)}\succ
+0\)</span></td>
+<td>need <span class="math inline">\(H^{(\Omega)}\succeq 0\)</span></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Step 1 (plug-in, cheaper than the <span class="math inline">\(\Omega\)</span> case — exact arithmetic, no
-family-specific formula).</strong>
-<code>pilot_raw$fixef_draws[[p]]</code> (an <span class="math inline">\(n_{\text{pilot}}\times q_p\)</span> matrix; row
-<span class="math inline">\(i\)</span> is draw <span class="math inline">\(i\)</span>’s <span class="math inline">\(\gamma_{i,p}\)</span>) and
-<code>pilot_raw$coefficients</code> (row-blocked by draw, giving <span class="math inline">\(b_i\)</span>) are <strong>already both
-collected</strong> by the same pilot chains feeding
-<code>.two_block_pilot_ub_from_coefficients()</code> today — no new
-sampling is needed, just <span class="math inline">\(u_{i,jp} = b_i[j,p]
-- W_p[j,]\cdot\gamma_i[[p]]\)</span> per draw, per ING component.</p>
-<p><strong>Step 2 (extended local rate at that draw).</strong> Build
-<span class="math inline">\(P_{11}(u_i)\)</span>, <span class="math inline">\(P_{12}(u_i)\)</span> (§6, with <span class="math inline">\(\Lambda\)</span> pinned at <span class="math inline">\(\Lambda^{\max}\)</span> and <span class="math inline">\(\Omega\)</span> at <span class="math inline">\(\Omega_{\min}\)</span>/local Fisher weights —
-§10’s already-certified corner, now perturbed by the residual blocks)
-and compute <span class="math inline">\(\lambda_{\max}(A(u_i))\)</span>
-plus its full spectrum via the <code>.two_block_S_P11_ing()</code>-style
-helper sketched in §9.</p>
-<p><strong>Step 3 (search over pilot draws).</strong> Loop <span class="math inline">\(i=1,\dots,n_{\text{pilot}}\)</span>; track
-<code>max_eigenvalues_ing &lt;- pmax(max_eigenvalues_ing, eigenvalues(A(u_i)))</code>
-and the argmax draw index — the same accumulation pattern as
-<code>.two_block_pilot_eigenvalue_ub()</code>’s existing
-<code>pmax(max_eigenvalues, rate_i$eigenvalues)</code>.</p>
-<p><strong>Step 4 (certify <code>m_convergence</code>).</strong> Feed
-the worst observed spectrum into <code>two_block_l_for_tv()</code> <span class="math inline">\(\to\)</span> <code>m_min_upper_ing</code>; use
-<code>m_convergence_used &lt;- max(m_min_upper, m_min_upper_ing)</code>
-for the main run, combining with (not replacing) §10’s certified box
-bound.</p>
-<p>This closes the gap left by §11 with a concrete, implementable design
-that reuses existing pilot infrastructure end to end, but it should be
-documented with a caveat <em>stronger</em> than the existing <span class="math inline">\(\Omega\)</span>-heuristic’s: because <span class="math inline">\(u\)</span> has no prior-enforced ceiling, this
-mechanism is a practical safeguard against an <em>observed</em> worst
-case, not a certificate against every possible one, however small the
-resulting spectrum may empirically look.</p>
-<hr />
 </div>
-<div id="possible-future-implementation-enforcing-a-hard-bound-on-u-via-truncated-sampling" class="section level2">
-<h2>13. Possible future implementation: enforcing a <em>hard</em> bound
-on <span class="math inline">\(u\)</span> via truncated sampling</h2>
-<p>§12’s safeguard is empirical because nothing in the model actually
-<em>prevents</em> <span class="math inline">\(u\)</span> from exceeding
-whatever was seen in the pilot. A more ambitious (and not yet attempted)
-alternative — noted here as a design idea, not implemented — would make
-the bound on <span class="math inline">\(u\)</span> genuinely
-<strong>enforced by the sampler</strong>, the same way
-<code>disp_lower</code>/<code>disp_upper</code> already enforce a hard
-ceiling on <span class="math inline">\(\lambda_p\)</span> rather than
-just observing one empirically.</p>
-<div id="the-idea" class="section level3">
-<h3>13.1 The idea</h3>
-<p>Conditional on <span class="math inline">\((\gamma_p,\lambda_p)\)</span>, and independent
-across groups <span class="math inline">\(j\)</span> and (given the
-“Independent” Normal-Gamma structure) across ING components <span class="math inline">\(p\)</span>, <span class="math inline">\(u_{jp} =
-\beta_{jp} - W_{pj}\gamma_p \sim N(0, 1/\lambda_p)\)</span> exactly —
-this is just the RE prior itself, re-centered. So:</p>
-<ol style="list-style-type: decimal">
-<li><strong>Bound <span class="math inline">\(u_{jp}\)</span>
-directly</strong>, e.g. to a symmetric window <span class="math inline">\(u_{jp} \in [-c_p, c_p]\)</span>, with <span class="math inline">\(c_p\)</span> derived from a quantile of <span class="math inline">\(N(0,\tau_p^{2,\max})\)</span> where <span class="math inline">\(\tau_p^{2,\max} = \text{disp\_upper}_p\)</span> is
-the RE component’s <strong>already-existing</strong> truncation upper
-bound (the <em>widest</em> admissible conditional spread of <span class="math inline">\(u_{jp}\)</span>) — reusing exactly the
-quantile-window construction
-<code>.lmebayes_ing_prior_quantile_window()</code> already applies to
-<span class="math inline">\(\tau_p^2\)</span> itself, just applied to
-the <em>residual</em> distribution instead. <strong>No new user-facing
-parameter is needed.</strong></li>
-<li><strong>Remap to <span class="math inline">\(\beta_{jp}\)</span>.</strong> Since <span class="math inline">\(u_{jp}=\beta_{jp}-W_{pj}\gamma_p\)</span>, the
-bound on <span class="math inline">\(u_{jp}\)</span> is exactly a bound
-on <span class="math inline">\(\beta_{jp}\)</span>: <span class="math inline">\(\beta_{jp} \in [W_{pj}\gamma_p - c_p,\
-W_{pj}\gamma_p + c_p]\)</span> — a window of <strong>fixed
-width</strong> <span class="math inline">\(2c_p\)</span> whose
-<em>center</em> tracks the current <span class="math inline">\(\gamma_p\)</span> (and the specific group’s
-hyper-design row <span class="math inline">\(W_{pj}\)</span>) every
-sweep. This is precisely “restrictions on the random effects that are
-dependent on the fixed-effect predictors.”</li>
-<li><strong>Enforce it by truncating the <span class="math inline">\(\beta_j\)</span> full-conditional draw</strong>
-(which is already an exact Gaussian, §4 of
-<code>inst/notation.md</code>) to this window, componentwise per <span class="math inline">\(p\in\mathrm{ING}\)</span>. The package already
-implements inverse-CDF truncated draws for exactly this kind of problem
-— <code>.rLMM_ing_sample_sigma2()</code>’s truncated-Gamma draw via
-<code>qgamma(F_lo + runif()*(F_hi-F_lo), ...)</code> is the same pattern
-applied to <span class="math inline">\(\tau_p^2\)</span>; a
-truncated-normal analogue
-(<code>qnorm(pnorm(lo) + runif()*(pnorm(hi)-pnorm(lo)))</code>) is
-simpler, not harder.</li>
-</ol>
-</div>
-<div id="what-this-would-buy-and-what-it-would-still-need" class="section level3">
-<h3>13.2 What this would buy, and what it would still need</h3>
-<p>If implemented, this converts <span class="math inline">\(u\)</span>
-from an <em>unbounded</em> nuisance quantity into a <strong>genuinely
-truncation-enforced</strong> one, exactly like <span class="math inline">\(\lambda,\Omega\)</span> already are — removing
-§12’s “no ceiling” caveat and making a <code>disp_lower</code>/
-<code>disp_upper</code>-style hard box for <span class="math inline">\(u\)</span> a real property of the chain, not an
-empirical observation about one pilot run.</p>
-<p>It does <strong>not</strong>, by itself, hand back a certified
-worst-case bound the way §10 does for <span class="math inline">\((\Lambda,\Omega)\)</span>. §11 only proves <span class="math inline">\(u=0\)</span> is the <em>global minimizer</em> of
-<span class="math inline">\(\lambda_{\max}(A(u))\)</span> — it does not
-establish that <span class="math inline">\(\lambda_{\max}(A(u))\)</span>
-is <em>monotone in the size</em> of <span class="math inline">\(u\)</span> within the window, which is the extra
-fact §10.5’s “coordinatewise-monotone-on-a-box attains its extremum at a
-corner” argument would need to conclude that the window’s boundary
-(<span class="math inline">\(u_{jp}=\pm c_p\)</span> everywhere) is the
-worst case within the box, rather than some interior point. That
-monotonicity is plausible (§11’s mechanism — more coupling is worse —
-suggests <span class="math inline">\(|u|\)</span> larger should
-generally be worse) but is not proven here, and would be the natural
-next piece of theory to attempt before treating a hard <span class="math inline">\(u\)</span>-bound as a full substitute for §12’s
-pilot search rather than a complement to it.</p>
-</div>
-<div id="implementation-risk-to-flag" class="section level3">
-<h3>13.3 Implementation risk to flag</h3>
-<p>A truncation window that is too tight would <strong>bias</strong> the
-posterior (the whole point of the current
-<code>disp_lower</code>/<code>disp_upper</code> windows is to be wide
-enough — a 98-99% prior-mass window — that they essentially never bind
-in a well-behaved run; the same discipline would need to apply here).
-The truncation is on <span class="math inline">\(u_{jp}\)</span>, not on
-<span class="math inline">\(\beta_{jp}\)</span> directly, so as <span class="math inline">\(\gamma_p\)</span> moves across sweeps the
-effective window for <span class="math inline">\(\beta_{jp}\)</span>
-itself moves with it — the constraint should be understood as “how far a
-random effect may deviate from its current hyper-mean,” not as a fixed
-absolute range for <span class="math inline">\(\beta_{jp}\)</span>.</p>
-<hr />
-</div>
-</div>
-<div id="the-omega-measurement-precision-extension" class="section level2">
-<h2>14. The <span class="math inline">\(\Omega\)</span>
-(measurement-precision) extension</h2>
-<p>Sections 5-13 extend the Hessian for a sampled
-<strong>random-effects</strong> precision <span class="math inline">\(\lambda_p\)</span>
-(<code>dIndependent_Normal_Gamma()</code> on <span class="math inline">\(\tau_p^2\)</span>). This section derives the
-exactly analogous extension for a sampled <strong>measurement</strong>
-(observation-level) precision <span class="math inline">\(\Omega :=
-1/\sigma^2\)</span> — pooled (<code>dGamma()</code>, one value shared by
-every group) or per-group <span class="math inline">\(\Omega_j :=
-1/\sigma_j^2\)</span> (<code>dGamma_list()</code>, one independent value
-per group, as used by <code>rLMMindepNormalGamma_reg_*()</code>).
-Everywhere below, <span class="math inline">\(\Omega\)</span> means
-“pooled <span class="math inline">\(\Omega\)</span>” unless a subscript
-<span class="math inline">\(j\)</span> is present.</p>
-<div id="setup" class="section level3">
-<h3>14.1 Setup</h3>
-<p>Let <span class="math inline">\(e_j := y_j - D_j\beta_j\)</span> (the
-<span class="math inline">\(n_j\times1\)</span> <strong>data</strong>
-residual for group <span class="math inline">\(j\)</span> — not to be
-confused with <span class="math inline">\(u_{jp}\)</span>, the
-<em>RE-level</em> residual of §1-2). Write <span class="math inline">\(n_j = \dim(y_j)\)</span>, <span class="math inline">\(n = \sum_j n_j\)</span>. The likelihood term of §3
-becomes, once <span class="math inline">\(\Omega\)</span> (or <span class="math inline">\(\Omega_j\)</span>) is written out explicitly
-instead of held fixed:</p>
-<p><strong>Pooled case</strong> (<span class="math inline">\(\Omega_j =
-\Omega I_{n_j}\)</span> for every <span class="math inline">\(j\)</span>, one shared scalar <span class="math inline">\(\Omega\)</span>, prior <span class="math inline">\(\Omega\sim\mathrm{Gamma}(a^0,r^0)\)</span>):</p>
-<p><span class="math display">\[
-\ell \;\supset\; \frac{\Omega}{2}\sum_j e_j&#39;e_j \;-\;
-\frac{n}{2}\log\Omega
-\;+\; (1-a^0)\log\Omega + r^0\Omega
-\]</span></p>
-<p><strong>Per-group case</strong> (<span class="math inline">\(\Omega_j
-= \Omega_j I_{n_j}\)</span>, independent <span class="math inline">\(\Omega_j\sim\mathrm{Gamma}(a_j^0,r_j^0)\)</span>
-per group):</p>
-<p><span class="math display">\[
-\ell \;\supset\; \sum_j\Big[\frac{\Omega_j}{2} e_j&#39;e_j -
-\frac{n_j}{2}\log\Omega_j
-+ (1-a_j^0)\log\Omega_j + r_j^0\Omega_j\Big]
-\]</span></p>
-<p>Both reduce to the fixed-<span class="math inline">\(\Omega\)</span>
-likelihood term of §3 when <span class="math inline">\(\Omega\)</span>
-(resp. every <span class="math inline">\(\Omega_j\)</span>) is held
-constant — this section only makes its dependence explicit, exactly as
-§3-5 did for <span class="math inline">\(\lambda_p\)</span>.</p>
-</div>
-<div id="first-derivatives" class="section level3">
-<h3>14.2 First derivatives</h3>
-<p><span class="math display">\[
-\frac{\partial\ell}{\partial\beta_{jp}} =
-\big[D_j&#39;\Omega_j(D_j\beta_j-y_j)\big]_p + \lambda_p u_{jp}
-\;=\; -\big[D_j&#39;\Omega_je_j\big]_p + \lambda_p u_{jp}
-\]</span></p>
-<p>(same formula as §4, just substituting <span class="math inline">\(D_j\beta_j - y_j = -e_j\)</span>; <span class="math inline">\(\Omega_j\)</span> is <span class="math inline">\(\Omega\)</span> in the pooled case). For the
-precision itself,</p>
-<p><span class="math display">\[
-\frac{\partial\ell}{\partial\Omega} = \frac12\sum_j e_j&#39;e_j -
-\frac{n}{2\Omega} + \frac{1-a^0}{\Omega} + r^0
-\qquad\text{(pooled)}
-\]</span></p>
-<p><span class="math display">\[
-\frac{\partial\ell}{\partial\Omega_j} = \frac12 e_j&#39;e_j -
-\frac{n_j}{2\Omega_j} + \frac{1-a_j^0}{\Omega_j} + r_j^0
-\qquad\text{(per-group)}
-\]</span></p>
-<p>Setting either to zero reproduces the exact conjugate Gamma full
-conditional <span class="math inline">\(\Omega \mid \beta \sim
-\mathrm{Gamma}(a^0+n/2,\ r^0+\tfrac12\sum_je_j&#39;e_j)\)</span>
-(pooled) or <span class="math inline">\(\Omega_j\mid\beta_j\sim\mathrm{Gamma}(a_j^0+n_j/2,\
-r_j^0+\tfrac12e_j&#39;e_j)\)</span> (per-group) — the same
-<code>shape2 = shape + n_w/2.0</code>-style update used by
-<code>dGamma()</code>/<code>dGamma_list()</code>’s Block~1 Gibbs step,
-and the same sanity-check pattern used for <span class="math inline">\(\lambda_p\)</span> in §4.</p>
-</div>
-<div id="second-derivatives-and-why-the-cross-terms-with-gammalambda-vanish-exactly" class="section level3">
-<h3>14.3 Second derivatives, and why the cross-terms with <span class="math inline">\((\gamma,\lambda)\)</span> vanish exactly</h3>
+<div id="summary" class="section level3">
+<h3>5.3 Summary</h3>
 <table>
 <colgroup>
 <col width="33%" />
@@ -1584,843 +906,82 @@ and the same sanity-check pattern used for <span class="math inline">\(\lambda_p
 </colgroup>
 <thead>
 <tr class="header">
-<th>Block</th>
-<th>Formula</th>
-<th>Why (non)zero</th>
+<th>Ingredient</th>
+<th>Setting A (Gaussian <span class="math inline">\(P\)</span>)</th>
+<th>Setting B (marginal Hessian diagnostic)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\Omega\)</span>
-(pooled)</td>
-<td><span class="math inline">\(-[D_j&#39;e_j]_p\)</span></td>
-<td><span class="math inline">\(\partial(-[D_j&#39;\Omega
-e_j]_p)/\partial\Omega\)</span>, holding <span class="math inline">\(e_j\)</span> fixed; nonzero for
-<strong>every</strong> group <span class="math inline">\(j\)</span>
-(pooled <span class="math inline">\(\Omega\)</span> enters every group’s
-likelihood)</td>
+<td><span class="math inline">\(\Omega_j\)</span></td>
+<td>corner moves <span class="math inline">\(\lambda^\star\)</span> in
+<span class="math inline">\([0,1)\)</span></td>
+<td>unmatched: <span class="math inline">\(P_{22}\succ 0\)</span>
+insufficient; need <span class="math inline">\(H_j^{(\Omega)}\succeq
+0\)</span></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\Omega_{j&#39;}\)</span>
-(per-group), <span class="math inline">\(j = j&#39;\)</span></td>
-<td><span class="math inline">\(-[D_j&#39;e_j]_p\)</span></td>
-<td>same derivation, restricted to group <span class="math inline">\(j\)</span>’s own precision</td>
+<td><span class="math inline">\(\lambda_p\)</span></td>
+<td>moves closeness to 1; never <span class="math inline">\(&gt;1\)</span>; truncation <span class="math inline">\(\Rightarrow\)</span> gap</td>
+<td>matched: need <span class="math inline">\(H_u\succeq 0\)</span>,
+<span class="math inline">\(H^{(\Omega)}\succ 0\)</span>, <span class="math inline">\(P_{11}\succ 0\)</span></td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\beta_{jp}\partial\Omega_{j&#39;}\)</span>
-(per-group), <span class="math inline">\(j\ne j&#39;\)</span></td>
-<td><span class="math inline">\(0\)</span></td>
-<td>group <span class="math inline">\(j\)</span>’s likelihood term does
-not involve <span class="math inline">\(\Omega_{j&#39;}\)</span></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\gamma_p\partial\Omega\)</span>
-(or <span class="math inline">\(\Omega_j\)</span>)</td>
-<td><span class="math inline">\(0\)</span></td>
-<td><span class="math inline">\(\gamma_p\)</span> only appears in the
-RE-prior/Block~2 terms (§3), which do not involve <span class="math inline">\(\Omega\)</span> at all</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\lambda_p\partial\Omega\)</span>
-(or <span class="math inline">\(\Omega_j\)</span>)</td>
-<td><span class="math inline">\(0\)</span></td>
-<td><span class="math inline">\(\lambda_p\)</span> only appears in the
-RE-prior term (§3); <span class="math inline">\(\Omega\)</span> only in
-the likelihood term — the two never multiply the same additive piece of
-<span class="math inline">\(\ell\)</span></td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\Omega^2\)</span>
-(pooled)</td>
-<td><span class="math inline">\((n/2+a^0-1)/\Omega^2\)</span></td>
-<td>same derivation as §5’s <span class="math inline">\(\lambda_p^2\)</span> case, with <span class="math inline">\(n\)</span> (not <span class="math inline">\(J\)</span>) as the log-Jacobian count, since the
-Gaussian normalizing constant here scales with the number of
-<em>observations</em>, not groups</td>
-</tr>
-<tr class="odd">
-<td><span class="math inline">\(\partial^2\ell/\partial\Omega_j^2\)</span>
-(per-group)</td>
-<td><span class="math inline">\((n_j/2+a_j^0-1)/\Omega_j^2\)</span></td>
-<td>same, per group</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\partial^2\ell/\partial\Omega_j\partial\Omega_{j&#39;}\)</span>,
-<span class="math inline">\(j\ne j&#39;\)</span> (per-group)</td>
-<td><span class="math inline">\(0\)</span></td>
-<td>independent Gamma priors, no shared likelihood term</td>
+<td><span class="math inline">\(\gamma\)</span> prior <span class="math inline">\(V_p^{-1}\)</span></td>
+<td>moves closeness to 1</td>
+<td>strengthens <span class="math inline">\(P_{11}\)</span></td>
 </tr>
 </tbody>
 </table>
-<p>The two zero rows are the key structural fact used below:
-<strong><span class="math inline">\(\Omega\)</span> (pooled or
-per-group) is Hessian-orthogonal to both <span class="math inline">\(\gamma\)</span> and <span class="math inline">\(\lambda\)</span></strong> — it interacts with the
-joint system <em>only</em> through its cross- terms with <span class="math inline">\(\beta\)</span>. This is because <span class="math inline">\(\Omega\)</span> multiplies only the likelihood
-piece of <span class="math inline">\(\ell\)</span>, which contains <span class="math inline">\(\beta\)</span> but never <span class="math inline">\(\gamma\)</span> or <span class="math inline">\(\lambda\)</span> directly (those enter only via
-the RE-prior/Block~2 terms).</p>
-</div>
-<div id="assembling-the-extended-blocks" class="section level3">
-<h3>14.4 Assembling the extended blocks</h3>
-<p>Let <span class="math inline">\(x_1 = (\gamma,\
-\lambda_{\mathrm{ING}},\ \Omega_{\mathrm{ING}})\)</span> — appending the
-<span class="math inline">\(\Omega\)</span>-extension of this section
-onto the <span class="math inline">\(\lambda\)</span>- extension of §6
-(§14.5 below covers stacking both explicitly; here consider <span class="math inline">\(\Omega\)</span> added to the <em>plain</em>,
-non-ING-<span class="math inline">\(\lambda\)</span>, <span class="math inline">\(x_1=\gamma\)</span> system for clarity first).
-<span class="math inline">\(P_{22}\)</span> is <strong>unchanged in
-form</strong> (<span class="math inline">\(B_j = D_j&#39;\Omega_jD_j +
-\Psi^{-1}\)</span>; <span class="math inline">\(\Omega_j\)</span> is
-simply now the current state rather than a fixed plug-in, exactly as
-<span class="math inline">\(\lambda\)</span> was in §6).</p>
-<p><strong>Pooled <span class="math inline">\(\Omega\)</span>:</strong>
-one new row/column. New <span class="math inline">\(P_{12}\)</span> row,
-for every group <span class="math inline">\(j\)</span>: <span class="math inline">\(-[D_j&#39;e_j]&#39;\)</span> (a <span class="math inline">\(1\times p_{re}\)</span> block, dense — nonzero in
-every column of that group’s <span class="math inline">\(p_{re}\)</span>-wide strip, since pooled <span class="math inline">\(\Omega\)</span> touches every <span class="math inline">\(\beta_{jp}\)</span>). New <span class="math inline">\(P_{11}\)</span> diagonal entry: <span class="math inline">\((n/2+a^0-1)/\Omega^2\)</span>. New <span class="math inline">\(P_{11}^{(\gamma,\Omega)}\)</span> and <span class="math inline">\(P_{11}^{(\lambda,\Omega)}\)</span> cross blocks:
-<strong>exactly zero</strong> (§14.3).</p>
-<p><strong>Per-group <span class="math inline">\(\Omega_j\)</span>:</strong> <span class="math inline">\(J\)</span> new rows/columns (one per group), each
-<strong>block-local</strong>: row <span class="math inline">\(j\)</span>’s new <span class="math inline">\(P_{12}\)</span> entries are <span class="math inline">\(-[D_j&#39;e_j]&#39;\)</span> within group <span class="math inline">\(j\)</span>’s own <span class="math inline">\(p_{re}\)</span>-wide strip and
-<strong>zero</strong> in every other group’s strip (unlike the pooled
-case, which is dense across all <span class="math inline">\(J\)</span>
-strips in its single new row). New <span class="math inline">\(P_{11}\)</span> diagonal entries: <span class="math inline">\(\mathrm{diag}_j\big((n_j/2+a_j^0-1)/\Omega_j^2\big)\)</span>.
-Cross blocks with <span class="math inline">\(\gamma\)</span> and <span class="math inline">\(\lambda\)</span>: again exactly zero, and
-additionally <span class="math inline">\(P_{11}^{(\Omega_j,\Omega_{j&#39;})}=0\)</span> for
-<span class="math inline">\(j\ne j&#39;\)</span> (§14.3) — the per-group
-<span class="math inline">\(\Omega\)</span>-block is itself
-diagonal.</p>
-</div>
-<div id="stacking-both-extensions" class="section level3">
-<h3>14.5 Stacking both extensions</h3>
-<p>Because <span class="math inline">\(P_{11}^{(\gamma,\Omega)}=P_{11}^{(\lambda,\Omega)}=0\)</span>
-<strong>exactly</strong> (§14.3) — not approximately, and not only at a
-stationary point (contrast with the <span class="math inline">\(\gamma\)</span>-<span class="math inline">\(\lambda\)</span> cross term of §8, which vanishes
-only at the mode under a flat <span class="math inline">\(\gamma\)</span>-prior) — the <span class="math inline">\(\lambda\)</span>-extension (§5-6) and the <span class="math inline">\(\Omega\)</span>-extension (§14.1-14.4) are
-<strong>Hessian-orthogonal</strong> and can be stacked with no further
-cross-derivation needed. For <span class="math inline">\(x_1 = (\gamma,\
-\lambda_{\mathrm{ING}},\ \Omega_{\mathrm{ING}})\)</span> the extended
-<span class="math inline">\(P_{11}\)</span> is, in partitioned form,</p>
-<pre><code>        ┌ P11^(γγ)     P11^(γλ)      0        ┐
-P11  =  │ P11^(γλ)&#39;    P11^(λλ)      0        │
-        └ 0            0             P11^(ΩΩ) ┘</code></pre>
-<p>i.e. the new <span class="math inline">\(\Omega\)</span>-block is
-<strong>block-diagonal</strong> with the <span class="math inline">\((\gamma,\lambda)\)</span>-block of §6 — appended
-on the diagonal, contributing no new off-diagonal structure beyond its
-own <span class="math inline">\(P_{12}\)</span> rows (§14.4) into <span class="math inline">\(\beta\)</span>-space. This is exactly the
-structure <code>.two_block_S_P11_ing()</code> (§15) exploits: the <span class="math inline">\(\lambda\)</span>- and <span class="math inline">\(\Omega\)</span>-extensions are assembled
-independently and simply concatenated, never requiring a genuinely new
-cross-derivation between them.</p>
-<p>All of §7-13’s conclusions (state-dependence, the §10 corner-bound
-construction for the <span class="math inline">\((\gamma,\beta)\)</span>
-sub-chain conditional on <span class="math inline">\((\lambda,\Omega)\)</span>, and §11-13’s
-residual-freezing/safeguard discussion) go through for <span class="math inline">\(\Omega\)</span> with <span class="math inline">\(u_{jp}\to e_j\)</span> and <span class="math inline">\(\lambda_p\to\Omega\)</span> (or <span class="math inline">\(\Omega_j\)</span>) throughout — no new argument is
-needed, since §14.3’s exact zero cross-terms are the only structural
-fact §7-13’s arguments actually use beyond what already held for <span class="math inline">\(\lambda\)</span>.</p>
 <hr />
 </div>
 </div>
-<div id="implementation-note" class="section level2">
-<h2>15. Implementation note: </h2>
-<p>Implemented in <code>R/two_block_ergodicity_ing.R</code> as a
-<strong>diagnostic-only</strong> extension of
-<code>.two_block_S_P11()</code>, evaluated once at a single reference
-state <span class="math inline">\((\hat\gamma,\hat\beta,\hat\lambda,\hat\Omega)\)</span>
-(not a pilot-draw scan; see §12 for that still-unimplemented direction)
-— reusing
-<code>.two_block_rate_inputs()</code>/<code>.two_block_S_P11()</code>
-unchanged for the base <span class="math inline">\((\gamma,\beta)\)</span> blocks (evaluated at
-whatever <span class="math inline">\((\Lambda,\Omega)\)</span> reference
-the caller supplies, typically the same one the corresponding
-<code>rLMM*_reg_*()</code> engine’s own pilot-rate calibration already
-uses) and appending the §6/§14 blocks for whichever of <span class="math inline">\(\lambda_{\mathrm{ING}}\)</span>, <span class="math inline">\(\Omega_{\mathrm{ING}}\)</span> apply to the model
-at hand. <code>two_block_rate_ing()</code> is the corresponding
-user-facing export (mirroring <code>two_block_rate()</code>’s shape),
-documented as a <strong>local, uncertified diagnostic</strong> (§7, §9):
-it reports how much the base rate would move if the (currently ignored)
-<span class="math inline">\(\beta\)</span>-<span class="math inline">\((\lambda,\Omega)\)</span> coupling terms of §6/§14
-were included, holding everything else fixed — not a new certified
-bound. §16 below derives a different (unimplemented) diagnostic for the
-<span class="math inline">\(\Omega_j\)</span> case that integrates <span class="math inline">\(\Omega_j\)</span> out analytically instead of
-extending the joint Hessian this section’s helper computes.</p>
-<hr />
-</div>
-<div id="integrating-omega_j-out-exactly-a-marginal-hessian-and-a-log-concavity-criterion-on-the-residuals" class="section level2">
-<h2>16. Integrating <span class="math inline">\(\Omega_j\)</span> out
-exactly: a marginal Hessian and a log-concavity criterion on the
-residuals</h2>
-<p>Sections 14-15 extend the <em>joint</em> <span class="math inline">\((\gamma,\lambda,\Omega,\beta)\)</span> Hessian by
-appending <span class="math inline">\(\Omega_j\)</span> as its own
-coordinate and evaluating the cross terms at a supplied reference <span class="math inline">\((\hat\beta_j,\hat\Omega_j)\)</span> pair. This
-section takes a different route: integrate <span class="math inline">\(\Omega_j\)</span> out of the model
-<strong>analytically</strong> instead, leaving a Hessian in <span class="math inline">\(\beta_j\)</span> alone with no <span class="math inline">\(\Omega_j\)</span> coordinate at all, and ask when
-<em>that</em> Hessian is guaranteed positive semi-definite (PSD) —
-i.e. when the marginal negative log-density is locally log-concave in
-<span class="math inline">\(\beta_j\)</span>. Diagnostic/theoretical
-only, like §12-13: nothing here is implemented in
-<code>R/two_block_ergodicity_ing.R</code>.</p>
-<div id="setup-marginalizing-instead-of-extending" class="section level3">
-<h3>16.1 Setup: marginalizing instead of extending</h3>
-<p>From §14.1-14.2, <span class="math inline">\(\Omega_j\mid\beta_j\sim\mathrm{Gamma}\big(a_j^0+n_j/2,\;
-r_j^0+\tfrac12e_j&#39;e_j\big)\)</span> exactly, with <span class="math inline">\(e_j=y_j-D_j\beta_j\)</span>. Integrating <span class="math inline">\(\Omega_j\)</span> out of the joint density <span class="math inline">\(p(y_j,\Omega_j\mid\beta_j)\)</span> (the standard
-Normal-Gamma-mixture identity) leaves a Student-t kernel in <span class="math inline">\(\beta_j\)</span>:</p>
-<p><span class="math display">\[
-p(y_j\mid\beta_j)\;\propto\;\Big(r_j^0+\tfrac12e_j&#39;e_j\Big)^{-(a_j^0+n_j/2)}
-\]</span></p>
-<p>i.e. <span class="math inline">\(y_j\mid\beta_j\)</span> is (up to
-scale) multivariate-<span class="math inline">\(t\)</span> with <span class="math inline">\(2(a_j^0+n_j/2)\)</span> degrees of freedom,
-location <span class="math inline">\(D_j\beta_j\)</span>, in place of
-the Gaussian likelihood the fixed-<span class="math inline">\(\Omega_j\)</span> system uses. This is a genuinely
-different sampler/diagnostic variant from §14-15’s joint extension (that
-one keeps <span class="math inline">\(\Omega_j\)</span> as a sampled
-state variable; this one removes it from the model entirely by exact
-marginalization) — not a further extension of it.</p>
-</div>
-<div id="the-marginal-hessian" class="section level3">
-<h3>16.2 The marginal Hessian</h3>
-<p>Write</p>
-<p><span class="math display">\[
-\Omega_j^{\mathrm{eff}}(\beta_j)\;:=\;\frac{a_j^0+n_j/2}{r_j^0+\tfrac12e_j&#39;e_j}
-\;=\;E[\Omega_j\mid\beta_j]
-\]</span></p>
-<p>— literally the mean of the same Gamma full conditional §14.2 already
-derives (the one <code>dGamma()</code>/<code>dGamma_list()</code>’s
-Block~1 Gibbs step samples from), evaluated at <span class="math inline">\(\beta_j\)</span> rather than at a fresh draw.
-Differentiating <span class="math inline">\(-\log
-p(y_j\mid\beta_j)\)</span> twice with respect to <span class="math inline">\(\beta_j\)</span> gives the closed form</p>
-<p><span class="math display">\[
-H_j(\beta_j)\;=\;\Omega_j^{\mathrm{eff}}D_j&#39;D_j\;-\;
-\frac{\big(\Omega_j^{\mathrm{eff}}\big)^2}{a_j^0+n_j/2}(D_j&#39;e_j)(D_j&#39;e_j)&#39;
-\]</span></p>
-<p>(verified numerically against a brute-force finite-difference Hessian
-of <span class="math inline">\(-\log p(y_j\mid\beta_j)\)</span> on a
-synthetic design). The first term is exactly the current fixed-<span class="math inline">\(\Omega_j\)</span> plug-in <span class="math inline">\(\Omega_jD_j&#39;D_j\)</span> with <span class="math inline">\(\Omega_j\)</span> replaced by its conditional
-mean; the second is a rank-one, negative-semidefinite correction that
-vanishes exactly at <span class="math inline">\(e_j=0\)</span>,
-reproducing §11’s finding that <span class="math inline">\(e_j=0\)</span> (like <span class="math inline">\(u_{jp}=0\)</span>) is the best-behaved reference
-state and that moving away from it can only add negative curvature,
-never positive.</p>
-</div>
-<div id="exact-log-concavity-criterion" class="section level3">
-<h3>16.3 Exact log-concavity criterion</h3>
-<p><span class="math inline">\(H_j(\beta_j)\)</span> has the form <span class="math inline">\(M-cvv&#39;\)</span> with <span class="math inline">\(M=\Omega_j^{\mathrm{eff}}D_j&#39;D_j\)</span> (PD,
-assuming <span class="math inline">\(D_j\)</span> has full column rank
-<span class="math inline">\(p_{re}\)</span>), <span class="math inline">\(v=D_j&#39;e_j\)</span>, and <span class="math inline">\(c=\big(\Omega_j^{\mathrm{eff}}\big)^2/(a_j^0+n_j/2)\)</span>.
-The standard rank-one-perturbation fact (<span class="math inline">\(M-cvv&#39;\)</span> is PSD iff <span class="math inline">\(cv&#39;M^{-1}v\le1\)</span>) reduces, after
-substituting <span class="math inline">\(\Omega_j^{\mathrm{eff}}\)</span>, to</p>
-<p><span class="math display">\[
-q_j\;:=\;(D_j&#39;e_j)&#39;(D_j&#39;D_j)^{-1}(D_j&#39;e_j)\;\le\;r_j^0+\tfrac12e_j&#39;e_j
-\]</span></p>
-<p>Writing <span class="math inline">\(\hat\beta_j^{\mathrm{ols}}=(D_j&#39;D_j)^{-1}D_j&#39;y_j\)</span>
-and using the Pythagorean OLS decomposition <span class="math inline">\(e_j=\hat{e}_j^{\mathrm{ols}}+
-D_j(\hat\beta_j^{\mathrm{ols}}-\beta_j)\)</span> (with <span class="math inline">\(D_j&#39;\hat{e}_j^{\mathrm{ols}}=0\)</span> by the
-OLS normal equations), <span class="math inline">\(q_j\)</span> is
-exactly the <span class="math inline">\(D_j&#39;D_j\)</span>-weighted
-squared distance from <span class="math inline">\(\beta_j\)</span> to
-the group’s own OLS fit, and <span class="math inline">\(e_j&#39;e_j=\mathrm{RSS}_j^{\mathrm{ols}}+q_j\)</span>.
-Substituting gives the equivalent, more interpretable form:</p>
-<p><span class="math display">\[
-\big\|\beta_j-\hat\beta_j^{\mathrm{ols}}\big\|^2_{D_j&#39;D_j}\;\le\;
-2r_j^0+\mathrm{RSS}_j^{\mathrm{ols}}
-\]</span></p>
-<p>i.e. <span class="math inline">\(H_j(\beta_j)\)</span> stays PSD (the
-marginal density stays locally log-concave) exactly as long as <span class="math inline">\(\beta_j\)</span> is not too far — in the <span class="math inline">\(D_j&#39;D_j\)</span>-weighted sense — from the
-group’s own OLS fit, with the allowed distance growing with both the
-prior’s informativeness (<span class="math inline">\(r_j^0\)</span>) and
-how poorly that group’s OLS fit already explains its own data (<span class="math inline">\(\mathrm{RSS}_j^{\mathrm{ols}}\)</span>). Both
-criteria were checked numerically against a direct eigenvalue
-computation of <span class="math inline">\(H_j\)</span>, scanning <span class="math inline">\(\beta_j\)</span> away from <span class="math inline">\(\hat\beta_j^{\mathrm{ols}}\)</span>: the sign of
-the smallest eigenvalue of <span class="math inline">\(H_j\)</span>
-matched the sign of <span class="math inline">\(r_j^0+\tfrac12e_j&#39;e_j-q_j\)</span> at every
-point tested.</p>
-</div>
-<div id="two-practical-buckets" class="section level3">
-<h3>16.4 Two practical “buckets”</h3>
-<p>Since <span class="math inline">\(q_j\le e_j&#39;e_j\)</span> always
-(the residual’s projection onto <span class="math inline">\(\mathrm{col}(D_j)\)</span> cannot exceed its own
-squared norm — <span class="math inline">\(H_{D_j}:=
-D_j(D_j&#39;D_j)^{-1}D_j&#39;\)</span> is an orthogonal projection), two
-simple corollaries follow, requiring no knowledge of <span class="math inline">\(D_j\)</span>’s leverage structure or of <span class="math inline">\(\hat\beta_j^{\mathrm{ols}}\)</span>:</p>
-<ul>
-<li><strong>Design-independent bucket.</strong> If <span class="math inline">\(e_j&#39;e_j\le2r_j^0\)</span> (the current
-residual sum of squares is at most twice the prior Gamma rate), then
-<span class="math inline">\(H_j(\beta_j)\)</span> is PSD
-<em>regardless</em> of <span class="math inline">\(D_j\)</span> or how
-<span class="math inline">\(e_j\)</span> is oriented relative to <span class="math inline">\(\mathrm{col}(D_j)\)</span>.</li>
-<li><strong>Leverage bucket.</strong> Writing <span class="math inline">\(\rho_j:=q_j/e_j&#39;e_j\in[0,1]\)</span> (the
-fraction of the residual’s squared norm that lies in <span class="math inline">\(\mathrm{col}(D_j)\)</span>, i.e. <span class="math inline">\(0\)</span> exactly at the OLS fit and growing as
-<span class="math inline">\(\beta_j\)</span> moves away from it along
-directions well-explained by the design), <span class="math inline">\(\rho_j\le\tfrac12\)</span> guarantees <span class="math inline">\(H_j(\beta_j)\)</span> is PSD for <em>any</em>
-residual magnitude; only <span class="math inline">\(\rho_j&gt;\tfrac12\)</span> admits a finite
-counterexample, at <span class="math inline">\(e_j&#39;e_j&gt;r_j^0/(\rho_j-\tfrac12)\)</span>.</li>
-</ul>
-</div>
-<div id="relationship-to-the-current-implementation-and-the-ex_13-empirical-finding" class="section level3">
-<h3>16.5 Relationship to the current implementation and the Ex_13
-empirical finding</h3>
-<p>This is a <em>different</em> diagnostic angle from §14-15’s joint
-extension, not a refinement of it. §16.1-16.4’s untruncated formulas
-are, since §16.6, present in code only as a conservative comparison
-branch alongside the exact truncated one (never as the primary criterion
-— see §16.6’s “Practical implication”). It does, however, explain a
-finding from the empirical “scan every main-stage draw” diagnostic (the
-<code>.two_block_rate_ing_over_draws()</code> helper used by
-<code>demo(&quot;Ex_13_...&quot;)</code>/<code>demo(&quot;Ex_13b_...&quot;)</code>/<code>demo(&quot;Ex_14_...&quot;)</code>):
-that diagnostic plugs each draw’s independently-sampled <span class="math inline">\((\beta_j^{(i)},\Omega_j^{(i)})\)</span> pair into
-the <em>joint</em> extended Hessian of §14, rather than <span class="math inline">\(\Omega_j^{\mathrm{eff}}(\beta_j^{(i)})\)</span> —
-so <span class="math inline">\(\Omega_j^{(i)}\)</span> is not
-constrained to satisfy the §16.3 bound relative to that same draw’s
-<span class="math inline">\(e_j^{(i)}\)</span> the way the marginal
-system’s <span class="math inline">\(\Omega_j^{\mathrm{eff}}\)</span>
-always is by construction. A large fraction of draws showing <span class="math inline">\(\lambda^*\ge1\)</span> in that scan is consistent
-with — and partially explained by — evaluating an uncontrolled joint
-reference state rather than the marginal one this section derives.</p>
-</div>
-<div id="accounting-for-the-actual-truncated-prior-exact-marginal-and-hessian-in-terms-of-textttdisp_lowertextttdisp_upper" class="section level3">
-<h3>16.6 Accounting for the actual <em>truncated</em> prior: exact
-marginal and Hessian in terms of <span class="math inline">\(\texttt{disp\_lower}\)</span>/<span class="math inline">\(\texttt{disp\_upper}\)</span></h3>
-<p><strong>Status: implemented.</strong> §16.1-16.5 integrate <span class="math inline">\(\Omega_j\)</span> out assuming the
-<em>untruncated</em> <span class="math inline">\(\mathrm{Gamma}(a_j^0,r_j^0)\)</span> prior. But
-the prior that <code>dGamma_list()</code> actually hands the sampler is
-truncated to a bounded window <span class="math inline">\(\sigma_j^2\in[\texttt{disp\_lower}_j,\texttt{disp\_upper}_j]\)</span>
-(an accept/reject envelope over that range, not the full <span class="math inline">\((0,\infty)\)</span> support), which the
-untruncated derivation never accounts for. This subsection re-derives
-§16.2’s marginal and Hessian accounting for that truncation exactly, in
-closed form, using only quantities already computed by
-<code>Prior_Setup_GLMM()</code>/<code>dGamma_list()</code>. The exact
-formulas below are now wired into the
-eigenvalue/<code>lambda_star_marginal</code> machinery at three call
-sites: the internal helper
-<code>.two_block_truncated_omega_moments()</code>
-(<code>R/two_block_ergodicity_ing_marginal.R</code>), which
-<code>.two_block_lambda_star_marginal_over_draws()</code> (the real
-safeguard inside <code>rLMMindepNormalGamma_reg_known_vcov()</code>,
-<code>known_vcov</code> engine only) now calls in place of the old
-fixed-<span class="math inline">\(\Omega_j^{\mathrm{eff}}\)</span>
-formula; its scratch mirror
-<code>.tmp_lambda_star_marginal_over_draws()</code>
-(<code>data-raw/_scratch_lambda_star_marginal_over_draws.R</code>); and
-the per-draw ellipsoid test <code>.tmp_rss_ellipsoid_test()</code>
-(<code>data-raw/_scratch_rss_ellipsoid_test.R</code>), which now reports
-both the UNTRUNCATED (legacy, <code>pct_draws_outside</code>) and EXACT
-(<code>pct_draws_outside_exact</code>) violation rates side by side. The
-untruncated formulas are kept everywhere as a conservative comparison
-column, per the “Practical implication” paragraph below.</p>
-<p><strong>Setup.</strong> Since <span class="math inline">\(\Omega_j=1/\sigma_j^2\)</span>, the truncation on
-precision is the window with endpoints swapped:</p>
-<p><span class="math display">\[
-\omega_L:=1/\texttt{disp\_upper}_j,\qquad\omega_U:=1/\texttt{disp\_lower}_j.
-\]</span></p>
-<p>Reuse <span class="math inline">\(s_j:=a_j^0+n_j/2\)</span> (shape,
-fixed) and <span class="math inline">\(t_j(\beta_j):=r_j^0+\tfrac12
-e_j&#39;e_j\)</span> (rate, the only <span class="math inline">\(\beta_j\)</span>-dependence).</p>
-<p><strong>Exact marginal.</strong> The joint density in <span class="math inline">\(\Omega_j\)</span> given <span class="math inline">\(\beta_j\)</span>, restricted to <span class="math inline">\([\omega_L,\omega_U]\)</span>, is <span class="math inline">\(\omega^{s_j-1}
-e^{-t_j(\beta_j)\omega}\)</span>. Using the incomplete-gamma identity
-<span class="math inline">\(\int_0^x
-u^{k-1}e^{-tu}\,du=\Gamma(k)t^{-k}\,\texttt{pgamma}(x;k,t)\)</span>
-(<code>pgamma(x, shape = k, rate = t)</code>, R’s parameterization),</p>
-<p><span class="math display">\[
-p(y_j\mid\beta_j)\;\propto\;I_j(t_j)\;:=\;\Gamma(s_j)\,t_j^{-s_j}\,
-\Big[\texttt{pgamma}(\omega_U;s_j,t_j)-\texttt{pgamma}(\omega_L;s_j,t_j)\Big],
-\]</span></p>
-<p>i.e. the familiar Student-t kernel <span class="math inline">\(t_j^{-s_j}\)</span> from §16.1, divided by a
-<em>truncation-fraction correction</em> <span class="math inline">\(\Delta P(s_j,t_j):=\texttt{pgamma}
-(\omega_U;s_j,t_j)-\texttt{pgamma}(\omega_L;s_j,t_j)\)</span> — the
-probability the untruncated <span class="math inline">\(\mathrm{Gamma}(s_j,t_j)\)</span> puts on <span class="math inline">\([\omega_L,\omega_U]\)</span> — that carries all
-the truncation information and depends on <span class="math inline">\(\beta_j\)</span> (through <span class="math inline">\(t_j\)</span>) exactly like the kernel itself
-does.</p>
-<p><strong>Exact Hessian.</strong> The same exponential-tilting argument
-that reproduces §16.2’s formula in the untruncated case gives, for
-<em>any</em> mixing measure on <span class="math inline">\(\Omega_j\)</span> (truncated or not),</p>
-<p><span class="math display">\[
-H_j(\beta_j)\;=\;E_t[\Omega_j]\,D_j&#39;D_j\;-\;\mathrm{Var}_t[\Omega_j]\,
-(D_j&#39;e_j)(D_j&#39;e_j)&#39;,
-\]</span></p>
-<p>where <span class="math inline">\(E_t[\cdot],\mathrm{Var}_t[\cdot]\)</span> are the
-mean/variance of <span class="math inline">\(\Omega_j\)</span> under the
-tilted-and-truncated density <span class="math inline">\(\propto
-\omega^{s_j-1}e^{-t_j\omega}\)</span> on <span class="math inline">\([\omega_L,\omega_U]\)</span> — i.e. the truncated
-<span class="math inline">\(\mathrm{Gamma}(s_j,t_j(\beta_j))\)</span>
-posterior for <span class="math inline">\(\Omega_j\)</span> given <span class="math inline">\(\beta_j\)</span>, the one <code>dGamma()</code>’s
-Block~1 step actually draws from. The standard “raise the shape by 1 (or
-2)” identity for incomplete-gamma moments gives these in closed
-form:</p>
-<p><span class="math display">\[
-E_t[\Omega_j]=\frac{s_j}{t_j}\cdot\frac{\Delta P(s_j+1,t_j)}{\Delta
-P(s_j,t_j)},
-\qquad
-E_t[\Omega_j^2]=\frac{s_j(s_j+1)}{t_j^2}\cdot\frac{\Delta
-P(s_j+2,t_j)}{\Delta P(s_j,t_j)},
-\qquad
-\mathrm{Var}_t[\Omega_j]=E_t[\Omega_j^2]-\big(E_t[\Omega_j]\big)^2.
-\]</span></p>
-<p>Three <code>pgamma()</code> calls (shapes <span class="math inline">\(s_j\)</span>, <span class="math inline">\(s_j+1\)</span>, <span class="math inline">\(s_j+2\)</span>, all at rate <span class="math inline">\(t_j(\beta_j)\)</span>) give the exact truncated
-Hessian — no numerical integration, no approximation.</p>
-<p><strong>Consistency check.</strong> As <span class="math inline">\(\texttt{disp\_lower}_j\to0\)</span> and <span class="math inline">\(\texttt{disp\_upper}_j\to\infty\)</span> (<span class="math inline">\(\omega_L\to0\)</span>, <span class="math inline">\(\omega_U\to\infty\)</span>), <span class="math inline">\(\texttt{pgamma}(\omega_U;k,t)\to1\)</span> and
-<span class="math inline">\(\texttt{pgamma}(\omega_L;k,t)\to0\)</span>
-for every <span class="math inline">\(k\)</span>, so <span class="math inline">\(\Delta P(k,t)\to1\)</span> regardless of <span class="math inline">\(k\)</span>, and the formulas collapse to <span class="math inline">\(E_t[\Omega_j]\to s_j/t_j\)</span>, <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\to
-s_j/t_j^2\)</span> — exactly §16.2’s untruncated moments. This is a
-strict generalization, not a different model.</p>
-<p><strong>The degenerate limit: recovering the fixed-<span class="math inline">\(\Omega_j\)</span> plug-in exactly.</strong> At the
-opposite extreme, as the window collapses to a point (<span class="math inline">\(\texttt{disp\_lower}_j\uparrow\texttt{disp\_upper}_j\to\omega_0^{-1}\)</span>,
-i.e. <span class="math inline">\(\omega_L,\omega_U\to\omega_0\)</span>),
-<span class="math inline">\(\Omega_j\)</span> is forced to equal <span class="math inline">\(\omega_0\)</span> with certainty regardless of
-<span class="math inline">\(t_j(\beta_j)\)</span>: <span class="math inline">\(E_t[\Omega_j]\to\omega_0\)</span> and <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\to0\)</span>. The
-rank-one correction term vanishes entirely and</p>
-<p><span class="math display">\[
-H_j(\beta_j)\;\to\;\omega_0\,D_j&#39;D_j,
-\]</span></p>
-<p>exactly the ordinary <em>fixed</em>-<span class="math inline">\(\Omega_j\)</span> Gaussian Hessian §14’s joint
-extension (and the plain, non-ING fixed-vcov engine) already uses —
-globally PD whenever <span class="math inline">\(D_j\)</span> has full
-column rank, with no finite-radius ellipsoid at all. So §16.6’s family
-of Hessians interpolates continuously between two known,
-previously-derived extremes as the truncation window narrows or widens:
-the plug-in fixed-precision case at one end, §16.2’s full (untruncated)
-Student-t at the other.</p>
-<p><strong>Which moment does the window width actually move?</strong>
-<span class="math inline">\(E_t[\Omega_j]\)</span> and <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\)</span> do not respond
-to the window the same way:</p>
-<ul>
-<li><span class="math inline">\(E_t[\Omega_j]\)</span> is a
-<em>mean</em>. For the quantile-based windows
-<code>Prior_Setup_GLMM()</code> actually constructs (symmetric-ish
-quantiles of the same untruncated <span class="math inline">\(\mathrm{Gamma}(s_j,t_j)\)</span> around its own
-center), widening or narrowing the window symmetrically moves
-probability mass off <em>both</em> tails at once, and the two changes
-largely cancel in their effect on the mean — so <span class="math inline">\(E_t[\Omega_j]\)</span> should move comparatively
-little as <span class="math inline">\(\texttt{max\_disp\_perc}\)</span>/<span class="math inline">\(\texttt{pwt\_measurement}\)</span> are varied,
-provided the window stays reasonably centered on the untruncated
-distribution’s own mass.</li>
-<li><span class="math inline">\(\mathrm{Var}_t[\Omega_j]\)</span>, by
-contrast, is exactly what truncation acts on directly: for nested
-truncation intervals sharing (approximately) the same center, a
-<em>narrower</em> window can only remove probability mass further from
-that center, which — for the unimodal Gamma densities in play here — can
-only shrink the variance monotonically; a <em>wider</em> window restores
-mass further out and grows it back, up to the untruncated <span class="math inline">\(s_j/t_j^2\)</span> ceiling. (This monotonicity is
-the standard “truncating a unimodal density to a smaller interval around
-its mode cannot increase its variance” fact; it is stated here as a
-working remark, not reproven in full generality for every possible pair
-of nested intervals.)</li>
-</ul>
-<p>Combined with the §16.3-style criterion <span class="math inline">\(q_j\le E_t[\Omega_j]/
-\mathrm{Var}_t[\Omega_j]\)</span> (dividing the PSD condition <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\,q_j\le
-E_t[\Omega_j]\)</span> through), this gives a direct, Hessian-level
-explanation for the tail-probability-level finding already in
-<code>inst/omega-ing-marginal-multivariate-t.md</code> (a sharper prior
-shrinking the expected fraction of draws outside the ellipsoid):
-tightening <code>disp_lower</code>/<code>disp_upper</code> mainly
-<em>lowers</em> <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\)</span> (with <span class="math inline">\(E_t[\Omega_j]\)</span> roughly unchanged), which
-directly <em>raises</em> the effective threshold <span class="math inline">\(E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span> on
-the right-hand side — making the log-concavity violation harder to
-trigger — while widening the window pushes the threshold back down
-toward §16.3’s untruncated value. The two limits above are exactly the
-two ends of that same continuum: a point window (<span class="math inline">\(\mathrm{Var}_t\to0\)</span>) sends the threshold
-to <span class="math inline">\(+\infty\)</span> (no finite <span class="math inline">\(\beta_j\)</span> can violate it), and the fully
-untruncated window (<span class="math inline">\(\mathrm{Var}_t\to
-s_j/t_j^2\)</span>) recovers §16.3’s finite-radius ellipsoid
-exactly.</p>
-<p><strong>Practical implication.</strong> The
-<code>lambda_star_marginal</code>/ellipsoid diagnostics
-(<code>R/two_block_ergodicity_ing_marginal.R</code>,
-<code>data-raw/_scratch_lambda_star_marginal_over_draws.R</code>,
-<code>data-raw/_scratch_rss_ellipsoid_test.R</code>) now compute the
-<em>exact</em>, truncation- aware §16.6 Hessian/threshold by default
-(three extra <code>pgamma()</code> calls per group per draw via
-<code>.two_block_truncated_omega_moments()</code>), and additionally
-report the old <em>untruncated</em> §16.2/16.3 numbers alongside for
-comparison (<code>h_violates_count</code>
-vs. <code>h_violates_count_exact</code> in the
-<code>lambda_star_marginal</code> diagnostics;
-<code>pct_draws_outside</code> vs. <code>pct_draws_outside_exact</code>
-in the ellipsoid test). Per the consistency check above, the untruncated
-numbers are systematically <em>conservative</em> relative to the exact
-ones (they overstate how far into the tail <span class="math inline">\(\mathrm{Var}_t[\Omega_j]\)</span> actually
-reaches, hence understate the true threshold and overstate the true
-violation probability). Empirically (see
-<code>demo(&quot;Ex_13b_...&quot;)</code>/<code>demo(&quot;Ex_13c_...&quot;)</code>’s
-Section 7d/2b), the effect is often large: under the current
-<code>Prior_Setup_GLMM()</code> default window (<span class="math inline">\(\texttt{max\_disp\_perc}=0.8\)</span>, i.e. the
-central 60% prior-mass window), even previously-flagged outlier groups
-can show an exact violation rate of essentially <span class="math inline">\(0\%\)</span> although their <em>untruncated</em>
-rate was several percent — i.e. once the truncation is accounted for
-exactly, the per-group <code>pwt_measurement</code> tailoring of §9
-(<code>inst/omega-ing-marginal-multivariate-t.md</code>) may no longer
-be necessary at the package’s default truncation window; see
-<code>data-raw/_scratch_group_pwt_measurement_noncentral.R</code>’s
-<code>w_star_exact</code> column for the corresponding per-group
-re-derivation.</p>
-</div>
-<div id="the-bad-region-is-a-single-untruncated-or-bounded-double-truncated-crossing-never-more" class="section level3">
-<h3>16.7 The bad region is a single (untruncated) or bounded double
-(truncated) crossing — never more</h3>
-<p><strong>Status: theory-only, no code changes are made here.</strong>
-Fix any single direction <span class="math inline">\(u\)</span> and
-parameterize <span class="math inline">\(\beta_j=\hat\beta_j^{\mathrm{ols}}+su\)</span> by
-the signed distance <span class="math inline">\(s\)</span>. Because
-<span class="math inline">\(D_j&#39;\hat e_j^{\mathrm{ols}}=0\)</span>,
-both <span class="math inline">\(q_j(s)\)</span> and <span class="math inline">\(t_j(s)=r_j^0+\tfrac12e_j&#39;e_j\)</span> depend
-on <span class="math inline">\(s\)</span> only through <span class="math inline">\(s^2\)</span> (Pythagoras, §16.3), so the whole
-problem along this ray is an <em>even</em> function of <span class="math inline">\(s\)</span> — it suffices to track <span class="math inline">\(s\ge0\)</span>.</p>
-<p><strong>Untruncated case: exactly one crossing, then convex forever,
-decaying to zero.</strong> §16.2’s criterion is <span class="math inline">\(q_j(s)\le E[\Omega_j\mid\beta_j]/
-\mathrm{Var}[\Omega_j\mid\beta_j]=t_j(s)/(a_j^0+n_j/2)\)</span> — the
-right side is <em>linear</em> in <span class="math inline">\(t_j(s)\)</span>, and <span class="math inline">\(t_j(s)\)</span>, <span class="math inline">\(q_j(s)\)</span> are both <span class="math inline">\(\Theta(s^2)\)</span> for large <span class="math inline">\(s\)</span>, so the gap between the two sides, once
-it opens (at <span class="math inline">\(s=\sqrt{2r_j^0+\mathrm{RSS}_j^{\mathrm{ols}}}\)</span>
-per §16.3), never closes again — there is exactly one crossing per side.
-The magnitude of the resulting negative eigenvalue does not diverge,
-though: it is <span class="math inline">\(\propto\mathrm{Var}[\Omega_j\mid\beta_j]\|D_j&#39;e_j\|^2\propto
-s^2/t_j(s)^2\propto1/s^2\to0\)</span>. (This is the exact multivariate
-analogue of the univariate Student-t fact that <span class="math inline">\(f&#39;&#39;(x)=-(\nu+1)(\nu-x^2)/(\nu+x^2)^2\)</span>
-crosses zero once at <span class="math inline">\(x=\pm\sqrt\nu\)</span>
-and then decays like <span class="math inline">\((\nu+1)/x^2\)</span>
-without ever re-crossing; <span class="math inline">\(f&#39;(x)=-(\nu+1)x/(\nu+x^2)\)</span> stays
-strictly negative throughout, i.e. the log-density never “turns upward”
-— it only flattens, consistent with the Student-t’s polynomial, strictly
-monotone tail.)</p>
-<p><strong>Truncated case: a second crossing restores PD far
-out.</strong> With a <em>fixed</em>, nontrivial window <span class="math inline">\([\omega_L,\omega_U]\)</span>, <span class="math inline">\(\omega_L&gt;0\)</span>, §16.6’s threshold is <span class="math inline">\(E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span>,
-and this no longer stays linear in <span class="math inline">\(t_j\)</span> as <span class="math inline">\(t_j\to\infty\)</span>. As <span class="math inline">\(t_j\to\infty\)</span> the tilted density <span class="math inline">\(\propto\omega^{s_j-1}e^{-t_j\omega}\)</span>
-concentrates at the left edge <span class="math inline">\(\omega_L\)</span>; substituting <span class="math inline">\(\omega=\omega_L+v/t_j\)</span>, the factor <span class="math inline">\((\omega_L+v/t_j)^{s_j-1}\to\omega_L^{s_j-1}\)</span>
-pointwise (for <em>any</em> fixed <span class="math inline">\(s_j\)</span>, this needs no large-shape
-approximation) while <span class="math inline">\(e^{-t_j\omega}=
-e^{-t_j\omega_L}e^{-v}\)</span> sharpens into a plain <span class="math inline">\(\mathrm{Exponential}(1)\)</span> shape in <span class="math inline">\(v\)</span> — a standard boundary-Laplace argument.
-To leading order in <span class="math inline">\(1/t_j\)</span>,</p>
-<p><span class="math display">\[
-E_t[\Omega_j]\to\omega_L+\frac1{t_j},\qquad
-\mathrm{Var}_t[\Omega_j]\to\frac1{t_j^2},\qquad\text{so}\qquad
-\frac{E_t[\Omega_j]}{\mathrm{Var}_t[\Omega_j]}\;\sim\;\omega_L\,t_j^2.
-\]</span></p>
-<p>The threshold now grows <strong>quadratically in <span class="math inline">\(t_j\)</span></strong> (quartically in <span class="math inline">\(s\)</span>), while <span class="math inline">\(q_j(s)\)</span> still only grows like <span class="math inline">\(t_j\)</span> (quadratically in <span class="math inline">\(s\)</span>). A quartic eventually overtakes a
-quadratic, so the criterion <span class="math inline">\(q_j\le
-E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span> — violated on some
-intermediate range — is satisfied again for <span class="math inline">\(s\)</span> large enough. Along each ray, the sign
-pattern of <span class="math inline">\(H_j\)</span>’s bad eigendirection
-is therefore</p>
-<p><span class="math display">\[
-\underbrace{\text{PSD}}_{|s|&lt;x_1}\ \Big|\ \underbrace{\text{not
-PSD}}_{x_1\le|s|\le x_2}\ \Big|\ \underbrace{\text{PSD}}_{|s|&gt;x_2},
-\]</span></p>
-<p>a <strong>bounded</strong> annulus <span class="math inline">\([x_1,x_2]\)</span> per side, not a half-line — the
-direct consequence of <span class="math inline">\(\omega_L&gt;0\)</span>
-strictly (an untruncated or zero-lower-bound window degenerates back to
-the single-crossing case above, since then the threshold’s growth rate
-in <span class="math inline">\(t_j\)</span> drops from quadratic back to
-linear).</p>
-</div>
-<div id="a-chord-majorizes-the-bounded-annulus-exactly-licensed-by-nygren-and-nygren-2006" class="section level3">
-<h3>16.8 A chord majorizes the bounded annulus, exactly licensed by
-Nygren and Nygren (2006)</h3>
-<p><strong>Status: theory-only.</strong> Because <span class="math inline">\(f\)</span> (equivalently <span class="math inline">\(\log p(y_j\mid\beta_j)\)</span> as a function of
-<span class="math inline">\(s\)</span> along the fixed ray of §16.7) is
-convex on the bounded interval <span class="math inline">\([x_1,x_2]\)</span>, the chord joining <span class="math inline">\((x_1,f(x_1))\)</span> and <span class="math inline">\((x_2,f(x_2))\)</span> is a valid upper bound
-there:</p>
-<p><span class="math display">\[
-f(s)\;\le\;\ell(s):=f(x_1)+\frac{f(x_2)-f(x_1)}{x_2-x_1}(s-x_1),\qquad
-s\in[x_1,x_2],
-\]</span></p>
-<p>and since <span class="math inline">\(f\)</span> is decreasing across
-the whole annulus (§16.7), <span class="math inline">\(\ell\)</span> has
-negative slope, so <span class="math inline">\(p(y_j\mid\beta_j)\propto
-e^{f(s)}\le e^{\ell(s)}\)</span> decays exponentially over the annulus
-with an explicit rate — no numerical integration needed, since <span class="math inline">\(f(x_1)\)</span>, <span class="math inline">\(f(x_2)\)</span> come straight from §16.6’s
-closed-form <span class="math inline">\(I_j(t_j)\)</span>.</p>
-<p>This device is not an ad hoc patch on top of Nygren and Nygren (2006,
-<em>Likelihood Subgradient Densities</em>, JASA 101(475):1144-1156, the
-paper behind <code>glmbayes</code>’s
-<code>EnvelopeBuild_c()</code>/<code>Gridtype</code> machinery
-documented in <code>vignettes/Chapter-A05.Rmd</code>) — it is a direct
-instance of that paper’s own most general construction. Definition 2
-there only requires a bounding function <span class="math inline">\(g\ge
-f\)</span> for which <span class="math inline">\(-\log g\)</span> has a
-subgradient (i.e. is convex) at the chosen point; <span class="math inline">\(g\)</span> need not equal <span class="math inline">\(f\)</span>. Fact A.1/Remark A.2 make the existence
-criterion explicit: a valid (generalized) likelihood-subgradient density
-exists on a set if and only if <span class="math inline">\(f\)</span> is
-bounded above there by a function of the form <span class="math inline">\(\exp(a+b^Ts)\)</span> — exactly the form <span class="math inline">\(e^{\ell(s)}\)</span> takes. Using <span class="math inline">\(g=f\)</span> directly (as the paper’s plain
-“likelihood-subgradient density” special case does, and as §16’s tangent
-pieces below implicitly do) fails specifically on <span class="math inline">\([x_1,x_2]\)</span>, because <span class="math inline">\(-\log f\)</span> is not convex there by
-construction — but <span class="math inline">\(g=e^{\ell(s)}\)</span>
-succeeds, satisfying Fact A.1 exactly, with <span class="math inline">\(-\log g=-\ell(s)\)</span> already affine
-(trivially convex, with constant “subgradient” equal to <span class="math inline">\(-\ell\)</span>’s own slope everywhere on the
-piece).</p>
-<p>Two further points push this well past mere formal admissibility:</p>
-<ul>
-<li><strong>Claim 1’s algebra does not care where <span class="math inline">\(c\)</span> came from.</strong> For a multivariate
-normal prior, any fixed subgradient vector <span class="math inline">\(c(\bar\theta)\)</span> produces a restricted
-density that is again multivariate normal with mean <span class="math inline">\(\tilde\mu=\mu-\Sigma c(\bar\theta)\)</span>,
-regardless of whether <span class="math inline">\(c\)</span> is a
-genuine gradient <span class="math inline">\(-\nabla\log
-f(\bar\theta)\)</span> (a tangent, valid on the concave pieces) or the
-chord’s constant slope (valid, via Fact A.1, on the bounded convex
-annulus). So Remark 5’s restriction/renormalization, Remark 6’s explicit
-mixture-weight formula, and Example 2’s inverse- transform sampling of a
-box-truncated normal (Claim 2’s whole apparatus) all apply
-<em>unchanged</em> to a chord-anchored piece — no new sampling machinery
-is required, only a different (constant, not state-dependent) <span class="math inline">\(c\)</span>.</li>
-<li><strong>The resulting partition is a direct five-piece
-generalization of §3.2’s three-piece construction</strong>, alternating
-tangent/chord/tangent/chord/tangent along each ray: two far-tail tangent
-pieces (PD restored, §16.7), two bounded chord pieces (the annuli), and
-one center tangent piece — mirroring <span class="math inline">\(\{\theta^\ast-\omega,\theta^\ast,\theta^\ast+\omega\}\)</span>’s
-three anchors with the five anchors <span class="math inline">\(\{-x_2,-x_1,\theta^\ast,x_1,x_2\}\)</span>.</li>
-</ul>
-<p><strong>What does <em>not</em> transfer for free.</strong> Theorem
-2/3’s specific asymptotic result (<span class="math inline">\(\tilde
-a\to2/\sqrt\pi\)</span> as <span class="math inline">\(N\to\infty\)</span>) is proved (Appendix, Claims
-A.1-A.4) via a Mills’-ratio argument tied to the tangent-only,
-Gaussian-data construction; the analogous tightness limit for a chord
-piece (as <span class="math inline">\(n_j\to\infty\)</span>, or as <span class="math inline">\([\omega_L,\omega_U]\)</span> is varied) would need
-its own derivation from §16.6’s exact marginal, not inherited
-automatically. Likewise, §3.3’s multivariate “standard form”
-diagonalizes the Hessian <em>once</em>, at the mode — a fixed matrix —
-whereas here the bad eigendirection <span class="math inline">\(v(\beta_j)=D_j&#39;D_j(\hat\beta_j^{\mathrm{ols}}-\beta_j)\)</span>
-is state-dependent (rotates with <span class="math inline">\(\beta_j\)</span> in general, though it stays fixed
-in direction along any single ray from <span class="math inline">\(\hat\beta_j^{\mathrm{ols}}\)</span>, per §16.7’s
-setup); a literal multivariate five-piece grid would need either a
-direction-uniform worst-case pair of annulus radii or a genuinely
-per-direction construction, neither of which is derived here. This
-section remains, like §16.1-16.7, a diagnostic/theoretical note only —
-nothing here is implemented in
-<code>R/two_block_ergodicity_ing_marginal.R</code> or elsewhere.</p>
-</div>
-<div id="combining-the-marginal-safeguard-with-the-disp_upper-plug-in-envelope-rather-than-replacing-it" class="section level3">
-<h3>16.9 Combining the marginal safeguard with the disp_upper plug-in
-envelope, rather than replacing it</h3>
-<p><strong>Status: implemented</strong>
-(<code>.two_block_combine_rate_envelopes()</code>,
-<code>R/two_block_ergodicity_ing_marginal.R</code>; called from
-<code>.rLMMIngNormal_reg_run_with_pilot()</code> in
-<code>R/rLMM_reg.R</code>).</p>
-<p>Earlier versions of the pilot safeguard treated <span class="math inline">\(\lambda^\star_{\mathrm{marginal}}\)</span> (§16,
-computed at each pilot draw’s own <span class="math inline">\(\beta_j\)</span>, maxed over draws) and <span class="math inline">\(\lambda^\star_{\mathrm{upper}}\)</span> (§14, the
-fixed <span class="math inline">\(\omega_L=1/\texttt{disp\_upper}_j\)</span> plug-in
-envelope, D0 = 0) as mutually exclusive: if the marginal envelope was
-computable and valid (<code>marginal_rate_valid == TRUE</code>), it
-<em>replaced</em> the plug-in one outright. Neither envelope is an
-unconditionally valid upper bound on its own, however, each has a
-distinct blind spot:</p>
-<ul>
-<li><span class="math inline">\(\lambda^\star_{\mathrm{upper}}\)</span>
-fixes the per-group precision at <span class="math inline">\(\omega_L
-D_j&#39;D_j\)</span> — the degenerate, zero-variance-at-<span class="math inline">\(\omega_L\)</span> corner of the exact §16.6 family
-(§16.6’s “degenerate limit” specialized to <span class="math inline">\(\omega_0=\omega_L\)</span>) — regardless of what
-the pilot draws’ own residuals actually look like. It is only guaranteed
-to lower-bound the true <span class="math inline">\(H_j(\beta_j)\)</span> (and hence upper-bound <span class="math inline">\(\lambda^\star\)</span>) on the <em>tighter</em>
-sub-ellipsoid <span class="math inline">\(q_j\le
-K_j&#39;:=(E_t[\Omega_j]-\omega_L)/\mathrm{Var}_t[\Omega_j]\)</span>,
-strictly smaller than the ordinary log-concavity ellipsoid <span class="math inline">\(q_j\le
-K_j:=E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\)</span> that §16.3/§16.6
-already check — so a draw can sit inside the checked ellipsoid (no PD
-failure) yet still, in principle, have a true local rate above what
-<span class="math inline">\(\lambda^\star_{\mathrm{upper}}\)</span>
-certifies.</li>
-<li><span class="math inline">\(\lambda^\star_{\mathrm{marginal}}\)</span> uses
-the exact, state-dependent <span class="math inline">\(H_j(\beta_j)\)</span> at every observed pilot
-draw, but is only a <span class="math inline">\(\max\)</span> over the
-<em>finite</em> pilot sample (<span class="math inline">\(n_{\mathrm{pilot}}\)</span> draws); a worse state
-the pilot happened not to visit is not certified against.</li>
-</ul>
-<p>Rather than picking one,
-<code>.two_block_combine_rate_envelopes()</code> builds a single
-conservative envelope: sort each spectrum ascending (the order
-<code>two_block_tv_bound()</code>/Lemma 2 already require internally),
-take the componentwise (rank-matched) maximum, and run Theorem 3’s TV
-bound once on the combined spectrum at the pilot-mean-start <span class="math inline">\(D_0\)</span>
-(<code>two_block_d0_pilot_start()</code>) both envelopes are already
-certified against. Because the componentwise max of two rank-<span class="math inline">\(i\)</span> non-decreasing sequences is itself
-non-decreasing, the combined object’s own <span class="math inline">\(\lambda^\star\)</span> is simply its largest
-(last) entry, and the resulting <span class="math inline">\(m_{\min,\mathrm{combined}}\)</span> is <span class="math inline">\(\ge\)</span> both <span class="math inline">\(m_{\min,\mathrm{upper}}\)</span> and <span class="math inline">\(m_{\min,\mathrm{marginal}}\)</span> individually —
-in fact typically strictly larger than either, since Theorem 3’s bound
-sums over the <em>whole</em> spectrum, not just the top eigenvalue, so a
-rank-<span class="math inline">\(i\)</span> crossover elsewhere in the
-spectrum (one envelope’s rank-<span class="math inline">\(i\)</span>
-eigenvalue exceeding the other’s, even where the <em>top</em>
-eigenvalues favor the other envelope) still adds to the combined bound.
-<code>m_convergence_used</code> is then the max of this combined <span class="math inline">\(m_{\min}\)</span> and the plain-rate floor
-computed at pilot-start (mirroring the existing “only ever increase”
-pattern already used to fold <code>pilot_ub$m_min_upper</code> into
-<code>m_convergence_used</code>).
-<code>fit$convergence_info$lambda_star_combined</code>/<code>eigenvalues_combined</code>/
-<code>m_min_combined</code> record the combined spectrum’s own summary;
-when the marginal safeguard is invalid, behavior is unchanged (falls
-back to the plain-rate envelope alone, with the same warning as
-before).</p>
-<hr />
-</div>
-</div>
-<div id="a-split-support-heuristic-for-a-revised-end-of-simulation-tv-bound" class="section level2">
-<h2>17. A split-support heuristic for a revised end-of-simulation TV
-bound</h2>
-<p><strong>Status: implemented (diagnostic, <code>known_vcov</code>
-engine only).</strong> §§14-16 all make the same point from different
-angles: once <span class="math inline">\(\Omega_j\)</span> is state
-dependent, the contraction matrix <span class="math inline">\(A\)</span>
-that Theorem 3 needs is not a constant, so a single <span class="math inline">\(\lambda^*\)</span> calibrated once (at the pilot
-mean, or as a pilot-draws <span class="math inline">\(\max\)</span> via
-the marginal safeguard of
-§16/<code>R/ two_block_ergodicity_ing_marginal.R</code>) is only a
-<em>local</em> rate. This section gives a post-hoc, end-of-run
-correction that turns the empirical per-draw scan already used in §7d of
-<code>demo(&quot;Ex_13b_...&quot;)</code>/<code>demo(&quot;Ex_13c_...&quot;)</code> into a
-revised total-variation estimate, rather than leaving the calibrated
-<span class="math inline">\(\texttt{tv\_tol}\)</span> (e.g. 0.01) as the
-reported number unconditionally.</p>
-<div id="why-the-calibrated-bound-can-be-optimistic-here" class="section level3">
-<h3>17.1 Why the calibrated bound can be optimistic here</h3>
-<p><code>two_block_l_for_tv()</code> picks <code>m_convergence</code> so
-that, <strong>if</strong> the chain were the fixed-<span class="math inline">\(\Omega\)</span> Gaussian two-block Gibbs sampler
-with contraction matrix <span class="math inline">\(A(\Lambda,\Omega^\star)\)</span> (spectral radius
-<span class="math inline">\(\lambda^\star\)</span>) <em>everywhere</em>,
-Theorem 3 guarantees <span class="math inline">\(d_{\mathrm{TV}}(P^m(x_0,\cdot),\pi)\le\texttt{tv\_tol}\)</span>.
-In the ING <code>known_vcov</code> engine, <span class="math inline">\(\Omega_j\)</span> is instead resampled every
-sweep, so the <em>local</em> rate at the state actually visited varies
-draw to draw (§14), and can in principle exceed the <span class="math inline">\(\lambda^\star\)</span> used to size <span class="math inline">\(m\)</span> — or the local quadratic approximation
-can fail to be log-concave at all (§16.3’s <span class="math inline">\(H_j\)</span> PSD criterion; equivalently <span class="math inline">\(\Lambda+H_j(\beta_j)\)</span> failing to be PD,
-the inversion the marginal scan needs). Theorem 3’s proof gives no
-guarantee for sweeps that land in such a state. The calibrated
-<code>tv_tol</code> is therefore only demonstrably valid <em>conditional
-on staying in the region where the local rate behaves</em>; this section
-estimates how much slack to add for the rest.</p>
-</div>
-<div id="splitting-the-support" class="section level3">
-<h3>17.2 Splitting the support</h3>
-<p>Let <span class="math inline">\(\lambda^\star_{\mathrm{used}}\)</span> be
-whichever rate actually calibrated <code>m_convergence</code> for the
-run being diagnosed — <span class="math inline">\(\texttt{fit\$convergence\_info\$lambda\_star\_combined}\)</span>
-if the marginal safeguard was valid for that pilot
-(<code>marginal_rate_valid == TRUE</code>; §16.9 below), else the
-base/extended <span class="math inline">\(\lambda^\star_{\text{upper}}\)</span> it fell back
-to (§14,
-<code>two_block_rate_ing()</code>/<code>two_block_rate()</code>).
-Partition the state space into</p>
-<p><span class="math display">\[
-A \;=\; \Big\{\,\beta:\ \Lambda+H_j(\beta_j)\succ0\ \ \forall j,\ \
-\text{and}\ \
-\lambda^\star_{\mathrm{marginal}}(\beta)\le\lambda^\star_{\mathrm{used}}\,\Big\},
-\qquad A^c \;=\; \text{its complement,}
-\]</span></p>
-<p>using the §16.2 per-draw marginal Hessian <span class="math inline">\(H_j(\beta_j)\)</span> — exactly the quantity
-<code>.two_block_lambda_star_marginal_over_draws()</code>
-(<code>R/two_block_ergodicity_ing_marginal.R</code>, mirrored for demo
-use by <code>.tmp_lambda_star_marginal_over_draws()</code> in
-<code>data-raw/_scratch_lambda_star_marginal_over_draws.R</code>)
-already computes for every main-stage draw in §7d. A draw is in <span class="math inline">\(A^c\)</span> iff <em>either</em> some group’s
-block failed the PD check (<code>skipped[i]</code>) <em>or</em> its
-computed <code>lambda_star_vec[i] &gt; lambda_star_used</code>.</p>
-</div>
-<div id="a-triangle-inequality-decomposition" class="section level3">
-<h3>17.3 A triangle-inequality decomposition</h3>
-<p>For any probability measures <span class="math inline">\(\mu,\nu\)</span> and measurable <span class="math inline">\(A\)</span>, and any <span class="math inline">\(B\subseteq\mathcal X\)</span>,</p>
-<p><span class="math display">\[
-|\mu(B)-\nu(B)| \;=\; \big|\mu(B\cap A)+\mu(B\cap A^c)-\nu(B\cap
-A)-\nu(B\cap A^c)\big|
-\;\le\; \big|\mu(B\cap A)-\nu(B\cap A)\big| \;+\; \mu(A^c) \;+\;
-\nu(A^c).
-\]</span></p>
-<p>Taking the supremum over <span class="math inline">\(B\)</span> (the
-definition of <span class="math inline">\(d_{\mathrm{TV}}\)</span>) with
-<span class="math inline">\(\mu=P^m(x_0,\cdot)\)</span>, <span class="math inline">\(\nu=\pi\)</span>:</p>
-<p><span class="math display">\[
-d_{\mathrm{TV}}\big(P^m(x_0,\cdot),\pi\big) \;\le\;
-\underbrace{\sup_B\big|P^m(x_0,B\cap A)-\pi(B\cap
-A)\big|}_{\text{&quot;on-}A\text{&quot; gap}}
-\;+\; P^m(x_0,A^c) \;+\; \pi(A^c).
-\]</span></p>
-<p><strong>Heuristic assumption.</strong> The “on-<span class="math inline">\(A\)</span>” gap is bounded by <code>tv_tol</code>:
-i.e. that restricted to trajectories that stay inside the region where
-the local rate is <span class="math inline">\(\le\lambda^\star_{\mathrm{used}}\)</span> and
-every block is PD, the chain behaves enough like the homogeneous-rate
-chain Theorem 3 was calibrated against that its guarantee still applies.
-This is <em>not</em> a proven fact for the state-dependent system (that
-would require its own homogeneous-in-<span class="math inline">\(A\)</span> contraction argument); it is the
-natural reading of what <code>tv_tol</code> was supposed to buy,
-restricted to where the argument is on firm ground.</p>
-</div>
-<div id="estimating-the-ac-terms-and-the-resulting-formula" class="section level3">
-<h3>17.4 Estimating the <span class="math inline">\(A^c\)</span> terms
-and the resulting formula</h3>
-<p><span class="math inline">\(P^m(x_0,A^c)\)</span> and <span class="math inline">\(\pi(A^c)\)</span> are two conceptually different
-quantities — the chain’s actual excursion probability starting from
-<span class="math inline">\(x_0\)</span>, and the <em>stationary</em>
-excursion probability — that this diagnostic cannot tell apart from a
-single stream of stored draws. Since the whole point of calibrating
-<code>m_convergence</code> is that the stored main-stage draws are
-already close to <span class="math inline">\(\pi\)</span>, both are
-approximated by the same empirical fraction</p>
-<p><span class="math display">\[
-\hat p \;=\; \frac{1}{n}\sum_{i=1}^n \mathbf{1}\{\text{draw }i\in A^c\},
-\]</span></p>
-<p>over the <span class="math inline">\(n\)</span> main-stage draws,
-giving</p>
-<p><span class="math display">\[
-\mathrm{TV}_{\mathrm{revised}} \;=\; \texttt{tv\_tol} + 2\hat p.
-\]</span></p>
-<p>A looser, one-sided variant <span class="math inline">\(\mathrm{TV}_{\mathrm{revised,\,loose}} =
-\texttt{tv\_tol}+\hat p\)</span> — dropping either the <span class="math inline">\(P^m(x_0,A^c)\)</span> or the <span class="math inline">\(\pi(A^c)\)</span> term — is also reported as a
-sensitivity check; it is not the quantity the triangle-inequality
-argument above actually derives, but bounds how much of <span class="math inline">\(\mathrm{TV}_{\mathrm{revised}}\)</span> comes from
-doubling a single empirical estimate versus from the <span class="math inline">\(\hat p\)</span> itself.</p>
-</div>
-<div id="caveats" class="section level3">
-<h3>17.5 Caveats</h3>
-<ul>
-<li>This is a <strong>diagnostic augmentation of the reported number,
-not a new certified theorem</strong> — precisely because §17.3’s
-“on-<span class="math inline">\(A\)</span>” step is a heuristic, not
-something proven here or elsewhere in this document. It should be read
-the same way as the existing <code>known_vcov</code> marginal safeguard:
-informative, not a substitute for keeping <span class="math inline">\(\hat p\)</span> small by construction
-(e.g. removing outlier groups, as in
-<code>demo(&quot;Ex_13c_...&quot;)</code>).</li>
-<li><span class="math inline">\(\hat p\)</span> is computed from the
-<strong>main-stage</strong> draws — the same draws whose distribution
-<code>TV_revised</code> is trying to characterize — so this is
-intrinsically self-referential/post-hoc, not a pre-run guarantee the way
-<code>two_block_l_for_tv()</code>’s own <code>tv_tol</code> calibration
-is. A large <span class="math inline">\(\hat p\)</span> is itself
-informative (it says the run spent a non-trivial fraction of its time
-outside the region the calibration trusted) independent of whether <span class="math inline">\(2\hat p\)</span> is the “right” multiplier.</li>
-<li>Scope matches the marginal safeguard of
-§16/<code>R/ two_block_ergodicity_ing_marginal.R</code>:
-<code>known_vcov</code> engine only, where <span class="math inline">\(\Lambda\)</span> (RE precision) is fixed/known and
-only <span class="math inline">\(\Omega_j\)</span> is
-state-dependent.</li>
-<li>See <code>data-raw/_scratch_tv_bound_revised.R</code> for the
-scratch implementation (temporary, investigation only) and
-<code>demo(&quot;Ex_13b_...&quot;)</code>/ <code>demo(&quot;Ex_13c_...&quot;)</code> §7e for
-its use immediately after §7d’s per-draw marginal scan, reusing that
-scan’s output rather than recomputing it.</li>
-</ul>
-<hr />
-</div>
-</div>
-<div id="references" class="section level2">
-<h2>References</h2>
-<ul>
-<li>Anderson, W.N. and Duffin, R.J. (1969). “Series and Parallel
-Addition of Matrices.” <em>Journal of Mathematical Analysis and
-Applications</em>, 26(3), 576-594. (operator monotonicity of the matrix
-parallel sum, used in §10.4.)</li>
-<li>Anderson, B.D.O. and Moore, J.B. (1979). <em>Optimal Filtering</em>.
-Prentice-Hall. (monotonicity of the Riccati/information-filter precision
-update in the noise covariances, used in §10.4 for <span class="math inline">\(p_{re}&gt;1\)</span>.)</li>
-<li>Lindley, D.V. and Smith, A.F.M. (1972). “Bayes Estimates for the
-Linear Model.” <em>Journal of the Royal Statistical Society, Series
-B</em>, 34(1), 1-41. (source of the <span class="math inline">\(\beta_j,\gamma,\mathcal{W}_j,\Psi\)</span>
-parameterization; see <code>inst/notation.md</code>.)</li>
-<li>Nygren, K. (2020). <em>On the total variation distance between
-multivariate normal densities with applications to two-block Gibbs
-samplers.</em> Unpublished manuscript. (source of Claims 1-3, Remark 8,
-Theorem 3, Corollary 1; see <code>R/two_block_ergodicity.R</code>.)</li>
-<li>Nygren, K.N. and Nygren, L.M. (2006). “Likelihood Subgradient
-Densities.” <em>Journal of the American Statistical Association</em>,
-101(475), 1144-1156. (source of Definition 1/2, Fact A.1, Claim 1/2,
-Theorem 1/2/3 cited in §16.8’s chord-majorization argument; implemented
-for <code>glmbayes</code>’s log-concave GLM samplers in
-<code>EnvelopeBuild_c()</code>, documented in
-<code>vignettes/Chapter-A05.Rmd</code>.)</li>
-<li>See also <code>inst/BLOCK_GIBBS_ERGODICITY.md</code>
-(rank-deficiency / identifiability theory this note’s §8 data-free-group
-remark connects back to) and <code>inst/notation.md</code> (the <span class="math inline">\(D,\mathcal{W},\beta,\gamma,\Psi\)</span> notation
-used throughout).</li>
-</ul>
+<div id="relation-to-other-notes" class="section level2">
+<h2>6. Relation to other notes</h2>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Document</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §14–15</td>
+<td>Joint Hessian <strong>keeping</strong> <span class="math inline">\(\Omega,\lambda\)</span> as <span class="math inline">\(x_1\)</span> coordinates</td>
+</tr>
+<tr class="even">
+<td><code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §16</td>
+<td>Marginal <span class="math inline">\(\Omega\)</span> only (feeds
+<span class="math inline">\(P_{22}\)</span>; implemented in
+<code>R/two_block_ergodicity_ing_marginal.R</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>BLOCK_GIBBS_ERGODICITY_ING.md</code> §10</td>
+<td>Truncation corners for <span class="math inline">\(\lambda_p,\Omega\)</span> give a certified gap
+from 1</td>
+</tr>
+<tr class="even">
+<td><strong>This note</strong></td>
+<td>Marginal <span class="math inline">\(\Omega\)</span>
+<strong>and</strong> <span class="math inline">\(\lambda\)</span>: §1
+table; spectral roles in §5</td>
+</tr>
+<tr class="odd">
+<td><code>DERIVATION_sigma2_with_block2_v2.md</code></td>
+<td>Sampler partition that <em>samples</em> <span class="math inline">\(\Omega\)</span> with Block~2</td>
+</tr>
+</tbody>
+</table>
+<p>Implementation: measurement-marginal <span class="math inline">\(P_{22}\)</span> path exists
+(<code>.two_block_lambda_star_marginal_over_draws</code>).
+Population-marginal <span class="math inline">\(H_u^{(p)}\)</span>
+feeding <span class="math inline">\(P_{11}/P_{12}/P_{22}\)</span> not
+yet wired.</p>
 </div>
 </div>
 

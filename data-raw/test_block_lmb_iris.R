@@ -14,7 +14,7 @@ ps_block <- block_prior_setup(
   data = iris,
   family = gaussian()
 )
-stopifnot(inherits(ps_block, "block_PriorSetup"), length(ps_block) == 3L)
+stopifnot(inherits(ps_block, "Prior_SetupBlock"), length(ps_block) == 3L)
 
 pfamily_list <- lapply(ps_block, function(ps) {
   dNormal_Gamma(

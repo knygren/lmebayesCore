@@ -1,5 +1,14 @@
 # lmebayesCore (development version)
 
+* **Configure policy:** Removed `tools/rcpp_include.R` /
+  `tools/patch_rcpp_function_h.R` and the
+  `glmbayes_getRegisteredNamespace` compatibility shim
+  (`src/glmbayes_getRegisteredNamespace.{cpp,h}`) from `configure` and
+  `configure.win`. Builds now rely on standard `LinkingTo: Rcpp` and
+  `Rcpp (>= 1.1.1)` instead of probing/patching `Rcpp/Function.h`.
+  Synced `.github/workflows/rhub.yaml` with **glmbayesCore** (drops dead
+  patch/GitHub-Rcpp matrix logic).
+
 * **`rLMMindepNormalGamma_reg_*_v2` stubs + rate derivation.** New exports
   `rLMMindepNormalGamma_reg_known_vcov_v2()` and
   `rLMMindepNormalGamma_reg_estimated_vcov_v2()` (same formals as v1) for a

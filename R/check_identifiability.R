@@ -39,8 +39,9 @@
 #'
 #' Family-specific pre-checks (before any fit is attempted):
 #' \itemize{
-#'   \item \code{binomial}: single outcome level (complete/quasi-complete
-#'     separation).
+#'   \item \code{binomial}: single outcome level, or a convergent
+#'     \code{glm} fit whose fitted probabilities hit the 0/1 boundary
+#'     (practical signal of (quasi-)complete separation).
 #'   \item \code{poisson}: all-zero response (log-link intercept MLE
 #'     diverges to \eqn{-\infty}).
 #'   \item \code{Gamma}: non-positive response (invalid domain), or
@@ -137,6 +138,13 @@
             }, error = function(e) FALSE)
             if (!isTRUE(V_ok)) {
               note <- "vcov not finite (possible separation)"
+            } else if (identical(fam_name, "binomial") &&
+                       any(fit$fitted.values < 1e-7 |
+                             fit$fitted.values > 1 - 1e-7)) {
+              ## glm() can still return finite coef/vcov under
+              ## (quasi-)complete separation; boundary fitted
+              ## probabilities are the practical MLE-existence signal.
+              note <- "possible (quasi-)complete separation (fitted probabilities at boundary)"
             } else {
               estimable <- TRUE
             }

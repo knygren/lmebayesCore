@@ -26,14 +26,9 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
     family = gaussian(),
     pwt = 0.01
   )
-  prior_lists <- lapply(ps_block, function(ps) {
-    list(
-      mu = as.numeric(ps$mu),
-      Sigma = ps$Sigma,
-      dispersion = ps$dispersion,
-      ddef = FALSE
-    )
-  })
+  ## Default dNormal() per block; block_rNormalReg takes the prior_list payload.
+  pf <- pfamily_list(ps_block)
+  prior_lists <- lapply(pf, `[[`, "prior_list")
 
   mf <- model.frame(form_school, data = dat)
   y <- model.response(mf)

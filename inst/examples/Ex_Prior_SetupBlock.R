@@ -9,6 +9,16 @@ ps_block <- Prior_SetupBlock(
   family = gaussian()
 )
 
+print(ps_block)
 names(ps_block)
 ps_block$setosa$mu
-length(ps_block$setosa$mu)
+
+## Default: dNormal() per block (also valid for binomial/poisson blocks)
+pf <- pfamily_list(ps_block)
+names(pf)
+attr(pf, "ptypes")
+
+## Gaussian-only alternatives
+pf_ng <- pfamily_list(ps_block, ptypes = "dNormal_Gamma")
+pf_ing <- pfamily_list(ps_block, ptypes = "dIndependent_Normal_Gamma")
+print(pf_ng, components = "setosa")

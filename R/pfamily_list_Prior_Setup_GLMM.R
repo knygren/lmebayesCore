@@ -31,13 +31,17 @@
 #' @export
 #' @method pfamily_list Prior_Setup_GLMM
 pfamily_list.Prior_Setup_GLMM <- function(object,
-                                              ptypes = "dNormal",
+                                              ptypes = NULL,
                                               ...) {
 
   allowed <- c("dNormal", "dIndependent_Normal_Gamma")
 
   re_names <- names(object$pop.prior_list)
   p_re     <- length(re_names)
+
+  if (is.null(ptypes)) {
+    ptypes <- "dNormal"
+  }
 
   if (is.list(ptypes)) {
     ok <- vapply(

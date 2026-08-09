@@ -1,23 +1,19 @@
 #' Build a named list of pfamily objects
 #'
 #' Generic for constructing a named list of \code{\link[glmbayesCore]{pfamily}}
-#' prior objects from a prior-specification object.  For
-#' \code{\link{Prior_Setup_GLMM}} objects, each population / group-effect
-#' coefficient (e.g. \code{"(Intercept)"}, slope names) is mapped to a
-#' \code{\link[glmbayesCore]{dNormal}} or
-#' \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}} prior according to
-#' \code{ptypes}.
+#' prior objects from a prior-specification object.  Methods exist for
+#' \code{\link{Prior_Setup_GLMM}} (one pfamily per population / group-effect
+#' coefficient) and \code{\link{Prior_SetupBlock}} (one pfamily per row
+#' block).
 #'
 #' @param object A prior-specification object (typically from
-#'   \code{\link{Prior_Setup_GLMM}}).
+#'   \code{\link{Prior_Setup_GLMM}} or \code{\link{Prior_SetupBlock}}).
 #' @param ptypes Character: either a single string applied to every
-#'   group-effect coefficient, or a character vector / list with one
-#'   string per coefficient.  For \code{\link{Prior_Setup_GLMM}}, allowed
-#'   values are \code{"dNormal"} (default; known \eqn{\tau^2_k}) and
-#'   \code{"dIndependent_Normal_Gamma"} (Gamma prior on precision
-#'   \eqn{1/\tau^2_k}).  A vector may be named with the group-effect
-#'   coefficient names (any order); unnamed vectors are matched
-#'   positionally against \code{names(object$pop.prior_list)}.
+#'   component, or a character vector / list with one string per
+#'   component.  See the method-specific Details for allowed values and
+#'   naming (RE coefficient names for \code{Prior_Setup_GLMM}; block IDs
+#'   for \code{Prior_SetupBlock}).  For both methods,
+#'   \code{ptypes = NULL} (default) resolves to \code{"dNormal"}.
 #' @param ... Additional arguments passed to methods. For
 #'   \code{print.pfamily_list()}, passed to \code{print.pfamily}.
 #'
@@ -28,14 +24,15 @@
 #'   for each component.  For \code{print.pfamily_list()}, \code{x}
 #'   invisibly.
 #'
-#' @seealso \code{\link{Prior_Setup_GLMM}},
+#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{Prior_SetupBlock}},
 #'   \code{\link[glmbayesCore]{pfamily}}, \code{\link[glmbayesCore]{dNormal}},
+#'   \code{\link[glmbayesCore]{dNormal_Gamma}},
 #'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}},
 #'   \code{\link{dGamma_list}}
 #' @example inst/examples/Ex_pfamily_list.R
 #' @order 1
 #' @export
-pfamily_list <- function(object, ptypes = "dNormal", ...) {
+pfamily_list <- function(object, ptypes = NULL, ...) {
   UseMethod("pfamily_list")
 }
 
@@ -47,7 +44,7 @@ pfamily_list <- function(object, ptypes = "dNormal", ...) {
 #'   names (\code{names(x)}, e.g. \code{"(Intercept)"}, slopes), or
 #'   integer indices into \code{x}. Each selected component is printed
 #'   with \code{\link[glmbayesCore]{print.pfamily}}.
-#' @order 3
+#' @order 4
 #' @export
 print.pfamily_list <- function(x, components = NULL, ...) {
   sel <- .lmebayes_select_named_list_keys(

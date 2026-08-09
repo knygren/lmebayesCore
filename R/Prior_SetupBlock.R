@@ -29,11 +29,12 @@
 #'   The two forms may be mixed freely across the six arguments in one call
 #'   (e.g. a shared \code{sd} together with a per-block \code{n_prior}).
 #' @inheritParams glmbayesCore::Prior_Setup
-#' @return A named list of class \code{"block_PriorSetup"}. Each element is a
+#' @return A named list of class \code{"Prior_SetupBlock"}. Each element is a
 #'   \code{\link[glmbayesCore]{Prior_Setup}} result for one block.
 #' @seealso \code{\link[glmbayesCore]{Prior_Setup}},
 #'   \code{\link[glmbayesCore]{multi_prior_setup}},
-#'   \code{\link{Prior_Setup_GLMM}}, \code{\link{normalize_block}},
+#'   \code{\link{Prior_Setup_GLMM}}, \code{\link{pfamily_list}},
+#'   \code{\link{normalize_block}},
 #'   \code{\link{block_rNormalReg}}, \code{\link{block_rNormalGLM}}
 #' @example inst/examples/Ex_Prior_SetupBlock.R
 #' @export
@@ -66,10 +67,10 @@ Prior_SetupBlock <- function(
   if (is.function(family)) {
     family <- family()
   }
-  fam_ok <- family$family %in% c("gaussian", "poisson")
+  fam_ok <- family$family %in% c("gaussian", "poisson", "binomial")
   if (is.null(family$family) || !fam_ok) {
     stop(
-      "Prior_SetupBlock() supports family = gaussian() or poisson() only.",
+      "Prior_SetupBlock() supports family = gaussian(), poisson(), or binomial() only.",
       call. = FALSE
     )
   }
@@ -149,8 +150,57 @@ Prior_SetupBlock <- function(
   attr(setups, "formula") <- formula
   attr(setups, "block") <- block
   attr(setups, "block_info") <- meta$block_info
-  class(setups) <- c("block_PriorSetup", "list")
+  class(setups) <- c("Prior_SetupBlock", "list")
   setups
+}
+
+#' @rdname Prior_SetupBlock
+#' @method print Prior_SetupBlock
+#' @param x Object of class \code{"Prior_SetupBlock"}.
+#' @param blocks For \code{print.Prior_SetupBlock}: \code{NULL} (default;
+#'   print a short header only), a character vector of block IDs
+#'   (\code{names(x)}), or integer indices. Selected blocks are printed
+#'   with \code{\link[glmbayesCore]{print.PriorSetup}}.
+#' @param ... Further arguments passed to \code{print.PriorSetup} when
+#'   \code{blocks} selects individual blocks.
+#' @return \code{x} invisibly.
+#' @export
+print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
+  cl <- attr(x, "call")
+  cat("\nCall:\n")
+  if (!is.null(cl)) {
+    print(cl)
+  } else {
+    cat("Prior_SetupBlock()\n")
+  }
+
+  info <- attr(x, "block_info")
+  k <- length(x)
+  ids <- names(x)
+  if (is.null(ids)) {
+    ids <- if (!is.null(info$ids)) info$ids else as.character(seq_len(k))
+  }
+
+  cat("\n--- Row-block prior setup ---\n")
+  form <- attr(x, "formula")
+  if (!is.null(form)) {
+    cat("  formula : ", paste(deparse(form), collapse = "\n"), "\n", sep = "")
+  }
+  cat(sprintf("  blocks  : %d (%s)\n", k, paste(ids, collapse = ", ")))
+  cat("  Each element is a Prior_Setup() result; build pfamilies with\n")
+  cat("  pfamily_list(). Use print(x, blocks = ...) for block details.\n")
+
+  if (!is.null(blocks)) {
+    sel <- .lmebayes_select_named_list_keys(
+      x, blocks, arg = "blocks", what = "block"
+    )
+    for (nm in sel) {
+      cat(sprintf("\n[[%s]]\n", nm))
+      print(x[[nm]], ...)
+    }
+  }
+
+  invisible(x)
 }
 
 #' @noRd
