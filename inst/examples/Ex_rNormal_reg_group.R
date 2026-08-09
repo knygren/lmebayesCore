@@ -1,7 +1,7 @@
-## block_rNormalReg() — independent Gaussian regressions by school
+## rNormal_reg_group() — independent Gaussian regressions by school
 ##
 ## Same big_word_club data and first 3 school_id levels as printed in
-## Ex_rLMM_reg, but each school is its own model via Prior_SetupBlock()
+## Ex_rLMM_reg, but each school is its own model via Prior_SetupGroup()
 ## (not Prior_Setup_GLMM / hierarchical Psi). Within-school formula is
 ## intercept-only so every small school stays full rank. Requires bayesrules.
 
@@ -19,14 +19,14 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   dat <- droplevels(subset(dat, school_id %in% keep))
 
   form_school <- score_ppvt ~ 1
-  ps_block <- Prior_SetupBlock(
+  ps_block <- Prior_SetupGroup(
     form_school,
-    block = "school_id",
+    group = "school_id",
     data = dat,
     family = gaussian(),
     pwt = 0.01
   )
-  ## Default dNormal() per block; block_rNormalReg takes the prior_list payload.
+  ## Default dNormal() per block; rNormal_reg_group takes the prior_list payload.
   pf <- pfamily_list(ps_block)
   prior_lists <- lapply(pf, `[[`, "prior_list")
 
@@ -36,11 +36,11 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   block <- dat$school_id
 
   set.seed(1)
-  out <- block_rNormalReg(
+  out <- rNormal_reg_group(
     n = 1L,
     y = y,
     x = x,
-    block = block,
+    group = block,
     prior_lists = prior_lists
   )
 

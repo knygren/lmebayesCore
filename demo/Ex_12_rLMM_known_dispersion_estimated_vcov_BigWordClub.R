@@ -173,7 +173,7 @@ prior_list_block2_rate <- lapply(pf, function(pfk) {
 })
 
 rate_ext <- two_block_rate_ing(
-  x = design$D, block = grp, x_hyper = design$W,
+  x = design$D, group = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
   lambda_ing = lambda_ing
@@ -202,7 +202,7 @@ lambda_spec <- stats::setNames(lapply(re_names, function(k) {
 
 rate_emp <- lmebayesCore:::.two_block_rate_ing_over_draws(
   fit = fit, n_draws = n_draws,
-  x = design$D, block = grp, x_hyper = design$W,
+  x = design$D, group = grp, x_hyper = design$W,
   prior_list_block1 = prior_list_block1_rate,
   prior_list_block2 = prior_list_block2_rate,
   group_name = design$group_name, groupef.names = re_names,

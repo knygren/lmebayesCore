@@ -128,7 +128,7 @@ Exported from **lmebayes** via `R/reexports_glmbayesCore.R` (`@export` /
 | `plot_sweep_history_diag()` | `plot_sweep_history_diag.R` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history`. |
 
 **lmebayes** callers: `model_setup()` and `Prior_Setup_GLMM()` from user
-workflows and `Prior_SetupBlock()`; `pfamily_list()` from `lmerb()` / `glmerb()`
+workflows and `Prior_SetupGroup()`; `pfamily_list()` from `lmerb()` / `glmerb()`
 (via `.lmebayes_priors_from_pfamily_list()`); `rlmerb()` / `rglmerb()` from
 `lmerb()` / `glmerb()` when `simulate = TRUE`; `plot_sweep_history_diag()` from
 demos and user diagnostics on `fit$sweep_history$main`.
@@ -143,7 +143,7 @@ remain in **glmbayesCore** `NAMESPACE` for **lmebayes** to load.
 | `build_mu_all()` | `build_mu_all.R` | `lmerb()`, `glmerb()` | `importFrom` only |
 | `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | `lmerb()` | `importFrom` only |
 | `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | `glmerb()` | `importFrom` only |
-| `normalize_block()` | `simfunction_block_utils.R` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()` (via `.blmb_formula_block_meta()`); `block_check_identifiability_xy()` | direct `glmbayesCore::` (not in **lmebayes** `NAMESPACE`) |
+| `normalize_group()` | `simfunction_block_utils.R` | `lmbBlock()`, `glmbBlock()`, `Prior_SetupGroup()` (via `.blmb_formula_block_meta()`); `block_check_identifiability_xy()` | direct `glmbayesCore::` (not in **lmebayes** `NAMESPACE`) |
 
 Used when `simulate = FALSE` for the three posterior/mean helpers; variance
 components (\(\tau^2_k\), \(\sigma^2\)) stay at prior plug-ins (ING:
@@ -220,8 +220,8 @@ Not called from **lmebayes** `R/` (directly or via formula drivers).
 | Function | File | Role |
 |----------|------|------|
 | `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, D, group, W)` (same naming as `rLMM_reg()`/`rGLMM_reg()`); used internally by `model_setup()` (called with `D = design$D`, `group = design$group`, `W = design$W`). |
-| `block_rNormalReg()` | `simfunction_block.R` | Row-block Normal regression sampler. |
-| `block_rNormalGLM()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
+| `rNormal_reg_group()` | `simfunction_block.R` | Row-block Normal regression sampler. |
+| `rNormalGLM_reg_group()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Multi-response Normal regression sampler (matrix API; not called by `multi_rlmb()`). |
 | `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
 | `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |
@@ -402,6 +402,6 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 |----------|------|
 | 1 | Keep **glmbayes**-shared exports signature-aligned when touching `R/`. |
 | 2 | Trim **glmbayes** re-exports in group **2** (simfunctions, envelopes, `*_ct`) once call sites use `glmbayesCore::`. |
-| 3 | Treat **lmebayes** direct call surface (`build_mu_all`, `normalize_block`, …) as semver-sensitive; indirect engines (`rGLMM_reg`, `rLMM_reg` routes, …) may be internalized. |
+| 3 | Treat **lmebayes** direct call surface (`build_mu_all`, `normalize_group`, …) as semver-sensitive; indirect engines (`rGLMM_reg`, `rLMM_reg` routes, …) may be internalized. |
 | 4 | Run `devtools::document()` after any `@export` or `\usage` change. |
 | 5 | When **glmbayes** imports **glmbayesCore**, drop duplicate S3 registrations (see **S3 methods** — overlap tables; keep **glmbayes-only** summary methods for `glmb` / `mlmb`). |

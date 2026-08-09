@@ -96,7 +96,7 @@ Rcpp::List rNormalGLM(
     bool verbose = false
 );
 
-/// C++ counterpart to R \c rNormalGLM_reg_block(): loop over \c row_blocks,
+/// C++ counterpart to R \c rNormalGLM_reg_group(): loop over \c row_blocks,
 /// call \c rNormalGLM() per block. Not exported to R until Phase 2.
 Rcpp::List rNormalGLMBlocks(
     int n,

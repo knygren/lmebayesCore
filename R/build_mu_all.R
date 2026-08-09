@@ -18,7 +18,7 @@
 #'   \emph{column order} of \code{mu_all}.  Defaults to
 #'   \code{levels(design$group)}, which is the canonical ordering used in
 #'   two-block mixed models and consistent with \code{lmer} and
-#'   \code{\link{block_rNormalReg}} (which preserves the input factor's level
+#'   \code{\link{rNormal_reg_group}} (which preserves the input factor's level
 #'   order).
 #' @param use_cpp Logical; if \code{TRUE} (default), compute \code{mu_all} in
 #'   C++ via \code{.two_block_build_mu_all_cpp}; if \code{FALSE}, use
@@ -34,7 +34,7 @@
 #'   }
 #' @seealso \code{\link{lmerb_posterior_mean}},
 #'   \code{\link{two_block_rNormal_reg}},
-#'   \code{\link{block_rNormalReg}}
+#'   \code{\link{rNormal_reg_group}}
 #' @export
 build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
   if (isTRUE(use_cpp)) {

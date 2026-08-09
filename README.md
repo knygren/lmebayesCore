@@ -127,7 +127,7 @@ rlmerb(formula, pfamily_list, dispersion_ranef, data, n, ...)
                      (gamma_k, tau^2_k) draw via the envelope sampler
 ```
 
-`rglmerb()` follows the same shape; non-Gaussian families route through `rGLMM_reg()` / `rGLMM_sweep()` (the sweep-outer replicate-chain driver, with an optional pilot stage governed by `gap_tol`) instead of the Gaussian `rLMM_reg` routes. Row-block engines (`block_rNormalReg()`, `block_rNormalGLM()`) apply the same two-block pattern independently within each row partition (used by **lmebayes**'s `lmbBlock()` / `glmbBlock()` via row-block priors, not by `rlmerb()`/`rglmerb()` directly).
+`rglmerb()` follows the same shape; non-Gaussian families route through `rGLMM_reg()` / `rGLMM_sweep()` (the sweep-outer replicate-chain driver, with an optional pilot stage governed by `gap_tol`) instead of the Gaussian `rLMM_reg` routes. Row-block engines (`rNormal_reg_group()`, `rNormalGLM_reg_group()`) apply the same two-block pattern independently within each row partition (used by **lmebayes**'s `lmbBlock()` / `glmbBlock()` via row-block priors, not by `rlmerb()`/`rglmerb()` directly).
 
 All iid sampling inside a Block~1 or Block~2 draw (`rglmb()`, `rlmb()`, `rNormal_reg()`, the envelope machinery, and the `pfamily` prior constructors themselves) is **not** implemented in this package -- it is called via `glmbayesCore::…` at the R level, and resolved through the `glmbayesCore` namespace at the C++ level (see `src/package_ns.h`).
 
@@ -145,7 +145,7 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 | `Prior_Setup_GLMM()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
 | `pfamily_list()` | S3 generic; `pfamily_list.Prior_Setup_GLMM()` builds Block~2 `pfamily` objects |
 | `dGamma_list()` | S3 generic; `dGamma_list.Prior_Setup_GLMM()` builds per-group Block~1 dispersion `pfamily` objects |
-| `normalize_block()` | Row-block partition normalization (used by row-block engines and by **lmebayes**'s `lmbBlock()` / `glmbBlock()` / `Prior_SetupBlock()`) |
+| `normalize_group()` | Row-block partition normalization (used by row-block engines and by **lmebayes**'s `lmbBlock()` / `glmbBlock()` / `Prior_SetupGroup()`) |
 | `build_mu_all()` | Observation-level prior means when `simulate = FALSE` |
 
 ### Matrix-level two-block samplers
@@ -171,8 +171,8 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 
 | Function | Role |
 |----------|------|
-| `block_rNormalReg()` | Row-block Gaussian regression sampler |
-| `block_rNormalGLM()` | Row-block GLM sampler |
+| `rNormal_reg_group()` | Row-block Gaussian regression sampler |
+| `rNormalGLM_reg_group()` | Row-block GLM sampler |
 
 ### Two-block internals and diagnostics
 

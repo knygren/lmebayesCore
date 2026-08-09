@@ -1,5 +1,14 @@
 # lmebayesCore (development version)
 
+* **Observation-partition APIs use `group`, not `block`.** Renamed
+  `rNormal_reg_block` / `rNormalGLM_reg_block` →
+  `rNormal_reg_group` / `rNormalGLM_reg_group` (formal `group=`;
+  return fields `group_info` / `group_results`). Also
+  `normalize_block` → `normalize_group`, `Prior_SetupBlock` →
+  `Prior_SetupGroup`, doc topic `simfuncs_group`. Gibbs engine names
+  `two_block_*` stay (parameter blocks). Compiled
+  `.block_rNormal*_cpp` entry points keep their old names.
+
 * **`Prior_Setup_GLMM` marginal dispersion centers.** Pooled Block~1
   \(\sigma^2\) (`dispformula = ~1`) and Block~2 \(\tau^2_k\) Gamma priors
   are now centered on A12 §3.3.4 marginal RSS via
@@ -687,8 +696,8 @@
   `group` element instead of `block` (matching the renamed formal on the
   routed export it targets via `do.call()`). The Gibbs "two-block"
   terminology (`Block~1`/`Block~2`, `two_block_rNormal_reg()`,
-  `two_block_rate()`, etc.), the generic `block_rNormalReg()`/
-  `block_rNormalGLM()` block-partition family, and the compiled Rcpp/C++
+  `two_block_rate()`, etc.), the generic `rNormal_reg_group()`/
+  `rNormalGLM_reg_group()` block-partition family, and the compiled Rcpp/C++
   boundary are unrelated and unaffected by this rename. This is a breaking
   change for any direct caller of these 13 matrix-level exports passing
   `block =` by keyword; `lmerb()`/`glmerb()`/`rlmerb()`/`rglmerb()` callers
@@ -715,7 +724,7 @@
   now errors on a mismatch and reorders only when the name sets agree.
   Separately, `group_name` auto-derivation was fixed: it previously lived
   one call-frame too deep and always resolved to the literal text
-  `"block"`; it is now captured via `substitute()` in each export's own
+  `"group"`; it is now captured via `substitute()` in each export's own
   frame, correctly resolving to the caller's actual `block` variable name
   (erroring, instead of guessing, when `block` is not a plain variable,
   e.g. `block = df$school_id`). This is a breaking change for any direct
@@ -1186,7 +1195,7 @@
   rejection sampler uses its own RNG stream (compare averages over many
   draws, not individual draws).
 
-* **Faster GLM block sampling:** **`block_rNormalGLM()`** now performs block
+* **Faster GLM block sampling:** **`rNormalGLM_reg_group()`** now performs block
   partitioning and prior payload assembly in C++
   (`block_rNormalGLM_cpp_export`), removing per-call R overhead in block
   Gibbs loops (e.g. Block 1 of the **lmebayes** two-block sampler). The

@@ -1,7 +1,7 @@
 #' @rdname pfamily_list
 #' @order 3
 #' @details
-#' For a \code{\link{Prior_SetupBlock}} object, each \strong{row block}
+#' For a \code{\link{Prior_SetupGroup}} object, each \strong{row block}
 #' (named as in \code{names(object)}) is mapped to one
 #' \code{\link[glmbayesCore]{pfamily}} for use with
 #' \code{lmbBlock} / \code{glmbBlock} (or any API that takes a per-block
@@ -9,7 +9,7 @@
 #' \itemize{
 #'   \item \code{"dNormal"} (default): \code{dNormal(mu, Sigma, dispersion)}
 #'     from that block's \code{\link[glmbayesCore]{Prior_Setup}} result.
-#'     Available for all families supported by \code{Prior_SetupBlock}.
+#'     Available for all families supported by \code{Prior_SetupGroup}.
 #'   \item \code{"dNormal_Gamma"}: \code{dNormal_Gamma(mu, Sigma_0, shape, rate)}
 #'     (Gaussian only; uses conjugate Normal--Gamma hyperparameters).
 #'   \item \code{"dIndependent_Normal_Gamma"}:
@@ -21,12 +21,12 @@
 #' \code{"dNormal"}.
 #'
 #' @export
-#' @method pfamily_list Prior_SetupBlock
-pfamily_list.Prior_SetupBlock <- function(object, ptypes = NULL, ...) {
+#' @method pfamily_list Prior_SetupGroup
+pfamily_list.Prior_SetupGroup <- function(object, ptypes = NULL, ...) {
   allowed <- c("dNormal", "dNormal_Gamma", "dIndependent_Normal_Gamma")
   block_ids <- names(object)
   if (is.null(block_ids) || any(!nzchar(block_ids))) {
-    stop("'object' must be a named Prior_SetupBlock list.", call. = FALSE)
+    stop("'object' must be a named Prior_SetupGroup list.", call. = FALSE)
   }
   k <- length(block_ids)
 
@@ -66,7 +66,7 @@ pfamily_list.Prior_SetupBlock <- function(object, ptypes = NULL, ...) {
     if (length(ptypes) != k) {
       stop(
         sprintf(
-          "'ptypes' has length %d but Prior_SetupBlock has %d block(s): %s.",
+          "'ptypes' has length %d but Prior_SetupGroup has %d block(s): %s.",
           length(ptypes), k, paste(block_ids, collapse = ", ")
         ),
         call. = FALSE

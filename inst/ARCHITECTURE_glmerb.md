@@ -106,11 +106,11 @@ rGLMM_sweep
         │           └── .two_block_block1_prior_with_tau2
         └── .two_block_block1_draw_all_chains
               └── .two_block_block1_draw_one_chain
-                    └── block_rNormalGLM / block_rNormalReg
+                    └── rNormalGLM_reg_group / rNormal_reg_group
 ```
 
-**Substance:** `.two_block_block1_draw_one_chain` → `block_rNormalGLM` (GLMM) or
-`block_rNormalReg` (Gaussian), then reorder `b` to `group_levels`.
+**Substance:** `.two_block_block1_draw_one_chain` → `rNormalGLM_reg_group` (GLMM) or
+`rNormal_reg_group` (Gaussian), then reorder `b` to `group_levels`.
 
 | File | Function | Role |
 |------|----------|------|
@@ -119,7 +119,7 @@ rGLMM_sweep
 | `glmbayesCore/R/build_mu_all.R` | `build_mu_all` | Hyperparameter mean matrix for Block 1 (C++ default) |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_prior_with_tau2` | ING τ² → Block 1 `P` refresh (C++ default) |
 | `glmbayesCore/R/two_block_batch_gibbs.R` | `.two_block_block1_draw_one_chain` | One Block 1 draw |
-| `glmbayesCore/R/simfunction_block.R` | `block_rNormalGLM`, `block_rNormalReg` | Grouped RE draw (C++ under `.block_rNormalGLM_cpp`) |
+| `glmbayesCore/R/simfunction_block.R` | `rNormalGLM_reg_group`, `rNormal_reg_group` | Grouped RE draw (C++ under `.block_rNormalGLM_cpp`) |
 
 ---
 
@@ -131,10 +131,10 @@ rGLMM_sweep
 | `*_all_chains` | Loop over `n` replicate chains + progress bars |
 | `*_one_chain` | Actual Gibbs update for one chain |
 | `build_mu_all`, align, prior helpers | Setup for Block 1 / Block 2 |
-| `block_rNormalGLM`, `rglmb` | Where randomness and posterior modes happen |
+| `rNormalGLM_reg_group`, `rglmb` | Where randomness and posterior modes happen |
 
 Many function names exist for batch bookkeeping, pilot staging, and optional parallel prep;
-**one sweep of sampling** is: for each chain, Block 1 = `block_rNormalGLM`, Block 2 =
+**one sweep of sampling** is: for each chain, Block 1 = `rNormalGLM_reg_group`, Block 2 =
 `rglmb` per RE column.
 
 ---
@@ -172,7 +172,7 @@ Helpers already in C++ include `two_block_align_b_col_to_x_rows` and
 ## Planned Block 1 C++ migration (random-effects `b`, all-chains)
 
 **Block 1** updates random effects **`b`** (prep: `build_mu_all` + prior; draw:
-`block_rNormalGLM` for Poisson/binomial GLMM, or `block_rNormalReg` on the Gaussian v6 path).
+`rNormalGLM_reg_group` for Poisson/binomial GLMM, or `rNormal_reg_group` on the Gaussian v6 path).
 There is **`use_cpp_block1`** on `rGLMM_sweep` (default `TRUE`). Set
 `use_cpp_block1 = FALSE` for the R prep/draw loop oracle with piecewise C++ helpers.
 

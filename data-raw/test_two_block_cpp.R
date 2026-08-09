@@ -2,8 +2,8 @@
 ## (two_block_rNormal_reg_cpp_export, src/twoBlockGibbs.cpp).
 ##
 ## The driver is a port-only migration of the former R loop in
-## two_block_rNormal_reg(): mu_all -> Block 1 (block_rNormalReg /
-## block_rNormalGLM C++ exports) -> Block 2 (rNormalReg per RE component).
+## two_block_rNormal_reg(): mu_all -> Block 1 (rNormal_reg_group /
+## rNormalGLM_reg_group C++ exports) -> Block 2 (rNormalReg per RE component).
 ##
 ## Equivalence policy: R and C++ random number generation are NOT the same
 ## (the envelope rejection sampler uses a thread-local std::mt19937 seeded
@@ -29,7 +29,7 @@ ref_two_block <- function(n, y, x, block, x_hyper,
   meta <- glmbayesCore:::.two_block_validate_block1_prior(
     prior_list_block1, family = family
   )
-  block1_fn <- if (is_gaussian) block_rNormalReg else block_rNormalGLM
+  block1_fn <- if (is_gaussian) rNormal_reg_group else rNormalGLM_reg_group
 
   J <- length(group_levels)
   p_re <- length(re_names)
@@ -52,7 +52,7 @@ ref_two_block <- function(n, y, x, block, x_hyper,
         prior_list_block1, mu_all, meta
       )
       args <- list(
-        n = 1L, y = y, x = x, block = block,
+        n = 1L, y = y, x = x, group = block,
         prior_list = pl1, offset = NULL, weights = 1
       )
       if (!is_gaussian) {

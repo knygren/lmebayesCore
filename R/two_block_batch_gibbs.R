@@ -2,13 +2,13 @@
 #
 # Two-block Gibbs alternates:
 #   Block 1 — given hyperparameters (fixef gamma, tau2), sample random effects b
-#             per neighborhood via block_rNormalGLM / block_rNormalReg.
+#             per neighborhood via rNormalGLM_reg_group / rNormal_reg_group.
 #   Block 2 — given b, treat each RE column as a Gaussian pseudo-response and
 #             update hyperparameters via rglmb (one call per RE component).
 #
 # Sweep-outer: ALL chains run Block 1, then ALL chains run Block 2, per inner
 # sweep. Block 1 is split into prep (mu_all + prior_list per chain) and draw
-# (block_rNormalGLM / block_rNormalReg per chain); both phases are embarrassingly
+# (rNormalGLM_reg_group / rNormal_reg_group per chain); both phases are embarrassingly
 # parallel over chains (optional n_cores on Unix/macOS).
 
 
@@ -79,7 +79,7 @@
   phase_label <- if (identical(phase, "prep")) {
     "Block1 prep (mu_all + prior_list)"
   } else if (identical(phase, "draw")) {
-    "Block1 draw (block_rNormalGLM / block_rNormalReg)"
+    "Block1 draw (rNormalGLM_reg_group / rNormal_reg_group)"
   } else {
     phase
   }
@@ -665,7 +665,7 @@
 #' Mean envelope candidates per group from a Block~1 draw (R reference)
 #' @noRd
 .two_block_block1_iters_mean_r <- function(block_out) {
-  br <- block_out$block_results
+  br <- block_out$group_results
   if (is.null(br) || !length(br)) {
     return(1)
   }
@@ -683,7 +683,7 @@
 }
 
 #' Mean envelope candidates per group from a Block~1 draw
-#' @param block_out Output from \code{block_rNormalGLM} or \code{block_rNormalReg}.
+#' @param block_out Output from \code{rNormalGLM_reg_group} or \code{rNormal_reg_group}.
 #' @param use_cpp If \code{TRUE} (default), use the C++ implementation.
 #' @noRd
 .two_block_block1_iters_mean <- function(block_out, use_cpp = TRUE) {
@@ -727,7 +727,7 @@
   .two_block_block1_reorder_b_r(b_draw, group_levels)
 }
 
-#' Block~1 envelope draw for one chain (\code{block_rNormalReg}/\code{block_rNormalGLM})
+#' Block~1 envelope draw for one chain (\code{rNormal_reg_group}/\code{rNormalGLM_reg_group})
 #' @noRd
 .two_block_block1_draw_block <- function(
     prior_list,
@@ -736,19 +736,19 @@
     is_gaussian
 ) {
   if (is_gaussian) {
-    return(block_rNormalReg(
+    return(rNormal_reg_group(
       n          = 1L,
       y          = design$y,
       x          = design$D,
-      block      = design$group,
+      group      = design$group,
       prior_list = prior_list
     ))
   }
-  block_rNormalGLM(
+  rNormalGLM_reg_group(
     n            = 1L,
     y            = design$y,
     x            = design$D,
-    block        = design$group,
+    group        = design$group,
     prior_list   = prior_list,
     family       = family,
     use_parallel = FALSE,
@@ -779,7 +779,7 @@
 
 #' Block~1 random-effect redraw for replicate chains
 #'
-#' Runs one \code{\link{block_rNormalGLM}} or \code{\link{block_rNormalReg}}
+#' Runs one \code{\link{rNormalGLM_reg_group}} or \code{\link{rNormal_reg_group}}
 #' envelope draw per chain from prepared Block~1 \code{prior_list} objects.
 #' This is the Block~1 draw step inside \code{\link{rGLMM_sweep}} after
 #' per-chain prep (\code{fixef} \eqn{\to} \code{mu_all}, \eqn{\tau^2} refresh
@@ -803,20 +803,20 @@
 #'   \code{l2}). Same layout as the \code{design} argument to
 #'   \code{\link{rGLMM_sweep}}.
 #' @param family A \code{\link[stats]{family}} object. When \code{gaussian()},
-#'   uses \code{\link{block_rNormalReg}}; otherwise
-#'   \code{\link{block_rNormalGLM}} with default offset zero and unit weights.
+#'   uses \code{\link{rNormal_reg_group}}; otherwise
+#'   \code{\link{rNormalGLM_reg_group}} with default offset zero and unit weights.
 #' @param progbar Logical. When \code{TRUE} and \code{n > 1}, show a text
 #'   progress bar over chains. Default \code{FALSE}.
 #' @param progbar_prefix Character prefix for progress-bar lines. Default
 #'   \code{""}.
 #' @param progbar_finish_newline Logical. Print a newline after the progress
 #'   bar finishes. Default \code{TRUE}.
-#' @return List of length \code{n}. Each element is a \code{block_rNormalGLM}
-#'   or \code{block_rNormalReg} object (\code{$coefficients}, \code{$coef.mode},
-#'   \code{$block_info}, \code{$block_results}, \ldots).
+#' @return List of length \code{n}. Each element is a \code{rNormalGLM_reg_group}
+#'   or \code{rNormal_reg_group} object (\code{$coefficients}, \code{$coef.mode},
+#'   \code{$group_info}, \code{$group_results}, \ldots).
 #' @family simfuncs
-#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{block_rNormalGLM}},
-#'   \code{\link{block_rNormalReg}}
+#' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rNormalGLM_reg_group}},
+#'   \code{\link{rNormal_reg_group}}
 #' @export
 rGLMM_Re_Draw <- function(
     n,
@@ -1417,7 +1417,7 @@ two_block_block2_one_chain_cpp <- function(
 #'
 #' Pre-\code{73097c2} orchestration: \code{prep_all_chains} then
 #' \code{draw_all_chains}, each draw via \code{draw_one_chain} \textrightarrow{}
-#' \code{block_rNormalGLM}/\code{block_rNormalReg} (no per-chain C++ wrapper).
+#' \code{rNormalGLM_reg_group}/\code{rNormal_reg_group} (no per-chain C++ wrapper).
 #' Defaults use the R reference for prep/reorder/iters; set \code{use_cpp_*} flags
 #' to \code{TRUE} to re-enable piecewise C++ helpers.
 #'

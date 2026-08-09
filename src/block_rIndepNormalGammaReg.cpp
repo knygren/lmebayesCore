@@ -198,10 +198,10 @@ List rep_list_blocks(const List& one, int k) {
 List normalize_prior_for_block_ing(
     SEXP prior_list_sexp,
     SEXP prior_lists_sexp,
-    const List& block_info,
+    const List& group_info,
     int l1
 ) {
-  const int k = block_info["k"];
+  const int k = group_info["k"];
 
   if (!Rf_isNull(prior_lists_sexp)) {
     List prior_lists(prior_lists_sexp);
@@ -1690,13 +1690,13 @@ List BlockEnvelopeCentering(
     Rcpp::stop("length(wt) must be 1 or length(y).");
   }
 
-  List block_info = glmbayes::sim::normalize_block_cpp(block, l2);
-  const int k = block_info["k"];
-  CharacterVector ids = block_info["ids"];
-  List row_blocks = block_info["rows"];
+  List group_info = glmbayes::sim::normalize_block_cpp(block, l2);
+  const int k = group_info["k"];
+  CharacterVector ids = group_info["ids"];
+  List row_blocks = group_info["rows"];
 
   List prior_block = normalize_prior_for_block_ing(
-    prior_list_sexp, prior_lists_sexp, block_info, l1
+    prior_list_sexp, prior_lists_sexp, group_info, l1
   );
 
   List prior_list = Rf_isNull(prior_list_sexp) ? List() : List(prior_list_sexp);
@@ -1818,7 +1818,7 @@ List BlockEnvelopeCentering(
     Rcpp::Named("max_disp_perc") = max_disp_perc,
     Rcpp::Named("disp_lower") = disp_lower_out,
     Rcpp::Named("disp_upper") = disp_upper_out,
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("blocks") = blocks,
     Rcpp::Named("prior_lists") = prior_block
   );
@@ -1848,7 +1848,7 @@ List BlockEnvelopeBuild(
 
   if (!centering_out.containsElementNamed("dispersion") ||
       !centering_out.containsElementNamed("blocks") ||
-      !centering_out.containsElementNamed("block_info") ||
+      !centering_out.containsElementNamed("group_info") ||
       !centering_out.containsElementNamed("k")) {
     Rcpp::stop("'centering_out' must be a full BlockEnvelopeCentering return list.");
   }
@@ -1893,17 +1893,17 @@ List BlockEnvelopeBuild(
     }
   }
 
-  List block_info = centering_out["block_info"];
-  List row_blocks = block_info["rows"];
+  List group_info = centering_out["group_info"];
+  List row_blocks = group_info["rows"];
   List blocks_centering = centering_out["blocks"];
 
-  List block_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
-  if (Rcpp::as<int>(block_info_data["k"]) != k) {
+  List group_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
+  if (Rcpp::as<int>(group_info_data["k"]) != k) {
     Rcpp::stop("'block' partition k must match centering_out$k.");
   }
 
   List prior_block = normalize_prior_for_block_ing(
-    prior_list_sexp, prior_lists_sexp, block_info_data, l1
+    prior_list_sexp, prior_lists_sexp, group_info_data, l1
   );
   BEB_DBG(verbose, "[BEB 1.2] partition + prior expand done");
 
@@ -2018,7 +2018,7 @@ List BlockEnvelopeBuild(
     Rcpp::Named("RSS_post") = RSS_post,
     Rcpp::Named("shape2") = shape2,
     Rcpp::Named("rate3") = rate3,
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("n_identifiable") = n_identifiable,
     Rcpp::Named("use_parallel") = use_parallel
   );
@@ -2056,7 +2056,7 @@ List BlockEnvelopeDispersionBuild(
   }
   if (!centering_out.containsElementNamed("dispersion") ||
       !centering_out.containsElementNamed("blocks") ||
-      !centering_out.containsElementNamed("block_info") ||
+      !centering_out.containsElementNamed("group_info") ||
       !centering_out.containsElementNamed("RSS_post") ||
       !centering_out.containsElementNamed("shape2") ||
       !centering_out.containsElementNamed("rate3")) {
@@ -2104,12 +2104,12 @@ List BlockEnvelopeDispersionBuild(
     }
   }
 
-  List block_info = centering_out["block_info"];
-  List row_blocks = block_info["rows"];
+  List group_info = centering_out["group_info"];
+  List row_blocks = group_info["rows"];
   List blocks_centering = centering_out["blocks"];
 
-  List block_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
-  if (Rcpp::as<int>(block_info_data["k"]) != k) {
+  List group_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
+  if (Rcpp::as<int>(group_info_data["k"]) != k) {
     Rcpp::stop("'block' partition k must match centering_out$k.");
   }
 
@@ -2374,17 +2374,17 @@ List BlockEnvelopeSim(
   List block_envelopes = build_out["block_envelopes"];
   List block_standardization = build_out["block_standardization"];
   List meta = build_out["meta"];
-  if (!meta.containsElementNamed("block_info") ||
+  if (!meta.containsElementNamed("group_info") ||
       !meta.containsElementNamed("l1") ||
       !meta.containsElementNamed("dispersion")) {
-    Rcpp::stop("'build_out$meta' must contain block_info, l1, and dispersion.");
+    Rcpp::stop("'build_out$meta' must contain group_info, l1, and dispersion.");
   }
 
-  List block_info = meta["block_info"];
-  const int k = Rcpp::as<int>(block_info["k"]);
+  List group_info = meta["group_info"];
+  const int k = Rcpp::as<int>(group_info["k"]);
   const int l1 = Rcpp::as<int>(meta["l1"]);
   const double dispersion_anchor = Rcpp::as<double>(meta["dispersion"]);
-  CharacterVector ids = block_info["ids"];
+  CharacterVector ids = group_info["ids"];
 
   if (block_envelopes.size() != k ||
       block_standardization.size() != k) {
@@ -2404,7 +2404,7 @@ List BlockEnvelopeSim(
   }
   const bool use_ar_compute = (disp_status == "v1");
 
-  List block_results(k);
+  List group_results(k);
   NumericVector dispersion_out(n);
   NumericVector iters_out(n);
 
@@ -2419,7 +2419,7 @@ List BlockEnvelopeSim(
       SEXP env_j = block_envelopes[j];
       List env_list = Rf_isNull(env_j) ? List() : List(env_j);
       List std_j = block_standardization[j];
-      block_results[j] = block_envelope_sim_one(
+      group_results[j] = block_envelope_sim_one(
         env_list, std_j, block_id, l1, n
       );
     }
@@ -2427,10 +2427,10 @@ List BlockEnvelopeSim(
     meta_out["accept_mode"] = "auto_v1";
     meta_out["n"] = n;
     return List::create(
-      Rcpp::Named("block_results") = block_results,
+      Rcpp::Named("group_results") = group_results,
       Rcpp::Named("dispersion") = dispersion_out,
       Rcpp::Named("iters_out") = iters_out,
-      Rcpp::Named("block_info") = block_info,
+      Rcpp::Named("group_info") = group_info,
       Rcpp::Named("meta") = meta_out
     );
   }
@@ -2502,7 +2502,7 @@ List BlockEnvelopeSim(
         beta_block(Rcpp::_, i) = mu_j;
         block_iters[i] = 1.0;
       }
-      block_results[j] = List::create(
+      group_results[j] = List::create(
         Rcpp::Named("block_id") = block_id,
         Rcpp::Named("identifiable") = false,
         Rcpp::Named("beta") = beta_block,
@@ -2514,7 +2514,7 @@ List BlockEnvelopeSim(
         List Env = block_envelopes[j];
         block_plsd_cdf[j] = build_face_cdf(Env["PLSD"]);
       }
-      block_results[j] = List::create(
+      group_results[j] = List::create(
         Rcpp::Named("block_id") = block_id,
         Rcpp::Named("identifiable") = true,
         Rcpp::Named("beta") = NumericMatrix(l1, n),
@@ -2680,17 +2680,17 @@ List BlockEnvelopeSim(
     for (int j = 0; j < k; ++j) {
       List std_j = block_standardization[j];
       if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
-        List res_j = block_results[j];
+        List res_j = group_results[j];
         NumericMatrix beta_block = res_j["beta"];
         beta_block(Rcpp::_, i) = beta_orig_draw[j];
         res_j["beta"] = beta_block;
         NumericVector block_iters = res_j["iters_out"];
         block_iters[i] = iters_out[i];
         res_j["iters_out"] = block_iters;
-        block_results[j] = res_j;
+        group_results[j] = res_j;
         continue;
       }
-      List res_j = block_results[j];
+      List res_j = group_results[j];
       NumericMatrix beta_block = res_j["beta"];
       beta_block(Rcpp::_, i) = beta_orig_draw[j];
       res_j["beta"] = beta_block;
@@ -2698,7 +2698,7 @@ List BlockEnvelopeSim(
       block_iters[i] = iters_out[i];
       res_j["iters_out"] = block_iters;
       res_j["face_J_last"] = J_draw[j];
-      block_results[j] = res_j;
+      group_results[j] = res_j;
     }
   }
 
@@ -2712,10 +2712,10 @@ List BlockEnvelopeSim(
   meta_out["n"] = n;
 
   return List::create(
-    Rcpp::Named("block_results") = block_results,
+    Rcpp::Named("group_results") = group_results,
     Rcpp::Named("dispersion") = dispersion_out,
     Rcpp::Named("iters_out") = iters_out,
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("meta") = meta_out
   );
 }
@@ -2749,16 +2749,16 @@ NumericMatrix map_block_sim_to_b_draw(
     int p_re,
     int draw_i
 ) {
-  List block_results = sim["block_results"];
-  const int k = block_results.size();
+  List group_results = sim["group_results"];
+  const int k = group_results.size();
   if (k < 1) {
-    Rcpp::stop("BlockEnvelopeSim returned no block_results.");
+    Rcpp::stop("BlockEnvelopeSim returned no group_results.");
   }
 
   std::unordered_map<std::string, NumericVector> by_id;
   by_id.reserve(static_cast<std::size_t>(k));
   for (int j = 0; j < k; ++j) {
-    List br = block_results[j];
+    List br = group_results[j];
     const std::string block_id = Rcpp::as<std::string>(br["block_id"]);
     NumericMatrix beta = br["beta"];
     if (draw_i < 0 || draw_i >= beta.ncol()) {
@@ -2777,7 +2777,7 @@ NumericMatrix map_block_sim_to_b_draw(
   if (group_levels.size() < 1) {
     NumericMatrix b_draw(k, p_re);
     for (int j = 0; j < k; ++j) {
-      List br = block_results[j];
+      List br = group_results[j];
       const std::string block_id = Rcpp::as<std::string>(br["block_id"]);
       b_draw(j, Rcpp::_) = by_id.at(block_id);
     }
@@ -2803,11 +2803,11 @@ NumericMatrix block_beta_to_out_k1(
     int p_re,
     int n
 ) {
-  List block_results = sim["block_results"];
-  if (block_results.size() != 1) {
+  List group_results = sim["group_results"];
+  if (group_results.size() != 1) {
     Rcpp::stop("'out' is only defined when k = 1 identifiable block layout.");
   }
-  List br = block_results[0];
+  List br = group_results[0];
   NumericMatrix beta = br["beta"];
   if (beta.nrow() != p_re || beta.ncol() != n) {
     Rcpp::stop("k = 1 beta matrix must be p_re x n.");
@@ -2968,7 +2968,7 @@ List BlockEnvelopeDispersionBuildInd(
   }
   if (!centering_out.containsElementNamed("dispersion") ||
       !centering_out.containsElementNamed("blocks") ||
-      !centering_out.containsElementNamed("block_info") ||
+      !centering_out.containsElementNamed("group_info") ||
       !centering_out.containsElementNamed("RSS_post") ||
       !centering_out.containsElementNamed("shape2") ||
       !centering_out.containsElementNamed("rate3")) {
@@ -3016,12 +3016,12 @@ List BlockEnvelopeDispersionBuildInd(
     }
   }
 
-  List block_info = centering_out["block_info"];
-  List row_blocks = block_info["rows"];
+  List group_info = centering_out["group_info"];
+  List row_blocks = group_info["rows"];
   List blocks_centering = centering_out["blocks"];
 
-  List block_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
-  if (Rcpp::as<int>(block_info_data["k"]) != k) {
+  List group_info_data = glmbayes::sim::normalize_block_cpp(block, l2);
+  if (Rcpp::as<int>(group_info_data["k"]) != k) {
     Rcpp::stop("'block' partition k must match centering_out$k.");
   }
 
@@ -3278,17 +3278,17 @@ List BlockEnvelopeSimInd(
   List block_envelopes = build_out["block_envelopes"];
   List block_standardization = build_out["block_standardization"];
   List meta = build_out["meta"];
-  if (!meta.containsElementNamed("block_info") ||
+  if (!meta.containsElementNamed("group_info") ||
       !meta.containsElementNamed("l1") ||
       !meta.containsElementNamed("dispersion")) {
-    Rcpp::stop("'build_out$meta' must contain block_info, l1, and dispersion.");
+    Rcpp::stop("'build_out$meta' must contain group_info, l1, and dispersion.");
   }
 
-  List block_info = meta["block_info"];
-  const int k = Rcpp::as<int>(block_info["k"]);
+  List group_info = meta["group_info"];
+  const int k = Rcpp::as<int>(group_info["k"]);
   const int l1 = Rcpp::as<int>(meta["l1"]);
   const double dispersion_anchor = Rcpp::as<double>(meta["dispersion"]);
-  CharacterVector ids = block_info["ids"];
+  CharacterVector ids = group_info["ids"];
 
   if (block_envelopes.size() != k ||
       block_standardization.size() != k) {
@@ -3308,7 +3308,7 @@ List BlockEnvelopeSimInd(
   }
   const bool use_ar_compute = (disp_status == "v1");
 
-  List block_results(k);
+  List group_results(k);
   NumericVector dispersion_out(n);
   NumericVector iters_out(n);
 
@@ -3323,7 +3323,7 @@ List BlockEnvelopeSimInd(
       SEXP env_j = block_envelopes[j];
       List env_list = Rf_isNull(env_j) ? List() : List(env_j);
       List std_j = block_standardization[j];
-      block_results[j] = block_envelope_sim_one(
+      group_results[j] = block_envelope_sim_one(
         env_list, std_j, block_id, l1, n
       );
     }
@@ -3331,10 +3331,10 @@ List BlockEnvelopeSimInd(
     meta_out["accept_mode"] = "auto_v1";
     meta_out["n"] = n;
     return List::create(
-      Rcpp::Named("block_results") = block_results,
+      Rcpp::Named("group_results") = group_results,
       Rcpp::Named("dispersion") = dispersion_out,
       Rcpp::Named("iters_out") = iters_out,
-      Rcpp::Named("block_info") = block_info,
+      Rcpp::Named("group_info") = group_info,
       Rcpp::Named("meta") = meta_out
     );
   }
@@ -3373,7 +3373,7 @@ List BlockEnvelopeSimInd(
         beta_block(Rcpp::_, i) = mu_j;
         block_iters[i] = 1.0;
       }
-      block_results[j] = List::create(
+      group_results[j] = List::create(
         Rcpp::Named("block_id") = block_id,
         Rcpp::Named("identifiable") = false,
         Rcpp::Named("beta") = beta_block,
@@ -3383,7 +3383,7 @@ List BlockEnvelopeSimInd(
     } else {
       List Env = block_envelopes[j];
       block_plsd_cdf[j] = build_face_cdf(Env["PLSD"]);
-      block_results[j] = List::create(
+      group_results[j] = List::create(
         Rcpp::Named("block_id") = block_id,
         Rcpp::Named("identifiable") = true,
         Rcpp::Named("beta") = NumericMatrix(l1, n),
@@ -3556,17 +3556,17 @@ List BlockEnvelopeSimInd(
     for (int j = 0; j < k; ++j) {
       List std_j = block_standardization[j];
       if (Rcpp::as<bool>(std_j["prior_only"]) || Rf_isNull(block_envelopes[j])) {
-        List res_j = block_results[j];
+        List res_j = group_results[j];
         NumericMatrix beta_block = res_j["beta"];
         beta_block(Rcpp::_, i) = beta_orig_draw[j];
         res_j["beta"] = beta_block;
         NumericVector block_iters = res_j["iters_out"];
         block_iters[i] = iters_out[i];
         res_j["iters_out"] = block_iters;
-        block_results[j] = res_j;
+        group_results[j] = res_j;
         continue;
       }
-      List res_j = block_results[j];
+      List res_j = group_results[j];
       NumericMatrix beta_block = res_j["beta"];
       beta_block(Rcpp::_, i) = beta_orig_draw[j];
       res_j["beta"] = beta_block;
@@ -3574,7 +3574,7 @@ List BlockEnvelopeSimInd(
       block_iters[i] = iters_out[i];
       res_j["iters_out"] = block_iters;
       res_j["face_J_last"] = J_draw[j];
-      block_results[j] = res_j;
+      group_results[j] = res_j;
     }
   }
 
@@ -3584,10 +3584,10 @@ List BlockEnvelopeSimInd(
   meta_out["n"] = n;
 
   return List::create(
-    Rcpp::Named("block_results") = block_results,
+    Rcpp::Named("group_results") = group_results,
     Rcpp::Named("dispersion") = dispersion_out,
     Rcpp::Named("iters_out") = iters_out,
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("meta") = meta_out
   );
 }

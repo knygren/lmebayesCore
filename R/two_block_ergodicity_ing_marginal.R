@@ -345,7 +345,7 @@
   })
 
   inp <- .two_block_rate_inputs(
-    x = D, block = group, x_hyper = x_hyper,
+    x = D, group = group, x_hyper = x_hyper,
     prior_list_block1 = prior_list_block1,
     prior_list_block2 = prior_list_block2,
     family = gaussian(), group_levels = group_levels

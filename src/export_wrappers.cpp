@@ -22,7 +22,7 @@ using namespace glmbayes::sim;
 // =============================================================================
 // Tier 1: Core Simulation
 // Callers: rNormal_reg, rNormalGamma_reg, rindepNormalGamma_reg, rGamma_reg,
-//          rNormalGLM_reg_block (via .rNormalGLMBlocks_cpp),
+//          rNormalGLM_reg_group (via .rNormalGLMBlocks_cpp),
 //          rNormalReg_reg_block (via .rNormalRegBlocks_cpp)
 // User:    All users - primary paths via rglmb, rlmb, glmb, pfamily
 // =============================================================================

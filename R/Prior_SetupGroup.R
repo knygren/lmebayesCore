@@ -2,13 +2,13 @@
 #'
 #' Runs \code{\link[glmbayesCore]{Prior_Setup}} on each block subset of the data.
 #' Typical callers are row-block engines such as
-#' \code{\link{block_rNormalReg}} / \code{\link{block_rNormalGLM}}, or the
+#' \code{\link{rNormal_reg_group}} / \code{\link{rNormalGLM_reg_group}}, or the
 #' higher-level \code{lmbBlock} / \code{glmbBlock} wrappers in \pkg{lmebayes}.
 #'
 #' @param formula A \code{\link{formula}} with a single response.
-#' @param block Block partition: \code{factor} or vector of length \code{nrow(data)}
+#' @param group Group partition: \code{factor} or vector of length \code{nrow(data)}
 #'   (after \code{model.frame}), a column name in \code{data}, \code{l2_blocks}
-#'   counts, or a list of row index vectors (see \code{\link{normalize_block}}).
+#'   counts, or a list of row index vectors (see \code{\link{normalize_group}}).
 #' @param pwt,n_prior,sd,mu,dispersion,k Each of these six calibration
 #'   arguments (passed to \code{\link[glmbayesCore]{Prior_Setup}} for every
 #'   block) may be supplied in \strong{either} of two forms:
@@ -18,8 +18,8 @@
 #'       per-coefficient vector for \code{pwt}/\code{sd}/\code{mu}) -- applied
 #'       identically to every block (default, unchanged behavior); or
 #'     \item a \strong{named list with one element per block}, keyed by the
-#'       block/group level IDs (\code{names(Prior_SetupBlock(...))}, i.e.
-#'       \code{normalize_block()$ids}) -- each element supplies that block's
+#'       block/group level IDs (\code{names(Prior_SetupGroup(...))}, i.e.
+#'       \code{normalize_group()$ids}) -- each element supplies that block's
 #'       own value, in the same shape \code{Prior_Setup()} would otherwise
 #'       accept. \code{names(x)} must exactly match the block IDs (extra or
 #'       missing names raise an error). An element may be \code{NULL},
@@ -29,18 +29,18 @@
 #'   The two forms may be mixed freely across the six arguments in one call
 #'   (e.g. a shared \code{sd} together with a per-block \code{n_prior}).
 #' @inheritParams glmbayesCore::Prior_Setup
-#' @return A named list of class \code{"Prior_SetupBlock"}. Each element is a
+#' @return A named list of class \code{"Prior_SetupGroup"}. Each element is a
 #'   \code{\link[glmbayesCore]{Prior_Setup}} result for one block.
 #' @seealso \code{\link[glmbayesCore]{Prior_Setup}},
 #'   \code{\link[glmbayesCore]{multi_prior_setup}},
 #'   \code{\link{Prior_Setup_GLMM}}, \code{\link{pfamily_list}},
-#'   \code{\link{normalize_block}},
-#'   \code{\link{block_rNormalReg}}, \code{\link{block_rNormalGLM}}
-#' @example inst/examples/Ex_Prior_SetupBlock.R
+#'   \code{\link{normalize_group}},
+#'   \code{\link{rNormal_reg_group}}, \code{\link{rNormalGLM_reg_group}}
+#' @example inst/examples/Ex_Prior_SetupGroup.R
 #' @export
-Prior_SetupBlock <- function(
+Prior_SetupGroup <- function(
     formula,
-    block,
+    group,
     family = gaussian(),
     data = NULL,
     weights = NULL,
@@ -70,7 +70,7 @@ Prior_SetupBlock <- function(
   fam_ok <- family$family %in% c("gaussian", "poisson", "binomial")
   if (is.null(family$family) || !fam_ok) {
     stop(
-      "Prior_SetupBlock() supports family = gaussian(), poisson(), or binomial() only.",
+      "Prior_SetupGroup() supports family = gaussian(), poisson(), or binomial() only.",
       call. = FALSE
     )
   }
@@ -80,7 +80,7 @@ Prior_SetupBlock <- function(
 
   meta <- .lmebayes_formula_block_meta(
     formula = formula,
-    block = block,
+    group = group,
     data = data,
     subset = if (!missing(subset)) subset else NULL,
     weights = if (!missing(weights)) weights else NULL,
@@ -88,7 +88,7 @@ Prior_SetupBlock <- function(
     offset = if (!missing(offset)) offset else NULL,
     contrasts = if (!missing(contrasts)) contrasts else NULL
   )
-  block_ids <- meta$block_info$ids
+  block_ids <- meta$group_info$ids
 
   ## Each of these six calibration arguments may be shared (reused for every
   ## block, as before) or a named list keyed by `block_ids` (one value per
@@ -113,11 +113,11 @@ Prior_SetupBlock <- function(
     effects_source = effects_source
   )
 
-  setups <- vector("list", meta$block_info$k)
-  for (b in seq_len(meta$block_info$k)) {
+  setups <- vector("list", meta$group_info$k)
+  for (b in seq_len(meta$group_info$k)) {
     block_id <- block_ids[[b]]
     rows_b <- .lmebayes_rows_to_data_subset(
-      meta$block_info$rows[[b]], meta$mf, data
+      meta$group_info$rows[[b]], meta$mf, data
     )
     setups[[b]] <- tryCatch(
       do.call(
@@ -138,7 +138,7 @@ Prior_SetupBlock <- function(
       ),
       error = function(e) {
         stop(
-          "Prior_SetupBlock(): block '", block_id, "': ", conditionMessage(e),
+          "Prior_SetupGroup(): block '", block_id, "': ", conditionMessage(e),
           call. = FALSE
         )
       }
@@ -148,16 +148,16 @@ Prior_SetupBlock <- function(
 
   attr(setups, "call") <- call
   attr(setups, "formula") <- formula
-  attr(setups, "block") <- block
-  attr(setups, "block_info") <- meta$block_info
-  class(setups) <- c("Prior_SetupBlock", "list")
+  attr(setups, "group") <- group
+  attr(setups, "group_info") <- meta$group_info
+  class(setups) <- c("Prior_SetupGroup", "list")
   setups
 }
 
-#' @rdname Prior_SetupBlock
-#' @method print Prior_SetupBlock
-#' @param x Object of class \code{"Prior_SetupBlock"}.
-#' @param blocks For \code{print.Prior_SetupBlock}: \code{NULL} (default;
+#' @rdname Prior_SetupGroup
+#' @method print Prior_SetupGroup
+#' @param x Object of class \code{"Prior_SetupGroup"}.
+#' @param blocks For \code{print.Prior_SetupGroup}: \code{NULL} (default;
 #'   print a short header only), a character vector of block IDs
 #'   (\code{names(x)}), or integer indices. Selected blocks are printed
 #'   with \code{\link[glmbayesCore]{print.PriorSetup}}.
@@ -165,16 +165,16 @@ Prior_SetupBlock <- function(
 #'   \code{blocks} selects individual blocks.
 #' @return \code{x} invisibly.
 #' @export
-print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
+print.Prior_SetupGroup <- function(x, blocks = NULL, ...) {
   cl <- attr(x, "call")
   cat("\nCall:\n")
   if (!is.null(cl)) {
     print(cl)
   } else {
-    cat("Prior_SetupBlock()\n")
+    cat("Prior_SetupGroup()\n")
   }
 
-  info <- attr(x, "block_info")
+  info <- attr(x, "group_info")
   k <- length(x)
   ids <- names(x)
   if (is.null(ids)) {
@@ -192,7 +192,7 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
 
   if (!is.null(blocks)) {
     sel <- .lmebayes_select_named_list_keys(
-      x, blocks, arg = "blocks", what = "block"
+      x, blocks, arg = "blocks", what = "group"
     )
     for (nm in sel) {
       cat(sprintf("\n[[%s]]\n", nm))
@@ -211,7 +211,7 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
   nm <- names(x)
   if (is.null(nm) || any(!nzchar(nm))) {
     stop(
-      "Prior_SetupBlock(): '", arg_name, "' is a list but is not fully named; ",
+      "Prior_SetupGroup(): '", arg_name, "' is a list but is not fully named; ",
       "supply one named element per block/group level (",
       paste(block_ids, collapse = ", "), ").",
       call. = FALSE
@@ -221,7 +221,7 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
   extra_ids   <- setdiff(nm, block_ids)
   if (length(missing_ids) || length(extra_ids)) {
     stop(
-      "Prior_SetupBlock(): names('", arg_name, "') must exactly match the ",
+      "Prior_SetupGroup(): names('", arg_name, "') must exactly match the ",
       "block/group level IDs.",
       if (length(missing_ids)) {
         paste0("\n  Missing: ", paste(missing_ids, collapse = ", "))
@@ -242,7 +242,7 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
 #' @noRd
 .lmebayes_formula_block_meta <- function(
     formula,
-    block,
+    group,
     data,
     subset = NULL,
     weights = NULL,
@@ -263,8 +263,8 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
   mf <- do.call(stats::model.frame, mf_args)
 
   l2 <- nrow(mf)
-  block_vec <- .lmebayes_resolve_block(block, data, mf, l2)
-  block_info <- normalize_block(block_vec, l2)
+  block_vec <- .lmebayes_resolve_block(group, data, mf, l2)
+  group_info <- normalize_group(block_vec, l2)
 
   mt <- attr(mf, "terms")
   x_mat <- stats::model.matrix(mt, mf, contrasts)
@@ -276,7 +276,7 @@ print.Prior_SetupBlock <- function(x, blocks = NULL, ...) {
 
   list(
     mf = mf,
-    block_info = block_info,
+    group_info = group_info,
     p = p,
     pred_names = pred_names
   )

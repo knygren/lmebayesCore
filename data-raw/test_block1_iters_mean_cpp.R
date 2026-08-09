@@ -13,19 +13,19 @@ stopifnot(exists(".two_block_block1_iters_mean_cpp", mode = "function",
                  where = asNamespace("glmbayesCore")))
 
 ## Synthetic block_out shapes (no sampler required)
-empty_br <- list(block_results = list())
+empty_br <- list(group_results = list())
 stopifnot(identical(
   glmbayesCore:::.two_block_block1_iters_mean_r(empty_br),
   as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(empty_br))
 ))
 
-br_one <- list(block_results = list(list(iters = matrix(3, 1, 1))))
+br_one <- list(group_results = list(list(iters = matrix(3, 1, 1))))
 stopifnot(identical(
   glmbayesCore:::.two_block_block1_iters_mean_r(br_one),
   as.numeric(glmbayesCore:::.two_block_block1_iters_mean_cpp(br_one))
 ))
 
-br_mix <- list(block_results = list(
+br_mix <- list(group_results = list(
   list(iters = matrix(2, 1, 1)),
   list(iters = NULL),
   list(iters = 4)
@@ -52,11 +52,11 @@ if (requireNamespace("lmebayes", quietly = TRUE)) {
   prior_list <- glmbayesCore:::.two_block_block1_prior_with_tau2(
     block1_prior, rep(1, length(ps$re_names)), ps$ptypes, ps$re_names, mu_all
   )
-  block_out <- glmbayesCore::block_rNormalGLM(
+  block_out <- glmbayesCore::rNormalGLM_reg_group(
     n = 1L,
     y = design$y,
     x = design$D,
-    block = design$group,
+    group = design$group,
     prior_list = prior_list,
     family = binomial(),
     use_parallel = FALSE,
@@ -71,7 +71,7 @@ if (requireNamespace("lmebayes", quietly = TRUE)) {
       call. = FALSE
     )
   }
-  message("Live block_rNormalGLM draw: R and C++ iters_mean = ", r_live)
+  message("Live rNormalGLM_reg_group draw: R and C++ iters_mean = ", r_live)
 }
 
 message("test_block1_iters_mean_cpp.R: OK")

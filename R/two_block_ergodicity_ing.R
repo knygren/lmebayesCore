@@ -212,7 +212,7 @@
 #' @family simfuncs
 #' @export
 two_block_rate_ing <- function(x,
-                                block,
+                                group,
                                 x_hyper,
                                 prior_list_block1,
                                 prior_list_block2,
@@ -220,7 +220,7 @@ two_block_rate_ing <- function(x,
                                 omega_ing = NULL,
                                 weights = NULL,
                                 family = gaussian(),
-                                group_levels = levels(block),
+                                group_levels = levels(group),
                                 warn_slow = TRUE) {
   cl <- match.call()
   if (is.null(lambda_ing) && is.null(omega_ing)) {
@@ -231,7 +231,7 @@ two_block_rate_ing <- function(x,
     )
   }
   inp <- .two_block_rate_inputs(
-    x = x, block = block, x_hyper = x_hyper,
+    x = x, group = group, x_hyper = x_hyper,
     prior_list_block1 = prior_list_block1,
     prior_list_block2 = prior_list_block2,
     weights = weights, family = family, group_levels = group_levels
@@ -601,7 +601,7 @@ print.two_block_rate_ing <- function(x, ...) {
 #'   \code{$popef}, and -- as required by \code{lambda_spec}/\code{omega_spec}
 #'   -- \code{$popef.dispersion}/\code{$group.dispersion}).
 #' @param n_draws Number of main-stage draws to scan (typically \code{fit$n}).
-#' @param x,block,x_hyper,prior_list_block1,prior_list_block2,family,group_levels
+#' @param x,group,x_hyper,prior_list_block1,prior_list_block2,family,group_levels
 #'   As in \code{\link{two_block_rate_ing}}; held fixed across draws (only
 #'   \code{lambda_ing}/\code{omega_ing} vary per draw).
 #' @param group_name,groupef.names As in \code{\link{.lmebayes_posterior_u}}.
@@ -624,10 +624,10 @@ print.two_block_rate_ing <- function(x, ...) {
 #' @noRd
 .two_block_rate_ing_over_draws <- function(
     fit, n_draws,
-    x, block, x_hyper, prior_list_block1, prior_list_block2,
+    x, group, x_hyper, prior_list_block1, prior_list_block2,
     group_name, groupef.names, y = NULL, D = NULL,
     lambda_spec = NULL, omega_spec = NULL,
-    family = gaussian(), group_levels = levels(block)
+    family = gaussian(), group_levels = levels(group)
 ) {
   if (is.null(lambda_spec) && is.null(omega_spec)) {
     stop(
@@ -665,7 +665,7 @@ print.two_block_rate_ing <- function(x, ...) {
     omega_ing_i <- NULL
     if (!is.null(omega_spec)) {
       e_i <- .lmebayes_posterior_group_residuals(
-        fit_i, y = y, D = D, group = block, group_name = group_name,
+        fit_i, y = y, D = D, group = group, group_name = group_name,
         groupef.names = groupef.names
       )
       omega_i <- 1 / fit[["group.dispersion"]][i, group_levels]
@@ -680,7 +680,7 @@ print.two_block_rate_ing <- function(x, ...) {
     }
 
     rate_i <- two_block_rate_ing(
-      x = x, block = block, x_hyper = x_hyper,
+      x = x, group = group, x_hyper = x_hyper,
       prior_list_block1 = prior_list_block1,
       prior_list_block2 = prior_list_block2,
       lambda_ing = lambda_ing_i, omega_ing = omega_ing_i,

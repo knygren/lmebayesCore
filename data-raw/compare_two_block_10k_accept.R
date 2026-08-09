@@ -55,7 +55,7 @@ sim_legacy <- rindepNormalGamma_reg(
 )
 set.seed(seed)
 sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
-  n = n_draws, y = y, x = x_block, block = block,
+  n = n_draws, y = y, x = x_block, group = block,
   prior_list = prior_list_block, n_envopt = n_envopt, Gridtype = 3L,
   use_parallel = FALSE, progbar = FALSE, verbose = FALSE,
   offset = rep(0, length(y)), wt = rep(1, length(y)),

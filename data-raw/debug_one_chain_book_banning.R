@@ -34,7 +34,7 @@ one_cpp <- function() {
   set.seed(42L)
   sample.int(.Machine$integer.max - 1L, 1L)
   glmbayesCore::two_block_rNormal_reg_v5(
-    n = 1L, y = design$y, x = design$D, block = design$group,
+    n = 1L, y = design$y, x = design$D, group = design$group,
     x_hyper = design$W, prior_list_block1 = block1,
     pfamily_list = prior$pfamily_list, fixef_start = pm$fixef,
     re_coef_names = re_names, group_levels = group_levels,

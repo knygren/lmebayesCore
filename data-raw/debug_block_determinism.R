@@ -29,7 +29,7 @@ pl <- glmbayesCore:::.two_block_block1_prior_with_tau2(
 )
 f <- glmbfamfunc(binomial())
 args <- list(
-  n = 1L, y = design$y, x = design$D, block = design$group,
+  n = 1L, y = design$y, x = design$D, group = design$group,
   prior_list = pl, prior_lists = NULL,
   offset = rep(0, length(design$y)), wt = rep(1, length(design$y)),
   f2 = f$f2, f3 = f$f3, family = "binomial", link = "logit",
@@ -44,8 +44,8 @@ cat("repeat cpp max diff:", max(abs(a - b)), "\n")
 
 # Compare wrapper vs cpp same seed
 set.seed(1L)
-w <- block_rNormalGLM(
-  n = 1L, y = design$y, x = design$D, block = design$group,
+w <- rNormalGLM_reg_group(
+  n = 1L, y = design$y, x = design$D, group = design$group,
   prior_list = pl, family = binomial(), use_parallel = FALSE,
   verbose = FALSE, progbar = FALSE
 )$coefficients

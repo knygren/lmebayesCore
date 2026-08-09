@@ -772,7 +772,7 @@ NULL
   if (is_gaussian) {
     two_block_rate_from_pfamily_list(
       x                 = design$D,
-      block             = design$group,
+      group             = design$group,
       x_hyper           = design$W,
       prior_list_block1 = dispprior_list,
       pfamily_list      = pfamily_list,
@@ -782,14 +782,14 @@ NULL
   } else {
     mode_w <- two_block_mode_weights(
       x            = design$D,
-      block        = design$group,
+      group        = design$group,
       b_mode       = b_mode,
       family       = family,
       group_levels = group_levels
     )
     two_block_rate_from_pfamily_list(
       x                 = design$D,
-      block             = design$group,
+      group             = design$group,
       x_hyper           = design$W,
       prior_list_block1 = dispprior_list,
       pfamily_list      = pfamily_list,

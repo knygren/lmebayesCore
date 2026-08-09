@@ -7,7 +7,7 @@ R batch loop used by `rGLMM_sweep` / non-Gaussian `glmerb` (`R_engine`).
 
 | Block | Updates | Typical call | Outer GLMM family? |
 |-------|---------|--------------|-------------------|
-| **Block 1** | Random effects **`b`** | `block_rNormalGLM` / `block_rNormalReg` | **Yes** (Poisson, binomial, …) for GLMM path |
+| **Block 1** | Random effects **`b`** | `rNormalGLM_reg_group` / `rNormal_reg_group` | **Yes** (Poisson, binomial, …) for GLMM path |
 | **Block 2** | Hyperparameters **`γ`** (+ **`τ²`** for ING) | `rglmb(..., gaussian())` | **No** — always Gaussian hyper-regression on `b` |
 
 Related docs:
@@ -56,7 +56,7 @@ rGLMM_sweep
   │           └── .two_block_block1_prior_with_tau2  # C++ default (use_cpp_prior_tau2)
   └── .two_block_block1_draw_all_chains     # lapply / mclapply over chains
         └── .two_block_block1_draw_one_chain
-              └── block_rNormalGLM / block_rNormalReg
+              └── rNormalGLM_reg_group / rNormal_reg_group
                     └── glmbfamfunc → .block_rNormalGLM_cpp → rNormalGLMBlocks → rNormalGLM
 ```
 
@@ -65,8 +65,8 @@ rGLMM_sweep
 | Chain loop | R `lapply` / `mclapply` in prep + draw | No | R loop every sweep |
 | `build_mu_all` | `R/build_mu_all.R` | **Yes** — `two_block_build_mu_all_cpp_export` | Optional R via `use_cpp_mu_all = FALSE` |
 | ING `P` refresh | `.two_block_block1_prior_with_tau2` | **Yes** — `two_block_block1_prior_with_tau2_cpp_export` (v5 `any_ing`) | Optional R via `use_cpp_prior_tau2 = FALSE` |
-| GLMM draw | `block_rNormalGLM()` | **Partial** — `block_rNormalGLM_cpp_export` | **`glmbfamfunc`** per chain; **`optim()`** per group inside `rNormalGLM.cpp` |
-| Gaussian draw | `block_rNormalReg()` | **Partial** — `block_rNormalReg_cpp_export` | **`lm.fit`** / mode path in `rNormalReg.cpp` |
+| GLMM draw | `rNormalGLM_reg_group()` | **Partial** — `block_rNormalGLM_cpp_export` | **`glmbfamfunc`** per chain; **`optim()`** per group inside `rNormalGLM.cpp` |
+| Gaussian draw | `rNormal_reg_group()` | **Partial** — `block_rNormalReg_cpp_export` | **`lm.fit`** / mode path in `rNormalReg.cpp` |
 | `b` reorder | `match(group_levels, rownames)` | **Yes** — `two_block_reorder_b_to_group_levels_cpp_export` | Optional R via `use_cpp_reorder = FALSE` |
 | `iters_ranef` mean | `.two_block_block1_iters_mean` | **Yes** — `two_block_block1_iters_mean_cpp_export` | Optional R via `use_cpp_iters = FALSE` |
 
@@ -78,7 +78,7 @@ rGLMM_sweep
 | 2 | `build_mu_all` | `MuAllBuilder` | `two_block_build_mu_all_cpp_export` | **Yes** | `use_cpp_mu_all = TRUE` default |
 | 3 | `prior_with_tau2` | inline ING loop | `two_block_block1_prior_with_tau2_cpp_export` | **Yes** | R `ddef` bug fixed; v5 `any_ing` semantics |
 | 4 | Block 1 draw | `block_rNormalGLM_cpp_export` | via R wrappers | Partial | `glmbfamfunc` per chain remains |
-| 5 | reorder `b` | v5 `block_info$ids` | `two_block_reorder_b_to_group_levels_cpp_export` | **Yes** | v6 `group_levels` semantics |
+| 5 | reorder `b` | v5 `group_info$ids` | `two_block_reorder_b_to_group_levels_cpp_export` | **Yes** | v6 `group_levels` semantics |
 | 6 | `iters_mean` | inline in v5 | `two_block_block1_iters_mean_cpp_export` | **Yes** | `use_cpp_iters = TRUE` default |
 | 7 | one-chain composite | prep + draw in R | `two_block_block1_one_chain_cpp_export` | **Yes** | `two_block_block1_one_chain_cpp()` |
 | 8 | all-chains composite | R double loop | `two_block_block1_all_chains_cpp_export` | **Yes** | `use_cpp_block1` on `rGLMM_sweep` (default `TRUE`) |
@@ -123,11 +123,11 @@ still forward `ddef` for the envelope sampler dispersion convention.
 | R `lapply` / `mclapply` over chains | prep + draw | No | Phase 1: all-chains export |
 | `build_mu_all()` | prep | No | Done — `two_block_build_mu_all_cpp_export` |
 | `.two_block_block1_prior_with_tau2` | prep | No | Done — `two_block_block1_prior_with_tau2_cpp_export` |
-| `block_rNormalGLM()` R wrapper | draw | No | Phase 1: direct `.Call(block_rNormalGLM_cpp_export)` |
-| `glmbfamfunc(family)` | inside `block_rNormalGLM()` | No | Phase 1: once per sweep; Phase 3: native `fam` |
+| `rNormalGLM_reg_group()` R wrapper | draw | No | Phase 1: direct `.Call(block_rNormalGLM_cpp_export)` |
+| `glmbfamfunc(family)` | inside `rNormalGLM_reg_group()` | No | Phase 1: once per sweep; Phase 3: native `fam` |
 | `f2` / `f3` R `Function` | `rNormalGLM` envelope | No | Phase 3: C++ fam dispatch |
 | `optim()` | `rNormalGLM.cpp` posterior mode | Debatable | Phase 4: C++ mode finder |
-| `block_rNormalReg()` R wrapper | Gaussian Block 1 on v6 | No | Phase 1: direct export |
+| `rNormal_reg_group()` R wrapper | Gaussian Block 1 on v6 | No | Phase 1: direct export |
 | `lm.fit` | `rNormalReg.cpp` | For stored `b` mode | Phase 5 (Gaussian Block 1 only): conjugate draw |
 
 ---
@@ -188,7 +188,7 @@ Keep `.two_block_block1_all_chains` R path as **reference oracle** for parity te
 2. Reuse **`MuAllBuilder`**, **`block1_prior_list`**, v5 ING **`P`** refresh.
 3. Call **`block_rNormalGLM_cpp_export(1, ...)`** or **`block_rNormalReg_cpp_export(1, ...)`**
    per chain; pass **`f2`/`f3` once** from R (one `glmbfamfunc(family)` per Block 1 batch).
-4. Port **`b` reorder** to `group_levels` (v5 reads `block_info$ids`; v6 uses explicit
+4. Port **`b` reorder** to `group_levels` (v5 reads `group_info$ids`; v6 uses explicit
    `match(group_levels, rownames)` — keep v6 semantics).
 5. Port **`.two_block_block1_iters_mean`** logic for `iters_ranef`.
 6. Add **`two_block_block1_all_chains_cpp_export`**; wire `use_cpp_block1` in
@@ -219,7 +219,7 @@ stop passing R `Function` into `rNormalGLM`.
 **Acceptance:** Grep Block 1 path: no `glmbfamfunc`, no `Function f2` in hot loop.
 
 **Hurdle:** `DESIGN_RGLM_BLOCKS.md` notes fam dispatch is partially ported; link coverage
-must match `block_rNormalGLM()` validation (poisson/log, binomial/logit|probit|cloglog, …).
+must match `rNormalGLM_reg_group()` validation (poisson/log, binomial/logit|probit|cloglog, …).
 
 ### Phase 4 — Posterior mode without R `optim()` (GLMM Block 1)
 
@@ -234,7 +234,7 @@ Gridtype / link-specific edge cases (cloglog, probit).
 ### Phase 5 — Gaussian Block 1 on v6 path (optional)
 
 When `is_gaussian` and model uses `rGLMM_sweep` (e.g. ING `lmerb`-style
-routing), Block 1 calls `block_rNormalReg` instead of `block_rNormalGLM`.
+routing), Block 1 calls `rNormal_reg_group` instead of `rNormalGLM_reg_group`.
 
 **Work:** Conjugate / native mode in `rNormalReg` without `lm.fit` (similar to Block 2
 Phase 3 for dNormal).
@@ -279,13 +279,13 @@ the GLM family. Phase 3 removes this; requires native link/family tables.
 
 ### 5. Group id ordering
 
-Block partition returns coefficients with `block_info$ids` row order. v6 R path reorders
+Block partition returns coefficients with `group_info$ids` row order. v6 R path reorders
 to **`batch$group_levels`**. C++ port must match v6 (not raw v5 `b_i` assignment).
 
 ### 6. `iters_ranef` bookkeeping
 
 `.two_block_block1_iters_mean` averages envelope candidate counts across groups from
-`block_results`. Easy to get wrong when collapsing to one chain update.
+`group_results`. Easy to get wrong when collapsing to one chain update.
 
 ### 7. Parallelism
 
@@ -319,7 +319,7 @@ copy of ING refresh / reorder rules.
 
 ## Validation checklist
 
-- [ ] Align / group order: `group_levels` vs `block_info$ids` on book-banning design.
+- [ ] Align / group order: `group_levels` vs `group_info$ids` on book-banning design.
 - [ ] Poisson/binomial dNormal: R vs `use_cpp_block1` colMeans(`b`) at large `n`.
 - [ ] Binomial ING (Ex_22): runs; τ² tracks Block 2; Block 1 `P` refresh each sweep.
 - [ ] `data-raw/test_block_rNormalGLM_cpp.R` still passes (export unchanged).

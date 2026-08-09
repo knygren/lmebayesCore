@@ -95,7 +95,7 @@ pfam_ing <- list(
 )
 set.seed(101)
 fit_ing <- two_block_rNormal_reg(
-  n = n_draw, y = y, x = x, block = school,
+  n = n_draw, y = y, x = x, group = school,
   x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pfam_ing,
@@ -174,7 +174,7 @@ prior_b1_t <- list(Sigma = diag(tau2_star, 2L), dispersion = sigma2,
 
 err_t <- tryCatch(
   two_block_rNormal_reg(
-    n = 5L, y = y, x = x, block = school,
+    n = 5L, y = y, x = x, group = school,
     x_hyper = x_hyper,
     prior_list_block1 = prior_b1_t,
     pfamily_list = pfam_tight,
@@ -200,7 +200,7 @@ pfam_mixed <- list(
 )
 set.seed(303)
 fit_mix <- two_block_rNormal_reg(
-  n = 50L, y = y, x = x, block = school,
+  n = 50L, y = y, x = x, group = school,
   x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pfam_mixed,
@@ -218,7 +218,7 @@ cat("4. mixed ING + dNormal: OK\n")
 ## 5. two_block_rate_from_pfamily_list with ING components uses the disp_lower plug-in
 ## ---------------------------------------------------------------------------
 r_ing <- two_block_rate_from_pfamily_list(
-  x = x, block = school, x_hyper = x_hyper,
+  x = x, group = school, x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pfam_ing,
   family = gaussian()
@@ -242,7 +242,7 @@ pf_onesided[["(Intercept)"]] <- dIndependent_Normal_Gamma(
 )
 err_os <- tryCatch(
   two_block_rNormal_reg(
-    n = 5L, y = y, x = x, block = school,
+    n = 5L, y = y, x = x, group = school,
     x_hyper = x_hyper,
     prior_list_block1 = prior_b1,
     pfamily_list = pf_onesided,
@@ -255,7 +255,7 @@ err_os <- tryCatch(
 )
 stopifnot(is.character(err_os), grepl("disp_upper", err_os, fixed = TRUE))
 r_os <- two_block_rate_from_pfamily_list(
-  x = x, block = school, x_hyper = x_hyper,
+  x = x, group = school, x_hyper = x_hyper,
   prior_list_block1 = prior_b1,
   pfamily_list = pf_onesided,
   family = gaussian()

@@ -669,7 +669,7 @@ NULL
 ) {
   rate <- two_block_rate_from_pfamily_list(
     x                 = D,
-    block             = group,
+    group             = group,
     x_hyper           = W,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,
@@ -1296,8 +1296,8 @@ NULL
 #' Map \code{BlockEnvelopeSim} block draws to the batch \code{b} matrix layout
 #' @noRd
 .two_block_block1_map_envelope_sim_to_b <- function(sim, re_names, group_levels, p_re) {
-  ids <- vapply(sim$block_results, function(br) as.character(br$block_id), character(1))
-  b_rows <- lapply(sim$block_results, function(br) {
+  ids <- vapply(sim$group_results, function(br) as.character(br$block_id), character(1))
+  b_rows <- lapply(sim$group_results, function(br) {
     v <- as.numeric(br$beta[, 1L])
     if (length(v) != p_re) {
       stop(
@@ -2004,7 +2004,7 @@ NULL
 
   rate <- two_block_rate_from_pfamily_list(
     x                 = inp$D,
-    block             = group,
+    group             = group,
     x_hyper           = inp$W,
     prior_list_block1 = prior_list_block1_rate,
     pfamily_list      = pfamily_list,

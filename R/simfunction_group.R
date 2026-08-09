@@ -2,23 +2,23 @@
 #'
 #' @description
 #' Draw from blockwise full conditionals when the posterior factorizes across
-#' observation blocks.  \code{\link{block_rNormalReg}} uses
+#' observation blocks.  \code{\link{rNormal_reg_group}} uses
 #' \code{.block_rNormalReg_cpp()} (Gaussian; each block calls \code{rNormalReg}).
-#' \code{\link{block_rNormalGLM}} uses \code{.block_rNormalGLM_cpp()} (GLM envelope;
+#' \code{\link{rNormalGLM_reg_group}} uses \code{.block_rNormalGLM_cpp()} (GLM envelope;
 #' C++ partition and prior payload; each block calls \code{rNormalGLM}).  Typical use is **block Gibbs**
 #' (\code{n = 1} per outer step); \code{n > 1} gives iid draws from the product
 #' conditional.
 #'
 #' @details
 #' **Output layout:** \code{coefficients} and \code{coef.mode} are matrices with
-#' **rows = blocks** and **columns = predictors**.
+#' **rows = groups** and **columns = predictors**.
 #'
 #' See \code{inst/DESIGN_RGLM_BLOCKS.md}.
 #'
 #' @param n Number of iid draws per block (\code{n = 1} typical for Gibbs).
 #' @param y Response vector of length \code{nrow(x)}.
 #' @param x Design matrix \code{nrow(x)} by \code{ncol(x)}; same \code{ncol} in every block.
-#' @param block Block partition: \code{factor}/integer length \code{l2}, \code{l2_blocks}
+#' @param group Group partition: \code{factor}/integer length \code{l2}, \code{l2_blocks}
 #'   counts summing to \code{l2}, or list of row index vectors.
 #' @param prior_list Single prior specification recycled to all blocks, or with
 #'   \code{mu} as \code{l1} by \code{k} matrix or \code{blocks} sublist.
@@ -31,28 +31,28 @@
 #' @param Gridtype Passed to each block's sampler (Armadillo Gridtype).
 #' @param use_parallel,use_opencl,verbose,progbar Passed to each block's GLM sampler.
 #' @param n_envopt Passed to each block; defaults to \code{1} when \code{NULL}.
-#' @return A list with class \code{"block_rNormalGLM"} including:
+#' @return A list with class \code{"rNormalGLM_reg_group"} including:
 #'   \describe{
 #'     \item{coefficients}{Matrix \code{k * p}; row \code{b} is the draw for block \code{b}.}
 #'     \item{coef.mode}{Matrix \code{k * p}; posterior mode per block.}
-#'     \item{block_info}{Block partition metadata.}
-#'     \item{block_results}{List of length \code{k} with each block's sampler output.}
+#'     \item{group_info}{Block partition metadata.}
+#'     \item{group_results}{List of length \code{k} with each block's sampler output.}
 #'   }
 #' @seealso \code{\link[glmbayesCore]{rNormal_reg}}, \code{\link[glmbayesCore]{simfunction}},
-#'   \code{\link{normalize_block}}, \code{\link{Prior_SetupBlock}},
+#'   \code{\link{normalize_group}}, \code{\link{Prior_SetupGroup}},
 #'   \code{inst/DESIGN_RGLM_BLOCKS.md}
-#' @example inst/examples/Ex_block_rNormalGLM.R
-#' @name block_simfuncs
-#' @aliases block_rNormalGLM block_rNormalReg
-#' @family block_simfuncs
+#' @example inst/examples/Ex_rNormalGLM_reg_group.R
+#' @name simfuncs_group
+#' @aliases rNormalGLM_reg_group rNormal_reg_group
+#' @family simfuncs_group
 NULL
 
-#' @rdname block_simfuncs
+#' @rdname simfuncs_group
 #' @export
-block_rNormalGLM <- function(n,
+rNormalGLM_reg_group <- function(n,
                              y,
                              x,
-                             block,
+                             group,
                              prior_list = NULL,
                              prior_lists = NULL,
                              offset = NULL,
@@ -86,8 +86,8 @@ block_rNormalGLM <- function(n,
 
   if (family$family == "gaussian") {
     stop(
-      "block_rNormalGLM is for the GLM envelope path only; ",
-      "use block loops with rNormal_reg() for gaussian() or add a Gaussian block helper later.",
+      "rNormalGLM_reg_group is for the GLM envelope path only; ",
+      "use rNormal_reg_group() for gaussian().",
       call. = FALSE
     )
   }
@@ -97,7 +97,7 @@ block_rNormalGLM <- function(n,
   )
   if (!family$family %in% okfamilies) {
     stop(
-      "family \"", family$family, "\" is not supported by block_rNormalGLM.",
+      "family \"", family$family, "\" is not supported by rNormalGLM_reg_group.",
       call. = FALSE
     )
   }
@@ -142,7 +142,7 @@ block_rNormalGLM <- function(n,
     n            = n,
     y            = y,
     x            = x,
-    block        = block,
+    block        = group,
     prior_list   = prior_list,
     prior_lists  = prior_lists,
     offset       = offset2,
@@ -158,20 +158,20 @@ block_rNormalGLM <- function(n,
     verbose      = verbose
   )
 
-  block_info <- cpp_out$block_info
+  group_info <- cpp_out$group_info
   k <- cpp_out$k
   prior_block <- cpp_out$prior_lists
   coef_draw <- cpp_out$coefficients
   coef_mode <- cpp_out$coef.mode
   dispersion_block <- as.numeric(cpp_out$dispersion)
-  block_results <- cpp_out$block_results
+  group_results <- cpp_out$group_results
 
   cn <- colnames(x)
   if (!is.null(cn)) {
     colnames(coef_draw) <- cn
     colnames(coef_mode) <- cn
   }
-  rn <- block_info$ids
+  rn <- group_info$ids
   if (!is.null(rn)) {
     rownames(coef_draw) <- rn
     rownames(coef_mode) <- rn
@@ -185,8 +185,8 @@ block_rNormalGLM <- function(n,
     k = k,
     l1 = l1,
     l2 = l2,
-    block_info = block_info,
-    block_results = block_results,
+    group_info = group_info,
+    group_results = group_results,
     y = y,
     x = x,
     offset = offset2,
@@ -195,14 +195,14 @@ block_rNormalGLM <- function(n,
     prior_lists = prior_block,
     call = match.call()
   )
-  class(outlist) <- c("block_rNormalGLM", "list")
+  class(outlist) <- c("rNormalGLM_reg_group", "list")
   outlist
 }
 
-#' @describeIn block_simfuncs Gaussian blockwise full conditionals via
+#' @describeIn simfuncs_group Gaussian blockwise full conditionals via
 #'   \code{.block_rNormalReg_cpp()} (C++ partition, prior payload, and
 #'   \code{rNormalReg()} per block).
-#'   This is the Gaussian counterpart of \code{\link{block_rNormalGLM}}.
+#'   This is the Gaussian counterpart of \code{\link{rNormalGLM_reg_group}}.
 #'
 #' @details
 #' **Per-block prior mean:** pass \code{prior_list$mu} as an \code{l1 x k}
@@ -213,15 +213,15 @@ block_rNormalGLM <- function(n,
 #' **Dispersion:** must be supplied via \code{prior_list$dispersion} (residual
 #' variance \eqn{\sigma^2}).
 #'
-#' @return A list with class \code{"block_rNormalReg"} including
+#' @return A list with class \code{"rNormal_reg_group"} including
 #'   \code{coefficients}, \code{coef.mode}, \code{dispersion}, and
-#'   \code{block_info}.
-#' @example inst/examples/Ex_block_rNormalReg.R
+#'   \code{group_info}.
+#' @example inst/examples/Ex_rNormal_reg_group.R
 #' @export
-block_rNormalReg <- function(n,
+rNormal_reg_group <- function(n,
                              y,
                              x,
-                             block,
+                             group,
                              prior_list  = NULL,
                              prior_lists = NULL,
                              offset  = NULL,
@@ -254,7 +254,7 @@ block_rNormalReg <- function(n,
     n           = n,
     y           = y,
     x           = x,
-    block       = block,
+    block       = group,
     prior_list  = prior_list,
     prior_lists = prior_lists,
     offset      = offset2,
@@ -264,11 +264,11 @@ block_rNormalReg <- function(n,
     Gridtype    = as.integer(Gridtype)
   )
 
-  block_info    <- cpp_out$block_info
+  group_info    <- cpp_out$group_info
   coef_draw     <- cpp_out$coefficients
   coef_mode     <- cpp_out$coef.mode
   disp_block    <- as.numeric(cpp_out$dispersion)
-  block_results <- cpp_out$block_results
+  group_results <- cpp_out$group_results
   prior_block   <- cpp_out$prior_lists
   k             <- cpp_out$k
   l1            <- cpp_out$l1
@@ -278,7 +278,7 @@ block_rNormalReg <- function(n,
     colnames(coef_draw) <- cn
     colnames(coef_mode) <- cn
   }
-  rn <- block_info$ids
+  rn <- group_info$ids
   if (!is.null(rn)) {
     rownames(coef_draw) <- rn
     rownames(coef_mode) <- rn
@@ -292,8 +292,8 @@ block_rNormalReg <- function(n,
     k             = k,
     l1            = l1,
     l2            = l2,
-    block_info    = block_info,
-    block_results = block_results,
+    group_info    = group_info,
+    group_results = group_results,
     y             = y,
     x             = x,
     offset        = offset2,
@@ -301,6 +301,6 @@ block_rNormalReg <- function(n,
     prior_lists   = prior_block,
     call          = match.call()
   )
-  class(outlist) <- c("block_rNormalReg", "list")
+  class(outlist) <- c("rNormal_reg_group", "list")
   outlist
 }

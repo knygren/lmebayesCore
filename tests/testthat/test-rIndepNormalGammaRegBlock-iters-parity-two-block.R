@@ -155,7 +155,7 @@
     y = y,
     x_block = x_block,
     x_old = x_old,
-    block = block,
+    group = block,
     prior_list_old = prior_list_old,
     prior_list_block = prior_list_block,
     l1 = l1,
@@ -210,7 +210,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
     n = n_draws,
     y = fix$y,
     x = fix$x_block,
-    block = fix$block,
+    block = fix$group,
     prior_list = fix$prior_list_block,
     prior_lists = NULL,
     offset = rep(0, fix$n_obs),
@@ -292,7 +292,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
     n = 500L,
     y = fix$y,
     x = fix$x_block,
-    block = fix$block,
+    block = fix$group,
     prior_list = fix$prior_list_block,
     n_envopt = n_envopt,
     Gridtype = 3L,
@@ -337,7 +337,7 @@ test_that("two-block Dobson: three-way means/SDs/acceptance — legacy, joint, i
   block_args <- list(
     y            = fix$y,
     x            = fix$x_block,
-    block        = fix$block,
+    block        = fix$group,
     prior_list   = fix$prior_list_block,
     prior_lists  = NULL,
     offset       = rep(0, fix$n_obs),
@@ -398,12 +398,12 @@ test_that("two-block Dobson: three-way means/SDs/acceptance — legacy, joint, i
   # block beta is l1 x n          (each row = one parameter, each col = one draw)
   legacy_coefs  <- sim_legacy$coefficients           # n x (2*l1)
   joint_coefs   <- rbind(                            # (2*l1) x n
-    sim_joint$sim$block_results[[1]]$beta,
-    sim_joint$sim$block_results[[2]]$beta
+    sim_joint$sim$group_results[[1]]$beta,
+    sim_joint$sim$group_results[[2]]$beta
   )
   ind_coefs     <- rbind(
-    sim_ind$sim$block_results[[1]]$beta,
-    sim_ind$sim$block_results[[2]]$beta
+    sim_ind$sim$group_results[[1]]$beta,
+    sim_ind$sim$group_results[[2]]$beta
   )
 
   legacy_means  <- colMeans(legacy_coefs)            # p-element vector

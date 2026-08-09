@@ -22,13 +22,13 @@
 #' Shared setup for the Remark-8 two-block rate diagnostics
 #' @noRd
 .two_block_rate_inputs <- function(x,
-                                   block,
+                                   group,
                                    x_hyper,
                                    prior_list_block1,
                                    prior_list_block2,
                                    weights = NULL,
                                    family = gaussian(),
-                                   group_levels = levels(block)) {
+                                   group_levels = levels(group)) {
   x <- as.matrix(x)
   l2 <- nrow(x)
   p_re <- ncol(x)
@@ -44,12 +44,12 @@
   family <- .two_block_normalize_family(family)
 
   ## --- group partition (same path as the sampler) ---------------------------
-  block_info <- normalize_block(block, l2)
+  group_info <- normalize_group(group, l2)
   if (is.null(group_levels)) {
-    group_levels <- block_info$ids
+    group_levels <- group_info$ids
   }
   group_levels <- as.character(group_levels)
-  idx_map <- match(group_levels, as.character(block_info$ids))
+  idx_map <- match(group_levels, as.character(group_info$ids))
   if (anyNA(idx_map)) {
     stop(
       "group_levels not found in block ids: ",
@@ -57,7 +57,7 @@
       call. = FALSE
     )
   }
-  row_idx <- block_info$rows[idx_map]
+  row_idx <- group_info$rows[idx_map]
   J <- length(group_levels)
 
   ## --- Block 1 prior precision P_b ------------------------------------------
@@ -471,7 +471,7 @@
 #'
 #' @param x Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
 #'   to \code{\link{two_block_rNormal_reg}}.
-#' @param block Grouping factor or block partition of length \code{l2}.
+#' @param group Grouping factor or row-group partition of length \code{l2}.
 #' @param x_hyper Named list of group-level design matrices \code{X_k}
 #'   (\code{J x q_k}), one per column of \code{x}.
 #' @param prior_list_block1 Block 1 prior: \code{P} or \code{Sigma}
@@ -485,7 +485,7 @@
 #'   families.
 #' @param family Response family (default \code{gaussian()}).
 #' @param group_levels Character vector defining group order (default
-#'   \code{levels(block)}); must match the row order of \code{x_hyper}
+#'   \code{levels(group)}); must match the row order of \code{x_hyper}
 #'   when rownames are absent.
 #' @param warn_slow If \code{TRUE} (default), issue a \code{warning()} when
 #'   \code{lambda_star} exceeds \code{0.95} (strong cross-block coupling and
@@ -508,17 +508,17 @@
 #' @aliases two_block_rate_from_pfamily_list
 #' @export
 two_block_rate <- function(x,
-                           block,
+                           group,
                            x_hyper,
                            prior_list_block1,
                            prior_list_block2,
                            weights = NULL,
                            family = gaussian(),
-                           group_levels = levels(block),
+                           group_levels = levels(group),
                            warn_slow = TRUE) {
   cl <- match.call()
   inp <- .two_block_rate_inputs(
-    x = x, block = block, x_hyper = x_hyper,
+    x = x, group = group, x_hyper = x_hyper,
     prior_list_block1 = prior_list_block1,
     prior_list_block2 = prior_list_block2,
     weights = weights, family = family, group_levels = group_levels
@@ -606,13 +606,13 @@ print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
 #'   component), as in \code{\link{two_block_rNormal_reg}}.
 #' @export
 two_block_rate_from_pfamily_list <- function(x,
-                                              block,
+                                              group,
                                               x_hyper,
                                               prior_list_block1,
                                               pfamily_list,
                                               weights = NULL,
                                               family = gaussian(),
-                                              group_levels = levels(block),
+                                              group_levels = levels(group),
                                               warn_slow = TRUE) {
   re_names <- names(x_hyper)
   pfamily_list <- .two_block_validate_pfamily_list(pfamily_list, re_names)
@@ -629,7 +629,7 @@ two_block_rate_from_pfamily_list <- function(x,
     )
   })
   two_block_rate(
-    x = x, block = block, x_hyper = x_hyper,
+    x = x, group = group, x_hyper = x_hyper,
     prior_list_block1 = prior_list_block1,
     prior_list_block2 = prior_list_block2,
     weights = weights, family = family, group_levels = group_levels,
@@ -656,13 +656,13 @@ two_block_rate_from_pfamily_list <- function(x,
 
 #' @noRd
 two_block_mode_weights <- function(x,
-                                   block,
+                                   group,
                                    b_mode,
                                    family = gaussian(),
                                    wt = 1,
                                    offset = 0,
                                    dispersion = NULL,
-                                   group_levels = levels(block)) {
+                                   group_levels = levels(group)) {
   cl <- match.call()
 
   x <- as.matrix(x)
@@ -693,12 +693,12 @@ two_block_mode_weights <- function(x,
   }
 
   ## --- group partition (same path as two_block_rate) --------------------------
-  block_info <- normalize_block(block, l2)
+  group_info <- normalize_group(group, l2)
   if (is.null(group_levels)) {
-    group_levels <- block_info$ids
+    group_levels <- group_info$ids
   }
   group_levels <- as.character(group_levels)
-  idx_map <- match(group_levels, as.character(block_info$ids))
+  idx_map <- match(group_levels, as.character(group_info$ids))
   if (anyNA(idx_map)) {
     stop(
       "group_levels not found in block ids: ",
@@ -706,7 +706,7 @@ two_block_mode_weights <- function(x,
       call. = FALSE
     )
   }
-  row_idx <- block_info$rows[idx_map]
+  row_idx <- group_info$rows[idx_map]
   J <- length(group_levels)
 
   ## --- b_mode aligned to group_levels ----------------------------------------

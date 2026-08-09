@@ -14,7 +14,7 @@ ps_block <- block_prior_setup(
   data = iris,
   family = gaussian()
 )
-stopifnot(inherits(ps_block, "Prior_SetupBlock"), length(ps_block) == 3L)
+stopifnot(inherits(ps_block, "Prior_SetupGroup"), length(ps_block) == 3L)
 
 pfamily_list <- lapply(ps_block, function(ps) {
   dNormal_Gamma(
@@ -40,7 +40,7 @@ stopifnot(nrow(cm) == 3L, ncol(cm) == 3L)
 
 print(out)
 
-# Aliases: block_rNormalGLM
-stopifnot(identical(block_rNormalGLM, rNormalGLM_reg_block))
+# Aliases: rNormalGLM_reg_group
+stopifnot(identical(rNormalGLM_reg_group, rNormalGLM_reg_group))
 
 cat("block_lmb (iris): OK\n")

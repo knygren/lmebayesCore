@@ -57,7 +57,7 @@ sim_legacy <- rindepNormalGamma_reg(
 )
 set.seed(seed)
 sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
-  n = n_draws, y = y, x = x_block, block = block,
+  n = n_draws, y = y, x = x_block, group = block,
   prior_list = prior_list_block, n_envopt = n_envopt, Gridtype = 3L,
   use_parallel = FALSE, progbar = FALSE, verbose = FALSE,
   offset = rep(0, length(y)), wt = rep(1, length(y)),
@@ -71,8 +71,8 @@ nm <- c(paste0("B1.", cn), paste0("B2.", cn))
 leg_stack <- cbind(leg[, seq_len(l1)], leg[, seq_len(l1) + l1])
 colnames(leg_stack) <- nm
 blk_stack <- cbind(
-  t(sim_block$sim$block_results[[1]]$beta),
-  t(sim_block$sim$block_results[[2]]$beta)
+  t(sim_block$sim$group_results[[1]]$beta),
+  t(sim_block$sim$group_results[[2]]$beta)
 )
 colnames(blk_stack) <- nm
 

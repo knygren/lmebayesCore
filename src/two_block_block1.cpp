@@ -58,13 +58,13 @@ SEXP optional_list_elt(const Rcpp::List& pl, const char* name) {
   return pl.containsElementNamed(name) ? pl[name] : R_NilValue;
 }
 
-/// Mirror \code{block_rNormalGLM()} / \code{block_rNormalReg()} dimnames on
+/// Mirror \code{rNormalGLM_reg_group()} / \code{rNormal_reg_group()} dimnames on
 /// \code{coefficients} (\code{colnames(x)}, \code{rownames} from
-/// \code{block_info$ids}).
+/// \code{group_info$ids}).
 void set_block_draw_coefficient_dimnames(
     Rcpp::NumericMatrix& coef_draw,
     const Rcpp::NumericMatrix& x,
-    const Rcpp::List& block_info
+    const Rcpp::List& group_info
 ) {
   Rcpp::List dn(2);
   SEXP old_dn = coef_draw.attr("dimnames");
@@ -85,8 +85,8 @@ void set_block_draw_coefficient_dimnames(
       dn[1] = x_dnl[1];
     }
   }
-  if (block_info.containsElementNamed("ids")) {
-    SEXP ids = block_info["ids"];
+  if (group_info.containsElementNamed("ids")) {
+    SEXP ids = group_info["ids"];
     if (!Rf_isNull(ids)) {
       dn[0] = ids;
     }
@@ -438,10 +438,10 @@ Rcpp::List two_block_block1_prior_with_tau2(
 /// Mean envelope candidate count across groups from one Block 1 draw
 /// (port of .two_block_block1_iters_mean in two_block_batch_gibbs.R).
 double two_block_block1_iters_mean(const Rcpp::List& block_out) {
-  if (!block_out.containsElementNamed("block_results")) {
+  if (!block_out.containsElementNamed("group_results")) {
     return 1.0;
   }
-  Rcpp::List br = Rcpp::as<Rcpp::List>(block_out["block_results"]);
+  Rcpp::List br = Rcpp::as<Rcpp::List>(block_out["group_results"]);
   if (br.size() == 0) {
     return 1.0;
   }
@@ -585,7 +585,7 @@ Rcpp::List two_block_block1_one_chain_impl(
     );
   }
 
-  Rcpp::List block_info = Rcpp::as<Rcpp::List>(block_out["block_info"]);
+  Rcpp::List group_info = Rcpp::as<Rcpp::List>(block_out["group_info"]);
   Rcpp::NumericMatrix b_draw =
     Rcpp::as<Rcpp::NumericMatrix>(block_out["coefficients"]);
   const int J = group_levels.size();
@@ -597,7 +597,7 @@ Rcpp::List two_block_block1_one_chain_impl(
     );
   }
 
-  set_block_draw_coefficient_dimnames(b_draw, Z, block_info);
+  set_block_draw_coefficient_dimnames(b_draw, Z, group_info);
   b_draw = two_block_reorder_b_to_group_levels(
     b_draw, matrix_rownames_sexp(b_draw), group_levels
   );
@@ -747,7 +747,7 @@ Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
     );
   }
 
-  Rcpp::List block_info = Rcpp::as<Rcpp::List>(block_out["block_info"]);
+  Rcpp::List group_info = Rcpp::as<Rcpp::List>(block_out["group_info"]);
   Rcpp::NumericMatrix b_draw =
     Rcpp::as<Rcpp::NumericMatrix>(block_out["coefficients"]);
   const int J = group_levels.size();
@@ -759,11 +759,11 @@ Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
     );
   }
 
-  set_block_draw_coefficient_dimnames(b_draw, Z, block_info);
+  set_block_draw_coefficient_dimnames(b_draw, Z, group_info);
 
   SEXP block_ids = R_NilValue;
-  if (block_info.containsElementNamed("ids")) {
-    block_ids = block_info["ids"];
+  if (group_info.containsElementNamed("ids")) {
+    block_ids = group_info["ids"];
   }
   if (Rf_isNull(block_ids)) {
     block_ids = matrix_rownames_sexp(b_draw);

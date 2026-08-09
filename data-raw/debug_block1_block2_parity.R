@@ -32,8 +32,8 @@ set.seed(42L)
 ss <- sample.int(.Machine$integer.max - 1L, 1L)
 set.seed(ss + 1L)
 
-b1_r <- block_rNormalGLM(
-  n = 1L, y = design$y, x = design$D, block = design$group,
+b1_r <- rNormalGLM_reg_group(
+  n = 1L, y = design$y, x = design$D, group = design$group,
   prior_list = prior_list, family = binomial(),
   use_parallel = FALSE, verbose = FALSE, progbar = FALSE
 )
@@ -44,14 +44,14 @@ b_r <- b_r[ord, , drop = FALSE]
 
 set.seed(ss + 1L)
 b1_cpp <- glmbayesCore:::.block_rNormalGLM_cpp(
-  n = 1L, y = design$y, x = design$D, block = design$group,
+  n = 1L, y = design$y, x = design$D, group = design$group,
   prior_list = prior_list, prior_lists = NULL,
   offset = rep(0, length(design$y)), wt = rep(1, length(design$y)),
   f2 = glmbfamfunc(binomial())$f2, f3 = glmbfamfunc(binomial())$f3,
   family = "binomial", link = "logit", Gridtype = 2L, n_envopt = 1L,
   use_parallel = FALSE, use_opencl = FALSE, verbose = FALSE
 )
-ids <- b1_cpp$block_info$ids
+ids <- b1_cpp$group_info$ids
 b_cpp <- b1_cpp$coefficients
 ord2 <- match(group_levels, ids)
 b_cpp <- b_cpp[ord2, , drop = FALSE]

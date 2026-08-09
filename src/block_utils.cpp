@@ -1,5 +1,5 @@
 // block_utils.cpp
-// C++ block partition + prior normalization for block_rNormalReg.
+// C++ block partition + prior normalization for rNormal_reg_group.
 
 #include "RcppArmadillo.h"
 #include "simfuncs.h"
@@ -144,11 +144,11 @@ List rep_list_blocks(const List& one, int k) {
 List normalize_prior_for_blocks_cpp(
     SEXP prior_list_sexp,
     SEXP prior_lists_sexp,
-    const List& block_info,
+    const List& group_info,
     int l1
 ) {
-  const int k = block_info["k"];
-  CharacterVector ids = block_info["ids"];
+  const int k = group_info["k"];
+  CharacterVector ids = group_info["ids"];
 
   if (!Rf_isNull(prior_lists_sexp)) {
     List prior_lists(prior_lists_sexp);
@@ -431,7 +431,7 @@ List normalize_block_cpp(SEXP block_sexp, int l2) {
     if (replace_ids) {
       ids = CharacterVector(k);
       for (int j = 0; j < k; ++j) {
-        ids[j] = ("block" + std::to_string(j + 1)).c_str();
+        ids[j] = ("group" + std::to_string(j + 1)).c_str();
       }
     }
     IntegerVector l2_blocks(k);
@@ -498,7 +498,7 @@ List normalize_block_cpp(SEXP block_sexp, int l2) {
       rows[j] = r;
       l2_blocks[j] = len;
       starts[j] = start;
-      ids[j] = ("block" + std::to_string(j + 1)).c_str();
+      ids[j] = ("group" + std::to_string(j + 1)).c_str();
       start += len;
     }
     return List::create(
@@ -549,11 +549,11 @@ List block_rNormalReg_cpp_export(
     Rcpp::stop("length(weights) must be 1 or length(y).");
   }
 
-  List block_info = normalize_block_cpp(block, l2);
-  const int k = block_info["k"];
+  List group_info = normalize_block_cpp(block, l2);
+  const int k = group_info["k"];
 
   List prior_norm = normalize_prior_for_blocks_cpp(
-    prior_list, prior_lists, block_info, l1
+    prior_list, prior_lists, group_info, l1
   );
   List prior_block = prior_norm;
 
@@ -561,7 +561,7 @@ List block_rNormalReg_cpp_export(
     List pb = prior_block[j];
     if (!pb.containsElementNamed("dispersion")) {
       Rcpp::stop(
-        "prior_list must contain 'dispersion' for block_rNormalReg. Block %d has no dispersion.",
+        "prior_list must contain 'dispersion' for rNormal_reg_group. Block %d has no dispersion.",
         j + 1
       );
     }
@@ -569,7 +569,7 @@ List block_rNormalReg_cpp_export(
 
   List prior_cpp = prior_payload_from_blocks(prior_block, l1, k);
 
-  List row_blocks = block_info["rows"];
+  List row_blocks = group_info["rows"];
   NumericMatrix mu = prior_cpp["mu"];
   List P_blocks = prior_cpp["P_blocks"];
   NumericVector dispersion = prior_cpp["dispersion"];
@@ -584,8 +584,8 @@ List block_rNormalReg_cpp_export(
     Rcpp::Named("coefficients") = cpp_out["coefficients"],
     Rcpp::Named("coef.mode") = cpp_out["coef.mode"],
     Rcpp::Named("dispersion") = cpp_out["dispersion"],
-    Rcpp::Named("block_results") = cpp_out["block_results"],
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_results") = cpp_out["group_results"],
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("prior_lists") = prior_block,
     Rcpp::Named("n") = n,
     Rcpp::Named("k") = k,
@@ -601,7 +601,7 @@ List block_rNormalReg_cpp_export(
 // GLM analogue of block_rNormalReg_cpp_export: C++ partition + prior payload,
 // then the existing rNormalGLMBlocks loop (each block calls rNormalGLM
 // unchanged).  Family/link validation and glmbfamfunc(f2, f3) stay on the R
-// side in block_rNormalGLM(); dispersion defaults to 1.0 per block when
+// side in rNormalGLM_reg_group(); dispersion defaults to 1.0 per block when
 // absent (prior_payload_from_blocks), matching the GLM convention.
 List block_rNormalGLM_cpp_export(
     int n,
@@ -642,16 +642,16 @@ List block_rNormalGLM_cpp_export(
     Rcpp::stop("length(weights) must be 1 or length(y).");
   }
 
-  List block_info = normalize_block_cpp(block, l2);
-  const int k = block_info["k"];
+  List group_info = normalize_block_cpp(block, l2);
+  const int k = group_info["k"];
 
   List prior_block = normalize_prior_for_blocks_cpp(
-    prior_list, prior_lists, block_info, l1
+    prior_list, prior_lists, group_info, l1
   );
 
   List prior_cpp = prior_payload_from_blocks(prior_block, l1, k);
 
-  List row_blocks = block_info["rows"];
+  List row_blocks = group_info["rows"];
   NumericMatrix mu = prior_cpp["mu"];
   List P_blocks = prior_cpp["P_blocks"];
   NumericVector dispersion = prior_cpp["dispersion"];
@@ -667,8 +667,8 @@ List block_rNormalGLM_cpp_export(
     Rcpp::Named("coefficients") = cpp_out["coefficients"],
     Rcpp::Named("coef.mode") = cpp_out["coef.mode"],
     Rcpp::Named("dispersion") = cpp_out["dispersion"],
-    Rcpp::Named("block_results") = cpp_out["block_results"],
-    Rcpp::Named("block_info") = block_info,
+    Rcpp::Named("group_results") = cpp_out["group_results"],
+    Rcpp::Named("group_info") = group_info,
     Rcpp::Named("prior_lists") = prior_block,
     Rcpp::Named("n") = n,
     Rcpp::Named("k") = k,

@@ -38,7 +38,7 @@ run_pilot <- function(engine) {
     set.seed(42L)
     sample.int(.Machine$integer.max - 1L, 1L)
     out <- glmbayesCore::two_block_rNormal_reg_v5(
-      n = n_pilot, y = design$y, x = design$D, block = design$group,
+      n = n_pilot, y = design$y, x = design$D, group = design$group,
       x_hyper = design$W, prior_list_block1 = block1_prior,
       pfamily_list = prior$pfamily_list, fixef_start = fixef_start,
       re_coef_names = re_names, group_levels = group_levels,

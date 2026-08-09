@@ -1,4 +1,4 @@
-# Design: conditionally independent Gaussian block sampling (`block_rNormalReg`)
+# Design: conditionally independent Gaussian block sampling (`rNormal_reg_group`)
 
 Maintainer-facing implementation plan for the **Gaussian** block Gibbs path.
 Companion to `inst/DESIGN_RGLM_BLOCKS.md` (GLM envelope blocks).
@@ -14,7 +14,7 @@ Enable **direct C++ calls** for Gaussian conditionally independent block samplin
 
 ### In scope (Phase 1 — Gaussian only)
 
-- `block_rNormalReg()` public API unchanged in signature and return shape
+- `rNormal_reg_group()` public API unchanged in signature and return shape
 - C++ helpers: block partition, prior payload, block loop
 - Native Gaussian `rNormalReg` kernel (no R `lm.fit` callback per block)
 - Drop dead-weight `f2`/`f3` R `Function` threading on the Gaussian block path
@@ -22,7 +22,7 @@ Enable **direct C++ calls** for Gaussian conditionally independent block samplin
 
 ### Out of scope (later phases)
 
-- `block_rNormalGLM` / GLM envelope path (`DESIGN_RGLM_BLOCKS.md`)
+- `rNormalGLM_reg_group` / GLM envelope path (`DESIGN_RGLM_BLOCKS.md`)
 - `two_block_rNormal_reg` inner Gibbs loop in C++
 - Block 2 (`multi_rNormal_reg`) C++
 - OpenCL / parallel envelope paths
@@ -32,8 +32,8 @@ Enable **direct C++ calls** for Gaussian conditionally independent block samplin
 ## 2. Current architecture (pre-migration)
 
 ```
-block_rNormalReg (R)
-  -> normalize_block, normalize_prior_for_blocks
+rNormal_reg_group (R)
+  -> normalize_group, normalize_prior_for_blocks
   -> .prior_payload_for_rNormalGLMBlocks_cpp
   -> glmbfamfunc(gaussian()) -> f2, f3
   -> .rNormalRegBlocks_cpp
@@ -41,14 +41,14 @@ block_rNormalReg (R)
        -> rNormalReg (C++) -> R lm.fit  [per block]
 ```
 
-**Bottleneck:** For `J` groups, each `block_rNormalReg(n=1)` runs `J` times `lm.fit` from C++.
+**Bottleneck:** For `J` groups, each `rNormal_reg_group(n=1)` runs `J` times `lm.fit` from C++.
 
 ---
 
 ## 3. Target architecture (Phase 1)
 
 ```
-block_rNormalReg (R thin wrapper: dimnames, class, call)
+rNormal_reg_group (R thin wrapper: dimnames, class, call)
   -> .block_rNormalReg_cpp
   -> block_rNormalReg_cpp_export
        -> normalize_block_cpp
@@ -68,7 +68,7 @@ block_rNormalReg (R thin wrapper: dimnames, class, call)
 | 3 | `normalize_block_cpp` | `src/block_utils.cpp` |
 | 4 | `prior_payload_blocks_cpp` | `src/block_utils.cpp` |
 | 5 | `block_rNormalReg_cpp_export` | `export_wrappers.cpp`, `rcpp_wrappers.R` |
-| 6 | Slim `block_rNormalReg()` | `R/simfunction_block.R` |
+| 6 | Slim `rNormal_reg_group()` | `R/simfunction_block.R` |
 | 7 | Tests | `data-raw/test_block_rNormalReg_cpp.R` |
 
 ---
@@ -77,7 +77,7 @@ block_rNormalReg (R thin wrapper: dimnames, class, call)
 
 | Caller | Entry |
 |--------|-------|
-| End user / lmebayes | `block_rNormalReg(...)` |
+| End user / lmebayes | `rNormal_reg_group(...)` |
 | Prebuilt partition | `.rNormalRegBlocks_cpp(...)` |
 | Internal | `.block_rNormalReg_cpp(...)` |
 

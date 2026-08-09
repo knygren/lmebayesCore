@@ -130,7 +130,7 @@
 
   rate <- two_block_rate_from_pfamily_list(
     x                 = inp$D,
-    block             = group,
+    group             = group,
     x_hyper           = inp$W,
     prior_list_block1 = prior_list_block1,
     pfamily_list      = pfamily_list,

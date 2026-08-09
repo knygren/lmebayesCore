@@ -23,7 +23,7 @@ prior_list_block <- list(
   max_disp_perc = 0.99
 )
 sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
-  n = 1L, y = y, x = x_block, block = block,
+  n = 1L, y = y, x = x_block, group = block,
   prior_list = prior_list_block, n_envopt = n_envopt, Gridtype = 3L,
   use_parallel = FALSE, progbar = FALSE, verbose = FALSE,
   offset = rep(0, length(y)), wt = rep(1, length(y)),

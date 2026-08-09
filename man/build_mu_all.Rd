@@ -20,7 +20,7 @@ with names matching \code{colnames(W[[k]])}.}
 \emph{column order} of \code{mu_all}.  Defaults to
 \code{levels(design$group)}, which is the canonical ordering used in
 two-block mixed models and consistent with \code{lmer} and
-\code{\link{block_rNormalReg}} (which preserves the input factor's level
+\code{\link{rNormal_reg_group}} (which preserves the input factor's level
 order).}
 
 \item{use_cpp}{Logical; if \code{TRUE} (default), compute \code{mu_all} in
@@ -49,5 +49,5 @@ where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 \seealso{
 \code{\link{lmerb_posterior_mean}},
 \code{\link{two_block_rNormal_reg}},
-\code{\link{block_rNormalReg}}
+\code{\link{rNormal_reg_group}}
 }

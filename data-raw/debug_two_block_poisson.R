@@ -45,7 +45,7 @@ n_rep <- 400L
 acc_r <- matrix(0, J, 2L)
 set.seed(1)
 for (r in seq_len(n_rep)) {
-  out <- block_rNormalGLM(
+  out <- rNormalGLM_reg_group(
     n = 1L, y = y_pois, x = x_re, block = grp, prior_list = pl1,
     family = fam, use_parallel = FALSE
   )
@@ -83,7 +83,7 @@ for (r in seq_len(n_rep)) {
   fixef <- fixef_start
   mu_all <- glmbayesCore:::.two_block_mu_all(fixef, x_hyper, re_names, group_levels)
   pl1r <- glmbayesCore:::.two_block_block1_prior_list(pl1_pois, mu_all, meta)
-  block_i <- block_rNormalGLM(
+  block_i <- rNormalGLM_reg_group(
     n = 1L, y = y_pois, x = x_re, block = grp, prior_list = pl1r,
     family = fam, use_parallel = FALSE
   )

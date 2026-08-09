@@ -3,16 +3,16 @@
 #' Generic for constructing a named list of \code{\link[glmbayesCore]{pfamily}}
 #' prior objects from a prior-specification object.  Methods exist for
 #' \code{\link{Prior_Setup_GLMM}} (one pfamily per population / group-effect
-#' coefficient) and \code{\link{Prior_SetupBlock}} (one pfamily per row
+#' coefficient) and \code{\link{Prior_SetupGroup}} (one pfamily per row
 #' block).
 #'
 #' @param object A prior-specification object (typically from
-#'   \code{\link{Prior_Setup_GLMM}} or \code{\link{Prior_SetupBlock}}).
+#'   \code{\link{Prior_Setup_GLMM}} or \code{\link{Prior_SetupGroup}}).
 #' @param ptypes Character: either a single string applied to every
 #'   component, or a character vector / list with one string per
 #'   component.  See the method-specific Details for allowed values and
 #'   naming (RE coefficient names for \code{Prior_Setup_GLMM}; block IDs
-#'   for \code{Prior_SetupBlock}).  For both methods,
+#'   for \code{Prior_SetupGroup}).  For both methods,
 #'   \code{ptypes = NULL} (default) resolves to \code{"dNormal"}.
 #' @param ... Additional arguments passed to methods. For
 #'   \code{print.pfamily_list()}, passed to \code{print.pfamily}.
@@ -24,7 +24,7 @@
 #'   for each component.  For \code{print.pfamily_list()}, \code{x}
 #'   invisibly.
 #'
-#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{Prior_SetupBlock}},
+#' @seealso \code{\link{Prior_Setup_GLMM}}, \code{\link{Prior_SetupGroup}},
 #'   \code{\link[glmbayesCore]{pfamily}}, \code{\link[glmbayesCore]{dNormal}},
 #'   \code{\link[glmbayesCore]{dNormal_Gamma}},
 #'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}},

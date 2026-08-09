@@ -31,8 +31,8 @@ design, \code{l2 x p_re}), and \code{group} (block partition of length
 \code{\link{rGLMM_sweep}}.}
 
 \item{family}{A \code{\link[stats]{family}} object. When \code{gaussian()},
-uses \code{\link{block_rNormalReg}}; otherwise
-\code{\link{block_rNormalGLM}} with default offset zero and unit weights.}
+uses \code{\link{rNormal_reg_group}}; otherwise
+\code{\link{rNormalGLM_reg_group}} with default offset zero and unit weights.}
 
 \item{progbar}{Logical. When \code{TRUE} and \code{n > 1}, show a text
 progress bar over chains. Default \code{FALSE}.}
@@ -44,12 +44,12 @@ progress bar over chains. Default \code{FALSE}.}
 bar finishes. Default \code{TRUE}.}
 }
 \value{
-List of length \code{n}. Each element is a \code{block_rNormalGLM}
-or \code{block_rNormalReg} object (\code{$coefficients}, \code{$coef.mode},
-\code{$block_info}, \code{$block_results}, \ldots).
+List of length \code{n}. Each element is a \code{rNormalGLM_reg_group}
+or \code{rNormal_reg_group} object (\code{$coefficients}, \code{$coef.mode},
+\code{$group_info}, \code{$group_results}, \ldots).
 }
 \description{
-Runs one \code{\link{block_rNormalGLM}} or \code{\link{block_rNormalReg}}
+Runs one \code{\link{rNormalGLM_reg_group}} or \code{\link{rNormal_reg_group}}
 envelope draw per chain from prepared Block~1 \code{prior_list} objects.
 This is the Block~1 draw step inside \code{\link{rGLMM_sweep}} after
 per-chain prep (\code{fixef} \eqn{\to} \code{mu_all}, \eqn{\tau^2} refresh
@@ -62,8 +62,8 @@ summarize envelope iterations separately (as \code{rGLMM_sweep} does after
 this step).
 }
 \seealso{
-\code{\link{rGLMM_sweep}}, \code{\link{block_rNormalGLM}},
-\code{\link{block_rNormalReg}}
+\code{\link{rGLMM_sweep}}, \code{\link{rNormalGLM_reg_group}},
+\code{\link{rNormal_reg_group}}
 
 glmbayes Simulation Functions
 \code{\link{rGLMM_reg}()},

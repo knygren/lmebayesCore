@@ -60,12 +60,12 @@ column).
 | `lmerb()`, `glmerb()` | Formula mixed-model drivers |
 | `rlmerb()`, `rglmerb()` | Re-exported matrix samplers |
 | `model_setup()`, `Prior_Setup_GLMM()`, `pfamily_list()` | Design + Block~2 priors (`model_setup()` → `check_identifiability()`) |
-| `Prior_SetupBlock()`, `lmbBlock()`, `glmbBlock()` | Row blocks (`normalize_block`; block fits via **glmbayes** `lmb`/`glmb` → planned Core `rlmb`/`rglmb`) |
+| `Prior_SetupGroup()`, `lmbBlock()`, `glmbBlock()` | Row blocks (`normalize_group`; block fits via **glmbayes** `lmb`/`glmb` → planned Core `rlmb`/`rglmb`) |
 | `plot_sweep_history_diag()` | Sweep-history plots |
 | Re-exported retain symbols | Same as glmbayes retain subset |
 
 **Direct Core calls (not re-exported from lmebayes):** `build_mu_all()`,
-`lmerb_posterior_mean()`, `glmerb_posterior_mode()`, `normalize_block()`.
+`lmerb_posterior_mean()`, `glmerb_posterior_mode()`, `normalize_group()`.
 
 ---
 
@@ -107,7 +107,7 @@ lmerb() / glmerb()
         → REG_ROUTE_TABLE → rGLMM_reg_known_vcov() | rGLMM_reg_estimated_vcov()
           (routes differ in eigenvalue-bound complexity, not pilot policy)
         → rGLMM_sweep(), two_block_rNormal_reg(), rGLMM_Re_Draw()
-        → block_rNormalReg() / block_rNormalGLM() (Block~1)
+        → rNormal_reg_group() / rNormalGLM_reg_group() (Block~1)
         → rglmb() (Block~2 ING / hyper draws)
         → two_block_rate_from_pfamily_list(), two_block_rate(), two_block_l_for_tv(),
            two_block_tv_bound(),
@@ -130,7 +130,7 @@ Dispatchers **`rLMMNormal_reg()`** (fixed σ²) and legacy **`rLMMindepNormalGam
 | `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Parallel matrix API; not called by `multi_rlmb()` or retain/lmebayes drivers. |
 | `simfunction()` | `simfunction.R` | Introspection generic; runtime uses `pfamily$simfun` directly. |
 
-**Note:** `block_rNormalReg()` and `block_rNormalGLM()` are **live** (called from
+**Note:** `rNormal_reg_group()` and `rNormalGLM_reg_group()` are **live** (called from
 `.two_block_block1_draw_block()` on non-Gaussian **glmerb** paths). Only the
 `*_update` wrappers are flagged.
 

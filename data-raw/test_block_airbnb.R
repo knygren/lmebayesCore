@@ -77,7 +77,7 @@ ps_block <- block_prior_setup(
   data = airbnb_dat,
   family = poisson()
 )
-stopifnot(inherits(ps_block, "Prior_SetupBlock"), length(ps_block) == k_expected)
+stopifnot(inherits(ps_block, "Prior_SetupGroup"), length(ps_block) == k_expected)
 
 pfamily_list <- lapply(ps_block, function(ps) {
   dNormal(mu = ps$mu, Sigma = ps$Sigma)

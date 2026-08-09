@@ -33,7 +33,7 @@ fix <- local({
     mu = p_setup$mu, Sigma = p_setup$Sigma,
     shape = p_setup$shape, rate = p_setup$rate, max_disp_perc = 0.99
   )
-  list(y = y, x_block = x_block, x_old = x_old, block = block,
+  list(y = y, x_block = x_block, x_old = x_old, group = block,
        prior_list_old = prior_list_old, prior_list_block = prior_list_block,
        l1 = l1, n_obs = length(y))
 })
@@ -42,7 +42,7 @@ n_draws  <- 10000L
 n_envopt <- 10000L
 
 block_args <- list(
-  y = fix$y, x = fix$x_block, block = fix$block,
+  y = fix$y, x = fix$x_block, block = fix$group,
   prior_list = fix$prior_list_block, prior_lists = NULL,
   offset = rep(0, fix$n_obs), wt = rep(1, fix$n_obs),
   p_re = -1L, n_rss_iter = 10L, Gridtype = 3L, n_envopt = n_envopt,
@@ -74,10 +74,10 @@ t_ind <- system.time(sim_ind <- do.call(
 ))
 
 leg_b <- sim_leg$coefficients          # n x p
-jnt_b <- rbind(sim_jnt$sim$block_results[[1]]$beta,
-               sim_jnt$sim$block_results[[2]]$beta)  # p x n
-ind_b <- rbind(sim_ind$sim$block_results[[1]]$beta,
-               sim_ind$sim$block_results[[2]]$beta)
+jnt_b <- rbind(sim_jnt$sim$group_results[[1]]$beta,
+               sim_jnt$sim$group_results[[2]]$beta)  # p x n
+ind_b <- rbind(sim_ind$sim$group_results[[1]]$beta,
+               sim_ind$sim$group_results[[2]]$beta)
 leg_d <- sim_leg$dispersion
 jnt_d <- sim_jnt$disp_out
 ind_d <- sim_ind$disp_out

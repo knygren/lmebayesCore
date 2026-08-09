@@ -6,7 +6,7 @@
 //     fixef <- fixef_start                          # "replicate" sampling
 //     for (m in 1:m_convergence) {
 //       mu_all  <- .two_block_mu_all(fixef, x_hyper, re_names, group_levels)
-//       Block 1 <- block_rNormalReg() / block_rNormalGLM()   (n = 1)
+//       Block 1 <- rNormal_reg_group() / rNormalGLM_reg_group()   (n = 1)
 //       Block 2 <- multi_rNormal_reg() list-x branch (rNormal_reg gaussian
 //                  per RE component, n = 1)
 //     }
@@ -254,7 +254,7 @@ List two_block_rNormal_reg_cpp_export(
 
       List block_i;
       if (is_gaussian) {
-        // R: block_rNormalReg(n = 1, ...) with default Gridtype = 2L.
+        // R: rNormal_reg_group(n = 1, ...) with default Gridtype = 2L.
         block_i = block_rNormalReg_cpp_export(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
@@ -274,7 +274,7 @@ List two_block_rNormal_reg_cpp_export(
         );
       }
       if (!have_ids) {
-        List bi_info = block_i["block_info"];
+        List bi_info = block_i["group_info"];
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
@@ -1527,7 +1527,7 @@ List two_block_rNormal_reg_v2_cpp_export(
         );
       }
       if (!have_ids) {
-        List bi_info = block_i["block_info"];
+        List bi_info = block_i["group_info"];
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
@@ -1677,7 +1677,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   // Block 1 (level-1 / observation model): given hyperparameters fixef, draw
   //   random effects b_{g,k} for every group g and RE column k from the
   //   conditional of y | b (Gaussian reg or GLM blocked by the factor).
-  //   block_rNormalReg / block_rNormalGLM handle grouping internally; there
+  //   rNormal_reg_group / rNormalGLM_reg_group handle grouping internally; there
   //   is no explicit loop over factor levels here.
   //
   // Block 2 (level-2 / hyperparameter model): given Block-1 draws b[,k] as
@@ -1855,7 +1855,7 @@ List two_block_rNormal_reg_v3_cpp_export(
         );
       }
       if (!have_ids) {
-        List bi_info = block_i["block_info"];
+        List bi_info = block_i["group_info"];
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
@@ -2011,7 +2011,7 @@ List two_block_rNormal_reg_v4_cpp_export(
   // Block 1 (level-1 / observation model): given hyperparameters fixef, draw
   //   random effects b_{g,k} for every group g and RE column k from the
   //   conditional of y | b (Gaussian reg or GLM blocked by the factor).
-  //   block_rNormalReg / block_rNormalGLM handle grouping internally; there
+  //   rNormal_reg_group / rNormalGLM_reg_group handle grouping internally; there
   //   is no explicit loop over factor levels here.
   //
   // Block 2 (level-2 / hyperparameter model): given Block-1 draws b[,k] as
@@ -2297,7 +2297,7 @@ List two_block_rNormal_reg_v4_cpp_export(
         );
       }
       if (!have_ids) {
-        List bi_info = block_i["block_info"];
+        List bi_info = block_i["group_info"];
         group_ids = Rcpp::as<CharacterVector>(bi_info["ids"]);
         have_ids = true;
       }
@@ -2465,7 +2465,7 @@ List two_block_rNormal_reg_v5_cpp_export(
   // Block 1 (level-1 / observation model): given hyperparameters fixef, draw
   //   random effects b_{g,k} for every group g and RE column k from the
   //   conditional of y | b (Gaussian reg or GLM blocked by the factor).
-  //   block_rNormalReg / block_rNormalGLM handle grouping internally; there
+  //   rNormal_reg_group / rNormalGLM_reg_group handle grouping internally; there
   //   is no explicit loop over factor levels here.
   //
   // Block 2 (level-2 / hyperparameter model): given Block-1 draws b[,k] as
@@ -2696,7 +2696,7 @@ List two_block_rNormal_reg_v5_cpp_export(
         );
       }
       {
-        List bi_info = block_i["block_info"];
+        List bi_info = block_i["group_info"];
         CharacterVector block_ids =
           Rcpp::as<CharacterVector>(bi_info["ids"]);
         if (!have_ids) {

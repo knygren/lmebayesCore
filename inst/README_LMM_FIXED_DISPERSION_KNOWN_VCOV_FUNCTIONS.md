@@ -28,7 +28,7 @@ model"):
   off to the route specific to this model.
 - The generic per-group/per-block conjugate Normal-regression sampling
   primitives this route's Gibbs engine calls into (`rNormalReg()`,
-  `rNormalRegBlocks()`, `block_rNormalReg_cpp_export()`, `normalize_block()`).
+  `rNormalRegBlocks()`, `block_rNormalReg_cpp_export()`, `normalize_group()`).
   These are shared infrastructure also used by (or duplicative of) other
   parts of the `glmbayes`/`glmbayesCore` ecosystem (e.g. the machinery behind
   `lmbBlock()`/`glmbBlock()`); whether/how to consolidate them is a separate,
@@ -91,7 +91,7 @@ rLMMNormal_reg_known_vcov()
                       -> .lmerb_posterior_b_given_gamma()   -> build_mu_all()  [shared dependency, Section 3]
             -> .rLMM_calibrate_m_convergence() -> .rLMM_rate_calibration_meta()
                  -> two_block_rate_from_pfamily_list() -> two_block_rate()
-                      -> .two_block_rate_inputs()  (uses normalize_block() -- shared dependency, Section 3)
+                      -> .two_block_rate_inputs()  (uses normalize_group() -- shared dependency, Section 3)
                       -> .two_block_S_P11() -> .two_block_gen_eigen()
                  -> two_block_l_for_tv() -> two_block_tv_bound() -> .two_block_tv_bound_one() / .two_block_erfn()
                  -> .two_block_cap_inner_sweeps()
@@ -159,7 +159,7 @@ specific to it -- see Section 3. `lmerb()`, `glmerb()`, `rlmerb()`,
 | `.two_block_rNormal_reg_cpp()` | `R/rcpp_wrappers.R` | Thin positional `.Call()` bridge to `_lmebayesCore_two_block_rNormal_reg_v2_cpp_export`. | C++ |
 | `.two_block_measurement_prior_list()` | `R/two_block_measurement_prior.R` | Builds the Block-1 measurement prior list (`Sigma_ranef`, dispersion) consumed by the ICM start and the Gibbs engine. | -- |
 | `.two_block_icm_at_start()` | `R/two_block_measurement_prior.R` | ICM-at-start orchestration for the Gaussian-known case; calls `lmerb_posterior_mean()` directly (no iteration needed -- exact mean). | `.two_block_measurement_prior_list()`, `lmerb_posterior_mean()` |
-| `.two_block_rate_inputs()` | `R/two_block_ergodicity.R` | Normalizes raw block1/block2 prior inputs into the matrices consumed by `.two_block_S_P11()`/`.two_block_gen_eigen()`. | `normalize_block()` (shared dependency) |
+| `.two_block_rate_inputs()` | `R/two_block_ergodicity.R` | Normalizes raw block1/block2 prior inputs into the matrices consumed by `.two_block_S_P11()`/`.two_block_gen_eigen()`. | `normalize_group()` (shared dependency) |
 | `.two_block_S_P11()` | `R/two_block_ergodicity.R` | Assembles the `S` (likelihood) and `P11` (Block-1 prior precision) matrices for the rate eigenproblem. | -- |
 | `.two_block_gen_eigen()` | `R/two_block_ergodicity.R` | Generalized eigenvalue computation underlying the Theorem-3 rate. | -- |
 | `.two_block_tv_bound_one()` / `.two_block_erfn()` | `R/two_block_ergodicity.R` | Closed-form single-sweep TV-bound helpers. | -- |
@@ -199,7 +199,7 @@ porting on its own terms, separately from this document:
 
 | Function | File | Why out of scope |
 |---|---|---|
-| `normalize_block()` (R) / `normalize_block_cpp()` (C++) | `R/simfunction_block_utils.R`, `src/block_utils.cpp` | Generic row-partition normalization; also the function `lmbBlock()`/`glmbBlock()` call directly. |
+| `normalize_group()` (R) / `normalize_block_cpp()` (C++) | `R/simfunction_block_utils.R`, `src/block_utils.cpp` | Generic row-partition normalization; also the function `lmbBlock()`/`glmbBlock()` call directly. |
 | `rNormalReg()` | `src/rNormalReg.cpp` | Generic conjugate Normal-regression draw; no LMM-specific (`gamma`/`tau2`/ICM) logic. |
 | `rNormalRegBlocks()` | `src/rNormalRegBlocks.cpp` | Generic "loop `rNormalReg()` over row-blocks." |
 | `block_rNormalReg_cpp_export()`, `normalize_prior_for_blocks_cpp()`, `prior_payload_from_blocks()` | `src/block_utils.cpp` | Generic per-block prior normalization/packing around `rNormalRegBlocks()`. |

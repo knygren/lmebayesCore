@@ -66,7 +66,7 @@ sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(
   n = n_draws,
   y = y,
   x = x_block,
-  block = block,
+  group = block,
   prior_list = prior_list_block,
   n_envopt = n_envopt,
   Gridtype = 3L,
@@ -96,8 +96,8 @@ cn <- colnames(leg_b1)
 if (is.null(cn) || !length(cn)) {
   cn <- paste0("beta", seq_len(l1))
 }
-block_b1 <- t(sim_block$sim$block_results[[1]]$beta)
-block_b2 <- t(sim_block$sim$block_results[[2]]$beta)
+block_b1 <- t(sim_block$sim$group_results[[1]]$beta)
+block_b2 <- t(sim_block$sim$group_results[[2]]$beta)
 nm_vec <- c(paste0("B1.", cn), paste0("B2.", cn))
 leg_stack <- cbind(leg_b1, leg_b2)
 colnames(leg_stack) <- nm_vec

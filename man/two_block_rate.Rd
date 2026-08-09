@@ -8,13 +8,13 @@
 \usage{
 two_block_rate(
   x,
-  block,
+  group,
   x_hyper,
   prior_list_block1,
   prior_list_block2,
   weights = NULL,
   family = gaussian(),
-  group_levels = levels(block),
+  group_levels = levels(group),
   warn_slow = TRUE
 )
 
@@ -22,20 +22,20 @@ two_block_rate(
 
 two_block_rate_from_pfamily_list(
   x,
-  block,
+  group,
   x_hyper,
   prior_list_block1,
   pfamily_list,
   weights = NULL,
   family = gaussian(),
-  group_levels = levels(block),
+  group_levels = levels(group),
   warn_slow = TRUE
 )
 }
 \arguments{
 \item{x}{Object of class \code{"two_block_rate"}.}
 
-\item{block}{Grouping factor or block partition of length \code{l2}.}
+\item{group}{Grouping factor or row-group partition of length \code{l2}.}
 
 \item{x_hyper}{Named list of group-level design matrices \code{X_k}
 (\code{J x q_k}), one per column of \code{x}.}
@@ -55,7 +55,7 @@ families.}
 \item{family}{Response family (default \code{gaussian()}).}
 
 \item{group_levels}{Character vector defining group order (default
-\code{levels(block)}); must match the row order of \code{x_hyper}
+\code{levels(group)}); must match the row order of \code{x_hyper}
 when rownames are absent.}
 
 \item{warn_slow}{If \code{TRUE} (default), issue a \code{warning()} when

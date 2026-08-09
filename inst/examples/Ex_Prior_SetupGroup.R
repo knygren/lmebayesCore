@@ -1,10 +1,10 @@
-## Prior_SetupBlock — independent Prior_Setup() per Species block (iris)
+## Prior_SetupGroup — independent Prior_Setup() per Species block (iris)
 
 data("iris", package = "datasets")
 
-ps_block <- Prior_SetupBlock(
+ps_block <- Prior_SetupGroup(
   Sepal.Length ~ Sepal.Width + Petal.Length,
-  block = "Species",
+  group = "Species",
   data = iris,
   family = gaussian()
 )

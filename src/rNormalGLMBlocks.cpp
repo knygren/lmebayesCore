@@ -1,5 +1,5 @@
 // rNormalGLMBlocks.cpp
-// C++ counterpart to R block_rNormalGLM(): serial loop over blocks, each
+// C++ counterpart to R rNormalGLM_reg_group(): serial loop over blocks, each
 // iteration calls the existing rNormalGLM() on sliced (y_b, x_b, ...).
 // Reached via block_rNormalGLM_cpp_export (block_utils.cpp), which handles
 // the partition and prior payload in C++.
@@ -215,7 +215,7 @@ Rcpp::List rNormalGLMBlocks(
   NumericMatrix coef_draw(k, l1);
   NumericMatrix coef_mode_mat(k, l1);
   NumericVector dispersion_out(k);
-  List block_results(k);
+  List group_results(k);
   List envelope_blocks(k);
 
   CharacterVector family_cv(1);
@@ -260,7 +260,7 @@ Rcpp::List rNormalGLMBlocks(
       verbose && (b == 0)
     );
 
-    block_results[b] = out_b;
+    group_results[b] = out_b;
     envelope_blocks[b] = out_b["Envelope"];
 
     NumericMatrix draw_row = coefficients_row_from_block(out_b, l1);
@@ -278,7 +278,7 @@ Rcpp::List rNormalGLMBlocks(
     Rcpp::Named("k") = k,
     Rcpp::Named("l1") = l1,
     Rcpp::Named("l2") = l2,
-    Rcpp::Named("block_results") = block_results,
+    Rcpp::Named("group_results") = group_results,
     Rcpp::Named("Envelope") = envelope_blocks,
     Rcpp::Named("y") = y,
     Rcpp::Named("x") = x,

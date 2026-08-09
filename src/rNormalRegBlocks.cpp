@@ -214,7 +214,7 @@ Rcpp::List rNormalRegBlocks(
   NumericMatrix coef_draw(k, l1);
   NumericMatrix coef_mode_mat(k, l1);
   NumericVector dispersion_out(k);
-  List block_results(k);
+  List group_results(k);
 
   for (int b = 0; b < k; ++b) {
     IntegerVector rows = row_blocks[b];
@@ -246,7 +246,7 @@ Rcpp::List rNormalRegBlocks(
       Gridtype
     );
 
-    block_results[b] = out_b;
+    group_results[b] = out_b;
 
     NumericMatrix draw_row = coef_row_from_block_reg(out_b, l1);
     NumericMatrix mode_row = coef_mode_row_from_block_reg(out_b, l1);
@@ -263,7 +263,7 @@ Rcpp::List rNormalRegBlocks(
     Rcpp::Named("k")             = k,
     Rcpp::Named("l1")            = l1,
     Rcpp::Named("l2")            = l2,
-    Rcpp::Named("block_results") = block_results,
+    Rcpp::Named("group_results") = group_results,
     Rcpp::Named("y")             = y,
     Rcpp::Named("x")             = x,
     Rcpp::Named("offset")        = offset,

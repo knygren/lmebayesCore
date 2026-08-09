@@ -1,8 +1,8 @@
-## block_rNormalGLM() — independent binomial regressions by state
+## rNormalGLM_reg_group() — independent binomial regressions by state
 ##
 ## Same book_banning data / formula path as Ex_rGLMM_reg. Prior_Setup_GLMM()
 ## flags rank and estimability; only estimable states are then fit as
-## independent GLMs via Prior_SetupBlock() + block_rNormalGLM().
+## independent GLMs via Prior_SetupGroup() + rNormalGLM_reg_group().
 ## Binomial responses use cbind(success, failure). Requires bayesrules.
 
 if (requireNamespace("bayesrules", quietly = TRUE)) {
@@ -29,18 +29,18 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   dat <- droplevels(subset(dat, state %in% est))
 
   form_state <- cbind(success, failure) ~ violent_i
-  ps_block <- Prior_SetupBlock(
+  ps_block <- Prior_SetupGroup(
     form_state,
-    block = "state",
+    group = "state",
     data = dat,
     family = binomial(),
     pwt = 0.01
   )
-  ## Default dNormal() per block; block_rNormalGLM takes the prior_list payload.
+  ## Default dNormal() per block; rNormalGLM_reg_group takes the prior_list payload.
   pf <- pfamily_list(ps_block)
   prior_lists <- lapply(pf, `[[`, "prior_list")
 
-  ## Prior_SetupBlock takes cbind(success, failure); block_rNormalGLM /
+  ## Prior_SetupGroup takes cbind(success, failure); rNormalGLM_reg_group /
   ## rglmb expect proportions + trial weights.
   mf <- model.frame(form_state, data = dat)
   Y <- model.response(mf)
@@ -49,11 +49,11 @@ if (requireNamespace("bayesrules", quietly = TRUE)) {
   x <- model.matrix(form_state, data = mf)
 
   set.seed(1)
-  out <- block_rNormalGLM(
+  out <- rNormalGLM_reg_group(
     n = 1L,
     y = y,
     x = x,
-    block = dat$state,
+    group = dat$state,
     prior_lists = prior_lists,
     weights = weights,
     family = binomial(),

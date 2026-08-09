@@ -9,7 +9,7 @@ pkgload::load_all(export_all = FALSE)
 tol <- 1e-10
 
 ## ---------------------------------------------------------------------------
-## 1. Ex_block_rNormalReg toy example — coef.mode deterministic
+## 1. Ex_rNormal_reg_group toy example — coef.mode deterministic
 ## ---------------------------------------------------------------------------
 set.seed(42)
 n_schools <- 3L
@@ -28,22 +28,22 @@ prior_list <- list(
   ddef       = FALSE
 )
 
-out <- block_rNormalReg(
-  n = 1L, y = y, x = x, block = school, prior_list = prior_list
+out <- rNormal_reg_group(
+  n = 1L, y = y, x = x, group = school, prior_list = prior_list
 )
-stopifnot(inherits(out, "block_rNormalReg"))
+stopifnot(inherits(out, "rNormal_reg_group"))
 stopifnot(all(dim(out$coefficients) == c(n_schools, l1)))
 stopifnot(all(is.finite(out$coef.mode)))
-cat("1. Ex_block_rNormalReg toy: OK\n")
+cat("1. Ex_rNormal_reg_group toy: OK\n")
 
 ## ---------------------------------------------------------------------------
 ## 2. High-level C++ export vs low-level .rNormalRegBlocks_cpp (same payload)
 ## ---------------------------------------------------------------------------
-block_info <- glmbayesCore::normalize_block(school, length(y))
-k <- block_info$k
+group_info <- glmbayesCore::normalize_group(school, length(y))
+k <- group_info$k
 prior_block <- glmbayesCore:::normalize_prior_for_blocks(
   prior_list = prior_list, prior_lists = NULL,
-  block_info = block_info, l1 = l1
+  group_info = group_info, l1 = l1
 )
 prior_cpp <- glmbayesCore:::.prior_payload_for_rNormalGLMBlocks_cpp(prior_block, l1, k)
 
@@ -54,7 +54,7 @@ low <- glmbayesCore:::.rNormalRegBlocks_cpp(
   mu = prior_cpp$mu,
   P_blocks = prior_cpp$P_blocks,
   prior_by_block = prior_cpp$prior_by_block,
-  row_blocks = block_info$rows,
+  row_blocks = group_info$rows,
   f2 = glmbayesCore::glmbfamfunc(stats::gaussian())$f2,
   f3 = glmbayesCore::glmbfamfunc(stats::gaussian())$f3,
   Gridtype = 2L
@@ -62,20 +62,20 @@ low <- glmbayesCore:::.rNormalRegBlocks_cpp(
 
 diff_mode <- max(abs(out$coef.mode - low$coef.mode))
 if (!is.finite(diff_mode) || diff_mode > tol) {
-  stop("block_rNormalReg vs .rNormalRegBlocks_cpp coef.mode differ: max = ", diff_mode)
+  stop("rNormal_reg_group vs .rNormalRegBlocks_cpp coef.mode differ: max = ", diff_mode)
 }
 cat("2. High-level vs low-level blocks: OK (max diff ", format(diff_mode, digits = 3), ")\n", sep = "")
 
 ## ---------------------------------------------------------------------------
-## 3. normalize_block equivalence on factor / integer / list inputs
+## 3. normalize_group equivalence on factor / integer / list inputs
 ## ---------------------------------------------------------------------------
 l2 <- length(y)
-blk_factor <- glmbayesCore::normalize_block(factor(school), l2)
-blk_int    <- glmbayesCore::normalize_block(as.integer(school), l2)
-blk_list   <- glmbayesCore::normalize_block(split(seq_len(l2), school), l2)
+blk_factor <- glmbayesCore::normalize_group(factor(school), l2)
+blk_int    <- glmbayesCore::normalize_group(as.integer(school), l2)
+blk_list   <- glmbayesCore::normalize_group(split(seq_len(l2), school), l2)
 stopifnot(identical(blk_factor$k, blk_int$k))
 stopifnot(identical(blk_factor$l2_blocks, blk_int$l2_blocks))
-cat("3. normalize_block partition shapes: OK\n")
+cat("3. normalize_group partition shapes: OK\n")
 
 ## ---------------------------------------------------------------------------
 ## 4. two_block_rNormal_reg smoke run (Gaussian) — deterministic with seed
@@ -112,7 +112,7 @@ if (!is.finite(d_coef) || d_coef > tol) {
 cat("4. two_block reproducibility: OK (max diff ", format(d_coef, digits = 3), ")\n", sep = "")
 
 ## ---------------------------------------------------------------------------
-## 5. big_word_club — one Block 1 step via block_rNormalReg (optional)
+## 5. big_word_club — one Block 1 step via rNormal_reg_group (optional)
 ## ---------------------------------------------------------------------------
 if (requireNamespace("bayesrules", quietly = TRUE) &&
     requireNamespace("lme4", quietly = TRUE)) {
@@ -140,11 +140,11 @@ if (requireNamespace("bayesrules", quietly = TRUE) &&
     names(fixef) <- design$re_coef_names
     mu_all <- as.matrix(glmbayesCore::build_mu_all(design, fixef)$mu_all)
     set.seed(99)
-    b1 <- block_rNormalReg(
+    b1 <- rNormal_reg_group(
       n = 1L,
       y = design$y,
       x = design$D,
-      block = design$group,
+      group = design$group,
       prior_list = list(
         mu = mu_all,
         Sigma = ps$Sigma_ranef,

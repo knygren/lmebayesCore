@@ -24,14 +24,14 @@ rGLMM_sweep
         └── .two_block_block1_draw_all_chains()
               ├── .two_block_block1_draw_all_chains_block_outs()   # for-loop over chains
               │     └── .two_block_block1_draw_block()
-              │           └── block_rNormalGLM() / block_rNormalReg()   # R wrappers
+              │           └── rNormalGLM_reg_group() / rNormal_reg_group()   # R wrappers
               └── .two_block_block1_draw_reorder() per chain
 ```
 
 Each chain draw ultimately reaches the same C++ backend as a direct export call:
 
 ```
-block_rNormalGLM()  →  .block_rNormalGLM_cpp()
+rNormalGLM_reg_group()  →  .block_rNormalGLM_cpp()
                     →  block_rNormalGLM_cpp_export()   # src/block_utils.cpp
                     →  rNormalGLMBlocks()               # src/rNormalGLMBlocks.cpp
                     →  rNormalGLM() per block
@@ -42,9 +42,9 @@ after the draw.
 
 ---
 
-## Step 1 — Build the partition (`normalize_block`)
+## Step 1 — Build the partition (`normalize_group`)
 
-**R:** `normalize_block(block, l2)` in `R/simfunction_block_utils.R`  
+**R:** `normalize_group(block, l2)` in `R/simfunction_block_utils.R`  
 **C++:** `normalize_block_cpp()` / `split_factor_rows()` in `src/block_utils.cpp`
 
 For the usual case — `design$groups` is a **factor** of length `l2`:
@@ -78,12 +78,12 @@ for (j in seq_len(k)) {
 ```
 
 **There is no lookup by `colnames(mu)` inside the block simulators.** Column `j` must
-be the prior mean for `block_info$ids[j]`.
+be the prior mean for `group_info$ids[j]`.
 
 `build_mu_all()` produces columns in **`group_levels`** order (see `R/build_mu_all.R`).
 In the standard `rGLMM_reg` setup, `group_levels` and `levels(design$groups)` are the same
 vector, so `mu[, j]` aligns with `ids[j]`. If those orderings ever differ, prep must
-permute `mu_all` columns to `block_info$ids` order **before** draw — reordering
+permute `mu_all` columns to `group_info$ids` order **before** draw — reordering
 coefficient rows after draw cannot fix a wrong prior assignment.
 
 `prior_payload_from_blocks()` then stacks per-block priors into the payload consumed by
@@ -107,11 +107,11 @@ mu_b     = mu_for_block(mu, b, prior_by_block);   // column b when prior_by_bloc
 P_b      = P_for_block(P_blocks, b, prior_by_block);
 ```
 
-- Slicing uses **1-based** R indices from `block_info$rows`.
+- Slicing uses **1-based** R indices from `group_info$rows`.
 - One **`rNormalGLM()`** / **`rNormalReg()`** call runs on the sub-problem only.
 - Block Gibbs production uses **`n = 1`** per chain per sweep.
 
-**Offset / weights:** `block_rNormalGLM()` defaults to `rep(0, l2)` and `rep(1, l2)`
+**Offset / weights:** `rNormalGLM_reg_group()` defaults to `rep(0, l2)` and `rep(1, l2)`
 when `offset` / `weights` are omitted. The Block 1 R draw wrapper does not pass
 `design$offset` or `design$weights`. Any C++ orchestrator must match that contract
 unless the R wrapper is changed deliberately.
@@ -126,15 +126,15 @@ Inside `rNormalGLMBlocks()`:
 |--------|--------|
 | `coefficients` | **`k × l1`** matrix |
 | `coef.mode` | **`k × l1`**, same layout |
-| Row `b` | Draw for block `b` (= `block_info$ids[b+1]`) |
+| Row `b` | Draw for block `b` (= `group_info$ids[b+1]`) |
 | Col `c` | Coefficient `colnames(Z)[c]` |
 
 The C++ export returns these matrices **without dimnames**. Row order matches
-**block index order** from `normalize_block`, i.e. **`block_info$ids` order**.
+**block index order** from `normalize_group`, i.e. **`group_info$ids` order**.
 
 ---
 
-## Step 5 — R wrapper labels (`block_rNormalGLM` / `block_rNormalReg`)
+## Step 5 — R wrapper labels (`rNormalGLM_reg_group` / `rNormal_reg_group`)
 
 **File:** `R/simfunction_block.R`
 
@@ -142,10 +142,10 @@ After `.block_*_cpp()` returns:
 
 ```r
 colnames(coef_draw) <- colnames(x)      # colnames(Z)
-rownames(coef_draw) <- block_info$ids   # state / group labels
+rownames(coef_draw) <- group_info$ids   # state / group labels
 ```
 
-Same for `coef.mode`. The returned list includes `block_info` for downstream use.
+Same for `coef.mode`. The returned list includes `group_info` for downstream use.
 
 ---
 
@@ -197,11 +197,11 @@ reorder, batch assign). Items marked **silent** fail without error when wrong.
 | Must carry | Notes | Risk |
 |------------|-------|------|
 | `mu_all` rownames = `re_names`, colnames = `group_levels` | Set by `build_mu_all` / C++ `set_matrix_dimnames` | Diagnostics only unless prep permutes columns |
-| `prior_list$mu[, j]` ↔ `block_info$ids[j]` | **By column index, not `colnames(mu)`** | **Wrong prior per state (silent)** |
+| `prior_list$mu[, j]` ↔ `group_info$ids[j]` | **By column index, not `colnames(mu)`** | **Wrong prior per state (silent)** |
 | `prior_list$P`, `dispersion`, `ddef` | List elements round-trip | Wrong envelope / ING precision |
 | Column order = `ids` order | Same set as `group_levels` may differ in order | Reorder after draw **cannot** fix wrong mu |
 
-**Verify:** For each `j`, `mu_all[, j]` is the prior mean for state `block_info$ids[j]`
+**Verify:** For each `j`, `mu_all[, j]` is the prior mean for state `group_info$ids[j]`
 (e.g. compare to `build_mu_all` indexed by name, not just `colnames(mu)[j]`).
 
 ### Handoff C — `design` → C++ export
@@ -213,28 +213,28 @@ reorder, batch assign). Items marked **silent** fail without error when wrong.
 | Default `offset` / `weights` | R wrapper: `rep(0,l2)`, `rep(1,l2)` | Reading `design$offset` changes likelihood **silent** |
 | `family` + `link` strings, `f2`/`f3` | R resolves via `glmbfamfunc()` | Wrong sampler if strings or closures stale |
 
-**Verify:** `identical(block_info$ids, levels(design$groups))` for factor groups.
+**Verify:** `identical(group_info$ids, levels(design$groups))` for factor groups.
 
 ### Handoff D — C++ export → labeled coefficients (**largest gap**)
 
 `block_rNormalGLM_cpp_export()` returns **`k × l1` matrices without dimnames** plus
-`block_info`. The R wrapper in `block_rNormalGLM()` attaches labels:
+`group_info`. The R wrapper in `rNormalGLM_reg_group()` attaches labels:
 
 ```r
 colnames(coef_draw) <- colnames(x)
-rownames(coef_draw) <- block_info$ids
+rownames(coef_draw) <- group_info$ids
 ```
 
 | If skipped in C++ path | Effect |
 |------------------------|--------|
 | `rownames(coefficients)` | Reorder no-op or wrong (**silent** in R when NULL) |
 | `colnames(coefficients)` | `batch$b` columns lose RE names |
-| `block_info` on return | Reorder / diagnostics lose partition |
-| `block_results` | `iters_mean` → `1` (**silent**) |
+| `group_info` on return | Reorder / diagnostics lose partition |
+| `group_results` | `iters_mean` → `1` (**silent**) |
 | S3 `class` | Not needed for Gibbs |
 
 **Verify:** After draw, before reorder:
-`identical(rownames(coefficients), block_info$ids)` and
+`identical(rownames(coefficients), group_info$ids)` and
 `identical(colnames(coefficients), colnames(design$Z))`.
 
 C++ reference: `set_block_draw_coefficient_dimnames()` in `two_block_block1.cpp`
@@ -244,7 +244,7 @@ C++ reference: `set_block_draw_coefficient_dimnames()` in `two_block_block1.cpp`
 
 | Must carry | Notes | Risk |
 |------------|-------|------|
-| Row order before reorder | `block_info$ids` order | Coefficient row `j` = block `j` |
+| Row order before reorder | `group_info$ids` order | Coefficient row `j` = block `j` |
 | `group_levels` target order | Separate arg to reorder | Permutation via `match(group_levels, rn)` |
 | Row/col dimnames on reordered `b` | C++ sets in `ensure_batch_b_dimnames` | Slice into `batch$b` mislabels chains |
 
@@ -254,14 +254,14 @@ C++ reference: `set_block_draw_coefficient_dimnames()` in `two_block_block1.cpp`
 `two_block_reorder_b_to_group_levels()` both **return unchanged** when rownames /
 `block_ids` are NULL.
 
-### Handoff F — `block_results` → `iters_ranef`
+### Handoff F — `group_results` → `iters_ranef`
 
 | Must carry | Notes | Risk |
 |------------|-------|------|
-| `block_out$block_results` | List length `k`, each with `iters` | Missing → `iters_mean = 1` (**silent**) |
+| `block_out$group_results` | List length `k`, each with `iters` | Missing → `iters_mean = 1` (**silent**) |
 | Mean over blocks | `.two_block_block1_iters_mean()` | Under/over-count envelope work |
 
-**Verify:** `length(block_out$block_results) == block_info$k` after draw.
+**Verify:** `length(block_out$group_results) == group_info$k` after draw.
 
 ### Handoff G — Mixed piecewise C++ flags
 
@@ -274,17 +274,17 @@ diverge. Production `rGLMM_sweep` defaults: prep/reorder/iters **R** (`FALSE` fl
 | `use_cpp_mu_all` | `FALSE` | C++ must set same `mu_all` dimnames |
 | `use_cpp_prior_tau2` | `FALSE` | ING `P` structure identical |
 | `use_cpp_reorder` | `FALSE` | Same `match(group_levels, ids)` |
-| `use_cpp_iters` | `FALSE` | Same `block_results` walk |
+| `use_cpp_iters` | `FALSE` | Same `group_results` walk |
 
 ### Pre-flight checklist (run before trusting a C++ batch loop)
 
 - [ ] **1.** `levels(design$groups)` and `batch$group_levels` agree (order per your contract)
-- [ ] **2.** `prior_list$mu[, j]` is the mean for `block_info$ids[j]` (positional)
-- [ ] **3.** `rownames(coefficients) == block_info$ids` after draw, before reorder
+- [ ] **2.** `prior_list$mu[, j]` is the mean for `group_info$ids[j]` (positional)
+- [ ] **3.** `rownames(coefficients) == group_info$ids` after draw, before reorder
 - [ ] **4.** `colnames(coefficients) == colnames(Z)` after draw
 - [ ] **5.** `rownames(b)` after reorder equals `group_levels` in order
 - [ ] **6.** `dimnames(batch$b)` is `(group_levels, re_names, NULL)` after assign
-- [ ] **7.** `block_results` present when accumulating `iters_ranef`
+- [ ] **7.** `group_results` present when accumulating `iters_ranef`
 - [ ] **8.** Offset `0`, weights `1` unless R wrapper contract changes
 - [ ] **9.** `design$groups` passed as factor, not integer codes without levels
 - [ ] **10.** `names(fixef_i[[k]])` and `names(tau2_i)` intact through prep
@@ -314,12 +314,12 @@ block simulator once per chain. Existing C++ pieces include:
 
 1. **Backend** — Call `block_rNormalGLM_cpp_export` / `block_rNormalReg_cpp_export`
    with the **same arguments** the R wrappers pass to `.block_*_cpp`, not a different
-   code path or R callback to `block_rNormalGLM()`.
+   code path or R callback to `rNormalGLM_reg_group()`.
 
 2. **Partition** — Pass `design$groups` as `block`; let `normalize_block_cpp` build
    `rows` and `ids`. Do not reimplement partition logic with different level ordering.
 
-3. **`prior_list$mu` columns** — Column `j` must correspond to `block_info$ids[j]`.
+3. **`prior_list$mu` columns** — Column `j` must correspond to `group_info$ids[j]`.
    Prep (`build_mu_all` + `prior_with_tau2`) must agree with partition order before
    the C++ loop runs.
 
@@ -327,7 +327,7 @@ block simulator once per chain. Existing C++ pieces include:
    them. Do not read `design$offset` / `design$weights` unless the R contract changes.
 
 5. **Dimnames after export** — C++ export returns unnamed `k × l1` matrices. Mirror
-   the R wrapper: `colnames <- colnames(Z)`, `rownames <- block_info$ids`, before
+   the R wrapper: `colnames <- colnames(Z)`, `rownames <- group_info$ids`, before
    reorder. See `set_block_draw_coefficient_dimnames()` in `two_block_block1.cpp`.
 
 6. **Reorder** — After draw, permute rows to `batch$group_levels` (same as
@@ -350,9 +350,9 @@ See **R↔C++ carry-over checklist** above for the full handoff map. Minimal tes
 
 | Check | What to verify |
 |-------|----------------|
-| Partition | `identical(block_info$ids, levels(design$groups))` and rows cover `1:l2` |
+| Partition | `identical(group_info$ids, levels(design$groups))` and rows cover `1:l2` |
 | Prior columns | For each `j`, `mu[, j]` equals `build_mu_all` value for `ids[j]` |
-| Dimnames | `rownames(coefficients)` equals `block_info$ids` after post-export step |
+| Dimnames | `rownames(coefficients)` equals `group_info$ids` after post-export step |
 | Reorder | `rownames(reordered_b)` equals `group_levels` in order |
 | Slice size | Sum of `length(rows[[j]])` equals `l2`; each block draw uses only those rows |
 
@@ -365,7 +365,7 @@ Use **fabricated** `mu_all`, `prior_list`, and coefficient matrices — not two 
 - Skipping R-wrapper dimnames and relying on reorder alone (rownames may be missing
   or misaligned).
 - Assuming `build_mu_all` column order always equals block index order without checking
-  `group_levels` vs `block_info$ids`.
+  `group_levels` vs `group_info$ids`.
 - Replacing the export backend with R callbacks in the hot loop (correct but too slow).
 - Renaming or bypassing `*_cpp_export` entry points instead of calling the same
   symbols `.block_rNormalGLM_cpp` uses.
@@ -378,7 +378,7 @@ Use **fabricated** `mu_all`, `prior_list`, and coefficient matrices — not two 
 design$groups (factor, length l2)
     │
     ▼
-normalize_block  ──►  block_info$ids[j]     block_info$rows[[j]]
+normalize_group  ──►  group_info$ids[j]     group_info$rows[[j]]
     │                      │                        │
     │                      │                        └──► y[rows], Z[rows, ]  per block
     │                      │
@@ -386,7 +386,7 @@ prior_list$mu[, j] ────────┘  (by column index j, not name)
 
 rNormalGLMBlocks  ──►  coefficients[k × l1]   (row b = block b, unnamed)
 
-block_rNormalGLM (R)  ──►  rownames = ids,  colnames = colnames(Z)
+rNormalGLM_reg_group (R)  ──►  rownames = ids,  colnames = colnames(Z)
 
 draw_reorder  ──►  rows permuted to batch$group_levels  ──►  batch$b[, , chain]
 ```
@@ -397,9 +397,9 @@ draw_reorder  ──►  rows permuted to batch$group_levels  ──►  batch$b
 
 | Topic | File |
 |-------|------|
-| Partition (R) | `R/simfunction_block_utils.R` — `normalize_block()` |
+| Partition (R) | `R/simfunction_block_utils.R` — `normalize_group()` |
 | Prior split (R) | `R/simfunction_block_utils.R` — `normalize_prior_for_blocks()` |
-| R draw wrapper | `R/simfunction_block.R` — `block_rNormalGLM()`, `block_rNormalReg()` |
+| R draw wrapper | `R/simfunction_block.R` — `rNormalGLM_reg_group()`, `rNormal_reg_group()` |
 | Export + payload | `src/block_utils.cpp` — `block_rNormalGLM_cpp_export()`, `prior_payload_from_blocks()` |
 | Row slice loop | `src/rNormalGLMBlocks.cpp`, `src/rNormalRegBlocks.cpp` |
 | R batch draw loop | `R/two_block_batch_gibbs.R` — `.two_block_block1_draw_all_chains_block_outs()` |

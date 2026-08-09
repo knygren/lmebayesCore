@@ -125,14 +125,14 @@ inverse-Gamma draws inside ING and envelope updates (Chapters A06–A07).
 
 SAS **BY**-style row splits: normalize block indices, then run Block~1 Normal or
 GLM draws conditional on hyperparameters (`inst/BLOCK_GIBBS_ERGODICITY.md`).
-**lmebayes** `lmbBlock()` / `glmbBlock()` use `normalize_block()` directly;
+**lmebayes** `lmbBlock()` / `glmbBlock()` use `normalize_group()` directly;
 per-block fits call **glmbayes** `lmb()` / `glmb()`, not the matrix APIs below.
 
 | Function | File | Status | **lmebayes** |
 |----------|------|--------|--------------|
-| `normalize_block()` | `simfunction_block_utils.R` | Core-only today | Direct — `lmbBlock()`, `glmbBlock()`, `Prior_SetupBlock()`, `block_check_identifiability_xy()` |
-| `block_rNormalReg()` | `simfunction_block.R` | Core-only today | — |
-| `block_rNormalGLM()` | `simfunction_block.R` | Core-only today | — |
+| `normalize_group()` | `simfunction_block_utils.R` | Core-only today | Direct — `lmbBlock()`, `glmbBlock()`, `Prior_SetupGroup()`, `block_check_identifiability_xy()` |
+| `rNormal_reg_group()` | `simfunction_block.R` | Core-only today | — |
+| `rNormalGLM_reg_group()` | `simfunction_block.R` | Core-only today | — |
 
 ---
 
