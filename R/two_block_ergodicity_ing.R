@@ -210,7 +210,7 @@
 #'   \code{weights_source}, and \code{call}.
 #' @seealso \code{\link{two_block_rate}}, \code{\link{two_block_rate_from_pfamily_list}}
 #' @family simfuncs
-#' @export
+#' @keywords internal
 two_block_rate_ing <- function(x,
                                 group,
                                 x_hyper,

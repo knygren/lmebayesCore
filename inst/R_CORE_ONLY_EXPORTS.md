@@ -205,7 +205,7 @@ Current v2 driver for cycling fixed hyperparameters and random effects with
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Core-only today (current R path) |
+| `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Documented internal (not exported) |
 
 ---
 
@@ -217,12 +217,15 @@ pilot/main allocation for `rlmerb()` / `rglmerb()`.
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_rate()` | `two_block_ergodicity.R` | Core-only today |
-| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Core-only today |
-| `two_block_tv_bound()` | `two_block_ergodicity.R` | Core-only today |
-| `two_block_l_for_tv()` | `two_block_ergodicity.R` | Core-only today |
+| `two_block_rate()` | `two_block_ergodicity.R` | Documented internal (not exported) |
+| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Documented internal (not exported) |
+| `two_block_tv_bound()` | `two_block_ergodicity.R` | Documented internal (not exported) |
+| `two_block_l_for_tv()` | `two_block_ergodicity.R` | Documented internal (not exported) |
+| `two_block_rate_ing()` | `two_block_ergodicity_ing.R` | Documented internal (not exported) |
 
 Internal (same file): `two_block_mode_weights()` — IRLS/Fisher weights at the posterior mode for non-Gaussian rate calibration via **`rGLMM_reg`**.
+S3 `print.two_block_rate` / `print.two_block_rate_ing` remain registered (not
+namespace-exported as callables).
 
 ---
 
@@ -233,26 +236,27 @@ Block~2 and non-Gaussian GLMM paths.
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_pilot_sampling_cost()` | `two_block_pilot_cost.R` | Core-only today |
-| `two_block_optimize_pilot_cost()` | `two_block_pilot_cost.R` | Core-only today |
-| `two_block_d0_pilot_start()` | `two_block_pilot_cost.R` | Core-only today |
-| `two_block_m_convergence_for_pilot_start()` | `two_block_pilot_cost.R` | Core-only today |
+| `two_block_pilot_sampling_cost()` | `two_block_pilot_cost.R` | Documented internal (not exported) |
+| `two_block_optimize_pilot_cost()` | `two_block_pilot_cost.R` | Documented internal (not exported) |
+| `two_block_d0_pilot_start()` | `two_block_pilot_cost.R` | Documented internal (not exported) |
+| `two_block_m_convergence_for_pilot_start()` | `two_block_pilot_cost.R` | Documented internal (not exported) |
 
 ---
 
 ## 14. Two-block C++ batch path (align, Block~2 one-chain)
 
-R and `.Call` exports for aligning random effects to hyper rows and running one
-Block~2 Gibbs chain in C++ (v5 / sweep-outer batch updates).
+R wrappers and `.Call` entry points for aligning random effects to hyper rows
+and running one Block~2 Gibbs chain in C++ (v5 / sweep-outer batch updates).
+Not exported from the package namespace.
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_align_b_to_xhyper()` | `two_block_batch_gibbs.R` | Core-only today |
-| `two_block_align_b_to_xhyper_cpp()` | `two_block_batch_gibbs.R` | Core-only today |
-| `two_block_block2_one_chain()` | `two_block_batch_gibbs.R` | Core-only today |
-| `two_block_block2_one_chain_cpp()` | `two_block_batch_gibbs.R` | Core-only today |
-| `.two_block_align_b_to_xhyper` | `two_block_batch_gibbs.R` | Core-only today (namespace alias) |
-| `.two_block_block2_one_chain` | `two_block_batch_gibbs.R` | Core-only today (namespace alias) |
+| `two_block_align_b_to_xhyper()` | `two_block_batch_gibbs.R` | Documented internal (not exported) |
+| `two_block_align_b_to_xhyper_cpp()` | `two_block_batch_gibbs.R` | Documented internal (not exported) |
+| `two_block_block2_one_chain()` | `two_block_batch_gibbs.R` | Documented internal (not exported) |
+| `two_block_block2_one_chain_cpp()` | `two_block_batch_gibbs.R` | Documented internal (not exported) |
+| `.two_block_align_b_to_xhyper` | `two_block_batch_gibbs.R` | Internal alias (not exported) |
+| `.two_block_block2_one_chain` | `two_block_batch_gibbs.R` | Internal alias (not exported) |
 
 ---
 
@@ -269,8 +273,8 @@ Block~2 Gibbs chain in C++ (v5 / sweep-outer batch updates).
 | Group | Symbols | Notes |
 |-------|---------|-------|
 | §1–§6 Phase-out from **glmbayes** | 30 | Still on **glmbayes** `NAMESPACE` until migration |
-| §7–§15 Core-only today (not on **lmebayes** export surface) | 38 | Includes 4 **lmebayes** direct + 9 **lmebayes** indirect; excludes planned **glmbayes** `multi_rlmb` retain |
-| **Total catalogued** | **71** | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
+| §7–§15 Core-only today (not on **lmebayes** export surface) | ~22 exported + documented two-block internals | Two-block engines/calibration (§11–§14) are documented but not exported; excludes planned **glmbayes** `multi_rlmb` retain |
+| **Total catalogued** | see tables | Overlap matrix: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md) |
 
 ---
 

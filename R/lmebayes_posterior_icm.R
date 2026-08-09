@@ -62,6 +62,7 @@
 #'   \code{\link[glmbayesCore]{rglmb}}
 #' @name lmebayes_posterior_icm
 #' @aliases lmerb_posterior_mean glmerb_posterior_mode
+#' @keywords internal
 NULL
 
 #' @describeIn lmebayes_posterior_icm Joint posterior \emph{mean} of the
@@ -84,7 +85,7 @@ NULL
 #'   \eqn{O(J)} (one \eqn{p_{re} \times p_{re}} solve per group plus a small
 #'   accumulation), never a \eqn{J \times J} or \eqn{J p_{re}}-dimensional
 #'   matrix, so it scales to large numbers of groups.
-#' @export
+#' @keywords internal
 lmerb_posterior_mean <- function(design,
                                  measurement_prior_list,
                                  tol   = 1e-10,
@@ -149,7 +150,7 @@ lmerb_posterior_mean <- function(design,
 #'   \code{"re_component | covariate"} in the same stacking order as the
 #'   package-internal \code{.two_block_snapshot_fixef_cov()}'s \code{coef_index}.
 #' @seealso \code{\link{lmerb_posterior_mean}}
-#' @export
+#' @keywords internal
 lmerb_posterior_covariance <- function(design, measurement_prior_list) {
   .lmerb_validate_design(design)
   .lmerb_validate_measurement_prior_list(measurement_prior_list)
@@ -436,7 +437,7 @@ lmerb_posterior_covariance <- function(design, measurement_prior_list) {
 #'   closed-form update in \code{\link{lmerb_posterior_mean}}.
 #' @param family A \code{\link[stats]{family}} object. Defaults to
 #'   \code{gaussian()}.
-#' @export
+#' @keywords internal
 glmerb_posterior_mode <- function(design,
                                   family = gaussian(),
                                   measurement_prior_list,

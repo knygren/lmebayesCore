@@ -51,3 +51,4 @@ where \eqn{\gamma_k} is the current hyper-parameter vector for RE \eqn{k}
 \code{\link{two_block_rNormal_reg}},
 \code{\link{rNormal_reg_group}}
 }
+\keyword{internal}

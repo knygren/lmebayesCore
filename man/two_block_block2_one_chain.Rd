@@ -50,3 +50,4 @@ effects (and ING dispersion) via one \code{rglmb()} call per RE component.
 \code{\link{two_block_block2_one_chain_cpp}},
 \code{\link{rGLMM_sweep}}
 }
+\keyword{internal}

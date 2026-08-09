@@ -506,7 +506,7 @@
 #' @seealso \code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}}
 #' @name two_block_rate
 #' @aliases two_block_rate_from_pfamily_list
-#' @export
+#' @keywords internal
 two_block_rate <- function(x,
                            group,
                            x_hyper,
@@ -604,7 +604,7 @@ print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
 #'   the truncated tau^2 range).
 #' @param pfamily_list Named list of \code{pfamily} objects (one per RE
 #'   component), as in \code{\link{two_block_rNormal_reg}}.
-#' @export
+#' @keywords internal
 two_block_rate_from_pfamily_list <- function(x,
                                               group,
                                               x_hyper,
@@ -942,7 +942,7 @@ print.two_block_mode_weights <- function(x, ...) {
 #' @seealso \code{\link{two_block_rate}}
 #' @name two_block_tv_bound
 #' @aliases two_block_l_for_tv
-#' @export
+#' @keywords internal
 two_block_tv_bound <- function(rate,
                                l,
                                method = c("theorem3", "corollary1"),
@@ -987,7 +987,7 @@ two_block_tv_bound <- function(rate,
 #'   (e.g. pilot cost optimization) to avoid warning spam.
 #' @return Integer: the required number of sweeps, or an uncertified
 #'   fallback (see Details) with a warning when certification fails.
-#' @export
+#' @keywords internal
 two_block_l_for_tv <- function(rate,
                                tol,
                                method = c("theorem3", "corollary1"),

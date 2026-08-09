@@ -138,3 +138,4 @@ glmbayes Simulation Functions
 \code{\link{two_block_tv_bound}()}
 }
 \concept{simfuncs}
+\keyword{internal}

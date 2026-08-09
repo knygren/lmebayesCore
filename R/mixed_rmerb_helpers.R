@@ -1881,7 +1881,6 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'       it), so it is only forwarded here.}
 #'   }
 #' @keywords internal
-#' @export
 matrix_args_lmm <- function(
     n,
     design,

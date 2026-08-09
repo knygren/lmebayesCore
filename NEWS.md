@@ -1,5 +1,21 @@
 # lmebayesCore (development version)
 
+* **Further Core helpers no longer exported** (help kept as
+  `\keyword{internal}`; call via `:::`): `normalize_group()`,
+  `build_mu_all()`, `matrix_args_lmm()`, `lmerb_posterior_mean()`,
+  `glmerb_posterior_mode()`, `lmerb_posterior_covariance()`,
+  `rGLMM_sweep()`, `rGLMM_Re_Draw()`, plus the earlier two-block rate /
+  pilot / Block~2 helpers. Downstream **lmebayes** paths updated to
+  `:::` where needed.
+
+* **Two-block helpers no longer exported.** Documented engines and
+  calibration helpers (`two_block_rNormal_reg`, `two_block_rate*`,
+  `two_block_tv_bound` / `two_block_l_for_tv`, pilot-cost stack,
+  `two_block_align_b_to_xhyper*`, `two_block_block2_one_chain*`, and
+  dotted aliases) stay in help as internals; call via `:::` if needed.
+  Public entry remains `rlmerb` / `rglmerb` / `rLMM*` / `rGLMM*`.
+  S3 `print` methods for rate objects stay registered.
+
 * **Observation-partition APIs use `group`, not `block`.** Renamed
   `rNormal_reg_block` / `rNormalGLM_reg_block` →
   `rNormal_reg_group` / `rNormalGLM_reg_group` (formal `group=`;

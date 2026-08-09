@@ -61,7 +61,7 @@
 #'   \code{"two_block_sweep_history"}).
 #' @family simfuncs
 #' @seealso \code{\link{two_block_rNormal_reg}}, \code{\link{rGLMM_reg}}
-#' @export
+#' @keywords internal
 rGLMM_sweep <- function(
     n_chains,
     start_fixef,

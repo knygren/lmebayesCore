@@ -35,7 +35,7 @@
 #' @seealso \code{\link{lmerb_posterior_mean}},
 #'   \code{\link{two_block_rNormal_reg}},
 #'   \code{\link{rNormal_reg_group}}
-#' @export
+#' @keywords internal
 build_mu_all <- function(design, fixef, group_levels = NULL, use_cpp = TRUE) {
   if (isTRUE(use_cpp)) {
     .lmerb_validate_design(design)

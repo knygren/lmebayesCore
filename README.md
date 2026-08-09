@@ -135,37 +135,41 @@ All iid sampling inside a Block~1 or Block~2 draw (`rglmb()`, `rlmb()`, `rNormal
 
 ## Function overview
 
-Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore")`; 42 `export()` + 6 `S3method()` entries in `NAMESPACE`). End users typically load **lmebayes** instead, which re-exports the ones it needs directly.
+Exported symbols below match the current package `NAMESPACE`
+(`export(...)` entries; end users typically load **lmebayes**, which
+re-exports the ones it needs). The **Documented internals** subsection
+lists helpers that keep help pages but are **not** exported (call via
+`:::`).
 
 ### Model setup and priors
 
 | Function | Role |
 |----------|------|
 | `model_setup()` | Parse an lme4-style formula into design matrices and variance components |
-| `Prior_Setup_GLMM()` | Calibrate Block~2 hyperpriors from a reference `lmer` / `glmer` fit |
-| `pfamily_list()` | S3 generic; `pfamily_list.Prior_Setup_GLMM()` builds Block~2 `pfamily` objects |
-| `dGamma_list()` | S3 generic; `dGamma_list.Prior_Setup_GLMM()` builds per-group Block~1 dispersion `pfamily` objects |
-| `normalize_group()` | Row-block partition normalization (used by row-block engines and by **lmebayes**'s `lmbBlock()` / `glmbBlock()` / `Prior_SetupGroup()`) |
-| `build_mu_all()` | Observation-level prior means when `simulate = FALSE` |
+| `Prior_Setup_GLMM()` | Calibrate Block~1 / Block~2 priors from a reference `lmer` / `glmer` fit |
+| `Prior_SetupGroup()` | Per-group `Prior_Setup` for row-block regressions (`lmbBlock` / `glmbBlock`) |
+| `pfamily_list()` | S3 generic; methods for `Prior_Setup_GLMM` and `Prior_SetupGroup` build Block~2 `pfamily` lists |
+| `dGamma_list()` | S3 generic; `dGamma_list.Prior_Setup_GLMM()` builds Block~1 dispersion `pfamily` objects |
+| `check_identifiability()` | Level-1 / Level-2 rank and estimability checks on `(y, D, group, W)` |
+| `priors_from_pfamily_list()` | Unpack `pfamily_list` + measurement dispersion into matrix-sampler prior fields |
 
 ### Matrix-level two-block samplers
 
 | Function | Role |
 |----------|------|
 | `rlmerb()` | Matrix-level Gaussian LMM two-block sampler (replicate chains) |
-| `rglmerb()` | Matrix-level GLMM two-block sampler (`rGLMM_reg` routing for non-Gaussian; Gaussian delegates to `rLMM_reg` routes) |
-| `lmerb_posterior_mean()` | Gaussian ICM fixef start when `simulate = FALSE` |
-| `glmerb_posterior_mode()` | GLMM mode fixef start when `simulate = FALSE` |
+| `rglmerb()` | Matrix-level GLMM two-block sampler (`rGLMM_reg` for non-Gaussian; Gaussian routes through `rLMM*`) |
 
 ### LMM / GLMM replicate-chain engines
 
 | Function | Role |
 |----------|------|
-| `rLMMNormal_reg()`, `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM routes with fixed `dispersion_ranef` |
-| `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`, `rLMMindepNormalGamma_reg_estimated_vcov()` | Gaussian LMM routes with `dispersion_ranef = dGamma(...)` (ING) |
-| `rGLMM_reg()`, `rGLMM_reg_known_vcov()`, `rGLMM_reg_estimated_vcov()` | Non-Gaussian GLMM replicate-chain dispatchers/routes |
-| `rGLMM_sweep()` | Inner two-block sweep driver behind the `rGLMM_reg` and ING LMM routes |
-| `rGLMM_Re_Draw()` | Re-draw helper for the GLMM sweep-outer engine |
+| `rLMMNormal_reg()`, `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM dispatcher / routes with fixed observation dispersion |
+| `rLMMNormal_reg_known_vcov_iid()`, `rLMMNormal_joint_iid()` | Exact iid draws from the closed-form Gaussian posterior (known τ²) |
+| `rLMMNormal_reg_known_vcov_two_bg()` | Same known-τ² target via two-block Gibbs (Theorem 3 TV calibration) |
+| `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`, `rLMMindepNormalGamma_reg_estimated_vcov()` | Gaussian LMM routes with random observation dispersion (ING) |
+| `rLMMindepNormalGamma_reg_known_vcov_v2()`, `rLMMindepNormalGamma_reg_estimated_vcov_v2()` | v2 stubs (σ² with the population block; sampling not yet implemented) |
+| `rGLMM_reg()`, `rGLMM_reg_known_vcov()`, `rGLMM_reg_estimated_vcov()` | Non-Gaussian GLMM replicate-chain dispatcher / routes |
 
 ### Row-block engines
 
@@ -174,26 +178,50 @@ Symbols below are exported from **lmebayesCore** (`help(package = "lmebayesCore"
 | `rNormal_reg_group()` | Row-block Gaussian regression sampler |
 | `rNormalGLM_reg_group()` | Row-block GLM sampler |
 
-### Two-block internals and diagnostics
+### Diagnostics and printing
 
 | Function | Role |
 |----------|------|
+| `plot_sweep_history_diag()` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history` |
+| `plot_mean_convergence()` | Cross-chain mean diagnostics vs sweep (S3; fit classes + default) |
+| `plot_var_convergence()` | Cross-chain variance / precision diagnostics vs sweep |
+| `print_groupef()` | Print selected group-effect draws from an `rLMM*` / `rGLMM*` result |
+
+### Documented internals (not exported)
+
+Help topics with `\keyword{internal}`; use `lmebayesCore:::…` outside the
+package.
+
+| Function | Role |
+|----------|------|
+| `normalize_group()` | Normalize an observation-partition `group=` argument for row-block engines |
+| `build_mu_all()` | Observation-level prior means when `simulate = FALSE` / ICM prep |
+| `matrix_args_lmm()` | Build routed `rLMM*` / `rGLMM*` argument lists from `design` + prior objects |
+| `lmerb_posterior_mean()` | Exact Gaussian posterior mean (`simulate = FALSE` / ICM prep) |
+| `glmerb_posterior_mode()` | GLMM posterior mode (`simulate = FALSE` / ICM prep) |
+| `lmerb_posterior_covariance()` | Exact Gaussian posterior covariance of stacked Block~2 hyperparameters |
+| `rGLMM_sweep()` | Inner two-block sweep driver behind `rGLMM_reg` and ING LMM routes |
+| `rGLMM_Re_Draw()` | Re-draw helper for the GLMM sweep-outer engine |
 | `two_block_rNormal_reg()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
 | `two_block_rate()`, `two_block_rate_from_pfamily_list()`, `two_block_tv_bound()`, `two_block_l_for_tv()` | Convergence-rate / total-variation calibration for inner Gibbs sweeps |
+| `two_block_rate_ing()` | Extended (lambda, Omega)-aware local rate diagnostic |
 | `two_block_pilot_sampling_cost()`, `two_block_optimize_pilot_cost()`, `two_block_d0_pilot_start()`, `two_block_m_convergence_for_pilot_start()` | Pilot vs main chain cost optimization |
-| `two_block_align_b_to_xhyper()` / `.two_block_align_b_to_xhyper` (+ `_cpp`) | Align Block~1 draws to `X_hyper` column order |
+| `two_block_align_b_to_xhyper()` / `.two_block_align_b_to_xhyper` (+ `_cpp`) | Align Block~1 draws to `X_hyper` row order |
 | `two_block_block2_one_chain()` / `.two_block_block2_one_chain` (+ `_cpp`) | Single-chain Block~2 update step |
-| `plot_sweep_history_diag()` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history` |
 
 ### iid sampler retained in Core
 
 | Function | Role |
 |----------|------|
-| `rindepNormalGamma_reg_with_envelope()` | Envelope-based joint coefficient/dispersion sampler specific to `lmebayesCore`'s calibration flow -- not a duplicate of any `glmbayesCore` export |
+| `rindepNormalGamma_reg_with_envelope()` | Envelope-based joint coefficient/dispersion sampler used in Core’s ING calibration path (not a duplicate of a `glmbayesCore` export) |
 
 ### S3 methods
 
-`print.model_setup`, `print.Prior_Setup_GLMM`, `print.two_block_sweep_history`, `print.two_block_rate`, `pfamily_list.Prior_Setup_GLMM`, `dGamma_list.Prior_Setup_GLMM`.
+Registered in `NAMESPACE` (not all listed in the tables above):
+
+- **print:** `model_setup`, `Prior_Setup_GLMM`, `Prior_SetupGroup`, `pfamily_list`, `dGamma_list`, `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `two_block_sweep_history`, `two_block_rate`, `two_block_rate_ing`
+- **generics:** `pfamily_list` (`Prior_Setup_GLMM`, `Prior_SetupGroup`), `dGamma_list` (`Prior_Setup_GLMM`)
+- **plot generics:** `plot_sweep_history_diag`, `plot_mean_convergence`, `plot_var_convergence` — each with `default` plus methods for `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `rlmerb`, `rglmerb`
 
 ---
 

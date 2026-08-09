@@ -817,7 +817,7 @@
 #' @family simfuncs
 #' @seealso \code{\link{rGLMM_sweep}}, \code{\link{rNormalGLM_reg_group}},
 #'   \code{\link{rNormal_reg_group}}
-#' @export
+#' @keywords internal
 rGLMM_Re_Draw <- function(
     n,
     prior_lists,
@@ -1069,7 +1069,7 @@ rGLMM_Re_Draw <- function(
 #' @param X_k Group-level design matrix (\code{J x q_k}).
 #' @param group_levels Character vector defining Block~1 row order of \code{b}.
 #' @return Numeric vector of length \code{nrow(X_k)} in \code{X_hyper} row order.
-#' @export
+#' @keywords internal
 two_block_align_b_to_xhyper <- function(b_vec, X_k, group_levels) {
   rn <- rownames(X_k)
   if (is.null(rn)) {
@@ -1113,13 +1113,12 @@ two_block_align_b_to_xhyper <- function(b_vec, X_k, group_levels) {
 }
 
 #' @rdname two_block_align_b_to_xhyper
-#' @export
+#' @keywords internal
 two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
   .two_block_align_b_to_xhyper_cpp(b_vec, X_k, group_levels)
 }
 
 #' @keywords internal
-#' @export
 .two_block_align_b_to_xhyper <- two_block_align_b_to_xhyper
 
 #' One-chain Block 2 update (fixed effects, \eqn{\tau^2}, iteration counts)
@@ -1141,7 +1140,7 @@ two_block_align_b_to_xhyper_cpp <- function(b_vec, X_k, group_levels) {
 #'   updated for chain \code{i}).
 #' @seealso \code{\link{two_block_block2_one_chain_cpp}},
 #'   \code{\link{rGLMM_sweep}}
-#' @export
+#' @keywords internal
 two_block_block2_one_chain <- function(
     i,
     b,
@@ -1208,7 +1207,6 @@ two_block_block2_one_chain <- function(
 }
 
 #' @keywords internal
-#' @export
 .two_block_block2_one_chain <- two_block_block2_one_chain
 
 #' Block 2 one-chain update via C++ (native align + \code{rglmb})
@@ -1218,7 +1216,7 @@ two_block_block2_one_chain <- function(
 #'
 #' @inheritParams two_block_block2_one_chain
 #' @return List with \code{fixef}, \code{tau2}, and \code{iters}.
-#' @export
+#' @keywords internal
 two_block_block2_one_chain_cpp <- function(
     i,
     b,

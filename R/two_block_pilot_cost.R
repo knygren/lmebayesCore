@@ -42,12 +42,12 @@
 #' @name two_block_optimize_pilot_cost
 #' @aliases two_block_pilot_sampling_cost two_block_m_convergence_for_pilot_start
 #'   two_block_d0_pilot_start
+#' @keywords internal
 NULL
 
 #' @describeIn two_block_optimize_pilot_cost Squared standardized start distance
 #'   from a pilot mean start: \eqn{D_0 = \chi^2_{p,\alpha} / n_{\mathrm{pilot}}}.
 #' @return Non-negative scalar \eqn{D_0}.
-#' @export
 two_block_d0_pilot_start <- function(n_pilot,
                                      p,
                                      pilot_start_tol = 0.95) {
@@ -72,7 +72,6 @@ two_block_d0_pilot_start <- function(n_pilot,
 #' @return List with \code{m_convergence} (integer sweeps per main draw),
 #'   \code{m_min} (mode-start minimum), \code{delta_m}, \code{D_0}, and
 #'   \code{n_pilot}.
-#' @export
 two_block_m_convergence_for_pilot_start <- function(rate,
                                                     n_pilot,
                                                     tv_tol,
@@ -111,7 +110,6 @@ two_block_m_convergence_for_pilot_start <- function(rate,
 #' @return List with \code{total_cost}, \code{pilot_cost}, \code{main_cost},
 #'   \code{m_convergence}, and the fields returned by
 #'   \code{two_block_m_convergence_for_pilot_start}.
-#' @export
 two_block_pilot_sampling_cost <- function(n,
                                           n_pilot,
                                           rate,
@@ -158,7 +156,6 @@ two_block_pilot_sampling_cost <- function(n,
 #' @return List with \code{n_pilot_opt}, \code{m_convergence_opt},
 #'   \code{total_cost_opt}, \code{cost_at_opt}, and \code{cost_curve} (data
 #'   frame of evaluated \code{n_pilot} values near the optimum).
-#' @export
 two_block_optimize_pilot_cost <- function(n,
                                           rate,
                                           tv_tol,

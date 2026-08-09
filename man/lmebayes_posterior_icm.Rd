@@ -118,3 +118,4 @@ closed-form update in \code{\link{lmerb_posterior_mean}}.
 \code{\link{build_mu_all}}, \code{\link{two_block_rNormal_reg}},
 \code{\link[glmbayesCore]{rglmb}}
 }
+\keyword{internal}

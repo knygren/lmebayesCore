@@ -45,3 +45,4 @@ List with \code{fixef}, \code{tau2}, and \code{iters}.
 Same semantics as \code{\link{two_block_block2_one_chain}}; \code{b} is
 aligned to \code{X_hyper} rows in C++ before each \code{rglmb()} call.
 }
+\keyword{internal}

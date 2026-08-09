@@ -104,3 +104,4 @@ glmbayes Simulation Functions
 \code{\link{two_block_rate_ing}()}
 }
 \concept{simfuncs}
+\keyword{internal}

@@ -199,7 +199,7 @@
 #'   \code{\link{rGLMM_reg}}, \code{\link{rLMMNormal_reg}},
 #'   \code{\link[glmbayesCore]{dNormal}},
 #'   \code{\link[glmbayesCore]{dIndependent_Normal_Gamma}}
-#' @export
+#' @keywords internal
 two_block_rNormal_reg <- function(
     n,
     y,

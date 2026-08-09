@@ -29,7 +29,7 @@
 #'   \code{\link{Prior_SetupGroup}},
 #'   \code{inst/DESIGN_RGLM_BLOCKS.md}
 #' @example inst/examples/Ex_normalize_group.R
-#' @export
+#' @keywords internal
 normalize_group <- function(group, l2) {
   l2 <- as.integer(l2)
   if (length(l2) != 1L || l2 < 1L) {

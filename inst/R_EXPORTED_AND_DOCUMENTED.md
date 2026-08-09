@@ -213,34 +213,36 @@ use **`rGLMM_reg`** (via **`rglmerb()`**).
 | `rLMMNormal_reg()` | `rLMM_reg.R` | Dispatcher for fixed σ² (→ known or estimated route) | Validates and delegates. |
 | `rLMMindepNormalGamma_reg()` | `rLMM_reg.R` | Legacy outer loop (not default **`rlmerb()`** path) | Draw σ² via `rGamma_reg()`, then `rLMMNormal_reg()` per chain. |
 
-### Other **glmbayesCore**-only exports (24 symbols)
+### Other **lmebayesCore**-only exports
 
 Not called from **lmebayes** `R/` (directly or via formula drivers).
 
 | Function | File | Role |
 |----------|------|------|
 | `check_identifiability()` | `check_identifiability.R` | Standalone Level-1/Level-2 rank + estimability check on `(y, D, group, W)` (same naming as `rLMM_reg()`/`rGLMM_reg()`); used internally by `model_setup()` (called with `D = design$D`, `group = design$group`, `W = design$W`). |
-| `rNormal_reg_group()` | `simfunction_block.R` | Row-block Normal regression sampler. |
-| `rNormalGLM_reg_group()` | `simfunction_block.R` | Row-block GLM envelope sampler. |
-| `multi_rNormal_reg()` | `multi_rNormal_reg.R` | Multi-response Normal regression sampler (matrix API; not called by `multi_rlmb()`). |
-| `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM. |
-| `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper. |
-| `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Two-block engine with `pfamily_list` Block~2. |
-| `two_block_rate()` | `two_block_ergodicity.R` | Block~2 convergence rate from mode weights. |
-| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Rate from `pfamily_list` Block~2 spec. |
-| `two_block_tv_bound()` | `two_block_ergodicity.R` | Total-variation bound vs inner sweeps. |
-| `two_block_l_for_tv()` | `two_block_ergodicity.R` | Invert TV bound for target tolerance. |
-| `two_block_pilot_sampling_cost()` | `two_block_pilot_cost.R` | Pilot chain sampling cost model. |
-| `two_block_optimize_pilot_cost()` | `two_block_pilot_cost.R` | Optimize pilot vs main chain allocation. |
-| `two_block_d0_pilot_start()` | `two_block_pilot_cost.R` | Default pilot start for cost optimization. |
-| `two_block_m_convergence_for_pilot_start()` | `two_block_pilot_cost.R` | Inner sweeps for pilot-start calibration. |
-| `two_block_align_b_to_xhyper()` | `two_block_batch_gibbs.R` | Align ranef vector to hyper design rows. |
-| `two_block_align_b_to_xhyper_cpp()` | `two_block_batch_gibbs.R` | C++ export for align helper. |
-| `two_block_block2_one_chain()` | `two_block_batch_gibbs.R` | One Block~2 Gibbs chain (fixef + tau2). |
-| `two_block_block2_one_chain_cpp()` | `two_block_batch_gibbs.R` | C++ export for Block~2 one-chain draw. |
-| `.two_block_align_b_to_xhyper` | `two_block_batch_gibbs.R` | Namespace alias of `two_block_align_b_to_xhyper`. |
-| `.two_block_block2_one_chain` | `two_block_batch_gibbs.R` | Namespace alias of `two_block_block2_one_chain`. |
+| `rNormal_reg_group()` | `simfunction_group.R` | Row-block Gaussian regression sampler. |
+| `rNormalGLM_reg_group()` | `simfunction_group.R` | Row-block GLM envelope sampler. |
 | `glmbayesCore_has_opencl()` | `gpu_diagnostics.R` | Compile-time OpenCL flag for this build. |
+
+### Documented internals (not exported)
+
+Help pages remain (`\keyword{internal}`); use `lmebayesCore:::…` from
+outside the package.
+
+| Function | File | Role |
+|----------|------|------|
+| `normalize_group()` | `simfunction_group_utils.R` | Row-block partition normalization |
+| `build_mu_all()` | `build_mu_all.R` | Observation-level prior means |
+| `matrix_args_lmm()` | `mixed_rmerb_helpers.R` | Routed `rLMM*` / `rGLMM*` arg lists |
+| `lmerb_posterior_mean()` | `lmebayes_posterior_icm.R` | Exact Gaussian posterior mean |
+| `glmerb_posterior_mode()` | `lmebayes_posterior_icm.R` | GLMM posterior mode |
+| `lmerb_posterior_covariance()` | `lmebayes_posterior_icm.R` | Exact Gaussian posterior covariance |
+| `rGLMM_sweep()` | `rGLMM_sweep.R` | Sweep-outer Gibbs driver for two-block GLMM |
+| `rGLMM_Re_Draw()` | `two_block_batch_gibbs.R` | Single sweep-outer re-draw helper |
+
+Plus two-block engines/calibration in [R_CORE_ONLY_EXPORTS.md](R_CORE_ONLY_EXPORTS.md)
+§11–§14 (`two_block_rNormal_reg`, `two_block_rate*`, TV/pilot helpers, align /
+Block~2 one-chain wrappers).
 
 ---
 

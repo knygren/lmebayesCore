@@ -25,3 +25,4 @@ Maps one column of Block~1 random effects (\code{b}, in \code{group_levels}
 order) to the row order of \code{X_hyper[[k]]} for Block~2 pseudo-response
 \code{y}. See \code{inst/ARCHITECTURE_glmerb.md}.
 }
+\keyword{internal}

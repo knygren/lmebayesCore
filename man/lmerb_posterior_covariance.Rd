@@ -47,3 +47,4 @@ use the empirical cross-chain covariance instead (see
 \seealso{
 \code{\link{lmerb_posterior_mean}}
 }
+\keyword{internal}
