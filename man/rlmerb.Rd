@@ -18,12 +18,14 @@ rlmerb(
   gap_tol = 0.0196,
   mode_gap_max = 1,
   diag_sweeps = FALSE,
-  sim_method = "DEFAULT"
+  sim_method = "DEFAULT",
+  simulate = TRUE
 )
 }
 \arguments{
 \item{n}{Integer. Number of stored draws (each draw is one full pass through
-\code{m_convergence} inner Gibbs sweeps).}
+\code{m_convergence} inner Gibbs sweeps). Required when
+\code{simulate = TRUE}; ignored when \code{simulate = FALSE}.}
 
 \item{design}{A \code{model_setup} object (from \code{\link{model_setup}})
 supplying \code{y}, \code{D}, \code{group}, \code{W},
@@ -49,10 +51,11 @@ the design. Echoed on the fit as \code{prior.weights} / \code{offset} /
 
 \item{tv_tol}{Single numeric in \code{(0, 1)}. Total variation tolerance
 used for convergence calibration. Default \code{0.01}.
-Inner Gibbs sweeps per stored draw are derived from Theorem~3.}
+Inner Gibbs sweeps per stored draw are derived from Theorem~3.
+Ignored when \code{simulate = FALSE}.}
 
 \item{progbar}{Logical. Show a text progress bar during sampling.
-Default \code{TRUE}.}
+Default \code{TRUE}. Ignored when \code{simulate = FALSE}.}
 
 \item{verbose}{Logical. Print the reference-vs-ICM table and the convergence
 calibration line. Default \code{TRUE}.}
@@ -63,15 +66,17 @@ table. The convergence calibration line from the Core sampler still follows
 
 \item{gap_tol}{Legacy mode--mean gap tolerance for the pilot stage when
 any population component uses \code{dIndependent_Normal_Gamma} and
-\code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.}
+\code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.
+Ignored when \code{simulate = FALSE}.}
 
 \item{mode_gap_max}{Pilot inner-sweep calibration for ING population models
-(default \code{1.0}). Ignored for all-\code{dNormal} models.}
+(default \code{1.0}). Ignored for all-\code{dNormal} models.
+Ignored when \code{simulate = FALSE}.}
 
 \item{diag_sweeps}{Diagnostic flag for ING population models with a pilot stage.
 When \code{TRUE}, auto-print one combined population chain-mean table per
 stage when each stage finishes; \code{sweep_history} is always stored on
-the fit. Default \code{FALSE}.}
+the fit. Default \code{FALSE}. Ignored when \code{simulate = FALSE}.}
 
 \item{sim_method}{Simulation method: \code{"DEFAULT"} or
 \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
@@ -83,7 +88,11 @@ burn-in); \code{"TWO_BLOCK_GIBBS"} forces two-block Gibbs sampling
 (\code{\link{rLMMNormal_reg_known_vcov_two_bg}}) instead. Every other
 route (\code{dGamma()}/\code{dIndependent_Normal_Gamma} components,
 variance components estimated) only supports two-block Gibbs, so both
-values behave identically there.}
+values behave identically there. Ignored when \code{simulate = FALSE}.}
+
+\item{simulate}{Logical (default \code{TRUE}). When \code{TRUE}, draw
+posterior samples. When \code{FALSE}, return point estimates only via
+\code{\link{rlmerb_point}} (no MCMC).}
 }
 \value{
 An object of class \code{c("rlmerb", "list")} with population fields
@@ -93,7 +102,10 @@ in the \code{popef.*} namespace, group draws in \code{groupef}/
 vector, or draws when a Gamma measurement prior was used),
 \code{m_convergence}, \code{convergence},
 \code{convergence_info$sim_method_used} (\code{"DEFAULT"} or
-\code{"TWO_BLOCK_GIBBS"}), \code{Prior}, and \code{design}.
+\code{"TWO_BLOCK_GIBBS"}), full packed \code{prior}
+(from \code{\link{priors_from_pfamily_list}}), thin \code{Prior}, and
+\code{design}. When \code{simulate = FALSE}, draw / pilot / convergence
+slots are \code{NULL}.
 }
 \description{
 \code{rlmerb} generates posterior draws for Bayesian linear mixed models,
@@ -110,11 +122,17 @@ delegates sampling to
 \code{dispprior_list} and population \code{pfamily_list}.
 }
 \details{
+When \code{simulate = FALSE}, no MCMC draws are produced: the call
+delegates to the internal \code{\link{rlmerb_point}} and returns the
+exact joint Gaussian posterior mean at fixed variance-component plug-ins
+(draw slots are \code{NULL}).
+
 For formula interfaces, \code{lmerb()} in the lmebayes package wraps this
 function.
 }
 \seealso{
-\code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
+\code{\link{rglmerb}}, \code{\link{rlmerb_point}},
+\code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},

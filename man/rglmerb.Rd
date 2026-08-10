@@ -18,11 +18,13 @@ rglmerb(
   collect_block1 = TRUE,
   verbose = TRUE,
   progbar = FALSE,
-  sim_method = "DEFAULT"
+  sim_method = "DEFAULT",
+  simulate = TRUE
 )
 }
 \arguments{
-\item{n}{Integer. Number of independent chains in the main stage.}
+\item{n}{Integer. Number of independent chains in the main stage.
+Required when \code{simulate = TRUE}; ignored when \code{simulate = FALSE}.}
 
 \item{design}{A \code{model_setup} object (from \code{\link{model_setup}}).}
 
@@ -47,31 +49,40 @@ sweeps.}
 
 \item{gap_tol}{Legacy mode--mean gap for deriving the pilot chain count when
 \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING population
-components.}
+components. Ignored when \code{simulate = FALSE}.}
 
 \item{tv_tol}{Total variation tolerance for convergence calibration.
-Inner Gibbs sweeps and pilot chain counts are derived internally.}
+Inner Gibbs sweeps and pilot chain counts are derived internally.
+Ignored when \code{simulate = FALSE}.}
 
 \item{mode_gap_max}{Pilot inner-sweep calibration (non-Gaussian and
-Gaussian+ING only).}
+Gaussian+ING only). Ignored when \code{simulate = FALSE}.}
 
 \item{collect_block1}{Collect \code{groupef} draws from main chains
-(non-Gaussian only).}
+(non-Gaussian only). Ignored when \code{simulate = FALSE}.}
 
 \item{verbose}{Print stage headers and diagnostics.}
 
-\item{progbar}{Progress bars when \code{verbose} is \code{FALSE}.}
+\item{progbar}{Progress bars when \code{verbose} is \code{FALSE}.
+Ignored when \code{simulate = FALSE}.}
 
 \item{sim_method}{Simulation method for \code{family = gaussian()}:
 \code{"DEFAULT"} or \code{"TWO_BLOCK_GIBBS"}; see \code{\link{rlmerb}}.
-Ignored (two-block Gibbs only) for non-Gaussian families.}
+Ignored (two-block Gibbs only) for non-Gaussian families.
+Ignored when \code{simulate = FALSE}.}
+
+\item{simulate}{Logical (default \code{TRUE}). When \code{TRUE}, draw
+posterior samples. When \code{FALSE}, return point estimates only via
+\code{\link{rglmerb_point}} (no MCMC).}
 }
 \value{
 Object of class \code{c("rglmerb", "list")} with \code{popef.*},
 \code{groupef}/\code{groupef.mode}, and (Gaussian only)
-\code{group.dispersion}/\code{group.dispersion.mean}, plus
-\code{Prior}, \code{design}, and \code{family}. When a pilot stage runs,
-nested \code{pilot} (\code{n}, \code{chisq}, \code{draws}) is included.
+\code{group.dispersion}/\code{group.dispersion.mean}, plus full packed
+\code{prior}, thin \code{Prior}, \code{design}, and \code{family}.
+When a pilot stage runs, nested \code{pilot} (\code{n}, \code{chisq},
+\code{draws}) is included. When \code{simulate = FALSE}, draw / pilot /
+convergence slots are \code{NULL}.
 }
 \description{
 \code{rglmerb} generates posterior draws for Bayesian generalized linear
@@ -92,12 +103,18 @@ eigenvalue-bound complexity). Inner sweeps use
 }
 }
 \details{
+When \code{simulate = FALSE}, no MCMC draws are produced: the call
+delegates to the internal \code{\link{rglmerb_point}} and returns the
+joint posterior mode (ICM) or exact Gaussian mean at fixed
+variance-component plug-ins (draw slots are \code{NULL}).
+
 For formula interfaces, \code{glmerb()} in the lmebayes package wraps this
 function. Design matrices are built with \code{\link{model_setup}} and
 priors with \code{\link{Prior_Setup_GLMM}}.
 }
 \seealso{
-\code{\link{rlmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
+\code{\link{rlmerb}}, \code{\link{rglmerb_point}},
+\code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}}, \code{\link{rGLMM_reg}},

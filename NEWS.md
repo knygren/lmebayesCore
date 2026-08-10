@@ -1,5 +1,14 @@
 # lmebayesCore (development version)
 
+* **`rlmerb()` / `rglmerb()` gain `simulate`.** Default `TRUE` keeps the
+  MCMC path. With `simulate = FALSE`, both delegate to documented
+  internals `rlmerb_point()` / `rglmerb_point()` (`\keyword{internal}`,
+  not exported) for fixed-VC plug-in point estimates (exact Gaussian mean
+  or ICM mode); draw / pilot / convergence slots are `NULL`. Both branches
+  now attach the full `priors_from_pfamily_list()` pack as `$prior` (thin
+  `$Prior` kept). Formula drivers in **lmebayes** pass `simulate` through
+  and no longer call the packer themselves.
+
 * **`rlmerb()` / `rglmerb()` prior formals align with `rLMM*` /
   `rGLMM*`.** Replaced packed `prior` + `group.dispersion` with
   `pfamily_list` and `dispprior_list` (same shapes as the matrix engines;

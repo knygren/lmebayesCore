@@ -197,6 +197,32 @@ test_that("sim_method validation rejects unknown values", {
   )
 })
 
+test_that("rlmerb(simulate = FALSE) returns point fit with rich $prior", {
+  fx <- .sim_method_fixture()
+  dat <- data.frame(y = fx$y, group = fx$group)
+  design <- model_setup(y ~ 1 + (1 | group), data = dat, fit_mer = FALSE)
+
+  out <- rlmerb(
+    n = 5L,
+    design = design,
+    pfamily_list = fx$pfamily_list,
+    dispprior_list = list(dispersion = fx$sigma2_true),
+    simulate = FALSE,
+    verbose = FALSE,
+    print_icm_table = FALSE
+  )
+
+  expect_s3_class(out, "rlmerb")
+  expect_null(out$popef)
+  expect_null(out$groupef)
+  expect_null(out$m_convergence)
+  expect_false(is.null(out$popef.mode))
+  expect_false(is.null(out$groupef.mode))
+  expect_true(is.list(out$prior$pop.prior_list))
+  expect_true(is.list(out$Prior$pfamily_list))
+  expect_identical(out$prior$dispersion_mode, "fixed_vector")
+})
+
 test_that("rLMMNormal_joint_iid()'s b_mean is the exact posterior mean of beta_j (not b_last)", {
   fx <- .sim_method_fixture()
 

@@ -13,11 +13,17 @@
 #' \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
 #' \code{dispprior_list} and population \code{pfamily_list}.
 #'
+#' When \code{simulate = FALSE}, no MCMC draws are produced: the call
+#' delegates to the internal \code{\link{rlmerb_point}} and returns the
+#' exact joint Gaussian posterior mean at fixed variance-component plug-ins
+#' (draw slots are \code{NULL}).
+#'
 #' For formula interfaces, \code{lmerb()} in the lmebayes package wraps this
 #' function.
 #'
 #' @param n Integer. Number of stored draws (each draw is one full pass through
-#'   \code{m_convergence} inner Gibbs sweeps).
+#'   \code{m_convergence} inner Gibbs sweeps). Required when
+#'   \code{simulate = TRUE}; ignored when \code{simulate = FALSE}.
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}})
 #'   supplying \code{y}, \code{D}, \code{group}, \code{W},
 #'   \code{group_name}, and \code{groupef.names}.
@@ -39,13 +45,16 @@
 #' @param tv_tol Single numeric in \code{(0, 1)}. Total variation tolerance
 #'   used for convergence calibration. Default \code{0.01}.
 #'   Inner Gibbs sweeps per stored draw are derived from Theorem~3.
+#'   Ignored when \code{simulate = FALSE}.
 #' @param gap_tol Legacy mode--mean gap tolerance for the pilot stage when
 #'   any population component uses \code{dIndependent_Normal_Gamma} and
 #'   \code{tv_tol} is \code{NULL}. Ignored for all-\code{dNormal} models.
+#'   Ignored when \code{simulate = FALSE}.
 #' @param mode_gap_max Pilot inner-sweep calibration for ING population models
 #'   (default \code{1.0}). Ignored for all-\code{dNormal} models.
+#'   Ignored when \code{simulate = FALSE}.
 #' @param progbar Logical. Show a text progress bar during sampling.
-#'   Default \code{TRUE}.
+#'   Default \code{TRUE}. Ignored when \code{simulate = FALSE}.
 #' @param verbose Logical. Print the reference-vs-ICM table and the convergence
 #'   calibration line. Default \code{TRUE}.
 #' @param print_icm_table Logical. When \code{FALSE}, skip the reference-vs-ICM
@@ -54,7 +63,7 @@
 #' @param diag_sweeps Diagnostic flag for ING population models with a pilot stage.
 #'   When \code{TRUE}, auto-print one combined population chain-mean table per
 #'   stage when each stage finishes; \code{sweep_history} is always stored on
-#'   the fit. Default \code{FALSE}.
+#'   the fit. Default \code{FALSE}. Ignored when \code{simulate = FALSE}.
 #' @param sim_method Simulation method: \code{"DEFAULT"} or
 #'   \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 #'   known-variance-components route (scalar or per-group fixed
@@ -65,7 +74,10 @@
 #'   (\code{\link{rLMMNormal_reg_known_vcov_two_bg}}) instead. Every other
 #'   route (\code{dGamma()}/\code{dIndependent_Normal_Gamma} components,
 #'   variance components estimated) only supports two-block Gibbs, so both
-#'   values behave identically there.
+#'   values behave identically there. Ignored when \code{simulate = FALSE}.
+#' @param simulate Logical (default \code{TRUE}). When \code{TRUE}, draw
+#'   posterior samples. When \code{FALSE}, return point estimates only via
+#'   \code{\link{rlmerb_point}} (no MCMC).
 #' @return An object of class \code{c("rlmerb", "list")} with population fields
 #'   in the \code{popef.*} namespace, group draws in \code{groupef}/
 #'   \code{groupef.mode}, observation residual variance in
@@ -73,8 +85,12 @@
 #'   vector, or draws when a Gamma measurement prior was used),
 #'   \code{m_convergence}, \code{convergence},
 #'   \code{convergence_info$sim_method_used} (\code{"DEFAULT"} or
-#'   \code{"TWO_BLOCK_GIBBS"}), \code{Prior}, and \code{design}.
-#' @seealso \code{\link{rglmerb}}, \code{\link{rLMMNormal_reg_known_vcov}},
+#'   \code{"TWO_BLOCK_GIBBS"}), full packed \code{prior}
+#'   (from \code{\link{priors_from_pfamily_list}}), thin \code{Prior}, and
+#'   \code{design}. When \code{simulate = FALSE}, draw / pilot / convergence
+#'   slots are \code{NULL}.
+#' @seealso \code{\link{rglmerb}}, \code{\link{rlmerb_point}},
+#'   \code{\link{rLMMNormal_reg_known_vcov}},
 #'   \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_known_vcov}},
 #'   \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}},
@@ -95,19 +111,32 @@ rlmerb <- function(
     gap_tol             = 0.0196,
     mode_gap_max        = 1.0,
     diag_sweeps         = FALSE,
-    sim_method          = "DEFAULT"
+    sim_method          = "DEFAULT",
+    simulate            = TRUE
 ) {
   cl <- match.call()
+
+  if (!isTRUE(simulate)) {
+    out <- rlmerb_point(
+      design            = design,
+      pfamily_list      = pfamily_list,
+      dispprior_list    = dispprior_list,
+      offset            = offset,
+      weights           = weights,
+      verbose           = verbose,
+      print_icm_table   = print_icm_table,
+      offset_missing    = missing(offset),
+      weights_missing   = missing(weights)
+    )
+    out$call <- cl
+    return(out)
+  }
 
   if (length(n) > 1L) n <- length(n)
   n <- as.integer(n[1L])
   if (n < 1L) stop("'n' must be at least 1.", call. = FALSE)
 
   sim_method <- .rLMM_validate_sim_method(sim_method, fn_name = "rlmerb")
-
-  if (!inherits(design, "model_setup")) {
-    stop("'design' must be a model_setup object.", call. = FALSE)
-  }
 
   if (missing(pfamily_list) || is.null(pfamily_list)) {
     stop(
@@ -125,21 +154,21 @@ rlmerb <- function(
     )
   }
 
-  group.dispersion <- .lmebayes_dispprior_list_as_group_dispersion(dispprior_list)
-  prior <- priors_from_pfamily_list(
-    pfamily_list     = pfamily_list,
-    group.dispersion = group.dispersion,
-    design           = design,
-    family           = gaussian(),
-    fn_name          = "rlmerb"
+  prep <- .rlmerb_prepare_prior(
+    design          = design,
+    pfamily_list    = pfamily_list,
+    dispprior_list  = dispprior_list,
+    family          = stats::gaussian(),
+    fn_name         = "rlmerb",
+    offset          = offset,
+    weights         = weights,
+    offset_missing  = missing(offset),
+    weights_missing = missing(weights)
   )
-  disp_info <- list(
-    mode                  = prior$dispersion_mode,
-    dispersion_fix        = prior$group.dispersion,
-    dispersion_prior_list = prior$dispersion_prior_list,
-    dispersion_pfamily    = prior$dispersion_pfamily,
-    window_diagnostics    = prior$window_diagnostics
-  )
+  prior <- prep$prior
+  disp_info <- prep$disp_info
+  re_names <- prep$re_names
+  block1_prior <- prep$block1_prior
 
   if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
       !is.finite(tv_tol) || tv_tol <= 0 || tv_tol >= 1) {
@@ -153,12 +182,6 @@ rlmerb <- function(
            call. = FALSE)
     }
   }
-
-  re_names     <- design$groupef.names
-  block1_prior <- .lmebayes_block1_prior_list(
-    prior,
-    group.dispersion = disp_info$dispersion_fix
-  )
 
   out <- .lmebayes_run_lmm_engine(
     n               = n,
@@ -179,7 +202,7 @@ rlmerb <- function(
   )
 
   if (isTRUE(print_icm_table)) {
-    icm_lbl <- .lmebayes_block2_icm_labels(prior, gaussian())
+    icm_lbl <- .lmebayes_block2_icm_labels(prior, stats::gaussian())
     .lmebayes_print_icm_fixef_table(
       prior_list = prior$pop.prior_list,
       re_names   = re_names,
@@ -196,14 +219,8 @@ rlmerb <- function(
   out <- .lmebayes_add_popef_summaries(out)
   out$call       <- cl
   out$convergence <- out$convergence_info
-  out$Prior      <- list(
-    block1_prior         = block1_prior,
-    pfamily_list         = prior$pfamily_list,
-    group.dispersion     = disp_info$dispersion_fix,
-    dispersion_mode      = disp_info$mode,
-    dispersion_pfamily   = disp_info$dispersion_pfamily,
-    dispersion_prior_list = disp_info$dispersion_prior_list
-  )
+  out$prior      <- prior
+  out$Prior      <- .rlmerb_thin_Prior(prior, disp_info, block1_prior)
   out$design     <- design
 
   if (!is.null(out$pilot$n) && out$pilot$n > 0L) {
