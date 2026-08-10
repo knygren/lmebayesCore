@@ -1,0 +1,404 @@
+---
+title: "Chapter B02: Ergodicity and total-variation convergence"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B02: Ergodicity and total-variation convergence}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B02: Ergodicity and total-variation convergence
+
+This is the chapter the rest of the engine rests on. A two-block Gibbs
+sampler is only useful here if we can say, for a specific model and
+dataset, *how many sweeps* separate a stored draw from the target — not
+asymptotically, but with a number. For the Gaussian model with fixed
+variance components that number is computable, and this chapter derives
+it.
+
+The results are stated for the exactly-Gaussian case. Section
+"Beyond the Gaussian case" explains precisely what survives when the
+likelihood is Poisson, binomial, or Gamma, and what does not.
+
+# The scalar picture
+
+Start with one scalar hyper-mean \(\mu\) and one group coefficient
+\(\beta_b\), variance components fixed:
+
+| Symbol | Role |
+|---|---|
+| \(\mu\) | population mean (Block 2) |
+| \(\beta_b\) | group coefficient (Block 1) |
+| \(P_{11}\) | prior precision on \(\mu\) |
+| \(A = 1/\tau^2\) | coupling precision, \(\beta_b \mid \mu\) |
+| \(C_b = x_b^2/\sigma^2\) | likelihood precision from group \(b\) |
+
+Expanding the joint log-density as a quadratic form in \((\mu, \beta)\)
+gives the joint precision
+
+\[
+P = \begin{pmatrix} P_{11} + A & -A \\ -A & A + C_b \end{pmatrix}.
+\]
+
+The off-diagonal is \(-A\): the two blocks are coupled **only through the
+hierarchical prior**, never through the data. For a two-dimensional
+Gaussian Gibbs sampler the contraction factor — the spectral radius of the
+Markov operator on the centered subspace — is the squared canonical
+correlation,
+
+\[
+r \;=\; \frac{P_{12}^2}{P_{11}^{\text{tot}} P_{22}}
+  \;=\; \frac{A^2}{(P_{11}+A)(A+C_b)} .
+\]
+
+Reading off the regimes:
+
+| Regime | \(r\) | Behaviour |
+|---|---|---|
+| \(P_{11} \to \infty\) (tight prior on \(\mu\)) | \(\to 0\) | instant mixing |
+| \(P_{11} > 0\), \(C_b = 0\) | \(0 < r < 1\) | geometrically ergodic |
+| \(P_{11} \to 0\), \(C_b = 0\) | \(\to 1\) | mixing time \(\to \infty\) |
+| \(P_{11} = 0\), \(C_b = 0\) | \(\det P = 0\) | improper joint, **null recurrent** |
+
+The last row is the failure mode. When a group contributes no likelihood
+precision in some direction — a rank-deficient design — and the prior on
+\(\mu\) is flat in that direction, the joint posterior is improper and the
+chain does not converge at all.
+
+**Data rescues the chain.** With \(C_b > 0\), even a single observation,
+
+\[
+r = \frac{A^2}{(P_{11}+A)(A+C_b)} \;<\; \frac{A}{P_{11}+A}
+\]
+
+for any \(P_{11} \ge 0\). Under a flat prior on \(\mu\) this is still
+\(r \approx A/(A + C_b) < 1\): the data pins down \(\beta\), breaking the
+deterministic dependence on \(\mu\).
+
+Notice what the formula says about *design*, not just propriety. \(r\)
+is close to 1 whenever \(C_b \ll A\), i.e. when each group carries little
+information relative to the shrinkage prior — small groups, or a small
+\(\tau^2\). Large, well-separated groups mix fast. This intuition is
+exactly what the multivariate rate below generalizes.
+
+# The multivariate rate
+
+In the general model of `Chapter-B00`, order the parameters so that the
+paper's \(x_1\) is the block updated **second** in each sweep — the Block 2
+hyper vector \(\gamma\), of dimension \(q\) — and \(x_2\) is the Block 1
+stack \(b\), of dimension \(J p_{re}\). The joint posterior precision
+blocks are
+
+\[
+\begin{aligned}
+P_{11} &= \sum_j H_j' P_b H_j + \mathrm{blockdiag}_k(V_k^{-1}) && (q \times q)\\
+P_{22} &= \mathrm{blockdiag}_j\big(Z_j' W_j Z_j + P_b\big) && (Jp_{re} \times Jp_{re})\\
+P_{12} &= \begin{bmatrix} -H_1'P_b & \cdots & -H_J'P_b \end{bmatrix} && (q \times Jp_{re})
+\end{aligned}
+\]
+
+where \(P_b = \Psi^{-1}\) is the Block 1 prior precision, \(V_k\) is the
+Block 2 prior covariance for coefficient \(k\), \(W_j\) collects the
+per-observation weights (\(1/\sigma^2\) in the Gaussian case), and
+\(H_j\) (\(p_{re} \times q\)) maps \(\gamma\) to group \(j\)'s Block 1
+prior mean — row \(k\) of \(H_j\) is `X_hyper[[k]][j, ]` placed in
+\(\gamma_k\)'s columns.
+
+The **Remark 8 rate matrix** is
+
+\[
+A \;=\; P_{11}^{-1/2}\, P_{12}\, P_{22}^{-1}\, P_{21}\, P_{11}^{-1/2},
+\]
+
+a \(q \times q\) symmetric matrix with eigenvalues
+\(a_1 \ge a_2 \ge \dots \ge a_q\) in \([0, 1)\). The largest,
+\[
+\lambda^* = a_1,
+\]
+is the geometric contraction rate of the two-block Gibbs sampler
+[@Nygren2020]: the total-variation distance between the \(l\)-step kernel
+and the target decays like \((\lambda^*)^l\).
+
+## Computing it without forming \(P_{22}\)
+
+\(P_{22}\) is \(Jp_{re} \times Jp_{re}\) and is never built. Because
+\(P_{22}\) is block-diagonal by group and each \(H_j\) has exactly one
+non-zero segment per coefficient,
+
+\[
+P_{12} P_{22}^{-1} P_{21} \;=\; \sum_{j=1}^{J} H_j'\Big[P_b B_j^{-1} P_b\Big] H_j,
+\qquad B_j = Z_j' W_j Z_j + P_b,
+\]
+
+accumulates over groups using only \(p_{re} \times p_{re}\) solves. One
+\(q \times q\) symmetric eigendecomposition finishes the job. Nothing
+larger than \(q \times q\) is ever decomposed, so the cost is linear in
+\(J\) and the diagnostic is cheap enough to run before sampling — which is
+what `lmerb()` does on every fit.
+
+`two_block_rate()` implements exactly this.
+
+## A worked case with a closed form
+
+For a balanced random-intercept model — \(J\) groups, \(n_j\) observations
+each, \(p_{re} = q = 1\), and a flat Block 2 prior — the algebra collapses
+to
+\[
+\lambda^* = \frac{1/\tau^2}{1/\tau^2 + n_j/\sigma^2}
+          = \frac{\sigma^2}{\sigma^2 + n_j \tau^2},
+\]
+which is the scalar formula \(A/(A + C_b)\) with \(C_b = n_j/\sigma^2\).
+
+```{r rate-closed-form}
+J      <- 12L   # groups
+n_j    <- 8L    # observations per group
+sigma2 <- 1.0   # observation variance
+tau2   <- 0.5   # random-intercept variance
+
+group <- factor(rep(seq_len(J), each = n_j))
+Z     <- matrix(1, nrow = J * n_j, ncol = 1L,
+                dimnames = list(NULL, "(Intercept)"))
+x_hyper <- list("(Intercept)" = matrix(1, nrow = J, ncol = 1L,
+                                       dimnames = list(levels(group),
+                                                       "(Intercept)")))
+
+rate <- two_block_rate(
+  x                 = Z,
+  group             = group,
+  x_hyper           = x_hyper,
+  prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+  prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+)
+
+c(computed = rate$lambda_star,
+  closed_form = sigma2 / (sigma2 + n_j * tau2))
+```
+
+The small discrepancy is the Block 2 prior: the closed form above assumes
+\(V \to \infty\), while the call used \(V = 100\). Tighten the prior and
+\(\lambda^*\) falls, exactly as the scalar table predicted.
+
+The rate depends on \(n_j\) but **not** on \(J\): adding groups adds
+information about \(\gamma\) and adds parameters to \(b\) in equal
+measure. Making groups larger, on the other hand, helps a great deal.
+
+```{r rate-vs-nj}
+lam <- function(n_j) {
+  g <- factor(rep(seq_len(J), each = n_j))
+  two_block_rate(
+    x                 = matrix(1, J * n_j, 1L, dimnames = list(NULL, "(Intercept)")),
+    group             = g,
+    x_hyper           = list("(Intercept)" = matrix(1, J, 1L,
+                                                    dimnames = list(levels(g), "(Intercept)"))),
+    prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+    prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+  )$lambda_star
+}
+round(vapply(c(2L, 4L, 8L, 16L, 32L), lam, numeric(1)), 4)
+```
+
+The printed form of a rate object adds the implied sweep counts for
+common tolerances, which is the subject of `Chapter-B03`:
+
+```{r rate-print}
+rate
+```
+
+# From the rate to a total-variation bound
+
+Knowing that TV decays geometrically is not the same as knowing the
+constant. The bound actually used is Theorem 3 of [@Nygren2020], which
+gives the distance as an explicit sum over eigendirections rather than a
+single geometric envelope.
+
+Order the eigenvalues **ascending**, \(a_0 = 0 \le a_1 \le \dots \le a_q\)
+(the Lemma 2 ordering). After \(l\) sweeps the bound is
+
+\[
+\mathrm{TV}\big(K^l(x^{(0)}, \cdot),\, \pi\big) \;\le\;
+\underbrace{\sum_{i=1}^{q} d_i^{(l)}}_{\text{variance convergence}}
+\;+\;
+\underbrace{(\lambda^*)^{l}\sqrt{D_0/(2\pi)}}_{\text{mean convergence}},
+\]
+
+capped at 1, where each \(d_i^{(l)}\) is a closed-form expression in the
+ratio
+\[
+r_i^{(l)} = \frac{1 - a_{i-1}^{2l}}{1 - a_i^{2l}},
+\]
+evaluated through the generalized error function
+\[
+\mathrm{erf}_n(x) = P\big(\chi^2_n \le 2x^2\big),
+\]
+which reduces to the classical error function at \(n = 1\)
+[@Nygren2020, Remark 3; @Brown1963]. The looser Corollary 1 form replaces
+the exact terms with a geometric envelope decaying like \(a_i^{2l}\) with
+explicit constants.
+
+\(D_0\) is the squared standardized distance of the starting point from
+the posterior mean,
+\[
+D_0 = (x^{(0)} - \mu)^{\top}\,\Sigma_{11}^{-1}\,(x^{(0)} - \mu).
+\]
+
+**Starting at the posterior mean sets \(D_0 = 0\) and the mean term
+vanishes identically.** This is the single most consequential
+implementation choice in the package: `lmerb()` computes the exact joint
+posterior mean by iterated conditional modes before sampling and starts
+every replicate chain there, so only the variance-convergence sum has to
+be certified. Chapter B03 shows what this buys in sweeps.
+
+Two internal helpers evaluate and invert the bound:
+
+```{r tv-bound}
+lmebayesCore:::two_block_tv_bound(rate, l = 1:6)             # theorem 3, D0 = 0
+lmebayesCore:::two_block_l_for_tv(rate, tol = 1e-3)          # sweeps for TV <= 1e-3
+```
+
+The exact Theorem 3 terms are considerably sharper than the naive
+\((\lambda^*)^m\) proxy — often by a factor of two in sweeps — because the
+proxy ignores that all but the leading eigendirection have already
+converged.
+
+Both helpers are `\keyword{internal}` topics: reach them with
+`lmebayesCore:::`, or read them off the `print()` output of a
+`two_block_rate` object, which is the supported route.
+
+A final bookkeeping point. The bound applies to the block updated
+**second** in each sweep, i.e. \(\gamma\). The stored Block 1 draw lags by
+a half-step, so the bound at \(l-1\) applies to \(b\). The sampler adds
+one sweep to compensate; that is why a certified `m_convergence` is
+always one more than `two_block_l_for_tv()` returns.
+
+# The full-rank conditions
+
+Geometric ergodicity is not automatic. It requires the joint posterior to
+be proper in every direction, and that imposes **two** rank conditions —
+one at each level of the hierarchy.
+
+## Level 1: each group's design must be full column rank
+
+A rank-deficient \(D_j\) contributes zero likelihood precision in the
+deficient direction, \(C_b = 0\), which is the degenerate scalar case
+above. In the \(p\)-dimensional Gaussian model with fixed \(\Sigma\), full
+column rank of \(D_j\) means \(C_j = D_j'D_j/\sigma^2\) is positive
+definite, so every eigendirection of the data block contributes positively
+to the Schur complement. Rank deficiency puts at least one direction back
+into the null-recurrent regime.
+
+**Full column rank of every \(D_j\) is therefore necessary for the joint
+posterior to be proper in all directions, and necessary for geometric
+ergodicity when the prior on \(\gamma\) is weak or improper.**
+
+## Level 2: the retained groups must identify \(\gamma\)
+
+The second condition is subtler and is the caller's responsibility. Take
+the hyper-regression \(\beta_b \mid \gamma \sim N(x_b^{\top}\gamma, \tau^2)\)
+with group-level covariates \(x_b\). Integrating out a group with no data
+(\(C_b = 0\)) removes its contribution **exactly**: the Schur-complement
+correction cancels the coupling term it introduced. A data-free group is
+informationally equivalent to a group that never existed, and its
+covariate vector \(x_b\) is irrelevant.
+
+What is left, after integrating out every non-identified group, is the
+marginal precision
+\[
+P_{\gamma|\mathrm{marg}} \;=\; P_{11} \;+\; \sum_{b:\, C_b > 0}
+   x_b x_b^{\top} \cdot \frac{A C_b}{A + C_b}.
+\]
+
+With \(P_{11} = 0\) this is positive definite **iff the group-level
+covariate vectors of the data-bearing groups span \(\mathbb{R}^q\)**:
+\[
+\mathrm{rank}\big(X_{\mathrm{hyper}}[\text{data-bearing rows}, ]\big) = q .
+\]
+
+| Level | Condition | Ensures |
+|---|---|---|
+| **Data** (per group) | `qr(D_j)$rank == p_re` | \(C_j \succ 0\): \(\beta_j\) is identified by its own data |
+| **Hyper** (across groups) | `qr(X_hyper[kept rows, ])$rank == q` | \(\gamma\) is identified through the data-bearing groups |
+
+Both must hold. If either fails there is a direction in
+\((\beta, \gamma)\) space along which the chain is null recurrent — it will
+still produce numbers, and they will be meaningless.
+
+The condition is not vacuous: adding a group-level covariate that is
+constant across all retained groups introduces a degenerate direction in
+\(\gamma\) in exactly the way rank deficiency in \(D_j\) introduces one in
+\(\beta_j\). `check_identifiability()` runs both checks; the intercept-only
+special case (\(x_b = 1\) for all \(b\)) reduces level 2 to "at least one
+full-rank data-bearing group exists".
+
+The rate function also guards the boundary directly: if the computed
+\(\lambda^*\) is numerically indistinguishable from 1,
+`two_block_rate()` stops and prints the offending precision blocks rather
+than returning a rate that would certify nothing.
+
+# Beyond the Gaussian case
+
+For Poisson, binomial, and Gamma responses the joint posterior is not
+normal and **no theorem above applies as stated**. What carries over, and
+what does not:
+
+**Carries over — the structural argument.** For log-concave GLM
+likelihoods, \(C_b\) is replaced by the expected Fisher information at the
+current draw. A rank-deficient \(D_j\) still gives zero information in
+some direction, still makes that direction's conditional improper under a
+weak prior on \(\gamma\), and still breaks ergodicity. Full-rank designs
+remain **necessary**. Sufficiency for the coupled chain needs additional
+conditions and is not claimed.
+
+**Does not carry over — the numerical rate.** \(\lambda^*\) is only
+defined for a Gaussian target. What the package does instead is evaluate
+the Gaussian rate at IRLS-style curvature weights taken at the posterior
+mode:
+\[
+w_i = \frac{\mathrm{wt}_i\,\mu'(\eta_i)^2}{V(\mu_i)\,\phi},
+\qquad \eta_i = \mathrm{offset}_i + z_i^{\top} b_{\mathrm{mode},\,j(i)} .
+\]
+For canonical links this is the exact observed Hessian; otherwise it is
+the expected (Fisher) information. Supplying these as `weights` to
+`two_block_rate()` yields a **local-Gaussian heuristic** rate — a good
+practical guide, not a certificate. The print method labels such objects
+accordingly, and non-Gaussian fits run a pilot stage rather than trusting
+the number outright.
+
+The same caveat applies, for a different reason, when variance components
+are sampled rather than fixed: the target is then not Gaussian in
+\((\gamma, \tau^2)\) jointly. The package's response is to evaluate the
+rate at the **conservative** end of the truncated \(\tau^2\) support —
+smaller \(\tau^2\) means tighter coupling and a larger \(\lambda^*\), so a
+bound computed at `disp_lower` holds throughout the support.
+`Chapter-B05` covers the truncation window, and `Chapter-B06` covers the
+extended local rate diagnostic that tracks \(\tau^2\) explicitly.
+
+# See also
+
+- **Chapter B03** — turning \(\lambda^*\) into `m_convergence`, and the
+  pilot/main cost trade-off.
+- **Chapter B06** — `two_block_rate_ing()`, the local rate when \(\tau^2\)
+  is sampled.
+- **Chapter B08** — `check_identifiability()` and the rank conditions in
+  practice.
+- `?two_block_rate` — the function reference, which also documents
+  `two_block_rate_from_pfamily_list()` and `two_block_rate_ing()`.
+- `inst/BLOCK_GIBBS_ERGODICITY.md` in the package sources, the maintainer
+  note this chapter is drawn from.

@@ -1548,7 +1548,7 @@
 #' Limiting-posterior \eqn{\sigma^2}/\eqn{\tau^2} truncation window (lmebayes default)
 #'
 #' Central 98% mass of \code{Gamma((J+1)/2, d_hat*(J-1)/2)} inverted to the
-#' variance scale; see \code{inst/ING_TRUNCATION_WINDOW.md} in \pkg{lmebayes}.
+#' variance scale; see \code{inst/ING_TRUNCATION_WINDOW.md}.
 #' @noRd
 .lmebayes_ing_limiting_posterior_window <- function(d_hat, J, max_disp_perc = 0.99) {
   if (!is.numeric(d_hat) || length(d_hat) != 1L || !is.finite(d_hat) ||

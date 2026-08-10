@@ -1,0 +1,447 @@
+---
+title: "Chapter B06: The extended local rate diagnostic"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B06: The extended local rate diagnostic}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B06: The extended local rate diagnostic
+
+Chapter B02 derived a convergence rate \(\lambda^*\) for a two-block Gibbs
+sampler whose one-step map is *linear*. Chapter B05 introduced ING
+components, which sample \(\tau^2_k\) and therefore break that linearity.
+This appendix is about the gap between those two facts: what the engine
+actually certifies when \(\tau^2\) moves, and what the extended diagnostic
+adds on top.
+
+The short version, because it is easy to get backwards:
+
+- **Production `m_convergence` never uses the extended rate.** It uses the
+  plain rate evaluated at the corners of the truncation window, which is a
+  *proved* upper bound for the \((\gamma, \beta)\) sub-chain.
+- **The extended rate is a local diagnostic.** It quantifies how much the
+  coupling to \(\lambda\) and \(\Omega\) inflates the rate at one reference
+  state. It is not a certificate and does not feed calibration.
+
+# Why a single \(\lambda^*\) stops being enough
+
+Under `dIndependent_Normal_Gamma`, Block 2's state is
+\((\gamma, \lambda_{\mathrm{ING}})\) rather than \(\gamma\) alone, where
+\(\lambda_p := (\Psi^{-1})_{pp} = 1/\tau^2_p\):
+
+\[
+\beta_{jp} \mid \gamma_p, \lambda_p \sim N(W_{pj}\gamma_p,\ 1/\lambda_p),
+\quad
+\gamma_p \sim N(\mu_p^0, V_p),
+\quad
+\lambda_p \sim \mathrm{Gamma}(a_p^0, r_p^0),
+\]
+
+with \(\gamma_p\) and \(\lambda_p\) independent a priori — the
+"Independent" in ING.
+
+Claims 1–3 and Theorem 3 of @Nygren2020 require the contraction matrix
+
+\[
+A = P_{11}^{-1/2}\,P_{12}\,P_{22}^{-1}\,P_{21}\,P_{11}^{-1/2}
+\]
+
+to be **state-independent**, which is what makes the Gibbs map exactly
+linear and the TV bound exact. With \(\lambda\) sampled, two things go
+wrong at once. First, \(\lambda\) appears inside \(P_{22}\) and
+\(P_{11}^{(\gamma\gamma)}\), so \(A\) depends on the current draw. Second,
+new cross-derivative blocks appear that involve the residuals
+\(u_{jp} = \beta_{jp} - W_{pj}\gamma_p\), which are themselves random.
+
+\(A(\gamma, \beta, \lambda)\) is therefore a **local Jacobian**, not a
+global operator, and no certified TV bound carries over without
+re-derivation.
+
+# What the engine certifies instead
+
+The recovery is a weaker but genuinely proved statement about a
+*sub-chain*.
+
+Freeze \((\lambda, \Omega)\) at fixed values and the original fixed-\(\Psi\)
+theory applies verbatim to the \((\gamma, \beta)\) chain conditional on
+those values. So it suffices to bound \(\lambda^*(\Lambda, \Omega)\)
+uniformly over every \((\Lambda, \Omega)\) the truncated sampler can visit
+— and the truncation window makes that set a compact box.
+
+The monotonicity results do the rest. \(\lambda^*\) is non-decreasing in
+each \(\lambda_p\) and Loewner-non-increasing in \(\Omega\), so the
+supremum sits at a corner:
+
+\[
+\sup_{\substack{\lambda_p \in [\lambda_p^{\min}, \lambda_p^{\max}] \\
+                \Omega \succeq \Omega_{\min}}}
+\lambda^*(\Lambda, \Omega)
+\;=\;
+\lambda^*\!\left(\Lambda^{\max},\ \Omega_{\min}\right).
+\]
+
+Translating through \(\lambda_p = 1/\tau_p^2\) and
+\(\Omega_j = 1/\sigma_j^2\), the corner is reached at
+
+| Quantity | Corner | Window field |
+|---|---|---|
+| RE precision \(\lambda_p^{\max}\) | smallest \(\tau^2_p\) | `disp_lower` |
+| Measurement precision \(\Omega_{\min}\) | largest \(\sigma^2_j\) | `disp_upper` |
+
+which is exactly what `two_block_rate_from_pfamily_list()` implements: for
+an ING component it substitutes `pl$disp_lower` as the dispersion, and
+`.rLMM_measurement_disp_upper_for_rate()` supplies the \(\Omega\) side.
+
+That is the whole justification for the "evaluate at `disp_lower`" rule
+stated informally in Chapter B05. It is a proved corner of a proved
+monotone function, not a rule of thumb.
+
+**What it does not cover.** The bound certifies the \((\gamma, \beta)\)
+sub-chain *conditional on* whatever \((\lambda, \Omega)\) the sampler
+visits. It says nothing about how fast \(\lambda\) itself mixes, nor about
+the fully joint \((\gamma, \beta, \lambda)\) chain. Closing that gap is
+what the extended diagnostic is for.
+
+# The extended rate
+
+`two_block_rate_ing()` enlarges \(x_1\) from \(\gamma\) to
+\((\gamma, \lambda_{\mathrm{ING}}, \Omega_{\mathrm{ING}})\), so its
+dimension grows from \(q = \sum_k q_k\) to
+
+\[
+q_{\mathrm{ext}} = q + |\mathrm{ING}| + n_\Omega,
+\qquad
+n_\Omega \in \{0,\ 1,\ J\}
+\]
+
+according to whether the measurement dispersion is fixed, pooled, or
+per-group.
+
+## The new blocks
+
+\(P_{22}\) keeps its form,
+\(P_{22} = \mathrm{blockdiag}_j(D_j'\Omega_j D_j + \Psi^{-1})\), but
+\(\Psi^{-1}\) and \(\Omega_j\) are now current state rather than constants.
+The interesting additions are in \(P_{11}\), which becomes
+
+\[
+P_{11} =
+\begin{pmatrix}
+P_{11}^{(\gamma\gamma)} & P_{11}^{(\gamma\lambda)} & 0 \\
+P_{11}^{(\gamma\lambda)\top} & P_{11}^{(\lambda\lambda)} & 0 \\
+0 & 0 & P_{11}^{(\Omega\Omega)}
+\end{pmatrix}
+\]
+
+| Block | Value | Origin |
+|---|---|---|
+| \(P_{11}^{(\gamma\gamma)}\) | \(\lambda_p W_p'W_p + V_p^{-1}\), block-diagonal in \(p\) | as before, but \(\lambda_p\) is state |
+| \(P_{11}^{(\lambda\lambda)}\) | \(\mathrm{diag}_{p}\bigl((J/2 + a_p^0 - 1)/\lambda_p^2\bigr)\) | Gamma prior curvature |
+| \(P_{11}^{(\gamma\lambda)}\) | column \(p\) is \(-W_p'u_p\) | residual coupling |
+| \(P_{11}^{(\Omega\Omega)}\) | \((n_j/2 + a_j^0 - 1)/\Omega_j^2\) | measurement Gamma curvature |
+
+The two zero blocks are exact: \(\Omega\) is Hessian-orthogonal to
+\(\gamma\) and \(\lambda\). And \(P_{12}\) gains a row \(u_{j,\mathrm{ING}}'\)
+per ING component and, when \(\Omega\) is sampled, a row
+\(-[D_j'e_j]'\).
+
+The extended rate is then
+\(\lambda^*_{\mathrm{ext}} = \lambda_{\max}(A_{\mathrm{ext}})\) with
+\(A_{\mathrm{ext}}\) built from the extended blocks.
+
+When there are no ING components every new row and column vanishes and the
+extended spectrum collapses to the plain one exactly — a useful sanity
+check.
+
+## The residuals only make it worse
+
+One result is worth stating on its own, because it explains why the
+extended quantity cannot be turned into a certificate by the same trick
+that worked for \((\Lambda, \Omega)\). For fixed \(\Lambda, \Omega\),
+
+\[
+\lambda_{\max}(A(u)) \;\ge\; \lambda^*_{\mathrm{original}}(\Lambda, \Omega)
+\quad \text{for all } u,
+\]
+
+with equality exactly at \(u = 0\). Nonzero residuals can only *raise* the
+extended top eigenvalue.
+
+So \(u = 0\) is the minimum, not the worst case, and freezing residuals at
+zero would understate the extended rate. Unlike \(\lambda\) and \(\Omega\),
+the residuals \(u_{jp}\) have no prior-enforced ceiling, so there is no
+compact box to take a supremum over. That asymmetry is precisely why the
+extended rate remains a diagnostic.
+
+# Using it
+
+`two_block_rate_ing()` is documented but not exported, so it needs the
+triple-colon form. It takes the same design and prior arguments as
+`two_block_rate()`, plus a reference state.
+
+```{r data}
+data(sleepstudy, package = "lme4")
+dat <- sleepstudy
+dat$Days_c <- dat$Days - mean(dat$Days)
+form <- Reaction ~ Days_c + (1 + Days_c || Subject)
+
+design <- model_setup(form, data = dat)
+ps     <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01,
+                           pop.dispersion.pwt = 0.2)
+pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
+
+prior1 <- list(Sigma = ps$group.Sigma, dispersion = ps$group.dispersion)
+```
+
+The certified rate first, for comparison:
+
+```{r base-rate}
+rate_base <- two_block_rate_from_pfamily_list(
+  x                 = design$D,
+  group             = design$group,
+  x_hyper           = design$W,
+  prior_list_block1 = prior1,
+  pfamily_list      = pf_ing
+)
+rate_base$lambda_star
+```
+
+That is the corner bound, and the number that becomes `m_convergence`.
+
+The extended version needs a reference state per ING component: a plug-in
+precision \(\lambda_p\), the Gamma shape \(a_p^0\), and the RE-level
+residuals \(u_{jp}\) named by group level. The residuals come from the
+reference fit that `model_setup()` already ran:
+
+```{r ing-u}
+u_ref <- lmebayesCore:::.lmebayes_reference_u(
+  design$lmer, design$group_name, design$groupef.names
+)
+head(u_ref, 4)
+```
+
+For a plug-in precision, the prior mean \(\lambda_p = (a_p^0 - 1)/r_p^0\)
+is the natural "typical state" choice:
+
+```{r ing-spec}
+make_lambda_ing <- function(lambda_fun) {
+  stats::setNames(
+    lapply(names(ps$pop.ing_prior), function(k) {
+      g <- ps$pop.ing_prior[[k]]
+      list(lambda = lambda_fun(g),
+           shape  = g$shape,
+           u      = stats::setNames(u_ref[[k]], rownames(u_ref)))
+    }),
+    names(ps$pop.ing_prior)
+  )
+}
+
+rate_ext <- lmebayesCore:::two_block_rate_ing(
+  x                 = design$D,
+  group             = design$group,
+  x_hyper           = design$W,
+  prior_list_block1 = prior1,
+  prior_list_block2 = ps$pop.prior_list,
+  lambda_ing        = make_lambda_ing(function(g) (g$shape - 1) / g$rate)
+)
+rate_ext
+```
+
+## Reading the output
+
+```{r fields}
+c(base     = rate_ext$lambda_star_base,
+  extended = rate_ext$lambda_star,
+  delta    = rate_ext$lambda_star - rate_ext$lambda_star_base)
+rate_ext$ext_names
+```
+
+`lambda_star_base` is the plain rate with no coupling to \(\lambda\);
+`lambda_star` is the extended one; the difference is what the print method
+reports as `delta`. `ext_names` labels the enlarged coordinate system —
+the \(\gamma\) names first, then `lambda::<component>`, then `Omega` or
+`Omega::<group>` when the measurement precision is included.
+
+Here the extended rate is roughly `r round(rate_ext$lambda_star /
+rate_ext$lambda_star_base, 1)` times the base rate. Both are comfortably
+below one, so the qualitative conclusion is unchanged: the joint chain
+mixes more slowly than the certified sub-chain bound suggests, but it still
+contracts. A large `delta` does not invalidate the certificate — it says
+the certificate covers less of the story than you might have assumed.
+
+## Two checks worth running
+
+**The \(u = 0\) floor.** Setting every residual to zero should reproduce
+the base rate exactly, since that is the equality case of the inequality
+above:
+
+```{r u-zero}
+rate_u0 <- lmebayesCore:::two_block_rate_ing(
+  x = design$D, group = design$group, x_hyper = design$W,
+  prior_list_block1 = prior1, prior_list_block2 = ps$pop.prior_list,
+  lambda_ing = stats::setNames(
+    lapply(names(ps$pop.ing_prior), function(k) {
+      g <- ps$pop.ing_prior[[k]]
+      list(lambda = (g$shape - 1) / g$rate, shape = g$shape,
+           u = stats::setNames(rep(0, nrow(u_ref)), rownames(u_ref)))
+    }),
+    names(ps$pop.ing_prior)
+  ),
+  warn_slow = FALSE
+)
+all.equal(rate_u0$lambda_star, rate_u0$lambda_star_base)
+```
+
+**The pessimistic corner.** Substituting the `disp_lower` corner
+precision — the largest \(\lambda_p\) the truncation window allows — while
+keeping the reference residuals gives a much harsher picture:
+
+```{r corner, warning = FALSE}
+rate_corner <- lmebayesCore:::two_block_rate_ing(
+  x = design$D, group = design$group, x_hyper = design$W,
+  prior_list_block1 = prior1, prior_list_block2 = ps$pop.prior_list,
+  lambda_ing = make_lambda_ing(function(g) 1 / g$disp_lower),
+  warn_slow = FALSE
+)
+rate_corner$lambda_star
+```
+
+This exceeds one. It is worth being precise about what that does and does
+not mean. It is **not** a contradiction of `rate_base$lambda_star`, which
+remains a valid bound for what it certifies. It is a local Hessian
+evaluated at a deliberately mismatched state: the smallest \(\tau^2\) the
+window permits, combined with residuals from a fit whose \(\tau^2\) was
+several times larger. Such a state is reachable but atypical, and the
+diagnostic is telling you that the joint chain has no contraction margin
+*there*.
+
+This is why `two_block_rate_ing()` uses a non-strict eigensolver and warns
+rather than stopping. In `two_block_rate()`, \(\lambda^* \ge 1\) would
+violate Remark 8 and indicate a computational bug, so it is an error. Here
+it is a legitimate finding about one state.
+
+# Scanning over draws
+
+A single reference state is one sample of a state-dependent quantity. To
+see the spread, `.two_block_rate_ing_over_draws()` mirrors the pilot's
+`pmax` pattern over stored draws and returns `lambda_star_vec`,
+`lambda_star_max`, `i_max`, `max_eigenvalues`, and `n_over_one` — the count
+of draws whose extended rate reached one.
+
+This is an empirical maximum over a finite sample, not a supremum, and its
+usefulness is bounded by how well the draws explore the residual space. It
+is the same species of safeguard as
+`.two_block_pilot_ub_from_coefficients()`, which takes the max plain rate
+over pilot coefficients on top of the corner bound.
+
+# The marginal route
+
+There is a second, mathematically distinct diagnostic worth knowing about,
+because it is easy to confuse with the extended one.
+
+Instead of appending \(\Omega\) as a coordinate, *integrate it out*. With
+\(\Omega_j \sim \mathrm{Gamma}(a_j^0, r_j^0)\) integrated
+unconditionally out of the group likelihood,
+
+\[
+p(y_j \mid \beta_j) \;\propto\;
+\Bigl(r_j^0 + \tfrac{1}{2}e_j'e_j\Bigr)^{-(a_j^0 + n_j/2)},
+\qquad e_j = y_j - D_j\beta_j,
+\]
+
+which is a generalized multivariate \(t\) centered at
+\(\hat\beta_j^{\mathrm{ols}}\) with \(\nu_j = 2a_j^0 + n_j - p_{re}\)
+degrees of freedom. That the location is the plain OLS estimate, with no
+shrinkage toward a calibration prior, is the signature of the *independent*
+normal-gamma structure.
+
+This matters beyond the rate, because a multivariate \(t\) is **not
+globally log-concave**. Its Hessian is positive definite only inside an
+ellipsoid:
+
+\[
+-\nabla^2 \log f(x) \succ 0
+\iff
+(x - \mu)^\top \Sigma^{-1} (x - \mu) < \nu,
+\]
+
+which for the ING marginal reads
+\(\|\beta_j - \hat\beta_j^{\mathrm{ols}}\|^2_{D_j'D_j}
+  \le 2r_j^0 + \mathrm{RSS}_j^{\mathrm{ols}}\).
+
+Outside that region the tangent-plane envelope of @Nygren2006 is no longer
+a valid bound, since the construction assumes log-concavity. Chord
+majorization on bounded non-concave annuli would restore a valid envelope
+and is licensed by the same paper's Fact A.1, but it is not implemented
+and the Theorem 2/3 asymptotics would need separate derivation.
+
+The truncation window is what keeps this under control. Under truncation to
+\([\omega_L, \omega_U] = [1/\texttt{disp\_upper}, 1/\texttt{disp\_lower}]\)
+the moments are exact via `pgamma()`:
+
+\[
+H_j(\beta_j) = E_t[\Omega_j]\,D_j'D_j
+             - \mathrm{Var}_t[\Omega_j]\,(D_j'e_j)(D_j'e_j)',
+\]
+
+and tightening the window mainly *reduces* \(\mathrm{Var}_t[\Omega_j]\),
+raising the effective threshold \(E_t/\mathrm{Var}_t\) and making
+log-concavity violations harder to reach. So the window is doing three
+jobs at once: keeping the chain geometrically ergodic, giving a compact box
+for the corner bound, and keeping the envelope sampler valid.
+
+`.two_block_truncated_omega_moments()` and
+`.two_block_lambda_star_marginal_over_draws()` implement this route, and
+`.two_block_combine_rate_envelopes()` takes a componentwise maximum against
+the plug-in bound.
+
+# Theorem or heuristic: the honest table
+
+| Result | Status |
+|---|---|
+| Claims 1–3, Theorem 3, Corollary 1 for fixed \(\Psi\), Gaussian target | **Proved** |
+| Corner bound \(\lambda^*(\Lambda,\Omega) \le \lambda^*(\Lambda^{\max}, \Omega_{\min})\) | **Proved** (\(\Omega\) monotonicity general; \(\lambda_p\) complete for \(p_{re}=1\), cited otherwise) |
+| \(\lambda_{\max}(A(u)) \ge \lambda^*_{\mathrm{original}}\), minimized at \(u=0\) | **Proved** |
+| Multivariate-\(t\) log-concavity boundary \(d < \nu\) | **Proved** |
+| ING marginal is a generalized multivariate \(t\) | **Proved** |
+| Truncated Hessian moments via `pgamma()` | Exact algebra |
+| **Extended \(\lambda^*\) from `two_block_rate_ing()`** | **Local, uncertified** |
+| Non-Gaussian weights at `b_mode` | Local-Gaussian heuristic |
+| Max over pilot or main draws | Empirical safeguard |
+| Chord majorization for non-log-concave regions | Licensed in principle, not implemented |
+
+The three-way split to keep in mind: production calibration uses the
+**certified corner bound**; `two_block_rate_ing()` is a **local joint
+diagnostic** answering a question the certificate does not; and the
+marginal route is a **third, independent** check used by the `known_vcov`
+engine. They are complementary, and none substitutes for another.
+
+# See also
+
+- `vignette("Chapter-B02")` — the fixed-\(\Psi\) theory being extended.
+- `vignette("Chapter-B05")` — where the truncation window comes from.
+- `vignette("Chapter-B07")` — the \(\Omega\) side, per group.
+- `?two_block_rate`, `?two_block_rate_from_pfamily_list`
+- `inst/BLOCK_GIBBS_ERGODICITY_ING.md`,
+  `inst/omega-ing-marginal-multivariate-t.md`,
+  `inst/multivariate-t-log-concavity.md` in the package sources.

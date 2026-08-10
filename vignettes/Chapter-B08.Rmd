@@ -1,0 +1,359 @@
+---
+title: "Chapter B08: Design, identifiability and rank conditions"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B08: Design, identifiability and rank conditions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B08: Design, identifiability and rank conditions
+
+`model_setup()` does three jobs: it turns a formula into matrices, it fits
+a reference model, and it runs a two-level identifiability check. This
+chapter is about the third, because the conditions it tests are the same
+ones the ergodicity theory of Chapter B02 assumes, and because the two
+levels fail in importantly different ways.
+
+The headline distinction, since it is the thing most often gotten
+backwards:
+
+- **A rank-deficient group is survivable.** It stays in the model, and in
+  the direction its data cannot identify it is drawn from its prior.
+- **A failed level-2 condition is not.** No group can supply the missing
+  information, and the chain is null recurrent in that direction of
+  \(\gamma\) even under a proper prior.
+
+# What `model_setup()` returns
+
+```{r data}
+data(sleepstudy, package = "lme4")
+dat <- sleepstudy
+dat$Days_c <- dat$Days - mean(dat$Days)
+
+design <- model_setup(Reaction ~ Days_c + (1 + Days_c || Subject), data = dat)
+design
+```
+
+The call hierarchy is short:
+
+1. `extract_re_hyper_matrices()` builds `y`, `D`, `group`, `W`, `weights`,
+   `offset`, `groupef.names`, and `popef.moderation`.
+2. A reference fit runs — `lme4::lmer()` or `lme4::glmer()`, plus
+   `glmmTMB::glmmTMB()` when `dispformula` is per-group and Gaussian.
+3. `check_identifiability()` computes the rank and estimability
+   diagnostics and copies them onto the result.
+
+`subset`, `weights`, `na.action`, `offset` and `contrasts` are forwarded to
+*both* the design extraction and the reference fit, so rows and factor
+coding cannot drift apart between them.
+
+The fields that matter for this chapter:
+
+```{r fields}
+str(design[c("groupef.rank", "groupef.estimable",
+             "popef.rank", "popef.deficient", "popef.rank_ok")],
+    max.level = 1)
+```
+
+Note that `model_setup()` does **not** calibrate priors. That is
+`Prior_Setup_GLMM()`, which consumes these diagnostics.
+
+# Level 1: within-group rank
+
+For each level of the grouping factor, take that group's rows of \(D\) and
+ask whether the resulting \(D_j\) has full column rank:
+
+\[
+\texttt{groupef.rank}[j] =
+\bigl(n_j \ge p_{re}\bigr)
+\ \wedge\
+\bigl(\mathrm{rank}(D_j) = p_{re}\bigr).
+\]
+
+Implemented as `Matrix::rankMatrix(D_j, method = "qr")` at Matrix's default
+tolerance, with the row-count precondition checked first — a group with
+fewer observations than coefficients cannot be full rank, and testing rows
+first avoids the degenerate call.
+
+```{r level1}
+table(design$groupef.rank)
+```
+
+All 18 subjects here have ten distinct `Days_c` values, so all pass.
+
+## What failure means, and what it does not
+
+A rank-deficient \(D_j\) means there is a direction \(v\) with
+\(D_j v = 0\): a linear combination of that group's coefficients the group's
+own data say nothing about. In the notation of
+`inst/BLOCK_GIBBS_ERGODICITY.md`, the group contributes \(C_b = 0\) in that
+direction.
+
+Under a flat prior on \(\mu\) the joint posterior is then improper and the
+chain is null recurrent. But that is a statement about a *flat* prior. With
+the proper prior this package always supplies, the conditional for
+\(\beta_j\) in the deficient direction is simply the prior conditional
+\(N(\mathcal{W}_j\gamma, \tau^2)\) — a perfectly ordinary draw.
+
+So the group is **flagged, not dropped**. It stays in \(D\), it stays in
+the reference fit, it receives coefficients, and it is shrunk to the
+population value in the direction it cannot inform. It is a passenger in
+the sampler, not a threat to it.
+
+What it *is* excluded from is what comes next: the level-2 rank check, and
+prior calibration in `Prior_Setup_GLMM()`. A group that cannot identify its
+own coefficients cannot help identify the population's.
+
+The one context where deficient groups genuinely must be removed is
+independent block fitting (`lmbBlock()`/`glmbBlock()` in **lmebayes**),
+where there is no population level to fall back on. There, level 1 is the
+only condition, and failing it means the block cannot be fit at all. See
+Chapter B09.
+
+# The estimability check
+
+Full rank is necessary but not sufficient. `check_identifiability()` runs a
+second, separate test, and the separation is deliberate enough to warrant
+its own line in the print output.
+
+The reason is that algebraic rank is a statement about \(D_j\) alone, while
+what actually matters is whether a finite estimate exists for \(D_j\)
+*together with* \(y_j\) and the link. A group can have a perfectly
+conditioned design and still admit no finite MLE:
+
+| Family | Failure mode |
+|---|---|
+| binomial | complete or quasi-complete separation — fitted probabilities pinned at 0 or 1 |
+| poisson | all-zero response; the log-link intercept diverges to \(-\infty\) |
+| Gamma | non-positive responses, or \(n_j \le p_{re}\) leaving no residual df for dispersion |
+| gaussian | \(n_j \le p_{re}\): coefficients exist, but the variance is not estimable |
+
+Gaussian is the instructive case. OLS returns coefficients whenever \(D_j\)
+has full rank, but with \(n_j = p_{re}\) the fit is exact, the residual sum
+of squares is zero, and \(\sigma^2_j\) has nothing to be estimated from.
+Since the calibration in Chapter B07 needs a dispersion estimate per group,
+that group is unusable for calibration even though its coefficients are
+fine.
+
+Mechanically, `.lmebayes_block_glm_estimable()` runs only on groups that
+already passed level 1. Cheap pre-checks come first (single outcome level,
+all-zero counts, non-positive Gamma responses, insufficient residual df).
+For binomial, Poisson and Gamma it then fits
+`stats::glm(y ~ . - 1, family = family, control = glm.control(maxit = 50))`
+per group and inspects the result: wrong coefficient count, rank
+deficiency, `NA` or non-finite coefficients, non-finite `vcov`, or — for
+binomial — any fitted probability outside \([10^{-7},\, 1 - 10^{-7}]\),
+which is the separation signature. Gaussian skips the `glm()` fit entirely
+and only checks residual df.
+
+The per-group verdicts land in a diagnostic frame:
+
+```{r glm-check}
+design$groupef.glm_check
+```
+
+`NULL` here, because the Gaussian path with \(n_j = 10 > p_{re} = 2\) has
+nothing to report. On a binomial or Poisson fit this is a data frame with
+`group`, `n`, `p`, `groupef.rank`, `estimable`, and a `note` giving the
+reason for any failure.
+
+# Level 2: across-group rank
+
+The second condition asks whether the groups that *can* speak collectively
+span the population predictor space. For each random coefficient \(k\),
+restrict the hyper-design to estimable groups and test its rank:
+
+\[
+\texttt{popef.rank}[k] =
+\Bigl(\mathrm{rank}\bigl(\mathcal{W}_k[\text{estimable}, ]\bigr) = q_k\Bigr).
+\]
+
+```{r level2}
+design$popef.rank
+design$popef.rank_ok
+lapply(design$W, dim)
+```
+
+Two details are easy to miss. The subset is **estimable**, not merely
+full-rank — a separated binomial group carries no usable information about
+\(\gamma\) regardless of its design matrix. And row \(j\) of `W[[k]]`
+corresponds to `levels(group)[j]` positionally, so the subsetting is by
+index rather than by name.
+
+For an intercept-only hyper design — `W[[k]]` a column of ones, which is
+the default for any random slope without cross-level moderation — the
+condition collapses to "at least one estimable group exists". It becomes
+substantive only when group-level covariates enter, which is where a
+level-2 failure is a real possibility: a school-level covariate that varies
+in the raw data can easily be constant across the *estimable* schools.
+
+`popef.rank_ok` is the scalar gate, and `Prior_Setup_GLMM()` requires it to
+derive default hyperpriors automatically.
+
+## Why this one is fatal
+
+The two levels map onto the ergodicity conditions like this:
+
+| Level | Condition | Guarantees |
+|---|---|---|
+| Within group | \(\mathrm{rank}(D_j) = p_{re}\) | \(\beta_j\) identified by group \(j\)'s data (\(C_b > 0\)) |
+| Across groups | \(\mathrm{rank}(\mathcal{W}_k[\text{est.}, ]) = q_k\) | \(\gamma_k\) identified through the data-bearing groups |
+
+Both are required for geometric ergodicity under an improper or near-flat
+prior on \(\mu\). If either fails there is a direction in \((\beta, \gamma)\)
+along which the chain is null recurrent.
+
+The asymmetry appears once the prior is proper. A level-1 failure is then
+repaired by the prior: the missing likelihood information is supplied by
+\(N(\mathcal{W}_j\gamma, \tau^2)\), which is a genuine, informative
+conditional built from the *other* groups. A level-2 failure is not
+repairable that way, because the thing left unidentified is \(\gamma\)
+itself — the very quantity the level-1 repair depends on. There is no
+further level to borrow from.
+
+# Fixed-effect grammar
+
+The last thing `model_setup()` enforces is which fixed effects are
+admissible, and the rule is narrower than `lme4`'s. Exactly three kinds are
+allowed:
+
+1. **Level-2 covariates** — constant within each group (`private_school`,
+   `title1`).
+2. **Population mean slopes** — a main effect whose name matches a random
+   slope, as `Days_c` does alongside `(1 + Days_c || Subject)`.
+3. **Cross-level moderation** — `moderator:random_slope`, where the
+   moderator is group-constant.
+
+Anything else stops:
+
+```
+Fixed effects must be constant within {group} (level-2), a population mean
+slope (matching a random slope name), or cross-level RE moderation
+(moderator:random_slope); not allowed: {cols}
+```
+
+This is not arbitrary strictness. It is what makes the hyper-design
+\(\mathcal{W}\) well defined: every admissible fixed effect maps onto a
+column of some \(\mathcal{W}_k\), and every column of every
+\(\mathcal{W}_k\) traces back to an admissible fixed effect. The
+construction is:
+
+| Random coefficient | `W[[k]]` |
+|---|---|
+| `(Intercept)` | all group-constant fixed columns |
+| slope with cross-level moderation | `X_group[, c("(Intercept)", moderator)]` |
+| any other slope | intercept only, `matrix(1, J, 1)` |
+
+A level-1 fixed effect that varies *within* group has no such home. It is
+not that the package refuses to fit it — it is that the centered
+parameterization of Chapter B02 has no slot for it, since such a term is
+already absorbed into the group's own \(\beta_j\).
+
+Three further restrictions, each with its own message:
+
+**One grouping factor.**
+`extract_re_hyper_matrices() requires exactly one grouping factor.`
+
+**Uncorrelated random effects only.** Correlated terms are rejected with a
+pointer to `||`:
+
+```
+Correlated random effects are not supported (off-diagonal RE covariance).
+Use '||' for uncorrelated terms, e.g. (1 + x || group) instead of
+(1 + x | group).
+```
+
+A diagonal \(\Psi\) is what lets Block 2 factor into independent
+per-component updates, which is what the ING machinery of Chapter B05
+assumes.
+
+There is also a small `lme4` idiosyncrasy the package catches directly:
+`(1 || group)` is not valid `lme4` syntax, so it is intercepted with advice
+to write `(1 | group)` instead.
+
+**`dispformula` requires Gaussian:**
+
+```
+'dispformula' must be ~1 for family = {family}() (no observation-level
+dispersion parameter for per-group measurement-dispersion calibration).
+```
+
+# Reading the print output
+
+`print.model_setup()` mirrors the structure above. Section 1 is level 1 —
+observation and group counts, then `Full-rank D_j: {n} of {J} groups` and,
+when a GLM check ran, `Full-rank & estimable: {n} of {n} full-rank`. Up to
+ten offending group names are listed for each.
+
+Section 2 shows the level-2 formulas, one line per random coefficient,
+which is the quickest way to confirm that a group-level covariate landed on
+the term you intended.
+
+Section 3 reports level-2 rank, headed by
+`(Restricted to {n} estimable {group})` so the subset is explicit, then per
+term `groups=... predictors=... full-rank|RANK-DEFICIENT`, the deficiency
+flags, and `popef.rank_ok`. Deficient terms get a NOTE suggesting either
+dropping predictors or merging levels.
+
+# A worked failure
+
+The cleanest way to see both levels is to break one on purpose. Truncate
+one subject to a single observation:
+
+```{r broken}
+bad <- dat[!(dat$Subject == "308" & dat$Days > 0), ]
+bad$Subject <- droplevels(bad$Subject)
+
+design_bad <- suppressWarnings(
+  model_setup(Reaction ~ Days_c + (1 + Days_c || Subject), data = bad)
+)
+design_bad
+```
+
+Subject 308 now has one row and two coefficients, so level 1 fails for it,
+and — since a failed rank check short-circuits the estimability test — it
+drops out of the estimable set too. The report says so on both lines:
+`Full-rank D_j: 17 of 18 groups` naming 308, then
+`Full-rank & estimable: 17 of 17 full-rank (17 of 18 total Subject)`.
+
+Level 2 still passes, and the header makes the subset explicit:
+`(Restricted to 17 estimable Subject)`. With an intercept-only hyper design
+seventeen groups are ample, so `popef.rank_ok` is `TRUE`.
+
+This is the survivable case. Subject 308 stays in the model with 171
+observations still counted, and it will be estimated almost entirely from
+the population — which is the right answer for a subject with one
+observation. Nothing about the sampler is compromised.
+
+Contrast what a level-2 failure would take: every estimable group sharing
+the same value of some group-level covariate. Then no rearrangement of the
+data helps, and the only fixes are the ones the NOTE suggests — drop the
+predictor, or merge levels so that more groups become estimable.
+
+# See also
+
+- `vignette("Chapter-B02")` — the ergodicity conditions these tests check.
+- `vignette("Chapter-B09")` — level 1 alone, in the independent-block case.
+- `vignette("Chapter-02", package = "lmebayes")` — the fixed-effect rules
+  for users.
+- `?model_setup`, `?Prior_Setup_GLMM`
+- `inst/BLOCK_GIBBS_ERGODICITY.md` in the package sources.

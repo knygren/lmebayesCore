@@ -119,6 +119,79 @@ Typical callers are row-block engines such as
 \code{\link{rNormal_reg_group}} / \code{\link{rNormalGLM_reg_group}}, or the
 higher-level \code{lmbBlock} / \code{glmbBlock} wrappers in \pkg{lmebayes}.
 }
+\details{
+\subsection{What it produces}{
+
+\code{Prior_SetupGroup()} calls \code{\link[glmbayesCore]{Prior_Setup}}
+once per block, on that block's rows only, and returns the results as a
+named list keyed by block ID.  Each element is therefore a complete,
+independent prior specification: block \eqn{b}'s prior mean and covariance
+are calibrated against block \eqn{b}'s own data, at whatever prior weight
+that block was given.
+}
+
+\subsection{Contrast with Prior_Setup_GLMM}{
+
+The two setup functions look similar and are used for genuinely different
+models.  \code{\link{Prior_Setup_GLMM}} calibrates a \strong{hierarchical}
+prior: it fits a reference \code{lmer} / \code{glmer} model, and returns
+one Block 2 hyperprior per random-effect coefficient plus the implied
+Block 1 variance components.  The groups are tied together --- that
+coupling through \eqn{\gamma} is the whole point, and it is what the
+two-block Gibbs sampler exists to handle.
+
+\code{Prior_SetupGroup()} calibrates \strong{independent} priors, one per
+row block.  There is no \eqn{\gamma}, no \eqn{\tau^2}, and no shrinkage
+across blocks: block \eqn{b}'s posterior depends only on block \eqn{b}'s
+data and prior.  The resulting fits are conditionally independent, so no
+Gibbs sweeping is required at all --- the row-block engines draw each block
+directly and iid.
+
+\tabular{lll}{
+\tab \strong{Prior_SetupGroup} \tab \strong{Prior_Setup_GLMM} \cr
+Model \tab independent per-block regressions \tab hierarchical mixed model \cr
+Reference fit \tab \code{lm}/\code{glm} per block \tab one \code{lmer}/\code{glmer} \cr
+Cross-block pooling \tab none \tab through \eqn{\gamma} and \eqn{\tau^2} \cr
+Returns \tab one \code{Prior_Setup} per block \tab hyperpriors + variance components \cr
+Consumed by \tab \code{\link{rNormal_reg_group}},
+\code{\link{rNormalGLM_reg_group}}, \code{lmbBlock}/\code{glmbBlock}
+\tab \code{\link{rlmerb}}, \code{\link{rglmerb}}, \code{lmerb}/\code{glmerb}
+}
+
+Use \code{Prior_SetupGroup()} when the blocks genuinely should not borrow
+strength --- separate studies, separate regimes, or a deliberately
+unpooled baseline against which to measure the shrinkage a hierarchical
+fit produces.
+}
+
+\subsection{Shared versus per-block calibration}{
+
+Each of the six calibration arguments accepts either a shared value
+(applied identically to every block) or a named list with one entry per
+block.  The forms mix freely across arguments in one call, so a common
+pattern is a shared \code{sd} scale with a per-block \code{n_prior}
+reflecting how much external information each block carries.  A
+\code{NULL} entry in a per-block list means "use
+\code{\link[glmbayesCore]{Prior_Setup}}'s own default here", not "no
+prior".
+
+Names must match the block IDs from \code{\link{normalize_group}} exactly;
+extra or missing names are an error rather than a silent recycle, because
+a mis-keyed per-block prior is otherwise almost impossible to notice in
+the output.
+}
+
+\subsection{Rank requirements}{
+
+Every block's design must be full column rank.  A rank-deficient block
+contributes no likelihood information in the deficient direction, which
+makes its posterior improper there under a weak prior --- the same
+condition derived for the hierarchical case in
+\code{vignette("Chapter-B02", package = "lmebayesCore")}.  Filter or merge
+undersized blocks before calling; \code{\link{check_identifiability}}
+reports which blocks fail.
+}
+}
 \examples{
 ## Prior_SetupGroup — independent Prior_Setup() per Species block (iris)
 

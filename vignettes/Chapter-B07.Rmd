@@ -1,0 +1,436 @@
+---
+title: "Chapter B07: Per-group measurement dispersion"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B07: Per-group measurement dispersion}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B07: Per-group measurement dispersion
+
+Every model so far has assumed a single measurement variance
+\(\sigma^2\) shared by all groups. This appendix relaxes that to one
+\(\sigma^2_j\) per group and works through what has to change: the
+reference fit, the prior calibration, the truncation window, and the
+Block 1 draw.
+
+The user-facing view is
+`vignette("Chapter-08", package = "lmebayes")`. This chapter is about how
+the numbers are produced.
+
+# The model, and what `dispformula` selects
+
+Pooled (`dispformula = ~1`, the default):
+
+\[
+y_j \mid \beta_j \sim N(D_j\beta_j,\ \sigma^2 I_{n_j}),
+\qquad
+\beta_j \mid \gamma, \Psi \sim N(\mathcal{W}_j\gamma, \Psi).
+\]
+
+Per group (`dispformula = ~<group_name>`):
+
+\[
+y_j \mid \beta_j, \Omega_j \sim N(D_j\beta_j,\ \Omega_j^{-1} I_{n_j}),
+\qquad
+\Omega_j = 1/\sigma^2_j \sim \mathrm{Gamma}(a_j^0, r_j^0)
+\ \text{(truncated)},
+\]
+
+with the second level untouched. The likelihood already factorized by
+group; now the *prior* does too, and each group carries its own ING prior
+on \((\beta_j, \sigma^2_j)\).
+
+`dispformula` accepts only `~1` or `~<group_name>` naming the random-effects
+grouping factor, and only for Gaussian responses — a Poisson or binomial
+GLMM has no free observation-level dispersion to calibrate, so
+`.lmebayes_dispformula_kind()` rejects it.
+
+Switching it on changes five things at once:
+
+| | `dispformula = ~1` | `dispformula = ~group` |
+|---|---|---|
+| Reference fit | `lme4::lmer()` | `glmmTMB::glmmTMB()` with the same `dispformula` |
+| `calibration_source` | `"lme4"` | `"glmmTMB"` |
+| `group.ing_prior` | one flat list | named list, one entry per level |
+| `group.dispersion.pwt` | scalar | scalar or length-\(J\) |
+| `group.max_disp_perc` | scalar | scalar or length-\(J\) |
+
+```{r data}
+data(sleepstudy, package = "lme4")
+dat <- sleepstudy
+dat$Days_c <- dat$Days - mean(dat$Days)
+form <- Reaction ~ Days_c + (1 + Days_c || Subject)
+
+ps_pooled <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01)
+ps_group  <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01,
+                              dispformula = ~Subject)
+
+c(pooled = ps_pooled$calibration_source,
+  group  = ps_group$calibration_source)
+```
+
+The pooled setup carries one number; the grouped setup carries one list per
+subject:
+
+```{r compare-structure}
+ps_pooled$group.dispersion
+length(ps_group$group.ing_prior)
+names(ps_group$group.ing_prior)[1:4]
+```
+
+# Calibrating \(\sigma^2_j\): why the within-group RSS is the wrong target
+
+The obvious estimator for group \(j\) is its own residual variance,
+
+\[
+\hat\sigma^2_{\mathrm{ols},j}
+= \frac{\mathrm{RSS}_{\mathrm{ols},j}}{n_j - p_{re}},
+\qquad
+\mathrm{RSS}_{\mathrm{ols},j}
+= \sum_i (y_{ij} - x_{ij}'\hat\beta_j^{\mathrm{ols}})^2,
+\]
+
+and it is the wrong target here, for a reason specific to the hierarchical
+setting. \(\mathrm{RSS}_{\mathrm{ols},j}\) is computed at group \(j\)'s
+*own* least-squares fit. The sampler never uses that \(\beta_j\): it uses a
+shrunk one, pulled toward \(\mathcal{W}_j\gamma\). Residuals around a
+shrunk coefficient are larger than residuals around the OLS coefficient, so
+calibrating from the OLS RSS systematically understates the dispersion the
+sampler will actually encounter.
+
+## The marginal sum of squares
+
+The fix is to integrate \(\beta_j\) out before measuring the residual.
+With prior mean \(\mu_j\), dispersion-free prior covariance
+\(\Sigma_{0j}\), and
+
+\[
+M_j = \bigl(\Sigma_{0j} + (X_j'X_j)^{-1}\bigr)^{-1},
+\]
+
+the marginal sum of squares is
+
+\[
+S_{\mathrm{marg},j}
+= \mathrm{RSS}_{\mathrm{ols},j}
++ (\hat\beta_j - \mu_j)'\,M_j\,(\hat\beta_j - \mu_j),
+\qquad
+\hat\sigma^2_j = \frac{S_{\mathrm{marg},j}}{n_j - p_{re}}.
+\]
+
+The added term is a quadratic form in a positive definite matrix, hence
+always non-negative, so \(\hat\sigma^2_j \ge \hat\sigma^2_{\mathrm{ols},j}\)
+with equality only when \(\hat\beta_j = \mu_j\). The correction is exactly
+the shrinkage penalty: groups whose own fit disagrees most with the
+population get the largest upward adjustment, which is right, because those
+are the groups whose shrunk residuals will be largest.
+
+## The Gamma parameters
+
+With \(n_{\mathrm{prior},j} = \dfrac{w_j}{1-w_j}\,n_j\) and
+\(w_j =\) `group.dispersion.pwt` (default `0.01`):
+
+\[
+\mathrm{shape}_j = \frac{n_{\mathrm{prior},j} + 1}{2} + \frac{p_{re}}{2},
+\qquad
+\mathrm{rate}_j
+= \frac{S_{\mathrm{marg},j}}{2}
+  \cdot \frac{n_{\mathrm{prior},j} + p_{re} - 1}{n_j - p_{re}}.
+\]
+
+These satisfy the identity that makes the calibration interpretable:
+
+\[
+\frac{\mathrm{rate}_j}{\mathrm{shape}_j - 1} = \hat\sigma^2_j
+\quad\text{exactly.}
+\]
+
+The Gamma prior mean *is* the marginal dispersion estimate. Check it:
+
+```{r identity}
+g1 <- ps_group$group.ing_prior[[1L]]
+c(sigma2_hat = g1$sigma2_hat,
+  prior_mean = g1$rate / (g1$shape - 1))
+```
+
+## `rate` versus `rate_gamma`
+
+Each entry stores two rates, and using the wrong one is a real bug rather
+than a stylistic choice.
+
+`rate_gamma` is the fixed-\(\beta\) alternative: the RSS evaluated at the
+Zellner blend \(\beta^\star_j = (1-w_j)\hat\beta_j + w_j\mu_j\) rather than
+the marginal \(S_{\mathrm{marg},j}\). It is a coherent quantity, but it
+answers a different question.
+
+Which one is correct depends on what the sampler does, and here the sampler
+is decisive. Block 1 draws \((\beta_j, \sigma^2_j)\) *jointly* through
+`rindepNormalGamma_reg()`, which integrates \(\beta_j\) out before drawing
+\(\sigma^2_j\). A prior calibrated at a fixed \(\beta\) is then mismatched
+to the draw it parameterizes. So **`rate` is what reaches the sampler**;
+`rate_gamma` is retained for diagnostics only.
+
+The gap is not academic — on groups whose \(\hat\beta_j\) departs sharply
+from \(\mu_j\), differences of 40–55% in the rate have been observed.
+
+```{r rate-compare}
+rates <- t(vapply(ps_group$group.ing_prior, function(g) {
+  c(rate = g$rate, rate_gamma = g$rate_gamma,
+    pct_diff = 100 * (g$rate - g$rate_gamma) / g$rate_gamma)
+}, numeric(3)))
+round(head(rates[order(-abs(rates[, "pct_diff"])), ], 5), 2)
+```
+
+## Folding in hyperparameter uncertainty
+
+There is a second correction, applied unconditionally in current releases.
+\(\mu_j\) is a stand-in for \(\mathcal{W}_j\gamma\), and \(\gamma\) is
+itself uncertain. Propagating that uncertainty inflates the prior
+covariance:
+
+\[
+\Omega_j[k,k] = \mathcal{W}_j[k]\,\Sigma_{\mathrm{fixef},k}\,\mathcal{W}_j[k]',
+\qquad
+M_j' = \bigl(\Sigma_{0j} + \Omega_{0,j} + (X_j'X_j)^{-1}\bigr)^{-1},
+\]
+
+with \(\Omega_{0,j} = \Omega_j / \mathrm{dispersion}_j^{\mathrm{classical}}\),
+and \(S_{\mathrm{marg},j}'\) recomputed with \(M_j'\). The shape is
+unchanged; only the rate moves. A larger \(\Omega_j\) means a larger
+\(M_j^{-1}\), hence a *smaller* \(M_j'\), hence a smaller penalty — being
+less certain about \(\gamma\) makes a given deviation
+\(\hat\beta_j - \mu_j\) less surprising, so less of it is charged to
+\(\sigma^2_j\).
+
+The \(\Omega_j\) matrix is stored per group for inspection:
+
+```{r omega}
+ps_group$group.ing_prior[[1L]]$omega_j
+```
+
+# The truncation window
+
+Chapter B05 introduced `disp_lower`/`disp_upper` as the interval that keeps
+the ING chain geometrically ergodic. For measurement dispersion there is a
+wrinkle worth knowing, because it is a genuine asymmetry in the package.
+
+The window is **not** a quantile interval of the prior
+\(\mathrm{Gamma}(\mathrm{shape}_j, \mathrm{rate}_j)\). It uses a
+*posterior*-shape Gamma, mean-matched at the same center:
+
+\[
+\mathrm{shape}^{\mathrm{post}}_j = \mathrm{shape}_j + \frac{n_j}{2},
+\qquad
+\mathrm{rate}^{\mathrm{post}}_j
+= \hat\sigma^2_j\,(\mathrm{shape}^{\mathrm{post}}_j - 1),
+\]
+
+and then, on the precision scale with \(Q\) the `qgamma` quantile function,
+
+\[
+\mathrm{disp\_lower}_j = 1 / Q(\mathtt{max\_disp\_perc}),
+\qquad
+\mathrm{disp\_upper}_j = 1 / Q(1 - \mathtt{max\_disp\_perc}).
+\]
+
+The `+ n_j/2` matches the envelope builder's `shape2 = Shape + n_w/2` in
+`EnvelopeDispersionBuild.cpp`, so the window brackets where the *posterior*
+will live rather than where the diffuse prior would. With
+\(w_j = 0.01\), the prior alone carries almost no information and its
+quantiles would be uselessly wide.
+
+To be explicit, since the two are easy to conflate: `shape` and `rate`
+handed to `dGamma()` are the **prior** parameters; only `disp_lower` and
+`disp_upper` are computed from `shape_post`/`rate_post`.
+
+```{r window}
+w <- t(vapply(ps_group$group.ing_prior, function(g) {
+  c(n_j = g$n_j, sigma2_hat = g$sigma2_hat,
+    lower = g$disp_lower, upper = g$disp_upper,
+    shape_post = g$shape + g$n_j / 2)
+}, numeric(5)))
+round(head(w, 5), 2)
+```
+
+Two consequences of the `+ n_j/2` inflation:
+
+- **The window narrows as \(n_j\) grows.** A group with many observations
+  gets a tight bracket, because its posterior is tight. That is the
+  intended behavior — a wide window on a well-determined group only weakens
+  the ergodicity bound for nothing.
+- **The pooled path does not do this.** With `dispformula = ~1` the window
+  is still built from prior quantiles with no `+ n/2` term. This is a
+  documented gap, not a design principle.
+
+# `dGamma_list()`
+
+`dGamma_list()` turns a calibrated per-group setup into one `dGamma()`
+pfamily per group — the object Block 1 consumes.
+
+```{r dgamma-list}
+dl <- dGamma_list(ps_group)
+class(dl)
+length(dl)
+dl[[1L]]
+```
+
+Its one interesting argument is `max_disp_perc_measurement`. Left `NULL`,
+stored bounds are reused verbatim. Given a scalar or a length-\(J\) vector
+in \((0.5, 1)\), the window is recomputed for every group whose stored
+`max_disp_perc` differs:
+
+```{r retune}
+dl_tight <- dGamma_list(ps_group, max_disp_perc_measurement = 0.80)
+wd  <- attr(dl, "window_diagnostics")
+wdt <- attr(dl_tight, "window_diagnostics")
+head(data.frame(
+  group    = wd$group,
+  lower_99 = round(wd$disp_lower),  upper_99 = round(wd$disp_upper),
+  lower_80 = round(wdt$disp_lower), upper_80 = round(wdt$disp_upper)
+), 5)
+```
+
+Tightening from `0.99` to `0.80` narrows every window. That is a real
+trade-off rather than a free improvement: a narrower window gives a better
+ergodicity bound and a smaller `m_convergence`, but truncates more genuine
+posterior mass. `0.99` is the default because it is close to no truncation
+at all.
+
+The remaining attributes are diagnostics:
+
+```{r attrs}
+names(attributes(dl))
+str(attr(dl, "measurement_prior_group"), max.level = 1)
+```
+
+Note what `measurement_prior_group` deliberately omits: no `mu` and no
+`Sigma`. The Block 1 prior *mean* is \(\mathcal{W}_j\gamma\), recomputed
+every sweep from the current Block 2 state, and the RE covariance comes
+from `pfamily_list`. Only the dispersion half of the ING prior is fixed at
+calibration time.
+
+# What Block 1 does with it
+
+The per-group route keeps the v1 joint structure: for each group, each
+sweep, one call to `rindepNormalGamma_reg()` draws \((\beta_j, \sigma^2_j)\)
+together from the ING conditional, dispatched through
+`.two_block_block1_ing_group_draw_one_chain()`.
+
+A v2 partition is derived in `inst/DERIVATION_sigma2_with_block2_v2.md` —
+draw \(\beta \mid (\gamma, \Psi, \Omega)\) as a plain Gaussian, then
+
+\[
+\Omega_j \mid \beta_j \sim
+\mathrm{Gamma}\Bigl(a_j^0 + \frac{n_j}{2},\
+                    r_j^0 + \frac{1}{2}\|y_j - D_j\beta_j\|^2\Bigr),
+\]
+
+which would sidestep envelope rejection entirely. It is theory and stubs
+only; v1 remains the production route. Its cost is that it needs the
+extended \(P_{11}\) blocks for \(\Omega\) from Chapter B06 before the rate
+could be certified.
+
+# Effect on the rate
+
+\(\Omega_j\) enters the ergodicity story through \(P_{22}\) alone:
+
+\[
+P_{22} = \mathrm{blockdiag}_j\bigl(D_j'\Omega_j D_j + \Psi^{-1}\bigr).
+\]
+
+This is a structural fact worth isolating. The measurement residual
+\(e_j = y_j - D_j\beta_j\) depends on \(\beta_j\) only, never on
+\(\gamma\), so \(\Omega\) is Hessian-orthogonal to the Block 2 coordinates
+and contributes nothing to \(P_{11}\) or \(P_{12}\). Contrast \(\lambda_p\)
+from Chapter B06, which enters through the RE link
+\(u_p = \beta_{\cdot p} - \mathcal{W}_p\gamma_p\) and therefore touches all
+four blocks.
+
+Because \(\lambda^*\) is Loewner-non-increasing in \(\Omega\), the corner
+is at \(\Omega_{\min}\), i.e. at the *largest* \(\sigma^2_j\) the window
+allows — `disp_upper`. That is what
+`.rLMM_measurement_disp_upper_for_rate()` supplies to
+`two_block_rate_from_pfamily_list()`, and it completes the pair with
+Chapter B06's `disp_lower` corner on \(\tau^2\).
+
+Under the marginal route the plug-in becomes a Student-\(t\)-type Hessian
+with a rank-one correction,
+
+\[
+H_j^{(\Omega)}(\beta_j)
+= E_t[\Omega_j]\,D_j'D_j
+- \mathrm{Var}_t[\Omega_j]\,(D_j'e_j)(D_j'e_j)',
+\]
+
+positive definite only inside the ellipsoid
+\(q_j(\beta_j) \le E_t[\Omega_j]/\mathrm{Var}_t[\Omega_j]\) where
+\(q_j = \|\beta_j - \hat\beta_j^{\mathrm{ols}}\|^2_{D_j'D_j}\). Tightening
+the window shrinks \(\mathrm{Var}_t[\Omega_j]\) and so raises the
+threshold, which is the third job the window does. See Chapter B06.
+
+# Caveats
+
+Worth stating plainly, since per-group dispersion is the most
+approximation-laden path in the package.
+
+**Empirical-Bayes double counting.** Each group's prior is calibrated from
+that group's own data, so its data are used twice. The default
+\(w_j = 0.01\) keeps the effect at \(O(1/J)\) but does not remove it.
+
+**Calibration is conditional on Block 2.** The marginal integrates
+\(\beta_j\) out given the current \(\mathrm{sd}_\tau\) and
+\(\Sigma_{\mathrm{fixef}}\); it is not joint over \(\tau^2\) uncertainty.
+This matches the two-block convention, but it is a conditional statement.
+
+**The `glmmTMB` reference fit drives everything.** When
+`calibration_source` is `"glmmTMB"`, that fit's estimates *are* the
+calibration. `glmmTMB` can converge to a boundary \(\tau^2 \approx 0\)
+where `lmer` finds a positive estimate, and there is no automatic fallback.
+Comparing against the pooled setup's `Sigma_ranef` is the cheap check:
+
+```{r sanity}
+round(rbind(pooled = diag(ps_pooled$group.Sigma),
+            group  = diag(ps_group$group.Sigma)), 3)
+```
+
+**Small groups.** With \(n_j\) barely above \(p_{re}\), the RE covariance
+can be near-singular and the ING envelope can converge poorly. The
+`group.alpha_target` argument (default `0.01`) searches for the smallest
+per-group `group.dispersion.pwt` meeting an ellipsoid-violation target,
+floored at the user's supplied weight; results land in
+`ps$group.pwt_calibration`.
+
+**Runtime diagnostics live in lmebayes.** `summary_sigma2()` is a method on
+fitted `lmerb` objects in **lmebayes**, not part of this package. See
+`vignette("Chapter-08", package = "lmebayes")`.
+
+# See also
+
+- `vignette("Chapter-B05")` — the truncation window for \(\tau^2\).
+- `vignette("Chapter-B06")` — where \(\Omega\) enters the extended rate.
+- `vignette("Chapter-08", package = "lmebayes")` — the user-facing view.
+- `?dGamma_list`, `?Prior_Setup_GLMM`
+- `inst/DGAMMA_LIST_MARGINAL_AND_BOUNDS.md`,
+  `inst/P_MATRIX_MARGINAL_PRECISIONS.md`,
+  `inst/DERIVATION_sigma2_with_block2_v2.md`,
+  `inst/PREFLIGHT_dGamma_list.md` in the package sources.

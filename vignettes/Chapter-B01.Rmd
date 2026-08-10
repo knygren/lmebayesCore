@@ -1,0 +1,286 @@
+---
+title: "Chapter B01: The two-block Gibbs architecture"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B01: The two-block Gibbs architecture}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B01: The two-block Gibbs architecture
+
+`Chapter-B00` introduced the two-stage model. This chapter follows one
+draw all the way down: from the user-facing call, through the replicate
+chain driver and the inner sweep loop, into the block updates and the
+`glmbayesCore` iid samplers where the randomness actually happens.
+
+# Why two blocks
+
+The parameter vector splits naturally into
+
+- **Block 1** — the group-level coefficients \(\beta_1, \dots, \beta_J\)
+  (dimension \(J \cdot P\)), and
+- **Block 2** — the population coefficients \(\gamma\) (dimension \(q\)),
+  together with any sampled variance components \(\tau^2_k\).
+
+Given \(\gamma\) and \(\Psi\), the \(\beta_j\) are **conditionally
+independent across groups**: group \(j\)'s conditional depends only on
+\(y_j\), \(D_j\), and \(\mathcal{W}_j\gamma\). Given all \(\beta_j\), the
+Block 2 conditional is a plain normal regression of the \(\beta\)'s on the
+level-2 designs, and because \(\Psi\) is diagonal it factorizes further
+across the \(P\) coefficients.
+
+So a "two-block" sweep is really \(J + P\) small independent draws,
+never a \(J P + q\) dimensional one. The Block 1 precision matrix, which
+would be \(J p_{re} \times J p_{re}\), is never formed.
+
+The price is autocorrelation between successive sweeps. The whole of
+`Chapter-B02` and `Chapter-B03` is about pricing that autocorrelation
+exactly, so the sampler can decide how many sweeps to discard between
+stored draws.
+
+# One sweep
+
+```
+for each inner sweep m = 1, ..., m_convergence:
+
+  Block 1:  for j = 1, ..., J
+              beta_j  ~  p(beta_j | y_j, gamma, Psi, sigma2_j)
+
+  Block 2:  for k = 1, ..., P
+              gamma_k ~  p(gamma_k | beta_.k, X_k, tau2_k)
+              [ING only: also draw tau2_k, refresh Psi]
+```
+
+Two conventions matter downstream:
+
+1. **Block 2 is updated second.** The total-variation theory of
+   `Chapter-B02` bounds the distance for the block updated *second* in each
+   sweep. The stored Block 1 draw therefore lags by a half-step, which is
+   why the sweep calibration adds one extra sweep.
+2. **The sampled \(\tau^2_k\) feeds back into Block 1.** When a Block 2
+   component is `dIndependent_Normal_Gamma`, the drawn \(\tau^2_k\)
+   replaces the corresponding diagonal entry of \(\Psi\) before the next
+   Block 1 update.
+
+# Replicate chains, not one long chain
+
+`lmebayesCore` does **not** produce one long correlated chain and thin it.
+It runs `n` independent replicate chains, each started at the exact joint
+posterior mean (Gaussian case) or the posterior mode (GLMM case), runs
+each for `m_convergence` inner sweeps, and stores **one** draw per chain.
+
+This is the same output contract as the iid samplers in `glmbayesCore`:
+the `n` stored draws are mutually independent, so ordinary Monte Carlo
+standard errors apply and no effective-sample-size correction is needed.
+The cost is that every stored draw pays the full `m_convergence` burn-in;
+the benefit is that `m_convergence` is small (typically single digits)
+because the chain starts at the mean and the TV bound is explicit.
+
+Starting every chain at the posterior mean also kills the mean term of
+the convergence bound: \(D_0 = 0\), so only the variance-convergence sum
+remains. See `Chapter-B03`.
+
+# The call stack
+
+```
+lmerb() / glmerb()                        [lmebayes: formula interface]
+  |
+  +-- model_setup()                       formula -> y, Z, group, X_hyper
+  +-- Prior_Setup_GLMM()                  reference lmer/glmer -> prior scales
+  +-- pfamily_list() / dGamma_list()      Block 2 and dispersion priors
+  |
+  +-- rlmerb() / rglmerb()                [lmebayesCore: matrix level]
+        |
+        +-- matrix_args_lmm()             design + priors -> route arguments
+        +-- lmerb_posterior_mean()        exact Gaussian mean (ICM), or
+        |   glmerb_posterior_mode()       GLMM mode -- also the chain start
+        |
+        +-- route table
+              |
+              +-- rLMMNormal_reg_known_vcov_iid()      exact iid, no sweeps
+              +-- rLMMNormal_reg_known_vcov_two_bg()   two-block Gibbs
+              +-- rLMMindepNormalGamma_reg_*()         ING sigma2 routes
+              +-- rGLMM_reg_known_vcov()               non-Gaussian, fixed tau2
+              +-- rGLMM_reg_estimated_vcov()           non-Gaussian, ING tau2
+                    |
+                    +-- rGLMM_sweep()     outer sweep loop (pilot and main)
+                          |
+                          +-- Block 1 across all chains
+                          +-- Block 2 across all chains
+```
+
+`rlmerb()` and `rglmerb()` are the matrix-level entry points: they take a
+`design` object plus prior objects rather than a formula, and they are what
+`lmebayes` calls. Everything above them is formula parsing; everything
+below is sampling.
+
+## Route selection
+
+Which route runs is decided by two independent questions.
+
+| Measurement dispersion \(\sigma^2\) | Variance components \(\tau^2_k\) | Route |
+|---|---|---|
+| fixed scalar or fixed per-group vector | all `dNormal` (known) | `rLMMNormal_reg_known_vcov` |
+| fixed | any `dIndependent_Normal_Gamma` | `rLMMNormal_reg_estimated_vcov` |
+| `dGamma()` / `dGamma_list()` (sampled) | all `dNormal` | `rLMMindepNormalGamma_reg_known_vcov` |
+| `dGamma()` / `dGamma_list()` (sampled) | any ING | `rLMMindepNormalGamma_reg_estimated_vcov` |
+
+For non-Gaussian families the same two questions select between
+`rGLMM_reg_known_vcov()` and `rGLMM_reg_estimated_vcov()`. The two GLMM
+routes differ in **how conservative the eigenvalue bound must be**, not in
+whether a pilot stage runs: non-Gaussian models always run a pilot unless
+`n_pilot = 0`.
+
+The special case in the first row deserves a name of its own. When
+\(\sigma^2\) is fixed *and* every \(\tau^2_k\) is known, the joint
+posterior over \((\beta, \gamma)\) is **exactly multivariate normal**, and
+`sim_method = "DEFAULT"` draws from it directly — iid, no sweeps, no
+burn-in, no autocorrelation. `sim_method = "TWO_BLOCK_GIBBS"` forces the
+Gibbs sampler on the same target, which is how the Gibbs path is validated
+against ground truth. `Chapter-B04` works through this route.
+
+# Sweep-outer versus chain-outer
+
+Two loop orders exist in the codebase.
+
+**Sweep-outer** (`rGLMM_sweep()`, the reference implementation): for each
+inner sweep `m`, *all* chains do Block 1, then *all* chains do Block 2.
+
+```r
+for (m in seq_len(inner_sweeps)) {
+  batch <- block1_all_chains(batch, ...)
+  batch <- block2_all_chains(batch, ...)
+  sweep_stats[[m]] <- snapshot_fixef_stats(batch)
+}
+```
+
+**Chain-outer** (the older C++ driver): each chain runs all of its sweeps
+before the next chain starts.
+
+Sweep-outer is preferred for three reasons. It exposes the natural
+parallelism — at fixed `m` the chains are independent within a block, so
+Block 1 across chains is embarrassingly parallel. It amortizes per-sweep
+setup (family functions, prior payloads) across chains rather than
+rebuilding it per chain. And it makes `sweep_history` meaningful:
+cross-chain means and variances at sweep `m` are a genuine snapshot of the
+sampler's distribution after `m` sweeps, which is exactly what
+`plot_mean_convergence()` and `plot_var_convergence()` plot
+(`Chapter-B10`).
+
+Some Gaussian fixed-\(\sigma^2\), fixed-\(\tau^2\) paths still use the
+chain-outer driver and therefore do not populate `sweep_history`; that
+gap is tracked in the package README.
+
+# Inside Block 1
+
+Block 1 is split into a **prep** phase and a **draw** phase.
+
+Prep assembles, per chain: the current Block 2 state \(\gamma\), the
+implied observation-level prior means \(\mathcal{W}_j\gamma\) (built by
+`build_mu_all()`), and the Block 1 prior precision \(\Psi^{-1}\) —
+refreshed from the current \(\tau^2\) draw when Block 2 is ING.
+
+Draw then calls, once per chain:
+
+- `rNormal_reg_group()` for Gaussian responses — a conjugate normal draw
+  per group, and
+- `rNormalGLM_reg_group()` for Poisson, binomial, and Gamma responses —
+  the envelope accept-reject sampler per group, via `glmbayesCore`.
+
+Both are **row-block** engines: they take the stacked design, a group
+index, and per-group priors, and return one draw per group. The same
+engines back `lmebayes`'s `lmbBlock()` / `glmbBlock()` interface, where the
+row partition is user-specified rather than a grouping factor
+(`Chapter-B09`).
+
+# Inside Block 2
+
+Block 2 does three things per chain.
+
+1. **Align.** The Block 1 draws are stored in `group_levels` order; the
+   level-2 design `X_hyper[[k]]` has its own row order. The response
+   passed to the Block 2 regression must follow `rownames(X_hyper[[k]])`.
+   Skipping this alignment is silently correct on datasets where the two
+   orders coincide and silently wrong everywhere else, so it is done
+   unconditionally.
+
+2. **Draw \(\gamma_k\)** for each random-effect coefficient \(k\), by
+   calling `glmbayesCore::rglmb()` with `pfamily_list[[k]]`:
+   - `dNormal` — \(\tau^2_k\) is the known regression dispersion, and the
+     draw is a conjugate multivariate normal.
+   - `dIndependent_Normal_Gamma` — a Gamma prior sits on the precision
+     \(1/\tau^2_k\), and the sampler makes a **joint**
+     \((\gamma_k, \tau^2_k)\) draw through the likelihood-subgradient
+     envelope [@Nygren2006; @GriffinBrown2010]. This is the route
+     documented in `Chapter-B05`.
+
+3. **Write back.** The new \(\gamma_k\) goes into the chain's fixed-effect
+   state; a new \(\tau^2_k\) (ING only) goes into \(\Psi\) for the next
+   Block 1 prep.
+
+The response for the Block 2 regression of coefficient \(k\) is the vector
+of \(J\) Block 1 draws for that coefficient. So Block 2 sees \(J\)
+"observations" — one per group — regardless of how many rows the original
+data has. This is why the prior-versus-data guard for ING components
+requires the effective prior sample size to be at most \(J\).
+
+# Where C++ takes over
+
+| Layer | Implementation |
+|---|---|
+| Route selection, pilot planning, output assembly | R |
+| Outer sweep loop | R (`rGLMM_sweep()`); C++ on the legacy driver |
+| Chain loops within a block | R today; C++ migration planned |
+| `build_mu_all()`, Block 1 prior refresh, b-alignment | C++ by default |
+| Per-group Block 1 draw | C++ (`block_rNormalGLM_cpp`) |
+| Envelope construction and accept-reject | C++, in `glmbayesCore` |
+
+The compiled entry points resolve their R-level callbacks through the
+`glmbayesCore` namespace rather than a local copy, so there is exactly one
+implementation of the envelope machinery in the ecosystem even though two
+packages link against it.
+
+Optional OpenCL offload for envelope construction is inherited from the
+same layer; see `vignette("Chapter-A10", package = "glmbayes")`.
+
+# What one sweep stores
+
+| Quantity | After `inner_sweeps = 1` |
+|---|---|
+| `fixef_draws` | Block 2 \(\gamma\), one row per chain |
+| `coefficients` | Block 1 \(\beta\) from that sweep |
+| `sweep_history` row 1 | cross-chain colMeans of the fixed effects |
+
+With `inner_sweeps = 1` the first `sweep_history` row equals
+`colMeans(fixef_draws)` exactly — a useful invariant when checking a new
+driver against an old one. For parity work between R and C++ kernels,
+compare cross-chain means at large `n` rather than expecting bit-identical
+RNG streams: the two implementations draw from different streams.
+
+# See also
+
+- **Chapter B02** — why the sweep loop converges, and how fast.
+- **Chapter B03** — how `m_convergence` is chosen.
+- **Chapter B09** — the row-block engines used inside Block 1.
+- **Chapter B10** — reading `sweep_history`.
+- `inst/ARCHITECTURE_glmerb.md` in the package sources, the maintainer-level
+  file-by-file map this chapter summarizes.

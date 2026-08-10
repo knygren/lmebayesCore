@@ -451,9 +451,9 @@
 #' joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg}}
 #' with \code{family = gaussian()} and fixed variance components.  The
 #' maximal eigenvalue \eqn{\lambda^*} is the geometric contraction rate of
-#' the two-block Gibbs sampler (Nygren 2020, Claim 2 / Remark 8 /
-#' Corollary 1): the total variation distance between the \eqn{l}-step
-#' kernel and the target decays like \eqn{(\lambda^*)^l}.
+#' the two-block Gibbs sampler (\insertCite{Nygren2020}{lmebayesCore},
+#' Claim 2 / Remark 8 / Corollary 1): the total variation distance between
+#' the \eqn{l}-step kernel and the target decays like \eqn{(\lambda^*)^l}.
 #'
 #' Block convention: the paper's \eqn{x_1} (the block updated second in
 #' each sweep) is the Block 2 hyper vector \eqn{\gamma} of dimension
@@ -468,6 +468,40 @@
 #' IRLS-style \code{weights} evaluated at the posterior mode (via the internal
 #' \code{two_block_mode_weights()} helper used by \code{\link{rGLMM_reg}}) yields a
 #' local-Gaussian heuristic rate (no theorem applies).
+#'
+#' @section From lambda-star to sweeps:
+#' \eqn{\lambda^*} alone gives only the geometric proxy
+#' \eqn{(\lambda^*)^m \le} \code{tol}, which is loose because it waits for the
+#' slowest eigendirection while ignoring that the others converged sweeps
+#' earlier.  The sampler instead inverts the exact Theorem 3 bound, which sums
+#' closed-form per-eigendirection terms \eqn{d_i^{(l)}} over the full spectrum
+#' returned in \code{eigenvalues}:
+#' \deqn{\mathrm{TV}\big(K^l(x^{(0)}, \cdot),\, \pi\big) \;\le\;
+#'       \sum_{i=1}^{q} d_i^{(l)} \;+\; (\lambda^*)^l \sqrt{D_0 / (2\pi)},}
+#' capped at 1, with the eigenvalues taken in ascending order (Lemma 2) and
+#' \eqn{D_0} the squared standardized distance of the chain start from the
+#' posterior mean.  Because \code{rlmerb} starts every replicate chain at the
+#' exact ICM posterior mean, \eqn{D_0 = 0} and the mean term vanishes
+#' identically; only the variance-convergence sum has to be certified.
+#'
+#' The pipeline is therefore
+#' \code{two_block_rate()} \eqn{\rightarrow}
+#' \code{\link{two_block_tv_bound}()} \eqn{\rightarrow}
+#' \code{\link{two_block_l_for_tv}()}, and the sampler adds \strong{one} sweep
+#' to the result: the bound applies to the block updated second in each sweep
+#' (the hyper vector \eqn{\gamma}), and the stored Block 1 draw lags by a
+#' half-step.  Calling \code{print()} on the returned object shows all three
+#' answers --- geometric proxy, Corollary 1 envelope, and Theorem 3 --- side
+#' by side for a range of tolerances.
+#'
+#' Cost grows only logarithmically in \eqn{1/}\code{tol}, so certifying an
+#' entire \code{n}-draw sample at level \eqn{\alpha} (pass
+#' \code{tol = alpha / n}) usually costs a handful of extra sweeps.  When
+#' chains cannot start at the posterior mean --- non-Gaussian families, or
+#' sampled variance components --- a pilot stage supplies a start whose
+#' \eqn{D_0} is certified from the pilot size; see
+#' \code{\link{two_block_optimize_pilot_cost}} and
+#' \code{vignette("Chapter-B03", package = "lmebayesCore")}.
 #'
 #' @param x Level-1 RE design matrix \code{Z} (\code{l2 x p_re}), as passed
 #'   to \code{\link{two_block_rNormal_reg}}.
@@ -502,11 +536,15 @@
 #'   \code{family}, \code{weights_source}, and \code{call}.
 #'   For \code{two_block_rate_ing()}, see the value description under that
 #'   function below.
-#' @references Nygren, K. (2020). \emph{On the total variation distance
-#'   between multivariate normal densities with applications to two-block
-#'   Gibbs samplers.} Unpublished manuscript.
+#' @references
+#'   \insertAllCited{}
 #' @family simfuncs
-#' @seealso \code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}}
+#' @seealso \code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}},
+#'   \code{\link{two_block_optimize_pilot_cost}};
+#'   \code{vignette("Chapter-B02", package = "lmebayesCore")} for the
+#'   derivation and \code{vignette("Chapter-B03", package = "lmebayesCore")}
+#'   for the sweep calibration.
+#' @example inst/examples/Ex_two_block_rate.R
 #' @name two_block_rate
 #' @aliases two_block_rate_from_pfamily_list two_block_rate_ing
 #'   print.two_block_rate print.two_block_rate_ing

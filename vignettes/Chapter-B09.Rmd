@@ -1,0 +1,294 @@
+---
+title: "Chapter B09: Row-block engines"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B09: Row-block engines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B09: Row-block engines
+
+A row-block engine partitions the rows of a design into groups and runs one
+regression per group. That description fits two quite different things in
+this ecosystem, and conflating them is the main hazard this chapter exists
+to prevent:
+
+- **`rNormal_reg_group()` / `rNormalGLM_reg_group()`** — the compiled block
+  engines in this package. They are what Block 1 of the mixed-model sampler
+  calls, every sweep.
+- **`lmbBlock()` / `glmbBlock()`** in **lmebayes** — independent "by group"
+  fits with no population level. Despite the name, they do **not** use the
+  engines above; they loop over blocks calling `glmbayes::lmb()`.
+
+Same shape, different code, different statistics.
+
+# The engines
+
+```{r sigs}
+args(rNormal_reg_group)
+args(rNormalGLM_reg_group)
+```
+
+The Gaussian engine draws each block's coefficients from its normal full
+conditional; the GLM engine uses the envelope sampler of @Nygren2006 per
+block. Both accept either a single `prior_list` shared across blocks or a
+`prior_lists` giving one per block.
+
+The compiled path partitions once and loops in C++:
+
+```
+rNormalGLM_reg_group()  →  .block_rNormalGLM_cpp()
+                        →  block_rNormalGLM_cpp_export()   [src/block_utils.cpp]
+                        →  rNormalGLMBlocks()              [src/rNormalGLMBlocks.cpp]
+                        →  rNormalGLM()  per block         [glmbayesCore]
+
+rNormal_reg_group()     →  .block_rNormalReg_cpp()
+                        →  block_rNormalReg_cpp_export()
+                        →  rNormalRegBlocks()
+                        →  rNormalReg()  per block         [glmbayesCore]
+```
+
+The per-block draw itself is **glmbayesCore**'s. What this package adds is
+the partition, the per-block prior plumbing, and the loop — which is
+precisely the part that has to be fast, since Block 1 executes it once per
+sweep per chain.
+
+A small worked example:
+
+```{r engine-demo}
+set.seed(1)
+J <- 6; n_j <- 20
+g <- factor(rep(seq_len(J), each = n_j))
+x <- cbind("(Intercept)" = 1, slope = rnorm(J * n_j))
+beta_true <- cbind(rnorm(J, 10, 2), rnorm(J, 2, 0.5))
+y <- rowSums(x * beta_true[as.integer(g), ]) + rnorm(J * n_j)
+
+fit <- rNormal_reg_group(
+  n = 100, y = y, x = x, group = g,
+  prior_list = list(mu = c(0, 0), Sigma = diag(c(100, 100)), dispersion = 1)
+)
+class(fit)
+dim(fit$coefficients)
+round(head(fit$coefficients, 3), 3)
+```
+
+`coefficients` and `coef.mode` are \(k \times l_1\) matrices — **one row per
+block**, one column per predictor. This is worth internalizing, because it
+is the opposite of the draws-in-rows convention used elsewhere: here the
+block index is the row.
+
+```{r rownames}
+rownames(fit$coefficients)
+colnames(fit$coefficients)
+```
+
+## The partition object
+
+`normalize_group()` turns any of the accepted `group` specifications into a
+canonical description:
+
+```{r group-info}
+str(fit$group_info, max.level = 1)
+```
+
+| Field | Meaning |
+|---|---|
+| `k` | number of blocks |
+| `ids[j]` | block label, in factor-level order |
+| `rows[[j]]` | 1-based row indices into the full `y` and `x` |
+| `l2_blocks[j]` | `length(rows[[j]])` |
+| `starts[j]` | cumulative start position in the stacked layout |
+
+`starts` and `l2_blocks` are what the C++ loop uses; `rows` is what R-side
+code uses. Keeping both avoids recomputing the partition on either side.
+
+# Block 1 of the mixed-model sampler
+
+This is where the engines earn their keep. Inside `rGLMM_sweep()`:
+
+```
+rGLMM_sweep
+  └── .two_block_block1_all_chains()
+        ├── .two_block_block1_prep_all_chains()
+        │     └── build_mu_all(design, fixef_i)        # γ → per-group prior means
+        │     └── .two_block_block1_prior_with_tau2()  # τ² → prior precision
+        └── .two_block_block1_draw_all_chains()
+              └── .two_block_block1_draw_block()
+                    └── rNormal_reg_group() / rNormalGLM_reg_group()
+```
+
+The prep step is the whole difference between a Gibbs sweep and a set of
+independent fits. Each sweep, for each chain:
+
+```r
+fixef_i    <- .two_block_batch_fixef_chain(batch, i)
+mu_all     <- build_mu_all(design, fixef_i, batch$group_levels)$mu_all
+prior_list <- .two_block_block1_prior_with_tau2(block1_prior, tau2_i, ...)
+```
+
+`build_mu_all()` evaluates \(\mathcal{W}_j\gamma\) for every group at the
+current Block 2 draw and returns a \(p_{re} \times J\) matrix. That matrix
+becomes `prior_list$mu`, in which **column \(j\) is block \(j\)'s prior
+mean**, matched by position. Separately,
+`.two_block_block1_prior_with_tau2()` refreshes the diagonal of the prior
+precision, `P[k, k] <- 1/tau2_k`, from the current \(\tau^2\).
+
+So both halves of each block's prior — mean and precision — are rebuilt
+from the population state before every draw. That is the coupling; the
+engine itself is stateless.
+
+Comparing the two uses side by side:
+
+| | Independent fits | Block 1 |
+|---|---|---|
+| Prior source | user's `pfamily` | `build_mu_all()` + current \(\tau^2\) |
+| Prior mean | fixed | \(l_1 \times k\) matrix, refreshed each sweep |
+| Prior precision | fixed | diagonal refreshed from \(\tau^2\) |
+| Draws per call | `n = 1000` typically | **`n = 1L`** per chain per sweep |
+| Offset / weights | user-supplied | `rep(0, l2)` / `rep(1, l2)` |
+| GLM settings | user defaults | `use_parallel = FALSE`, `n_envopt = 1`, quiet |
+| After the draw | nothing | rows permuted to `batch$group_levels` |
+
+Two of these are easy to trip over when reading the source. `n = 1L` is
+right because the sweep loop supplies the iteration; asking for more draws
+per sweep would be sampling from a conditional that is about to change.
+And the Block 1 wrapper deliberately does not forward `design$offset` or
+`design$weights` — those are already absorbed upstream, so passing them
+again would double-count.
+
+The reordering step matters because `normalize_group()` orders blocks by
+factor level while the sweep batch carries its own `group_levels` ordering;
+`.two_block_block1_draw_reorder()` reconciles them so that downstream code
+can index by position.
+
+# `lmbBlock()` and `glmbBlock()` are not these engines
+
+Here is the part most worth stating explicitly. `lmbBlock()` has exactly
+**one** runtime dependency on this package:
+
+```r
+lmebayesCore:::normalize_group(block_vec, l2)
+```
+
+called from `.blmb_formula_block_meta()`. That is all. The flow is:
+
+1. `.blmb_formula_block_meta()` — build the model frame, resolve the block
+   specification, call `normalize_group()`.
+2. `.mrglmb_normalize_pfamily_lists()` / `.validate_pfamily_for_rlmb()` —
+   prior validation, from **glmbayesCore**.
+3. For `b = 1..k`: subset the rows, call `glmbayes::lmb()` or
+   `glmbayes::glmb()`.
+4. `.blmb_assemble()` / `.bglmb_assemble()` — collect the results.
+
+No call reaches `rNormal_reg_group()`, `rNormalGLM_reg_group()`, or any
+compiled code in this package. The block wrappers borrow a partition helper
+and otherwise delegate wholesale to **glmbayes**.
+
+The result is a `blmb` (or `bglmb`) object: a named list of `lmb` (or
+`glmb`) fits with `call`, `formula`, `block`, `group_info`, `k`, `p`,
+`pred_names` and `pfamily_lists` as attributes — plus `family` for the GLM
+case.
+
+Why keep them separate at all? Because they answer different questions. The
+block wrappers give genuinely independent per-block posteriors, which is
+what you want when the blocks are not exchangeable or when you want a
+no-pooling baseline to compare a mixed model against. Block 1's draws are
+conditional on the population state and are not marginally independent;
+they are one component of a Gibbs sweep, not a standalone posterior.
+
+The user-facing treatment is
+`vignette("Chapter-12", package = "lmebayes")`.
+
+# Per-block prior calibration
+
+`Prior_SetupGroup()` is the row-block analogue of `Prior_Setup_GLMM()`: it
+calls `glmbayesCore::Prior_Setup()` once per block on that block's rows and
+returns a named list of per-block results, classed `"Prior_SetupGroup"`,
+with `call`, `formula`, `group` and `group_info` attached.
+
+There is no second level here, so there is nothing to calibrate *across*
+blocks — each block's prior is derived from its own data and nothing else.
+That independence is exactly what makes the identifiability requirement
+stricter, which is the next section.
+
+# Identifiability, without a second level
+
+Chapter B08 established that a rank-deficient group in the hierarchical
+model is survivable: the population conditional supplies what the data
+cannot. Independent block fitting has no population conditional, so that
+repair is unavailable.
+
+Consequently only level 1 applies, and it is not advisory. A block whose
+design matrix is rank deficient cannot identify its coefficients from its
+data, and under a weak prior the posterior is improper in the deficient
+direction. Such blocks should be **dropped before fitting**, not passed in
+and flagged.
+
+`block_check_identifiability()` in **lmebayes** does the screening. It
+returns `level1_table`, `level1_keep`, `level1_drop`, `level2_rank`,
+`level2_q`, `level2_ok` and `action`, and takes
+`on_failure = c("warn", "stop")`.
+
+The level-2 fields are present for the coupled case rather than the
+independent one, and its failure message is the sharpest statement of why
+that condition is the fatal one:
+
+```
+block_check_identifiability: Level 2 FAILED -- rank of X_nbhd restricted to
+Level-1-identified blocks is {l2_rank} (need {q}). The population parameter
+mu is not identified by the data-bearing blocks; the coupled Gibbs chain
+will be null recurrent in {q - l2_rank} direction(s) of mu even with a
+proper prior.
+```
+
+"Even with a proper prior" is the operative phrase, and the contrast with
+level 1 — where a proper prior *is* the fix — is the whole content of
+Chapter B08's asymmetry.
+
+# Who owns what
+
+Since three packages are involved, the division of labor in one table:
+
+| Layer | Package |
+|---|---|
+| Per-block iid draw (`rNormalGLM`, `rNormalReg`) | **glmbayesCore** |
+| Family dispatch (`glmbfamfunc`) | **glmbayesCore** |
+| Per-block prior calibration (`Prior_Setup`) | **glmbayesCore** |
+| Row partition (`normalize_group`) | **lmebayesCore** |
+| Block orchestration and C++ loop | **lmebayesCore** |
+| Hierarchical sampler (`build_mu_all`, `rGLMM_sweep`) | **lmebayesCore** |
+| Formula interface for iid GLMs (`lmb`, `glmb`) | **glmbayes** |
+| Block wrappers (`lmbBlock`, `glmbBlock`) | **lmebayes** |
+| Mixed-model front door (`lmerb`, `glmerb`) | **lmebayes** |
+
+The dependency worth noting: **glmbayes has no dependency on
+lmebayesCore.** The arrow runs the other way, and `lmbBlock()` reaching in
+for `normalize_group()` is the single exception in the whole stack.
+
+# See also
+
+- `vignette("Chapter-B01")` — the sweep loop that drives Block 1.
+- `vignette("Chapter-B08")` — the identifiability conditions.
+- `vignette("Chapter-12", package = "lmebayes")` — `lmbBlock()` for users.
+- `?rNormal_reg_group`, `?rNormalGLM_reg_group`, `?Prior_SetupGroup`
+- `inst/BLOCK1_draw_partition_and_labeling.md`,
+  `inst/LMBBLOCK_LMEBAYESCORE_DEPENDENCIES.md` in the package sources.

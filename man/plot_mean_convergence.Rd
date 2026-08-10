@@ -137,6 +137,61 @@ cross-chain SD, \eqn{Z(l) = (\mathrm{mean}(l) - \mathrm{mean}_{ref}) /
 on one chart and \code{Z(l)} is expected to shrink toward 0 as \code{l}
 grows.
 }
+\details{
+\subsection{What is plotted}{
+
+The x-axis is the inner Gibbs sweep index \eqn{l}, and each point is a
+\strong{cross-chain} statistic computed over the \code{n_chains}
+independent replicate chains, all of which sit at sweep \eqn{l}
+simultaneously.  Nothing here is a running statistic along a single
+chain.
+
+The plotted quantity is the standardized deviation
+\deqn{Z(l) = \frac{\mathrm{mean}(l) - \mathrm{mean}_{ref}}{\mathrm{sd}(l)},}
+which divides out the scale of each coefficient so that an intercept
+measured in hundreds and a slope measured in tenths can share one axis.
+A converged run shows every trace scattered around 0 with no trend; a
+systematic drift toward or away from 0 means the sweep budget is too
+small.  Supplying \code{n_chains} adds a naive band that separates
+Monte Carlo noise from genuine bias.
+
+\code{mean_ref} is the exact posterior mean when \code{design} and
+\code{measurement_prior_list} are supplied (only possible when
+\eqn{\sigma^2} and the RE variance components are all fixed), and
+otherwise the empirical last-sweep mean.  As with
+\code{\link{plot_var_convergence}}, the empirical fallback cannot detect a
+run that never converged, because the reference is drawn from the same
+unconverged distribution.
+}
+
+\subsection{Reading it alongside the variance chart}{
+
+This chart is the location-side counterpart of
+\code{\link{plot_var_convergence}}, which tracks spread.  The variance
+converges at twice the rate of the mean, so this is the slower --- and
+therefore the more informative --- of the two when deciding whether
+\code{m_convergence} is large enough.  A fit whose variance ratios have
+settled at 1 while these traces still drift has converged in spread but
+not in location.
+
+Because every replicate chain starts at the posterior mean, the bias
+begins at zero on Gaussian fits with fixed variance components: expect a
+flat chart from sweep 1 there.  Read a non-flat one as evidence that
+something upstream --- an estimated variance component, or a start at the
+mode rather than the mean --- has moved the starting point off the target
+mean.  \code{vignette("Chapter-B02", package = "lmebayesCore")} derives
+the two rates.
+}
+
+\subsection{When there is nothing to plot}{
+
+As for \code{\link{plot_var_convergence}}: the exact route runs no sweeps
+to record, some Gaussian paths do not export per-sweep cross-chain
+statistics, and \code{whitened = TRUE} needs slots that only the
+sweep-recording engines populate.  See that topic, which also explains
+how to obtain \code{n_chains} from a fitted object.
+}
+}
 \seealso{
 \code{\link{plot_var_convergence}},
 \code{\link{lmerb_posterior_mean}}

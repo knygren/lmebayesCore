@@ -1,0 +1,235 @@
+---
+title: "Chapter B00: Engine roadmap and notation"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B00: Engine roadmap and notation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B00: Engine roadmap and notation
+
+**lmebayesCore** is the engine package behind
+[**lmebayes**](https://github.com/knygren/lmebayes). It owns the
+formula-to-design pipeline (`model_setup()`), the Block 2 hyperprior
+calibration (`Prior_Setup_GLMM()`), the matrix-level two-block Gibbs
+samplers (`rlmerb()`, `rglmerb()`, and the `rLMM_reg` / `rGLMM_reg` route
+families), and the convergence theory that decides how many inner Gibbs
+sweeps each stored draw needs.
+
+This `B`-series documents that engine. It is written for maintainers,
+method developers, and readers who want the derivations behind the
+numbers that `lmebayes` prints. If you want to *fit models*, start with
+the `lmebayes` curriculum (`Chapter-00` through `Chapter-13`) instead.
+
+## Two vignette series, two audiences
+
+| Series | Package | Audience |
+|---|---|---|
+| `Chapter-00` … `Chapter-13` | **lmebayes** | Applied users fitting mixed models |
+| `Chapter-B00` … `Chapter-B10` | **lmebayesCore** | Engine internals, theory, derivations |
+| `Chapter-00` … `Chapter-18`, `Chapter-A01` … `A12` | **glmbayes** | The iid GLM stack this builds on |
+
+The `Chapter-A*` files that ship in the **glmbayes** and **glmbayesCore**
+sources describe the *iid* envelope machinery — likelihood subgradient
+densities [@Nygren2006], envelope construction, and the `pfamily` prior
+system. Every Block 1 and Block 2 draw made by this package ultimately
+calls into that machinery through `glmbayesCore`. Read
+`glmbayes` `Chapter-A05` (simulation methods) and `Chapter-A08`
+(envelope functions) if the accept-reject layer is unfamiliar.
+
+## The B-series
+
+- **B00 — Engine roadmap and notation** (this chapter). Symbol glossary and
+  the map between the internal parameterization and `lme4`.
+- **B01 — The two-block Gibbs architecture.** Block 1 / Block 2, the
+  sweep-outer driver, replicate chains, and where C++ takes over.
+- **B02 — Ergodicity and total-variation convergence.** The rate matrix
+  \(A = P_{11}^{-1/2} P_{12} P_{22}^{-1} P_{21} P_{11}^{-1/2}\), the
+  full-rank conditions, and why the chain is geometrically ergodic.
+- **B03 — Calibrating `m_convergence`.** From \(\lambda^*\) to a certified
+  sweep count, and the pilot-versus-main cost trade-off.
+- **B04 — The known-vcov Gaussian route and the exact iid sampler.**
+- **B05 — Estimated variance components (ING Block 2).**
+- **B06 — The extended local rate diagnostic.**
+- **B07 — Per-group measurement dispersion.**
+- **B08 — Design, identifiability and rank conditions.**
+- **B09 — Row-block engines.**
+- **B10 — Sweep history and convergence plots.**
+
+# The model
+
+For group \(j = 1, \dots, J\) with \(n_j\) observations and \(P\)
+group-varying coefficients, the engine works with a **centered**
+(Lindley–Smith) parameterization [@LindleySmith1972]:
+
+**Stage 1 (likelihood).**
+\[
+y_j \mid \beta_j, \sigma^2_j \;\sim\; N\!\big(D_j \beta_j,\; \sigma^2_j I_{n_j}\big)
+\]
+
+**Stage 2 (hierarchical prior).**
+\[
+\beta_j \mid \gamma, \Psi \;\sim\; N\!\big(\mathcal{W}_j \gamma,\; \Psi\big)
+\]
+
+The full, non-centered coefficient vector \(\beta_j\) — not a mean-zero
+deviation — enters the likelihood directly. This is the single most
+important structural difference from `lme4`, and it is what makes the
+two-block split natural: **Block 1** draws every \(\beta_j\) given
+\(\gamma\), and **Block 2** draws \(\gamma\) given all \(\beta_j\).
+
+For non-Gaussian families the stage-1 normal is replaced by the
+corresponding log-concave GLM likelihood with link \(g\), and the Block 1
+draw goes through the envelope sampler rather than a conjugate normal.
+
+## Symbol table
+
+| Symbol | Name | Dimension | Role |
+|---|---|---|---|
+| \(y_j\) | response, group \(j\) | \(n_j \times 1\) | data |
+| \(D_j\) | likelihood design, group \(j\) | \(n_j \times P\) | multiplies \(\beta_j\) |
+| \(\beta_j\) | group-level coefficients | \(P \times 1\) | **not** mean zero; Block 1 state |
+| \(\sigma^2_j\) | measurement (observation) dispersion | scalar | per-group or pooled |
+| \(\mathcal{W}_j\) | level-2 design, group \(j\) | \(P \times q\) | block-diagonal; \(\gamma \to E[\beta_j]\) |
+| \(\gamma\) | population / hyper-mean coefficients | \(q \times 1\) | Block 2 state |
+| \(\Psi\) | covariance of \(\beta_j\) about \(\mathcal{W}_j\gamma\) | \(P \times P\) | diagonal, \(\Psi = \mathrm{diag}(\tau^2_k)\) |
+| \(\tau^2_k\) | variance component \(k\) | scalar | known (`dNormal`) or sampled (ING) |
+| \(u_j := \beta_j - \mathcal{W}_j\gamma\) | derived deviation | \(P \times 1\) | mean zero; **not** sampled directly |
+
+\(\mathcal{W}_j\) is block-diagonal across the \(P\) coefficient
+dimensions,
+\[
+\mathcal{W}_j = \mathrm{blockdiag}\big(W_{1j}, \dots, W_{Pj}\big),
+\qquad W_{kj} \in \mathbb{R}^{1 \times q_k}, \quad q = \sum_{k=1}^{P} q_k ,
+\]
+so each random-effect coefficient may carry its own set of level-2
+predictors. \(q_k = 1\) (intercept only) is the default when a
+coefficient has no group-level covariates. This raggedness is exactly why
+the level-2 designs are stored as a **list** `X_hyper` with one
+\(J \times q_k\) matrix per coefficient rather than as a single padded
+array.
+
+## Internal storage
+
+| Quantity | Storage | Shape |
+|---|---|---|
+| Stacked likelihood design | `Z` (matrix argument `x`) | \(n \times P\) |
+| Group index | `group` | length \(n\), \(g_i = j\) |
+| Level-2 designs | `X_hyper = list(X_1, …, X_P)` | `X_hyper[[k]]` is \(J \times q_k\) |
+| Dimension bookkeeping | `q_k = ncol(X_hyper[[k]])`, `q = sum(q_k)` | — |
+
+Recovery rules: \(D_j\) is `Z[group == j, ]`, and \(\mathcal{W}_j\) is
+`blockdiag(X_1[j, ], …, X_P[j, ])`, assembled on demand. The design is
+stored row-stacked, never as the block-diagonal \(n \times PJ\) object
+`lme4` implicitly uses for \(Z\).
+
+## Full conditionals
+
+**Block 1** (\(\beta_j\), conjugate normal, one draw per group):
+\[
+\beta_j \mid \cdot \;\sim\; N(m_j, V_j), \qquad
+V_j = \Big(\tfrac{1}{\sigma^2_j} D_j' D_j + \Psi^{-1}\Big)^{-1}, \qquad
+m_j = V_j\Big(\tfrac{1}{\sigma^2_j} D_j' y_j + \Psi^{-1}\mathcal{W}_j\gamma\Big).
+\]
+
+**Block 2** (\(\gamma\), generalized least squares across groups):
+\[
+\hat\gamma = \Big(\sum_j \mathcal{W}_j' \Psi^{-1} \mathcal{W}_j\Big)^{-1}
+             \sum_j \mathcal{W}_j' \Psi^{-1} \beta_j .
+\]
+
+Because \(\Psi\) is diagonal and \(\mathcal{W}_j\) is block-diagonal, the
+Block 2 update **factorizes across coefficients** \(k\): each
+\(\gamma_k\) is drawn from its own \(q_k\)-dimensional normal regression
+of \(\beta_{\cdot k}\) on \(X_k\). That is why Block 2 is specified as a
+`pfamily_list` — one prior object per random-effect coefficient — rather
+than as one joint \(q\)-dimensional prior.
+
+# Correspondence to lme4
+
+Substituting stage 2 into stage 1 recovers the familiar marginal form
+[@Bates2015]:
+\[
+y_j = D_j(\mathcal{W}_j\gamma + u_j) + \varepsilon_j
+    = \underbrace{(D_j\mathcal{W}_j)}_{X_j}\gamma
+    + \underbrace{D_j}_{Z_j} u_j + \varepsilon_j .
+\]
+
+| lmebayesCore | `lme4` / Laird–Ware | Relationship |
+|---|---|---|
+| \(D_j\) | — | ancestor of **both** \(X_j\) and \(Z_j\) |
+| \(D_j \mathcal{W}_j\) | \(X_j\) | fixed-effects design block |
+| \(D_j\) | \(Z_j\) | random-effects design block |
+| \(\gamma\) | \(\beta\) | fixed effects |
+| \(u_j = \beta_j - \mathcal{W}_j\gamma\) | \(b_j\) | random effects (mean zero) |
+| \(\Psi\) | per-group block of \(G\) | \(G = I_J \otimes \Psi\) |
+| \(\beta_j\) | \(\hat\beta + \hat b_j\) | `lme4::coef()`, when \(\mathcal{W}_j\) is intercept-only |
+
+Note the asymmetry: \(D_j\) has no single `lme4` counterpart. When
+\(\mathcal{W}_j\) is intercept-only for every coefficient
+(\(q_k = 1\ \forall k\)), the model reduces to a standard random
+intercept / random slope `lmer` fit, and the posterior mean of \(\gamma\)
+should track `lme4::fixef()`, \(\hat\beta_j - \hat\gamma\) should track
+`lme4::ranef()`, and \(\hat\beta_j\) should track `lme4::coef()`. The
+package test suite uses exactly this equivalence as a correctness check.
+
+# Model restrictions
+
+The engine deliberately covers a narrower model class than `lme4`:
+
+- **A single grouping factor.** No crossed or nested random effects.
+- **Uncorrelated random-effect terms.** Formulas use the `||` form, so
+  \(\Psi\) is diagonal. This is what lets Block 2 factorize across
+  coefficients and lets the variance components be handled one at a time.
+- **Log-concave likelihoods.** Gaussian, Poisson, binomial, and Gamma with
+  the standard links. Log-concavity is what the envelope accept-reject
+  sampler requires [@Nygren2006].
+
+`model_setup()` enforces these and reports the resulting design in a
+printable object. `check_identifiability()` adds the two rank conditions
+derived in `Chapter-B08`.
+
+# Naming conventions in the code
+
+| Prefix / suffix | Meaning |
+|---|---|
+| `rLMM*` | Gaussian (linear) mixed-model replicate-chain routes |
+| `rGLMM*` | Non-Gaussian replicate-chain routes |
+| `*_known_vcov` | Variance components \(\tau^2_k\) treated as fixed |
+| `*_estimated_vcov` | \(\tau^2_k\) sampled (ING Block 2) |
+| `*_iid` | Exact independent draws, no Gibbs sweeps |
+| `two_block_*` | Convergence theory, rates, TV bounds, pilot costing |
+| `.two_block_*` | Internal (unexported) helpers of the above |
+| `block_*`, `*_reg_group` | Row-block engines (`Chapter-B09`) |
+
+Names beginning with a dot, and topics marked `\keyword{internal}`, are
+not exported; reach them with `lmebayesCore:::` when reproducing the
+diagnostics in these chapters.
+
+# See also
+
+- **Chapter B01** — the two-block architecture in detail.
+- **Chapter B02** — ergodicity and total-variation convergence.
+- `vignette("Chapter-A05", package = "glmbayes")` — the iid simulation
+  methods every block draw is built from.
+- `inst/notation.md` in the package sources, from which this chapter's
+  symbol table is derived.

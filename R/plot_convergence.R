@@ -125,6 +125,70 @@
 #'   ignored otherwise.
 #' @return \code{hist} invisibly.
 #' @details
+#' ## What is plotted
+#'
+#' The x-axis is the inner Gibbs sweep index \eqn{l}, not the stored-draw
+#' index: these charts diagnose convergence \emph{within} the burn-in that
+#' precedes each stored draw.  Each point is a \strong{cross-chain} statistic
+#' at sweep \eqn{l} --- the variance across the \code{n_chains} independent
+#' replicate chains, all of which are at sweep \eqn{l} simultaneously --- not
+#' a running statistic along a single chain.  This is why the sweep-outer
+#' loop order matters: it is what makes "the sampler's distribution after
+#' \eqn{l} sweeps" an observable quantity.
+#'
+#' The y-axis is the ratio \code{Var(l) / Var_ref}.  Under Claim 3 that ratio
+#' is bounded above by 1 and rises toward it, so a converged run shows every
+#' trace flattening just below 1.  Traces that are still climbing at the last
+#' sweep indicate the sweep budget is too small; traces that overshoot 1
+#' substantially are Monte Carlo noise, and \code{n_chains} draws the band
+#' that says how much overshoot is expected.
+#'
+#' \code{Var_ref} is the exact posterior variance when \code{design} and
+#' \code{measurement_prior_list} are both supplied (only possible when
+#' \eqn{\sigma^2} and the RE variance components are all fixed), and
+#' otherwise the empirical last-sweep variance.  The empirical fallback
+#' cannot detect a run that has not converged \emph{at all}, since the
+#' denominator is then drawn from the same unconverged distribution; prefer
+#' the exact reference whenever the model allows it.
+#'
+#' ## Reading it alongside the mean chart
+#'
+#' Location and spread converge at different speeds, and the two plotting
+#' functions separate them: \code{\link{plot_mean_convergence}} tracks the
+#' mean, \code{plot_var_convergence} the variance.  The variance converges
+#' at twice the rate, so the mean chart settles later and is usually the one
+#' that decides whether the sweep budget is adequate.  A run whose variance
+#' ratios sit at 1 while its standardized mean deviations still drift has
+#' converged in spread but not in location.
+#'
+#' Because every chain starts at the posterior mean, the mean chart is flat
+#' from sweep 1 on well-behaved Gaussian fits, leaving the variance chart to
+#' carry the information.  \code{vignette("Chapter-B02", package =
+#' "lmebayesCore")} derives the two rates.
+#'
+#' ## When there is nothing to plot
+#'
+#' \code{sweep_history} is recorded only when all chains advance together,
+#' one sweep at a time, so that the cross-chain spread at sweep \eqn{l} is
+#' meaningful.  Two situations produce no history:
+#'
+#' \itemize{
+#'   \item The exact route (fixed \eqn{\sigma^2}, all components
+#'     \code{dNormal}, \code{sim_method = "DEFAULT"}) runs no sweeps at all,
+#'     because the draws are already exact.  There is nothing to diagnose.
+#'     Passing \code{sim_method = "TWO_BLOCK_GIBBS"} forces the iterative
+#'     path on the same target if you want a history anyway.
+#'   \item Some Gaussian paths run sweeps but do not export per-sweep
+#'     cross-chain statistics; \code{fit$sweep_history} is then \code{NULL}.
+#' }
+#'
+#' \code{whitened = TRUE} additionally requires \code{cov_by_sweep} and
+#' \code{coef_index}, which only the sweep-outer engines above populate, and
+#' \code{component = "precision"} additionally requires \code{disp_table},
+#' which requires at least one ING Block 2 component.
+#'
+#' ## Supplying n_chains
+#'
 #' \code{n_chains} is not stored on \code{hist} itself, so it must be
 #' supplied from the fitted object that produced it: for the main-stage
 #' history (\code{fit$sweep_history}) use \code{nrow(fit$popef[[k]])} for
@@ -299,6 +363,57 @@ plot_var_convergence.default <- function(
 #'   instead of named coefficients.
 #' @param ... Passed to methods; see \code{\link{plot_mean_convergence.default}}.
 #' @return \code{hist} invisibly.
+#' @details
+#' ## What is plotted
+#'
+#' The x-axis is the inner Gibbs sweep index \eqn{l}, and each point is a
+#' \strong{cross-chain} statistic computed over the \code{n_chains}
+#' independent replicate chains, all of which sit at sweep \eqn{l}
+#' simultaneously.  Nothing here is a running statistic along a single
+#' chain.
+#'
+#' The plotted quantity is the standardized deviation
+#' \deqn{Z(l) = \frac{\mathrm{mean}(l) - \mathrm{mean}_{ref}}{\mathrm{sd}(l)},}
+#' which divides out the scale of each coefficient so that an intercept
+#' measured in hundreds and a slope measured in tenths can share one axis.
+#' A converged run shows every trace scattered around 0 with no trend; a
+#' systematic drift toward or away from 0 means the sweep budget is too
+#' small.  Supplying \code{n_chains} adds a naive band that separates
+#' Monte Carlo noise from genuine bias.
+#'
+#' \code{mean_ref} is the exact posterior mean when \code{design} and
+#' \code{measurement_prior_list} are supplied (only possible when
+#' \eqn{\sigma^2} and the RE variance components are all fixed), and
+#' otherwise the empirical last-sweep mean.  As with
+#' \code{\link{plot_var_convergence}}, the empirical fallback cannot detect a
+#' run that never converged, because the reference is drawn from the same
+#' unconverged distribution.
+#'
+#' ## Reading it alongside the variance chart
+#'
+#' This chart is the location-side counterpart of
+#' \code{\link{plot_var_convergence}}, which tracks spread.  The variance
+#' converges at twice the rate of the mean, so this is the slower --- and
+#' therefore the more informative --- of the two when deciding whether
+#' \code{m_convergence} is large enough.  A fit whose variance ratios have
+#' settled at 1 while these traces still drift has converged in spread but
+#' not in location.
+#'
+#' Because every replicate chain starts at the posterior mean, the bias
+#' begins at zero on Gaussian fits with fixed variance components: expect a
+#' flat chart from sweep 1 there.  Read a non-flat one as evidence that
+#' something upstream --- an estimated variance component, or a start at the
+#' mode rather than the mean --- has moved the starting point off the target
+#' mean.  \code{vignette("Chapter-B02", package = "lmebayesCore")} derives
+#' the two rates.
+#'
+#' ## When there is nothing to plot
+#'
+#' As for \code{\link{plot_var_convergence}}: the exact route runs no sweeps
+#' to record, some Gaussian paths do not export per-sweep cross-chain
+#' statistics, and \code{whitened = TRUE} needs slots that only the
+#' sweep-recording engines populate.  See that topic, which also explains
+#' how to obtain \code{n_chains} from a fitted object.
 #' @seealso \code{\link{plot_var_convergence}},
 #'   \code{\link{lmerb_posterior_mean}}
 #' @export

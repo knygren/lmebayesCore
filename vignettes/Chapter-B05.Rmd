@@ -1,0 +1,303 @@
+---
+title: "Chapter B05: Estimated variance components (ING Block 2)"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B05: Estimated variance components (ING Block 2)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B05: Estimated variance components
+
+Chapter B04 held every \(\tau^2_k\) fixed. This appendix documents what
+happens when a component's prior is `dIndependent_Normal_Gamma` (ING)
+instead of `dNormal`, so that \(\tau^2_k\) is sampled alongside the
+population coefficients \(\gamma_k\).
+
+The route becomes `lmm_fixed_estimated`, implemented by
+`rLMMNormal_reg_estimated_vcov()` with `needs_pilot = TRUE`.
+
+# Block 2 as a regression on the random effects
+
+The key re-framing is that, conditional on the current Block 1 state, each
+random-effect component \(k\) is an ordinary Gaussian regression whose
+*response* is the vector of group coefficients.
+
+Fix component \(k\). Let \(b_{jk}\) be group \(j\)'s coefficient, \(X_k\)
+the \(J \times p_k\) level-2 design (`design$W[[k]]`), and \(\gamma_k\) the
+level-2 coefficients. Then
+
+\[
+b_{jk} \sim N\!\bigl(X_k[j,\cdot]^\top \gamma_k,\ \tau^2_k\bigr),
+\qquad j = 1, \dots, J,
+\]
+
+or in stacked form \(\mathbf{b} = X_k\gamma_k + \varepsilon\) with
+\(\varepsilon \sim N(0, \tau^2_k I_J)\).
+
+That is a linear model with \(J\) observations, and \(\tau^2_k\) is its
+residual variance. Once you see it this way, the ING prior is just the
+standard independent normal–gamma prior for a regression:
+
+\[
+\gamma_k \sim N(\mu_\gamma, \Sigma_\gamma), \qquad
+\lambda_k = 1/\tau^2_k \sim \mathrm{Gamma}(\mathrm{shape}, \mathrm{rate}),
+\]
+
+with the two independent a priori — which is what distinguishes ING from
+the conjugate normal-gamma, where \(\Sigma_\gamma\) would be scaled by
+\(\tau^2_k\).
+
+Alignment matters: the order of `b_k` must match the rows of `X_k`, which
+`two_block_align_b_to_xhyper(b_k, X_k, group_levels)` enforces.
+
+Note what does **not** enter. `mu_all` is a Block 1 object; the \(\tau^2\)
+update needs only the residual \(\mathbf{b} - X_k\gamma_k\), which is the
+same as subtracting row \(k\) of `mu_all`. Nor does another component's
+state appear — a diagonal \(\Psi\) is exactly what makes Block 2 factorize
+across \(k\).
+
+# Two ways to update
+
+## Method A: closed-form conditional mode
+
+Freezing \(\gamma_k\) reduces the problem to conjugate Gamma–Normal
+algebra. With \(\eta_j = X_k[j,\cdot]^\top\gamma_k\) and
+\(\mathrm{RSS} = \sum_j (b_{jk} - \eta_j)^2\), \(J\) independent normals of
+variance \(\tau^2_k\) contribute \(J/2\) to the shape and
+\(\mathrm{RSS}/2\) to the rate:
+
+\[
+\mathrm{shape}_{\mathrm{post}} = \mathrm{shape} + \frac{J}{2},
+\qquad
+\mathrm{rate}_{\mathrm{post}} = \mathrm{rate} + \frac{\mathrm{RSS}}{2},
+\]
+
+and the implementation reports the mode
+
+\[
+\widehat{\tau^2_k} = \frac{\mathrm{rate}_{\mathrm{post}}}
+                          {\mathrm{shape}_{\mathrm{post}} - 1}.
+\]
+
+Neither \(\mu_\gamma\) nor \(\Sigma_\gamma\) appears, because \(\gamma_k\)
+is held fixed. This path is not the production sampler; it is the algebra
+that Method B collapses to when \(\gamma_k\) is frozen, and it is what the
+ICM start uses.
+
+## Method B: `rglmb()`, the production path
+
+The Gibbs Block 2 update in `two_block_block2_one_chain()` fits the full
+ING model rather than freezing \(\gamma_k\), by handing the regression to
+**glmbayesCore**:
+
+```r
+fit_k <- rglmb(
+  n       = 1L,
+  y       = b_al,       # aligned group coefficients
+  x       = X_k,        # level-2 design
+  family  = gaussian(),
+  pfamily = pf_ing      # dIndependent_Normal_Gamma(mu, Sigma, shape, rate)
+)
+tau2_k      <- fit_k$dispersion[1L]
+gamma_k_new <- fit_k$coefficients[1L, ]
+```
+
+So \(\gamma_k\) and \(\tau^2_k\) are updated *jointly*, from their exact
+joint conditional, using the same envelope sampler documented in
+`vignette("Chapter-A05", package = "glmbayes")`. That joint update is what
+keeps the two-block structure intact: Block 2 is still one draw, not a
+sub-Gibbs alternation between \(\gamma\) and \(\tau^2\).
+
+The cost shows up in `Cand/draw` in `summary()`: the ING conditional is not
+conjugate, so each draw needs several accept-reject candidates.
+
+# Plug-ins and where the prior is calibrated
+
+Before any iteration, \(\tau^2\) has to be set from the prior alone — the
+ICM start and the \(\Sigma_{\text{ranef}}\) used by Block 1 both need a
+number before there is any \(b\) to condition on:
+
+\[
+\tilde\tau^2_k = \frac{\mathrm{rate}}{\mathrm{shape} - 1}
+\qquad (\text{requires } \mathrm{shape} > 1),
+\]
+
+computed by `.two_block_tau2_plug_in_from_pfamily()` and
+`.two_block_tau2_plug_in_vector()`. The conservative rate bounds use a
+*different* reference, `.two_block_tau2_ref_from_pfamily()`, which returns
+\(\mathrm{rate}/\mathrm{shape}\) — deliberately smaller, since smaller
+\(\tau^2\) means a slower chain.
+
+`Prior_Setup_GLMM()` calibrates the prior so that the plug-in reproduces
+the marginal hyper-regression center:
+
+\[
+\mathrm{shape}_k = \frac{n_0 + 1 + p_k}{2},
+\qquad
+\mathrm{rate}_k = \hat\tau^2_k\,\frac{n_0 + p_k - 1}{2},
+\]
+
+where \(\hat\tau^2_k\) is the marginal center from
+`compute_gaussian_prior` applied to
+\(b_{\cdot k} \sim N(W_k\gamma_k, \tau^2_k I_J)\) with
+\(\gamma_k \sim N(\mu_k, \Sigma_k)\) — stored in
+`pop.prior_list[[k]]$dispersion` — and \(n_0\) is the effective prior
+sample size for dispersion, set by `pop.dispersion.pwt`. The classical
+`VarCorr` plug-in is kept separately in `pop.dispersion.ref`.
+
+By construction \(\mathrm{rate}_k / (\mathrm{shape}_k - 1) = \hat\tau^2_k\),
+so the ING prior and the `dNormal` prior agree on the *center* and differ
+only in whether the component is allowed to move. That is what makes the
+`ptypes` switch a clean comparison: changing it does not silently change
+the location of the prior.
+
+```{r calibration}
+data(sleepstudy, package = "lme4")
+dat <- sleepstudy
+dat$Days_c <- dat$Days - mean(dat$Days)
+form <- Reaction ~ Days_c + (1 + Days_c || Subject)
+
+ps <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01,
+                       pop.dispersion.pwt = 0.2)
+str(ps$pop.ing_prior)
+```
+
+`pop.ing_prior` is one list per component, each carrying the Gamma
+`shape` / `rate` on the precision plus the truncation window.
+
+```{r calibration-check}
+ing <- ps$pop.ing_prior
+round(data.frame(
+  plug_in   = vapply(ing, function(p) p$rate / (p$shape - 1), numeric(1)),
+  ref_bound = vapply(ing, function(p) p$rate / p$shape, numeric(1)),
+  dNormal   = vapply(ps$pop.prior_list, function(p) p$dispersion, numeric(1))
+), 4)
+```
+
+The plug-in matches the `dNormal` dispersion exactly; the bound reference
+sits below it.
+
+# The truncation window
+
+Each ING component carries `disp_lower` and `disp_upper`, and the sampled
+\(\tau^2_k\) is confined to that interval. The bounds are quantiles of the
+**limiting posterior** of the variance component — not of the prior.
+
+The distinction is the whole point. A Gamma prior on a precision puts mass
+arbitrarily close to \(\tau^2 = 0\), and \(\tau^2 \to 0\) is the
+degenerate limit in which every group coefficient is pinned to
+\(\mathcal{W}_j\gamma\): the hierarchy collapses, Block 1 and Block 2
+become perfectly coupled, and the rate \(\lambda^*\) tends to 1. Truncating
+that region away is what keeps the chain geometrically ergodic, and the
+argument mirrors the drift-condition reasoning of @JonesHobert2001.
+
+The lower bound does double duty. Because \(\lambda^*\) is monotone
+decreasing in \(\tau^2\) for this structure, evaluating the rate at
+`disp_lower` gives a bound valid over the entire window:
+
+\[
+\sup_{\tau^2 \in [\,\text{disp\_lower},\, \text{disp\_upper}\,]}
+   \lambda^*(\tau^2)
+\;=\; \lambda^*(\text{disp\_lower}).
+\]
+
+That is conservative rather than correct-on-average, which is the right
+direction for a certificate: the sweep count it produces is at least as
+large as any \(\tau^2\) actually visited would require.
+
+The upper bound is less load-bearing but keeps the envelope construction
+well conditioned and prevents a component from wandering into a region the
+data cannot support. `inst/ING_TRUNCATION_WINDOW.md` gives the quantile
+choices and the derivation.
+
+# What the chain looks like
+
+```{r fit, results = "hide"}
+pf_ing <- pfamily_list(ps, ptypes = "dIndependent_Normal_Gamma")
+design <- model_setup(form, data = dat)
+
+set.seed(1)
+fit <- rlmerb(n = 200L, design = design,
+              pfamily_list   = pf_ing,
+              dispprior_list = list(dispersion = ps$group.dispersion),
+              progbar = FALSE, verbose = FALSE, print_icm_table = FALSE)
+```
+
+```{r fit-fields}
+c(engine = fit$convergence_info$sim_method_used,
+  m      = fit$convergence_info$m_convergence)
+names(fit$sweep_history)
+round(colMeans(fit$popef.dispersion), 3)
+```
+
+Two structural changes relative to Chapter B04. `sweep_history` now has a
+`pilot` element as well as `main`, and `popef.dispersion` holds draws
+rather than a repeated constant.
+
+# Why a pilot stage becomes necessary
+
+The Theorem 3 bound of Chapter B02 has two terms: one for the distance of
+the starting *mean* from the target mean, and one for the variance. Chapter
+B04's route sets the first to exactly zero by starting every chain at the
+exact posterior mean.
+
+With an ING component there is no exact mean to start from. The joint
+target over \((\gamma, \tau^2, b)\) is not Gaussian, so the ICM start is a
+conditional mode, and mode \(\neq\) mean. The pilot stage produces a start
+point whose distance from the truth can be *bounded* instead: averaging
+`n_pilot` independent pilot chains gives a start whose sampling covariance
+is \(\Sigma / n_{\text{pilot}}\), so at confidence level \(\alpha\)
+
+\[
+D_0 = \frac{\chi^2_{p,\alpha}}{n_{\text{pilot}}}.
+\]
+
+`vignette("Chapter-B03")` works through the optimization that trades pilot
+sweeps against main sweeps.
+
+# Selecting components individually
+
+`ptypes` accepts a single value or a named vector, so components can be
+mixed:
+
+```{r mixed-ptypes}
+pf_mixed <- pfamily_list(ps, ptypes = c(
+  "(Intercept)" = "dNormal",
+  "Days_c"      = "dIndependent_Normal_Gamma"
+))
+vapply(pf_mixed, function(p) class(p)[1L], character(1))
+```
+
+Because Block 2 factorizes across components, this is coherent: the
+intercept's \(\tau^2\) stays fixed while the slope's is sampled. The route
+key is still `lmm_fixed_estimated` — `pf_summary$all_dNormal` is `FALSE`
+as soon as *any* component is ING — so the pilot stage and the conservative
+rate apply to the whole model. There is no partial-exactness discount.
+
+# See also
+
+- `vignette("Chapter-B03")` — pilot sizing and the cost optimization.
+- `vignette("Chapter-B04")` — the exact route this one generalizes.
+- `vignette("Chapter-B06")` — the extended rate diagnostic for ING models.
+- `vignette("Chapter-07", package = "lmebayes")` — the user-facing view.
+- `inst/TAU2_ING_FORMULAS.md`, `inst/ING_TRUNCATION_WINDOW.md`,
+  `inst/BLOCK_ING_RINDEPNORMALGAMMA_REG.md` in the package sources.

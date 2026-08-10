@@ -199,8 +199,69 @@ print.rGLMM_reg <- function(
 #' @param digits Number of significant digits for printed numeric values.
 #' @param ... further arguments passed to or from other methods.
 #'
+#' @details
+#' ## The groupef layout
+#'
+#' Population coefficients (\eqn{\gamma}) and group coefficients
+#' (\eqn{\beta_j}) are stored in different shapes, which is why they have
+#' different printers.  \code{popef} is a \emph{named list of matrices}, one
+#' per random-effect component, each \code{n} draws by \eqn{q_k} level-2
+#' predictors --- printed by the \code{print()} methods.  \code{groupef} is a
+#' single \strong{long-format data frame} with one row per
+#' (draw, group level) pair:
+#'
+#' \tabular{ll}{
+#'   \code{draw} \tab integer draw index, \code{1:n} \cr
+#'   \emph{grouping column} \tab the group level, named after the grouping
+#'     factor (\code{"Subject"}, \code{"state"}, ...) \cr
+#'   \emph{one column per RE coefficient} \tab \code{"(Intercept)"} and any
+#'     random slopes
+#' }
+#'
+#' So a fit with \code{n = 1000} draws over 20 groups produces 20,000 rows.
+#' Printing it whole is rarely what anyone wants, which is the reason this
+#' function exists.
+#'
+#' ## Filtering
+#'
+#' The three filters are independent and compose; all of them are
+#' \strong{print-only}, and \code{x} is never modified.
+#'
+#' \itemize{
+#'   \item \code{draws} --- integer indices into \code{1:n}, or a logical mask
+#'     of length \code{n}.  Filters rows by the \code{draw} column.
+#'   \item \code{groups} --- level names as characters, or integer indices
+#'     into the unique levels \emph{present in} \code{groupef} (which is the
+#'     ordering the fit used, not necessarily \code{levels()} of the original
+#'     factor).  Filters rows by the grouping column.
+#'   \item \code{components} --- names or integer indices selecting which
+#'     random-effect \emph{columns} to show.  The \code{draw} and grouping
+#'     columns are always kept and are never counted in the indexing.
+#' }
+#'
+#' \code{print_groupef(fit, draws = 1:5, groups = 1:3)} is the usual idiom:
+#' the first few draws for the first few groups, enough to confirm the
+#' sampler is producing sensible numbers without flooding the console.  An
+#' empty result after filtering prints a placeholder rather than erroring.
+#'
+#' Numeric columns are formatted to \code{digits} significant figures for
+#' display only; the stored values keep full precision.
+#'
+#' ## Dispatch
+#'
+#' All registered methods share the \code{default} implementation --- they
+#' exist so that the generic dispatches cleanly on every sampler return class
+#' rather than falling through, and so that class-specific layouts can be
+#' added later without changing call sites.  The \code{default} method works
+#' on any list-like object carrying a usable \code{groupef} data frame, which
+#' includes intermediate objects produced during route dispatch.
+#'
+#' Point-estimate fits (\code{simulate = FALSE}) have no \code{groupef} at
+#' all; use \code{groupef.mode} directly for those.
+#'
 #' @return No return value, called for side effects.
-#' @seealso \code{\link{rLMM_reg}}, \code{\link{rGLMM_reg}}
+#' @seealso \code{\link{rLMM_reg}}, \code{\link{rGLMM_reg}},
+#'   \code{\link{rlmerb}}, \code{\link{rglmerb}}
 #' @name print_groupef
 #' @export
 print_groupef <- function(

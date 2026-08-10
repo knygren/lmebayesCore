@@ -1,0 +1,298 @@
+---
+title: "Chapter B04: The known-vcov Gaussian route and the exact iid sampler"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B04: The known-vcov Gaussian route and the exact iid sampler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B04: The known-vcov Gaussian route
+
+One combination of inputs makes the whole hierarchical posterior collapse
+to a multivariate normal, and the engine exploits it aggressively. This
+appendix documents that route: when it is selected, why it is exact, and
+what the two engines behind `sim_method` actually do.
+
+The conditions are:
+
+1. the observation dispersion \(\sigma^2\) is **fixed** — a scalar
+   (`disp_mode = "fixed"`) or a named per-group vector
+   (`"fixed_vector"`) — rather than sampled; **and**
+2. every Block 2 component uses a `dNormal()` pfamily, so every
+   \(\tau^2_k\) is a known constant rather than a sampled quantity.
+
+Under both, no accept-reject envelope, no ICM iteration, and no pilot stage
+appears anywhere in the call graph.
+
+# Route selection
+
+`dispersion_ranef` is resolved by `.lmebayes_resolve_dispersion_ranef()`
+into one of five modes:
+
+| `disp_mode` | Trigger | Sampled? | Route family |
+|---|---|---|---|
+| `"none"` | Non-Gaussian family with no free dispersion | — | `glmm_*` |
+| `"fixed"` | Single positive scalar | No | `lmm_fixed_*` |
+| `"fixed_vector"` | Named length-\(J\) numeric vector | No | `lmm_fixed_*` |
+| `"gamma"` | One `dGamma(Inv_Dispersion = TRUE)` | Yes | `lmm_gamma_*` |
+| `"gamma_list"` | Named list of per-group `dGamma()` | Yes | `lmm_gamma_*` |
+
+`.lmebayes_reg_route_key()` then appends a suffix from the Block 2 prior
+summary: `known` when `pf_summary$all_dNormal` is `TRUE`, `estimated`
+otherwise. This appendix is the `lmm_fixed_known` cell, implemented by
+`rLMMNormal_reg_known_vcov()`.
+
+The lookup is table-driven. `REG_ROUTE_TABLE` maps route keys to functions
+and records whether each needs a pilot stage:
+
+```
+lmm_fixed_known      -> rLMMNormal_reg_known_vcov        (needs_pilot = FALSE)
+lmm_fixed_estimated  -> rLMMNormal_reg_estimated_vcov    (needs_pilot = TRUE)
+lmm_gamma_*          -> rLMMindepNormalGamma_reg_*       (needs_pilot = TRUE)
+glmm_*               -> rGLMM_reg*                       (needs_pilot = TRUE)
+```
+
+`.lmebayes_run_lmm_engine()` performs `route_key -> route_fn -> do.call()`
+and then `.lmebayes_attach_sigma2()`. Only the `lmm_fixed_known` branch
+receives a `sim_method` argument; every other route ignores it, because
+only this one has a second engine to dispatch to.
+
+# Why the route is exact
+
+With fixed \(\sigma^2_j\) and known \(\tau^2_k\), every density in the
+hierarchy is Gaussian:
+
+\[
+y_j \mid b_j \sim N(Z_j b_j,\ \sigma^2_j I), \qquad
+b_j \mid \gamma \sim N(\mu_j(\gamma),\ \Sigma_b), \qquad
+\gamma_k \sim N(\mu_{\gamma_k},\ \Sigma_{\gamma_k}),
+\]
+
+with \(\mu_j(\gamma)\) *linear* in the stacked \(\gamma\) through the map
+`build_mu_all()` computes, \(\mu_{jk}(\gamma) = [X_k \gamma_k]_j\). A
+Gaussian likelihood with a Gaussian prior whose mean is linear in the
+hyperparameters gives a jointly Gaussian posterior over
+\((\gamma, b_1, \dots, b_J)\). Two consequences follow.
+
+**The posterior mean equals the posterior mode**, and it is one linear
+solve away. `lmerb_posterior_mean()` forms, per group,
+
+```
+ZtZ_scaled[[j]] = crossprod(Z_j) / sigma2_j
+Zty_scaled[[j]] = crossprod(Z_j, y_j) / sigma2_j
+```
+
+and eliminates every \(b_j\) by Schur complement. Each \(b_j\) is affine in
+the shared \(\gamma\) and never couples to another group's \(b_{j'}\), so
+what remains is a single system in \(\gamma\) whose dimension is the total
+Block 2 hyperparameter count — independent of \(J\). No \(J \times J\)
+matrix is ever formed, and the build cost is \(O(J)\). The returned
+`converged = TRUE, iterations = 1L, delta = 0` is literal: there is no
+iteration.
+
+**The Theorem 3 convergence rate is exact.** The rate of Chapter B02
+depends only on the *linear* Gibbs-sweep operator built from \(P_b\),
+\(P_{\gamma_k}\), \(\sigma^2_j\), and the design. With no GLM link and no
+non-Gaussian random-effect prior, there is no nonlinearity to bound
+conservatively, and `convergence_info$method` is tagged `"exact"` rather
+than a `disp_lower` plug-in.
+
+`"fixed_vector"` differs from `"fixed"` only in letting \(\sigma^2_j\)
+vary by group. Every formula above already carries the group subscript, so
+the mode is not new machinery — only correct group indexing of the
+\(\sigma^2\) vector in the ICM solver and in `.two_block_rate_inputs()`,
+where a length-\(J\) dispersion is expanded to one working weight per
+observation.
+
+# Two engines behind one route
+
+`rLMMNormal_reg_known_vcov()` is a thin dispatcher validated by
+`.rLMM_validate_sim_method()`, which accepts exactly `"DEFAULT"` or
+`"TWO_BLOCK_GIBBS"`.
+
+| `sim_method` | Engine | Sweeps | `convergence_info$method` |
+|---|---|---|---|
+| `"DEFAULT"` | `rLMMNormal_reg_known_vcov_iid()` | none | `"exact_iid"` |
+| `"TWO_BLOCK_GIBBS"` | `rLMMNormal_reg_known_vcov_two_bg()` | `m_convergence` | `"exact"` |
+
+Both engines validate identically and both reject a non-`dNormal`
+`pfamily_list` with a message pointing at `rLMMNormal_reg_estimated_vcov()`.
+Both reshape their output through the same `.rLMM_format_v2_out()`, so
+downstream staging needs no engine-specific branching.
+
+## The exact iid engine
+
+`rLMMNormal_joint_iid()` is the interesting one. Because the target is
+exactly Gaussian, it can be factored once and sampled directly:
+
+1. `.lmerb_posterior_normal_system(design, measurement_prior_list)` builds
+   `M`, the posterior precision of the stacked Block 2 vector
+   `gamma_full`, and per group `post_P_j`, the conditional precision of
+   \(b_j \mid \gamma\). Both are independent of \(\gamma\).
+2. `.lmerb_posterior_system_cholesky(system)` Cholesky-factors `M` and
+   every `post_P_j` **once**.
+3. Each of the `n` draws is then one `backsolve()` against `chol(M)` for
+   `gamma_full`, plus one `backsolve()` per group against `chol(post_P_j)`
+   for \(b_j\).
+
+No iteration, no burn-in, no autocorrelation. `m_convergence` is set to
+`1L` and `draw_engine` to `"rLMMNormal_joint_iid"`.
+
+Note that step 1 reuses exactly the matrices `lmerb_posterior_mean()`
+already assembles — the engine that reports the point estimate and the
+engine that samples share their algebra, so a discrepancy between
+`popef.mode` and `colMeans(popef)` is a genuine bug signal rather than
+two independent approximations disagreeing.
+
+## The symmetry precondition
+
+`.lmerb_posterior_system_cholesky()` checks that `M` is numerically
+symmetric before factoring, symmetrizes defensively within a relative
+tolerance, and stops with a message pointing at
+`sim_method = "TWO_BLOCK_GIBBS"` when the asymmetry is too large to ignore.
+
+The check exists because symmetry is only *guaranteed* when `Sigma_ranef`
+from `prior_list_block1` is diagonal **and** its \(k\)-th diagonal entry
+equals component \(k\)'s `dNormal()` dispersion \(\tau^2_k\) in
+`pfamily_list`. That is exactly how `lmerb()` and `glmerb()` construct it,
+but it is not enforced at the matrix level, where a caller could supply
+inconsistent inputs. The Gibbs engine tolerates the inconsistency; the
+Cholesky engine cannot, so it fails loudly rather than returning wrong
+draws.
+
+## The Gibbs engine on an exact target
+
+`rLMMNormal_reg_known_vcov_two_bg()` runs the full pipeline of Chapter B01:
+`.rLMM_icm_at_start()` for the exact start point,
+`.rLMM_calibrate_m_convergence()` for the sweep count, then
+`two_block_rNormal_reg()` for `n` replicate chains.
+
+Running Gibbs on a target you can sample exactly is not wasted work — it is
+how the sweep machinery is validated. The two engines target the same
+distribution, so any disagreement beyond Monte Carlo error localizes a
+defect to the sweep kernel. `vignette("Chapter-06", package = "lmebayes")`
+shows the comparison from the user side.
+
+# The precision matrix `P`
+
+One design decision is worth flagging because it removes a whole class of
+bug. The Block 1 prior precision `P` is **never** a caller-supplied
+argument. `.lmebayes_block1_prior_list()` builds only
+`list(dispersion = ..., ddef = FALSE)`; every routed export derives its own
+`P` from the validated `pfamily_list` via `.rLMM_P_from_pfamily_list()`,
+which takes one \(\tau^2_k\) plug-in per component through
+`.two_block_tau2_plug_in_vector()`, assembles `diag(tau2)`, and inverts.
+
+Each export then *rejects* a caller-supplied `P` or `Sigma` before calling
+`.two_block_validate_block1_prior()`. The invariant is that `P` can never
+disagree with `pfamily_list`, because it is always a function of it.
+
+# The compiled kernel
+
+The Gibbs engine's inner loop is C++:
+
+```
+.two_block_rNormal_reg_cpp()            [rcpp_wrappers.R]
+  -> block1_prior_list()                [twoBlockGibbs.cpp]
+  -> MuAllBuilder::build()              [twoBlockGibbs.cpp]
+  -> block_rNormalReg_cpp_export()      [block_utils.cpp]
+       -> rNormalRegBlocks()            [rNormalRegBlocks.cpp]
+            -> rNormalReg()             [rNormalReg.cpp]
+  -> (Block 2 loop, is_ing = false)
+       -> rNormalReg()
+```
+
+Nothing in this chain calls an accept-reject envelope, `rglmb()`, or
+`lm.fit()`. Every draw is a direct conjugate-normal sample. Contrast this
+with the ING and GLMM routes, where the Block 2 (respectively Block 1) draw
+goes through `glmbayesCore::rglmb()` and the envelope sampler of
+@Nygren2006.
+
+# Working example
+
+```{r example}
+set.seed(1)
+J <- 12L; n_j <- 8L
+group <- factor(rep(seq_len(J), each = n_j))
+Z <- matrix(1, nrow = J * n_j, ncol = 1L, dimnames = list(NULL, "(Intercept)"))
+x_hyper <- list("(Intercept)" = matrix(1, nrow = J, ncol = 1L,
+                                       dimnames = list(levels(group), "(Intercept)")))
+
+tau2 <- 0.5; sigma2 <- 1
+```
+
+The rate for this balanced design is available directly, without running
+the sampler:
+
+```{r example-rate}
+rate <- two_block_rate(
+  x                 = Z,
+  group             = group,
+  x_hyper           = x_hyper,
+  prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+  prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+)
+c(computed = rate$lambda_star,
+  closed_form = sigma2 / (sigma2 + n_j * tau2))
+```
+
+For a balanced random-intercept model with a diffuse Block 2 prior the rate
+has the closed form \(\lambda^* = \sigma^2 / (\sigma^2 + n_j \tau^2)\) —
+the complement of the shrinkage ratio in
+`vignette("Chapter-02", package = "lmebayes")`, seen from the sampler's
+side. Larger groups carry more likelihood precision and mix faster; the
+rate does not depend on \(J\).
+
+```{r example-print}
+rate
+```
+
+The `Implied sweeps per tolerance` table is `two_block_l_for_tv()`
+evaluated at several tolerances, under all three bounds: the geometric
+\((\lambda^*)^m\) proxy, the Corollary 1 envelope, and the Theorem 3 terms
+the sampler actually uses.
+
+# When the route does *not* apply
+
+Any of the following moves you off `lmm_fixed_known`:
+
+| Change | Resulting route | What is lost |
+|---|---|---|
+| Any `dIndependent_Normal_Gamma` component | `lmm_fixed_estimated` | Exactness; pilot stage required (B05, B06) |
+| `dispersion_ranef` a `dGamma()` or list | `lmm_gamma_*` | Exactness; pilot stage required (B07) |
+| Non-Gaussian `family` | `glmm_*` | Exact rate becomes a local-Gaussian heuristic |
+
+In every one of those cases the posterior is no longer Gaussian, the mode
+is no longer the mean, and the convergence rate becomes a plug-in bound
+evaluated conservatively rather than a theorem. That progression is the
+subject of the next three appendices.
+
+# See also
+
+- `vignette("Chapter-B01")` — the two-block architecture and sweep loop.
+- `vignette("Chapter-B02")` — the rate and TV bound this route computes
+  exactly.
+- `vignette("Chapter-B05")` — what changes when \(\tau^2_k\) is sampled.
+- `vignette("Chapter-B07")` — what changes when \(\sigma^2\) is sampled.
+- `?rLMMNormal_reg`, `?two_block_rate`
+- `inst/README_KNOWN_VCOV_GAUSSIAN.md` in the package sources for the
+  function-by-function call graph.

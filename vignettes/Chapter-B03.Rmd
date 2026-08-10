@@ -1,0 +1,293 @@
+---
+title: "Chapter B03: Calibrating m_convergence"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B03: Calibrating m_convergence}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B03: Calibrating `m_convergence`
+
+`Chapter-B02` produced a computable bound on the total-variation distance
+between the \(l\)-step kernel and the target. This chapter spends it. The
+question is operational: given a total-variation tolerance `tv_tol`, how
+many inner Gibbs sweeps should separate the chain start from a stored
+draw?
+
+The answer is `m_convergence`, and the user never has to choose it. They
+choose a tolerance; the engine derives the sweeps.
+
+# The pipeline
+
+```
+pfamily_list + design
+        |
+        v
+two_block_rate_from_pfamily_list()   -->  lambda*, eigenvalue spectrum
+        |
+        v
+two_block_l_for_tv(rate, tv_tol)     -->  smallest l with TV(l) <= tv_tol
+        |
+        v
+m_convergence = l + 1                     (+1: Block 1 lags a half-step)
+```
+
+Three properties make this practical.
+
+**The bound is decreasing in \(l\).** So inverting it is exact: a doubling
+search followed by bisection finds the smallest sufficient \(l\), with no
+tuning constants.
+
+**The cost is logarithmic in \(1/\texttt{tv\_tol}\).** Tightening the
+tolerance by three orders of magnitude does not triple the work; it adds a
+handful of sweeps. This is what makes the "certify every draw" contract
+affordable.
+
+**The chain starts at the posterior mean.** \(D_0 = 0\), the mean term of
+the bound vanishes, and only the variance-convergence sum remains.
+
+```{r setup-model}
+J      <- 12L
+n_j    <- 8L
+sigma2 <- 1.0
+tau2   <- 0.5
+
+group   <- factor(rep(seq_len(J), each = n_j))
+Z       <- matrix(1, J * n_j, 1L, dimnames = list(NULL, "(Intercept)"))
+x_hyper <- list("(Intercept)" = matrix(1, J, 1L,
+                                       dimnames = list(levels(group), "(Intercept)")))
+
+rate <- two_block_rate(
+  x                 = Z,
+  group             = group,
+  x_hyper           = x_hyper,
+  prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+  prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+)
+rate$lambda_star
+```
+
+The print method lays out the whole calibration table at once — the naive
+geometric proxy alongside the two certified bounds:
+
+```{r rate-table}
+rate
+```
+
+Read the columns as three increasingly good answers to the same question.
+The `(lambda*)^m` proxy asks only when the *slowest* eigendirection has
+decayed to `tol`, ignoring that the others converged sweeps ago. Corollary
+1 keeps the geometric shape but supplies the correct constants. Theorem 3
+evaluates the exact per-direction terms and is the sharpest of the three;
+it is what the sampler uses.
+
+# What `tv_tol` means
+
+`tv_tol` is a **per-draw** guarantee: each stored draw is within `tv_tol`
+of the exact joint posterior in total variation. It is not a statement
+about the sample as a whole.
+
+The default is `tv_tol = 0.01`, the conventional threshold of the honest
+burn-in literature [@JonesHobert2001]. To certify an entire `n`-draw
+sample at level \(\alpha\), pass `tv_tol = alpha / n` — a union bound over
+draws. Because the sweep cost is logarithmic, this is cheap:
+
+```{r tv-tol-cost}
+tols <- c(1e-2, 1e-3, 1e-4, 1e-6, 1e-8)
+data.frame(
+  tv_tol = tols,
+  sweeps = vapply(tols,
+                  function(t) lmebayesCore:::two_block_l_for_tv(rate, t),
+                  integer(1))
+)
+```
+
+Going from a per-draw tolerance of \(10^{-2}\) to a sample-wide
+certificate at \(n = 1000\) (i.e. \(10^{-5}\)) costs a few sweeps, not a
+few thousand.
+
+The bound itself, evaluated directly:
+
+```{r tv-curve}
+l <- 1:8
+signif(lmebayesCore:::two_block_tv_bound(rate, l), 3)
+```
+
+# Why one extra sweep
+
+The Theorem 3 bound applies to the block updated **second** in each sweep,
+which is Block 2 (\(\gamma\)). The stored Block 1 draw (\(b\)) is produced
+*before* that Block 2 update, so it lags by a half-step: the bound at
+\(l-1\) is what applies to it.
+
+The sampler therefore sets
+
+```
+m_convergence = two_block_l_for_tv(rate, tv_tol) + 1
+```
+
+so that **both** blocks of every stored draw satisfy the tolerance. If you
+compare a hand-computed `two_block_l_for_tv()` against a fit's reported
+`m_convergence` and find an off-by-one, this is it.
+
+# Starting points and the \(D_0\) term
+
+Everything so far assumed \(D_0 = 0\). That is exact for the Gaussian
+fixed-variance-component case, where `lmerb_posterior_mean()` computes the
+joint posterior mean in closed form by iterated conditional modes.
+
+Two situations break it:
+
+1. **Non-Gaussian responses.** The posterior mode is available
+   (`glmerb_posterior_mode()`), but the mode is not the mean, so a chain
+   started there is at some unknown positive distance from the target
+   mean.
+2. **Sampled variance components.** The joint target over
+   \((\gamma, \tau^2)\) is not Gaussian, so there is no exact mean to start
+   from.
+
+In both cases the engine runs a **pilot stage**: a batch of `n_pilot`
+short chains whose cross-chain mean is used as the start for the main
+chains. The point of the pilot is not to produce draws — they are
+discarded — but to produce a *starting point with a certified distance
+from the truth*.
+
+If the pilot mean is an average over `n_pilot` independent chains, its
+sampling distribution has covariance \(\Sigma_{11}/n_{\mathrm{pilot}}\),
+so the squared standardized distance obeys
+\[
+D_0 \;=\; \frac{\chi^2_{p,\,\alpha}}{n_{\mathrm{pilot}}}
+\]
+at confidence level \(\alpha\) (default 0.95), where \(p\) is the
+dimension of the Block 2 hyper vector. Larger pilots give smaller
+\(D_0\), which in turn lowers the main-stage `m_convergence` — but the
+pilot itself costs sweeps.
+
+# The pilot / main cost trade-off
+
+That is a genuine optimization. Total inner-sweep cost is
+\[
+C(n_{\mathrm{pilot}}) \;=\;
+n_{\mathrm{pilot}}\, m_p \;+\; n \cdot m_{\mathrm{conv}}(n_{\mathrm{pilot}}),
+\]
+where \(m_p\) is sweeps per pilot draw and
+\(m_{\mathrm{conv}}(\cdot)\) is the main-stage sweep count implied by the
+\(D_0\) above. The first term grows linearly in \(n_{\mathrm{pilot}}\);
+the second decreases, and flattens out once \(D_0\) is small enough that
+the mean term no longer binds. There is an interior minimum.
+
+Four internal helpers form the stack:
+
+| Function | Role |
+|---|---|
+| `two_block_d0_pilot_start()` | \(D_0 = \chi^2_{p,\alpha}/n_{\mathrm{pilot}}\) |
+| `two_block_m_convergence_for_pilot_start()` | main-stage sweeps at that \(D_0\) |
+| `two_block_pilot_sampling_cost()` | total cost \(C\) |
+| `two_block_optimize_pilot_cost()` | minimize \(C\) over \(n_{\mathrm{pilot}}\) |
+
+```{r pilot-cost}
+opt <- lmebayesCore:::two_block_optimize_pilot_cost(
+  n                   = 1000L,
+  rate                = rate,
+  tv_tol              = 0.01,
+  m_convergence_pilot = 5L,
+  p                   = 1L
+)
+opt[c("n_pilot_opt", "m_convergence_opt", "total_cost_opt")]
+```
+
+```{r pilot-curve}
+head(opt$cost_curve, 10)
+```
+
+The curve is flat near its minimum, which is good news: the optimum does
+not have to be found precisely for the plan to be near-optimal. This is
+the Gibbs analogue of the build-versus-sample cost optimization the iid
+envelope samplers perform when deciding how finely to partition the
+envelope (`glmbayesCore::EnvelopeOpt`; see
+`vignette("Chapter-A08", package = "glmbayes")`).
+
+Note the asymmetry with the mode-start minimum. As
+\(n_{\mathrm{pilot}} \to \infty\), \(D_0 \to 0\) and
+\(m_{\mathrm{conv}}\) approaches the \(D_0 = 0\) sweep count from
+`Chapter-B02` — the pilot can never do better than starting at the exact
+mean, only approach it.
+
+# From a `pfamily_list`
+
+In practice the Block 2 priors arrive as `pfamily` objects from
+`pfamily_list()`, not as raw precision matrices.
+`two_block_rate_from_pfamily_list()` is the adapter:
+
+```{r from-pfamily, eval = FALSE}
+rate <- two_block_rate_from_pfamily_list(
+  x                 = design$Z,
+  group             = design$group,
+  x_hyper           = design$X_hyper,
+  prior_list_block1 = list(Sigma = Sigma_ranef, dispersion = sigma2),
+  pfamily_list      = pfamily_list(ps)
+)
+```
+
+It extracts the dispersion each component implies:
+
+- **`dNormal`** — the fixed `dispersion`, i.e. the known \(\tau^2_k\).
+- **`dIndependent_Normal_Gamma`** — the conservative `disp_lower` plug-in,
+  the lower end of the truncation window.
+
+The second choice is the one that makes the calibration honest for ING
+models. Smaller \(\tau^2\) means tighter cross-block coupling and a larger
+\(\lambda^*\), so a bound computed at `disp_lower` is valid for **every**
+\(\tau^2\) in the truncated support. It is conservative rather than
+correct-on-average, which is the right direction for a certificate. That
+conservatism is also why ING routes carry a heavier eigenvalue bound than
+their fixed-\(\tau^2\) counterparts, and why `disp_lower` must be set with
+some care — see `Chapter-B05`.
+
+# When certification fails
+
+`two_block_l_for_tv()` searches up to `l_max` sweeps. If the bound has
+still not reached the tolerance — which happens when \(\lambda^*\) is very
+close to 1 — it issues a warning and returns the **uncertified geometric
+proxy** \(l\) from `rate$m_for_tol(tol)` rather than `l_max`. The result
+is a usable sweep count that is explicitly not a certificate.
+
+Upstream of that, `two_block_rate()` refuses to return at all if
+\(\lambda^*\) is numerically indistinguishable from 1: it prints the
+\(P_{11}\), \(P_{12}\), \(P_{21}\), \(P_{22}\) blocks and stops. A
+\(\lambda^*\) of 1 means the joint posterior is improper in some
+direction, so the honest response is a failed rank condition
+(`Chapter-B08`), not a larger sweep count.
+
+Between those, a warning fires whenever \(\lambda^*\) exceeds 0.95:
+convergence is still geometric, but the coupling is strong enough that the
+model is worth a second look. The usual causes are small groups (small
+\(C_j\) relative to \(1/\tau^2\)) or a variance component driven toward
+zero.
+
+# See also
+
+- **Chapter B02** — where the bound comes from.
+- **Chapter B05** — the ING truncation window and `disp_lower`.
+- **Chapter B10** — checking the calibration empirically with
+  `plot_mean_convergence()` and `plot_var_convergence()`.
+- `?two_block_rate`, `?two_block_tv_bound`, `?two_block_optimize_pilot_cost`.

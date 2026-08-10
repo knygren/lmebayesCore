@@ -1,8 +1,8 @@
 Package: lmebayesCore
 Type: Package
-Title: Core C++ Sampling Engine for lmebayes
+Title: Core C++ Sampling Engine for 'lmebayes'
 Version: 0.1.0
-Date: 2026-06-03
+Date: 2026-08-10
 Authors@R: c(
     person("Kjell", "Nygren", role = c("aut", "cre"),
            email = "kjell.a.nygren@gmail.com"),
@@ -54,6 +54,7 @@ Suggests:
     spelling,
     knitr,
     rmarkdown
+VignetteBuilder: knitr
 SystemRequirements: Optional OpenCL support. If available, GPU acceleration will be used; otherwise, computation runs on CPU. 
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

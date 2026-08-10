@@ -1,0 +1,283 @@
+---
+title: "Chapter B10: Sweep history and convergence plots"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter B10: Sweep history and convergence plots}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+# Chapter B10: Sweep history and convergence plots
+
+The sweep history is the engine's audit trail. It records, after every
+inner Gibbs sweep, what the *ensemble* of replicate chains looked like —
+which is a genuinely different object from the trace of a single chain, and
+supports a different kind of inspection.
+
+# Why the ensemble view is the right one
+
+A conventional MCMC trace plot shows one chain's value against iteration.
+It is a diagnostic of last resort: you look for a trend, a level shift, or
+a sticky patch, and you infer that the burn-in was or was not long enough.
+
+This sampler runs `n` *independent replicate* chains, each of exactly
+`m_convergence` sweeps, all started from the same point (Chapter B01).
+That means at sweep \(m\) there are `n` independent draws from the
+distribution of the chain after \(m\) sweeps — call it \(\pi_m\). Their
+mean and variance estimate the mean and variance of \(\pi_m\) directly, and
+the convergence claim is a statement about how close \(\pi_m\) is to
+\(\pi\).
+
+So the sweep history is not a trace. It is a sequence of snapshots of the
+*distribution* being approached, and it maps onto the two terms of the
+Theorem 3 bound one-for-one: a mean-error term and a variance term.
+
+# The object
+
+```{r fit, results = "hide"}
+data(sleepstudy, package = "lme4")
+dat <- sleepstudy
+dat$Days_c <- dat$Days - mean(dat$Days)
+form <- Reaction ~ Days_c + (1 + Days_c || Subject)
+
+design <- model_setup(form, data = dat)
+ps     <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01)
+
+set.seed(1)
+fit <- rlmerb(
+  n              = 200L,
+  design         = design,
+  pfamily_list   = pfamily_list(ps),
+  dispprior_list = list(dispersion = ps$group.dispersion),
+  sim_method     = "TWO_BLOCK_GIBBS",
+  progbar = FALSE, verbose = FALSE, print_icm_table = FALSE
+)
+```
+
+```{r history-structure}
+class(fit$sweep_history)
+names(fit$sweep_history)
+fit$sweep_history$stage
+```
+
+**Two API shapes, one object.** At this matrix level `fit$sweep_history`
+*is* the history, tagged by `$stage`, and pilot information lives
+separately in `fit$pilot`. The formula-level `lmerb()` and `glmerb()` in
+**lmebayes** repackage the two stages into a list, so there you write
+`fit$sweep_history$main` and `fit$sweep_history$pilot`. Everything below
+applies to either, once you have a single-stage object in hand.
+
+```{r history-print}
+fit$sweep_history
+```
+
+Each Block 2 parameter contributes one `mode` row and one row per sweep.
+The `mode` row is the ICM point estimate — the value every chain started
+from. The sweep rows carry the cross-chain `mean` and `sd`.
+
+The components are worth knowing individually:
+
+| Field | Contents |
+|---|---|
+| `stage` | `"main"` or `"pilot"` |
+| `n_sweeps` | Sweeps recorded, equal to `m_convergence` for the stage |
+| `fixef_mode` | The ICM start point, per component |
+| `table` | Long data frame: `re_component`, `covariate`, `sweep`, `mean`, `sd` |
+| `cov_by_sweep` | Full cross-chain covariance matrix at each sweep |
+| `coef_index` | Component/covariate key for the rows of `cov_by_sweep` |
+| `disp_table` | Same shape as `table`, for sampled precisions \(1/\tau^2_k\); empty when they are fixed |
+
+`cov_by_sweep` is the one that carries information the printed table does
+not: the *cross-parameter* covariance at each sweep. The Theorem 3 bound is
+a statement about the whole covariance, not one coordinate at a time, so
+this is the object to reach for when a per-parameter view looks fine but
+the certificate seems too optimistic.
+
+# Which engines populate it
+
+| Route | `pilot` | `main` | Note |
+|---|---|---|---|
+| `lmm_fixed_known`, `sim_method = "DEFAULT"` | — | — | No sweeps, so no history |
+| `lmm_fixed_known`, `sim_method = "TWO_BLOCK_GIBBS"` | — | yes | Start is the exact mean |
+| `lmm_fixed_estimated` (ING) | yes | yes | B05 |
+| `lmm_gamma_*` (sampled \(\sigma^2\)) | yes | yes | B07 |
+| `glmm_*` (non-Gaussian) | yes | yes | B09 Block 1 |
+
+The exact-iid engine produces no history at all, and that is correct rather
+than a gap: there are no sweeps to record. If you want a history on an
+exactly-Gaussian model — to validate the sweep kernel against a known
+answer — force `sim_method = "TWO_BLOCK_GIBBS"`, as above.
+
+# Reading the two plots
+
+Both plotting functions take a **sweep-history object**, not a fit, and
+both draw base-graphics panels split by intercept-type and slope-type
+predictors.
+
+## `plot_mean_convergence()`
+
+```{r plot-mean, fig.alt = "Standardized cross-chain mean by inner sweep"}
+plot_mean_convergence(fit$sweep_history)
+```
+
+The plotted quantity is
+
+\[
+\frac{\bar{x}_m - \bar{x}_{\text{final}}}{\mathrm{sd}_m},
+\]
+
+the cross-chain mean at sweep \(m\), centered at the final sweep's mean and
+standardized. This is the **Claim 1** quantity: the mean-error term of the
+convergence bound.
+
+On this route the line should sit at zero throughout, because every chain
+starts at the exact posterior mean and the Gibbs kernel preserves it. A
+visible drift means the start point is not what the theory assumes — the
+usual causes are a mis-specified `prior_list_block1` or an ICM that did not
+converge. On a pilot history, by contrast, drift is *expected*: the pilot
+starts at a mode, not a mean, and its whole purpose is to move.
+
+## `plot_var_convergence()`
+
+```{r plot-var, fig.alt = "Ratio of cross-chain variance to final variance by inner sweep"}
+plot_var_convergence(fit$sweep_history)
+```
+
+The plotted quantity is
+
+\[
+\frac{\mathrm{Var}_m}{\mathrm{Var}_{\text{final}}},
+\]
+
+the **Claim 3** quantity: the variance term of the bound.
+
+Chains that all start at the same point have zero ensemble spread at sweep
+0 and *grow* into the posterior variance, so the interesting direction is
+approach to 1 from below. For this sampler that makes the variance plot the
+more informative of the two — it is the term that is actually doing work
+in the certificate, since the mean term was zeroed by construction.
+
+A ratio still well below 1 at the final sweep means `m_convergence` was
+computed from a rate that understates the coupling. On a Gaussian route
+that should not happen (the rate is exact); on a GLMM route, where the rate
+is a local-Gaussian heuristic, it is the diagnostic that would catch it.
+
+# Multiple chains and `n_chains`
+
+Both functions accept the arguments the underlying history carries. When a
+route was run with more than one chain group, pass `n_chains` so the
+functions can reshape the stored summaries correctly:
+
+```{r n-chains, eval = FALSE}
+plot_mean_convergence(fit$sweep_history, n_chains = 4L)
+```
+
+Without it the summaries are treated as a single ensemble, which is right
+for the default configuration and wrong when chains were grouped.
+
+# Using the history programmatically
+
+The object is a plain list underneath its class, so the summaries can be
+extracted rather than plotted:
+
+```{r programmatic}
+h <- fit$sweep_history
+head(h$table, 8)
+h$cov_by_sweep[[h$n_sweeps]]
+```
+
+A minimal automated check — the one worth running in a test suite — is that
+the final-sweep mean agrees with the ICM mode to within Monte Carlo error,
+and that the variance ratio has reached 1:
+
+```{r check}
+gm <- fit$popef.mode[["Days_c"]][[1]]
+dr <- fit$popef[["Days_c"]][, 1]
+z  <- (mean(dr) - gm) / (sd(dr) / sqrt(length(dr)))
+round(c(icm = gm, draws = mean(dr), z = z), 4)
+```
+
+# Interpreting a pilot history
+
+```{r pilot, results = "hide"}
+pf_ing <- pfamily_list(
+  Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01,
+                   pop.dispersion.pwt = 0.2),
+  ptypes = "dIndependent_Normal_Gamma"
+)
+set.seed(1)
+fit_ing <- rlmerb(
+  n = 200L, design = design,
+  pfamily_list   = pf_ing,
+  dispprior_list = list(dispersion = ps$group.dispersion),
+  progbar = FALSE, verbose = FALSE, print_icm_table = FALSE
+)
+```
+
+```{r main-print}
+fit_ing$sweep_history
+```
+
+Two things changed. There is now a second block, `Block 2 RE precision`,
+tracking the sampled \(1/\tau^2_k\) across sweeps — that is `disp_table`,
+which was empty on the fixed-\(\tau^2\) fit above. And the pilot stage has
+run, with its sizing recorded in `convergence_info`:
+
+```{r pilot-info}
+ci <- fit_ing$convergence_info
+c(n_pilot        = ci$n_pilot,
+  n_pilot_source = ci$n_pilot_source,
+  m_pilot        = ci$m_convergence_pilot,
+  m_main         = ci$m_convergence,
+  lambda_star    = round(ci$lambda_star, 4),
+  method         = ci$method)
+```
+
+`n_pilot_source = "cost"` means the pilot size came from the cost
+optimization of `vignette("Chapter-B03")` rather than from the
+`gap_tol` fallback. `method = "exact+disp_lower_bound"` records that the
+rate is exact in its Gaussian part but plugged in at `disp_lower` for the
+sampled variance component — the conservatism described in
+`vignette("Chapter-B05")`.
+
+The interpretive contrast is the point. A pilot history starts at the ICM
+*mode* and its cross-chain mean moves as the chains find the posterior
+mean. The main history starts at the pilot's average and barely moves —
+which is exactly the condition under which the
+\(D_0 = \chi^2_{p,\alpha}/n_{\text{pilot}}\) term is small enough to
+certify a short main stage.
+
+If the pilot history has *not* flattened by its last sweep, `n_pilot` or
+the pilot sweep count was too small, and the main-stage certificate rests
+on a start-distance bound that the pilot did not actually achieve. That is
+the single most useful thing to look at when a fit's answers seem off.
+
+# See also
+
+- `vignette("Chapter-B01")` — replicate chains and why the ensemble view
+  applies.
+- `vignette("Chapter-B02")` — Claim 1 and Claim 3, the two bound terms
+  these plots correspond to.
+- `vignette("Chapter-B03")` — pilot sizing.
+- `vignette("Chapter-06", package = "lmebayes")` — the user-facing version.
+- `?plot_mean_convergence`, `?plot_var_convergence`

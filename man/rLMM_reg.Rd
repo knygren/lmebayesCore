@@ -376,14 +376,15 @@ optional pilot UB fields.}
 }
 }
 \description{
-Simulation functions for generating posterior draws from Bayesian linear
-mixed models, given design matrices \code{y}, \code{D}, \code{W} and
-population priors \code{pfamily_list}. Parallel to the glmbayes
-\code{\link[glmbayes]{simfuncs}} for GLMs; typically called from
-\code{\link{rlmerb}} (and from \code{lmerb()} in \strong{lmebayes}).
-Each stored draw runs \code{m_convergence} inner Gibbs sweeps (group
-coefficients \eqn{\beta_j}, then population hyperparameters
-\eqn{\gamma}/\eqn{\tau^2}), except the exact iid known-vcov route.
+Posterior draws for Bayesian linear mixed models, given design matrices
+\code{y}, \code{D}, \code{W} and population priors \code{pfamily_list}.
+The model is stated under \dQuote{Model and notation} below.
+
+These are the engine-level entry points, normally reached through
+\code{\link{rlmerb}} (or \code{lmerb()} in \pkg{lmebayes}), which is also
+where the returned object is documented field by field. Each returned
+draw is one independent replicate chain's state at its final sweep,
+except on the fully-known-variance route, where draws are exact.
 }
 \section{Functions}{
 \itemize{
@@ -524,24 +525,57 @@ derivation) see \code{notation.md} in \code{system.file(package =
 "lmebayesCore")} (source: \code{inst/notation.md}).
 }
 
-\section{Simulation routes}{
+\section{What the prior choices mean}{
 
-\describe{
-\item{\code{rLMMNormal_reg_known_vcov}}{
-Fixed observation \eqn{\sigma^2}; all population components
-\code{dNormal} (known \eqn{\tau^2_k}).}
-\item{\code{rLMMNormal_reg_estimated_vcov}}{
-Fixed \eqn{\sigma^2}; at least one ING population component.}
-\item{\code{rLMMindepNormalGamma_reg_known_vcov}}{
-Random \eqn{\sigma^2} (pooled or per-group ING observation prior, with
-group coefficients); all population components \code{dNormal}.}
-\item{\code{rLMMindepNormalGamma_reg_estimated_vcov}}{
-Random \eqn{\sigma^2} (pooled or per-group); at least one ING population
-component.}
-\item{\code{rLMMindepNormalGamma_reg_*_v2}}{
-Stubs: same priors, but observation \eqn{\sigma^2} is intended to update
-with the population block (not yet implemented).}
+Callers never name a route. It follows from two modelling decisions, and
+the decisions --- not the routing --- are what matter statistically.
+
+\strong{1. Is the residual variance \eqn{\sigma^2} known or estimated?}
+Supplying a positive scalar (or one value per group) treats it as
+\strong{known} and conditions on it. Supplying a
+\code{\link[glmbayesCore]{dGamma}()} prior --- one pooled, or a
+\code{\link{dGamma_list}} with one per group --- \strong{estimates} it.
+
+\strong{2. Are the between-group variances \eqn{\tau^2_k} known or
+estimated?} A \code{dNormal} component treats \eqn{\tau^2_k} as
+\strong{known}; a single \code{dIndependent_Normal_Gamma} component
+anywhere in \code{pfamily_list} makes that variance a parameter to be
+\strong{estimated}.
+
+The cross of the two selects one of four engines:
+\tabular{lll}{
+\strong{\eqn{\sigma^2}} \tab \strong{\eqn{\tau^2_k}} \tab \strong{Engine} \cr
+known \tab all known \tab \code{rLMMNormal_reg_known_vcov} \cr
+known \tab any estimated \tab \code{rLMMNormal_reg_estimated_vcov} \cr
+estimated \tab all known \tab \code{rLMMindepNormalGamma_reg_known_vcov} \cr
+estimated \tab any estimated \tab \code{rLMMindepNormalGamma_reg_estimated_vcov} \cr
 }
+
+The consequence that shows up in the output is exactness. When both
+variances are known the posterior is exactly multivariate normal, so
+draws are exact, \code{popef.mode} is the true posterior \emph{mean}, and
+\code{m_convergence} is \code{1}. As soon as either variance is
+estimated the posterior is no longer Gaussian: draws come from the final
+sweep of a calibrated chain, \code{popef.mode} is a conditional mode
+rather than a mean, and a short pilot stage runs first.
+
+\code{sim_method} is therefore meaningful only in the fully-known case,
+the one route offering a choice between drawing directly from the closed
+form (\code{"DEFAULT"}) and running the sweep loop on the same target
+(\code{"TWO_BLOCK_GIBBS"}, which exists mainly to cross-check the two
+against each other). Elsewhere the argument is ignored.
+
+The \code{rLMMindepNormalGamma_reg_*_v2} functions are stubs for the same
+priors with \eqn{\sigma^2} updated alongside the population parameters;
+they are not yet implemented.
+
+One input you cannot supply: the group prior precision
+\eqn{\Psi^{-1}}. It is always derived from \code{pfamily_list}, and a
+caller-supplied \code{P}/\code{Sigma} is rejected, so it cannot silently
+disagree with the population priors. See
+\code{vignette("Chapter-B01", package = "lmebayesCore")} for the engine
+map and \code{vignette("Chapter-B04", package = "lmebayesCore")} for the
+exact route.
 }
 
 \section{Dispatchers}{

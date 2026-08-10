@@ -119,9 +119,9 @@ Computes the eigenvalues of
 joint Gaussian posterior targeted by \code{\link{two_block_rNormal_reg}}
 with \code{family = gaussian()} and fixed variance components.  The
 maximal eigenvalue \eqn{\lambda^*} is the geometric contraction rate of
-the two-block Gibbs sampler (Nygren 2020, Claim 2 / Remark 8 /
-Corollary 1): the total variation distance between the \eqn{l}-step
-kernel and the target decays like \eqn{(\lambda^*)^l}.
+the two-block Gibbs sampler (\insertCite{Nygren2020}{lmebayesCore},
+Claim 2 / Remark 8 / Corollary 1): the total variation distance between
+the \eqn{l}-step kernel and the target decays like \eqn{(\lambda^*)^l}.
 }
 \details{
 Block convention: the paper's \eqn{x_1} (the block updated second in
@@ -178,13 +178,101 @@ extended \code{S}/\code{P11}/\code{P12}/\code{P21}/\code{P22},
 (base vs extended \eqn{\lambda^*} and their difference).
 
 }}
+\section{From lambda-star to sweeps}{
+
+\eqn{\lambda^*} alone gives only the geometric proxy
+\eqn{(\lambda^*)^m \le} \code{tol}, which is loose because it waits for the
+slowest eigendirection while ignoring that the others converged sweeps
+earlier.  The sampler instead inverts the exact Theorem 3 bound, which sums
+closed-form per-eigendirection terms \eqn{d_i^{(l)}} over the full spectrum
+returned in \code{eigenvalues}:
+\deqn{\mathrm{TV}\big(K^l(x^{(0)}, \cdot),\, \pi\big) \;\le\;
+      \sum_{i=1}^{q} d_i^{(l)} \;+\; (\lambda^*)^l \sqrt{D_0 / (2\pi)},}
+capped at 1, with the eigenvalues taken in ascending order (Lemma 2) and
+\eqn{D_0} the squared standardized distance of the chain start from the
+posterior mean.  Because \code{rlmerb} starts every replicate chain at the
+exact ICM posterior mean, \eqn{D_0 = 0} and the mean term vanishes
+identically; only the variance-convergence sum has to be certified.
+
+The pipeline is therefore
+\code{two_block_rate()} \eqn{\rightarrow}
+\code{\link{two_block_tv_bound}()} \eqn{\rightarrow}
+\code{\link{two_block_l_for_tv}()}, and the sampler adds \strong{one} sweep
+to the result: the bound applies to the block updated second in each sweep
+(the hyper vector \eqn{\gamma}), and the stored Block 1 draw lags by a
+half-step.  Calling \code{print()} on the returned object shows all three
+answers --- geometric proxy, Corollary 1 envelope, and Theorem 3 --- side
+by side for a range of tolerances.
+
+Cost grows only logarithmically in \eqn{1/}\code{tol}, so certifying an
+entire \code{n}-draw sample at level \eqn{\alpha} (pass
+\code{tol = alpha / n}) usually costs a handful of extra sweeps.  When
+chains cannot start at the posterior mean --- non-Gaussian families, or
+sampled variance components --- a pilot stage supplies a start whose
+\eqn{D_0} is certified from the pilot size; see
+\code{\link{two_block_optimize_pilot_cost}} and
+\code{vignette("Chapter-B03", package = "lmebayesCore")}.
+}
+
+\examples{
+## two_block_rate() — Remark 8 contraction rate for a balanced
+## random-intercept model, where lambda* has a closed form.
+##
+## For J groups of n_j observations each, p_re = q = 1, and a diffuse Block 2
+## prior,  lambda* = sigma^2 / (sigma^2 + n_j * tau^2).
+
+J      <- 12L
+n_j    <- 8L
+sigma2 <- 1.0
+tau2   <- 0.5
+
+group   <- factor(rep(seq_len(J), each = n_j))
+Z       <- matrix(1, J * n_j, 1L, dimnames = list(NULL, "(Intercept)"))
+x_hyper <- list("(Intercept)" = matrix(
+  1, J, 1L, dimnames = list(levels(group), "(Intercept)")
+))
+
+rate <- two_block_rate(
+  x                 = Z,
+  group             = group,
+  x_hyper           = x_hyper,
+  prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+  prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+)
+
+c(computed = rate$lambda_star,
+  closed_form = sigma2 / (sigma2 + n_j * tau2))
+
+## print() adds the sweeps implied by each bound: the geometric (lambda*)^m
+## proxy, the Corollary 1 envelope, and the exact Theorem 3 terms the sampler
+## actually uses.
+rate
+
+## Larger groups carry more likelihood precision and mix faster; the rate does
+## not depend on the number of groups.
+lambda_for <- function(n_j) {
+  g <- factor(rep(seq_len(J), each = n_j))
+  two_block_rate(
+    x       = matrix(1, J * n_j, 1L, dimnames = list(NULL, "(Intercept)")),
+    group   = g,
+    x_hyper = list("(Intercept)" = matrix(
+      1, J, 1L, dimnames = list(levels(g), "(Intercept)")
+    )),
+    prior_list_block1 = list(Sigma = matrix(tau2), dispersion = sigma2),
+    prior_list_block2 = list("(Intercept)" = list(mu = 0, Sigma = matrix(100)))
+  )$lambda_star
+}
+round(vapply(c(2L, 8L, 32L), lambda_for, numeric(1)), 4)
+}
 \references{
-Nygren, K. (2020). \emph{On the total variation distance
-between multivariate normal densities with applications to two-block
-Gibbs samplers.} Unpublished manuscript.
+\insertAllCited{}
 }
 \seealso{
-\code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}}
+\code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}},
+\code{\link{two_block_optimize_pilot_cost}};
+\code{vignette("Chapter-B02", package = "lmebayesCore")} for the
+derivation and \code{vignette("Chapter-B03", package = "lmebayesCore")}
+for the sweep calibration.
 
 glmbayes Simulation Functions
 \code{\link{rGLMM_Re_Draw}()},

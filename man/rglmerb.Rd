@@ -76,41 +76,195 @@ posterior samples. When \code{FALSE}, return point estimates only via
 \code{\link{rglmerb_point}} (no MCMC).}
 }
 \value{
-Object of class \code{c("rglmerb", "list")} with \code{popef.*},
-\code{groupef}/\code{groupef.mode}, and (Gaussian only)
-\code{group.dispersion}/\code{group.dispersion.mean}, plus full packed
-\code{prior}, thin \code{Prior}, \code{design}, and \code{family}.
-When a pilot stage runs, nested \code{pilot} (\code{n}, \code{chisq},
-\code{draws}) is included. When \code{simulate = FALSE}, draw / pilot /
-convergence slots are \code{NULL}.
+An object of class \code{c("rglmerb", "list")}, with the same
+layout as \code{\link{rlmerb}}. Each draw slot holds one row per
+replicate chain, taken at that chain's final sweep.
+
+\describe{
+\item{\code{popef}}{Named list of population draws \eqn{\gamma}, one
+\code{n} \eqn{\times q_k} matrix per random-effect coefficient, on
+the link scale. \code{popef.means} and \code{popef.mode} are the
+draw mean and the posterior mode.}
+\item{\code{groupef}}{Long-format data frame of group coefficients
+\eqn{\beta_j} (\code{n} \eqn{\times J} rows: \code{draw}, the
+grouping factor, then one column per coefficient), also on the link
+scale. \code{groupef.mode} is the \eqn{J \times p_{re}} mode matrix.
+Collected only when \code{collect_block1 = TRUE}.}
+\item{\code{popef.dispersion}}{Draws of the between-group variances
+\eqn{\tau^2_k}; constant for \code{dNormal} components, varying for
+estimated ones. \code{popef.dispersion.mean} is the column mean.}
+\item{\code{group.dispersion}}{Residual variance, Gaussian responses
+only; absent for \code{poisson()} and \code{binomial()}.}
+\item{\code{m_convergence}, \code{convergence_info}}{Sweeps run per
+chain and the calibration behind that count (\code{method},
+\code{lambda_star}, \code{draw_engine},
+\code{sim_method_used}, \code{icm_info}).}
+\item{\code{pilot}}{Present when a pilot stage ran, holding its size
+\code{n}, the \code{chisq} calibration constant, and its
+\code{draws}. Diagnostic only --- these are not posterior draws.}
+}
+
+Inputs are echoed back in \code{design}, \code{family}, \code{n},
+\code{call}, \code{pfamily_list}, \code{dispprior_list},
+\code{prior.weights} and \code{offset}, alongside the packed
+\code{prior} and thin \code{Prior} summaries.
+
+When \code{simulate = FALSE}, every draw, pilot and convergence slot is
+\code{NULL} and only the mode fields are populated.
 }
 \description{
-\code{rglmerb} generates posterior draws for Bayesian generalized linear
-mixed models from \code{model_setup} design objects and the same prior
-arguments as \code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}
-(\code{pfamily_list}, \code{dispprior_list}). Routes by response family:
-\itemize{
-\item \code{family = gaussian()} delegates to
-\code{\link{rLMMNormal_reg_known_vcov}},
-\code{\link{rLMMNormal_reg_estimated_vcov}},
-\code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
-\code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-\code{dispprior_list} and population \code{pfamily_list}.
-\item Non-Gaussian families delegate via \code{\link{rGLMM_reg}}
-(pilot stage always unless \code{n_pilot = 0L}; routes differ in
-eigenvalue-bound complexity). Inner sweeps use
-\code{\link{rGLMM_sweep}}.
-}
+\code{rglmerb} draws from the posterior of a Bayesian generalized linear
+mixed model --- Poisson, binomial, Gamma, or Gaussian --- with a single
+grouping factor and uncorrelated random effects, given a design from
+\code{\link{model_setup}} and priors for the population level
+(\code{pfamily_list}) and, for Gaussian responses only, the residual
+variance (\code{dispprior_list}).
 }
 \details{
-When \code{simulate = FALSE}, no MCMC draws are produced: the call
-delegates to the internal \code{\link{rglmerb_point}} and returns the
-joint posterior mode (ICM) or exact Gaussian mean at fixed
-variance-component plug-ins (draw slots are \code{NULL}).
+The returned sample is \code{n} mutually independent draws, one per
+replicate chain, taken at that chain's final sweep. It is analyzed like an
+iid sample rather than like an MCMC trace.
 
-For formula interfaces, \code{glmerb()} in the lmebayes package wraps this
-function. Design matrices are built with \code{\link{model_setup}} and
-priors with \code{\link{Prior_Setup_GLMM}}.
+This is the matrix-level interface; for a formula interface use
+\code{glmerb()} in \pkg{lmebayes}. \code{\link{rlmerb}} is the
+Gaussian-only counterpart.
+\subsection{The model being estimated}{
+
+\code{rglmerb} estimates the same two-stage structure as
+\code{\link{rlmerb}}, with a link function between the linear predictor
+and the response mean. For group \eqn{j} with link \eqn{g}:
+\deqn{y_j \mid \beta_j \sim \mathrm{family}\big(g^{-1}(D_j \beta_j)\big)
+      \qquad \textrm{(within group)}}
+\deqn{\beta_j \mid \gamma, \Psi \sim N(\mathcal{W}_j \gamma,\; \Psi)
+      \qquad \textrm{(across groups)}}
+
+The across-group stage is unchanged and remains Gaussian: group
+coefficients scatter around a population expectation
+\eqn{\mathcal{W}_j\gamma} with diagonal covariance
+\eqn{\Psi = \mathrm{diag}(\tau^2_k)}. What changes is the within-group
+stage and, with it, the interpretation of \eqn{\beta_j}, which now lives
+on the link scale --- log rates for \code{poisson()}, log-odds for
+\code{binomial()}. Summaries that are meaningful on the response scale
+need the inverse link applied to the draws.
+
+Supported families are \code{gaussian()}, \code{poisson()},
+\code{binomial()}, and \code{Gamma()} with their standard links. The
+restriction is log-concavity of the likelihood, which the sampler
+requires \insertCite{Nygren2006}{lmebayesCore}.
+}
+
+\subsection{What you supply}{
+
+\describe{
+\item{\code{design}}{A \code{\link{model_setup}} object built with the
+matching \code{family}. For non-Gaussian responses its estimability
+report matters more than usual: a group with no variation in the
+response (all-zero counts, a single binomial outcome level) has no
+finite maximum likelihood estimate, and is reported separately from
+the rank check. See
+\code{vignette("Chapter-B08", package = "lmebayesCore")}.}
+\item{\code{pfamily_list}}{The population-level prior, one component per
+random-effect coefficient, declaring whether each between-group
+variance \eqn{\tau^2_k} is known (\code{dNormal}) or estimated
+(\code{dIndependent_Normal_Gamma}).}
+\item{\code{dispprior_list}}{Only meaningful for \code{gaussian()},
+where it gives the residual variance. \code{poisson()} and
+\code{binomial()} have no free dispersion parameter, so it must be
+\code{NULL}.}
+}
+}
+
+\subsection{What the returned draws are}{
+
+As in \code{\link{rlmerb}}, \code{rglmerb} runs \code{n} independent
+replicate chains and stores one draw from each, taken at the final sweep,
+so the \code{n} draws are mutually independent and ordinary Monte Carlo
+standard errors apply. There is nothing to thin and no autocorrelation to
+diagnose.
+
+The strength of the accompanying guarantee is weaker here than in the
+Gaussian case, and the difference is worth understanding rather than
+glossing over. The calibration behind \code{m_convergence} is derived for
+Gaussian targets. A Poisson or binomial posterior is not Gaussian, so the
+engine applies the same calibration at curvature evaluated near the
+posterior mode. The sweep count is therefore a well-motivated
+\strong{budget} rather than a certificate, and \code{tv_tol} should be
+read in that spirit. Only \code{family = gaussian()} with fixed
+\eqn{\sigma^2} and all-\code{dNormal} components yields exact draws.
+
+A second difference follows from the same fact. Because the posterior mode
+is not the posterior mean when the target is skewed, chains started at the
+mode begin at an unknown distance from the target. \code{rglmerb}
+therefore runs a short \strong{pilot stage} first and uses its cross-chain
+mean as the starting point for the main chains, which shortens the main
+stage. Pilot draws are diagnostic only and are discarded --- they are
+never part of the returned sample.
+\code{vignette("Chapter-B03", package = "lmebayesCore")} covers the
+trade-off between pilot size and main-stage length.
+}
+
+\subsection{Point estimates without sampling}{
+
+\code{simulate = FALSE} returns the joint posterior mode by iterated
+conditional modes (or the exact mean for \code{gaussian()}), at fixed
+variance-component plug-ins. No sweeps run and no RNG is consumed, so the
+result is deterministic --- useful while iterating on model
+specification. All draw, pilot, and convergence slots are \code{NULL}.
+}
+}
+\examples{
+## rglmerb() — matrix-level GLMM sampler (binomial) on book_banning
+##
+## Probability that a challenged book is removed, with a random intercept and
+## a `violent` slope by state.  Restricted to the eight largest states so the
+## example stays quick under R CMD check.  Requires suggested package
+## bayesrules.  For the formula interface see lmebayes::glmerb().
+
+if (requireNamespace("bayesrules", quietly = TRUE)) {
+  data(book_banning, package = "bayesrules")
+  dat <- book_banning[, c("state", "removed", "violent")]
+  dat <- dat[stats::complete.cases(dat), ]
+  dat$removed_i <- as.integer(dat$removed == 1L | dat$removed == "1")
+  dat$violent_i <- as.integer(
+    dat$violent == TRUE | dat$violent == 1L | dat$violent == "TRUE"
+  )
+  dat$state <- factor(dat$state)
+
+  keep <- names(sort(table(dat$state), decreasing = TRUE))[seq_len(8L)]
+  dat <- droplevels(subset(dat, state \%in\% keep))
+
+  form <- removed_i ~ violent_i + (1 + violent_i || state)
+
+  design <- model_setup(form, data = dat, family = binomial())
+  ps <- Prior_Setup_GLMM(form, data = dat, family = binomial(), pop.pwt = 0.01)
+
+  ## Point estimates only: joint posterior mode by ICM, no sampling.
+  pt <- rglmerb(
+    design       = design,
+    pfamily_list = pfamily_list(ps),
+    family       = binomial(),
+    simulate     = FALSE,
+    verbose      = FALSE
+  )
+  pt$popef.mode
+
+  ## Draws.  Non-Gaussian families always run a pilot stage before the main
+  ## chains, and dispprior_list must stay NULL for binomial().
+  set.seed(1)
+  fit <- rglmerb(
+    n            = 10L,
+    design       = design,
+    pfamily_list = pfamily_list(ps),
+    family       = binomial(),
+    verbose      = FALSE,
+    progbar      = FALSE
+  )
+
+  print_groupef(fit, draws = 1:3, groups = 1:3)
+}
+}
+\references{
+\insertAllCited{}
 }
 \seealso{
 \code{\link{rlmerb}}, \code{\link{rglmerb_point}},

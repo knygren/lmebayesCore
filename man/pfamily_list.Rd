@@ -54,6 +54,13 @@ coefficient) and \code{\link{Prior_SetupGroup}} (one pfamily per row
 block).
 }
 \details{
+A \code{pfamily_list} is the prior argument every mixed-model sampler
+takes. It exists because the model requires a \emph{diagonal}
+random-effect covariance \eqn{\Psi}: with \eqn{\Psi} diagonal, the
+population (Block~2) update factorizes across random-effect
+coefficients, so each coefficient carries its own prior object rather
+than sharing one joint prior over all of \eqn{\gamma}.
+
 For a \code{\link{Prior_Setup_GLMM}} object, each group-effect
 coefficient \eqn{k} uses parameters from
 \code{object$pop.prior_list[[k]]}:
@@ -104,6 +111,53 @@ Available for all families supported by \code{Prior_SetupGroup}.
 When \code{ptypes} is omitted (\code{NULL}), every block defaults to
 \code{"dNormal"}.
 }
+\section{What the choice of family controls}{
+
+The family assigned to component \eqn{k} decides whether that
+component's variance component \eqn{\tau^2_k} is a constant or a
+parameter, and that single decision propagates through the whole engine:
+\tabular{lll}{
+\strong{Family} \tab \strong{\eqn{\tau^2_k}} \tab \strong{Consequence} \cr
+\code{"dNormal"} \tab treated as known \tab Posterior stays Gaussian; draws are exact \cr
+\code{"dIndependent_Normal_Gamma"} \tab estimated, Gamma prior on \eqn{1/\tau^2_k} \tab Posterior is non-Gaussian; draws come from the final sweep of a calibrated chain \cr
+}
+Declaring \eqn{\tau^2_k} known asserts that you already know how widely
+groups scatter on coefficient \eqn{k}; estimating it lets the data
+revise that. Both are calibrated to the same center --- by construction
+\eqn{\mathrm{rate}_k/(\mathrm{shape}_k - 1)} equals the \code{dNormal}
+dispersion --- so switching \code{ptypes} changes whether a component can
+move without changing where its prior sits.
+
+A single \code{dIndependent_Normal_Gamma} component is enough to make the
+whole posterior non-Gaussian; there is no partial-exactness discount.
+Mixing families is nonetheless coherent, and is specified by passing a
+\emph{named} \code{ptypes} vector keyed by random-effect coefficient
+name.
+}
+
+\section{Where the precision comes from}{
+
+\eqn{\Psi^{-1}} -- the group-level prior precision the samplers call
+\code{P} -- is never supplied by the caller. Every routed export derives
+it from the validated \code{pfamily_list} via one \eqn{\tau^2_k} plug-in
+per component (the fixed \code{dispersion} for \code{dNormal}, the prior
+mean \eqn{\mathrm{rate}/(\mathrm{shape}-1)} for
+\code{dIndependent_Normal_Gamma}), and rejects a caller-supplied
+\code{P} or \code{Sigma}. The prior list is therefore the single source
+of truth for the population covariance.
+}
+
+\section{Overriding a component by hand}{
+
+The result is a plain named list, so an element can be replaced with any
+\code{pfamily} object of matching dimension. Three quantities are easy to
+confuse: \code{mu} is the prior mean of the \emph{population}
+coefficient \eqn{\gamma_k}, \code{Sigma} is the uncertainty about that
+population coefficient, and \code{dispersion} is \eqn{\tau^2_k}, the
+scatter of \emph{individual group} coefficients around
+\eqn{\mathcal{W}_j\gamma}. They are independent statements.
+}
+
 \examples{
 ## pfamily_list() — population / group-effect pfamilies (Ex_13b data)
 ## Requires suggested package bayesrules.

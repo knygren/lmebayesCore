@@ -1,35 +1,57 @@
 #' Simulation Functions for Generalized Linear Mixed Models
 #'
 #' @description
-#' Simulation functions for generating posterior draws from Bayesian
-#' generalized linear mixed models (and optionally Gaussian models). Parallel
-#' to the glmbayes \code{\link[glmbayes]{simfuncs}} for GLMs; typically called
-#' from \code{\link{rglmerb}} (and from \code{glmerb()} in \strong{lmebayes}).
-#' Each stored draw runs \code{m_convergence} inner Gibbs sweeps via
-#' \code{\link{rGLMM_sweep}}. Gaussian models with observation dispersion
-#' usually use the \code{\link{rLMM_reg}} routes via \code{\link{rlmerb}}.
+#' Posterior draws for Bayesian generalized linear mixed models, given
+#' design matrices \code{y}, \code{D}, \code{W} and population priors
+#' \code{pfamily_list}. The model is the two-stage structure documented in
+#' \code{\link{rLMM_reg}} with a link function applied within groups; see
+#' \code{\link{rglmerb}} for the model statement and for how to read the
+#' returned draws.
 #'
-#' @section Simulation routes:
-#' Both routes run a \strong{pilot stage for non-Gaussian} families (local-Gaussian
-#' rate calibration and chain-mean initialisation; skip only with
-#' \code{n_pilot = 0L}). The route split is \strong{not} whether a pilot runs,
-#' but how \strong{eigenvalue bounds} are set for Theorem~3 and post-pilot
-#' upper-bound calibration:
+#' These are the engine-level entry points, normally reached through
+#' \code{\link{rglmerb}} (or \code{glmerb()} in \pkg{lmebayes}). Gaussian
+#' responses use the \code{\link{rLMM_reg}} engines instead. Each returned
+#' draw is one replicate chain's state at its final sweep.
+#'
+#' @section What the prior choices mean:
+#' Callers never name a route. Given a non-Gaussian \code{family}, the only
+#' remaining modelling decision is whether the between-group variances
+#' \eqn{\tau^2_k} are known or estimated:
+#' \tabular{ll}{
+#'   \strong{\eqn{\tau^2_k}} \tab \strong{Engine} \cr
+#'   all known (every component \code{dNormal}) \tab \code{rGLMM_reg_known_vcov} \cr
+#'   any estimated (an \code{dIndependent_Normal_Gamma} component) \tab \code{rGLMM_reg_estimated_vcov} \cr
+#' }
+#' A \code{gaussian()} family is handled by the \code{\link{rLMM_reg}}
+#' engines instead.
+#'
+#' Because the observation-level dispersion is fixed by the family for
+#' \code{poisson()} and \code{binomial()}, there is no residual-variance
+#' decision to make: the second axis present in \code{\link{rLMM_reg}}
+#' collapses.
+#'
+#' @section How this differs from the Gaussian case:
+#' Three properties hold for every GLMM route and are worth knowing before
+#' interpreting the output:
 #' \describe{
-#'   \item{\code{rGLMM_reg_known_vcov}}{
-#'     All population components \code{dNormal} (known \eqn{\tau^2_k}): standard
-#'     fixed-dispersion rate at the mode; post-pilot eigenvalue upper bound from
-#'     pilot \code{groupef} without ING \code{disp_lower} conservatism.}
-#'   \item{\code{rGLMM_reg_estimated_vcov}}{
-#'     At least one ING population component: conservative \code{disp_lower}
-#'     plug-in in \code{\link{two_block_rate_from_pfamily_list}} (upper bound
-#'     over truncated \eqn{\tau^2}); pilot updates \eqn{\tau^2} starts from
-#'     dispersion draws.}
+#'   \item{No exact draws}{The posterior is never jointly Gaussian, so there
+#'     is no closed form to sample from. Draws always come from the final
+#'     sweep of a calibrated chain.}
+#'   \item{\code{popef.mode} is a mode, not a mean}{With a skewed posterior
+#'     the two differ, so the reported mode should not be read as a posterior
+#'     mean the way it can be on the exact Gaussian route.}
+#'   \item{The sweep count is a budget, not a certificate}{The calibration is
+#'     derived for Gaussian targets and is applied here at local curvature
+#'     near the mode. It is a well-motivated approximation;
+#'     \code{convergence_info$method} records which flavour was used.}
 #' }
 #'
-#' @section Dispatcher:
-#' \code{\link{rGLMM_reg}} validates population \code{pfamily_list} and delegates
-#' to the appropriate route.
+#' The same fact --- mode \eqn{\neq} mean --- is why a short pilot stage
+#' always runs first: its cross-chain average provides a starting point
+#' closer to the target than the mode is, which shortens the main stage.
+#' Pilot draws are discarded and are never part of the returned sample.
+#' See \code{vignette("Chapter-B03", package = "lmebayesCore")} and
+#' \code{vignette("Chapter-B06", package = "lmebayesCore")}.
 #'
 #' @param n Number of stored main-stage draws. If \code{length(n) > 1}, the
 #'   length is used.
