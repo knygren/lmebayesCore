@@ -7,9 +7,11 @@
 rglmerb(
   n,
   design,
-  prior,
+  pfamily_list,
   family = poisson(),
-  group.dispersion = NULL,
+  dispprior_list = NULL,
+  offset = NULL,
+  weights = 1,
   gap_tol = 0.0196,
   tv_tol = 0.01,
   mode_gap_max = 1,
@@ -24,15 +26,24 @@ rglmerb(
 
 \item{design}{A \code{model_setup} object (from \code{\link{model_setup}}).}
 
-\item{prior}{A normalized prior container with \code{group.Sigma},
-\code{pop.prior_list}, and \code{pfamily_list}.}
+\item{pfamily_list}{Named list of Block~2 \code{pfamily} objects, one per
+random-effect coefficient in \code{design$groupef.names} (same as
+\code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}).}
 
 \item{family}{A \code{\link[stats]{family}} object. Default \code{poisson()}.}
 
-\item{group.dispersion}{Observation-level measurement dispersion \eqn{\sigma^2}:
-required positive scalar for \code{family = gaussian()}, or a
-\code{\link[glmbayesCore]{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
-\code{NULL} (default) for \code{poisson()} and \code{binomial()}.}
+\item{dispprior_list}{Block~1 observation-dispersion prior, in the same
+shapes as the \code{rLMM*} / \code{rGLMM*} engines. Required for
+\code{family = gaussian()} (\code{list(dispersion = )} or
+\code{dGamma()} / \code{dGamma_list()}); must be \code{NULL} (default)
+for \code{poisson()} and \code{binomial()}.}
+
+\item{offset, weights}{Observation offset and prior weights, as in
+\code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}
+(\code{offset = NULL}, \code{weights = 1}). When omitted, inherit
+\code{design$offset} / \code{design$weights} if present. Explicit values
+always override the design. Echoed on the fit; not yet used in Gibbs
+sweeps.}
 
 \item{gap_tol}{Legacy mode--mean gap for deriving the pilot chain count when
 \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING population
@@ -64,15 +75,16 @@ nested \code{pilot} (\code{n}, \code{chisq}, \code{draws}) is included.
 }
 \description{
 \code{rglmerb} generates posterior draws for Bayesian generalized linear
-mixed models from \code{model_setup} design objects and normalized prior
-containers. Routes by response family:
+mixed models from \code{model_setup} design objects and the same prior
+arguments as \code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}
+(\code{pfamily_list}, \code{dispprior_list}). Routes by response family:
 \itemize{
 \item \code{family = gaussian()} delegates to
 \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-\code{group.dispersion} and population \code{pfamily_list}.
+\code{dispprior_list} and population \code{pfamily_list}.
 \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}}
 (pilot stage always unless \code{n_pilot = 0L}; routes differ in
 eigenvalue-bound complexity). Inner sweeps use

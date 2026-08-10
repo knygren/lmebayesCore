@@ -1,5 +1,13 @@
 # lmebayesCore (development version)
 
+* **`rlmerb()` / `rglmerb()` prior formals align with `rLMM*` /
+  `rGLMM*`.** Replaced packed `prior` + `group.dispersion` with
+  `pfamily_list` and `dispprior_list` (same shapes as the matrix engines;
+  bare scalars / `dGamma()` / `dGamma_list()` still accepted). Also added
+  `offset = NULL` / `weights = 1` (same defaults as `rLMM*` / `rGLMM*`;
+  omitted args still inherit from `design` when present). Formula drivers
+  in **lmebayes** updated accordingly.
+
 * **Further Core helpers no longer exported** (help kept as
   `\keyword{internal}`; call via `:::`): `normalize_group()`,
   `build_mu_all()`, `matrix_args_lmm()`, `lmerb_posterior_mean()`,

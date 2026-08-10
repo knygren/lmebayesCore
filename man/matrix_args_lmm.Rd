@@ -15,7 +15,11 @@ matrix_args_lmm(
   gap_tol = 0.0196,
   mode_gap_max = 1,
   diag_sweeps = FALSE,
-  sim_method = "DEFAULT"
+  sim_method = "DEFAULT",
+  offset = NULL,
+  weights = 1,
+  offset_missing = FALSE,
+  weights_missing = FALSE
 )
 }
 \arguments{

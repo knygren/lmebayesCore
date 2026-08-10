@@ -157,8 +157,8 @@ lists helpers that keep help pages but are **not** exported (call via
 
 | Function | Role |
 |----------|------|
-| `rlmerb()` | Matrix-level Gaussian LMM two-block sampler (replicate chains) |
-| `rglmerb()` | Matrix-level GLMM two-block sampler (`rGLMM_reg` for non-Gaussian; Gaussian routes through `rLMM*`) |
+| `rlmerb()` | Matrix-level Gaussian LMM sampler (`design`, `pfamily_list`, `dispprior_list` — same prior args as `rLMM*`) |
+| `rglmerb()` | Matrix-level GLMM sampler (same prior args as `rGLMM*` / `rLMM*`; non-Gaussian routes through `rGLMM_reg`) |
 
 ### LMM / GLMM replicate-chain engines
 

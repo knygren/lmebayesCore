@@ -1,6 +1,66 @@
 ## Internal helpers for matrix-level mixed-model samplers (rlmerb / rglmerb).
 ## lmebayes calls these via lmebayesCore::: from lmerb() / glmerb() only.
 
+#' Resolve \code{offset}/\code{weights} for \code{rlmerb}/\code{rglmerb}.
+#'
+#' Formals match the matrix engines (\code{offset = NULL}, \code{weights = 1}).
+#' When a formal is \emph{missing} (caller omitted it), inherit
+#' \code{design$offset}/\code{design$weights} when present, else the engine
+#' default. An explicitly passed value always wins (including
+#' \code{weights = 1} or \code{offset = NULL} that clears a design value).
+#' @noRd
+.lmebayes_resolve_offset_weights <- function(
+    offset,
+    weights,
+    design,
+    offset_missing = FALSE,
+    weights_missing = FALSE
+) {
+  if (isTRUE(offset_missing)) {
+    offset <- if (!is.null(design$offset)) design$offset else NULL
+  }
+  if (isTRUE(weights_missing)) {
+    weights <- if (!is.null(design$weights)) design$weights else 1
+  } else if (is.null(weights)) {
+    weights <- 1
+  }
+  list(offset = offset, weights = weights)
+}
+
+#' Map a matrix-engine \code{dispprior_list} to the \code{group.dispersion}
+#' shapes accepted by \code{.lmebayes_resolve_group_dispersion()}.
+#'
+#' Engine fixed form \code{list(dispersion = ...)} unwraps to the numeric
+#' value; \code{list(ddef = TRUE)} (no observation dispersion) becomes
+#' \code{NULL}. Scalars, \code{dGamma()} / \code{dGamma_list()}, and other
+#' list forms pass through unchanged.
+#' @noRd
+.lmebayes_dispprior_list_as_group_dispersion <- function(dispprior_list) {
+  if (is.null(dispprior_list)) {
+    return(NULL)
+  }
+  if (inherits(dispprior_list, "pfamily")) {
+    return(dispprior_list)
+  }
+  if (!is.list(dispprior_list)) {
+    return(dispprior_list)
+  }
+  nms <- names(dispprior_list)
+  if (is.null(nms)) {
+    return(dispprior_list)
+  }
+  ## Engine fixed-dispersion / GLMM "no dispersion" containers.
+  if ("dispersion" %in% nms &&
+      !any(c("shape", "rate", "shape_group", "rate_group") %in% nms)) {
+    return(dispprior_list$dispersion)
+  }
+  if (isTRUE(dispprior_list$ddef) && is.null(dispprior_list$dispersion) &&
+      !any(c("shape", "rate", "shape_group", "rate_group") %in% nms)) {
+    return(NULL)
+  }
+  dispprior_list
+}
+
 #' @noRd
 .lmebayes_resolve_group_dispersion <- function(
     group.dispersion,
@@ -303,14 +363,15 @@
 #' Normalize a Block~2 \code{pfamily_list} (+ \code{group.dispersion}) into a sampler \code{prior}
 #'
 #' @description
-#' Shared front-door normalizer used by \code{lmerb()}/\code{glmerb()} (via
+#' Shared front-door normalizer used by \code{rlmerb()}/\code{rglmerb()}
+#' and by \code{lmerb()}/\code{glmerb()} (via
 #' \code{lmebayesCore::priors_from_pfamily_list()} in \strong{lmebayes}) to
 #' turn the two independent user-supplied prior specs -- the Block~2
 #' \code{pfamily_list} (one prior per random-effect coefficient) and the
-#' Block~1 \code{group.dispersion} (observation-level dispersion) -- into the
-#' single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}},
-#' by \code{rlmerb()}/\code{rglmerb()}'s ICM/reporting code, and by the
-#' routed \code{rLMM_reg}/\code{rGLMM_reg} exports.
+#' Block~1 dispersion (\code{group.dispersion} here; \code{dispprior_list}
+#' on the matrix engines / \code{rlmerb}/\code{rglmerb}) -- into the
+#' single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}}
+#' and ICM/reporting code.
 #'
 #' @details
 #' Concretely, this function:
@@ -1892,13 +1953,22 @@ matrix_args_lmm <- function(
     gap_tol       = 0.0196,
     mode_gap_max  = 1.0,
     diag_sweeps   = FALSE,
-    sim_method    = "DEFAULT"
+    sim_method    = "DEFAULT",
+    offset        = NULL,
+    weights       = 1,
+    offset_missing = FALSE,
+    weights_missing = FALSE
 ) {
   ## The routed export has no 'group_name' formal: attach it to 'group'
   ## itself (design$group is never a bare variable here, so the export's
   ## substitute()-based fallback could not resolve it anyway).
   grp <- design$group
   attr(grp, "group_name") <- design$group_name
+  ow <- .lmebayes_resolve_offset_weights(
+    offset, weights, design,
+    offset_missing = offset_missing,
+    weights_missing = weights_missing
+  )
 
   args <- list(
     n             = n,
@@ -1907,8 +1977,8 @@ matrix_args_lmm <- function(
     group         = grp,
     W             = design$W,
     pfamily_list  = prior$pfamily_list,
-    offset        = if (!is.null(design$offset)) design$offset else NULL,
-    weights       = if (!is.null(design$weights)) design$weights else 1,
+    offset        = ow$offset,
+    weights       = ow$weights,
     tv_tol        = tv_tol,
     progbar       = progbar,
     verbose       = verbose
@@ -1959,7 +2029,11 @@ matrix_args_lmm <- function(
     mode_gap_max  = 1.0,
     verbose       = FALSE,
     progbar       = FALSE,
-    collect_block1 = TRUE
+    collect_block1 = TRUE,
+    offset        = NULL,
+    weights       = 1,
+    offset_missing = FALSE,
+    weights_missing = FALSE
 ) {
   block1_prior <- .lmebayes_block1_prior_list(prior, group.dispersion = NULL)
 
@@ -1968,6 +2042,11 @@ matrix_args_lmm <- function(
   ## substitute()-based fallback could not resolve it anyway).
   grp <- design$group
   attr(grp, "group_name") <- design$group_name
+  ow <- .lmebayes_resolve_offset_weights(
+    offset, weights, design,
+    offset_missing = offset_missing,
+    weights_missing = weights_missing
+  )
 
   list(
     n               = n,
@@ -1977,8 +2056,8 @@ matrix_args_lmm <- function(
     W               = design$W,
     pfamily_list    = prior$pfamily_list,
     dispprior_list  = block1_prior,
-    offset          = if (!is.null(design$offset)) design$offset else NULL,
-    weights         = if (!is.null(design$weights)) design$weights else 1,
+    offset          = ow$offset,
+    weights         = ow$weights,
     family          = family,
     gap_tol         = gap_tol,
     tv_tol          = tv_tol,
@@ -2002,7 +2081,11 @@ matrix_args_lmm <- function(
     gap_tol             = 0.0196,
     mode_gap_max        = 1.0,
     diag_sweeps         = FALSE,
-    sim_method          = "DEFAULT"
+    sim_method          = "DEFAULT",
+    offset              = NULL,
+    weights             = 1,
+    offset_missing      = FALSE,
+    weights_missing     = FALSE
 ) {
   route_key <- .lmebayes_reg_route_key(
     family         = gaussian(),
@@ -2021,7 +2104,11 @@ matrix_args_lmm <- function(
     gap_tol       = gap_tol,
     mode_gap_max  = mode_gap_max,
     diag_sweeps   = diag_sweeps,
-    sim_method    = sim_method
+    sim_method    = sim_method,
+    offset        = offset,
+    weights       = weights,
+    offset_missing = offset_missing,
+    weights_missing = weights_missing
   )
   out <- do.call(route$export_fn, args)
   if (is.null(out$convergence_info$sim_method_used)) {
@@ -2041,7 +2128,11 @@ matrix_args_lmm <- function(
     mode_gap_max  = 1.0,
     verbose       = FALSE,
     progbar       = FALSE,
-    collect_block1 = TRUE
+    collect_block1 = TRUE,
+    offset        = NULL,
+    weights       = 1,
+    offset_missing = FALSE,
+    weights_missing = FALSE
 ) {
   route_key <- .lmebayes_reg_route_key(
     family         = family,
@@ -2059,7 +2150,11 @@ matrix_args_lmm <- function(
     mode_gap_max   = mode_gap_max,
     verbose        = verbose,
     progbar        = progbar,
-    collect_block1 = collect_block1
+    collect_block1 = collect_block1,
+    offset         = offset,
+    weights        = weights,
+    offset_missing = offset_missing,
+    weights_missing = weights_missing
   )
   out <- do.call(route$export_fn, args)
   disp_none <- list(mode = "none")

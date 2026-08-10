@@ -1,15 +1,16 @@
 #' The Bayesian Generalized Linear Mixed-Effects Model Distribution
 #'
 #' \code{rglmerb} generates posterior draws for Bayesian generalized linear
-#' mixed models from \code{model_setup} design objects and normalized prior
-#' containers. Routes by response family:
+#' mixed models from \code{model_setup} design objects and the same prior
+#' arguments as \code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}
+#' (\code{pfamily_list}, \code{dispprior_list}). Routes by response family:
 #' \itemize{
 #'   \item \code{family = gaussian()} delegates to
 #'     \code{\link{rLMMNormal_reg_known_vcov}},
 #'     \code{\link{rLMMNormal_reg_estimated_vcov}},
 #'     \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #'     \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#'     \code{group.dispersion} and population \code{pfamily_list}.
+#'     \code{dispprior_list} and population \code{pfamily_list}.
 #'   \item Non-Gaussian families delegate via \code{\link{rGLMM_reg}}
 #'     (pilot stage always unless \code{n_pilot = 0L}; routes differ in
 #'     eigenvalue-bound complexity). Inner sweeps use
@@ -22,13 +23,21 @@
 #'
 #' @param n Integer. Number of independent chains in the main stage.
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}}).
-#' @param prior A normalized prior container with \code{group.Sigma},
-#'   \code{pop.prior_list}, and \code{pfamily_list}.
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
+#'   random-effect coefficient in \code{design$groupef.names} (same as
+#'   \code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}).
 #' @param family A \code{\link[stats]{family}} object. Default \code{poisson()}.
-#' @param group.dispersion Observation-level measurement dispersion \eqn{\sigma^2}:
-#'   required positive scalar for \code{family = gaussian()}, or a
-#'   \code{\link[glmbayesCore]{dGamma}()} pfamily with \code{Inv_Dispersion = TRUE}; must be
-#'   \code{NULL} (default) for \code{poisson()} and \code{binomial()}.
+#' @param dispprior_list Block~1 observation-dispersion prior, in the same
+#'   shapes as the \code{rLMM*} / \code{rGLMM*} engines. Required for
+#'   \code{family = gaussian()} (\code{list(dispersion = )} or
+#'   \code{dGamma()} / \code{dGamma_list()}); must be \code{NULL} (default)
+#'   for \code{poisson()} and \code{binomial()}.
+#' @param offset,weights Observation offset and prior weights, as in
+#'   \code{\link{rGLMM_reg}} / \code{\link{rLMMNormal_reg}}
+#'   (\code{offset = NULL}, \code{weights = 1}). When omitted, inherit
+#'   \code{design$offset} / \code{design$weights} if present. Explicit values
+#'   always override the design. Echoed on the fit; not yet used in Gibbs
+#'   sweeps.
 #' @param gap_tol Legacy mode--mean gap for deriving the pilot chain count when
 #'   \code{tv_tol} is \code{NULL}. Ignored for Gaussian without ING population
 #'   components.
@@ -61,9 +70,11 @@ NULL
 rglmerb <- function(
     n,
     design,
-    prior,
+    pfamily_list,
     family              = poisson(),
-    group.dispersion    = NULL,
+    dispprior_list      = NULL,
+    offset              = NULL,
+    weights             = 1,
     gap_tol             = 0.0196,
     tv_tol              = 0.01,
     mode_gap_max        = 1.0,
@@ -88,6 +99,14 @@ rglmerb <- function(
     stop("'family' must be a family object.", call. = FALSE)
   }
 
+  if (missing(pfamily_list) || is.null(pfamily_list)) {
+    stop(
+      "'pfamily_list' is required for rglmerb() (named Block~2 pfamily list, ",
+      "same as rGLMM_reg() / rLMMNormal_reg()).",
+      call. = FALSE
+    )
+  }
+
   if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
       !is.finite(tv_tol) || tv_tol <= 0 || tv_tol >= 1) {
     stop("'tv_tol' must be a single value in (0, 1).", call. = FALSE)
@@ -95,11 +114,20 @@ rglmerb <- function(
 
   is_gaussian <- identical(family$family, "gaussian")
 
-  disp_info <- .lmebayes_resolve_group_dispersion(
+  group.dispersion <- .lmebayes_dispprior_list_as_group_dispersion(dispprior_list)
+  prior <- priors_from_pfamily_list(
+    pfamily_list     = pfamily_list,
     group.dispersion = group.dispersion,
-    family           = family,
     design           = design,
+    family           = family,
     fn_name          = "rglmerb"
+  )
+  disp_info <- list(
+    mode                  = prior$dispersion_mode,
+    dispersion_fix        = prior$group.dispersion,
+    dispersion_prior_list = prior$dispersion_prior_list,
+    dispersion_pfamily    = prior$dispersion_pfamily,
+    window_diagnostics    = prior$window_diagnostics
   )
 
   re_names     <- design$groupef.names
@@ -121,7 +149,11 @@ rglmerb <- function(
       verbose       = verbose,
       gap_tol       = gap_tol,
       mode_gap_max  = mode_gap_max,
-      sim_method    = sim_method
+      sim_method    = sim_method,
+      offset        = offset,
+      weights       = weights,
+      offset_missing = missing(offset),
+      weights_missing = missing(weights)
     )
 
     icm_lbl <- .lmebayes_block2_icm_labels(prior, family)
@@ -184,7 +216,11 @@ rglmerb <- function(
     mode_gap_max   = mode_gap_max,
     verbose        = verbose,
     progbar        = progbar,
-    collect_block1 = collect_block1
+    collect_block1 = collect_block1,
+    offset         = offset,
+    weights        = weights,
+    offset_missing = missing(offset),
+    weights_missing = missing(weights)
   )
   out$call <- cl
 

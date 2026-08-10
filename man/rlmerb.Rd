@@ -7,8 +7,10 @@
 rlmerb(
   n,
   design,
-  prior,
-  group.dispersion,
+  pfamily_list,
+  dispprior_list,
+  offset = NULL,
+  weights = 1,
   tv_tol = 0.01,
   progbar = TRUE,
   verbose = TRUE,
@@ -27,15 +29,23 @@ rlmerb(
 supplying \code{y}, \code{D}, \code{group}, \code{W},
 \code{group_name}, and \code{groupef.names}.}
 
-\item{prior}{Normalized prior container with \code{group.Sigma},
-\code{pop.prior_list}, and related population fields (typically from
-\code{pfamily_list} and \code{group.dispersion} via
-\code{\link{Prior_Setup_GLMM}} or an \code{lmerb()} workflow in
-lmebayes).}
+\item{pfamily_list}{Named list of Block~2 \code{pfamily} objects, one per
+random-effect coefficient in \code{design$groupef.names} (same as
+\code{\link{rLMMNormal_reg}}).}
 
-\item{group.dispersion}{Required observation-level dispersion: a positive
-scalar \eqn{\sigma^2} (fixed) or a \code{\link[glmbayesCore]{dGamma}()} pfamily with
-\code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.}
+\item{dispprior_list}{Block~1 observation-dispersion prior, in the same
+shapes accepted by the \code{rLMM*} engines: \code{list(dispersion = )}
+for fixed \eqn{\sigma^2} (scalar or per-group vector); a
+\code{\link[glmbayesCore]{dGamma}()} pfamily (pooled ING); or a named
+list of \code{dGamma()} pfamilies (per-group ING). A bare positive
+numeric scalar/vector is also accepted (treated as fixed dispersion).}
+
+\item{offset, weights}{Observation offset and prior weights, as in
+\code{\link{rLMMNormal_reg}} (\code{offset = NULL}, \code{weights = 1}).
+When omitted, inherit \code{design$offset} / \code{design$weights} from
+\code{\link{model_setup}} if present. Explicit values always override
+the design. Echoed on the fit as \code{prior.weights} / \code{offset} /
+\code{offset2}; not yet used in Gibbs sweeps.}
 
 \item{tv_tol}{Single numeric in \code{(0, 1)}. Total variation tolerance
 used for convergence calibration. Default \code{0.01}.
@@ -66,7 +76,7 @@ the fit. Default \code{FALSE}.}
 \item{sim_method}{Simulation method: \code{"DEFAULT"} or
 \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 known-variance-components route (scalar or per-group fixed
-\code{group.dispersion}, all population \code{dNormal()}): \code{"DEFAULT"}
+\code{dispprior_list}, all population \code{dNormal()}): \code{"DEFAULT"}
 draws directly from the exact multivariate-normal posterior via
 \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
 burn-in); \code{"TWO_BLOCK_GIBBS"} forces two-block Gibbs sampling
@@ -88,13 +98,16 @@ vector, or draws when a Gamma measurement prior was used),
 \description{
 \code{rlmerb} generates posterior draws for Bayesian linear mixed models,
 parallel to \code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. It
-takes structured \code{design} and \code{prior} objects, computes the ICM
-posterior mean internally, and delegates sampling to
+takes a \code{model_setup} design plus the same Block~2 / Block~1 prior
+arguments as \code{\link{rLMMNormal_reg}} /
+\code{\link{rLMMindepNormalGamma_reg}} (\code{pfamily_list},
+\code{dispprior_list}), computes the ICM posterior mean internally, and
+delegates sampling to
 \code{\link{rLMMNormal_reg_known_vcov}},
 \code{\link{rLMMNormal_reg_estimated_vcov}},
 \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-\code{group.dispersion} and population \code{pfamily_list}.
+\code{dispprior_list} and population \code{pfamily_list}.
 }
 \details{
 For formula interfaces, \code{lmerb()} in the lmebayes package wraps this

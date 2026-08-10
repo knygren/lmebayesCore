@@ -2,13 +2,16 @@
 #'
 #' \code{rlmerb} generates posterior draws for Bayesian linear mixed models,
 #' parallel to \code{\link[glmbayesCore]{rlmb}} and \code{\link{rglmerb}}. It
-#' takes structured \code{design} and \code{prior} objects, computes the ICM
-#' posterior mean internally, and delegates sampling to
+#' takes a \code{model_setup} design plus the same Block~2 / Block~1 prior
+#' arguments as \code{\link{rLMMNormal_reg}} /
+#' \code{\link{rLMMindepNormalGamma_reg}} (\code{pfamily_list},
+#' \code{dispprior_list}), computes the ICM posterior mean internally, and
+#' delegates sampling to
 #' \code{\link{rLMMNormal_reg_known_vcov}},
 #' \code{\link{rLMMNormal_reg_estimated_vcov}},
 #' \code{\link{rLMMindepNormalGamma_reg_known_vcov}}, or
 #' \code{\link{rLMMindepNormalGamma_reg_estimated_vcov}} according to
-#' \code{group.dispersion} and population \code{pfamily_list}.
+#' \code{dispprior_list} and population \code{pfamily_list}.
 #'
 #' For formula interfaces, \code{lmerb()} in the lmebayes package wraps this
 #' function.
@@ -18,14 +21,21 @@
 #' @param design A \code{model_setup} object (from \code{\link{model_setup}})
 #'   supplying \code{y}, \code{D}, \code{group}, \code{W},
 #'   \code{group_name}, and \code{groupef.names}.
-#' @param prior Normalized prior container with \code{group.Sigma},
-#'   \code{pop.prior_list}, and related population fields (typically from
-#'   \code{pfamily_list} and \code{group.dispersion} via
-#'   \code{\link{Prior_Setup_GLMM}} or an \code{lmerb()} workflow in
-#'   lmebayes).
-#' @param group.dispersion Required observation-level dispersion: a positive
-#'   scalar \eqn{\sigma^2} (fixed) or a \code{\link[glmbayesCore]{dGamma}()} pfamily with
-#'   \code{Inv_Dispersion = TRUE} for a Gamma prior on \eqn{\sigma^2}.
+#' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
+#'   random-effect coefficient in \code{design$groupef.names} (same as
+#'   \code{\link{rLMMNormal_reg}}).
+#' @param dispprior_list Block~1 observation-dispersion prior, in the same
+#'   shapes accepted by the \code{rLMM*} engines: \code{list(dispersion = )}
+#'   for fixed \eqn{\sigma^2} (scalar or per-group vector); a
+#'   \code{\link[glmbayesCore]{dGamma}()} pfamily (pooled ING); or a named
+#'   list of \code{dGamma()} pfamilies (per-group ING). A bare positive
+#'   numeric scalar/vector is also accepted (treated as fixed dispersion).
+#' @param offset,weights Observation offset and prior weights, as in
+#'   \code{\link{rLMMNormal_reg}} (\code{offset = NULL}, \code{weights = 1}).
+#'   When omitted, inherit \code{design$offset} / \code{design$weights} from
+#'   \code{\link{model_setup}} if present. Explicit values always override
+#'   the design. Echoed on the fit as \code{prior.weights} / \code{offset} /
+#'   \code{offset2}; not yet used in Gibbs sweeps.
 #' @param tv_tol Single numeric in \code{(0, 1)}. Total variation tolerance
 #'   used for convergence calibration. Default \code{0.01}.
 #'   Inner Gibbs sweeps per stored draw are derived from Theorem~3.
@@ -48,7 +58,7 @@
 #' @param sim_method Simulation method: \code{"DEFAULT"} or
 #'   \code{"TWO_BLOCK_GIBBS"}. Only affects the fixed-dispersion,
 #'   known-variance-components route (scalar or per-group fixed
-#'   \code{group.dispersion}, all population \code{dNormal()}): \code{"DEFAULT"}
+#'   \code{dispprior_list}, all population \code{dNormal()}): \code{"DEFAULT"}
 #'   draws directly from the exact multivariate-normal posterior via
 #'   \code{\link{rLMMNormal_reg_known_vcov_iid}} (no Gibbs sweeps, no
 #'   burn-in); \code{"TWO_BLOCK_GIBBS"} forces two-block Gibbs sampling
@@ -74,8 +84,10 @@
 rlmerb <- function(
     n,
     design,
-    prior,
-    group.dispersion,
+    pfamily_list,
+    dispprior_list,
+    offset              = NULL,
+    weights             = 1,
     tv_tol        = 0.01,
     progbar         = TRUE,
     verbose         = TRUE,
@@ -97,19 +109,36 @@ rlmerb <- function(
     stop("'design' must be a model_setup object.", call. = FALSE)
   }
 
-  if (missing(group.dispersion)) {
+  if (missing(pfamily_list) || is.null(pfamily_list)) {
     stop(
-      "'group.dispersion' is required for rlmerb(): a positive scalar or ",
-      "dGamma() pfamily with Inv_Dispersion = TRUE.",
+      "'pfamily_list' is required for rlmerb() (named Block~2 pfamily list, ",
+      "same as rLMMNormal_reg()).",
+      call. = FALSE
+    )
+  }
+  if (missing(dispprior_list)) {
+    stop(
+      "'dispprior_list' is required for rlmerb(): list(dispersion = ...) for ",
+      "fixed sigma^2, or a dGamma()/dGamma_list() measurement prior ",
+      "(same as rLMM* engines).",
       call. = FALSE
     )
   }
 
-  disp_info <- .lmebayes_resolve_group_dispersion(
+  group.dispersion <- .lmebayes_dispprior_list_as_group_dispersion(dispprior_list)
+  prior <- priors_from_pfamily_list(
+    pfamily_list     = pfamily_list,
     group.dispersion = group.dispersion,
-    family           = gaussian(),
     design           = design,
+    family           = gaussian(),
     fn_name          = "rlmerb"
+  )
+  disp_info <- list(
+    mode                  = prior$dispersion_mode,
+    dispersion_fix        = prior$group.dispersion,
+    dispersion_prior_list = prior$dispersion_prior_list,
+    dispersion_pfamily    = prior$dispersion_pfamily,
+    window_diagnostics    = prior$window_diagnostics
   )
 
   if (!is.numeric(tv_tol) || length(tv_tol) != 1L ||
@@ -126,7 +155,6 @@ rlmerb <- function(
   }
 
   re_names     <- design$groupef.names
-  group_levels <- levels(design$group)
   block1_prior <- .lmebayes_block1_prior_list(
     prior,
     group.dispersion = disp_info$dispersion_fix
@@ -143,7 +171,11 @@ rlmerb <- function(
     gap_tol             = gap_tol,
     mode_gap_max        = mode_gap_max,
     diag_sweeps         = diag_sweeps,
-    sim_method          = sim_method
+    sim_method          = sim_method,
+    offset              = offset,
+    weights             = weights,
+    offset_missing      = missing(offset),
+    weights_missing     = missing(weights)
   )
 
   if (isTRUE(print_icm_table)) {

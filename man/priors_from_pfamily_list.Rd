@@ -102,14 +102,15 @@ estimated rather than known). Drives the \code{"known"} vs.
 }
 }
 \description{
-Shared front-door normalizer used by \code{lmerb()}/\code{glmerb()} (via
+Shared front-door normalizer used by \code{rlmerb()}/\code{rglmerb()}
+and by \code{lmerb()}/\code{glmerb()} (via
 \code{lmebayesCore::priors_from_pfamily_list()} in \strong{lmebayes}) to
 turn the two independent user-supplied prior specs -- the Block~2
 \code{pfamily_list} (one prior per random-effect coefficient) and the
-Block~1 \code{group.dispersion} (observation-level dispersion) -- into the
-single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}},
-by \code{rlmerb()}/\code{rglmerb()}'s ICM/reporting code, and by the
-routed \code{rLMM_reg}/\code{rGLMM_reg} exports.
+Block~1 dispersion (\code{group.dispersion} here; \code{dispprior_list}
+on the matrix engines / \code{rlmerb}/\code{rglmerb}) -- into the
+single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}}
+and ICM/reporting code.
 }
 \details{
 Concretely, this function:

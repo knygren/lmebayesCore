@@ -182,7 +182,7 @@ test_that("sim_method validation rejects unknown values", {
 
   expect_error(
     rlmerb(
-      n = 5L, design = list(), prior = list(), group.dispersion = 1,
+      n = 5L, design = list(), pfamily_list = list(), dispprior_list = 1,
       sim_method = "bogus"
     ),
     "sim_method"
@@ -190,8 +190,8 @@ test_that("sim_method validation rejects unknown values", {
 
   expect_error(
     rglmerb(
-      n = 5L, design = list(), prior = list(), family = gaussian(),
-      group.dispersion = 1, sim_method = "bogus"
+      n = 5L, design = list(), pfamily_list = list(), family = gaussian(),
+      dispprior_list = 1, sim_method = "bogus"
     ),
     "sim_method"
   )
