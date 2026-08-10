@@ -138,6 +138,6 @@ on one chart and \code{Z(l)} is expected to shrink toward 0 as \code{l}
 grows.
 }
 \seealso{
-\code{\link{plot_var_convergence}}, \code{\link{plot_sweep_history_diag}},
+\code{\link{plot_var_convergence}},
 \code{\link{lmerb_posterior_mean}}
 }

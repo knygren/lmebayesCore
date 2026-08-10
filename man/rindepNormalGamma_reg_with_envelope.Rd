@@ -59,6 +59,11 @@ Diagnostic wrapper with the same sampling pipeline as
 standardized envelope (\code{Envelope}), \code{gamma_list}, \code{UB_list},
 and \code{diagnostics} used by the joint accept--reject sampler
 (standardized subproblem; see \code{glmbayesCore::EnvelopeOrchestrator()}).
+Not exported: call via \code{lmebayesCore:::rindepNormalGamma_reg_with_envelope()}.
 Intended for parity checks and development; production callers should use
-\code{glmbayesCore::rindepNormalGamma_reg()}.
+\code{glmbayesCore::rindepNormalGamma_reg()}. A future
+\pkg{glmbayesCore} update may add an option on
+\code{rindepNormalGamma_reg()} to return the envelope (this function can
+serve as a template).
 }
+\keyword{internal}

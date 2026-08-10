@@ -125,13 +125,12 @@ Exported from **lmebayes** via `R/reexports_glmbayesCore.R` (`@export` /
 | `rlmerb()` | `rlmerb.R` | Matrix-level Gaussian LMM two-block sampler. |
 | `rglmerb()` | `rglmerb.R` | Matrix-level GLMM two-block sampler. |
 | `pfamily_list()` | `pfamily_list.R`, `pfamily_list_Prior_Setup_GLMM.R` | S3 generic; `Prior_Setup_GLMM` method builds Block~2 priors. |
-| `plot_sweep_history_diag()` | `plot_sweep_history_diag.R` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history`. |
+| `plot_mean_convergence()`, `plot_var_convergence()` | `plot_convergence.R` | Claim 1 / Claim 3 sweep-history diagnostics. |
 
 **lmebayes** callers: `model_setup()` and `Prior_Setup_GLMM()` from user
-workflows and `Prior_SetupGroup()`; `pfamily_list()` from `lmerb()` / `glmerb()`
-(via `.lmebayes_priors_from_pfamily_list()`); `rlmerb()` / `rglmerb()` from
-`lmerb()` / `glmerb()` when `simulate = TRUE`; `plot_sweep_history_diag()` from
-demos and user diagnostics on `fit$sweep_history$main`.
+workflows and `Prior_SetupGroup()`; `pfamily_list()` from `lmerb()` / `glmerb()`;
+`rlmerb()` / `rglmerb()` from `lmerb()` / `glmerb()`; convergence plots from
+demos on `fit$sweep_history$main`.
 
 ### Direct calls from **lmebayes** `R/` (must stay exported in Core)
 

@@ -92,12 +92,12 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | `rLMM_reg.R` | Four Gaussian LMM replicate-chain routes (`rLMMNormal_reg*`, `rLMMindepNormalGamma_reg*`) plus dispatchers |
 | `rGLMM_reg.R` / `rGLMM_sweep.R` | GLMM replicate-chain routes (known/estimated vcov) and the inner sweep-outer driver behind them |
 | `two_block_rNormal_reg.R`, `two_block_batch_gibbs.R`, `two_block_pilot_cost.R`, `two_block_tau2_ref.R`, `two_block_measurement_prior.R`, `two_block_ergodicity.R`, `two_block_glmm_pilot_helpers.R`, `two_block_lmm_staged_sweep_outer.R` | Two-block Gibbs engine internals: Block~2 Normal regression, pilot-chain cost/TV calibration, dispersion reference tracking, ergodicity helpers |
-| `two_block_sweep_history.R` / `plot_sweep_history_diag.R` | Sweep-history container, `print()` method, and cross-chain mean/SD diagnostic plot |
+| `two_block_sweep_history.R` / `plot_convergence.R` | Sweep-history container, `print()` method, and Claim 1 / Claim 3 convergence plots |
 | `mixed_rmerb_helpers.R` | Internal helpers shared by `rlmerb()` / `rglmerb()` and **lmebayes** formula drivers |
 | `build_mu_all.R` | Observation-level prior means for ICM / `simulate = FALSE` paths |
 | `lmebayes_posterior_icm.R` | ICM posterior mean/mode (`lmerb_posterior_mean()`, `glmerb_posterior_mode()`) |
 | `ing_prior_guard.R` | Truncation-window / ING dispersion prior guardrails |
-| `rindepNormalGamma_reg_with_envelope.R` | `lmebayesCore`-specific envelope-based sampler (not a duplicate of any `glmbayesCore` export) |
+| `rindepNormalGamma_reg_with_envelope.R` | Documented internal diagnostic ING sampler that returns envelope artifacts (call via `:::`; not a `glmbayesCore` duplicate) |
 | `lmebayes_reg_route_table.R` | Route dispatch table used by `.lmebayes_run_glmm_engine()` / `.lmebayes_run_lmm_engine()` |
 | `glmmtmb_reference_helpers.R` | Optional `glmmTMB` reference-fit comparison helpers |
 
@@ -151,8 +151,6 @@ lists helpers that keep help pages but are **not** exported (call via
 | `pfamily_list()` | S3 generic; methods for `Prior_Setup_GLMM` and `Prior_SetupGroup` build Block~2 `pfamily` lists |
 | `dGamma_list()` | S3 generic; `dGamma_list.Prior_Setup_GLMM()` builds Block~1 dispersion `pfamily` objects |
 | `check_identifiability()` | Level-1 / Level-2 rank and estimability checks on `(y, D, group, W)` |
-| `priors_from_pfamily_list()` | Unpack `pfamily_list` + measurement dispersion into matrix-sampler prior fields |
-
 ### Matrix-level two-block samplers
 
 | Function | Role |
@@ -165,7 +163,7 @@ lists helpers that keep help pages but are **not** exported (call via
 | Function | Role |
 |----------|------|
 | `rLMMNormal_reg()`, `rLMMNormal_reg_known_vcov()`, `rLMMNormal_reg_estimated_vcov()` | Gaussian LMM dispatcher / routes with fixed observation dispersion |
-| `rLMMNormal_reg_known_vcov_iid()`, `rLMMNormal_joint_iid()` | Exact iid draws from the closed-form Gaussian posterior (known τ²) |
+| `rLMMNormal_reg_known_vcov_iid()` | Exact iid draws from the closed-form Gaussian posterior (known τ²) |
 | `rLMMNormal_reg_known_vcov_two_bg()` | Same known-τ² target via two-block Gibbs (Theorem 3 TV calibration) |
 | `rLMMindepNormalGamma_reg()`, `rLMMindepNormalGamma_reg_known_vcov()`, `rLMMindepNormalGamma_reg_estimated_vcov()` | Gaussian LMM routes with random observation dispersion (ING) |
 | `rLMMindepNormalGamma_reg_known_vcov_v2()`, `rLMMindepNormalGamma_reg_estimated_vcov_v2()` | v2 stubs (σ² with the population block; sampling not yet implemented) |
@@ -182,15 +180,16 @@ lists helpers that keep help pages but are **not** exported (call via
 
 | Function | Role |
 |----------|------|
-| `plot_sweep_history_diag()` | Cross-chain mean/SD vs inner sweep for `two_block_sweep_history` |
 | `plot_mean_convergence()` | Cross-chain mean diagnostics vs sweep (S3; fit classes + default) |
 | `plot_var_convergence()` | Cross-chain variance / precision diagnostics vs sweep |
-| `print_groupef()` | Print selected group-effect draws from an `rLMM*` / `rGLMM*` result |
+| `print_groupef()` | S3 generic: print selected group-effect draws (`rLMM*` / `rGLMM*` / `rlmerb` / `rglmerb`) |
+| `two_block_rate()`, `two_block_rate_from_pfamily_list()` | Remark‑8 two-block Gibbs convergence rate / `pfamily_list` adapter (help also covers `two_block_rate_ing`) |
 
 ### Documented internals (not exported)
 
 Help topics with `\keyword{internal}`; use `lmebayesCore:::…` outside the
-package.
+package. (`two_block_rate_ing()` and the rate print methods are documented
+under `?two_block_rate`.)
 
 | Function | Role |
 |----------|------|
@@ -203,25 +202,21 @@ package.
 | `rGLMM_sweep()` | Inner two-block sweep driver behind `rGLMM_reg` and ING LMM routes |
 | `rGLMM_Re_Draw()` | Re-draw helper for the GLMM sweep-outer engine |
 | `two_block_rNormal_reg()` | Two-block Normal regression engine (Block~2 via `pfamily_list`) |
-| `two_block_rate()`, `two_block_rate_from_pfamily_list()`, `two_block_tv_bound()`, `two_block_l_for_tv()` | Convergence-rate / total-variation calibration for inner Gibbs sweeps |
-| `two_block_rate_ing()` | Extended (lambda, Omega)-aware local rate diagnostic |
+| `rLMMNormal_joint_iid()` | Exact iid matrix engine behind `rLMMNormal_reg_known_vcov_iid()` (call via `:::`) |
+| `two_block_tv_bound()`, `two_block_l_for_tv()` | TV bound / sweeps-for-tolerance helpers (call via `:::`) |
+| `two_block_rate_ing()` | Extended (lambda, Omega)-aware local rate diagnostic (call via `:::`; see `?two_block_rate`) |
 | `two_block_pilot_sampling_cost()`, `two_block_optimize_pilot_cost()`, `two_block_d0_pilot_start()`, `two_block_m_convergence_for_pilot_start()` | Pilot vs main chain cost optimization |
 | `two_block_align_b_to_xhyper()` / `.two_block_align_b_to_xhyper` (+ `_cpp`) | Align Block~1 draws to `X_hyper` row order |
 | `two_block_block2_one_chain()` / `.two_block_block2_one_chain` (+ `_cpp`) | Single-chain Block~2 update step |
-
-### iid sampler retained in Core
-
-| Function | Role |
-|----------|------|
-| `rindepNormalGamma_reg_with_envelope()` | Envelope-based joint coefficient/dispersion sampler used in Core’s ING calibration path (not a duplicate of a `glmbayesCore` export) |
+| `rindepNormalGamma_reg_with_envelope()` | Diagnostic ING sampler that also returns envelope artifacts (parity / development; call via `:::`) |
 
 ### S3 methods
 
 Registered in `NAMESPACE` (not all listed in the tables above):
 
 - **print:** `model_setup`, `Prior_Setup_GLMM`, `Prior_SetupGroup`, `pfamily_list`, `dGamma_list`, `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `two_block_sweep_history`, `two_block_rate`, `two_block_rate_ing`
-- **generics:** `pfamily_list` (`Prior_Setup_GLMM`, `Prior_SetupGroup`), `dGamma_list` (`Prior_Setup_GLMM`)
-- **plot generics:** `plot_sweep_history_diag`, `plot_mean_convergence`, `plot_var_convergence` — each with `default` plus methods for `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `rlmerb`, `rglmerb`
+- **generics:** `pfamily_list` (`Prior_Setup_GLMM`, `Prior_SetupGroup`), `dGamma_list` (`Prior_Setup_GLMM`), `print_groupef` (`default`, `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `rlmerb`, `rglmerb`)
+- **plot generics:** `plot_mean_convergence`, `plot_var_convergence` — each with `default` plus methods for `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `rlmerb`, `rglmerb`
 
 ---
 
@@ -301,8 +296,8 @@ A complete bibliography is in `inst/REFERENCES.bib`.
   sampling should eventually use a **sweep-outer** loop (all chains complete inner
   sweep `m`, then `m+1`, …) on every route, for consistency with `rGLMM_sweep()` /
   `rGLMM_reg_*`. Each stored draw should attach **`sweep_history`** (class
-  `two_block_sweep_history`) so `print()` and `plot_sweep_history_diag()` can
-  diagnose inner-Gibbs convergence. Today, sweep-outer R drivers and ING pilot/main
+  `two_block_sweep_history`) so `print()`, `plot_mean_convergence()`, and
+  `plot_var_convergence()` can diagnose inner-Gibbs convergence. Today, sweep-outer R drivers and ING pilot/main
   paths already capture history; **gaps remain** (e.g. Gaussian `lmerb()` with fixed
   σ² and fixed Block~2 τ² still uses the v2 C++ chain-outer driver, which does not
   export per-sweep cross-chain stats). See `inst/ARCHITECTURE_glmerb.md` and
@@ -317,6 +312,14 @@ A complete bibliography is in `inst/REFERENCES.bib`.
   (**higher priority**); **Block~2** fixed-effect / hyperparameter updates over
   chains in parallel where safe (**ideal follow-on**). Use native threading (e.g.
   `RcppParallel`) so large `n` does not pay full R-loop overhead.
+- **`glmbayesCore::rindepNormalGamma_reg()` optional envelope return:** Today
+  that export always sets `$Envelope = NULL` (envelope used internally only).
+  Add an option (e.g. `return_envelope = FALSE`) so callers can request
+  `Envelope` / `gamma_list` / `UB_list` / `diagnostics`. Core’s documented
+  internal `rindepNormalGamma_reg_with_envelope()` (and its
+  `.rIndepNormalGammaReg_with_envelope_cpp` path) can serve as a template;
+  once **glmbayesCore** supports the option, Core can drop or thin the
+  duplicate wrapper.
 
 ---
 

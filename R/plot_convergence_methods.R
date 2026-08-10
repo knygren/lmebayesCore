@@ -1,5 +1,5 @@
-## Fit-object S3 methods for plot_var_convergence()/plot_mean_convergence()/
-## plot_sweep_history_diag(), so callers can plot straight from a fit object
+## Fit-object S3 methods for plot_var_convergence()/plot_mean_convergence(),
+## so callers can plot straight from a fit object
 ## (rlmerb()/rglmerb()/rLMMNormal_reg_*()/rLMMindepNormalGamma_reg_*()/
 ## rGLMM_reg_*()) instead of assembling 'hist'/'design'/'measurement_prior_list'
 ## by hand. All the class-specific logic lives in the normalizer helpers
@@ -8,8 +8,8 @@
 #' Resolve the sweep-history object, \code{n_chains}, and (when eligible) the
 #' exact reference ingredients from a fit object
 #'
-#' Shared by every \code{plot_var_convergence.*}/\code{plot_mean_convergence.*}/
-#' \code{plot_sweep_history_diag.*} fit-object method. \code{"main"} reads
+#' Shared by every \code{plot_var_convergence.*}/\code{plot_mean_convergence.*}
+#' fit-object method. \code{"main"} reads
 #' \code{fit$sweep_history}/\code{fit$n} (the \code{n} chains passed to the
 #' sampler); \code{"pilot"} reads \code{fit$pilot$draws$sweep_history}/
 #' \code{fit$pilot$n}.
@@ -258,54 +258,3 @@ plot_mean_convergence.rlmerb <- plot_mean_convergence.rLMMNormal_reg
 #' @method plot_mean_convergence rglmerb
 #' @export
 plot_mean_convergence.rglmerb <- plot_mean_convergence.rLMMNormal_reg
-
-#' @param stage \code{"main"} (default) or \code{"pilot"}; see
-#'   \code{\link{plot_var_convergence.rLMMNormal_reg}}.
-#' @param stage_label Defaults to the resolved \code{hist$stage}; pass
-#'   explicitly to override.
-#' @rdname plot_sweep_history_diag
-#' @method plot_sweep_history_diag rLMMNormal_reg
-#' @export
-plot_sweep_history_diag.rLMMNormal_reg <- function(
-    hist,
-    coef_focus,
-    what = c("sd", "mean"),
-    engine = c("base", "ggplot"),
-    stage = c("main", "pilot"),
-    stage_label = NULL,
-    ...
-) {
-  engine <- match.arg(engine)
-  stage  <- match.arg(stage)
-  inputs <- .lmebayes_convergence_inputs(hist, stage = stage)
-  if (is.null(stage_label)) {
-    stage_label <- inputs$hist$stage
-  }
-  plot_sweep_history_diag.default(
-    inputs$hist,
-    coef_focus  = coef_focus,
-    what        = what,
-    engine      = engine,
-    stage_label = stage_label
-  )
-}
-
-#' @rdname plot_sweep_history_diag
-#' @method plot_sweep_history_diag rLMMindepNormalGamma_reg
-#' @export
-plot_sweep_history_diag.rLMMindepNormalGamma_reg <- plot_sweep_history_diag.rLMMNormal_reg
-
-#' @rdname plot_sweep_history_diag
-#' @method plot_sweep_history_diag rGLMM_reg
-#' @export
-plot_sweep_history_diag.rGLMM_reg <- plot_sweep_history_diag.rLMMNormal_reg
-
-#' @rdname plot_sweep_history_diag
-#' @method plot_sweep_history_diag rlmerb
-#' @export
-plot_sweep_history_diag.rlmerb <- plot_sweep_history_diag.rLMMNormal_reg
-
-#' @rdname plot_sweep_history_diag
-#' @method plot_sweep_history_diag rglmerb
-#' @export
-plot_sweep_history_diag.rglmerb <- plot_sweep_history_diag.rLMMNormal_reg

@@ -72,6 +72,10 @@ multivariate normal (see \code{\link{lmerb_posterior_mean}} Details), so
 every stored draw is generated directly from that Gaussian -- no
 block-conditional Gibbs sweeps, no burn-in, and no residual
 autocorrelation between draws.
+Not exported: call via \code{lmebayesCore:::rLMMNormal_joint_iid()}.
+Production callers should use
+\code{\link{rLMMNormal_reg_known_vcov_iid}} (or
+\code{\link{rLMMNormal_reg_known_vcov}} with \code{sim_method = "DEFAULT"}).
 }
 \details{
 \code{.lmerb_posterior_normal_system()} builds the posterior
@@ -98,7 +102,7 @@ glmbayes Simulation Functions
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_ing}()},
 \code{\link{two_block_tv_bound}()}
 }
 \concept{simfuncs}
+\keyword{internal}

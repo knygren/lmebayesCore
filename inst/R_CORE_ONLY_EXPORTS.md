@@ -217,15 +217,14 @@ pilot/main allocation for `rlmerb()` / `rglmerb()`.
 
 | Function | File | Status |
 |----------|------|--------|
-| `two_block_rate()` | `two_block_ergodicity.R` | Documented internal (not exported) |
-| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | Documented internal (not exported) |
+| `two_block_rate()` | `two_block_ergodicity.R` | **Exported** (help also covers related internals below) |
+| `two_block_rate_from_pfamily_list()` | `two_block_ergodicity.R` | **Exported** (documented on `?two_block_rate`) |
 | `two_block_tv_bound()` | `two_block_ergodicity.R` | Documented internal (not exported) |
 | `two_block_l_for_tv()` | `two_block_ergodicity.R` | Documented internal (not exported) |
-| `two_block_rate_ing()` | `two_block_ergodicity_ing.R` | Documented internal (not exported) |
+| `two_block_rate_ing()` | `two_block_ergodicity_ing.R` | Documented on `?two_block_rate` (not exported; local ING diagnostic) |
 
 Internal (same file): `two_block_mode_weights()` — IRLS/Fisher weights at the posterior mode for non-Gaussian rate calibration via **`rGLMM_reg`**.
-S3 `print.two_block_rate` / `print.two_block_rate_ing` remain registered (not
-namespace-exported as callables).
+S3 `print.two_block_rate` / `print.two_block_rate_ing` are registered and documented under `?two_block_rate`.
 
 ---
 

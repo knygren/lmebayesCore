@@ -491,7 +491,8 @@
 #'   \code{lambda_star} exceeds \code{0.95} (strong cross-block coupling and
 #'   potentially slow convergence). Set \code{FALSE} for repeated internal
 #'   rate evaluations (e.g. pilot upper-bound scans).
-#' @return Object of class \code{"two_block_rate"}: a list with
+#' @return For \code{two_block_rate()} / \code{two_block_rate_from_pfamily_list()},
+#'   an object of class \code{"two_block_rate"}: a list with
 #'   \code{lambda_star} (the Remark 8 rate), \code{eigenvalues} (full
 #'   spectrum \eqn{a_1 \ge \dots \ge a_q} in \eqn{[0,1)}),
 #'   \code{m_for_tol} (function: iterations needed so that
@@ -499,14 +500,17 @@
 #'   (\eqn{P_{12}P_{22}^{-1}P_{21}}), \code{P11}, \code{dims},
 #'   \code{re_names}, \code{gamma_names}, \code{group_levels},
 #'   \code{family}, \code{weights_source}, and \code{call}.
+#'   For \code{two_block_rate_ing()}, see the value description under that
+#'   function below.
 #' @references Nygren, K. (2020). \emph{On the total variation distance
 #'   between multivariate normal densities with applications to two-block
 #'   Gibbs samplers.} Unpublished manuscript.
 #' @family simfuncs
 #' @seealso \code{\link{two_block_tv_bound}}, \code{\link{two_block_rNormal_reg}}
 #' @name two_block_rate
-#' @aliases two_block_rate_from_pfamily_list
-#' @keywords internal
+#' @aliases two_block_rate_from_pfamily_list two_block_rate_ing
+#'   print.two_block_rate print.two_block_rate_ing
+#' @export
 two_block_rate <- function(x,
                            group,
                            x_hyper,
@@ -558,14 +562,12 @@ two_block_rate <- function(x,
   )
 }
 
-#' Print method for \code{two_block_rate} objects
-#'
-#' @param x Object of class \code{"two_block_rate"}.
-#' @param tols Numeric vector of TV tolerances for the implied
-#'   \code{m_convergence} table.
-#' @param ... Ignored.
-#' @return \code{x} invisibly.
-#' @rdname two_block_rate
+#' @describeIn two_block_rate Print a \code{"two_block_rate"} object
+#'   (eigenvalues, \eqn{\lambda^*}, and implied sweeps for common TV
+#'   tolerances).
+#' @param tols For \code{print.two_block_rate}: numeric vector of TV
+#'   tolerances for the implied \code{m_convergence} table.
+#' @param ... Ignored by the print methods.
 #' @method print two_block_rate
 #' @export
 print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
@@ -604,7 +606,7 @@ print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
 #'   the truncated tau^2 range).
 #' @param pfamily_list Named list of \code{pfamily} objects (one per RE
 #'   component), as in \code{\link{two_block_rNormal_reg}}.
-#' @keywords internal
+#' @export
 two_block_rate_from_pfamily_list <- function(x,
                                               group,
                                               x_hyper,

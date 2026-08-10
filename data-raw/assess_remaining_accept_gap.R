@@ -48,7 +48,7 @@ prior_list_block <- list(
   max_disp_perc = 0.99
 )
 
-sim_env <- rindepNormalGamma_reg_with_envelope(
+sim_env <- lmebayesCore:::rindepNormalGamma_reg_with_envelope(
   n = 1L, y = y, x = x_old, prior_list = prior_list_old,
   n_envopt = n_envopt, Gridtype = 3L, use_parallel = FALSE, progbar = FALSE
 )

@@ -9,7 +9,7 @@ in `R/` (comma-separated). Helpers with no callers are marked *(unused)*.
 
 Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 
-**lmebayes** resolves these via `getFromNamespace` / `:::`: `.two_block_as_staged_names`, `.two_block_tau2_ref_from_pfamily`, `.mrglmb_normalize_pfamily_lists`, `.validate_pfamily_for_rlmb`, `.lmebayes_priors_from_pfamily_list`, `.lmebayes_block2_icm_labels`, `.lmebayes_mer_optional_args`, `extract_mer_variance_components`.
+**lmebayes** resolves these via `getFromNamespace` / `:::`: `.two_block_as_staged_names`, `.two_block_tau2_ref_from_pfamily`, `.mrglmb_normalize_pfamily_lists`, `.validate_pfamily_for_rlmb`, `.lmebayes_block2_icm_labels`, `.lmebayes_mer_optional_args`, `extract_mer_variance_components`.
 
 ---
 
@@ -17,9 +17,9 @@ Companion: [R_EXPORTED_AND_DOCUMENTED.md](R_EXPORTED_AND_DOCUMENTED.md).
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Map `dispersion_ranef` / legacy `dispersion` to per-RE weights | `rlmerb()`, `rglmerb()`, `.lmebayes_priors_from_pfamily_list()` |
+| `.lmebayes_resolve_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Map `dispersion_ranef` / legacy `dispersion` to per-RE weights | (legacy; prefer `.lmebayes_resolve_group_dispersion`) |
 | `.lmebayes_validate_dispersion_ranef()` | `mixed_rmerb_helpers.R` | Validate dispersion-ranef vector | *(unused)* |
-| `.lmebayes_priors_from_pfamily_list()` | `mixed_rmerb_helpers.R` | Normalize `pfamily_list` → sampler `prior` list | `rlmerb()`, `rglmerb()`; **lmebayes** `lmerb()`, `glmerb()` |
+| `.priors_from_pfamily_list()` | `mixed_rmerb_helpers.R` | Normalize `pfamily_list` → sampler `prior` list | `.rlmerb_prepare_prior()` → `rlmerb()` / `rglmerb()` |
 | `.lmebayes_ing_measurement_prior_list()` | `mixed_rmerb_helpers.R` | Build shared ING Block~1 `prior_list` for dGamma `dispersion_ranef` | `.lmebayes_matrix_args_lmm()` |
 | `.lmebayes_reg_route_key()` | `lmebayes_reg_route_table.R` | Map `(family, disp_mode, any_non_normal)` → `REG_ROUTE_TABLE` key | `.lmebayes_run_lmm_engine()`, `.lmebayes_run_glmm_engine()` |
 | `REG_ROUTE_TABLE` | `lmebayes_reg_route_table.R` | Declarative LMM / GLMM reg route metadata | `.lmebayes_reg_route_fn()` |

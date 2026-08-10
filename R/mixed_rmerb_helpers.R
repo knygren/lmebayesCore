@@ -360,134 +360,11 @@
   resolved$dispersion_fix
 }
 
-#' Normalize a Block~2 \code{pfamily_list} (+ \code{group.dispersion}) into a sampler \code{prior}
-#'
-#' @description
-#' Shared front-door normalizer used by \code{rlmerb()}/\code{rglmerb()}
-#' and by \code{lmerb()}/\code{glmerb()} (via
-#' \code{lmebayesCore::priors_from_pfamily_list()} in \strong{lmebayes}) to
-#' turn the two independent user-supplied prior specs -- the Block~2
-#' \code{pfamily_list} (one prior per random-effect coefficient) and the
-#' Block~1 dispersion (\code{group.dispersion} here; \code{dispprior_list}
-#' on the matrix engines / \code{rlmerb}/\code{rglmerb}) -- into the
-#' single flat \code{prior} object consumed by \code{\link{matrix_args_lmm}}
-#' and ICM/reporting code.
-#'
-#' @details
-#' Concretely, this function:
-#' \enumerate{
-#'   \item Resolves \code{group.dispersion} via
-#'     \code{.lmebayes_resolve_group_dispersion()} (dispatches on its type/
-#'     length to one of the \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}/
-#'     \code{"gamma"}/\code{"gamma_list"} Block~1 dispersion modes described
-#'     under \code{dispersion_mode} below).
-#'   \item Validates that \code{pfamily_list} has exactly one entry per
-#'     random-effect coefficient in \code{design$groupef.names} (by name, not
-#'     position) and reorders it to that canonical order.
-#'   \item For each random-effect component, checks that its \code{pfamily}
-#'     is \code{dNormal} or \code{dIndependent_Normal_Gamma} (any other
-#'     \code{pfamily} is rejected), checks that \code{prior_list$mu}/
-#'     \code{prior_list$Sigma} conform to the corresponding per-group
-#'     hyper-design \code{design$W[[k]]}, and reorders/relabels them to
-#'     that hyper-design's column order (so the \code{pfamily} objects
-#'     returned in \code{pfamily_list} are safe to pass straight to the
-#'     matrix-level samplers).
-#'   \item Computes each component's Block~2 variance-component plug-in
-#'     \eqn{\tau^2_k} via \code{.two_block_tau2_plug_in_from_pfamily()} (the
-#'     \code{dNormal()} dispersion for \code{dNormal} components, or an
-#'     ICM-style plug-in for \code{dIndependent_Normal_Gamma} components) and
-#'     assembles \code{group.Sigma} and \code{pop.prior_list} from those.
-#' }
-#' It currently combines all of the above (dispersion resolution,
-#' \code{pfamily_list} validation/reordering, and deriving
-#' \code{group.Sigma}/\code{pop.prior_list}/\code{ptypes}) into one function and
-#' is a refactor candidate; its argument list and return shape are not yet
-#' considered stable.
-#'
-#' @param pfamily_list Named list of Block~2 \code{pfamily} objects, one per
-#'   random-effect coefficient in \code{design$groupef.names}.
-#' @param group.dispersion Block~1 dispersion spec, as accepted by
-#'   \code{.lmebayes_resolve_group_dispersion()} (\code{NULL}, a single
-#'   scalar, a named/unnamed numeric vector, a \code{dGamma()} pfamily, or a
-#'   named list of \code{dGamma()} pfamily objects).
-#' @param design A \code{model_setup} object.
-#' @param family A \code{\link[stats]{family}} object.
-#' @param fn_name Character scalar used to prefix error messages
-#'   (e.g. \code{"lmerb"} or \code{"glmerb"}).
-#' @return A list (the \code{prior} object) with elements:
-#'   \describe{
-#'     \item{\code{pfamily_list}}{The input \code{pfamily_list}, reordered to
-#'       \code{design$groupef.names} and with each component's
-#'       \code{prior_list$mu}/\code{prior_list$Sigma} realigned to the
-#'       column order of the corresponding \code{design$W[[k]]}. Safe
-#'       to pass straight through to the matrix-level samplers.}
-#'     \item{\code{group.dispersion}}{The \emph{resolved} Block~1 dispersion
-#'       value (i.e. \code{disp_res$dispersion_fix}, not the raw input):
-#'       \code{NULL} when \code{family} has no dispersion parameter
-#'       (\code{dispersion_mode == "none"}); a single positive scalar for
-#'       \code{"fixed"} (the value supplied) or for \code{"gamma"}/
-#'       \code{"gamma_list"} (a plug-in point estimate -- \code{shape/rate},
-#'       or the across-group mean of \code{shape_group/rate_group} --
-#'       \emph{not} the prior itself, see \code{dispersion_prior_list}); or a
-#'       named numeric vector, one entry per group level, for
-#'       \code{"fixed_vector"}.}
-#'     \item{\code{dispersion_mode}}{Character scalar: one of \code{"none"}
-#'       (no observation-level dispersion for this \code{family}),
-#'       \code{"fixed"} (single known scalar \eqn{\sigma^2}),
-#'       \code{"fixed_vector"} (one known, fixed \eqn{\sigma^2_j} per group,
-#'       from a named numeric vector), \code{"gamma"} (a single pooled
-#'       \code{dGamma()} prior on the observation precision/dispersion, to be
-#'       estimated -- ING), or \code{"gamma_list"} (one \code{dGamma()} prior
-#'       per group, to be estimated -- ING).}
-#'     \item{\code{dispersion_pfamily}}{\code{NULL} for
-#'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"}. For
-#'       \code{"gamma"}, the original \code{dGamma()} pfamily object passed
-#'       as \code{group.dispersion}. For \code{"gamma_list"}, the original
-#'       named list of per-group \code{dGamma()} pfamily objects.}
-#'     \item{\code{dispersion_prior_list}}{\code{NULL} for
-#'       \code{"none"}/\code{"fixed"}/\code{"fixed_vector"} (there is no
-#'       Block~1 prior to carry -- the dispersion is a known constant). For
-#'       \code{"gamma"}, the pooled \code{dGamma()} prior's
-#'       \code{prior_list} (\code{shape}, \code{rate}, \code{disp_lower},
-#'       \code{disp_upper}, \code{Inv_Dispersion}, \ldots). For
-#'       \code{"gamma_list"}, a list with named numeric vectors
-#'       \code{shape_group}, \code{rate_group}, \code{disp_lower_group}, and
-#'       \code{disp_upper_group} (one value per group level).}
-#'     \item{\code{window_diagnostics}}{Usually \code{NULL}. For
-#'       \code{"gamma_list"}, the \code{"window_diagnostics"} attribute
-#'       carried on the \code{group.dispersion} list (if any), describing how
-#'       each group's \code{disp_lower}/\code{disp_upper} truncation window
-#'       was calibrated (e.g. by \code{Prior_Setup_GLMM()}).}
-#'     \item{\code{group.Sigma}}{A \code{p_re x p_re} diagonal matrix (row/
-#'       column names \code{design$groupef.names}) holding each component's
-#'       Block~2 variance-component plug-in \eqn{\tau^2_k} on the diagonal --
-#'       the random-effect prior covariance implied by \code{pfamily_list}.
-#'       Its inverse is the Block~2 random-effect prior precision the
-#'       matrix-level samplers derive internally from \code{pfamily_list}
-#'       (there is no separate \code{P} argument).}
-#'     \item{\code{pop.prior_list}}{A named list (one entry per
-#'       \code{design$groupef.names}), each a list with \code{mu}
-#'       (numeric vector, the Block~2 hyperparameter prior mean),
-#'       \code{Sigma} (matrix, the Block~2 hyperparameter prior
-#'       covariance), and \code{dispersion} (scalar, the same
-#'       \eqn{\tau^2_k} plug-in stored on the diagonal of
-#'       \code{group.Sigma}). A restructured, per-component echo of
-#'       \code{pfamily_list}'s contents keyed for direct use elsewhere (e.g.
-#'       ICM reporting).}
-#'     \item{\code{ptypes}}{A named character vector (names
-#'       \code{design$groupef.names}), each entry either \code{"dNormal"} or
-#'       \code{"dIndependent_Normal_Gamma"} -- the \code{pfamily} type of the
-#'       corresponding Block~2 component.}
-#'     \item{\code{any_non_normal}}{Logical scalar: \code{TRUE} if any
-#'       \code{ptypes} entry is not \code{"dNormal"} (i.e. at least one
-#'       Block~2 component is \code{dIndependent_Normal_Gamma} and must be
-#'       estimated rather than known). Drives the \code{"known"} vs.
-#'       \code{"estimated"} route choice in \code{\link{matrix_args_lmm}} /
-#'       \code{.lmebayes_reg_route_key()}.}
-#'   }
-#' @keywords internal
-#' @export
-priors_from_pfamily_list <- function(pfamily_list,
+#' Normalize Block~2 \code{pfamily_list} + Block~1 dispersion into a sampler
+#' \code{prior} pack for \code{rlmerb}/\code{rglmerb} (via
+#' \code{.rlmerb_prepare_prior}).
+#' @noRd
+.priors_from_pfamily_list <- function(pfamily_list,
                                       group.dispersion,
                                       design,
                                       family,
@@ -1834,7 +1711,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'
 #' @description
 #' Shared front-door helper that turns \code{design} + the \code{prior}
-#' returned by \code{\link{priors_from_pfamily_list}} + \code{disp_info}
+#' returned by \code{.priors_from_pfamily_list} + \code{disp_info}
 #' (from \code{.lmebayes_resolve_group_dispersion()}) into the flat,
 #' named argument list passed via \code{do.call()} to whichever
 #' \code{rLMM_reg} export \code{.lmebayes_reg_route_fn()} resolves to. There
@@ -1879,7 +1756,7 @@ priors_from_pfamily_list <- function(pfamily_list,
 #'
 #' @param n Number of stored draws.
 #' @param design A \code{model_setup} object.
-#' @param prior The list returned by \code{\link{priors_from_pfamily_list}}.
+#' @param prior The list returned by \code{.priors_from_pfamily_list}.
 #' @param disp_info Resolved dispersion info, as returned by
 #'   \code{.lmebayes_resolve_group_dispersion()} (must supply
 #'   \code{mode} and \code{dispersion_fix}).

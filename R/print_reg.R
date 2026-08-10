@@ -177,9 +177,13 @@ print.rGLMM_reg <- function(
 
 #' Print simulated group coefficients from an LMM/GLMM result
 #'
-#' Distribution-sampler style display of \code{groupef} draws (long data frame),
-#' parallel to \code{print()} for population coefficients. Filters by grouping
-#' levels and optional RE columns.
+#' S3 generic for distribution-sampler style display of \code{groupef} draws
+#' (long data frame), parallel to \code{print()} for population coefficients.
+#' Filters by grouping levels and optional RE columns. Methods are registered
+#' for \code{rLMMNormal_reg}, \code{rLMMindepNormalGamma_reg},
+#' \code{rGLMM_reg}, \code{rlmerb}, and \code{rglmerb}; the
+#' \code{default} method accepts any list-like object with a usable
+#' \code{groupef} data frame.
 #'
 #' @param x An object with a \code{groupef} data frame (e.g. an
 #'   \code{\link{rLMM_reg}} / \code{\link{rGLMM_reg}} return, or
@@ -197,8 +201,22 @@ print.rGLMM_reg <- function(
 #'
 #' @return No return value, called for side effects.
 #' @seealso \code{\link{rLMM_reg}}, \code{\link{rGLMM_reg}}
+#' @name print_groupef
 #' @export
 print_groupef <- function(
+    x,
+    groups = NULL,
+    components = NULL,
+    draws = NULL,
+    digits = max(3, getOption("digits") - 3),
+    ...
+) {
+  UseMethod("print_groupef")
+}
+
+#' @rdname print_groupef
+#' @export
+print_groupef.default <- function(
     x,
     groups = NULL,
     components = NULL,
@@ -306,3 +324,23 @@ print_groupef <- function(
   cat("\n")
   invisible(NULL)
 }
+
+#' @rdname print_groupef
+#' @export
+print_groupef.rLMMNormal_reg <- print_groupef.default
+
+#' @rdname print_groupef
+#' @export
+print_groupef.rLMMindepNormalGamma_reg <- print_groupef.default
+
+#' @rdname print_groupef
+#' @export
+print_groupef.rGLMM_reg <- print_groupef.default
+
+#' @rdname print_groupef
+#' @export
+print_groupef.rlmerb <- print_groupef.default
+
+#' @rdname print_groupef
+#' @export
+print_groupef.rglmerb <- print_groupef.default

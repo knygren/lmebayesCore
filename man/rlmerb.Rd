@@ -103,7 +103,7 @@ vector, or draws when a Gamma measurement prior was used),
 \code{m_convergence}, \code{convergence},
 \code{convergence_info$sim_method_used} (\code{"DEFAULT"} or
 \code{"TWO_BLOCK_GIBBS"}), full packed \code{prior}
-(from \code{\link{priors_from_pfamily_list}}), thin \code{Prior}, and
+(from internal \code{.priors_from_pfamily_list}), thin \code{Prior}, and
 \code{design}. When \code{simulate = FALSE}, draw / pilot / convergence
 slots are \code{NULL}.
 }

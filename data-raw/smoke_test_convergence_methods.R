@@ -1,5 +1,5 @@
 ## Smoke test: plot_var_convergence()/plot_mean_convergence()/
-## plot_sweep_history_diag() fit-object S3 methods (rLMMNormal_reg,
+## plot_mean_convergence()/plot_var_convergence() fit-object S3 methods (rLMMNormal_reg,
 ## rLMMindepNormalGamma_reg, rGLMM_reg, rlmerb, rglmerb), plus the
 ## split/max_whitened per-group-plot behaviour (each split group is its own
 ## chart/page, never stacked via layout()/mfrow across groups) and its
@@ -46,7 +46,7 @@ stopifnot(lmebayesCore:::.lmebayes_convergence_exact_ref_ok(fit1))
 png_dev("s3_var_fit1.png");  plot_var_convergence(fit1);  grDevices::dev.off()
 png_dev("s3_mean_fit1.png"); plot_mean_convergence(fit1); grDevices::dev.off()
 png_dev("s3_diag_fit1.png")
-plot_sweep_history_diag(fit1, coef_focus = list(c("(Intercept)", "(Intercept)"), c("x1", "(Intercept)")))
+plot_mean_convergence(fit1, coef_focus = list(c("(Intercept)", "(Intercept)"), c("x1", "(Intercept)")))
 grDevices::dev.off()
 cat("fit1 (rLMMNormal_reg_known_vcov, exact ref) OK\n\n")
 

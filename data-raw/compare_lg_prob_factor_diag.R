@@ -15,7 +15,7 @@ x_old <- rbind(cbind(x1, zeros), cbind(zeros, x1))
 mu1 <- p_setup$mu; Sigma1 <- p_setup$Sigma
 prior_list_old <- list(mu = c(mu1, mu1), Sigma = rbind(cbind(Sigma1, matrix(0,l1,l1)), cbind(matrix(0,l1,l1), Sigma1)), dispersion = p_setup$dispersion, shape = p_setup$shape, rate = p_setup$rate, Precision = solve(rbind(cbind(Sigma1, matrix(0,l1,l1)), cbind(matrix(0,l1,l1), Sigma1))), max_disp_perc = 0.99)
 prior_list_block <- list(mu = mu1, Sigma = Sigma1, shape = p_setup$shape, rate = p_setup$rate, max_disp_perc = 0.99)
-sim_env <- rindepNormalGamma_reg_with_envelope(n=1L,y=y,x=x_old,prior_list=prior_list_old,n_envopt=n_envopt,Gridtype=3L,use_parallel=FALSE,progbar=FALSE)
+sim_env <- lmebayesCore:::rindepNormalGamma_reg_with_envelope(n=1L,y=y,x=x_old,prior_list=prior_list_old,n_envopt=n_envopt,Gridtype=3L,use_parallel=FALSE,progbar=FALSE)
 sim_block <- glmbayesCore:::.rIndepNormalGammaRegBlock_cpp(n=1L,y=y,x=x_block,block=block,prior_list=prior_list_block,n_envopt=n_envopt,Gridtype=3L,use_parallel=FALSE,progbar=FALSE,verbose=FALSE,offset=rep(0,length(y)),wt=rep(1,length(y)),p_re=-1L,n_rss_iter=10L,RSS_ML=NA_real_,use_opencl=FALSE,group_levels=character(0),re_names=character(0))
 cbL <- sim_env$Envelope$cbars; cbB1 <- sim_block$build_out$block_envelopes[[1]]$cbars; cbB2 <- sim_block$build_out$block_envelopes[[2]]$cbars
 lgL <- sim_env$UB_list$lg_prob_factor; lgB1 <- sim_block$build_out$dispersion_envelope$block_dispersion[[1]]$lg_prob_factor

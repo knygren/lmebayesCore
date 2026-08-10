@@ -1,11 +1,37 @@
 # lmebayesCore (development version)
 
+* **`print_groupef()` is now an S3 generic.** Methods for
+  `rLMMNormal_reg`, `rLMMindepNormalGamma_reg`, `rGLMM_reg`, `rlmerb`,
+  `rglmerb`, plus `default` (any object with a usable `$groupef` data
+  frame). Call signature unchanged.
+
+* **`two_block_rate()` / `two_block_rate_from_pfamily_list()` re-exported.**
+  Help topic `two_block_rate` also documents the unexported diagnostic
+  `two_block_rate_ing()` and both `print.two_block_rate` /
+  `print.two_block_rate_ing` (standalone `print.two_block_rate_ing` Rd
+  removed).
+
+* **`rLMMNormal_joint_iid()` no longer exported** (help kept as
+  `\keyword{internal}`; call via `:::`). Same status as
+  `two_block_rNormal_reg()`; production entry remains
+  `rLMMNormal_reg_known_vcov_iid()` / `sim_method = "DEFAULT"`.
+
+* **`rindepNormalGamma_reg_with_envelope()` no longer exported** (help kept
+  as `\keyword{internal}`; call via `:::`). README Future plans notes a
+  follow-up for **glmbayesCore** `rindepNormalGamma_reg()` to optionally
+  return the envelope (this wrapper as template).
+
+* **Removed exports:** `plot_sweep_history_diag()` (use
+  `plot_mean_convergence()` / `plot_var_convergence()`) and
+  `priors_from_pfamily_list()` (now internal `.priors_from_pfamily_list()`,
+  called only from `rlmerb` / `rglmerb` prepare). Demos updated accordingly.
+
 * **`rlmerb()` / `rglmerb()` gain `simulate`.** Default `TRUE` keeps the
   MCMC path. With `simulate = FALSE`, both delegate to documented
   internals `rlmerb_point()` / `rglmerb_point()` (`\keyword{internal}`,
   not exported) for fixed-VC plug-in point estimates (exact Gaussian mean
   or ICM mode); draw / pilot / convergence slots are `NULL`. Both branches
-  now attach the full `priors_from_pfamily_list()` pack as `$prior` (thin
+  now attach the full `.priors_from_pfamily_list()` pack as `$prior` (thin
   `$Prior` kept). Formula drivers in **lmebayes** pass `simulate` through
   and no longer call the packer themselves.
 

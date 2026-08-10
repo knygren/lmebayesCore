@@ -61,7 +61,7 @@ column).
 | `rlmerb()`, `rglmerb()` | Re-exported matrix samplers |
 | `model_setup()`, `Prior_Setup_GLMM()`, `pfamily_list()` | Design + Block~2 priors (`model_setup()` → `check_identifiability()`) |
 | `Prior_SetupGroup()`, `lmbBlock()`, `glmbBlock()` | Row blocks (`normalize_group`; block fits via **glmbayes** `lmb`/`glmb` → planned Core `rlmb`/`rglmb`) |
-| `plot_sweep_history_diag()` | Sweep-history plots |
+| `plot_mean_convergence()`, `plot_var_convergence()` | Sweep-history Claim 1 / Claim 3 plots |
 | Re-exported retain symbols | Same as glmbayes retain subset |
 
 **Direct Core calls (not re-exported from lmebayes):** `build_mu_all()`,

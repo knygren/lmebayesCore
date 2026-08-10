@@ -169,48 +169,32 @@
   )
 }
 
-#' Extended (lambda, Omega)-aware local rate diagnostic
-#'
-#' Computes the Remark~8-style rate matrix eigenvalues twice from the same
-#' \code{prior_list_block1}/\code{prior_list_block2} inputs
-#' \code{\link{two_block_rate}} would use: once as the plain
-#' (\eqn{\gamma},\eqn{\beta})-only \code{eigenvalues_base}/\code{lambda_star_base}
-#' (identical to what \code{two_block_rate()} itself would return for the same
-#' inputs), and once with the joint \eqn{(\gamma,\beta,\lambda_{\mathrm{ING}},\Omega_{\mathrm{ING}})}
-#' Hessian extension of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md} (Sections 5-6
-#' for a sampled random-effect precision, Section 14 for a sampled measurement
-#' precision) as \code{eigenvalues}/\code{lambda_star}.
-#'
-#' \strong{This is a local, uncertified diagnostic, not a new bound.} Unlike
-#' \code{\link{two_block_rate}}'s \eqn{\lambda^*} (an exact, state-independent
-#' contraction rate for the Gaussian two-block kernel, Nygren 2020 Remark~8),
-#' the extended rate matrix here is evaluated at a single reference state
-#' (the \code{lambda}/\code{omega}/\code{u}/\code{e} values supplied via
-#' \code{lambda_ing}/\code{omega_ing}) and is genuinely state-dependent once
-#' \eqn{\lambda} or \eqn{\Omega} is sampled (see Section 7 of the theory note).
-#' It answers "how much would the currently-ignored \eqn{\beta}-\eqn{\lambda}/
-#' \eqn{\beta}-\eqn{\Omega} coupling move the local rate at this reference
-#' state?", not "what is a certified worst-case rate?" (that role is filled by
-#' \code{\link{two_block_rate_from_pfamily_list}}'s existing corner plug-ins;
-#' see Section 10 of the theory note).
-#'
-#' @inheritParams two_block_rate
-#' @param lambda_ing \code{NULL} (no random-effects-precision extension), or a
-#'   named list (names a subset of \code{names(x_hyper)}) as documented in
+#' @describeIn two_block_rate Extended \eqn{(\lambda,\Omega)}-aware
+#'   \emph{local} rate diagnostic (not a certified TV bound). Computes the
+#'   Remark~8-style eigenvalues twice from the same
+#'   \code{prior_list_block1}/\code{prior_list_block2} inputs
+#'   \code{two_block_rate()} would use: once as the plain
+#'   (\eqn{\gamma},\eqn{\beta})-only \code{eigenvalues_base}/
+#'   \code{lambda_star_base}, and once with the joint
+#'   \eqn{(\gamma,\beta,\lambda_{\mathrm{ING}},\Omega_{\mathrm{ING}})}
+#'   Hessian extension of \code{inst/BLOCK_GIBBS_ERGODICITY_ING.md}
+#'   (Sections 5--6 / 14) as \code{eigenvalues}/\code{lambda_star}.
+#'   The extended matrix is evaluated at a single reference state
+#'   (\code{lambda_ing}/\code{omega_ing}) and is state-dependent; it does
+#'   not set sampler \code{m_convergence}. Not exported; call via
+#'   \code{lmebayesCore:::two_block_rate_ing()}. Returns an object of class
+#'   \code{"two_block_rate_ing"} with \code{lambda_star}/\code{eigenvalues}
+#'   (extended), \code{lambda_star_base}/\code{eigenvalues_base} (plain),
+#'   extended \code{S}/\code{P11}/\code{P12}/\code{P21}/\code{P22},
+#'   \code{ext_names}, \code{n_lambda}, \code{n_omega}, \code{lambda_names},
+#'   \code{omega_scope}, and the usual metadata fields.
+#' @param lambda_ing For \code{two_block_rate_ing}: \code{NULL} (no
+#'   random-effects-precision extension), or a named list (names a subset of
+#'   \code{names(x_hyper)}) as documented in
 #'   \code{\link{.two_block_S_P11_ing}}.
-#' @param omega_ing \code{NULL} (no measurement-precision extension), or a
-#'   list as documented in \code{\link{.two_block_S_P11_ing}}.
-#' @return Object of class \code{"two_block_rate_ing"}: a list with
-#'   \code{lambda_star}/\code{eigenvalues} (extended system),
-#'   \code{lambda_star_base}/\code{eigenvalues_base} (plain \eqn{(\gamma,\beta)}
-#'   system, for direct comparison), \code{S}, \code{P11}, \code{P12},
-#'   \code{P21}, \code{P22} (extended blocks), \code{ext_names}, \code{n_lambda},
-#'   \code{n_omega}, \code{lambda_names}, \code{omega_scope}, \code{dims},
-#'   \code{re_names}, \code{gamma_names}, \code{group_levels}, \code{family},
-#'   \code{weights_source}, and \code{call}.
-#' @seealso \code{\link{two_block_rate}}, \code{\link{two_block_rate_from_pfamily_list}}
-#' @family simfuncs
-#' @keywords internal
+#' @param omega_ing For \code{two_block_rate_ing}: \code{NULL} (no
+#'   measurement-precision extension), or a list as documented in
+#'   \code{\link{.two_block_S_P11_ing}}.
 two_block_rate_ing <- function(x,
                                 group,
                                 x_hyper,
@@ -296,11 +280,8 @@ two_block_rate_ing <- function(x,
   )
 }
 
-#' Print method for \code{two_block_rate_ing} objects
-#'
-#' @param x Object of class \code{"two_block_rate_ing"}.
-#' @param ... Ignored.
-#' @return \code{x} invisibly.
+#' @describeIn two_block_rate Print a \code{"two_block_rate_ing"} object
+#'   (base vs extended \eqn{\lambda^*} and their difference).
 #' @method print two_block_rate_ing
 #' @export
 print.two_block_rate_ing <- function(x, ...) {

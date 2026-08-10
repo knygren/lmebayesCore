@@ -116,7 +116,7 @@ primitive described in Section 3.
 
 ## 2. Functions specific to this model
 
-### 2.1 R user-facing (exported)
+### 2.1 R user-facing (exported) and documented internals
 
 | Package | Function | File | Role |
 |---|---|---|---|
@@ -124,13 +124,13 @@ primitive described in Section 3.
 | lmebayesCore | `rLMMNormal_reg_known_vcov()` | `R/rLMM_reg.R` | **`sim_method` dispatcher** -- routes to `_iid` or `_two_bg`. This is the hand-off point from the shared front door (`inst/README_LMERB_GLMERB_FRONT_DOOR.md`) into this model. |
 | lmebayesCore | `rLMMNormal_reg_known_vcov_iid()` | `R/rLMM_reg.R` | Exact-iid engine entry point. |
 | lmebayesCore | `rLMMNormal_reg_known_vcov_two_bg()` | `R/rLMM_reg.R` | Two-block Gibbs engine entry point. |
-| lmebayesCore | `rLMMNormal_joint_iid()` | `R/rLMMNormal_joint_iid.R` | Closed-form MVN construction + iid draws (algorithmic core of the iid engine). |
-| lmebayesCore | `lmerb_posterior_mean()` | `R/lmebayes_posterior_icm.R` | Exact joint posterior mean of `(gamma, b)`; the closed-form answer for the iid engine and the ICM start for the Gibbs engine. |
-| lmebayesCore | `two_block_rNormal_reg()` | `R/two_block_rNormal_reg.R` | R-level orchestration of the two-block Gibbs C++ driver (family callbacks, argument marshaling). |
-| lmebayesCore | `two_block_rate()` | `R/two_block_ergodicity.R` | Theorem-3 convergence-rate eigenvalue computation from raw block1/block2 priors. |
-| lmebayesCore | `two_block_rate_from_pfamily_list()` | `R/two_block_ergodicity.R` | Adapter: `pfamily_list`-shaped priors -> `two_block_rate()`. |
-| lmebayesCore | `two_block_tv_bound()` | `R/two_block_ergodicity.R` | Total-variation distance bound from the calibrated rate at a given number of sweeps. |
-| lmebayesCore | `two_block_l_for_tv()` | `R/two_block_ergodicity.R` | Minimum number of inner sweeps to hit a target `tv_tol`. |
+| lmebayesCore | `rLMMNormal_joint_iid()` | `R/rLMMNormal_joint_iid.R` | Documented internal (`\keyword{internal}`): closed-form MVN construction + iid draws (algorithmic core of the iid engine; call via `:::`). |
+| lmebayesCore | `lmerb_posterior_mean()` | `R/lmebayes_posterior_icm.R` | Exact joint posterior mean of `(gamma, b)`; the closed-form answer for the iid engine and the ICM start for the Gibbs engine. Documented internal. |
+| lmebayesCore | `two_block_rNormal_reg()` | `R/two_block_rNormal_reg.R` | Documented internal: R-level orchestration of the two-block Gibbs C++ driver (family callbacks, argument marshaling). |
+| lmebayesCore | `two_block_rate()` | `R/two_block_ergodicity.R` | Theorem-3 convergence-rate eigenvalue computation from raw block1/block2 priors. Documented internal. |
+| lmebayesCore | `two_block_rate_from_pfamily_list()` | `R/two_block_ergodicity.R` | Adapter: `pfamily_list`-shaped priors -> `two_block_rate()`. Documented internal. |
+| lmebayesCore | `two_block_tv_bound()` | `R/two_block_ergodicity.R` | Total-variation distance bound from the calibrated rate at a given number of sweeps. Documented internal. |
+| lmebayesCore | `two_block_l_for_tv()` | `R/two_block_ergodicity.R` | Minimum number of inner sweeps to hit a target `tv_tol`. Documented internal. |
 | glmbayesCore | `glmbfamfunc()` | (glmbayesCore) | Supplies `f2`/`f3` family callbacks to the Gibbs C++ driver; marshaled through but not exercised by the Gaussian conjugate branch. |
 
 `build_mu_all()` is used heavily by this model but is a shared dependency, not

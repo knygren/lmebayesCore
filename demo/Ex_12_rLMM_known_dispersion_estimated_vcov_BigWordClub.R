@@ -384,12 +384,12 @@ print(round(block2_cmp, 4))
 ##    both the pilot and main stages. Helps spot coefficients whose chains
 ##    have not stabilized by the calibrated inner-sweep count.
 ##
-## plot_sweep_history_diag(engine = "base") stacks one panel per coef_focus
+## plot_mean_convergence / plot_var_convergence take coef_focus batches
 ## entry via mfrow = c(length(coef_focus), 1L) -- passing all 7 at once needs
 ## a very tall plot device and can error with "figure margins too large" on
 ## an ordinary-sized device. Mirrors demo("Ex_19_glmerb_book_banning_state_
 ## covariates", package = "lmebayes"): split coef_focus into small batches
-## (2-3 panels) and call plot_sweep_history_diag() once per batch.
+## (2-3 panels) and call plot_mean_convergence() / plot_var_convergence() once per batch.
 ## ---------------------------------------------------------------------------
 coef_focus_all <- list(
   c("(Intercept)", "(Intercept)"),
@@ -408,7 +408,8 @@ coef_focus_batches <- list(
 
 for (stg in c("pilot", "main")) {
   for (batch in coef_focus_batches) {
-    plot_sweep_history_diag(fit, batch, stage = stg)
+    plot_mean_convergence(fit, coef_focus = batch, stage = stg)
+    plot_var_convergence(fit, coef_focus = batch, stage = stg)
   }
 }
 

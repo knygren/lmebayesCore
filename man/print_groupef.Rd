@@ -2,9 +2,69 @@
 % Please edit documentation in R/print_reg.R
 \name{print_groupef}
 \alias{print_groupef}
+\alias{print_groupef.default}
+\alias{print_groupef.rLMMNormal_reg}
+\alias{print_groupef.rLMMindepNormalGamma_reg}
+\alias{print_groupef.rGLMM_reg}
+\alias{print_groupef.rlmerb}
+\alias{print_groupef.rglmerb}
 \title{Print simulated group coefficients from an LMM/GLMM result}
 \usage{
 print_groupef(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{default}(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{rLMMNormal_reg}(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{rLMMindepNormalGamma_reg}(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{rGLMM_reg}(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{rlmerb}(
+  x,
+  groups = NULL,
+  components = NULL,
+  draws = NULL,
+  digits = max(3, getOption("digits") - 3),
+  ...
+)
+
+\method{print_groupef}{rglmerb}(
   x,
   groups = NULL,
   components = NULL,
@@ -37,9 +97,13 @@ columns).}
 No return value, called for side effects.
 }
 \description{
-Distribution-sampler style display of \code{groupef} draws (long data frame),
-parallel to \code{print()} for population coefficients. Filters by grouping
-levels and optional RE columns.
+S3 generic for distribution-sampler style display of \code{groupef} draws
+(long data frame), parallel to \code{print()} for population coefficients.
+Filters by grouping levels and optional RE columns. Methods are registered
+for \code{rLMMNormal_reg}, \code{rLMMindepNormalGamma_reg},
+\code{rGLMM_reg}, \code{rlmerb}, and \code{rglmerb}; the
+\code{default} method accepts any list-like object with a usable
+\code{groupef} data frame.
 }
 \seealso{
 \code{\link{rLMM_reg}}, \code{\link{rGLMM_reg}}

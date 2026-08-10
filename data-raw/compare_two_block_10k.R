@@ -50,7 +50,7 @@ prior_list_block <- list(
 )
 
 cat("=== Envelope / gamma / UB constants (n = 1 build) ===\n")
-sim_env <- rindepNormalGamma_reg_with_envelope(
+sim_env <- lmebayesCore:::rindepNormalGamma_reg_with_envelope(
   n = 1L,
   y = y,
   x = x_old,

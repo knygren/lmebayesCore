@@ -125,7 +125,6 @@ glmbayes Simulation Functions
 \code{\link{two_block_optimize_pilot_cost}()},
 \code{\link{two_block_rNormal_reg}()},
 \code{\link{two_block_rate}()},
-\code{\link{two_block_rate_ing}()},
 \code{\link{two_block_tv_bound}()}
 }
 \concept{simfuncs}

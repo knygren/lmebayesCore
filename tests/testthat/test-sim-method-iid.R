@@ -102,7 +102,7 @@ test_that("rLMMNormal_reg_known_vcov() dispatches sim_method and tags sim_method
 test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exactly", {
   fx <- .sim_method_fixture()
 
-  fit_iid <- rLMMNormal_joint_iid(
+  fit_iid <- lmebayesCore:::rLMMNormal_joint_iid(
     n = 50L, y = fx$y, x = fx$D, group = fx$group, x_hyper = fx$W,
     prior_list_block1 = list(
       dispersion = unname(fx$sigma2_true), ddef = FALSE
@@ -128,7 +128,7 @@ test_that("rLMMNormal_joint_iid() fixef_mean matches lmerb_posterior_mean() exac
       )
     )
   )
-  pm <- lmerb_posterior_mean(design, mpl)
+  pm <- lmebayesCore:::lmerb_posterior_mean(design, mpl)
 
   expect_equal(
     as.numeric(fit_iid$fixef_mean[["(Intercept)"]]),
@@ -226,7 +226,7 @@ test_that("rlmerb(simulate = FALSE) returns point fit with rich $prior", {
 test_that("rLMMNormal_joint_iid()'s b_mean is the exact posterior mean of beta_j (not b_last)", {
   fx <- .sim_method_fixture()
 
-  out <- rLMMNormal_joint_iid(
+  out <- lmebayesCore:::rLMMNormal_joint_iid(
     n = 2000L, y = fx$y, x = fx$D, group = fx$group, x_hyper = fx$W,
     prior_list_block1 = list(dispersion = unname(fx$sigma2_true), ddef = FALSE),
     pfamily_list = fx$pfamily_list,

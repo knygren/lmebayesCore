@@ -195,7 +195,7 @@ test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB const
   expect_false("UB_list" %in% names(sim_std))
   expect_false("diagnostics" %in% names(sim_std))
 
-  sim_env <- rindepNormalGamma_reg_with_envelope(
+  sim_env <- lmebayesCore:::rindepNormalGamma_reg_with_envelope(
     n = n_draws,
     y = fix$y,
     x = fix$x_old,

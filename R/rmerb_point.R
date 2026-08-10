@@ -24,7 +24,7 @@
   }
 
   group.dispersion <- .lmebayes_dispprior_list_as_group_dispersion(dispprior_list)
-  prior <- priors_from_pfamily_list(
+  prior <- .priors_from_pfamily_list(
     pfamily_list     = pfamily_list,
     group.dispersion = group.dispersion,
     design           = design,

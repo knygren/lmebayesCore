@@ -27,7 +27,7 @@ matrix_args_lmm(
 
 \item{design}{A \code{model_setup} object.}
 
-\item{prior}{The list returned by \code{\link{priors_from_pfamily_list}}.}
+\item{prior}{The list returned by \code{.priors_from_pfamily_list}.}
 
 \item{disp_info}{Resolved dispersion info, as returned by
 \code{.lmebayes_resolve_group_dispersion()} (must supply
@@ -99,7 +99,7 @@ it), so it is only forwarded here.}
 }
 \description{
 Shared front-door helper that turns \code{design} + the \code{prior}
-returned by \code{\link{priors_from_pfamily_list}} + \code{disp_info}
+returned by \code{.priors_from_pfamily_list} + \code{disp_info}
 (from \code{.lmebayes_resolve_group_dispersion()}) into the flat,
 named argument list passed via \code{do.call()} to whichever
 \code{rLMM_reg} export \code{.lmebayes_reg_route_fn()} resolves to. There

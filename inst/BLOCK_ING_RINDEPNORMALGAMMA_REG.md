@@ -210,8 +210,9 @@ On a **stacked two-block Dobson fixture** (duplicate data; legacy uses block-dia
 
 Legacy envelope artifacts for comparison only:
 
-- `rindepNormalGamma_reg_with_envelope()` — returns `Envelope`, `gamma_list`, `UB_list`
-  (diagnostic wrapper; **not** part of the standard `rindepNormalGamma_reg` return).
+- `lmebayesCore:::rindepNormalGamma_reg_with_envelope()` — returns `Envelope`,
+  `gamma_list`, `UB_list` (documented internal diagnostic wrapper; **not** part
+  of the standard `rindepNormalGamma_reg` return).
 
 ## Mathematical proof that the pooled constants are exactly equal
 
@@ -510,7 +511,7 @@ constants, not raw face index.
 | Legacy | Block |
 |--------|-------|
 | `rindepNormalGamma_reg()` | `glmbayesCore:::.rIndepNormalGammaRegBlock_cpp()` (internal) |
-| `rindepNormalGamma_reg_with_envelope()` | block `build_out` + `rindepNormalGamma_reg_with_envelope()` on stacked `x` |
+| `:::rindepNormalGamma_reg_with_envelope()` | block `build_out` + same wrapper on stacked `x` |
 | One `PLSD` vector | `joint_PLSD` on product faces (`k > 1`) |
 | One `lg_prob_factor[J]` | `joint_lg_prob_factor[flat]` |
 | One `UB2min[J]` | `joint_ub2min_product[flat]` |
@@ -522,7 +523,7 @@ constants, not raw face index.
 | `src/rIndepNormalGammaReg.cpp` | Legacy orchestrator + A/R reference |
 | `src/block_rIndepNormalGammaReg.cpp` | Block centering/build/dispersion/sim |
 | `src/EnvelopeDispersionBuild.cpp` | Shared EDB (`EnvelopeDispersionBuild`) |
-| `R/simfunction.R` | `rindepNormalGamma_reg`, `rindepNormalGamma_reg_with_envelope` |
+| `R/rindepNormalGamma_reg_with_envelope.R` | Documented internal `rindepNormalGamma_reg_with_envelope` (envelope return); production iid sampler is `glmbayesCore::rindepNormalGamma_reg` |
 
 ---
 

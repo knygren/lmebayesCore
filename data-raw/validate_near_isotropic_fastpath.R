@@ -20,7 +20,7 @@ dat <- data.frame(y = y, x1 = x1, x2 = x2)
 mu <- c(0, 0, 0)
 
 run_case <- function(label, Sigma) {
-  fit <- rindepNormalGamma_reg_with_envelope(
+  fit <- lmebayesCore:::rindepNormalGamma_reg_with_envelope(
     n = 50L,
     y = dat$y,
     x = cbind(1, dat$x1, dat$x2),

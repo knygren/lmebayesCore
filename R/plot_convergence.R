@@ -135,7 +135,7 @@
 #'   \code{whitened}, \code{n_chains}, ...; see below). Ignored by
 #'   \code{\link{plot_var_convergence.default}} beyond the documented
 #'   formals.
-#' @seealso \code{\link{plot_mean_convergence}}, \code{\link{plot_sweep_history_diag}},
+#' @seealso \code{\link{plot_mean_convergence}},
 #'   \code{\link{lmerb_posterior_covariance}}
 #' @export
 plot_var_convergence <- function(hist, ...) {
@@ -299,7 +299,7 @@ plot_var_convergence.default <- function(
 #'   instead of named coefficients.
 #' @param ... Passed to methods; see \code{\link{plot_mean_convergence.default}}.
 #' @return \code{hist} invisibly.
-#' @seealso \code{\link{plot_var_convergence}}, \code{\link{plot_sweep_history_diag}},
+#' @seealso \code{\link{plot_var_convergence}},
 #'   \code{\link{lmerb_posterior_mean}}
 #' @export
 plot_mean_convergence <- function(hist, ...) {
@@ -1041,7 +1041,7 @@ plot_mean_convergence.default <- function(
   ## change can raise "invalid value specified for graphical parameter
   ## 'pin'" if the device's plotting-region geometry at restore time no
   ## longer matches what was captured (mirrors the plain par(mfrow = ...)/
-  ## par(op) pattern already used by plot_sweep_history_diag()).
+  ## local par(op) restore pattern.
   old_mar <- graphics::par("mar")
   on.exit({
     graphics::layout(1L)

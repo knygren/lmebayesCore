@@ -254,6 +254,6 @@ passed to the \verb{_run_with_pilot()} call); for the pilot-stage history
 (\code{fit$pilot$draws$sweep_history}) use \code{fit$pilot$n}.
 }
 \seealso{
-\code{\link{plot_mean_convergence}}, \code{\link{plot_sweep_history_diag}},
+\code{\link{plot_mean_convergence}},
 \code{\link{lmerb_posterior_covariance}}
 }
