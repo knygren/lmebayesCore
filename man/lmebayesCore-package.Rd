@@ -49,6 +49,32 @@ conditions.}
 \item{\code{vignette("Chapter-B10")}}{Sweep history and convergence
 plots.}
 }
+}
+
+\section{Vignette index (the C series)}{
+
+The \code{Chapter-C*} vignettes take one model class each and work through
+its posterior algebra, the eigenvalue calculation behind the convergence
+rate \eqn{\lambda^*}{lambda*}, and simulation results with convergence
+plots. Where the B series describes what the engine does, the C series
+derives why it is correct and then shows the numbers.
+\describe{
+\item{\code{vignette("Chapter-C01")}}{The Gaussian running example: data,
+model, design, rank restriction and calibrated priors, shared by every
+Gaussian chapter in the series.}
+\item{\code{vignette("Chapter-C02")}}{The exact Gaussian iid sampler:
+known \eqn{\Psi}{Psi} and \eqn{\sigma^2}{sigma^2}, closed-form
+posterior, no Markov chain.}
+\item{\code{vignette("Chapter-C03")}}{Total variation distances between
+multivariate normal densities: Nygren (2020) reproduced in full ---
+the generalized error functions, Lemmas 1--2, Theorems 1--3,
+Claims 1--4, Corollary 1 and their proofs. Model-free.}
+\item{\code{vignette("Chapter-C04")}}{The same Gaussian model via the
+two-block Gibbs sampler: the Chapter-C03 rate and sweep budget
+instantiated on the running design, sweep history, and
+variance-convergence diagnostics.}
+}
+
 The \code{Chapter-A*} vignettes shipped in the sources are inherited iid
 GLM reference material from \pkg{glmbayes} and are not built into the
 package tarball.

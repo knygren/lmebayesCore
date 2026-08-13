@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-08-11" />
+
+<title>Chapter C02: The exact Gaussian iid sampler</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter C02: The exact Gaussian iid
+sampler</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-08-11</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#prior-specification" id="toc-prior-specification"><span class="toc-section-number">1</span> Prior specification</a></li>
+<li><a href="#estimating-the-model-using-the-default-settings" id="toc-estimating-the-model-using-the-default-settings"><span class="toc-section-number">2</span> Estimating the model using the
+default settings</a></li>
+<li><a href="#properties-of-the-posterior-and-the-iid-sampling-procedure" id="toc-properties-of-the-posterior-and-the-iid-sampling-procedure"><span class="toc-section-number">3</span> Properties of the posterior and the
+iid sampling procedure</a>
+<ul>
+<li><a href="#marginal-distribution-of-the-population-effects" id="toc-marginal-distribution-of-the-population-effects"><span class="toc-section-number">3.1</span> Marginal distribution of the
+population effects</a></li>
+<li><a href="#conditional-distribution-of-the-group-effects" id="toc-conditional-distribution-of-the-group-effects"><span class="toc-section-number">3.2</span> Conditional distribution of the
+group effects</a></li>
+<li><a href="#drawing-from-the-posterior" id="toc-drawing-from-the-posterior"><span class="toc-section-number">3.3</span> Drawing from the
+posterior</a></li>
+</ul></li>
+<li><a href="#summarizing-the-output" id="toc-summarizing-the-output"><span class="toc-section-number">4</span> Summarizing the output</a></li>
+<li><a href="#appendix-the-reference-lmer-fit" id="toc-appendix-the-reference-lmer-fit"><span class="toc-section-number">5</span> Appendix: the reference
+<code>lmer</code> fit</a></li>
+<li><a href="#see-also" id="toc-see-also"><span class="toc-section-number">6</span> See also</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(lmebayesCore)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>C02 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">system.file</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;Chapter-C02-bwc-iid.rds&quot;</span>, <span class="at">package =</span> <span class="st">&quot;lmebayesCore&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>))</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>meta <span class="ot">&lt;-</span> C02<span class="sc">$</span>meta</span></code></pre></div>
+<p>This chapter fits the model of <code>Chapter-C01</code> under the
+simplest prior specification the package offers, and shows that the
+resulting posterior can be sampled exactly rather than iteratively.</p>
+<div id="prior-specification" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Prior
+specification</h1>
+<p>Two quantities are held constant throughout this chapter: the
+observation dispersion <span class="math inline">\(\sigma^2\)</span> and
+the between-group variance matrix <span class="math inline">\(\Psi\)</span>. Both are fixed at the defaults
+<code>Prior_Setup_GLMM()</code> calibrates from the data, so neither
+carries a prior and neither is sampled:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>C02<span class="sc">$</span>summary<span class="sc">$</span>tau2_prior_overview[, <span class="fu">c</span>(<span class="st">&quot;Prior&quot;</span>, <span class="st">&quot;E[tau2]&quot;</span>)]</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt;                   Prior   E[tau2]</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; (Intercept)     dNormal 159.13613</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt dNormal   6.73747</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; distracted_a1   dNormal  11.47851</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; Residual          fixed 388.80365</span></span></code></pre></div>
+<p>The three <code>dNormal</code> rows are the components of <span class="math inline">\(\Psi\)</span>, declared known. The
+<code>Residual</code> row is <span class="math inline">\(\sigma^2\)</span>, likewise fixed.</p>
+<p>That leaves the population effects <span class="math inline">\(\gamma\)</span> as the only quantity with a prior
+of its own. They receive the default multivariate normal prior,
+specified separately for each group-effect component, so the intercept
+block, the <code>distracted_ppvt</code> block and the
+<code>distracted_a1</code> block each get their own mean vector and
+covariance matrix:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">round</span>(C02<span class="sc">$</span>summary<span class="sc">$</span>popef_prior_overview[, <span class="fu">c</span>(<span class="st">&quot;Prior Mean&quot;</span>, <span class="st">&quot;Prior.sd&quot;</span>)], <span class="dv">3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt;                                   Prior Mean Prior.sd</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)              88.376   78.450</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school            0.000   96.853</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                    0.000  100.278</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch        0.000    1.571</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)           0.000   17.506</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)             0.000   41.419</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch      0.000    0.584</span></span></code></pre></div>
+<p>The pattern in the mean column is worth noting. Every coefficient is
+centered at zero except the grand intercept, so the prior mean vector
+describes a null, intercept-only model: no covariate has any effect, and
+no group effect varies with anything at level two. The prior therefore
+carries the same interpretation the null model does in classical
+statistics, and the analysis can be read as asking how far the data move
+each coefficient away from that null. What differs is that here the null
+is a starting point that the data revise rather than a hypothesis that
+is accepted or rejected.</p>
+<p>This is the same default the <strong>glmbayes</strong> family of
+packages uses for ordinary iid regression: a multivariate normal prior
+on the regression coefficients, centered at the null model and
+calibrated from the data rather than specified by hand. What the mixed
+model adds is that the specification is repeated once per group
+effect.</p>
+<p>The setup is built by two calls. <code>Prior_Setup_GLMM()</code>
+performs the calibration, and <code>pfamily_list()</code> wraps the
+result as the Block 2 prior families the sampler consumes:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">Prior_Setup_GLMM</span>(form, <span class="at">data =</span> dat, <span class="at">pop.pwt =</span> <span class="fl">0.01</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>pf <span class="ot">&lt;-</span> <span class="fu">pfamily_list</span>(ps)</span></code></pre></div>
+<p><code>pop.pwt = 0.01</code> gives the prior on <span class="math inline">\(\gamma\)</span> the weight of about one percent of
+the data. Because every component of <code>pf</code> comes back as
+<code>dNormal</code>, the variance components are known, which is what
+the first table above reports.</p>
+</div>
+<div id="estimating-the-model-using-the-default-settings" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Estimating the model
+using the default settings</h1>
+<p>The sampler takes the design and the two prior objects directly:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">rlmerb</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">n              =</span> <span class="dv">1000</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">design         =</span> <span class="fu">model_setup</span>(form, <span class="at">data =</span> dat),</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">pfamily_list   =</span> pf,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">dispprior_list =</span> <span class="fu">list</span>(<span class="at">dispersion =</span> ps<span class="sc">$</span>group.dispersion),</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">sim_method     =</span> <span class="st">&quot;DEFAULT&quot;</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>The <code>design</code> argument carries the data and both design
+matrices, <code>pfamily_list</code> supplies the Block 2 priors from the
+previous section, and <code>dispprior_list</code> supplies the fixed
+<span class="math inline">\(\sigma^2\)</span>. Passing a bare
+<code>list(dispersion = ...)</code> rather than a <code>dGamma()</code>
+prior is what declares that dispersion known.</p>
+<p>Under this specification the joint posterior over the group effects
+and the population effects is exactly multivariate normal, which admits
+a direct sampling scheme with no Markov chain.
+<code>sim_method = &quot;DEFAULT&quot;</code> selects it.</p>
+<p>The same model is fitted again later by a two-block Gibbs sampler.
+Running both against one posterior is deliberate: the answer here is
+exact, so it serves as the standard against which the iterative sampler
+is judged.</p>
+</div>
+<div id="properties-of-the-posterior-and-the-iid-sampling-procedure" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Properties of the
+posterior and the iid sampling procedure</h1>
+<p>Collect the group effects as <span class="math inline">\(\beta =
+(\beta_1&#39;, \dots, \beta_J&#39;)&#39;\)</span>. Up to an additive
+constant, the log posterior splits into the three pieces of the
+model:</p>
+<p><span class="math display">\[
+-2\log \pi(\gamma, \beta \mid y) =
+\underbrace{\frac{1}{\sigma^2}\sum_{j} \left\|y_j -
+D_j\beta_j\right\|^2}_{\text{(i) log-likelihood}}
++ \underbrace{\sum_{j} (\beta_j - \mathcal{W}_j\gamma)&#39; \Psi^{-1}
+(\beta_j - \mathcal{W}_j\gamma)}_{\text{(ii) prior on the group
+effects}}
++ \underbrace{(\gamma - \mu_0)&#39; V^{-1} (\gamma -
+\mu_0)}_{\text{(iii) prior on the population effects}}.
+\]</span></p>
+<p>Because <span class="math inline">\(\sigma^2\)</span>, <span class="math inline">\(\Psi\)</span> and <span class="math inline">\(V\)</span> are all known, every term is quadratic
+in <span class="math inline">\((\gamma, \beta)\)</span>, and a quadratic
+log density is a normal density. The posterior is therefore multivariate
+normal, and it can be factorized into a marginal for <span class="math inline">\(\gamma\)</span> and a conditional for <span class="math inline">\(\beta\)</span>.</p>
+<div id="marginal-distribution-of-the-population-effects" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Marginal distribution
+of the population effects</h2>
+<p>Integrating the group effects out of (i) and (ii) is a
+linear-Gaussian calculation. Substituting <span class="math inline">\(\beta_j = \mathcal{W}_j\gamma + u_j\)</span> with
+<span class="math inline">\(u_j \sim N(0, \Psi)\)</span> gives</p>
+<p><span class="math display">\[
+y_j \mid \gamma \sim N\!\left(D_j\mathcal{W}_j\,\gamma,\; V_j\right),
+\qquad V_j = \sigma^2 I_{n_j} + D_j \Psi D_j&#39;,
+\]</span></p>
+<p>so each group contributes a Gaussian likelihood in <span class="math inline">\(\gamma\)</span> with design <span class="math inline">\(X_j = D_j\mathcal{W}_j\)</span>. Combining these
+with (iii) gives the marginal posterior</p>
+<p><span class="math display">\[
+\gamma \mid y \sim N\!\left(m_\gamma,\; P_\gamma^{-1}\right),
+\qquad
+\begin{aligned}
+P_\gamma &amp;= V^{-1} + \sum_j X_j&#39; V_j^{-1} X_j, \\
+m_\gamma &amp;= P_\gamma^{-1}\Big(V^{-1}\mu_0 + \sum_j X_j&#39; V_j^{-1}
+y_j\Big).
+\end{aligned}
+\]</span></p>
+<p>The term <span class="math inline">\(D_j \Psi D_j&#39;\)</span> in
+<span class="math inline">\(V_j\)</span> is what distinguishes this from
+ordinary regression: it inflates the variance of the groups that would
+otherwise be most influential, which is how the model discounts a group
+that is unusual rather than merely large.</p>
+</div>
+<div id="conditional-distribution-of-the-group-effects" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> Conditional
+distribution of the group effects</h2>
+<p>Given <span class="math inline">\(\gamma\)</span>, terms (i) and (ii)
+separate across groups, so the group effects are conditionally
+independent — each is an ordinary conjugate normal update, combining
+that group’s own data with the population prediction <span class="math inline">\(\mathcal{W}_j\gamma\)</span>:</p>
+<p><span class="math display">\[
+\beta_j \mid \gamma, y \sim N\!\left(b_j,\; \Sigma_j\right),
+\qquad
+\begin{aligned}
+\Sigma_j &amp;= \left(\sigma^{-2} D_j&#39; D_j + \Psi^{-1}\right)^{-1},
+\\
+b_j &amp;= \Sigma_j\left(\sigma^{-2} D_j&#39; y_j +
+\Psi^{-1}\mathcal{W}_j\gamma\right).
+\end{aligned}
+\]</span></p>
+<p>The precision weights in <span class="math inline">\(b_j\)</span> are
+the shrinkage: a group with plenty of data has a large <span class="math inline">\(D_j&#39; D_j\)</span> and stays near its own fit,
+while a small group is pulled toward <span class="math inline">\(\mathcal{W}_j\gamma\)</span>.</p>
+</div>
+<div id="drawing-from-the-posterior" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> Drawing from the
+posterior</h2>
+<p>The two results above factorize the posterior exactly,</p>
+<p><span class="math display">\[
+\pi(\gamma, \beta \mid y) = \pi(\gamma \mid y)\;\prod_j \pi(\beta_j \mid
+\gamma, y),
+\]</span></p>
+<p>so one draw from the joint posterior is obtained in two steps: draw
+<span class="math inline">\(\gamma\)</span> from its marginal, then draw
+each <span class="math inline">\(\beta_j\)</span> from its conditional
+given that value. Repeating the pair produces independent draws from the
+target itself — no burn-in to discard, no autocorrelation, and no
+convergence rate to bound. It also makes the ICM point estimate the
+exact posterior mean, since the mode and mean of a normal distribution
+coincide.</p>
+</div>
+</div>
+<div id="summarizing-the-output" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Summarizing the
+output</h1>
+<p><code>summary()</code> collects the draws into tables:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">summary</span>(fit, <span class="at">groups =</span> <span class="fu">c</span>(<span class="st">&quot;30&quot;</span>, <span class="st">&quot;15&quot;</span>))</span></code></pre></div>
+<p>The output is organized by block, following the structure of the
+model. After the call and a header giving the number of draws, the
+engine used and the data dimensions, it reports in turn:</p>
+<ul>
+<li><strong>Random effects</strong> — the reference <code>lmer</code>
+variance components, for orientation.</li>
+<li><strong>Block 2 variance components</strong> — the <span class="math inline">\(\tau^2_k\)</span> and the residual <span class="math inline">\(\sigma^2\)</span>, with their prior family. Here
+everything is fixed, so the posterior tables are suppressed and a note
+says so.</li>
+<li><strong>Block 2 population effects</strong> — three tables for <span class="math inline">\(\gamma\)</span>: the prior means and standard
+deviations alongside the <code>lmer</code> reference, then the posterior
+mode, mean, standard deviation and Monte Carlo error, then distribution
+percentiles. Rows are named <code>component::parameter</code>, following
+the indexing described in <code>Chapter-C01</code>.</li>
+<li><strong>Block 1 group effects</strong> — the distribution of the
+per-group posterior modes across all 34 groups, followed by per-group
+detail for any levels named in <code>groups</code>.</li>
+</ul>
+<p>The <code>groups</code> argument is optional; without it the
+per-group detail is replaced by a note pointing at
+<code>fit$groupef.mode</code>. The two levels requested here are the
+largest and smallest schools in the data.</p>
+<p>Two features of the population effect tables follow from the default
+<code>pop.pwt = 0.01</code>. Because the prior is given the weight of
+only about one percent of the data, it barely competes with the
+likelihood: the posterior means land close to the <code>lmer</code>
+estimates, displaced slightly toward the prior means of the previous
+section. Since those prior means are the null model, that displacement
+is a mild shrinkage toward zero for every coefficient but the
+intercept.</p>
+<p>Read on the scale that matters, the two fits agree throughout. Every
+Bayesian estimate falls within a fifth of a standard error of its
+<code>lmer</code> counterpart, and most within a twentieth, so no
+coefficient in the table supports a different reading under one fit than
+the other. Exact agreement was never expected: the prior carries a small
+amount of weight, and this chapter fixes the variance components where
+<code>lmer</code> estimates them, so the two are answering slightly
+different questions. The differences that remain are too small to be
+worth interpreting individually.</p>
+<p>The <code>Pr(Prior_tail)</code> column has a related reading. For
+every row it measures the same thing: the posterior mass falling on the
+opposite side of the prior mean from the posterior estimate. It is thus
+a one-sided statement about how far the data have moved a coefficient
+away from its prior value, and how much posterior belief remains on the
+other side of it.</p>
+<p>Because the prior means are the null model, that reference point is
+zero for every coefficient except the intercept, so for those rows the
+column answers the same question a one-sided p-value does. Across them
+it stays in the same range as half the two-sided p-value the
+corresponding <code>lmer</code> fit would report, typically running
+somewhat smaller because the posterior standard deviations are not
+identical to the <code>lmer</code> standard errors, and the ordering it
+induces matches the classical one. The intercept is read the same way,
+but against the calibrated prior mean rather than the origin, so it is
+not comparable to a test against zero.</p>
+<p>The output below was produced by
+<code>data-raw/make_Chapter-C02.R</code> with <code>n = 10000</code> and
+<code>set.seed(1)</code>, then stored, so that building this vignette
+does not rerun the sampler.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>C02<span class="sc">$</span>summary</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt; Call</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; rlmerb(n = N_DRAWS, design = design, pfamily_list = pf, dispprior_list = list(dispersion = ps$group.dispersion), </span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt;     progbar = FALSE, verbose = FALSE, print_icm_table = FALSE, </span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt;     sim_method = &quot;DEFAULT&quot;)</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; Bayesian mixed model fit based on 10000 draws [exact iid draws]</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; Formula: score_ppvt ~ private_school + title1 + free_reduced_lunch + distracted_ppvt + distracted_a1 + free_reduced_lunch:distracted_a1 + (1 + distracted_ppvt + distracted_a1 || school_id) </span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; Number of obs: 400,  groups: school_id, 34</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; Random effects (lmer reference):</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt;           grp            var1 var2   vcov  sdcor</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; 1   school_id     (Intercept) &lt;NA&gt; 191.79 13.849</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; 2 school_id.1 distracted_ppvt &lt;NA&gt;  26.03  5.102</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; 3 school_id.2   distracted_a1 &lt;NA&gt;  41.05  6.407</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; 4    Residual            &lt;NA&gt; &lt;NA&gt; 366.41 19.142</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-18"><a href="#cb8-18" tabindex="-1"></a><span class="co">#&gt; === Block 2 variance components (tau^2_k) ===</span></span>
+<span id="cb8-19"><a href="#cb8-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-20"><a href="#cb8-20" tabindex="-1"></a><span class="co">#&gt; Prior and lmer reference</span></span>
+<span id="cb8-21"><a href="#cb8-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-22"><a href="#cb8-22" tabindex="-1"></a><span class="co">#&gt;                   Prior  E[tau2] sqrt(E[tau2]) disp_lower disp_upper     lmer</span></span>
+<span id="cb8-23"><a href="#cb8-23" tabindex="-1"></a><span class="co">#&gt; (Intercept)     dNormal 159.1361       12.6149         NA         NA 191.7850</span></span>
+<span id="cb8-24"><a href="#cb8-24" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt dNormal   6.7375        2.5957         NA         NA  26.0342</span></span>
+<span id="cb8-25"><a href="#cb8-25" tabindex="-1"></a><span class="co">#&gt; distracted_a1   dNormal  11.4785        3.3880         NA         NA  41.0508</span></span>
+<span id="cb8-26"><a href="#cb8-26" tabindex="-1"></a><span class="co">#&gt; Residual          fixed 388.8036       19.7181         NA         NA 366.4058</span></span>
+<span id="cb8-27"><a href="#cb8-27" tabindex="-1"></a><span class="co">#&gt;                 lmer SD</span></span>
+<span id="cb8-28"><a href="#cb8-28" tabindex="-1"></a><span class="co">#&gt; (Intercept)     13.8486</span></span>
+<span id="cb8-29"><a href="#cb8-29" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt  5.1024</span></span>
+<span id="cb8-30"><a href="#cb8-30" tabindex="-1"></a><span class="co">#&gt; distracted_a1    6.4071</span></span>
+<span id="cb8-31"><a href="#cb8-31" tabindex="-1"></a><span class="co">#&gt; Residual        19.1417</span></span>
+<span id="cb8-32"><a href="#cb8-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-33"><a href="#cb8-33" tabindex="-1"></a><span class="co">#&gt;   (All variance components held fixed; nothing sampled.)</span></span>
+<span id="cb8-34"><a href="#cb8-34" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-35"><a href="#cb8-35" tabindex="-1"></a><span class="co">#&gt; === Block 2 population effects (level-2 hyperparameters) ===</span></span>
+<span id="cb8-36"><a href="#cb8-36" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-37"><a href="#cb8-37" tabindex="-1"></a><span class="co">#&gt; Prior Estimates with Standard Deviations</span></span>
+<span id="cb8-38"><a href="#cb8-38" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-39"><a href="#cb8-39" tabindex="-1"></a><span class="co">#&gt;                                   Prior Mean  Prior.sd      lmer lmer.se</span></span>
+<span id="cb8-40"><a href="#cb8-40" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)            88.37564  78.45025  99.16637   7.885</span></span>
+<span id="cb8-41"><a href="#cb8-41" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school          0.00000  96.85269  -0.16630   9.734</span></span>
+<span id="cb8-42"><a href="#cb8-42" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                  0.00000 100.27761  23.24038  10.078</span></span>
+<span id="cb8-43"><a href="#cb8-43" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch      0.00000   1.57052  -0.38866   0.158</span></span>
+<span id="cb8-44"><a href="#cb8-44" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)         0.00000  17.50644  -1.61211   1.759</span></span>
+<span id="cb8-45"><a href="#cb8-45" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)           0.00000  41.41908   1.46279   4.163</span></span>
+<span id="cb8-46"><a href="#cb8-46" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch    0.00000   0.58411  -0.09333   0.059</span></span>
+<span id="cb8-47"><a href="#cb8-47" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-48"><a href="#cb8-48" tabindex="-1"></a><span class="co">#&gt; Bayesian Estimates Based on 10000 draws</span></span>
+<span id="cb8-49"><a href="#cb8-49" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-50"><a href="#cb8-50" tabindex="-1"></a><span class="co">#&gt;                                   Post.Mode Post.Mean  Post.Sd MC Error</span></span>
+<span id="cb8-51"><a href="#cb8-51" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)           98.70159  98.65977  7.24785    0.072</span></span>
+<span id="cb8-52"><a href="#cb8-52" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school         0.71693   0.75439  8.96814    0.090</span></span>
+<span id="cb8-53"><a href="#cb8-53" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                22.93297  22.95896  9.24689    0.092</span></span>
+<span id="cb8-54"><a href="#cb8-54" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.38190  -0.38139  0.14460    0.001</span></span>
+<span id="cb8-55"><a href="#cb8-55" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)       -1.60229  -1.59775  1.52220    0.015</span></span>
+<span id="cb8-56"><a href="#cb8-56" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)          0.78681   0.74485  3.73106    0.037</span></span>
+<span id="cb8-57"><a href="#cb8-57" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.09218  -0.09169  0.05139    0.001</span></span>
+<span id="cb8-58"><a href="#cb8-58" tabindex="-1"></a><span class="co">#&gt;                                   Pr(Prior_tail)</span></span>
+<span id="cb8-59"><a href="#cb8-59" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)                  0.0771</span></span>
+<span id="cb8-60"><a href="#cb8-60" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school               0.4631</span></span>
+<span id="cb8-61"><a href="#cb8-61" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                       0.0070</span></span>
+<span id="cb8-62"><a href="#cb8-62" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch           0.0039</span></span>
+<span id="cb8-63"><a href="#cb8-63" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)              0.1489</span></span>
+<span id="cb8-64"><a href="#cb8-64" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)                0.4199</span></span>
+<span id="cb8-65"><a href="#cb8-65" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch         0.0372</span></span>
+<span id="cb8-66"><a href="#cb8-66" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-67"><a href="#cb8-67" tabindex="-1"></a><span class="co">#&gt; Distribution Percentiles</span></span>
+<span id="cb8-68"><a href="#cb8-68" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-69"><a href="#cb8-69" tabindex="-1"></a><span class="co">#&gt;                                         1.0%       2.5%       5.0%     Median</span></span>
+<span id="cb8-70"><a href="#cb8-70" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)           82.008226  84.527706  86.791378  98.657050</span></span>
+<span id="cb8-71"><a href="#cb8-71" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school       -20.316336 -17.281343 -14.340589   0.835984</span></span>
+<span id="cb8-72"><a href="#cb8-72" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                 1.699511   4.935409   8.031938  22.942436</span></span>
+<span id="cb8-73"><a href="#cb8-73" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.715026  -0.669400  -0.621988  -0.378938</span></span>
+<span id="cb8-74"><a href="#cb8-74" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)       -5.133680  -4.571532  -4.109684  -1.598932</span></span>
+<span id="cb8-75"><a href="#cb8-75" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)         -8.022068  -6.525714  -5.410193   0.763723</span></span>
+<span id="cb8-76"><a href="#cb8-76" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.209467  -0.190931  -0.176635  -0.091491</span></span>
+<span id="cb8-77"><a href="#cb8-77" tabindex="-1"></a><span class="co">#&gt;                                        95.0%      97.5%   99.0%</span></span>
+<span id="cb8-78"><a href="#cb8-78" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)          110.662854 112.981720 115.985</span></span>
+<span id="cb8-79"><a href="#cb8-79" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school        15.372904  18.123172  20.765</span></span>
+<span id="cb8-80"><a href="#cb8-80" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                37.948480  41.225127  44.715</span></span>
+<span id="cb8-81"><a href="#cb8-81" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.144732  -0.099333  -0.048</span></span>
+<span id="cb8-82"><a href="#cb8-82" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)        0.888930   1.389696   1.900</span></span>
+<span id="cb8-83"><a href="#cb8-83" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)          6.827513   8.043016   9.468</span></span>
+<span id="cb8-84"><a href="#cb8-84" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.006376   0.008700   0.026</span></span>
+<span id="cb8-85"><a href="#cb8-85" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-86"><a href="#cb8-86" tabindex="-1"></a><span class="co">#&gt; === Block 1 group effects ===</span></span>
+<span id="cb8-87"><a href="#cb8-87" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-88"><a href="#cb8-88" tabindex="-1"></a><span class="co">#&gt; Distribution of posterior modes across groups</span></span>
+<span id="cb8-89"><a href="#cb8-89" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-90"><a href="#cb8-90" tabindex="-1"></a><span class="co">#&gt;                     Mean       SD      Min       Q1   Median       Q3      Max</span></span>
+<span id="cb8-91"><a href="#cb8-91" tabindex="-1"></a><span class="co">#&gt; (Intercept)      91.2640  14.0905  61.4926  82.4736  92.3806 102.7179 114.1792</span></span>
+<span id="cb8-92"><a href="#cb8-92" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt  -1.6033   0.9026  -3.4764  -1.8115  -1.4829  -1.1302   0.7325</span></span>
+<span id="cb8-93"><a href="#cb8-93" tabindex="-1"></a><span class="co">#&gt; distracted_a1    -4.3086   3.7974 -11.3164  -7.0521  -5.7084  -2.0022   1.9539</span></span>
+<span id="cb8-94"><a href="#cb8-94" tabindex="-1"></a><span class="co">#&gt;                 MCMC.mean</span></span>
+<span id="cb8-95"><a href="#cb8-95" tabindex="-1"></a><span class="co">#&gt; (Intercept)        91.275</span></span>
+<span id="cb8-96"><a href="#cb8-96" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt    -1.609</span></span>
+<span id="cb8-97"><a href="#cb8-97" tabindex="-1"></a><span class="co">#&gt; distracted_a1      -4.313</span></span>
+<span id="cb8-98"><a href="#cb8-98" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-99"><a href="#cb8-99" tabindex="-1"></a><span class="co">#&gt; Per-group detail (requested levels)</span></span>
+<span id="cb8-100"><a href="#cb8-100" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb8-101"><a href="#cb8-101" tabindex="-1"></a><span class="co">#&gt;  group (Intercept).mode (Intercept).mean (Intercept).sd distracted_ppvt.mode</span></span>
+<span id="cb8-102"><a href="#cb8-102" tabindex="-1"></a><span class="co">#&gt;     30            80.59            80.67          6.175               -2.773</span></span>
+<span id="cb8-103"><a href="#cb8-103" tabindex="-1"></a><span class="co">#&gt;     15            96.69            96.76          6.693               -1.717</span></span>
+<span id="cb8-104"><a href="#cb8-104" tabindex="-1"></a><span class="co">#&gt;  distracted_ppvt.mean distracted_ppvt.sd distracted_a1.mode distracted_a1.mean</span></span>
+<span id="cb8-105"><a href="#cb8-105" tabindex="-1"></a><span class="co">#&gt;                -2.782              2.826            -11.316            -11.383</span></span>
+<span id="cb8-106"><a href="#cb8-106" tabindex="-1"></a><span class="co">#&gt;                -1.719              2.824              1.396              1.349</span></span>
+<span id="cb8-107"><a href="#cb8-107" tabindex="-1"></a><span class="co">#&gt;  distracted_a1.sd</span></span>
+<span id="cb8-108"><a href="#cb8-108" tabindex="-1"></a><span class="co">#&gt;             3.312</span></span>
+<span id="cb8-109"><a href="#cb8-109" tabindex="-1"></a><span class="co">#&gt;             4.556</span></span></code></pre></div>
+</div>
+<div id="appendix-the-reference-lmer-fit" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Appendix: the reference
+<code>lmer</code> fit</h1>
+<p>The <code>lmer</code> columns used throughout this chapter come from
+a single REML fit that <code>model_setup()</code> performs on all
+observations. <code>Prior_Setup_GLMM()</code> returns it as
+<code>mer_fit</code>, and the same object is stored on the design, so
+either of these reaches it:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>ps<span class="sc">$</span>mer_fit</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>design<span class="sc">$</span>lmer</span></code></pre></div>
+<p>It serves two purposes: it calibrates the default priors of the first
+section, and it populates the reference columns in the summary tables.
+Its own summary is:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">cat</span>(C02<span class="sc">$</span>lmer_summary, <span class="at">sep =</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">#&gt; Linear mixed model fit by REML [&#39;lmerMod&#39;]</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; Formula: </span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt; score_ppvt ~ private_school + title1 + free_reduced_lunch + distracted_ppvt +  </span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt;     distracted_a1 + free_reduced_lunch:distracted_a1 + ((1 |  </span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt;     school_id) + (0 + distracted_ppvt | school_id) + (0 + distracted_a1 |  </span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;     school_id))</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt;    Data: bwc</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt; Control: lmerControl(optimizer = &quot;bobyqa&quot;, optCtrl = list(maxfun = 2e+05))</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt; REML criterion at convergence: 3565.2</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co">#&gt; Scaled residuals: </span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a><span class="co">#&gt;      Min       1Q   Median       3Q      Max </span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a><span class="co">#&gt; -2.59677 -0.68699 -0.05662  0.70471  2.90372 </span></span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a><span class="co">#&gt; Random effects:</span></span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a><span class="co">#&gt;  Groups      Name            Variance Std.Dev.</span></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="co">#&gt;  school_id   (Intercept)     191.78   13.849  </span></span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt;  school_id.1 distracted_ppvt  26.03    5.102  </span></span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="co">#&gt;  school_id.2 distracted_a1    41.05    6.407  </span></span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a><span class="co">#&gt;  Residual                    366.41   19.142  </span></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a><span class="co">#&gt; Number of obs: 400, groups:  school_id, 34</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a><span class="co">#&gt; Fixed effects:</span></span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a><span class="co">#&gt;                                  Estimate Std. Error t value</span></span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a><span class="co">#&gt; (Intercept)                      99.16637    7.88455  12.577</span></span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a><span class="co">#&gt; private_school                   -0.16629    9.73406  -0.017</span></span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a><span class="co">#&gt; title1                           23.24038   10.07828   2.306</span></span>
+<span id="cb10-30"><a href="#cb10-30" tabindex="-1"></a><span class="co">#&gt; free_reduced_lunch               -0.38866    0.15784  -2.462</span></span>
+<span id="cb10-31"><a href="#cb10-31" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt                  -1.61210    1.75946  -0.916</span></span>
+<span id="cb10-32"><a href="#cb10-32" tabindex="-1"></a><span class="co">#&gt; distracted_a1                     1.46278    4.16277   0.351</span></span>
+<span id="cb10-33"><a href="#cb10-33" tabindex="-1"></a><span class="co">#&gt; free_reduced_lunch:distracted_a1 -0.09333    0.05870  -1.590</span></span>
+<span id="cb10-34"><a href="#cb10-34" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-35"><a href="#cb10-35" tabindex="-1"></a><span class="co">#&gt; Correlation of Fixed Effects:</span></span>
+<span id="cb10-36"><a href="#cb10-36" tabindex="-1"></a><span class="co">#&gt;             (Intr) prvt_s title1 fr_rd_ dstrc_ dstr_1</span></span>
+<span id="cb10-37"><a href="#cb10-37" tabindex="-1"></a><span class="co">#&gt; privat_schl -0.800                                   </span></span>
+<span id="cb10-38"><a href="#cb10-38" tabindex="-1"></a><span class="co">#&gt; title1       0.093 -0.076                            </span></span>
+<span id="cb10-39"><a href="#cb10-39" tabindex="-1"></a><span class="co">#&gt; fr_rdcd_lnc -0.682  0.547 -0.747                     </span></span>
+<span id="cb10-40"><a href="#cb10-40" tabindex="-1"></a><span class="co">#&gt; dstrctd_ppv -0.051  0.009  0.013 -0.002              </span></span>
+<span id="cb10-41"><a href="#cb10-41" tabindex="-1"></a><span class="co">#&gt; distractd_1 -0.094 -0.003  0.000  0.062 -0.114       </span></span>
+<span id="cb10-42"><a href="#cb10-42" tabindex="-1"></a><span class="co">#&gt; fr_rdcd_:_1  0.091 -0.003 -0.007 -0.077  0.017 -0.859</span></span></code></pre></div>
+<p>Two points connect this back to the chapter. First, the fixed effects
+are reported in <code>lmer</code>’s flat parameterization, with the
+cross-level term written as
+<code>free_reduced_lunch:distracted_a1</code>. The summary tables carry
+the same seven coefficients but regroup them as
+<code>component::parameter</code>, so that interaction appears as
+<code>distracted_a1::free_reduced_lunch</code> — a level-two predictor
+of the <code>distracted_a1</code> slope. <code>Chapter-C01</code> covers
+the mapping.</p>
+<p>Second, the <code>Random effects</code> block is the quantity this
+chapter holds fixed, and it is worth seeing that it is not fixed at
+these values:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">round</span>(C02<span class="sc">$</span>summary<span class="sc">$</span>tau2_prior_overview[, <span class="fu">c</span>(<span class="st">&quot;E[tau2]&quot;</span>, <span class="st">&quot;lmer&quot;</span>)], <span class="dv">2</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#&gt;                 E[tau2]   lmer</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; (Intercept)      159.14 191.79</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt    6.74  26.03</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; distracted_a1     11.48  41.05</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; Residual         388.80 366.41</span></span></code></pre></div>
+<p>The residual variance is calibrated close to the REML value, and the
+intercept variance is moderately tighter, but the two slope components
+are held near a quarter of what <code>lmer</code> estimates. This is the
+one place where the two fits are far apart, and it is a difference in
+specification rather than in estimation: a smaller <span class="math inline">\(\Psi\)</span> shrinks the group effects harder
+toward their population predictions, so the group effects reported in
+the previous section are more tightly pooled than <code>lmer</code>
+would make them.</p>
+<p>That the population effects nonetheless agree so closely is worth
+noting. Holding <span class="math inline">\(\Psi\)</span> at these
+values costs little there, which is what makes this specification a
+reasonable starting point even though it is not the one
+<code>lmer</code> fits. The later chapters estimate the variance
+components rather than fixing them, and are the place to look for what
+changes when the <code>Random effects</code> block above is treated as
+unknown.</p>
+</div>
+<div id="see-also" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> See also</h1>
+<ul>
+<li><code>vignette(&quot;Chapter-C01&quot;)</code> — the data, model and design
+used here.</li>
+<li><code>vignette(&quot;Chapter-B04&quot;)</code> — route selection and the
+compiled kernel behind the exact engine.</li>
+<li><code>?rlmerb</code>, <code>?summary.rlmerb</code>,
+<code>?model_setup</code>, <code>?Prior_Setup_GLMM</code>,
+<code>?pfamily_list</code></li>
+<li><code>data-raw/make_Chapter-C02.R</code> in the package sources for
+the script that produced the stored results.</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

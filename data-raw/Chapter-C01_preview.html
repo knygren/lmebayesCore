@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-08-11" />
+
+<title>Chapter C01: The Gaussian example – model, data and design</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+margin-bottom: 0em;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter C01: The Gaussian example – model,
+data and design</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-08-11</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#the-theoretical-model" id="toc-the-theoretical-model"><span class="toc-section-number">1</span>
+The theoretical model</a>
+<ul>
+<li><a href="#group-effects" id="toc-group-effects"><span class="toc-section-number">1.1</span> Group effects</a></li>
+<li><a href="#population-effects" id="toc-population-effects"><span class="toc-section-number">1.2</span> Population effects</a></li>
+<li><a href="#what-is-fixed-and-what-has-a-prior" id="toc-what-is-fixed-and-what-has-a-prior"><span class="toc-section-number">1.3</span> What is fixed and what has a
+prior</a></li>
+</ul></li>
+<li><a href="#the-big-word-club-data" id="toc-the-big-word-club-data"><span class="toc-section-number">2</span> The Big Word Club data</a>
+<ul>
+<li><a href="#variables-used" id="toc-variables-used"><span class="toc-section-number">2.1</span> Variables used</a></li>
+</ul></li>
+<li><a href="#the-model-being-estimated" id="toc-the-model-being-estimated"><span class="toc-section-number">3</span> The model being estimated</a>
+<ul>
+<li><a href="#how-the-population-effects-are-indexed" id="toc-how-the-population-effects-are-indexed"><span class="toc-section-number">3.1</span> How the population effects are
+indexed</a></li>
+<li><a href="#the-priors" id="toc-the-priors"><span class="toc-section-number">3.2</span> The priors</a></li>
+</ul></li>
+<li><a href="#see-also" id="toc-see-also"><span class="toc-section-number">4</span> See also</a></li>
+<li><a href="#bibliography" id="toc-bibliography">References</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(lmebayesCore)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>C01 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">system.file</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;Chapter-C01-bwc-setup.rds&quot;</span>, <span class="at">package =</span> <span class="st">&quot;lmebayesCore&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>))</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>meta <span class="ot">&lt;-</span> C01<span class="sc">$</span>meta</span></code></pre></div>
+<p>The chapters that follow each take one model class and work through
+its posterior algebra, its convergence rate, and simulation evidence
+that the sampler reaches the distribution it claims to. Comparing those
+results across chapters only means something if they are computed on the
+same problem, so the Gaussian chapters share one theoretical model, one
+dataset, and one estimated model. This chapter sets out all three.
+Nothing is sampled here; that begins in <code>Chapter-C02</code>.</p>
+<div id="the-theoretical-model" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> The theoretical
+model</h1>
+<p>A mixed model describes data that arrive in groups — pupils within
+schools, patients within hospitals, measurements within subjects. Its
+defining idea is that each group gets its own regression coefficients,
+and those coefficients are themselves given a model rather than
+estimated freely.</p>
+<p>That gives two levels of unknowns, and the distinction between them
+runs through the whole series.</p>
+<div id="group-effects" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Group effects</h2>
+<p>Write <span class="math inline">\(j = 1, \dots, J\)</span> for the
+groups. Group <span class="math inline">\(j\)</span> contributes <span class="math inline">\(n_j\)</span> observations <span class="math inline">\(y_j\)</span> with its own design matrix <span class="math inline">\(D_j\)</span>, and has its own coefficient vector
+<span class="math inline">\(\beta_j\)</span>:</p>
+<p><span class="math display">\[
+y_j \mid \beta_j \sim N\!\left(D_j \beta_j,\; \sigma^2 I_{n_j}\right).
+\]</span></p>
+<p>The <span class="math inline">\(\beta_j\)</span> are the
+<strong>group effects</strong>. There are <span class="math inline">\(J
+\times
+p_{\mathrm{re}}\)</span> of them, which is far too many to estimate
+independently from the data available, and <span class="math inline">\(\sigma^2\)</span> is the observation variance
+describing how tightly a group’s observations cluster around its own
+fitted line.</p>
+</div>
+<div id="population-effects" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Population
+effects</h2>
+<p>The group effects are not free parameters. They are assumed to be
+drawn from a common distribution, whose mean is itself a regression on
+group-level characteristics <span class="math inline">\(\mathcal{W}_j\)</span>:</p>
+<p><span class="math display">\[
+\beta_j \mid \gamma \sim N\!\left(\mathcal{W}_j \gamma,\; \Psi\right).
+\]</span></p>
+<p>The vector <span class="math inline">\(\gamma\)</span> holds the
+<strong>population effects</strong>: the coefficients that explain how
+group effects vary with group characteristics. The matrix <span class="math inline">\(\Psi\)</span> is the between-group variance,
+describing how far groups scatter around the population pattern after
+those characteristics are accounted for. Finally <span class="math inline">\(\gamma\)</span> receives a prior of its own,</p>
+<p><span class="math display">\[
+\gamma \sim N(\mu_0, V).
+\]</span></p>
+<p>Two features of this parameterization matter for what follows. First,
+it is <em>centered</em>: <span class="math inline">\(\beta_j\)</span> is
+the group’s own coefficient vector, not a deviation from an average.
+Second, both levels have the same shape — a normal likelihood paired
+with a normal prior — which is what allows a single sampling machine to
+serve the group level and the population level alike. This is the
+Lindley–Smith formulation <span class="citation">(Lindley and Smith
+1972)</span>, and <code>Chapter-B01</code> describes how the engine
+exploits it.</p>
+</div>
+<div id="what-is-fixed-and-what-has-a-prior" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> What is fixed and
+what has a prior</h2>
+<p>The group effects <span class="math inline">\(\beta_j\)</span> and
+the population effects <span class="math inline">\(\gamma\)</span>
+always have priors and are always sampled; they are what a fit is
+<em>for</em>. The two variance quantities are the ones that may be
+either estimated or held at a known value, and choosing between them is
+what separates the chapters of this series:</p>
+<table>
+<colgroup>
+<col width="13%" />
+<col width="19%" />
+<col width="17%" />
+<col width="14%" />
+<col width="20%" />
+<col width="13%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Chapter</th>
+<th><span class="math inline">\(\beta_j\)</span></th>
+<th><span class="math inline">\(\gamma\)</span></th>
+<th><span class="math inline">\(\Psi\)</span></th>
+<th><span class="math inline">\(\sigma^2\)</span></th>
+<th>Sampler</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>C02</code></td>
+<td>prior</td>
+<td>prior</td>
+<td>fixed</td>
+<td>fixed, pooled</td>
+<td>exact iid</td>
+</tr>
+<tr class="even">
+<td><code>C03</code></td>
+<td>prior</td>
+<td>prior</td>
+<td>fixed</td>
+<td>fixed, pooled</td>
+<td>two-block Gibbs</td>
+</tr>
+<tr class="odd">
+<td><code>C06</code></td>
+<td>prior</td>
+<td>prior</td>
+<td>fixed</td>
+<td>prior, per group</td>
+<td>two-block Gibbs</td>
+</tr>
+<tr class="even">
+<td><code>C07</code></td>
+<td>prior</td>
+<td>prior</td>
+<td>prior</td>
+<td>fixed, pooled</td>
+<td>two-block Gibbs</td>
+</tr>
+<tr class="odd">
+<td><code>C09</code></td>
+<td>prior</td>
+<td>prior</td>
+<td>prior</td>
+<td>prior, per group</td>
+<td>two-block Gibbs</td>
+</tr>
+</tbody>
+</table>
+<p>Fixing both variances is what makes the posterior exactly normal, so
+that it can be drawn from directly, which is why <code>C02</code> comes
+first. <code>C03</code> then runs an iterative sampler at that same
+posterior, where the correct answer is already known and any error is
+visible. Each later row relaxes one more assumption, and the price of
+each relaxation is a convergence rate that has to be certified rather
+than assumed.</p>
+</div>
+</div>
+<div id="the-big-word-club-data" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> The Big Word Club
+data</h1>
+<p>The running example is <code>big_word_club</code> from the
+<strong>bayesrules</strong> package <span class="citation">(Johnson,
+Ott, and Dogucu 2022)</span>. It comes from an evaluation of Big Word
+Club, a digital vocabulary program aimed at narrowing the gap in
+vocabulary between children from higher- and lower-income households
+<span class="citation">(Kalil, Mayer, and Oreopoulos 2020)</span>.</p>
+<p>The grouping structure is the reason this dataset suits the series:
+pupils are nested within schools, schools differ in both intake and
+circumstances, and the number of pupils per school is small enough that
+pooling across schools genuinely matters.</p>
+<p>The version used here is a prepared analysis dataset, restricted to
+complete records with a valid assessment score:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">pupils =</span> meta<span class="sc">$</span>n_obs, <span class="at">schools =</span> meta<span class="sc">$</span>J, <span class="at">columns =</span> meta<span class="sc">$</span>n_cols)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt;  pupils schools columns </span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt;     400      34      32</span></span></code></pre></div>
+<p>Each school contributes only a handful of pupils:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">summary</span>(C01<span class="sc">$</span>sizes)   <span class="co"># pupils per school</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt;    8.00   11.00   12.00   11.76   13.00   15.00</span></span></code></pre></div>
+<p>Estimating three coefficients per school from around a dozen
+observations is exactly the situation in which pooling across schools
+earns its keep, and it is why the shrinkage that later chapters display
+is substantial.</p>
+<div id="variables-used" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Variables used</h2>
+<p>The full dataset carries 32 columns covering pupils, teachers and
+schools. The model below uses seven of them:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(C01<span class="sc">$</span>model_vars[, <span class="fu">c</span>(<span class="st">&quot;variable&quot;</span>, <span class="st">&quot;level&quot;</span>, <span class="st">&quot;meaning&quot;</span>, <span class="st">&quot;values&quot;</span>)])</span></code></pre></div>
+<table>
+<colgroup>
+<col width="17%" />
+<col width="8%" />
+<col width="54%" />
+<col width="19%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">variable</th>
+<th align="left">level</th>
+<th align="left">meaning</th>
+<th align="left">values</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">school_id</td>
+<td align="left">grouping</td>
+<td align="left">school identifier (the grouping factor)</td>
+<td align="left">34 levels</td>
+</tr>
+<tr class="even">
+<td align="left">score_ppvt</td>
+<td align="left">pupil</td>
+<td align="left">student score on the standardized vocabulary
+assessment</td>
+<td align="left">20 to 149 (median 90)</td>
+</tr>
+<tr class="odd">
+<td align="left">private_school</td>
+<td align="left">school</td>
+<td align="left">whether the school is private</td>
+<td align="left">18% = 1</td>
+</tr>
+<tr class="even">
+<td align="left">title1</td>
+<td align="left">school</td>
+<td align="left">whether the school has Title 1 status</td>
+<td align="left">61% = 1</td>
+</tr>
+<tr class="odd">
+<td align="left">free_reduced_lunch</td>
+<td align="left">school</td>
+<td align="left">percent of school receiving free / reduced lunch</td>
+<td align="left">0 to 100 (median 74)</td>
+</tr>
+<tr class="even">
+<td align="left">distracted_a1</td>
+<td align="left">pupil</td>
+<td align="left">student distraction during assessment 1 (0-3)</td>
+<td align="left">0 to 3 (median 0)</td>
+</tr>
+<tr class="odd">
+<td align="left">distracted_ppvt</td>
+<td align="left">pupil</td>
+<td align="left">student distraction during the standardized assessment
+(0-3)</td>
+<td align="left">0 to 3 (median 0)</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>level</code> column is worth noting.
+<code>private_school</code>, <code>title1</code> and
+<code>free_reduced_lunch</code> are properties of the <em>school</em>,
+so they take one value for all pupils in a school and are natural
+candidates for explaining group effects. The <code>distracted_*</code>
+ratings vary from pupil to pupil within a school.</p>
+<p>Other columns not used here include a treatment indicator, pupil age
+and sex, two earlier assessment scores, and a set of teacher-level
+measures:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">setdiff</span>(C01<span class="sc">$</span>all_columns, C01<span class="sc">$</span>model_vars<span class="sc">$</span>variable)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt;  [1] &quot;participant_id&quot;       &quot;treat&quot;                &quot;age_months&quot;          </span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt;  [4] &quot;female&quot;               &quot;kindergarten&quot;         &quot;teacher_id&quot;          </span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt;  [7] &quot;state&quot;                &quot;esl_observed&quot;         &quot;special_ed_observed&quot; </span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; [10] &quot;new_student&quot;          &quot;distracted_a2&quot;        &quot;score_a1&quot;            </span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; [13] &quot;invalid_a1&quot;           &quot;score_a2&quot;             &quot;invalid_a2&quot;          </span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; [16] &quot;score_ppvt_age&quot;       &quot;invalid_ppvt&quot;         &quot;t_logins_april&quot;      </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt; [19] &quot;t_logins_total&quot;       &quot;t_weeks_used&quot;         &quot;t_words_learned&quot;     </span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt; [22] &quot;t_financial_struggle&quot; &quot;t_misbehavior&quot;        &quot;t_years_experience&quot;  </span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt; [25] &quot;score_pct_change&quot;</span></span></code></pre></div>
+</div>
+</div>
+<div id="the-model-being-estimated" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> The model being
+estimated</h1>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>form <span class="ot">&lt;-</span> score_ppvt <span class="sc">~</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  private_school <span class="sc">+</span> title1 <span class="sc">+</span> free_reduced_lunch <span class="sc">+</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  distracted_ppvt <span class="sc">+</span> distracted_a1 <span class="sc">+</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  free_reduced_lunch<span class="sc">:</span>distracted_a1 <span class="sc">+</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  (<span class="dv">1</span> <span class="sc">+</span> distracted_ppvt <span class="sc">+</span> distracted_a1 <span class="sc">||</span> school_id)</span></code></pre></div>
+<p>The bracketed term specifies the group effects. Each school gets its
+own intercept and its own two distraction slopes, so schools may differ
+both in average score and in how strongly distraction depresses scores.
+That makes <span class="math inline">\(p_{\mathrm{re}} = 3\)</span>:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>meta<span class="sc">$</span>groupef_names</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;(Intercept)&quot;     &quot;distracted_ppvt&quot; &quot;distracted_a1&quot;</span></span></code></pre></div>
+<p>The <code>||</code> requests that these three be uncorrelated, which
+makes <span class="math inline">\(\Psi\)</span> diagonal. Everything
+outside the brackets specifies the population effects that explain those
+three quantities.</p>
+<div id="how-the-population-effects-are-indexed" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> How the population
+effects are indexed</h2>
+<p>Because <span class="math inline">\(\gamma\)</span> explains group
+effects, it is not a flat vector. It is grouped by <em>which</em> group
+effect each coefficient explains:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>C01<span class="sc">$</span>popef_names</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; $`(Intercept)`</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;(Intercept)&quot;        &quot;private_school&quot;     &quot;title1&quot;            </span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; [4] &quot;free_reduced_lunch&quot;</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt; $distracted_ppvt</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;(Intercept)&quot;</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co">#&gt; $distracted_a1</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="co">#&gt; [1] &quot;(Intercept)&quot;        &quot;free_reduced_lunch&quot;</span></span></code></pre></div>
+<p>Reading these three blocks in turn: the intercept block holds the
+school-level predictors of a school’s average score. The
+<code>distracted_ppvt</code> block holds a single entry, its own
+intercept, which is the average <code>distracted_ppvt</code> slope
+across schools. The <code>distracted_a1</code> block holds that same
+average plus a <code>free_reduced_lunch</code> term — a cross-level
+interaction, asking whether distraction matters more in poorer
+schools.</p>
+<p>This indexing is why the summary tables in later chapters label rows
+<code>component::parameter</code>, and why lining them up against a flat
+<code>lmer</code> coefficient vector takes some care.</p>
+</div>
+<div id="the-priors" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> The priors</h2>
+<p><code>Prior_Setup_GLMM()</code> calibrates priors from the data
+rather than asking for hyperparameters directly:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">Prior_Setup_GLMM</span>(form, <span class="at">data =</span> dat, <span class="at">pop.pwt =</span> <span class="fl">0.01</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>pf <span class="ot">&lt;-</span> <span class="fu">pfamily_list</span>(ps)</span></code></pre></div>
+<p>For <span class="math inline">\(\gamma\)</span> it produces the
+normal prior of Section 1, with <code>pop.pwt</code> setting its weight.
+At <code>0.01</code> that is about one percent of the weight of the
+data, so it regularizes without materially moving the answer:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>C01<span class="sc">$</span>pop_prior</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#&gt;         component          parameter prior_mean    prior_sd</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; 1     (Intercept)        (Intercept)   88.37564  78.4502504</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; 2     (Intercept)     private_school    0.00000  96.8526878</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; 3     (Intercept)             title1    0.00000 100.2776090</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; 4     (Intercept) free_reduced_lunch    0.00000   1.5705244</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; 5 distracted_ppvt        (Intercept)    0.00000  17.5064432</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; 6   distracted_a1        (Intercept)    0.00000  41.4190827</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; 7   distracted_a1 free_reduced_lunch    0.00000   0.5841062</span></span></code></pre></div>
+<p>The prior means are zero apart from the intercept, and the standard
+deviations are large relative to the coefficients they cover, which is
+what makes this prior weak.</p>
+<p><code>pfamily_list(ps)</code> then wraps each component of <span class="math inline">\(\Psi\)</span>. A <code>dNormal</code> component
+declares <span class="math inline">\(\tau^2_k\)</span> known, so no
+sampling step is needed for it; <code>dIndependent_Normal_Gamma</code>
+estimates it instead. The same choice arises one level down for <span class="math inline">\(\sigma^2\)</span>. Which are fixed is precisely
+the table in Section 1.</p>
+<p>Where a quantity is fixed, it is worth knowing what it is fixed
+<em>at</em>. The natural assumption is the REML estimate, and that
+assumption is wrong:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>tab <span class="ot">&lt;-</span> C01<span class="sc">$</span>fixed_vs_reml</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>tab<span class="sc">$</span>ratio <span class="ot">&lt;-</span> <span class="fu">round</span>(tab<span class="sc">$</span>calibrated <span class="sc">/</span> tab<span class="sc">$</span>reml, <span class="dv">3</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>tab</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt;         component calibrated      reml ratio</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt; 1     (Intercept)  159.13613 191.78503 0.830</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt; 2 distracted_ppvt    6.73747  26.03416 0.259</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt; 3   distracted_a1   11.47851  41.05084 0.280</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt; 4        Residual  388.80365 366.40576 1.061</span></span></code></pre></div>
+<p>The between-school variances are calibrated to values well below the
+REML ones, while the residual runs the other way, because
+<code>Prior_Setup_GLMM()</code> uses a pooled marginal estimate rather
+than the classical residual:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">source =</span> C01<span class="sc">$</span>dispersion_source,</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="at">classical_reml =</span> <span class="fu">round</span>(C01<span class="sc">$</span>dispersion_classical, <span class="dv">2</span>))</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt;                      source              classical_reml </span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; &quot;pooled S_marg (A12 3.3.4)&quot;                    &quot;366.41&quot;</span></span></code></pre></div>
+<p>This does not affect whether a sampler is correct: any fixed <span class="math inline">\(\Psi\)</span> and <span class="math inline">\(\sigma^2\)</span> still define a legitimate
+posterior, and reaching that posterior is what the later chapters
+verify. It does mean the draws are not interchangeable with an
+<code>lmer</code> plug-in analysis, which is why the reference
+comparisons there are judged against <code>lmer</code>’s own standard
+errors rather than against exact agreement. <code>Chapter-B05</code>
+covers the calibration itself.</p>
+<p>With the model specified and the priors calibrated, the first
+question is what happens when both variances are simply held at these
+values. That is <code>Chapter-C02</code>.</p>
+</div>
+</div>
+<div id="see-also" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> See also</h1>
+<ul>
+<li><code>vignette(&quot;Chapter-C02&quot;)</code> — the exact iid sampler on this
+design.</li>
+<li><code>vignette(&quot;Chapter-B01&quot;)</code> — the two-block architecture
+built on the two-stage form.</li>
+<li><code>vignette(&quot;Chapter-B05&quot;)</code> — prior calibration and
+estimated variance components.</li>
+<li><code>vignette(&quot;Chapter-B00&quot;)</code> — notation and the engine
+roadmap.</li>
+<li><code>?model_setup</code>, <code>?Prior_Setup_GLMM</code>,
+<code>?pfamily_list</code></li>
+<li><code>data-raw/make_bwc_full_rank.R</code> and
+<code>data-raw/chapter_C_gaussian_setup.R</code> in the package sources
+for the code that prepares this dataset and design.</li>
+</ul>
+</div>
+<div id="bibliography" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-JohnsonLauEtAl2022" class="csl-entry">
+Johnson, Alicia A., Miles Q. Ott, and Mine Dogucu. 2022. <em>Bayes
+Rules! An Introduction to Applied Bayesian Modeling</em>. Boca Raton,
+FL: CRC Press. <a href="https://www.bayesrulesbook.com">https://www.bayesrulesbook.com</a>.
+</div>
+<div id="ref-KalilMayerOreopoulos2020" class="csl-entry">
+Kalil, Ariel, Susan Mayer, and Philip Oreopoulos. 2020. <span>“Closing
+the Word Gap with Big Word Club: Evaluating the Impact of a Tech-Based
+Early Childhood Vocabulary Program.”</span> Inter-university Consortium
+for Political and Social Research (ICPSR).
+</div>
+<div id="ref-LindleySmith1972" class="csl-entry">
+Lindley, D. V., and A. F. M. Smith. 1972. <span>“Bayes Estimates for the
+Linear Model.”</span> <em>Journal of the Royal Statistical Society.
+Series B (Methodological)</em> 34 (1): 1–41. <a href="https://doi.org/10.1111/j.2517-6161.1972.tb00899.x">https://doi.org/10.1111/j.2517-6161.1972.tb00899.x</a>.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

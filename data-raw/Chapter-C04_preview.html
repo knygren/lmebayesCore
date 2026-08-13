@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-08-11" />
+
+<title>Chapter C04: The two-block Gibbs sampler</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+margin-bottom: 0em;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter C04: The two-block Gibbs
+sampler</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-08-11</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#prior-specification" id="toc-prior-specification"><span class="toc-section-number">1</span> Prior specification</a></li>
+<li><a href="#estimating-the-model-using-the-default-settings" id="toc-estimating-the-model-using-the-default-settings"><span class="toc-section-number">2</span> Estimating the model using the
+default settings</a></li>
+<li><a href="#properties-of-the-posterior-and-the-two-block-gibbs-procedure" id="toc-properties-of-the-posterior-and-the-two-block-gibbs-procedure"><span class="toc-section-number">3</span> Properties of the posterior and the
+two-block Gibbs procedure</a>
+<ul>
+<li><a href="#block-1-group-effects-given-the-population-effects" id="toc-block-1-group-effects-given-the-population-effects"><span class="toc-section-number">3.1</span> Block 1: group effects given the
+population effects</a></li>
+<li><a href="#block-2-population-effects-given-the-group-effects" id="toc-block-2-population-effects-given-the-group-effects"><span class="toc-section-number">3.2</span> Block 2: population effects given
+the group effects</a></li>
+<li><a href="#one-sweep-and-one-stored-draw" id="toc-one-sweep-and-one-stored-draw"><span class="toc-section-number">3.3</span> One sweep and one stored
+draw</a></li>
+</ul></li>
+<li><a href="#where-the-sweep-count-comes-from" id="toc-where-the-sweep-count-comes-from"><span class="toc-section-number">4</span> Where the sweep count comes from</a>
+<ul>
+<li><a href="#the-rate-matrix-for-this-design" id="toc-the-rate-matrix-for-this-design"><span class="toc-section-number">4.1</span> The rate matrix for this
+design</a></li>
+<li><a href="#from-the-rate-to-a-certified-sweep-count" id="toc-from-the-rate-to-a-certified-sweep-count"><span class="toc-section-number">4.2</span> From the rate to a certified sweep
+count</a></li>
+</ul></li>
+<li><a href="#summarizing-the-output" id="toc-summarizing-the-output"><span class="toc-section-number">5</span> Summarizing the output</a></li>
+<li><a href="#variance-convergence-during-the-main-phase" id="toc-variance-convergence-during-the-main-phase"><span class="toc-section-number">6</span> Variance convergence during the main
+phase</a></li>
+<li><a href="#see-also" id="toc-see-also"><span class="toc-section-number">7</span> See also</a></li>
+<li><a href="#bibliography" id="toc-bibliography">References</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(lmebayesCore)</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>.c_extdata_rds <span class="ot">&lt;-</span> <span class="cf">function</span>(name) {</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  p <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, name, <span class="at">package =</span> <span class="st">&quot;lmebayesCore&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">nzchar</span>(p) <span class="sc">&amp;&amp;</span> <span class="fu">file.exists</span>(p)) <span class="fu">return</span>(p)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="cf">for</span> (root <span class="cf">in</span> <span class="fu">c</span>(</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>    <span class="fu">file.path</span>(<span class="st">&quot;..&quot;</span>, <span class="st">&quot;inst&quot;</span>, <span class="st">&quot;extdata&quot;</span>, name),</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>    <span class="fu">file.path</span>(<span class="st">&quot;inst&quot;</span>, <span class="st">&quot;extdata&quot;</span>, name)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  )) {</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>    <span class="cf">if</span> (<span class="fu">file.exists</span>(root)) <span class="fu">return</span>(<span class="fu">normalizePath</span>(root))</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  }</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="fu">stop</span>(</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>    <span class="st">&quot;Cannot find &quot;</span>, name, <span class="st">&quot; in inst/extdata/. &quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>    <span class="st">&quot;Run devtools::load_all() or reinstall the package.&quot;</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>    <span class="at">call. =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  )</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>}</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>C04 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">.c_extdata_rds</span>(<span class="st">&quot;Chapter-C04-bwc-twoblock.rds&quot;</span>))</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>meta <span class="ot">&lt;-</span> C04<span class="sc">$</span>meta</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>conv <span class="ot">&lt;-</span> C04<span class="sc">$</span>convergence</span></code></pre></div>
+<p>This chapter fits the same model and prior specification as
+<code>Chapter-C02</code>, but forces the two-block Gibbs route instead
+of the exact iid sampler. Both chapters target the same multivariate
+normal posterior; here the draws come from independent chains, each run
+through 25 inner sweeps before being stored.</p>
+<div id="prior-specification" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Prior
+specification</h1>
+<p>Two quantities are held constant throughout this chapter: the
+observation dispersion <span class="math inline">\(\sigma^2\)</span> and
+the between-group variance matrix <span class="math inline">\(\Psi\)</span>. Both are fixed at the defaults
+<code>Prior_Setup_GLMM()</code> calibrates from the data, so neither
+carries a prior and neither is sampled:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>C04<span class="sc">$</span>summary<span class="sc">$</span>tau2_prior_overview[, <span class="fu">c</span>(<span class="st">&quot;Prior&quot;</span>, <span class="st">&quot;E[tau2]&quot;</span>)]</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt;                   Prior   E[tau2]</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; (Intercept)     dNormal 159.13613</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt dNormal   6.73747</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; distracted_a1   dNormal  11.47851</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; Residual          fixed 388.80365</span></span></code></pre></div>
+<p>The three <code>dNormal</code> rows are the components of <span class="math inline">\(\Psi\)</span>, declared known. The
+<code>Residual</code> row is <span class="math inline">\(\sigma^2\)</span>, likewise fixed.</p>
+<p>That leaves the population effects <span class="math inline">\(\gamma\)</span> as the only quantity with a prior
+of its own. They receive the default multivariate normal prior,
+specified separately for each group-effect component:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">round</span>(C04<span class="sc">$</span>summary<span class="sc">$</span>popef_prior_overview[, <span class="fu">c</span>(<span class="st">&quot;Prior Mean&quot;</span>, <span class="st">&quot;Prior.sd&quot;</span>)], <span class="dv">3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt;                                   Prior Mean Prior.sd</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)              88.376   78.450</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school            0.000   96.853</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                    0.000  100.278</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch        0.000    1.571</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)           0.000   17.506</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)             0.000   41.419</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch      0.000    0.584</span></span></code></pre></div>
+<p>Every coefficient is centered at zero except the grand intercept, so
+the prior mean vector describes a null, intercept-only model — the same
+default as in <code>Chapter-C02</code> and the <strong>glmbayes</strong>
+family of packages. The setup is built by two calls:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">Prior_Setup_GLMM</span>(form, <span class="at">data =</span> dat, <span class="at">pop.pwt =</span> <span class="fl">0.01</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>pf <span class="ot">&lt;-</span> <span class="fu">pfamily_list</span>(ps)</span></code></pre></div>
+<p><code>pop.pwt = 0.01</code> gives the prior on <span class="math inline">\(\gamma\)</span> the weight of about one percent of
+the data.</p>
+</div>
+<div id="estimating-the-model-using-the-default-settings" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Estimating the model
+using the default settings</h1>
+<p>The call matches <code>Chapter-C02</code> except for the simulation
+method:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">rlmerb</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  <span class="at">n              =</span> <span class="dv">10000</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">design         =</span> <span class="fu">model_setup</span>(form, <span class="at">data =</span> dat),</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">pfamily_list   =</span> pf,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">dispprior_list =</span> <span class="fu">list</span>(<span class="at">dispersion =</span> ps<span class="sc">$</span>group.dispersion),</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">sim_method     =</span> <span class="st">&quot;TWO_BLOCK_GIBBS&quot;</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>The <code>design</code>, <code>pfamily_list</code> and
+<code>dispprior_list</code> arguments carry the same meaning as in the
+previous chapter. <code>sim_method = &quot;TWO_BLOCK_GIBBS&quot;</code> forces the
+iterative route on this known-variance-components specification; with
+<code>sim_method = &quot;DEFAULT&quot;</code> the package would draw directly from
+the closed-form posterior instead.</p>
+<p>Under this specification the joint posterior is exactly multivariate
+normal, as in <code>Chapter-C02</code>. Each stored draw is one
+independent chain after 25 inner Gibbs sweeps. That budget is not a
+guess: it is certified from the convergence rate
+(<code>lambda_star</code> = 0.9308) against a total variation tolerance,
+by the theory of <code>vignette(&quot;Chapter-C03&quot;)</code>. The derivation is
+in the section below.</p>
+</div>
+<div id="properties-of-the-posterior-and-the-two-block-gibbs-procedure" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Properties of the
+posterior and the two-block Gibbs procedure</h1>
+<p>The log posterior splits into the same three components as in
+<code>Chapter-C02</code>: the log-likelihood, the prior on the group
+effects, and the prior on the population effects. Because <span class="math inline">\(\sigma^2\)</span>, <span class="math inline">\(\Psi\)</span> and <span class="math inline">\(V\)</span> are all known, the posterior is
+multivariate normal and factorizes into the same conditional
+distributions.</p>
+<div id="block-1-group-effects-given-the-population-effects" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Block 1: group
+effects given the population effects</h2>
+<p>Given <span class="math inline">\(\gamma\)</span>, the group effects
+are conditionally independent across groups:</p>
+<p><span class="math display">\[
+\beta_j \mid \gamma, y \sim N\!\left(b_j,\; \Sigma_j\right),
+\qquad
+\begin{aligned}
+\Sigma_j &amp;= \left(\sigma^{-2} D_j&#39; D_j + \Psi^{-1}\right)^{-1},
+\\
+b_j &amp;= \Sigma_j\left(\sigma^{-2} D_j&#39; y_j +
+\Psi^{-1}\mathcal{W}_j\gamma\right).
+\end{aligned}
+\]</span></p>
+<p>Block 1 of the Gibbs sampler draws each <span class="math inline">\(\beta_j\)</span> from this conditional, holding
+the current <span class="math inline">\(\gamma\)</span> fixed.</p>
+</div>
+<div id="block-2-population-effects-given-the-group-effects" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> Block 2: population
+effects given the group effects</h2>
+<p>Given the group effects, the population effects receive a conjugate
+normal update that combines the prior on <span class="math inline">\(\gamma\)</span> with the information each group’s
+current <span class="math inline">\(\beta_j\)</span> contributes through
+<span class="math inline">\(\mathcal{W}_j\)</span>. The result is
+another multivariate normal conditional, <span class="math inline">\(\gamma \mid \beta, y\)</span>, with precision that
+adds the prior precision to a sum of group-level contributions. Block 2
+draws <span class="math inline">\(\gamma\)</span> from this conditional,
+holding the current <span class="math inline">\(\beta\)</span>
+fixed.</p>
+</div>
+<div id="one-sweep-and-one-stored-draw" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> One sweep and one
+stored draw</h2>
+<p>One inner sweep alternates the two blocks: update all <span class="math inline">\(\beta_j\)</span>, then update <span class="math inline">\(\gamma\)</span>. Repeating the pair moves the
+chain closer to the target. After 25 sweeps the chain’s distribution is
+close enough that the final state can be treated as a draw from the
+posterior. Replicating that procedure across 10000 independent chains
+produces the stored sample.</p>
+<p>Unlike the iid route of <code>Chapter-C02</code>, which draws <span class="math inline">\(\gamma\)</span> from its marginal and then each
+<span class="math inline">\(\beta_j\)</span> from its conditional in one
+pass, the Gibbs route needs the sweeps because it never integrates the
+group effects out analytically. Both routes target the same posterior;
+the Gibbs route trades the closed-form factorization for an iterative
+scheme whose convergence can be diagnosed from the sweep history.</p>
+</div>
+</div>
+<div id="where-the-sweep-count-comes-from" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Where the sweep count
+comes from</h1>
+<p><code>vignette(&quot;Chapter-C03&quot;)</code> develops <span class="citation">Nygren (2020)</span>’s total variation bounds for a
+two-block Gibbs sampler on a multivariate normal target in the abstract.
+This model is exactly that setting, so the results apply verbatim and
+fix the sweep count that produced the draws above. This section
+instantiates them.</p>
+<div id="the-rate-matrix-for-this-design" class="section level2" number="4.1">
+<h2><span class="header-section-number">4.1</span> The rate matrix for
+this design</h2>
+<p>Take <span class="math inline">\(\gamma\)</span> — the 7-vector of
+population effects — as the first block, updated second in each sweep,
+and the group effects <span class="math inline">\(\beta\)</span> as the
+second block, updated first. Claim 2 says the mean bias contracts by the
+matrix <span class="math inline">\(P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}\)</span> each
+sweep, and Remark 8 says the relevant eigenvalues are those of the
+symmetrized form <span class="math inline">\(A =
+P_{11}^{-1/2}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1/2}\)</span> — which is
+why the rate can be read off the precision blocks without ever forming
+<span class="math inline">\(\Sigma\)</span>.</p>
+<p>Here <span class="math inline">\(P_{11}\)</span> is the prior
+precision of <span class="math inline">\(\gamma\)</span>, <span class="math inline">\(P_{22}\)</span> is block diagonal with <span class="math inline">\(j\)</span>th block <span class="math inline">\(\sigma^{-2}D_j&#39;D_j + \Psi^{-1}\)</span>, and
+<span class="math inline">\(P_{12}\)</span> collects the <span class="math inline">\(-\Psi^{-1}\mathcal{W}_j\)</span> coupling terms.
+<code>two_block_rate()</code> assembles these and solves the generalized
+eigenproblem:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>C04<span class="sc">$</span>rate</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; Two-block Gibbs convergence rate (Nygren 2020, Remark 8)</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt;   groups J = 34, p_re = 3, q = 7, n_obs = 400  [family: gaussian]</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; Eigenvalues of A (q x q):</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; [1] 0.930794 0.910041 0.865935 0.196770 0.191864 0.176490 0.172073</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt; lambda* = 0.930794</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt; Implied sweeps per tolerance:</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt;   tol          (lambda*)^m proxy     Theorem 3 bound   Corollary 1 bound</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt;   0.01                        65                  24                  45</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt;   0.001                       97                  39                  61</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt;   1e-06                      193                  87                 108</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt;   (TV bounds assume start at the posterior mean: D0 = 0)</span></span></code></pre></div>
+<p>The spectrum splits sharply. Three eigenvalues sit near 0.87–0.93 and
+four near 0.17–0.20. The large ones belong to the intercept and the two
+slope directions, where the prior on <span class="math inline">\(\gamma\)</span> is weak relative to the
+information the group effects carry, so <span class="math inline">\(\gamma\)</span> and <span class="math inline">\(\beta\)</span> are strongly coupled and the
+sampler moves through that subspace slowly. The rate is <span class="math inline">\(\lambda^{*} =\)</span> 0.9308, the largest of
+them.</p>
+</div>
+<div id="from-the-rate-to-a-certified-sweep-count" class="section level2" number="4.2">
+<h2><span class="header-section-number">4.2</span> From the rate to a
+certified sweep count</h2>
+<p>Every chain starts at the exact posterior mean, so <span class="math inline">\(D_0 =
+(x_1^{(0)}-\mu_1)&#39;\Sigma_{11}^{-1}(x_1^{(0)}-\mu_1) = 0\)</span> and
+the mean term of Theorem 3 vanishes identically. What remains is the
+variance sum <span class="math inline">\(\sum_i d_i^{(l)}\)</span>,
+evaluated at the Remark 11 ratios <span class="math inline">\(r_i^{(l)}
+= (1-a_{i-1}^{2l})/(1-a_i^{2l})\)</span>:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>l <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">5</span>, <span class="dv">10</span>, <span class="dv">15</span>, <span class="dv">20</span>, <span class="dv">24</span>, <span class="dv">30</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>  <span class="at">sweeps     =</span> l,</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>  <span class="at">theorem3   =</span> <span class="fu">signif</span>(lmebayesCore<span class="sc">:::</span><span class="fu">two_block_tv_bound</span>(C04<span class="sc">$</span>rate, l, <span class="st">&quot;theorem3&quot;</span>), <span class="dv">3</span>),</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="at">corollary1 =</span> <span class="fu">signif</span>(lmebayesCore<span class="sc">:::</span><span class="fu">two_block_tv_bound</span>(C04<span class="sc">$</span>rate, l, <span class="st">&quot;corollary1&quot;</span>), <span class="dv">3</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>)</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt;   sweeps theorem3 corollary1</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; 1      1  0.78500     1.0000</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; 2      5  0.24900     1.0000</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; 3     10  0.09200     1.0000</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; 4     15  0.03890     0.8850</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; 5     20  0.01740     0.4010</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; 6     24  0.00933     0.2150</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; 7     30  0.00375     0.0861</span></span></code></pre></div>
+<p>Both columns bound the same total variation distance, and the
+ordering between them is the price of Corollary 1’s closed form. Theorem
+3 evaluates the error function differences exactly; Corollary 1 replaces
+each by its Remark 5 and Remark 17 envelope, which is loose at small
+<span class="math inline">\(l\)</span> — it exceeds 1, and so says
+nothing, until sweep 12 or so — but decays at the same geometric rate
+afterwards. The <code>(lambda*)^m</code> column of the printout above is
+neither: it is the naive proxy <span class="math inline">\((\lambda^{*})^{m}\)</span>, which ignores that the
+variance converges at <span class="math inline">\(a_i^{2l}\)</span>
+rather than <span class="math inline">\(a_i^{l}\)</span> and so is
+conservative by roughly a factor of two in sweeps.</p>
+<p>At the package default tolerance of 0.01, Theorem 3 certifies 24
+sweeps. The sampler adds one, giving 25:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>  <span class="at">theorem3      =</span> lmebayesCore<span class="sc">:::</span><span class="fu">two_block_l_for_tv</span>(C04<span class="sc">$</span>rate, <span class="fl">0.01</span>, <span class="st">&quot;theorem3&quot;</span>),</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>  <span class="at">stored        =</span> C04<span class="sc">$</span>convergence<span class="sc">$</span>m_convergence</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>)</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; theorem3   stored </span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">#&gt;       24       25</span></span></code></pre></div>
+<p>The extra sweep is a half-step correction, not slack. The bound is a
+statement about the block updated <em>second</em> in each sweep — <span class="math inline">\(\gamma\)</span> — and the stored Block 1 draw
+<span class="math inline">\(\beta\)</span> lags it by half a sweep, so
+one more sweep brings both blocks inside the tolerance.</p>
+<p>Two things are worth noting about the cost. Because the bound is
+geometric, tightening the tolerance is cheap: the printed table above
+shows that going from 0.01 to <span class="math inline">\(10^{-6}\)</span> — four orders of magnitude —
+costs roughly three and a half times the sweeps, not four orders of
+magnitude more. And because <span class="math inline">\(D_0 = 0\)</span>
+removes the mean term outright, the entire budget here is paid for
+variance convergence; routes that cannot start at the posterior mean
+(non-Gaussian families, or sampled variance components) must certify
+<span class="math inline">\(D_0\)</span> from a pilot stage and carry
+the Lemma 1 mean term as well.</p>
+</div>
+</div>
+<div id="summarizing-the-output" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Summarizing the
+output</h1>
+<p><code>summary()</code> collects the draws into the same tables as in
+<code>Chapter-C02</code>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">summary</span>(fit, <span class="at">groups =</span> <span class="fu">c</span>(<span class="st">&quot;30&quot;</span>, <span class="st">&quot;15&quot;</span>))</span></code></pre></div>
+<p>The output is organized by block: reference random effects, Block 2
+variance components (fixed here, so posterior tables are suppressed),
+Block 2 population effects in three tables, and Block 1 group effects
+with optional per-group detail.</p>
+<p>Two features of the population effect tables follow from the default
+<code>pop.pwt = 0.01</code>. The posterior means land close to the
+<code>lmer</code> estimates, displaced slightly toward the null prior
+means. Read on the scale that matters, the two fits agree throughout:
+every Bayesian estimate falls within a fifth of a standard error of its
+<code>lmer</code> counterpart.</p>
+<p>The <code>Pr(Prior_tail)</code> column measures the posterior mass on
+the opposite side of the prior mean from the estimate — a one-sided
+statement about how far the data have moved each coefficient off its
+prior value. Because the prior means are the null model, that reference
+point is zero for every coefficient except the intercept, so for those
+rows the column tracks half the two-sided p-value the corresponding
+<code>lmer</code> fit would report.</p>
+<p>The output below was produced by
+<code>data-raw/make_Chapter-C04.R</code> with <code>n = 10000</code> and
+<code>set.seed(1)</code>, then stored, so that building this vignette
+does not rerun the sampler.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>C04<span class="sc">$</span>summary</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#&gt; Call</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; rlmerb(n = N_DRAWS, design = design, pfamily_list = pf, dispprior_list = list(dispersion = ps$group.dispersion), </span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt;     progbar = TRUE, verbose = FALSE, print_icm_table = FALSE, </span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt;     sim_method = &quot;TWO_BLOCK_GIBBS&quot;)</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; Bayesian mixed model fit based on 10000 draws [two-block Gibbs, 25 sweeps/draw]</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt; Formula: score_ppvt ~ private_school + title1 + free_reduced_lunch + distracted_ppvt + distracted_a1 + free_reduced_lunch:distracted_a1 + (1 + distracted_ppvt + distracted_a1 || school_id) </span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; Number of obs: 400,  groups: school_id, 34</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; Random effects (lmer reference):</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#&gt;           grp            var1 var2   vcov  sdcor</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a><span class="co">#&gt; 1   school_id     (Intercept) &lt;NA&gt; 191.79 13.849</span></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co">#&gt; 2 school_id.1 distracted_ppvt &lt;NA&gt;  26.03  5.102</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a><span class="co">#&gt; 3 school_id.2   distracted_a1 &lt;NA&gt;  41.05  6.407</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a><span class="co">#&gt; 4    Residual            &lt;NA&gt; &lt;NA&gt; 366.41 19.142</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a><span class="co">#&gt; === Block 2 variance components (tau^2_k) ===</span></span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a><span class="co">#&gt; Prior and lmer reference</span></span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a><span class="co">#&gt;                   Prior  E[tau2] sqrt(E[tau2]) disp_lower disp_upper     lmer</span></span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a><span class="co">#&gt; (Intercept)     dNormal 159.1361       12.6149         NA         NA 191.7850</span></span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt dNormal   6.7375        2.5957         NA         NA  26.0342</span></span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a><span class="co">#&gt; distracted_a1   dNormal  11.4785        3.3880         NA         NA  41.0508</span></span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a><span class="co">#&gt; Residual          fixed 388.8036       19.7181         NA         NA 366.4058</span></span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a><span class="co">#&gt;                 lmer SD</span></span>
+<span id="cb11-28"><a href="#cb11-28" tabindex="-1"></a><span class="co">#&gt; (Intercept)     13.8486</span></span>
+<span id="cb11-29"><a href="#cb11-29" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt  5.1024</span></span>
+<span id="cb11-30"><a href="#cb11-30" tabindex="-1"></a><span class="co">#&gt; distracted_a1    6.4071</span></span>
+<span id="cb11-31"><a href="#cb11-31" tabindex="-1"></a><span class="co">#&gt; Residual        19.1417</span></span>
+<span id="cb11-32"><a href="#cb11-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-33"><a href="#cb11-33" tabindex="-1"></a><span class="co">#&gt;   (All variance components held fixed; nothing sampled.)</span></span>
+<span id="cb11-34"><a href="#cb11-34" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-35"><a href="#cb11-35" tabindex="-1"></a><span class="co">#&gt; === Block 2 population effects (level-2 hyperparameters) ===</span></span>
+<span id="cb11-36"><a href="#cb11-36" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-37"><a href="#cb11-37" tabindex="-1"></a><span class="co">#&gt; Prior Estimates with Standard Deviations</span></span>
+<span id="cb11-38"><a href="#cb11-38" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-39"><a href="#cb11-39" tabindex="-1"></a><span class="co">#&gt;                                   Prior Mean  Prior.sd      lmer lmer.se</span></span>
+<span id="cb11-40"><a href="#cb11-40" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)            88.37564  78.45025  99.16637   7.885</span></span>
+<span id="cb11-41"><a href="#cb11-41" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school          0.00000  96.85269  -0.16630   9.734</span></span>
+<span id="cb11-42"><a href="#cb11-42" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                  0.00000 100.27761  23.24038  10.078</span></span>
+<span id="cb11-43"><a href="#cb11-43" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch      0.00000   1.57052  -0.38866   0.158</span></span>
+<span id="cb11-44"><a href="#cb11-44" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)         0.00000  17.50644  -1.61211   1.759</span></span>
+<span id="cb11-45"><a href="#cb11-45" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)           0.00000  41.41908   1.46279   4.163</span></span>
+<span id="cb11-46"><a href="#cb11-46" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch    0.00000   0.58411  -0.09333   0.059</span></span>
+<span id="cb11-47"><a href="#cb11-47" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-48"><a href="#cb11-48" tabindex="-1"></a><span class="co">#&gt; Bayesian Estimates Based on 10000 draws</span></span>
+<span id="cb11-49"><a href="#cb11-49" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-50"><a href="#cb11-50" tabindex="-1"></a><span class="co">#&gt;                                   Post.Mode Post.Mean  Post.Sd MC Error</span></span>
+<span id="cb11-51"><a href="#cb11-51" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)           98.70159  98.72679  7.25423    0.073</span></span>
+<span id="cb11-52"><a href="#cb11-52" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school         0.71693   0.71448  8.88178    0.089</span></span>
+<span id="cb11-53"><a href="#cb11-53" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                22.93297  22.96431  9.31385    0.093</span></span>
+<span id="cb11-54"><a href="#cb11-54" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.38190  -0.38312  0.14556    0.001</span></span>
+<span id="cb11-55"><a href="#cb11-55" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)       -1.60229  -1.57857  1.53076    0.015</span></span>
+<span id="cb11-56"><a href="#cb11-56" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)          0.78681   0.75771  3.63296    0.036</span></span>
+<span id="cb11-57"><a href="#cb11-57" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.09218  -0.09231  0.05012    0.001</span></span>
+<span id="cb11-58"><a href="#cb11-58" tabindex="-1"></a><span class="co">#&gt;                                   Pr(Prior_tail)</span></span>
+<span id="cb11-59"><a href="#cb11-59" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)                  0.0756</span></span>
+<span id="cb11-60"><a href="#cb11-60" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school               0.4674</span></span>
+<span id="cb11-61"><a href="#cb11-61" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                       0.0063</span></span>
+<span id="cb11-62"><a href="#cb11-62" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch           0.0041</span></span>
+<span id="cb11-63"><a href="#cb11-63" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)              0.1492</span></span>
+<span id="cb11-64"><a href="#cb11-64" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)                0.4153</span></span>
+<span id="cb11-65"><a href="#cb11-65" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch         0.0334</span></span>
+<span id="cb11-66"><a href="#cb11-66" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-67"><a href="#cb11-67" tabindex="-1"></a><span class="co">#&gt; Distribution Percentiles</span></span>
+<span id="cb11-68"><a href="#cb11-68" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-69"><a href="#cb11-69" tabindex="-1"></a><span class="co">#&gt;                                         1.0%       2.5%       5.0%     Median</span></span>
+<span id="cb11-70"><a href="#cb11-70" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)           81.868168  84.734978  86.900613  98.728120</span></span>
+<span id="cb11-71"><a href="#cb11-71" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school       -19.987908 -16.607816 -13.886773   0.724683</span></span>
+<span id="cb11-72"><a href="#cb11-72" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                 1.359595   4.815026   7.853031  22.986348</span></span>
+<span id="cb11-73"><a href="#cb11-73" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.719311  -0.663217  -0.618687  -0.383932</span></span>
+<span id="cb11-74"><a href="#cb11-74" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)       -5.126314  -4.562351  -4.098339  -1.581182</span></span>
+<span id="cb11-75"><a href="#cb11-75" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)         -7.749593  -6.274689  -5.195309   0.778453</span></span>
+<span id="cb11-76"><a href="#cb11-76" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.208035  -0.189575  -0.173844  -0.092025</span></span>
+<span id="cb11-77"><a href="#cb11-77" tabindex="-1"></a><span class="co">#&gt;                                        95.0%      97.5%   99.0%</span></span>
+<span id="cb11-78"><a href="#cb11-78" tabindex="-1"></a><span class="co">#&gt; (Intercept)::(Intercept)          110.645543 113.112455 116.037</span></span>
+<span id="cb11-79"><a href="#cb11-79" tabindex="-1"></a><span class="co">#&gt; (Intercept)::private_school        15.235681  18.197290  21.400</span></span>
+<span id="cb11-80"><a href="#cb11-80" tabindex="-1"></a><span class="co">#&gt; (Intercept)::title1                38.350818  41.179280  44.366</span></span>
+<span id="cb11-81"><a href="#cb11-81" tabindex="-1"></a><span class="co">#&gt; (Intercept)::free_reduced_lunch    -0.142926  -0.094848  -0.044</span></span>
+<span id="cb11-82"><a href="#cb11-82" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt::(Intercept)        0.904222   1.395001   2.009</span></span>
+<span id="cb11-83"><a href="#cb11-83" tabindex="-1"></a><span class="co">#&gt; distracted_a1::(Intercept)          6.749852   7.887948   9.190</span></span>
+<span id="cb11-84"><a href="#cb11-84" tabindex="-1"></a><span class="co">#&gt; distracted_a1::free_reduced_lunch  -0.010015   0.005335   0.022</span></span>
+<span id="cb11-85"><a href="#cb11-85" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-86"><a href="#cb11-86" tabindex="-1"></a><span class="co">#&gt; === Block 1 group effects ===</span></span>
+<span id="cb11-87"><a href="#cb11-87" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-88"><a href="#cb11-88" tabindex="-1"></a><span class="co">#&gt; Distribution of posterior modes across groups</span></span>
+<span id="cb11-89"><a href="#cb11-89" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-90"><a href="#cb11-90" tabindex="-1"></a><span class="co">#&gt;                     Mean       SD      Min       Q1   Median       Q3      Max</span></span>
+<span id="cb11-91"><a href="#cb11-91" tabindex="-1"></a><span class="co">#&gt; (Intercept)      91.2640  14.0905  61.4926  82.4736  92.3806 102.7179 114.1792</span></span>
+<span id="cb11-92"><a href="#cb11-92" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt  -1.6033   0.9026  -3.4764  -1.8115  -1.4829  -1.1302   0.7325</span></span>
+<span id="cb11-93"><a href="#cb11-93" tabindex="-1"></a><span class="co">#&gt; distracted_a1    -4.3086   3.7974 -11.3164  -7.0521  -5.7084  -2.0022   1.9539</span></span>
+<span id="cb11-94"><a href="#cb11-94" tabindex="-1"></a><span class="co">#&gt;                 MCMC.mean</span></span>
+<span id="cb11-95"><a href="#cb11-95" tabindex="-1"></a><span class="co">#&gt; (Intercept)        91.265</span></span>
+<span id="cb11-96"><a href="#cb11-96" tabindex="-1"></a><span class="co">#&gt; distracted_ppvt    -1.587</span></span>
+<span id="cb11-97"><a href="#cb11-97" tabindex="-1"></a><span class="co">#&gt; distracted_a1      -4.341</span></span>
+<span id="cb11-98"><a href="#cb11-98" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-99"><a href="#cb11-99" tabindex="-1"></a><span class="co">#&gt; Per-group detail (requested levels)</span></span>
+<span id="cb11-100"><a href="#cb11-100" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-101"><a href="#cb11-101" tabindex="-1"></a><span class="co">#&gt;  group (Intercept).mode (Intercept).mean (Intercept).sd distracted_ppvt.mode</span></span>
+<span id="cb11-102"><a href="#cb11-102" tabindex="-1"></a><span class="co">#&gt;     30            80.59            80.67          6.133               -2.773</span></span>
+<span id="cb11-103"><a href="#cb11-103" tabindex="-1"></a><span class="co">#&gt;     15            96.69            96.76          6.790               -1.717</span></span>
+<span id="cb11-104"><a href="#cb11-104" tabindex="-1"></a><span class="co">#&gt;  distracted_ppvt.mean distracted_ppvt.sd distracted_a1.mode distracted_a1.mean</span></span>
+<span id="cb11-105"><a href="#cb11-105" tabindex="-1"></a><span class="co">#&gt;                -2.774              2.814            -11.316            -11.367</span></span>
+<span id="cb11-106"><a href="#cb11-106" tabindex="-1"></a><span class="co">#&gt;                -1.709              2.825              1.396              1.352</span></span>
+<span id="cb11-107"><a href="#cb11-107" tabindex="-1"></a><span class="co">#&gt;  distracted_a1.sd</span></span>
+<span id="cb11-108"><a href="#cb11-108" tabindex="-1"></a><span class="co">#&gt;             3.283</span></span>
+<span id="cb11-109"><a href="#cb11-109" tabindex="-1"></a><span class="co">#&gt;             4.532</span></span></code></pre></div>
+</div>
+<div id="variance-convergence-during-the-main-phase" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> Variance convergence
+during the main phase</h1>
+<p>The exact iid route of <code>Chapter-C02</code> produces no sweep
+history because it never runs a Markov chain. The Gibbs route does, and
+the history is stored on the fit as <code>fit$sweep_history</code>. The
+variance chart measures Claim 3 of <code>vignette(&quot;Chapter-C03&quot;)</code>
+empirically. That claim is an equality, <span class="math inline">\(\Sigma_{11}^{-1/2}\Sigma^{(l)}_{11}\Sigma_{11}^{-1/2}
+= I - A^{2l}\)</span>, so after <span class="math inline">\(l\)</span>
+sweeps the cross-chain covariance of the Block 2 fixed effects should
+sit below the exact posterior covariance by exactly <span class="math inline">\(A^{2l}\)</span> on the whitened scale, and rise
+toward it as <span class="math inline">\(l\)</span> grows.</p>
+<p>Because <span class="math inline">\(\sigma^2\)</span> and <span class="math inline">\(\Psi\)</span> are known here, that target
+covariance is known as well. <code>plot_var_convergence()</code>
+resolves it automatically when both the design and the measurement prior
+list are supplied — it calls <code>lmerb_posterior_covariance()</code>
+internally and uses the result as <span class="math inline">\(\mathrm{Var}_{\mathrm{ref}}\)</span>, not the
+empirical variance at the final sweep. The artifact stores a stripped
+design and a measurement prior list built the same way the sampler does:
+Block~1 precision from <code>pfamily_list()</code> (the fixed <span class="math inline">\(\tau^2_k\)</span> plug-ins), not the REML
+<code>group.Sigma</code> row of <code>Prior_Setup_GLMM()</code> (which
+lists the reference <code>lmer</code> variances in its <code>lmer</code>
+column). Using the wrong <span class="math inline">\(\Psi\)</span> in
+the reference would make the slope traces sit far above 1 even when the
+chain has converged.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">plot_var_convergence</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  C04<span class="sc">$</span>sweep_history,</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">design                 =</span> C04<span class="sc">$</span>design,</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">measurement_prior_list =</span> C04<span class="sc">$</span>measurement_prior_list,</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">whitened               =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">n_chains               =</span> C04<span class="sc">$</span>meta<span class="sc">$</span>n_chains</span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co">#&gt; === main -- Intercept predictors sweep history (Var / Var_exact ratio; base) ===</span></span></code></pre></div>
+<p><img role="img" aria-label="Cross-chain variance ratio by inner sweep, unwhitened coefficients" src="data:image/png;base64,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" alt="Cross-chain variance ratio by inner sweep, unwhitened coefficients" /></p>
+<pre><code>#&gt; 
+#&gt; === main -- Slope predictors sweep history (Var / Var_exact ratio; base) ===</code></pre>
+<p><img role="img" aria-label="Cross-chain variance ratio by inner sweep, unwhitened coefficients" src="data:image/png;base64,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" alt="Cross-chain variance ratio by inner sweep, unwhitened coefficients" /></p>
+<p>With <code>whitened = FALSE</code>, each trace is a named population
+effect and the y-axis is <span class="math inline">\(\mathrm{Var}(l) /
+\mathrm{Var}_{\mathrm{ref}}\)</span> for that coefficient, where <span class="math inline">\(\mathrm{Var}(l)\)</span> is the cross-chain
+variance at inner sweep <span class="math inline">\(l\)</span> and <span class="math inline">\(\mathrm{Var}_{\mathrm{ref}}\)</span> is the
+corresponding diagonal entry of the exact posterior covariance. Under
+Claim 3 the ratio is bounded above by 1 and rises toward it as <span class="math inline">\(l\)</span> grows, so a well-calibrated run shows
+every trace flattening just below 1 by sweep 25. The dotted band, when
+<code>n_chains</code> is supplied, is a naive Monte Carlo ruler for how
+much departure from 1 is sampling noise in the numerator alone —
+appropriate here because the denominator is exact.</p>
+<p>The chart uses the main-phase history only. This route has no pilot
+stage; every chain starts at the exact posterior mean and the sweeps
+carry the cross-chain spread up to the target variance.</p>
+</div>
+<div id="see-also" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> See also</h1>
+<ul>
+<li><code>vignette(&quot;Chapter-C01&quot;)</code> — the data, model and design
+used here.</li>
+<li><code>vignette(&quot;Chapter-C02&quot;)</code> — the same posterior sampled
+exactly by the iid route.</li>
+<li><code>vignette(&quot;Chapter-C03&quot;)</code> — <span class="citation">Nygren
+(2020)</span>’s total variation theory, of which the rate, the sweep
+budget and the variance chart above are instances.</li>
+<li><code>vignette(&quot;Chapter-B10&quot;)</code> — reading the sweep-history
+plots.</li>
+<li><code>?rlmerb</code>, <code>?summary.rlmerb</code>,
+<code>?plot_var_convergence</code>, <code>?two_block_rate</code>,
+<code>?Prior_Setup_GLMM</code>, <code>?pfamily_list</code></li>
+<li><code>data-raw/make_Chapter-C04.R</code> in the package sources for
+the script that produced the stored results.</li>
+</ul>
+</div>
+<div id="bibliography" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-Nygren2020" class="csl-entry">
+Nygren, Kjell N. 2020. <span>“<span class="nocase">On the Total
+Variation Distance Between Multivariate Normal Densities with
+Applications to Two-Block Gibbs Samplers</span>.”</span>
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,358 @@
+---
+title: "Chapter C04: The two-block Gibbs sampler"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter C04: The two-block Gibbs sampler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.5
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+```{r load-stored}
+.c_extdata_rds <- function(name) {
+  p <- system.file("extdata", name, package = "lmebayesCore")
+  if (nzchar(p) && file.exists(p)) return(p)
+  for (root in c(
+    file.path("..", "inst", "extdata", name),
+    file.path("inst", "extdata", name)
+  )) {
+    if (file.exists(root)) return(normalizePath(root))
+  }
+  stop(
+    "Cannot find ", name, " in inst/extdata/. ",
+    "Run devtools::load_all() or reinstall the package.",
+    call. = FALSE
+  )
+}
+
+C04 <- readRDS(.c_extdata_rds("Chapter-C04-bwc-twoblock.rds"))
+meta <- C04$meta
+conv <- C04$convergence
+```
+
+This chapter fits the same model and prior specification as `Chapter-C02`,
+but forces the two-block Gibbs route instead of the exact iid sampler.
+Both chapters target the same multivariate normal posterior; here the draws
+come from independent chains, each run through `r conv$m_convergence` inner
+sweeps before being stored.
+
+# Prior specification
+
+Two quantities are held constant throughout this chapter: the observation
+dispersion \(\sigma^2\) and the between-group variance matrix \(\Psi\).
+Both are fixed at the defaults `Prior_Setup_GLMM()` calibrates from the
+data, so neither carries a prior and neither is sampled:
+
+```{r fixed}
+C04$summary$tau2_prior_overview[, c("Prior", "E[tau2]")]
+```
+
+The three `dNormal` rows are the components of \(\Psi\), declared known.
+The `Residual` row is \(\sigma^2\), likewise fixed.
+
+That leaves the population effects \(\gamma\) as the only quantity with a
+prior of its own. They receive the default multivariate normal prior,
+specified separately for each group-effect component:
+
+```{r pop-prior}
+round(C04$summary$popef_prior_overview[, c("Prior Mean", "Prior.sd")], 3)
+```
+
+Every coefficient is centered at zero except the grand intercept, so the
+prior mean vector describes a null, intercept-only model — the same default
+as in `Chapter-C02` and the **glmbayes** family of packages. The setup is
+built by two calls:
+
+```{r prior-calls, eval = FALSE}
+ps <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01)
+pf <- pfamily_list(ps)
+```
+
+`pop.pwt = 0.01` gives the prior on \(\gamma\) the weight of about one
+percent of the data.
+
+# Estimating the model using the default settings
+
+The call matches `Chapter-C02` except for the simulation method:
+
+```{r call, eval = FALSE}
+fit <- rlmerb(
+  n              = 10000,
+  design         = model_setup(form, data = dat),
+  pfamily_list   = pf,
+  dispprior_list = list(dispersion = ps$group.dispersion),
+  sim_method     = "TWO_BLOCK_GIBBS"
+)
+```
+
+The `design`, `pfamily_list` and `dispprior_list` arguments carry the same
+meaning as in the previous chapter. `sim_method = "TWO_BLOCK_GIBBS"` forces
+the iterative route on this known-variance-components specification; with
+`sim_method = "DEFAULT"` the package would draw directly from the closed-form
+posterior instead.
+
+Under this specification the joint posterior is exactly multivariate normal,
+as in `Chapter-C02`. Each stored draw is one independent chain after
+`r conv$m_convergence` inner Gibbs sweeps. That budget is not a guess: it is
+certified from the convergence rate
+(`lambda_star` = `r round(conv$convergence_info$lambda_star, 4)`) against a
+total variation tolerance, by the theory of `vignette("Chapter-C03")`. The
+derivation is in the section below.
+
+# Properties of the posterior and the two-block Gibbs procedure
+
+The log posterior splits into the same three components as in
+`Chapter-C02`: the log-likelihood, the prior on the group effects, and the
+prior on the population effects. Because \(\sigma^2\), \(\Psi\) and \(V\)
+are all known, the posterior is multivariate normal and factorizes into the
+same conditional distributions.
+
+## Block 1: group effects given the population effects
+
+Given \(\gamma\), the group effects are conditionally independent across
+groups:
+
+\[
+\beta_j \mid \gamma, y \sim N\!\left(b_j,\; \Sigma_j\right),
+\qquad
+\begin{aligned}
+\Sigma_j &= \left(\sigma^{-2} D_j' D_j + \Psi^{-1}\right)^{-1}, \\
+b_j &= \Sigma_j\left(\sigma^{-2} D_j' y_j + \Psi^{-1}\mathcal{W}_j\gamma\right).
+\end{aligned}
+\]
+
+Block 1 of the Gibbs sampler draws each \(\beta_j\) from this conditional,
+holding the current \(\gamma\) fixed.
+
+## Block 2: population effects given the group effects
+
+Given the group effects, the population effects receive a conjugate normal
+update that combines the prior on \(\gamma\) with the information each
+group's current \(\beta_j\) contributes through \(\mathcal{W}_j\). The
+result is another multivariate normal conditional,
+\(\gamma \mid \beta, y\), with precision that adds the prior precision
+to a sum of group-level contributions. Block 2 draws \(\gamma\) from this
+conditional, holding the current \(\beta\) fixed.
+
+## One sweep and one stored draw
+
+One inner sweep alternates the two blocks: update all \(\beta_j\), then
+update \(\gamma\). Repeating the pair moves the chain closer to the target.
+After `r conv$m_convergence` sweeps the chain's distribution is close enough
+that the final state can be treated as a draw from the posterior. Replicating
+that procedure across `r meta$n_draws` independent chains produces the stored
+sample.
+
+Unlike the iid route of `Chapter-C02`, which draws \(\gamma\) from its
+marginal and then each \(\beta_j\) from its conditional in one pass, the
+Gibbs route needs the sweeps because it never integrates the group effects
+out analytically. Both routes target the same posterior; the Gibbs route
+trades the closed-form factorization for an iterative scheme whose
+convergence can be diagnosed from the sweep history.
+
+# Where the sweep count comes from
+
+`vignette("Chapter-C03")` develops @Nygren2020's total variation bounds for
+a two-block Gibbs sampler on a multivariate normal target in the abstract.
+This model is exactly that setting, so the results apply verbatim and fix
+the sweep count that produced the draws above. This section instantiates
+them.
+
+## The rate matrix for this design
+
+Take \(\gamma\) — the `r nrow(C04$rate$P11)`-vector of population effects —
+as the first block, updated second in each sweep, and the group effects
+\(\beta\) as the second block, updated first. Claim 2 says the mean bias
+contracts by the matrix
+\(P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}\) each sweep, and Remark 8 says the
+relevant eigenvalues are those of the symmetrized form
+\(A = P_{11}^{-1/2}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1/2}\) — which is why
+the rate can be read off the precision blocks without ever forming
+\(\Sigma\).
+
+Here \(P_{11}\) is the prior precision of \(\gamma\), \(P_{22}\) is block
+diagonal with \(j\)th block \(\sigma^{-2}D_j'D_j + \Psi^{-1}\), and
+\(P_{12}\) collects the \(-\Psi^{-1}\mathcal{W}_j\) coupling terms.
+`two_block_rate()` assembles these and solves the generalized eigenproblem:
+
+```{r rate-print}
+C04$rate
+```
+
+The spectrum splits sharply. Three eigenvalues sit near 0.87–0.93 and four
+near 0.17–0.20. The large ones belong to the intercept and the two slope
+directions, where the prior on \(\gamma\) is weak relative to the
+information the group effects carry, so \(\gamma\) and \(\beta\) are
+strongly coupled and the sampler moves through that subspace slowly. The
+rate is \(\lambda^{*} =\)
+`r round(C04$rate$lambda_star, 4)`, the largest of them.
+
+## From the rate to a certified sweep count
+
+Every chain starts at the exact posterior mean, so
+\(D_0 = (x_1^{(0)}-\mu_1)'\Sigma_{11}^{-1}(x_1^{(0)}-\mu_1) = 0\) and the
+mean term of Theorem 3 vanishes identically. What remains is the variance
+sum \(\sum_i d_i^{(l)}\), evaluated at the Remark 11 ratios
+\(r_i^{(l)} = (1-a_{i-1}^{2l})/(1-a_i^{2l})\):
+
+```{r tv-bound}
+l <- c(1, 5, 10, 15, 20, 24, 30)
+data.frame(
+  sweeps     = l,
+  theorem3   = signif(lmebayesCore:::two_block_tv_bound(C04$rate, l, "theorem3"), 3),
+  corollary1 = signif(lmebayesCore:::two_block_tv_bound(C04$rate, l, "corollary1"), 3)
+)
+```
+
+Both columns bound the same total variation distance, and the ordering
+between them is the price of Corollary 1's closed form. Theorem 3 evaluates
+the error function differences exactly; Corollary 1 replaces each by its
+Remark 5 and Remark 17 envelope, which is loose at small \(l\) — it exceeds
+1, and so says nothing, until sweep 12 or so — but decays at the same
+geometric rate afterwards. The `(lambda*)^m` column of the printout above
+is neither: it is the naive proxy \((\lambda^{*})^{m}\), which ignores that
+the variance converges at \(a_i^{2l}\) rather than \(a_i^{l}\) and so is
+conservative by roughly a factor of two in sweeps.
+
+At the package default tolerance of `r C04$convergence$convergence_info$tv_tol`,
+Theorem 3 certifies
+`r lmebayesCore:::two_block_l_for_tv(C04$rate, C04$convergence$convergence_info$tv_tol, "theorem3")`
+sweeps. The sampler adds one, giving
+`r C04$convergence$m_convergence`:
+
+```{r m-convergence}
+c(
+  theorem3      = lmebayesCore:::two_block_l_for_tv(C04$rate, 0.01, "theorem3"),
+  stored        = C04$convergence$m_convergence
+)
+```
+
+The extra sweep is a half-step correction, not slack. The bound is a
+statement about the block updated *second* in each sweep — \(\gamma\) — and
+the stored Block 1 draw \(\beta\) lags it by half a sweep, so one more
+sweep brings both blocks inside the tolerance.
+
+Two things are worth noting about the cost. Because the bound is geometric,
+tightening the tolerance is cheap: the printed table above shows that going
+from `r C04$convergence$convergence_info$tv_tol` to \(10^{-6}\) — four
+orders of magnitude — costs roughly three and a half times the sweeps, not
+four orders of magnitude more. And because \(D_0 = 0\) removes the mean
+term outright, the entire budget here is paid for variance convergence;
+routes that cannot start at the posterior mean (non-Gaussian families, or
+sampled variance components) must certify \(D_0\) from a pilot stage and
+carry the Lemma 1 mean term as well.
+
+# Summarizing the output
+
+`summary()` collects the draws into the same tables as in `Chapter-C02`:
+
+```{r summary-call, eval = FALSE}
+summary(fit, groups = c("30", "15"))
+```
+
+The output is organized by block: reference random effects, Block 2 variance
+components (fixed here, so posterior tables are suppressed), Block 2
+population effects in three tables, and Block 1 group effects with optional
+per-group detail.
+
+Two features of the population effect tables follow from the default
+`pop.pwt = 0.01`. The posterior means land close to the `lmer` estimates,
+displaced slightly toward the null prior means. Read on the scale that
+matters, the two fits agree throughout: every Bayesian estimate falls
+within a fifth of a standard error of its `lmer` counterpart.
+
+The `Pr(Prior_tail)` column measures the posterior mass on the opposite
+side of the prior mean from the estimate — a one-sided statement about how
+far the data have moved each coefficient off its prior value. Because the
+prior means are the null model, that reference point is zero for every
+coefficient except the intercept, so for those rows the column tracks half
+the two-sided p-value the corresponding `lmer` fit would report.
+
+The output below was produced by `data-raw/make_Chapter-C04.R` with
+`n = `r meta$n_draws`` and `set.seed(`r meta$seed`)`, then stored, so that
+building this vignette does not rerun the sampler.
+
+```{r summary-print}
+C04$summary
+```
+
+# Variance convergence during the main phase
+
+The exact iid route of `Chapter-C02` produces no sweep history because it
+never runs a Markov chain. The Gibbs route does, and the history is stored on
+the fit as `fit$sweep_history`. The variance chart measures Claim 3 of
+`vignette("Chapter-C03")` empirically. That claim is an equality,
+\(\Sigma_{11}^{-1/2}\Sigma^{(l)}_{11}\Sigma_{11}^{-1/2} = I - A^{2l}\), so
+after \(l\) sweeps the cross-chain covariance of the Block 2 fixed effects
+should sit below the exact posterior covariance by exactly \(A^{2l}\) on the
+whitened scale, and rise toward it as \(l\) grows.
+
+Because \(\sigma^2\) and \(\Psi\) are known here, that target covariance is
+known as well. `plot_var_convergence()` resolves it automatically when both
+the design and the measurement prior list are supplied — it calls
+`lmerb_posterior_covariance()` internally and uses the result as
+\(\mathrm{Var}_{\mathrm{ref}}\), not the empirical variance at the final
+sweep. The artifact stores a stripped design and a measurement prior list
+built the same way the sampler does: Block~1 precision from
+`pfamily_list()` (the fixed \(\tau^2_k\) plug-ins), not the REML
+`group.Sigma` row of `Prior_Setup_GLMM()` (which lists the reference `lmer`
+variances in its `lmer` column). Using the wrong \(\Psi\) in the reference
+would make the slope traces sit far above 1 even when the chain has
+converged.
+
+```{r plot-var, fig.alt = "Cross-chain variance ratio by inner sweep, unwhitened coefficients"}
+plot_var_convergence(
+  C04$sweep_history,
+  design                 = C04$design,
+  measurement_prior_list = C04$measurement_prior_list,
+  whitened               = FALSE,
+  n_chains               = C04$meta$n_chains
+)
+```
+
+With `whitened = FALSE`, each trace is a named population effect and the
+y-axis is \(\mathrm{Var}(l) / \mathrm{Var}_{\mathrm{ref}}\) for that
+coefficient, where \(\mathrm{Var}(l)\) is the cross-chain variance at inner
+sweep \(l\) and \(\mathrm{Var}_{\mathrm{ref}}\) is the corresponding
+diagonal entry of the exact posterior covariance. Under Claim 3 the ratio is
+bounded above by 1 and rises toward it as \(l\) grows, so a well-calibrated
+run shows every trace flattening just below 1 by sweep
+`r conv$m_convergence`. The dotted band, when `n_chains` is supplied, is a
+naive Monte Carlo ruler for how much departure from 1 is sampling noise in
+the numerator alone — appropriate here because the denominator is exact.
+
+The chart uses the main-phase history only. This route has no pilot stage;
+every chain starts at the exact posterior mean and the sweeps carry the
+cross-chain spread up to the target variance.
+
+# See also
+
+- `vignette("Chapter-C01")` — the data, model and design used here.
+- `vignette("Chapter-C02")` — the same posterior sampled exactly by the iid
+  route.
+- `vignette("Chapter-C03")` — @Nygren2020's total variation theory, of which
+  the rate, the sweep budget and the variance chart above are instances.
+- `vignette("Chapter-B10")` — reading the sweep-history plots.
+- `?rlmerb`, `?summary.rlmerb`, `?plot_var_convergence`, `?two_block_rate`,
+  `?Prior_Setup_GLMM`, `?pfamily_list`
+- `data-raw/make_Chapter-C04.R` in the package sources for the script that
+  produced the stored results.

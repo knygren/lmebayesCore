@@ -1,0 +1,284 @@
+---
+title: "Chapter C01: The Gaussian example -- model, data and design"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter C01: The Gaussian example -- model, data and design}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+```{r load-stored}
+C01 <- readRDS(system.file(
+  "extdata", "Chapter-C01-bwc-setup.rds", package = "lmebayesCore"
+))
+meta <- C01$meta
+```
+
+The chapters that follow each take one model class and work through its
+posterior algebra, its convergence rate, and simulation evidence that the
+sampler reaches the distribution it claims to. Comparing those results
+across chapters only means something if they are computed on the same
+problem, so the Gaussian chapters share one theoretical model, one dataset,
+and one estimated model. This chapter sets out all three. Nothing is
+sampled here; that begins in `Chapter-C02`.
+
+# The theoretical model
+
+A mixed model describes data that arrive in groups — pupils within schools,
+patients within hospitals, measurements within subjects. Its defining idea
+is that each group gets its own regression coefficients, and those
+coefficients are themselves given a model rather than estimated freely.
+
+That gives two levels of unknowns, and the distinction between them runs
+through the whole series.
+
+## Group effects
+
+Write \(j = 1, \dots, J\) for the groups. Group \(j\) contributes \(n_j\)
+observations \(y_j\) with its own design matrix \(D_j\), and has its own
+coefficient vector \(\beta_j\):
+
+\[
+y_j \mid \beta_j \sim N\!\left(D_j \beta_j,\; \sigma^2 I_{n_j}\right).
+\]
+
+The \(\beta_j\) are the **group effects**. There are \(J \times
+p_{\mathrm{re}}\) of them, which is far too many to estimate
+independently from the data available, and \(\sigma^2\) is the observation
+variance describing how tightly a group's observations cluster around its
+own fitted line.
+
+## Population effects
+
+The group effects are not free parameters. They are assumed to be drawn
+from a common distribution, whose mean is itself a regression on
+group-level characteristics \(\mathcal{W}_j\):
+
+\[
+\beta_j \mid \gamma \sim N\!\left(\mathcal{W}_j \gamma,\; \Psi\right).
+\]
+
+The vector \(\gamma\) holds the **population effects**: the coefficients
+that explain how group effects vary with group characteristics. The matrix
+\(\Psi\) is the between-group variance, describing how far groups scatter
+around the population pattern after those characteristics are accounted
+for. Finally \(\gamma\) receives a prior of its own,
+
+\[
+\gamma \sim N(\mu_0, V).
+\]
+
+Two features of this parameterization matter for what follows. First, it is
+*centered*: \(\beta_j\) is the group's own coefficient vector, not a
+deviation from an average. Second, both levels have the same shape — a
+normal likelihood paired with a normal prior — which is what allows a
+single sampling machine to serve the group level and the population level
+alike. This is the Lindley--Smith formulation [@LindleySmith1972], and
+`Chapter-B01` describes how the engine exploits it.
+
+## What is fixed and what has a prior
+
+The group effects \(\beta_j\) and the population effects \(\gamma\) always
+have priors and are always sampled; they are what a fit is *for*. The two
+variance quantities are the ones that may be either estimated or held at a
+known value, and choosing between them is what separates the chapters of
+this series:
+
+| Chapter | \(\beta_j\) | \(\gamma\) | \(\Psi\) | \(\sigma^2\) | Sampler |
+|---------|-------------|------------|----------|--------------|---------|
+| `C02` | prior | prior | fixed | fixed, pooled | exact iid |
+| `C03` | prior | prior | fixed | fixed, pooled | two-block Gibbs |
+| `C06` | prior | prior | fixed | prior, per group | two-block Gibbs |
+| `C07` | prior | prior | prior | fixed, pooled | two-block Gibbs |
+| `C09` | prior | prior | prior | prior, per group | two-block Gibbs |
+
+Fixing both variances is what makes the posterior exactly normal, so that
+it can be drawn from directly, which is why `C02` comes first. `C03` then
+runs an iterative sampler at that same posterior, where the correct answer
+is already known and any error is visible. Each later row relaxes one more
+assumption, and the price of each relaxation is a convergence rate that has
+to be certified rather than assumed.
+
+# The Big Word Club data
+
+The running example is `big_word_club` from the **bayesrules** package
+[@JohnsonLauEtAl2022]. It comes from an evaluation of Big Word Club, a
+digital vocabulary program aimed at narrowing the gap in vocabulary between
+children from higher- and lower-income households [@KalilMayerOreopoulos2020].
+
+The grouping structure is the reason this dataset suits the series: pupils
+are nested within schools, schools differ in both intake and circumstances,
+and the number of pupils per school is small enough that pooling across
+schools genuinely matters.
+
+The version used here is a prepared analysis dataset, restricted to
+complete records with a valid assessment score:
+
+```{r dims}
+c(pupils = meta$n_obs, schools = meta$J, columns = meta$n_cols)
+```
+
+Each school contributes only a handful of pupils:
+
+```{r sizes}
+summary(C01$sizes)   # pupils per school
+```
+
+Estimating three coefficients per school from around a dozen observations
+is exactly the situation in which pooling across schools earns its keep,
+and it is why the shrinkage that later chapters display is substantial.
+
+## Variables used
+
+The full dataset carries `r meta$n_cols` columns covering pupils, teachers
+and schools. The model below uses seven of them:
+
+```{r vars}
+knitr::kable(C01$model_vars[, c("variable", "level", "meaning", "values")])
+```
+
+The `level` column is worth noting. `private_school`, `title1` and
+`free_reduced_lunch` are properties of the *school*, so they take one value
+for all pupils in a school and are natural candidates for explaining
+group effects. The `distracted_*` ratings vary from pupil to pupil within a
+school.
+
+Other columns not used here include a treatment indicator, pupil age and
+sex, two earlier assessment scores, and a set of teacher-level measures:
+
+```{r other-cols}
+setdiff(C01$all_columns, C01$model_vars$variable)
+```
+
+# The model being estimated
+
+```{r formula, eval = FALSE}
+form <- score_ppvt ~
+  private_school + title1 + free_reduced_lunch +
+  distracted_ppvt + distracted_a1 +
+  free_reduced_lunch:distracted_a1 +
+  (1 + distracted_ppvt + distracted_a1 || school_id)
+```
+
+The bracketed term specifies the group effects. Each school gets its own
+intercept and its own two distraction slopes, so schools may differ both in
+average score and in how strongly distraction depresses scores. That makes
+\(p_{\mathrm{re}} = `r meta$p_re`\):
+
+```{r re-names}
+meta$groupef_names
+```
+
+The `||` requests that these three be uncorrelated, which makes \(\Psi\)
+diagonal. Everything outside the brackets specifies the population effects
+that explain those three quantities.
+
+## How the population effects are indexed
+
+Because \(\gamma\) explains group effects, it is not a flat vector. It is
+grouped by *which* group effect each coefficient explains:
+
+```{r popef-names}
+C01$popef_names
+```
+
+Reading these three blocks in turn: the intercept block holds the
+school-level predictors of a school's average score. The `distracted_ppvt`
+block holds a single entry, its own intercept, which is the average
+`distracted_ppvt` slope across schools. The `distracted_a1` block holds
+that same average plus a `free_reduced_lunch` term — a cross-level
+interaction, asking whether distraction matters more in poorer schools.
+
+This indexing is why the summary tables in later chapters label rows
+`component::parameter`, and why lining them up against a flat `lmer`
+coefficient vector takes some care.
+
+## The priors
+
+`Prior_Setup_GLMM()` calibrates priors from the data rather than asking for
+hyperparameters directly:
+
+```{r prior-setup, eval = FALSE}
+ps <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01)
+pf <- pfamily_list(ps)
+```
+
+For \(\gamma\) it produces the normal prior of Section 1, with `pop.pwt`
+setting its weight. At `0.01` that is about one percent of the weight of
+the data, so it regularizes without materially moving the answer:
+
+```{r pop-prior}
+C01$pop_prior
+```
+
+The prior means are zero apart from the intercept, and the standard
+deviations are large relative to the coefficients they cover, which is what
+makes this prior weak.
+
+`pfamily_list(ps)` then wraps each component of \(\Psi\). A `dNormal`
+component declares \(\tau^2_k\) known, so no sampling step is needed for
+it; `dIndependent_Normal_Gamma` estimates it instead. The same choice
+arises one level down for \(\sigma^2\). Which are fixed is precisely the
+table in Section 1.
+
+Where a quantity is fixed, it is worth knowing what it is fixed *at*. The
+natural assumption is the REML estimate, and that assumption is wrong:
+
+```{r fixed-vs-reml}
+tab <- C01$fixed_vs_reml
+tab$ratio <- round(tab$calibrated / tab$reml, 3)
+tab
+```
+
+The between-school variances are calibrated to values well below the REML
+ones, while the residual runs the other way, because `Prior_Setup_GLMM()`
+uses a pooled marginal estimate rather than the classical residual:
+
+```{r dispersion-source}
+c(source = C01$dispersion_source,
+  classical_reml = round(C01$dispersion_classical, 2))
+```
+
+This does not affect whether a sampler is correct: any fixed \(\Psi\) and
+\(\sigma^2\) still define a legitimate posterior, and reaching that
+posterior is what the later chapters verify. It does mean the draws are not
+interchangeable with an `lmer` plug-in analysis, which is why the reference
+comparisons there are judged against `lmer`'s own standard errors rather
+than against exact agreement. `Chapter-B05` covers the calibration itself.
+
+With the model specified and the priors calibrated, the first question is
+what happens when both variances are simply held at these values. That is
+`Chapter-C02`.
+
+# See also
+
+- `vignette("Chapter-C02")` — the exact iid sampler on this design.
+- `vignette("Chapter-B01")` — the two-block architecture built on the
+  two-stage form.
+- `vignette("Chapter-B05")` — prior calibration and estimated variance
+  components.
+- `vignette("Chapter-B00")` — notation and the engine roadmap.
+- `?model_setup`, `?Prior_Setup_GLMM`, `?pfamily_list`
+- `data-raw/make_bwc_full_rank.R` and
+  `data-raw/chapter_C_gaussian_setup.R` in the package sources for the code
+  that prepares this dataset and design.

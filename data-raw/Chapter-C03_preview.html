@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-08-11" />
+
+<title>Chapter C03: Total variation distances between multivariate normal densities</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+margin-bottom: 0em;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter C03: Total variation distances
+between multivariate normal densities</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-08-11</h4>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#total-variation-distances-between-multivariate-normal-densities" id="toc-total-variation-distances-between-multivariate-normal-densities"><span class="toc-section-number">1</span> Total variation distances between
+multivariate normal densities</a>
+<ul>
+<li><a href="#definitions" id="toc-definitions"><span class="toc-section-number">1.1</span> Definitions</a></li>
+<li><a href="#distance-between-multivariate-normal-densities-with-the-same-variance-covariance-matrix" id="toc-distance-between-multivariate-normal-densities-with-the-same-variance-covariance-matrix"><span class="toc-section-number">1.2</span> Distance between multivariate
+normal densities with the same variance-covariance matrix</a></li>
+<li><a href="#distance-between-multivariate-normal-densities-with-the-same-mean-vectors" id="toc-distance-between-multivariate-normal-densities-with-the-same-mean-vectors"><span class="toc-section-number">1.3</span> Distance between multivariate
+normal densities with the same mean vectors</a></li>
+<li><a href="#distances-between-multivariate-normal-densities" id="toc-distances-between-multivariate-normal-densities"><span class="toc-section-number">1.4</span> Distances between multivariate
+normal densities</a></li>
+</ul></li>
+<li><a href="#convergence-rates-for-two-block-gibbs-samplers-for-multivariate-normal-densities" id="toc-convergence-rates-for-two-block-gibbs-samplers-for-multivariate-normal-densities"><span class="toc-section-number">2</span> Convergence rates for two-block
+Gibbs samplers for multivariate normal densities</a>
+<ul>
+<li><a href="#definitions-1" id="toc-definitions-1"><span class="toc-section-number">2.1</span> Definitions</a></li>
+<li><a href="#convergence-of-mean-vectors" id="toc-convergence-of-mean-vectors"><span class="toc-section-number">2.2</span> Convergence of mean
+vectors</a></li>
+<li><a href="#convergence-of-variance-covariance-matrices" id="toc-convergence-of-variance-covariance-matrices"><span class="toc-section-number">2.3</span> Convergence of variance-covariance
+matrices</a></li>
+<li><a href="#convergence-bounds-and-geometric-ergodicity-for-the-two-block-gibbs-sampler" id="toc-convergence-bounds-and-geometric-ergodicity-for-the-two-block-gibbs-sampler"><span class="toc-section-number">2.4</span> Convergence bounds and geometric
+ergodicity for the two-block Gibbs sampler</a></li>
+</ul></li>
+<li><a href="#proofs" id="toc-proofs"><span class="toc-section-number">3</span> Proofs</a>
+<ul>
+<li><a href="#proof-for-densities-with-shared-mean-vector" id="toc-proof-for-densities-with-shared-mean-vector"><span class="toc-section-number">3.1</span> Proof for densities with shared
+mean vector</a></li>
+<li><a href="#proof-for-densities-with-shared-variance-covariance-matrix" id="toc-proof-for-densities-with-shared-variance-covariance-matrix"><span class="toc-section-number">3.2</span> Proof for densities with shared
+variance-covariance matrix</a></li>
+<li><a href="#proof-for-convergence-of-variance-covariance-matrices" id="toc-proof-for-convergence-of-variance-covariance-matrices"><span class="toc-section-number">3.3</span> Proof for convergence of
+variance-covariance matrices</a></li>
+<li><a href="#proof-for-convergence-of-mean-vectors" id="toc-proof-for-convergence-of-mean-vectors"><span class="toc-section-number">3.4</span> Proof for convergence of mean
+vectors</a></li>
+<li><a href="#proof-of-geometric-ergodicity" id="toc-proof-of-geometric-ergodicity"><span class="toc-section-number">3.5</span> Proof of geometric
+ergodicity</a></li>
+<li><a href="#special-case-derivations" id="toc-special-case-derivations"><span class="toc-section-number">3.6</span> Special case derivations</a></li>
+</ul></li>
+<li><a href="#how-the-package-evaluates-these-results" id="toc-how-the-package-evaluates-these-results"><span class="toc-section-number">4</span> How the package evaluates these
+results</a></li>
+<li><a href="#see-also" id="toc-see-also"><span class="toc-section-number">5</span> See also</a></li>
+<li><a href="#bibliography" id="toc-bibliography">References</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(lmebayesCore)</span></code></pre></div>
+<p>This chapter reproduces the theory of <span class="citation">Nygren
+(2020)</span>, <em>On the total variation distance between multivariate
+normal densities with applications to two-block Gibbs samplers</em>,
+which is the reference the package’s convergence machinery is built on.
+Definitions, remarks, lemmas, claims, theorems and the corollary are
+stated in the manuscript’s own numbering so that code comments and help
+pages citing “Remark 8” or “Theorem 3” can be read against this chapter
+directly.</p>
+<p>The chapter is deliberately model-free. Everything here concerns two
+multivariate normal densities and a two-block Gibbs sampler in the
+abstract. The application to the mixed model of <code>Chapter-C01</code>
+— the precision blocks, the eigenvalue computation, the sweep budget —
+is in <code>Chapter-C04</code>.</p>
+<p>The paper’s argument runs in two stages. Section 1 bounds the total
+variation distance between two multivariate normal densities that can be
+ordered by their precision matrices, by splitting the problem with the
+triangle inequality into a same-precision comparison and a same-mean
+comparison, each expressible through multivariate generalizations of the
+error function. Section 2 applies those bounds to the <span class="math inline">\(l\)</span>-step kernel of a two-block Gibbs
+sampler, whose mean and variance after <span class="math inline">\(l\)</span> sweeps are available in closed form,
+and concludes geometric ergodicity.</p>
+<div id="total-variation-distances-between-multivariate-normal-densities" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Total variation
+distances between multivariate normal densities</h1>
+<div id="definitions" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Definitions</h2>
+<p>The following definition of a generalized <span class="math inline">\(n\)</span>-dimensional error function is due to
+<span class="citation">Brown (1963)</span>.</p>
+<blockquote>
+<p><strong>Definition 1.</strong> A generalized <span class="math inline">\(n\)</span>-dimensional error function is a
+function <span class="math inline">\(\mathrm{erf}_n(\cdot) :
+\mathbb{R}^{+} \to \mathbb{R}\)</span> defined by <span class="math display">\[
+\mathrm{erf}_n(x) \;=\;
+\frac{\int_0^{x} e^{-u^2} u^{\,n-1}\,du}
+     {\int_0^{\infty} e^{-u^2} u^{\,n-1}\,du}.
+\]</span></p>
+</blockquote>
+<p>Brown also provided the explicit expansions.</p>
+<blockquote>
+<p><strong>Remark 1.</strong> The error function <span class="math inline">\(\mathrm{erf}_n(x)\)</span> can be shown to be
+explicitly expressed as <span class="math display">\[
+\begin{aligned}
+\mathrm{erf}_{2m}(x) &amp;= 1 - e^{-x^2}\left[1 + \frac{x^2}{1!} +
+\frac{x^4}{2!} + \dots + \frac{x^{2(m-1)}}{(m-1)!}\right] \\[4pt]
+\mathrm{erf}_{2m+1}(x) &amp;= \mathrm{erf}_1(x) -
+\frac{e^{-x^2}}{\sqrt{\pi}}\left[\frac{(2x)\,0!}{1!} +
+\frac{(2x)^3\,1!}{3!} + \dots + \frac{(2x)^{2m-1}(m-1)!}{(2m-1)!}\right]
+\end{aligned}
+\]</span> where the first expression applies if <span class="math inline">\(n\)</span> is even and the second if <span class="math inline">\(n\)</span> is odd.</p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 2.</strong> The expression <span class="math inline">\(e^{-u^2}u^{\,n-1}\)</span> is maximized when <span class="math inline">\(u^{*} = \sqrt{(n-1)/2}\)</span>, which in turn
+implies that for <span class="math inline">\(x \ge 0\)</span> <span class="math display">\[
+\mathrm{erf}_n(x) \;\le\;
+x\,\frac{e^{-(n-1)/2}\left[\sqrt{(n-1)/2}\right]^{n-1}}
+         {\int_0^{\infty} e^{-u^2}u^{\,n-1}du},
+\]</span> and <span class="math inline">\(x_1 \ge x_2 \ge 0\)</span>
+implies that <span class="math display">\[
+\mathrm{erf}_n(x_1) - \mathrm{erf}_n(x_2) \;\le\;
+\left[x_1 - x_2\right]
+\frac{e^{-(n-1)/2}\left[\sqrt{(n-1)/2}\right]^{n-1}}
+     {\int_0^{\infty} e^{-u^2}u^{\,n-1}du}.
+\]</span></p>
+</blockquote>
+<p>Remark 2 is the source of every geometric envelope later in the
+paper: it converts a difference of error functions into a difference of
+their arguments times an explicit constant.</p>
+<blockquote>
+<p><strong>Remark 3.</strong> Let <span class="math inline">\(f(\cdot
+\mid \mu, \Sigma)\)</span> be a multivariate normal density of dimension
+<span class="math inline">\(n\)</span>. It can then be verified that
+<span class="math display">\[
+\mathrm{Prob}\!\left(\sqrt{(x-\mu)^{T}\Sigma^{-1}(x-\mu)} \le
+\alpha\right)
+\;=\; \mathrm{erf}_n\!\left(\frac{\alpha}{\sqrt{2}}\right).
+\]</span></p>
+</blockquote>
+<p>Remark 3 is what ties the error function to a probability statement,
+and it is the identity the implementation evaluates: the quantity on the
+left is <span class="math inline">\(P(\chi^2_n \le
+\alpha^2)\)</span>.</p>
+<blockquote>
+<p><strong>Definition 2.</strong> The total variation distance between
+two probability measures <span class="math inline">\(P\)</span> and
+<span class="math inline">\(Q\)</span> on a sigma-algebra <span class="math inline">\(\mathcal{F}\)</span> of subsets of the sample
+space <span class="math inline">\(\Omega\)</span> is defined via <span class="math display">\[
+\|P(\cdot), Q(\cdot)\|_{TV} \;=\; \sup_{A \in \mathcal{F}} |P(A) -
+Q(A)|.
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Definition 3.</strong> <span class="citation">(Kullback and
+Leibler 1951; Kullback 1959, 1987)</span> If <span class="math inline">\(P\)</span> and <span class="math inline">\(Q\)</span> are probability measures over a set
+<span class="math inline">\(\mathcal{X}\)</span>, and <span class="math inline">\(P\)</span> is absolutely continuous with respect
+to <span class="math inline">\(Q\)</span>, then the Kullback–Leibler
+divergence from <span class="math inline">\(Q\)</span> to <span class="math inline">\(P\)</span> is defined as <span class="math display">\[
+D_{KL}(P \| Q) \;=\; \int_{\mathcal{X}} \log\!\left(\frac{dP}{dQ}\right)
+dP,
+\]</span> where <span class="math inline">\(dP/dQ\)</span> is the
+Radon–Nikodym derivative of <span class="math inline">\(P\)</span> with
+respect to <span class="math inline">\(Q\)</span>, and provided the
+expression on the right-hand side exists.</p>
+</blockquote>
+<p>The following theorem, known as Pinsker’s inequality, relates the
+total variation distance to the Kullback–Leibler divergence.</p>
+<blockquote>
+<p><strong>Theorem 1.</strong> If <span class="math inline">\(P\)</span>
+and <span class="math inline">\(Q\)</span> are two probability
+distributions on the measurable space <span class="math inline">\((X,
+\Sigma)\)</span>, then <span class="math display">\[
+\|P(\cdot), Q(\cdot)\|_{TV} \;\le\; \sqrt{\tfrac{1}{2} D_{KL}(P\|Q)}.
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Claim 1.</strong> Suppose we have two multivariate normal
+distributions, with means <span class="math inline">\(\mu_1,
+\mu_2\)</span> and with (non-singular) covariance matrices <span class="math inline">\(\Sigma_1, \Sigma_2\)</span>. If the two
+distributions have the same dimensions, <span class="math inline">\(m\)</span>, then <span class="math display">\[
+D_{KL}(N_1 \| N_2) = \tfrac{1}{2}\left(
+\mathrm{tr}(\Sigma_2^{-1}\Sigma_1)
++ (\mu_2-\mu_1)^{T}\Sigma_2^{-1}(\mu_2-\mu_1)
+- m + \ln\!\left(\frac{|\Sigma_2|}{|\Sigma_1|}\right)\right).
+\]</span></p>
+</blockquote>
+<p>Theorem 1 and Claim 1 together give one route to a bound. The rest of
+Section 1 develops a sharper one, which does not pass through Pinsker’s
+inequality at all.</p>
+</div>
+<div id="distance-between-multivariate-normal-densities-with-the-same-variance-covariance-matrix" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Distance between
+multivariate normal densities with the same variance-covariance
+matrix</h2>
+<p>The following result provides an exact formula for the distance
+between multivariate normal densities sharing the same
+variance-covariance matrix. The result relies on just the univariate
+error function.</p>
+<blockquote>
+<p><strong>Lemma 1.</strong> Let <span class="math inline">\(N(\cdot
+\mid \mu_1, \Sigma)\)</span> and <span class="math inline">\(N(\cdot
+\mid \mu_2, \Sigma)\)</span> be two multivariate normal densities of
+dimension <span class="math inline">\(n\)</span>. Then <span class="math display">\[
+\|N(\cdot\mid\mu_1,\Sigma), N(\cdot\mid\mu_2,\Sigma)\|_{TV}
+=
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right).
+\]</span></p>
+</blockquote>
+<p>This is an equality, not a bound: the distance depends on the two
+means only through the Mahalanobis length of their difference.</p>
+<blockquote>
+<p><strong>Remark 4.</strong> The expression for the error function is
+bounded above as follows <span class="math display">\[
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right)
+\le
+\left[\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right]
+\frac{e^{-(n-1)/2}\left[\sqrt{(n-1)/2}\right]^{n-1}}{\int_0^{\infty}e^{-u^2}u^{\,n-1}du}.
+\]</span></p>
+</blockquote>
+</div>
+<div id="distance-between-multivariate-normal-densities-with-the-same-mean-vectors" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Distance between
+multivariate normal densities with the same mean vectors</h2>
+<p>The following result provides bounds for the distance between
+multivariate normal densities that can be ordered based on their inverse
+variance (precision) matrices. It makes explicit use of eigenvalues
+derived from the two variance-covariance matrices. Essentially, the
+result involves bounding the distance between the two multivariate
+densities using repeated applications of the triangle inequality.</p>
+<blockquote>
+<p><strong>Lemma 2.</strong> Let <span class="math inline">\(N(\cdot\mid\mu,\Sigma_1)\)</span> and <span class="math inline">\(N(\cdot\mid\mu,\Sigma_2)\)</span> be two
+multivariate normal densities of dimension <span class="math inline">\(n\)</span> satisfying the property that <span class="math inline">\(\Sigma_1^{-1} - \Sigma_2^{-1}\)</span> is positive
+semi-definite and that the matrix <span class="math inline">\(\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\)</span>
+is a symmetric positive definite matrix with eigenvalues greater than or
+equal to 1. Denote by <span class="math inline">\(1 \le k_1 \le k_2 \le
+\dots \le k_n\)</span> the eigenvalues of the matrix <span class="math inline">\(\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\)</span>
+and let <span class="math inline">\(k_0 = 1\)</span>. Define ratios
+<span class="math inline">\(r_1, r_2, \dots, r_n\)</span> by <span class="math inline">\(r_i = k_i / k_{i-1}\)</span> and <span class="math display">\[
+d_i =
+\begin{cases}
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\dfrac{r_i}{r_i-1}\cdot\dfrac{(n+1-i)\ln[r_i]}{2}}\right)
+-
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\dfrac{1}{r_i-1}\cdot\dfrac{(n+1-i)\ln[r_i]}{2}}\right)
+&amp; r_i &gt; 1 \\[10pt]
+0 &amp; \text{otherwise.}
+\end{cases}
+\]</span> Then <span class="math display">\[
+\|N(\cdot\mid\mu,\Sigma_1), N(\cdot\mid\mu,\Sigma_2)\|_{TV} \;\le\;
+\sum_{i=1}^{n} d_i.
+\]</span></p>
+</blockquote>
+<p>The ordering requirement matters. The eigenvalues must be taken in
+<strong>ascending</strong> order, which is what makes the interpolating
+sequence used in the proof monotone.</p>
+<blockquote>
+<p><strong>Remark 5.</strong> Leveraging the known bounds on <span class="math inline">\(\ln(r_i)\)</span> given by <span class="math inline">\((1 - 1/r_i) \le \ln(r_i) \le (r_i - 1)\)</span>
+and the definition of <span class="math inline">\(r_i\)</span>, it
+follows that the expressions for the error functions in the above are
+bounded as follows: <span class="math display">\[
+\begin{aligned}
+&amp;\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{r_i}{r_i-1}\tfrac{(n+1-i)\ln[r_i]}{2}}\right)
+-
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{1}{r_i-1}\tfrac{(n+1-i)\ln[r_i]}{2}}\right)
+\\[4pt]
+&amp;\qquad \le\;
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{r_i}{1}\tfrac{(n+1-i)}{2}}\right)
+-
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{1}{r_i}\tfrac{(n+1-i)}{2}}\right)
+\\[4pt]
+&amp;\qquad \le\;
+\left[\sqrt{r_i} - \sqrt{\tfrac{1}{r_i}}\right]
+\sqrt{\frac{n+1-i}{2}}
+\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right].
+\end{aligned}
+\]</span></p>
+</blockquote>
+</div>
+<div id="distances-between-multivariate-normal-densities" class="section level2" number="1.4">
+<h2><span class="header-section-number">1.4</span> Distances between
+multivariate normal densities</h2>
+<p>A simple application of the two previous results now implies the
+following bound for the distance between two ordered multivariate normal
+densities.</p>
+<blockquote>
+<p><strong>Theorem 2.</strong> Let <span class="math inline">\(N(\cdot\mid\mu_1,\Sigma_1)\)</span> and <span class="math inline">\(N(\cdot\mid\mu_2,\Sigma_2)\)</span> be two
+multivariate normal densities of dimension <span class="math inline">\(n\)</span> satisfying the property that <span class="math inline">\(\Sigma_1^{-1}-\Sigma_2^{-1}\)</span> is positive
+semi-definite and that the matrix <span class="math inline">\(\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\)</span>
+is a symmetric positive definite matrix with eigenvalues greater than or
+equal to 1. Denote by <span class="math inline">\(1 \le k_1 \le \dots
+\le k_n\)</span> the eigenvalues of <span class="math inline">\(\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\)</span>,
+let <span class="math inline">\(k_0 = 1\)</span>, define <span class="math inline">\(r_i = k_i/k_{i-1}\)</span> and <span class="math inline">\(d_i\)</span> as in Lemma 2. Then <span class="math display">\[
+\|N(\cdot\mid\mu_1,\Sigma_1) - N(\cdot\mid\mu_2,\Sigma_2)\|_{TV}
+\;\le\; \left[\sum_{i=1}^{n} d_i\right]
++
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma_2^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right).
+\]</span></p>
+</blockquote>
+<p><em>Proof.</em> By the triangle inequality and our two earlier
+claims, we have <span class="math display">\[
+\begin{aligned}
+\|N(\cdot\mid\mu_1,\Sigma_1), N(\cdot\mid\mu_2,\Sigma_2)\|_{TV}
+&amp;\le \|N(\cdot\mid\mu_1,\Sigma_1), N(\cdot\mid\mu_1,\Sigma_2)\|_{TV}
+\\
+&amp;\quad + \|N(\cdot\mid\mu_1,\Sigma_2),
+N(\cdot\mid\mu_2,\Sigma_2)\|_{TV} \\
+&amp;\le \left[\sum_{i=1}^{n} d_i\right]
++
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma_2^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right).
+\end{aligned}
+\]</span> <span class="math inline">\(\square\)</span></p>
+<p>The structure of the bound is now visible: <strong>a variance term
+and a mean term</strong>, obtained by passing through the intermediate
+density <span class="math inline">\(N(\cdot\mid\mu_1,\Sigma_2)\)</span>,
+which shares its mean with the first and its covariance with the
+second.</p>
+<blockquote>
+<p><strong>Remark 6.</strong> Combining the results from the earlier
+sections, we have the following relationship <span class="math display">\[
+\begin{aligned}
+&amp;\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma_2^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right)
++ \left[\sum_{i=1}^{n} d_i\right] \\[4pt]
+&amp;\quad\le
+\left[\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right]
+\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right]
+\\[4pt]
+&amp;\qquad +
+\sum_{i=1}^{n}\left[\left[\sqrt{r_i}-\sqrt{\tfrac{1}{r_i}}\right]
+\sqrt{\frac{n+1-i}{2}}
+\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right]\right].
+\end{aligned}
+\]</span></p>
+</blockquote>
+</div>
+</div>
+<div id="convergence-rates-for-two-block-gibbs-samplers-for-multivariate-normal-densities" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Convergence rates for
+two-block Gibbs samplers for multivariate normal densities</h1>
+<div id="definitions-1" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Definitions</h2>
+<blockquote>
+<p><strong>Definition 4.</strong> A two-block Gibbs sampler for a
+multivariate normal density is a sampler that generates discrete time,
+time homogeneous Markov chains <span class="math inline">\(X_1 =
+\{x_1^{(l)}, l = 0, 1, \dots\}\)</span> and <span class="math inline">\(X_2 = \{x_2^{(l)}, l = 0, 1, \dots\}\)</span> for
+which the joint transition kernel <span class="math inline">\(Q(\cdot,\cdot)\)</span> is given by <span class="math display">\[
+\begin{aligned}
+Q\!\left(\left(x_1^{(l-1)}, x_2^{(l-1)}\right), \left(x_1^{(l)},
+x_2^{(l)}\right)\right)
+=\;&amp; N_1\!\left(x_1^{(l)} \,\middle|\, \mu_1 +
+\Sigma_{12}\Sigma_{22}^{-1}\left(x_2^{(l)}-\mu_2\right),\;
+\Sigma_{11}-\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\right) \\
+&amp;\times N_2\!\left(x_2^{(l)} \,\middle|\, \mu_2 +
+\Sigma_{12}\Sigma_{22}^{-1}\left(x_1^{(l-1)}-\mu_1\right),\;
+\Sigma_{22}-\Sigma_{21}\Sigma_{11}^{-1}\Sigma_{12}\right).
+\end{aligned}
+\]</span> As the densities on the right above do not depend on <span class="math inline">\(x_2^{(l-1)}\)</span>, we will simply write <span class="math inline">\(Q\!\left(x_1^{(l-1)},
+\left(x_1^{(l)},x_2^{(l)}\right)\right)\)</span> instead of <span class="math inline">\(Q\!\left(\left(x_1^{(l-1)},x_2^{(l-1)}\right),\left(x_1^{(l)},x_2^{(l)}\right)\right)\)</span>.</p>
+</blockquote>
+<p>Note the order: <strong>the second block is updated first, and the
+first block is updated second</strong>. All the results below are
+statements about <span class="math inline">\(X_1\)</span>, the block
+updated second.</p>
+<blockquote>
+<p><strong>Definition 5.</strong> We will denote by <span class="math inline">\(Q_{X_1}(\cdot,\cdot)\)</span> the marginal
+transition kernel defined by <span class="math inline">\(Q_{X_1}\!\left(x_1^{(l-1)}, x_1^{(l)}\right) =
+\int
+Q\!\left(x_1^{(l-1)},\left(x_1^{(l)},x_2^{(l)}\right)\right)dx_2^{(l)}\)</span>
+and we will use the notation <span class="math inline">\(Q\!\left(x_1^{(l-1)}, \cdot \mid
+x_1^{(l)}\right)\)</span> to denote the conditional transition kernel
+for <span class="math inline">\(X_2\)</span> defined by <span class="math display">\[
+Q\!\left(x_1^{(l-1)}, x_2^{(l)} \,\middle|\, x_1^{(l)}\right) =
+\frac{Q\!\left(x_1^{(l-1)},\left(x_1^{(l)},x_2^{(l)}\right)\right)}
+     {\int
+Q\!\left(x_1^{(l-1)},\left(x_1^{(l)},x_2^{(l)}\right)\right)dx_2^{(l)}}.
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Definition 6.</strong> For <span class="math inline">\(l = 1,
+2, 3, \dots\)</span>, we will let <span class="math inline">\(Q^{(l)}_{X_1}(\cdot,\cdot)\)</span> denote the
+<span class="math inline">\(l\)</span>-step transition kernel for <span class="math inline">\(X_1\)</span> defined by <span class="math display">\[
+Q^{(l)}_{X_1}\!\left(x_1^{(0)}, x_1^{(l)}\right) = \int
+Q_{X_1}\!\left(x_1^{(0)},x_1^{(1)}\right)
+Q_{X_1}\!\left(x_1^{(1)},x_1^{(2)}\right)\cdots
+Q_{X_1}\!\left(x_1^{(l-1)},x_1^{(l)}\right)
+dx_1^{(1)}dx_1^{(2)}\cdots dx_1^{(l-1)}.
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 7.</strong> In the case of a two-block Gibbs sampler
+the <span class="math inline">\(l\)</span>-step transition kernel is
+itself multivariate normal, so the distance between the <span class="math inline">\(l\)</span>-step transition kernel and its target
+density satisfies the property that <span class="math display">\[
+\left\|Q^{(l)}_{X_1}\!\left(x_1^{(0)},\cdot\right),
+N_1(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV}
+= \left\|N_1\!\left(\cdot \,\middle|\,
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right], \Sigma^{(l)}_{11}\right),
+N_1(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV}.
+\]</span></p>
+</blockquote>
+<p>Remark 7 is the hinge of the whole paper. It says the <span class="math inline">\(l\)</span>-step kernel is <em>itself</em> a
+multivariate normal density, so the general bound of Theorem 2 applies
+to it directly — provided we can compute its mean and its covariance.
+Those are the subjects of the next two subsections.</p>
+<blockquote>
+<p><strong>Definition 7.</strong> The two-block Gibbs sampler above will
+be said to be geometrically ergodic for the Markov chain <span class="math inline">\(X_1\)</span> if there exists a function <span class="math inline">\(g(\cdot)\)</span> and a constant <span class="math inline">\(0 &lt; t &lt; 1\)</span> such that for any <span class="math inline">\(x_1^{(0)}\)</span>, <span class="math display">\[
+\left\|Q^{(l)}_{X_1}\!\left(x_1^{(0)},\cdot\right),
+N_1(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV}
+\;\le\; g\!\left(x_1^{(0)}\right) t^{\,k}
+\]</span> for <span class="math inline">\(l = 1, 2, 3,
+\dots\)</span>.</p>
+</blockquote>
+</div>
+<div id="convergence-of-mean-vectors" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Convergence of mean
+vectors</h2>
+<blockquote>
+<p><strong>Claim 2.</strong> Let <span class="math inline">\(N(\cdot\mid\mu,\Sigma)\)</span> be a multivariate
+normal density. Consider a two-block Gibbs sampler applied to this
+density in which the second block is updated first with variance <span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. The expectation on the <span class="math inline">\(l\)</span>-th observation is related to the
+previous iteration through the iterative formula <span class="math display">\[
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right] - \mu_1
+=
+\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1}\left(E\!\left[x_1^{(l-1)}\middle|x_1^{(0)}\right]-\mu_1\right)
+=
+P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}\left(E\!\left[x_1^{(l-1)}\middle|x_1^{(0)}\right]-\mu_1\right)
+\]</span> and hence <span class="math display">\[
+\begin{aligned}
+&amp;\left[E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right]-\mu_1\right]^{T}\Sigma_{11}^{-1}\left[E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right]-\mu_1\right]
+\\
+&amp;\quad =
+\left[E\!\left[x_1^{(l-1)}\middle|x_1^{(0)}\right]-\mu_1\right]^{T}
+\Sigma_{11}^{-1/2}
+\left[\Sigma_{11}^{-1/2}\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1/2}\right]
+\left[\Sigma_{11}^{-1/2}\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1/2}\right]
+\Sigma_{11}^{-1/2}\left[\cdot\right] \\
+&amp;\quad \le
+(\lambda^{*})^{2}\left[E\!\left[x_1^{(l-1)}\middle|x_1^{(0)}\right]-\mu_1\right]^{T}\Sigma_{11}^{-1}\left[E\!\left[x_1^{(l-1)}\middle|x_1^{(0)}\right]-\mu_1\right]
+\\
+&amp;\quad \le
+(\lambda^{*})^{2l}\left[x_1^{(0)}-\mu_1\right]^{T}\Sigma_{11}^{-1}\left[x_1^{(0)}-\mu_1\right]
+\end{aligned}
+\]</span> where <span class="math inline">\(\lambda^{*}\)</span> is the
+maximal eigenvalue of the matrix <span class="math inline">\(\Sigma_{11}^{-1/2}\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1/2}\)</span>.</p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 8.</strong> The eigenvalues for the matrix <span class="math inline">\(\Sigma_{11}^{-1/2}\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1/2}\)</span>
+coincide with the eigenvalues for the matrix <span class="math inline">\(P_{11}^{-1/2}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1/2}\)</span>.</p>
+</blockquote>
+<p>Remark 8 is what makes the rate computable. The covariance form
+requires <span class="math inline">\(\Sigma\)</span>, which is the
+inverse of the joint precision; the precision form requires only the
+blocks of <span class="math inline">\(P\)</span>, which are read
+directly off the quadratic form of the log posterior. This is the
+identity <code>two_block_rate()</code> relies on.</p>
+<blockquote>
+<p><strong>Remark 9.</strong> The above also implies the following:
+<span class="math display">\[
+\begin{aligned}
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right] - \mu_1 &amp;=
+T^{\,l}\left[\left(x_1^{(0)}-\mu_1\right)\right] \\
+\mu_1 &amp;= \left[I -
+T^{\,l}\right]^{-1}\left[E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right] -
+T^{\,l}x_1^{(0)}\right]
+\end{aligned}
+\]</span> and <span class="math display">\[
+\begin{aligned}
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right] - \mu_1
+&amp;=
+\left[I-T^{\,l}\right]^{-1}\left[\left[I-T^{\,l}\right]E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right]
+-
+\left[E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right]-T^{\,l}x_1^{(0)}\right]\right]
+\\
+&amp;= \left[I-T^{\,l}\right]^{-1}T^{\,l}\left[x_1^{(0)} -
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right]\right].
+\end{aligned}
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 10.</strong> The above result now implies the
+following relationship (since <span class="math inline">\(\Sigma_{11}^{-1} =
+P_{11}-P_{12}P_{22}^{-1}P_{21}\)</span>) <span class="math display">\[
+\begin{aligned}
+&amp;\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left(E[x_1^{(l)}|x_1^{(0)}]-\mu_1\right)^{T}\Sigma_{11}^{-1}\left(E[x_1^{(l)}|x_1^{(0)}]-\mu_1\right)}}{\sqrt{2}}\right)
+\\
+&amp;\quad =
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left[x_1^{(0)}-E[x_1^{(l)}|x_1^{(0)}]\right]^{T}T^{\,l}\left[I-T^{\,l}\right]^{-1}\Sigma_{11}^{-1}\left[I-T^{\,l}\right]^{-1}T^{\,l}\left[x_1^{(0)}-E[x_1^{(l)}|x_1^{(0)}]\right]}}{\sqrt{2}}\right)
+\\
+&amp;\quad \le
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left[x_1^{(0)}-E[x_1^{(l)}|x_1^{(0)}]\right]^{T}T^{\,l}\left[I-T^{\,l}\right]^{-1}P_{11}\left[I-T^{\,l}\right]^{-1}T^{\,l}\left[x_1^{(0)}-E[x_1^{(l)}|x_1^{(0)}]\right]}}{\sqrt{2}}\right).
+\end{aligned}
+\]</span> It is worth noting that any upper bound for <span class="math inline">\(P_{22}(\beta)\)</span> can be used in applications
+below.</p>
+</blockquote>
+</div>
+<div id="convergence-of-variance-covariance-matrices" class="section level2" number="2.3">
+<h2><span class="header-section-number">2.3</span> Convergence of
+variance-covariance matrices</h2>
+<blockquote>
+<p><strong>Claim 3.</strong> Let <span class="math inline">\(N(\cdot\mid\mu,\Sigma)\)</span> be a multivariate
+normal density. Consider a two-block Gibbs sampler applied to this
+density in which the second block is updated first with variance <span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. Let <span class="math inline">\(A =
+P_{11}^{-1/2}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1/2}\)</span>. After <span class="math inline">\(l\)</span> iterations, the variance for the first
+block is given by <span class="math display">\[
+\Sigma^{(l)}_{11} = P_{11}^{-1/2}\left[\sum_{i=1}^{2l}
+A^{\,i-1}\right]P_{11}^{-1/2}
+\]</span> and <span class="math display">\[
+\Sigma_{11}^{-1/2}\Sigma^{(l)}_{11}\Sigma_{11}^{-1/2} = \left[I -
+A^{(2l)}\right].
+\]</span></p>
+</blockquote>
+<p>The exponent is <span class="math inline">\(2l\)</span>, not <span class="math inline">\(l\)</span>: <strong>the variance converges at
+twice the rate of the mean</strong>. This is an equality, which is what
+makes it usable as a diagnostic rather than merely a bound.</p>
+<blockquote>
+<p><strong>Remark 11.</strong> Denote by <span class="math inline">\(a_i\)</span> the <span class="math inline">\(i\)</span>th eigenvalue for the matrix <span class="math inline">\(A\)</span> and let <span class="math inline">\(a_0
+= 0\)</span>. Then after <span class="math inline">\(l\)</span>
+iterations, the constants <span class="math inline">\(k_i^{(l)},
+r_i^{(l)}\)</span> are given by <span class="math display">\[
+k_i^{(l)} = \frac{1}{1-a_i^{2l}}
+\qquad\text{and}\qquad
+r_i^{(l)} = \frac{1-a_{i-1}^{2l}}{1-a_i^{2l}}
+\]</span> respectively.</p>
+</blockquote>
+<p>Remark 11 is the bridge between the two halves of the paper. The
+<span class="math inline">\(k_i\)</span> of Lemma 2 — eigenvalues of a
+ratio of covariance matrices — become explicit functions of the
+eigenvalues of <span class="math inline">\(A\)</span> and the sweep
+count <span class="math inline">\(l\)</span>.</p>
+</div>
+<div id="convergence-bounds-and-geometric-ergodicity-for-the-two-block-gibbs-sampler" class="section level2" number="2.4">
+<h2><span class="header-section-number">2.4</span> Convergence bounds
+and geometric ergodicity for the two-block Gibbs sampler</h2>
+<blockquote>
+<p><strong>Theorem 3.</strong> Let <span class="math inline">\(N(\cdot\mid\mu,\Sigma)\)</span> be a multivariate
+normal density. Consider a two-block Gibbs sampler applied to this
+density in which the second block is updated first with variance <span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. Then <span class="math display">\[
+\begin{aligned}
+&amp;\left\|N\!\left(\cdot\middle|
+E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right],\Sigma^{(l)}_{11}\right),
+N(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV} \\
+&amp;\quad\le
+\left\|N\!\left(\cdot\middle|E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right],\Sigma^{(l)}_{11}\right),
+N\!\left(\cdot\middle|E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right],\Sigma_{11}\right)\right\|_{TV}
+\\
+&amp;\qquad +
+\left\|N\!\left(\cdot\middle|E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right],\Sigma_{11}\right),
+N(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV} \\[4pt]
+&amp;\quad\le \left[\sum_{i=1}^{n} d_i^{(l)}\right]
++
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left(E[x_1^{(l)}|x_1^{(0)}]-\mu_1\right)^{T}\Sigma_{11}^{-1}\left(E[x_1^{(l)}|x_1^{(0)}]-\mu_1\right)}}{\sqrt{2}}\right)
+\\[4pt]
+&amp;\quad = \left[\sum_{i=1}^{n} d_i^{(l)}\right]
++
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left(x_1^{(0)}-\mu_1\right)^{T}\left(T^{(l)}\right)^{T}\Sigma_{11}^{-1}\left(T^{(l)}\right)\left(x_1^{(0)}-\mu_1\right)}}{\sqrt{2}}\right)
+\\[4pt]
+&amp;\quad\le \left[\sum_{i=1}^{n} d_i^{(l)}\right]
++
+\mathrm{erf}_1\!\left(\frac{0.5(\lambda^{*})^{l}\sqrt{\left(x_1^{(0)}-\mu_1\right)^{T}\Sigma_{11}^{-1}\left(x_1^{(0)}-\mu_1\right)}}{\sqrt{2}}\right)
+\end{aligned}
+\]</span> where the constant <span class="math inline">\(r_i^{(l)}\)</span> in each <span class="math inline">\(d_i^{(l)}\)</span> term is given by <span class="math inline">\(r_i^{(l)} =
+\dfrac{1-a_{i-1}^{2l}}{1-a_i^{2l}}\)</span>.</p>
+</blockquote>
+<p>The first inequality is Theorem 2’s triangle-inequality split,
+applied to the <span class="math inline">\(l\)</span>-step kernel via
+Remark 7. The variance term is Lemma 2 evaluated at the Remark 11
+ratios; the mean term is Lemma 1 evaluated at the Claim 2
+contraction.</p>
+<blockquote>
+<p><strong>Corollary 1.</strong> Let <span class="math inline">\(N(\cdot\mid\mu^{*},\Sigma)\)</span> be a
+multivariate normal density. Consider a two-block Gibbs sampler applied
+to this density in which the second block is updated first with variance
+<span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. Then <span class="math display">\[
+\begin{aligned}
+&amp;\left\|N\!\left(\cdot\middle|E\!\left[x_1^{(l)}\middle|x_1^{(0)}\right],\Sigma^{(l)}_{11}\right),
+N(\cdot\mid\mu_1,\Sigma_{11})\right\|_{TV} \\
+&amp;\quad\le
+\frac{0.5(\lambda^{*})^{l}\sqrt{\left(x_1^{(0)}-\mu_1\right)^{T}\Sigma_{11}^{-1}\left(x_1^{(0)}-\mu_1\right)}}{\sqrt{2}}
+\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right]
+\\
+&amp;\qquad +
+\sum_{i=1}^{n}\left[\frac{a_i^{2l}}{\sqrt{1-a_i^{2}}\sqrt{1-a_{i-1}^{2}}}\right]
+\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right]
+\end{aligned}
+\]</span> where the constants <span class="math inline">\(\lambda^{*}\)</span> and <span class="math inline">\(a_i\)</span> in each term are defined as above.
+Hence the two-block Gibbs sampler is geometrically ergodic.</p>
+</blockquote>
+<p>Every term decays like <span class="math inline">\(a_i^{2l}\)</span>
+(or <span class="math inline">\((\lambda^{*})^{l}\)</span> for the mean
+term), with explicit constants, which is Definition 7’s requirement with
+<span class="math inline">\(t = \lambda^{*}\)</span>.</p>
+</div>
+</div>
+<div id="proofs" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Proofs</h1>
+<div id="proof-for-densities-with-shared-mean-vector" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Proof for densities
+with shared mean vector</h2>
+<p><em>Proof of Lemma 2.</em> Let <span class="math inline">\(C\Lambda
+C^{-1} = C\Lambda C^{T}\)</span> be an eigenvalue decomposition for
+<span class="math inline">\(\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\)</span>
+and assume without loss of generality that the eigenvalues are
+non-decreasing.</p>
+<p>Let <span class="math inline">\(A_0 = I_n\)</span> and for <span class="math inline">\(0 &lt; i \le n\)</span> let <span class="math inline">\(A_i\)</span> be the diagonal matrix with diagonal
+elements given by <span class="math display">\[
+a_{i,jj} = \begin{cases} k_j &amp; j \le i \\ k_i &amp; j \ge i.
+\end{cases}
+\]</span></p>
+<p>From the triangle inequality, it follows that <span class="math display">\[
+\begin{aligned}
+\|f(\cdot\mid\mu,\Sigma_1), f(\cdot\mid\mu,\Sigma_2)\|_{TV}
+&amp;= \left\|f\!\left(\cdot\middle|\Sigma_2^{-1/2}\mu,
+\left[\Sigma_2^{1/2}\Sigma_1^{-1}\Sigma_2^{1/2}\right]^{-1}\right),
+f\!\left(\cdot\middle|\Sigma_2^{-1/2}\mu, I_n\right)\right\|_{TV} \\
+&amp;= \left\|f\!\left(\cdot\middle|\Sigma_2^{-1/2}\mu, \left[C\Lambda
+C^{T}\right]^{-1}\right), f\!\left(\cdot\middle|\Sigma_2^{-1/2}\mu,
+\left[CI_nC^{T}\right]^{-1}\right)\right\|_{TV} \\
+&amp;= \left\|f\!\left(\cdot\middle|C^{-1}\Sigma_2^{-1/2}\mu,
+\Lambda^{-1}\right), f\!\left(\cdot\middle|C^{-1}\Sigma_2^{-1/2}\mu,
+I_n\right)\right\|_{TV} \\
+&amp;= \left\|f\!\left(\cdot\middle|\tilde\mu, A_n^{-1}\right),
+f\!\left(\cdot\middle|\tilde\mu, A_0^{-1}\right)\right\|_{TV} \\
+&amp;\le \sum_{i=1}^{n}\left\|f\!\left(\cdot\middle|\tilde\mu,
+A_i^{-1}\right), f\!\left(\cdot\middle|\tilde\mu,
+A_{i-1}^{-1}\right)\right\|_{TV}
+\end{aligned}
+\]</span> where <span class="math inline">\(\tilde\mu =
+C^{-1}\Sigma_2^{-1/2}\mu\)</span>.</p>
+<p>If <span class="math inline">\(r_i = 1\)</span> then <span class="math inline">\(A_i = A_{i-1}\)</span> and the corresponding
+distance is 0. If <span class="math inline">\(r_i &gt; 1\)</span>, it is
+straightforward to verify that <span class="math display">\[
+\begin{aligned}
+f\!\left(x\middle|\tilde\mu, A_i^{-1}\right) &amp;\ge
+f\!\left(x\middle|\tilde\mu, A_{i-1}^{-1}\right) \\
+\iff\quad (x-\tilde\mu)^{T}\left[A_i - A_{i-1}\right](x-\tilde\mu)
+&amp;\le \log\left[|A_i|\right]-\log\left[|A_{i-1}|\right] \\
+\iff\quad
+\sum_{j=i}^{n}(x_j-\tilde\mu_j)^{T}\left[k_i-k_{i-1}\right](x_j-\tilde\mu_j)
+&amp;\le \sum_{j=i}^{n}\left[\log[k_i]-\log[k_{i-1}]\right] \\
+\iff\quad \sum_{j=i}^{n}(x_j-\tilde\mu_j)^{T}k_{i-1}(x_j-\tilde\mu_j)
+&amp;\le \frac{1}{r_i-1}(n+1-i)\log[r_i] \\
+\iff\quad \sum_{j=i}^{n}(x_j-\tilde\mu_j)^{T}k_i(x_j-\tilde\mu_j)
+&amp;\le \frac{r_i}{r_i-1}(n+1-i)\log[r_i].
+\end{aligned}
+\]</span></p>
+<p>Let <span class="math inline">\(d_i = \left\|f(\cdot\mid\tilde\mu,
+A_i^{-1}), f(\cdot\mid\tilde\mu, A_{i-1}^{-1})\right\|_{TV}\)</span>.
+From the last two inequalities above and Remark 3, it now follows that
+<span class="math display">\[
+d_i =
+\begin{cases}
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{r_i}{r_i-1}\tfrac{(n+1-i)\ln[r_i]}{2}}\right)
+-
+\mathrm{erf}_{n+1-i}\!\left(\sqrt{\tfrac{1}{r_i-1}\tfrac{(n+1-i)\ln[r_i]}{2}}\right)
+&amp; r_i &gt; 1 \\
+0 &amp; \text{otherwise.}
+\end{cases}
+\]</span></p>
+<p>No further standardization is required: in the first case the vector
+defined by <span class="math inline">\(\sqrt{k_{i-1}}(x_j-\tilde\mu_j)\)</span> for <span class="math inline">\(j = i,\dots,n\)</span> is a multivariate standard
+normal, and in the second case the vector defined by <span class="math inline">\(\sqrt{k_i}(x_j-\tilde\mu_j)\)</span> for <span class="math inline">\(j = i,\dots,n\)</span> is also multivariate
+standard normal. <span class="math inline">\(\square\)</span></p>
+</div>
+<div id="proof-for-densities-with-shared-variance-covariance-matrix" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> Proof for densities
+with shared variance-covariance matrix</h2>
+<p><em>Proof of Lemma 1.</em> Let <span class="math inline">\(P =
+\Sigma^{-1}\)</span>. We then have <span class="math display">\[
+\begin{aligned}
+f(x\mid\mu_1,\Sigma) &amp;\ge f(x\mid\mu_2,\Sigma) \\
+\iff\quad 0.5(x-\mu_1)^{T}P(x-\mu_1) &amp;\le 0.5(x-\mu_2)^{T}P(x-\mu_2)
+\\
+\iff\quad (x-\mu_1)^{T}P(\mu_2-\mu_1) &amp;\le
+0.5(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1) \\
+\iff\quad
+\frac{(x-\mu_1)^{T}P(\mu_2-\mu_1)}{\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}}
+&amp;\le 0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}.
+\end{aligned}
+\]</span></p>
+<p>It is straightforward to verify that <span class="math display">\[
+E\!\left[\frac{(x-\mu_1)^{T}P(\mu_2-\mu_1)}{\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}}\,\middle|\,\mu_1,\Sigma\right]
+= 0
+\]</span> and that <span class="math display">\[
+E\!\left[\frac{(x-\mu_1)^{T}P(\mu_2-\mu_1)}{\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}}\,\middle|\,\mu_2,\Sigma\right]
+= \sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}.
+\]</span></p>
+<p>From this it follows that the event above has probability <span class="math inline">\(\Phi\!\left(0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}\right)\)</span>
+under <span class="math inline">\(\mu_1\)</span> and <span class="math inline">\(\Phi\!\left(-0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}\right)\)</span>
+under <span class="math inline">\(\mu_2\)</span>, which in turn implies
+that <span class="math display">\[
+\begin{aligned}
+\|f(\cdot\mid\mu_1,\Sigma), f(\cdot\mid\mu_2,\Sigma)\|_{TV}
+&amp;= \Phi\!\left(0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}\right) -
+\Phi\!\left(-0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}\right) \\
+&amp;=
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}P(\mu_2-\mu_1)}}{\sqrt{2}}\right).
+\qquad\square
+\end{aligned}
+\]</span></p>
+</div>
+<div id="proof-for-convergence-of-variance-covariance-matrices" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> Proof for convergence
+of variance-covariance matrices</h2>
+<blockquote>
+<p><strong>Remark 12.</strong> Let <span class="math inline">\(f(\cdot\mid\mu^{*},P^{-1})\)</span> be a
+multivariate normal density. Then the block-diagonal of the
+variance-covariance matrix satisfies: <span class="math display">\[
+\begin{aligned}
+\Sigma_{11}^{-1} &amp;= \left[P_{11}-P_{12}P_{22}^{-1}P_{21}\right]
+&amp;
+\Sigma_{22}^{-1} &amp;= \left[P_{22}-P_{21}P_{11}^{-1}P_{12}\right] \\
+\Sigma_{12} &amp;=
+-P_{11}^{-1}P_{12}\left(P_{22}-P_{21}P_{11}^{-1}P_{12}\right)^{-1} &amp;
+\Sigma_{12}\Sigma_{22}^{-1} &amp;= -P_{11}^{-1}P_{12} \\
+\Sigma_{21}\Sigma_{11}^{-1} &amp;= -P_{22}^{-1}P_{21}. &amp; &amp;
+\end{aligned}
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 13.</strong> Let <span class="math inline">\(f(\cdot\mid\mu^{*},\Sigma)\)</span> be a
+multivariate normal density. Consider a two-block Gibbs sampler applied
+to this density in which the second block is updated first with variance
+<span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. Then the variance of the
+first block after <span class="math inline">\(l\)</span> iterations is
+related to the variance after <span class="math inline">\(l-1\)</span>
+iterations through the iterative formula <span class="math display">\[
+\begin{aligned}
+\Sigma^{(l)}_{11}
+&amp;= P_{11}^{-1} +
+\Sigma_{12}\Sigma_{22}^{-1}P_{22}^{-1}\Sigma_{22}^{-1}\Sigma_{21}
++
+\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1}\Sigma^{(l-1)}_{11}\Sigma_{11}^{-1}\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}
+\\
+&amp;= P_{11}^{-1} + P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1}
++
+P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}\Sigma^{(l-1)}_{11}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1}.
+\end{aligned}
+\]</span></p>
+</blockquote>
+<p><em>Proof of Claim 3.</em> For <span class="math inline">\(l =
+1\)</span>, we have <span class="math display">\[
+\begin{aligned}
+\Sigma^{(1)}_{11} &amp;= P_{11}^{-1} +
+P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1}
+= P_{11}^{-1/2}\left[I +
+P_{11}^{-1/2}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1/2}\right]P_{11}^{-1/2} \\
+&amp;= P_{11}^{-1/2}\left[I+A\right]P_{11}^{-1/2}
+= P_{11}^{-1/2}\left[\sum_{i=1}^{2l}A^{\,i-1}\right]P_{11}^{-1/2}
+\end{aligned}
+\]</span> so the result holds. In order to demonstrate the result for
+<span class="math inline">\(l &gt; 1\)</span> assume that the result
+holds for <span class="math inline">\(l-1\)</span>. By induction, we
+have <span class="math display">\[
+\begin{aligned}
+\Sigma^{(l)}_{11} &amp;=
+P_{11}^{-1}+P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1}
++
+P_{11}^{-1}P_{12}P_{22}^{-1}P_{21}\Sigma^{(l-1)}_{11}P_{12}P_{22}^{-1}P_{21}P_{11}^{-1}
+\\
+&amp;= P_{11}^{-1/2}\left[I+A\right]P_{11}^{-1/2}
++
+P_{11}^{-1/2}\left[A\right]\left[\sum_{i=1}^{2(l-1)}A^{\,i-1}\right]\left[A\right]P_{11}^{-1/2}
+\\
+&amp;= P_{11}^{-1/2}\left[I+A\right]P_{11}^{-1/2} +
+P_{11}^{-1/2}\left[\sum_{i=3}^{2l}A^{\,i-1}\right]P_{11}^{-1/2}
+= P_{11}^{-1/2}\left[\sum_{i=1}^{2l}A^{\,i-1}\right]P_{11}^{-1/2}.
+\end{aligned}
+\]</span></p>
+<p>To see the second part of the result, we note that <span class="math display">\[
+P_{11}^{-1/2}\sum_{i=1}^{2l}A^{\,i-1}P_{11}^{-1/2}
+=
+P_{11}^{-1/2}\left[I-A\right]^{-1/2}\left[I-A^{2l}\right]\left[I-A\right]^{-1/2}P_{11}^{-1/2}.
+\]</span> Since <span class="math inline">\(A\)</span> is a convergent
+matrix, it follows that <span class="math display">\[
+\Sigma_{11} =
+P_{11}^{-1/2}\left[I-A\right]^{-1/2}\left[I-A\right]^{-1/2}P_{11}^{-1/2},
+\qquad
+\Sigma_{11}^{1/2} = P_{11}^{-1/2}\left[I-A\right]^{-1/2}.
+\]</span> It follows that <span class="math inline">\(\Sigma^{(l)}_{11}
+= \Sigma_{11}^{1/2}\left[I-A^{2l}\right]\Sigma_{11}^{1/2}\)</span> and
+hence <span class="math inline">\(\Sigma_{11}^{-1/2}\Sigma^{(l)}_{11}\Sigma_{11}^{-1/2}
+= \left[I-A^{2l}\right]\)</span>. <span class="math inline">\(\square\)</span></p>
+</div>
+<div id="proof-for-convergence-of-mean-vectors" class="section level2" number="3.4">
+<h2><span class="header-section-number">3.4</span> Proof for convergence
+of mean vectors</h2>
+<blockquote>
+<p><strong>Remark 14.</strong> Let <span class="math inline">\(f(\cdot\mid\mu^{*},P^{-1})\)</span> be a
+multivariate normal density. Then the conditional means are given by
+<span class="math display">\[
+E[\mu_1\mid\mu_2] =
+\mu_1^{*}+\Sigma_{12}\Sigma_{22}^{-1}(\mu_2-\mu_2^{*}),
+\qquad
+E[\mu_2\mid\mu_1] =
+\mu_2^{*}+\Sigma_{21}\Sigma_{11}^{-1}(\mu_1-\mu_1^{*}).
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Claim 4.</strong> Let <span class="math inline">\(f(\cdot\mid\mu^{*},\Sigma)\)</span> be a
+multivariate normal density. Consider a two-block Gibbs sampler applied
+to this density in which the second block is updated first with variance
+<span class="math inline">\(P_{22}^{-1}\)</span> and the first block is
+updated second with variance <span class="math inline">\(P_{11}^{-1}\)</span>. The expectation on the <span class="math inline">\(l\)</span>-th observation is related to the
+previous iteration through the iterative formula <span class="math display">\[
+E\!\left[\mu_1^{(l)}\middle|\mu_1^{(0)}\right]-\mu_1^{*}
+=
+\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1}\left(E\!\left[\mu_1^{(l-1)}\middle|\mu_1^{(0)}\right]-\mu_1^{*}\right).
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 15.</strong> In the multivariate normal case above, it
+follows that <span class="math display">\[
+\mu_1^{*} =
+\left[I-\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1}\right]^{-1}
+\left[E\!\left[\mu_1^{(l)}\middle|\mu_1^{(0)}\right]-\Sigma_{12}\Sigma_{22}^{-1}\Sigma_{21}\Sigma_{11}^{-1}E\!\left[\mu_1^{(l-1)}\middle|\mu_1^{(0)}\right]\right].
+\]</span></p>
+</blockquote>
+</div>
+<div id="proof-of-geometric-ergodicity" class="section level2" number="3.5">
+<h2><span class="header-section-number">3.5</span> Proof of geometric
+ergodicity</h2>
+<blockquote>
+<p><strong>Remark 16.</strong> Combining the results from the earlier
+sections, we have the following relationship <span class="math display">\[
+\begin{aligned}
+&amp;\mathrm{erf}_1\!\left(\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma_2^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right)+\left[\sum_{i=1}^{n}d_i\right]
+\\
+&amp;\quad\le
+\left[\frac{0.5\sqrt{(\mu_2-\mu_1)^{T}\Sigma^{-1}(\mu_2-\mu_1)}}{\sqrt{2}}\right]\left[\frac{1}{\int_0^{\infty}e^{-u^2}u^{\,n-1}du}\right]
+\\
+&amp;\qquad +
+\sum_{i=1}^{n}\left[\sqrt{r_i}-\sqrt{\tfrac{1}{r_i}}\right]\left[\frac{n+1-i}{2}\right]\left[\frac{e^{-(n-i)/2}\left[\sqrt{(n-i)/2}\right]^{n-i}}{\int_0^{\infty}e^{-u^2}u^{\,n-i}du}\right].
+\end{aligned}
+\]</span></p>
+</blockquote>
+<blockquote>
+<p><strong>Remark 17.</strong> Denote by <span class="math inline">\(a_i\)</span> the <span class="math inline">\(i\)</span>th eigenvalue for the matrix <span class="math inline">\(A\)</span> and let <span class="math inline">\(a_0
+= 0\)</span>. Then after <span class="math inline">\(l\)</span>
+iterations, the constants <span class="math inline">\(k_i^{(l)},
+r_i^{(l)}\)</span>, and the expression <span class="math inline">\(\sqrt{k_i^{(l)}}-\sqrt{1/k_i^{(l)}}\)</span> are
+given by <span class="math display">\[
+k_i^{(l)} = \frac{1}{1-a_i^{2l}},
+\qquad
+r_i^{(l)} = \frac{1-a_{i-1}^{2l}}{1-a_i^{2l}}
+\]</span> and <span class="math display">\[
+\sqrt{r_i^{(l)}}-\sqrt{\frac{1}{r_i^{(l)}}}
+= \frac{a_i^{2l}-a_{i-1}^{2l}}{\sqrt{1-a_i^{2l}}\sqrt{1-a_{i-1}^{2l}}}
+\;\le\; \frac{a_i^{2l}}{\sqrt{1-a_i^{2}}\sqrt{1-a_{i-1}^{2}}},
+\qquad
+\sqrt{k_i^{(l)}}-\sqrt{\frac{1}{k_i^{(l)}}} =
+\frac{a_i^{2l}}{\sqrt{1-a_i^{2l}}} \le \frac{a_i^{2l}}{\sqrt{1-a_i^{2}}}
+\]</span> respectively.</p>
+</blockquote>
+<p>Remark 17 is what turns the <span class="math inline">\(d_i^{(l)}\)</span> of Theorem 3 into the geometric
+terms of Corollary 1: the ratio-based quantity is bounded by <span class="math inline">\(a_i^{2l}\)</span> times a constant that no longer
+depends on <span class="math inline">\(l\)</span>.</p>
+<blockquote>
+<p><strong>Remark 18.</strong> The above result now implies the
+following relationships <span class="math display">\[
+\begin{aligned}
+\mathrm{erf}_1\!\left(\frac{0.5\sqrt{\left(E[\mu_1^{(l)}|\mu_1^{(0)}]-\mu_1^{*}\right)^{T}\Sigma_{11}^{-1}\left(E[\mu_1^{(l)}|\mu_1^{(0)}]-\mu_1^{*}\right)}}{\sqrt{2}}\right)
+&amp;\le
+\mathrm{erf}_1\!\left(\frac{0.5(\lambda^{*})^{l}\sqrt{\left(\mu_1^{(0)}-\mu_1^{*}\right)^{T}\Sigma_{11}^{-1}\left(\mu_1^{(0)}-\mu_1^{*}\right)}}{\sqrt{2}}\right)
+\\
+&amp;\le
+\frac{0.5(\lambda^{*})^{l}\sqrt{\left(\mu_1^{(0)}-\mu_1^{*}\right)^{T}\Sigma_{11}^{-1}\left(\mu_1^{(0)}-\mu_1^{*}\right)}}{\sqrt{2}}\left[\frac{1}{\int_0^{\infty}e^{-u^2}u^{\,n-1}du}\right].
+\end{aligned}
+\]</span></p>
+</blockquote>
+</div>
+<div id="special-case-derivations" class="section level2" number="3.6">
+<h2><span class="header-section-number">3.6</span> Special case
+derivations</h2>
+<p>In the multivariate normal case, <span class="math display">\[
+\left\|\pi(\cdot\mid\nu,\Sigma_{11}) -
+Q^{(l)}\!\left(\cdot\middle|\nu,\Sigma^{(l)}_{11}\right)\right\|_{TV}
+= \left\|\pi(\cdot\mid\nu,I) -
+Q^{(l)}\!\left(\cdot\middle|\nu,\Sigma_{11}^{-1/2}\Sigma^{(l)}_{11}\Sigma_{11}^{-1/2}\right)\right\|_{TV}
+= \left\|\pi(\cdot\mid\nu,I) -
+Q^{(l)}\!\left(\cdot\middle|\nu,\left[I-A^{(2l)}\right]\right)\right\|_{TV}.
+\]</span></p>
+</div>
+</div>
+<div id="how-the-package-evaluates-these-results" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> How the package
+evaluates these results</h1>
+<p>The bounds above are implemented in
+<code>two_block_ergodicity.R</code>. Three translation steps turn the
+manuscript’s expressions into elementary computations.</p>
+<p><strong>The error function is a chi-squared probability.</strong> By
+Remark 3, <span class="math inline">\(\mathrm{erf}_n(x) =
+P\!\left(\chi^2_n \le 2x^2\right)\)</span>, so the internal helper is
+one line:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>lmebayesCore<span class="sc">:::</span>.two_block_erfn</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt; function(x, n) {</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt;   stats::pchisq(2 * x^2, df = n)</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; }</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; &lt;environment: namespace:lmebayesCore&gt;</span></span></code></pre></div>
+<p>This agrees with the closed forms of Remark 1. Taking <span class="math inline">\(n = 2\)</span> (<span class="math inline">\(m =
+1\)</span>, so <span class="math inline">\(\mathrm{erf}_2(x) = 1 -
+e^{-x^2}\)</span>) and <span class="math inline">\(n = 1\)</span>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="dv">1</span>, <span class="dv">2</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">erf2_remark1 =</span> <span class="dv">1</span> <span class="sc">-</span> <span class="fu">exp</span>(<span class="sc">-</span>x<span class="sc">^</span><span class="dv">2</span>),</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">erf2_impl    =</span> lmebayesCore<span class="sc">:::</span><span class="fu">.two_block_erfn</span>(x, <span class="dv">2</span><span class="dt">L</span>),</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="at">erf1_classic =</span> <span class="dv">2</span> <span class="sc">*</span> <span class="fu">pnorm</span>(x <span class="sc">*</span> <span class="fu">sqrt</span>(<span class="dv">2</span>)) <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">erf1_impl    =</span> lmebayesCore<span class="sc">:::</span><span class="fu">.two_block_erfn</span>(x, <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;                    [,1]      [,2]      [,3]      [,4]</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; erf2_remark1 0.06058694 0.2211992 0.6321206 0.9816844</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; erf2_impl    0.06058694 0.2211992 0.6321206 0.9816844</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; erf1_classic 0.27632639 0.5204999 0.8427008 0.9953223</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; erf1_impl    0.27632639 0.5204999 0.8427008 0.9953223</span></span></code></pre></div>
+<p><strong>Each <span class="math inline">\(d_i^{(l)}\)</span> is a
+difference of two chi-squared probabilities.</strong> Writing <span class="math inline">\(m_i = n+1-i\)</span> and <span class="math inline">\(r = r_i^{(l)}\)</span>, squaring and doubling the
+arguments of Lemma 2 gives <span class="math display">\[
+d_i^{(l)} = P\!\left(\chi^2_{m_i} \le \frac{m_i\, r \log r}{r-1}\right)
+- P\!\left(\chi^2_{m_i} \le \frac{m_i \log r}{r-1}\right),
+\]</span> which is what
+<code>two_block_tv_bound(method = &quot;theorem3&quot;)</code> sums, with the
+eigenvalues sorted ascending as Lemma 2 requires and <span class="math inline">\(a_0 = 0\)</span> as in Remark 11.</p>
+<p><strong>The Corollary 1 envelope is assembled from Remarks 5, 17 and
+18.</strong> Writing <span class="math inline">\(c_m =
+2e^{-m/2}(m/2)^{m/2}/\Gamma\!\left(\frac{m+1}{2}\right)\)</span> for the
+bracketed constant — using <span class="math inline">\(\int_0^{\infty}e^{-u^2}u^{\,m}du =
+\Gamma\!\left(\frac{m+1}{2}\right)/2\)</span> — the implemented variance
+term is <span class="math display">\[
+d_i^{(l)} \;\le\; \frac{a_i^{2l}}{\sqrt{1-a_i^{2}}\sqrt{1-a_{i-1}^{2}}}
+\sqrt{\frac{n+1-i}{2}}\; c_{\,n-i},
+\]</span> and the mean term is <span class="math inline">\((\lambda^{*})^{l}\sqrt{D_0/(2\pi)}\)</span>, which
+is Remark 18’s final line with <span class="math inline">\(n =
+1\)</span>.</p>
+<p>Two points where the implementation departs from the manuscript’s
+display are worth recording. First, the Corollary 1 display omits the
+factor <span class="math inline">\(\sqrt{(n+1-i)/2}\)</span> that
+appears in Remark 5; it is required for the chain of inequalities from
+Remark 5 through Remark 17 to close, and the implementation includes it.
+Second, the Corollary 1 display carries a free index <span class="math inline">\(i\)</span> in the mean term’s constant, which does
+not depend on <span class="math inline">\(i\)</span>; the implementation
+uses Remark 18’s form, in which that constant is evaluated at <span class="math inline">\(n = 1\)</span> and reduces to <span class="math inline">\(1/\sqrt{2\pi}\)</span> after combining with the
+leading <span class="math inline">\(0.5/\sqrt{2}\)</span>.</p>
+<p>Finally, <span class="math inline">\(D_0 =
+\left(x_1^{(0)}-\mu_1\right)^{T}\Sigma_{11}^{-1}\left(x_1^{(0)}-\mu_1\right)\)</span>
+is the only place the starting point enters either bound. Starting a
+chain at the posterior mean sets <span class="math inline">\(D_0 =
+0\)</span> and removes the mean term identically, leaving only the
+variance sum — which is why the package computes the exact posterior
+mean before sampling and starts every replicate chain there.</p>
+</div>
+<div id="see-also" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> See also</h1>
+<ul>
+<li><code>vignette(&quot;Chapter-C04&quot;)</code> — these results applied to the
+mixed model of <code>Chapter-C01</code>: the precision blocks, the
+eigenvalue spectrum, the sweep budget, and the Claim 3 diagnostic
+measured empirically.</li>
+<li><code>vignette(&quot;Chapter-B02&quot;)</code> — the same results stated in
+engine terms.</li>
+<li><code>vignette(&quot;Chapter-B03&quot;)</code> — turning <span class="math inline">\(\lambda^{*}\)</span> into
+<code>m_convergence</code>.</li>
+<li><code>?two_block_rate</code>,
+<code>?plot_var_convergence</code></li>
+<li><code>inst/BLOCK_GIBBS_ERGODICITY.md</code>,
+<code>inst/BLOCK_GIBBS_ERGODICITY_ING.md</code> and
+<code>inst/ELLIPSOID_TV_BOUND.md</code> in the package sources, which
+extend this theory to rank conditions, sampled variance components, and
+non-Gaussian likelihoods respectively.</li>
+</ul>
+</div>
+<div id="bibliography" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-Brown1963" class="csl-entry">
+Brown, M. 1963. <span>“A Generalized Error Function in n
+Dimensions.”</span> Technical Report 90. US Naval Missile Center,
+Theoretical Analysis Division.
+</div>
+<div id="ref-Kullback1959" class="csl-entry">
+Kullback, S. 1959. <em>Information Theory and Statistics</em>. John
+Wiley; Sons.
+</div>
+<div id="ref-Kullback1987" class="csl-entry">
+———. 1987. <span>“Letter to the Editor: The
+<span>Kullback-Leibler</span> Distance.”</span> <em>The American
+Statistician</em> 41 (4): 340–41.
+</div>
+<div id="ref-KullbackLeibler1951" class="csl-entry">
+Kullback, S., and R. A. Leibler. 1951. <span>“On Information and
+Sufficiency.”</span> <em>Annals of Mathematical Statistics</em> 22 (1):
+79–86. <a href="https://doi.org/10.1214/aoms/1177729694">https://doi.org/10.1214/aoms/1177729694</a>.
+</div>
+<div id="ref-Nygren2020" class="csl-entry">
+Nygren, Kjell N. 2020. <span>“<span class="nocase">On the Total
+Variation Distance Between Multivariate Normal Densities with
+Applications to Two-Block Gibbs Samplers</span>.”</span>
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

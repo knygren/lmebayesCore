@@ -1,0 +1,333 @@
+---
+title: "Chapter C02: The exact Gaussian iid sampler"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    number_sections: true
+bibliography: REFERENCES.bib
+reference-section-title: References
+vignette: >
+  %\VignetteIndexEntry{Chapter C02: The exact Gaussian iid sampler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.height = 4
+)
+```
+
+```{r setup}
+library(lmebayesCore)
+```
+
+```{r load-stored}
+C02 <- readRDS(system.file(
+  "extdata", "Chapter-C02-bwc-iid.rds", package = "lmebayesCore"
+))
+meta <- C02$meta
+```
+
+This chapter fits the model of `Chapter-C01` under the simplest prior
+specification the package offers, and shows that the resulting posterior
+can be sampled exactly rather than iteratively.
+
+# Prior specification
+
+Two quantities are held constant throughout this chapter: the observation
+dispersion \(\sigma^2\) and the between-group variance matrix \(\Psi\).
+Both are fixed at the defaults `Prior_Setup_GLMM()` calibrates from the
+data, so neither carries a prior and neither is sampled:
+
+```{r fixed}
+C02$summary$tau2_prior_overview[, c("Prior", "E[tau2]")]
+```
+
+The three `dNormal` rows are the components of \(\Psi\), declared known.
+The `Residual` row is \(\sigma^2\), likewise fixed.
+
+That leaves the population effects \(\gamma\) as the only quantity with a
+prior of its own. They receive the default multivariate normal prior,
+specified separately for each group-effect component, so the intercept
+block, the `distracted_ppvt` block and the `distracted_a1` block each get
+their own mean vector and covariance matrix:
+
+```{r pop-prior}
+round(C02$summary$popef_prior_overview[, c("Prior Mean", "Prior.sd")], 3)
+```
+
+The pattern in the mean column is worth noting. Every coefficient is
+centered at zero except the grand intercept, so the prior mean vector
+describes a null, intercept-only model: no covariate has any effect, and no
+group effect varies with anything at level two. The prior therefore carries
+the same interpretation the null model does in classical statistics, and
+the analysis can be read as asking how far the data move each coefficient
+away from that null. What differs is that here the null is a starting point
+that the data revise rather than a hypothesis that is accepted or rejected.
+
+This is the same default the **glmbayes** family of packages uses for
+ordinary iid regression: a multivariate normal prior on the regression
+coefficients, centered at the null model and calibrated from the data
+rather than specified by hand. What the mixed model adds is that the
+specification is repeated once per group effect.
+
+The setup is built by two calls. `Prior_Setup_GLMM()` performs the
+calibration, and `pfamily_list()` wraps the result as the Block 2 prior
+families the sampler consumes:
+
+```{r prior-calls, eval = FALSE}
+ps <- Prior_Setup_GLMM(form, data = dat, pop.pwt = 0.01)
+pf <- pfamily_list(ps)
+```
+
+`pop.pwt = 0.01` gives the prior on \(\gamma\) the weight of about one
+percent of the data. Because every component of `pf` comes back as
+`dNormal`, the variance components are known, which is what the first table
+above reports.
+
+# Estimating the model using the default settings
+
+The sampler takes the design and the two prior objects directly:
+
+```{r call, eval = FALSE}
+fit <- rlmerb(
+  n              = 1000,
+  design         = model_setup(form, data = dat),
+  pfamily_list   = pf,
+  dispprior_list = list(dispersion = ps$group.dispersion),
+  sim_method     = "DEFAULT"
+)
+```
+
+The `design` argument carries the data and both design matrices,
+`pfamily_list` supplies the Block 2 priors from the previous section, and
+`dispprior_list` supplies the fixed \(\sigma^2\). Passing a bare
+`list(dispersion = ...)` rather than a `dGamma()` prior is what declares
+that dispersion known.
+
+Under this specification the joint posterior over the group effects and the
+population effects is exactly multivariate normal, which admits a direct
+sampling scheme with no Markov chain. `sim_method = "DEFAULT"` selects it.
+
+The same model is fitted again later by a two-block Gibbs sampler. Running
+both against one posterior is deliberate: the answer here is exact, so it
+serves as the standard against which the iterative sampler is judged.
+
+# Properties of the posterior and the iid sampling procedure
+
+Collect the group effects as \(\beta = (\beta_1', \dots, \beta_J')'\). Up
+to an additive constant, the log posterior splits into the three pieces of
+the model:
+
+\[
+-2\log \pi(\gamma, \beta \mid y) =
+\underbrace{\frac{1}{\sigma^2}\sum_{j} \left\|y_j - D_j\beta_j\right\|^2}_{\text{(i) log-likelihood}}
++ \underbrace{\sum_{j} (\beta_j - \mathcal{W}_j\gamma)' \Psi^{-1} (\beta_j - \mathcal{W}_j\gamma)}_{\text{(ii) prior on the group effects}}
++ \underbrace{(\gamma - \mu_0)' V^{-1} (\gamma - \mu_0)}_{\text{(iii) prior on the population effects}}.
+\]
+
+Because \(\sigma^2\), \(\Psi\) and \(V\) are all known, every term is
+quadratic in \((\gamma, \beta)\), and a quadratic log density is a normal
+density. The posterior is therefore multivariate normal, and it can be
+factorized into a marginal for \(\gamma\) and a conditional for \(\beta\).
+
+## Marginal distribution of the population effects
+
+Integrating the group effects out of (i) and (ii) is a linear-Gaussian
+calculation. Substituting \(\beta_j = \mathcal{W}_j\gamma + u_j\) with
+\(u_j \sim N(0, \Psi)\) gives
+
+\[
+y_j \mid \gamma \sim N\!\left(D_j\mathcal{W}_j\,\gamma,\; V_j\right),
+\qquad V_j = \sigma^2 I_{n_j} + D_j \Psi D_j',
+\]
+
+so each group contributes a Gaussian likelihood in \(\gamma\) with design
+\(X_j = D_j\mathcal{W}_j\). Combining these with (iii) gives the marginal
+posterior
+
+\[
+\gamma \mid y \sim N\!\left(m_\gamma,\; P_\gamma^{-1}\right),
+\qquad
+\begin{aligned}
+P_\gamma &= V^{-1} + \sum_j X_j' V_j^{-1} X_j, \\
+m_\gamma &= P_\gamma^{-1}\Big(V^{-1}\mu_0 + \sum_j X_j' V_j^{-1} y_j\Big).
+\end{aligned}
+\]
+
+The term \(D_j \Psi D_j'\) in \(V_j\) is what distinguishes this from
+ordinary regression: it inflates the variance of the groups that would
+otherwise be most influential, which is how the model discounts a group
+that is unusual rather than merely large.
+
+## Conditional distribution of the group effects
+
+Given \(\gamma\), terms (i) and (ii) separate across groups, so the group
+effects are conditionally independent — each is an ordinary conjugate
+normal update, combining that group's own data with the population
+prediction \(\mathcal{W}_j\gamma\):
+
+\[
+\beta_j \mid \gamma, y \sim N\!\left(b_j,\; \Sigma_j\right),
+\qquad
+\begin{aligned}
+\Sigma_j &= \left(\sigma^{-2} D_j' D_j + \Psi^{-1}\right)^{-1}, \\
+b_j &= \Sigma_j\left(\sigma^{-2} D_j' y_j + \Psi^{-1}\mathcal{W}_j\gamma\right).
+\end{aligned}
+\]
+
+The precision weights in \(b_j\) are the shrinkage: a group with plenty of
+data has a large \(D_j' D_j\) and stays near its own fit, while a small
+group is pulled toward \(\mathcal{W}_j\gamma\).
+
+## Drawing from the posterior
+
+The two results above factorize the posterior exactly,
+
+\[
+\pi(\gamma, \beta \mid y) = \pi(\gamma \mid y)\;\prod_j \pi(\beta_j \mid \gamma, y),
+\]
+
+so one draw from the joint posterior is obtained in two steps: draw
+\(\gamma\) from its marginal, then draw each \(\beta_j\) from its
+conditional given that value. Repeating the pair produces independent
+draws from the target itself — no burn-in to discard, no autocorrelation,
+and no convergence rate to bound. It also makes the ICM point estimate the
+exact posterior mean, since the mode and mean of a normal distribution
+coincide.
+
+# Summarizing the output
+
+`summary()` collects the draws into tables:
+
+```{r summary-call, eval = FALSE}
+summary(fit, groups = c("30", "15"))
+```
+
+The output is organized by block, following the structure of the model.
+After the call and a header giving the number of draws, the engine used and
+the data dimensions, it reports in turn:
+
+- **Random effects** — the reference `lmer` variance components, for
+  orientation.
+- **Block 2 variance components** — the \(\tau^2_k\) and the residual
+  \(\sigma^2\), with their prior family. Here everything is fixed, so the
+  posterior tables are suppressed and a note says so.
+- **Block 2 population effects** — three tables for \(\gamma\): the prior
+  means and standard deviations alongside the `lmer` reference, then the
+  posterior mode, mean, standard deviation and Monte Carlo error, then
+  distribution percentiles. Rows are named `component::parameter`,
+  following the indexing described in `Chapter-C01`.
+- **Block 1 group effects** — the distribution of the per-group posterior
+  modes across all `r meta$J` groups, followed by per-group detail for any
+  levels named in `groups`.
+
+The `groups` argument is optional; without it the per-group detail is
+replaced by a note pointing at `fit$groupef.mode`. The two levels requested
+here are the largest and smallest schools in the data.
+
+Two features of the population effect tables follow from the default
+`pop.pwt = 0.01`. Because the prior is given the weight of only about one
+percent of the data, it barely competes with the likelihood: the posterior
+means land close to the `lmer` estimates, displaced slightly toward the
+prior means of the previous section. Since those prior means are the null
+model, that displacement is a mild shrinkage toward zero for every
+coefficient but the intercept.
+
+Read on the scale that matters, the two fits agree throughout. Every
+Bayesian estimate falls within a fifth of a standard error of its `lmer`
+counterpart, and most within a twentieth, so no coefficient in the table
+supports a different reading under one fit than the other. Exact agreement
+was never expected: the prior carries a small amount of weight, and this
+chapter fixes the variance components where `lmer` estimates them, so the
+two are answering slightly different questions. The differences that remain
+are too small to be worth interpreting individually.
+
+The `Pr(Prior_tail)` column has a related reading. For every row it measures
+the same thing: the posterior mass falling on the opposite side of the prior
+mean from the posterior estimate. It is thus a one-sided statement about
+how far the data have moved a coefficient away from its prior value, and
+how much posterior belief remains on the other side of it.
+
+Because the prior means are the null model, that reference point is zero
+for every coefficient except the intercept, so for those rows the column
+answers the same question a one-sided p-value does. Across them it stays in
+the same range as half the two-sided p-value the corresponding `lmer` fit
+would report, typically running somewhat smaller because the posterior
+standard deviations are not identical to the `lmer` standard errors, and
+the ordering it induces matches the classical one. The intercept is read the
+same way, but against the calibrated prior mean rather than the origin, so
+it is not comparable to a test against zero.
+
+The output below was produced by `data-raw/make_Chapter-C02.R` with
+`n = `r meta$n_draws`` and `set.seed(`r meta$seed`)`, then stored, so that
+building this vignette does not rerun the sampler.
+
+```{r summary-print}
+C02$summary
+```
+
+# Appendix: the reference `lmer` fit
+
+The `lmer` columns used throughout this chapter come from a single REML fit
+that `model_setup()` performs on all observations. `Prior_Setup_GLMM()`
+returns it as `mer_fit`, and the same object is stored on the design, so
+either of these reaches it:
+
+```{r lmer-access, eval = FALSE}
+ps$mer_fit
+design$lmer
+```
+
+It serves two purposes: it calibrates the default priors of the first
+section, and it populates the reference columns in the summary tables. Its
+own summary is:
+
+```{r lmer-summary}
+cat(C02$lmer_summary, sep = "\n")
+```
+
+Two points connect this back to the chapter. First, the fixed effects are
+reported in `lmer`'s flat parameterization, with the cross-level term
+written as `free_reduced_lunch:distracted_a1`. The summary tables carry the
+same seven coefficients but regroup them as `component::parameter`, so that
+interaction appears as `distracted_a1::free_reduced_lunch` — a level-two
+predictor of the `distracted_a1` slope. `Chapter-C01` covers the mapping.
+
+Second, the `Random effects` block is the quantity this chapter holds
+fixed, and it is worth seeing that it is not fixed at these values:
+
+```{r vc-compare}
+round(C02$summary$tau2_prior_overview[, c("E[tau2]", "lmer")], 2)
+```
+
+The residual variance is calibrated close to the REML value, and the
+intercept variance is moderately tighter, but the two slope components are
+held near a quarter of what `lmer` estimates. This is the one place where
+the two fits are far apart, and it is a difference in specification rather
+than in estimation: a smaller \(\Psi\) shrinks the group effects harder
+toward their population predictions, so the group effects reported in the
+previous section are more tightly pooled than `lmer` would make them.
+
+That the population effects nonetheless agree so closely is worth noting.
+Holding \(\Psi\) at these values costs little there, which is what makes
+this specification a reasonable starting point even though it is not the
+one `lmer` fits. The later chapters estimate the variance components rather
+than fixing them, and are the place to look for what changes when the
+`Random effects` block above is treated as unknown.
+
+# See also
+
+- `vignette("Chapter-C01")` — the data, model and design used here.
+- `vignette("Chapter-B04")` — route selection and the compiled kernel
+  behind the exact engine.
+- `?rlmerb`, `?summary.rlmerb`, `?model_setup`, `?Prior_Setup_GLMM`,
+  `?pfamily_list`
+- `data-raw/make_Chapter-C02.R` in the package sources for the script that
+  produced the stored results.
