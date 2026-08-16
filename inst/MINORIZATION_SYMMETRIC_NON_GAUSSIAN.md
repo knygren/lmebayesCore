@@ -928,6 +928,16 @@ as \(\|\gamma\|\to\infty\) (typical if \(\delta \to -\infty\) far from \(\mu^\st
 If \(\{\delta \ge \tau\}\) is non-compact, replace by a **truncated** level set
 \(C_d \cap \{\|\gamma-\mu^\star\| \le R\}\) or intersect with a drift sublevel set.
 
+**Enlarging \(\widetilde C_d\) for small tail mass.** For Proposition R2
+(`RESTRICTED_GIBBS_MINORIZATION_TV.md` §7.3), treat the certified level set as
+\(\widetilde C_d\): increase the radius \(d\) (or deviance threshold) until
+\(\pi(\widetilde C_d^c) < \delta_2\). Intersect with the **rate sublevel set**
+\(E_{\lambda^\star} = \{\lambda_{\max}(A(\beta)) \le \lambda^\star\}\) (Gibbs rate
+matrix \(A(\beta)\), `RESTRICTED_GIBBS_MINORIZATION_TV.md` §7.3 Step 1) to form
+\(C_d = E_{\lambda^\star} \cap \widetilde C_d\); then \(\pi(C_d^c) \le \delta_1 +
+\delta_2\). Minorization on \(\widetilde C_d\) restricts to \(C_d \subseteq
+\widetilde C_d\).
+
 **Gap deviance form.** With
 
 \[
@@ -1170,6 +1180,10 @@ conservative choice for coupling if the quadratic ellipsoid was too large.
 | 7 | Minimize \(\delta\) over \(C_d\) (numeric on deviance boundary if needed); set
   \(\varepsilon_d = \exp(\min \delta)\). |
 | 8 | Plug \(\varepsilon_d\) into Rosenthal coupling (rate note §10.1). |
+| 9 | For existence (R2): enlarge \(\widetilde C_d\); intersect with
+  \(E_{\lambda^\star}=\{\lambda_{\max}(A(\beta))\le\lambda^\star\}\); define
+  restricted Gibbs on \(C_d\)
+  (`RESTRICTED_GIBBS_MINORIZATION_TV.md` §7.3). |
 
 **Center fiber shortcut.** When S4 holds and inner convexity at \(\gamma=\mu^\star\),
 check \(\gamma'_\star(\mu^\star)=\mu^\star\) and \(\delta(\mu^\star) = \log q(\mu^\star,

@@ -36,9 +36,8 @@
 ^Rplots\.pdf$
 ^legacy_c_code$
 ^legacy_code$
-^inst/DESIGN_RGLM_BLOCKS\.md$
-^inst/DESIGN_RNORMALREG_BLOCKS\.md$
-^inst/DESIGN_GLMBAYESCORE_BRIDGE\.md$
+^inst/[^/]+\.md$
+^inst/[^/]+\.html$
 ^vignettes/Chapter-A[0-9]
 ^_install_test$
 ^.*\.log$

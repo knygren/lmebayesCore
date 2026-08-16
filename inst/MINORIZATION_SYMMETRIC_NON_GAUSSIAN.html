@@ -361,7 +361,7 @@ when the <strong>marginal posterior</strong> on the population parameter
 <span class="math inline">\(\gamma\)</span> is
 <strong>symmetric</strong> about a known center. In that special case,
 <strong>mean = mode = symmetry center</strong>; the Gaussian refresh
-pipeline (Hypotheses 1–2, two-stage <span class="math inline">\(\varepsilon\)</span>, penalty ellipsoid <span class="math inline">\(C_d\)</span>) largely survives, but <strong>closed
+pipeline (Hypotheses 1–2, two-stage <span class="math inline">\(\varepsilon_d\)</span>, penalty ellipsoid <span class="math inline">\(C_d\)</span>) largely survives, but <strong>closed
 Schur forms</strong> for <span class="math inline">\(\delta(\gamma)\)</span> do not unless one adds a
 <strong>local quadratic surrogate</strong>.</p>
 <p><strong>Status.</strong> Draft. Notation matches
@@ -403,7 +403,7 @@ spread).}
 \]</span></p>
 <p><strong>Minorization target (unchanged).</strong></p>
 <p><span class="math display">\[
-q(\gamma&#39;, \gamma) \;\ge\; \varepsilon\, q_Q(\gamma&#39;)
+q(\gamma&#39;, \gamma) \;\ge\; \varepsilon_d\, q_Q(\gamma&#39;)
 \quad
 \forall\,\gamma \in C_d,\;\gamma&#39; \in \mathbb R^q,
 \]</span></p>
@@ -420,8 +420,10 @@ q_Q(\gamma&#39;),
 \qquad
 \delta(\gamma) = g\bigl(\gamma&#39;_\star(\gamma), \gamma\bigr),
 \qquad
-\varepsilon = \exp\Bigl(\min_{\gamma \in C_d} \delta(\gamma)\Bigr).
+\varepsilon_d = \exp\Bigl(\min_{\gamma \in C_d} \delta(\gamma)\Bigr).
 \]</span></p>
+<p>(Subscript <span class="math inline">\(d\)</span>: certified constant
+on the level set <span class="math inline">\(C_d\)</span>.)</p>
 <hr />
 </div>
 <div id="sigmastar-vs-sigma-still-distinct" class="section level2">
@@ -1223,8 +1225,8 @@ c_0 - \tfrac{1}{2}(\gamma - \mu^\star)^\top \Gamma_\gamma (\gamma -
 c_0 = \text{const},
 \]</span></p>
 <p>then <span class="math inline">\(\min_{C_d} \delta \ge c_0 -
-d/2\)</span> and <span class="math inline">\(\varepsilon \ge \exp(c_0 -
-d/2)\)</span>. Equality holds when <span class="math inline">\(\delta\)</span> <strong>is</strong> that quadratic
+d/2\)</span> and <span class="math inline">\(\varepsilon_d \ge \exp(c_0
+- d/2)\)</span>. Equality holds when <span class="math inline">\(\delta\)</span> <strong>is</strong> that quadratic
 (Gaussian case) or when the worst <span class="math inline">\(\gamma\)</span> lies on <span class="math inline">\(\partial C_d\)</span> and achieves the bound.</p>
 </div>
 <div id="choosing-gamma_gamma-for-c_d-precision-only" class="section level3">
@@ -1267,31 +1269,370 @@ coefficient is a precision estimate.</p>
 should agree to first order at <span class="math inline">\(\mu^\star\)</span> when the inner problem is well
 approximated locally.</p>
 </div>
-<div id="outer-minimum-in-practice" class="section level3">
-<h3>7.4 Outer minimum in practice</h3>
-<p><strong>Exact (numeric).</strong></p>
+<div id="level-sets-of-delta-canonical-c_d" class="section level3">
+<h3>7.4 Level sets of <span class="math inline">\(\delta\)</span>
+(canonical <span class="math inline">\(C_d\)</span>)</h3>
+<p>The outer certification plugs <span class="math inline">\(\gamma\)</span> into the <strong>inner log
+gap</strong></p>
 <p><span class="math display">\[
-\gamma_\star \in \arg\min_{\gamma \in C_d} \delta(\gamma),
+\delta(\gamma)
+\;=\;
+g\bigl(\gamma&#39;_\star(\gamma),\,\gamma\bigr),
 \qquad
-\varepsilon = \exp\bigl(\delta(\gamma_\star)\bigr),
+\varepsilon_d
+\;=\;
+\exp\Bigl(
+\min_{\gamma \in C_d} \delta(\gamma)
+\Bigr).
 \]</span></p>
-<p>with <span class="math inline">\(\delta(\gamma) =
-g(\gamma&#39;_\star(\gamma), \gamma)\)</span> and <span class="math inline">\(\gamma&#39;_\star\)</span> from §6.3.</p>
-<p><strong>Gaussian-style lower bound (symmetric + quadratic
-certificate).</strong> If <span class="math inline">\(\delta(\gamma) \ge
-c_0 - \tfrac{1}{2}(\gamma-\mu^\star)^\top \Gamma_\gamma
-(\gamma-\mu^\star)\)</span> on <span class="math inline">\(C_d\)</span>,</p>
+<p>The most direct definition of <span class="math inline">\(C_d\)</span> is therefore a <strong>level set of
+<span class="math inline">\(\delta\)</span></strong> (or of the
+<strong>loss from the center fiber</strong>), not a quadratic or
+deviance proxy unless those coincide with <span class="math inline">\(\delta\)</span>.</p>
+<p>Assume <span class="math inline">\(\delta(\mu^\star)\)</span> is a
+<strong>local maximum</strong> of <span class="math inline">\(\delta\)</span> in <span class="math inline">\(\gamma\)</span> (true under S4 + inner convexity
+when <span class="math inline">\(\gamma&#39;_\star(\mu^\star)=\mu^\star\)</span>;
+in the Gaussian note, <span class="math inline">\(\delta = c_0 -
+\text{quadratic}\)</span>). Define the <strong>gap loss</strong></p>
 <p><span class="math display">\[
-\varepsilon
+\boxed{
+L_\delta(\gamma)
+\;:=\;
+\delta(\mu^\star) - \delta(\gamma)
+\;\ge\; 0
+\quad\text{near }\mu^\star.
+}
+\]</span></p>
+<p>Fix a radius <span class="math inline">\(d &gt; 0\)</span>. The
+<strong><span class="math inline">\(\delta\)</span>-level small
+set</strong> is</p>
+<p><span class="math display">\[
+\boxed{
+C_d
+\;:=\;
+\bigl\{
+\gamma \in \mathbb R^q :
+L_\delta(\gamma) \le \tfrac{d}{2}
+\bigr\}
+\;=\;
+\bigl\{
+\gamma :
+\delta(\gamma) \ge \delta(\mu^\star) - \tfrac{d}{2}
+\bigr\}.
+}
+\]</span></p>
+<p>Equivalently, <span class="math inline">\(C_d = \{\gamma :
+\delta(\gamma) \ge \tau\}\)</span> with threshold <span class="math inline">\(\tau := \delta(\mu^\star) - d/2\)</span>. The
+boundary is the <strong>level contour</strong> <span class="math inline">\(\{\gamma : \delta(\gamma) = \tau\}\)</span>.</p>
+<p><strong>Closed certified <span class="math inline">\(\varepsilon_d\)</span> (by construction).</strong>
+If <span class="math inline">\(C_d\)</span> is exactly the sublevel set
+above and <span class="math inline">\(\delta\)</span> is continuous,
+then</p>
+<p><span class="math display">\[
+\boxed{
+\min_{\gamma \in C_d} \delta(\gamma)
+\;=\;
+\delta(\mu^\star) - \tfrac{d}{2},
+\qquad
+\varepsilon_d
+\;=\;
+\exp\Bigl(
+\delta(\mu^\star) - \tfrac{d}{2}
+\Bigr),
+}
+\]</span></p>
+<p>with the worst case on <strong>any</strong> point of <span class="math inline">\(\{\gamma : L_\delta(\gamma) = d/2\}\)</span>. No
+quadratic geometry is required — only that <span class="math inline">\(\delta(\mu^\star)\)</span> is the best value on
+the neighborhood and worse values lie on the outer contour.</p>
+<p><strong>Compactness (Rosenthal).</strong> Require <span class="math inline">\(C_d\)</span> compact, e.g. <span class="math inline">\(L_\delta(\gamma) \to +\infty\)</span> as <span class="math inline">\(\|\gamma\|\to\infty\)</span> (typical if <span class="math inline">\(\delta \to -\infty\)</span> far from <span class="math inline">\(\mu^\star\)</span>). If <span class="math inline">\(\{\delta \ge \tau\}\)</span> is non-compact,
+replace by a <strong>truncated</strong> level set <span class="math inline">\(C_d \cap \{\|\gamma-\mu^\star\| \le R\}\)</span>
+or intersect with a drift sublevel set.</p>
+<p><strong>Gap deviance form.</strong> With</p>
+<p><span class="math display">\[
+D_\delta(\gamma)
+\;:=\;
+2\,L_\delta(\gamma)
+\;=\;
+2\bigl[\delta(\mu^\star) - \delta(\gamma)\bigr],
+\]</span></p>
+<p>one has <span class="math inline">\(C_d = \{\gamma : D_\delta(\gamma)
+\le d\}\)</span>. This is the minorization analogue of posterior
+deviance §7.5.1, but tied to the <strong>function actually
+minimized</strong> in the outer step.</p>
+<p><strong>Recovering the Gaussian ellipsoid (Gaussian note).</strong>
+When <span class="math inline">\(\delta(\gamma) = c_0 -
+\tfrac{1}{2}\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2\)</span>,</p>
+<p><span class="math display">\[
+L_\delta(\gamma)
+=
+\tfrac{1}{2}
+\Bigl(
+\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2
+-
+\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2
+\Bigr),
+\qquad
+C_d
+=
+\bigl\{
+\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2
+\le
+\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2 + d
+\bigr\}.
+\]</span></p>
+<p>The completed-square rewrite uses <span class="math inline">\(\mu_\delta\)</span> from §5.1.1 but the anchor
+remains <span class="math inline">\(\mu^\star\)</span> via <span class="math inline">\(\delta(\mu^\star)\)</span>. When <span class="math inline">\(M(\mu^\star)=\mu^\star\)</span>, <span class="math inline">\(\|M(\mu^\star)-\mu^\star\|=0\)</span> and <span class="math inline">\(C_d = \{(\gamma-\mu^\star)^\top \Gamma_\gamma
+(\gamma-\mu^\star) \le d\}\)</span>. The quadratic is a <strong>special
+case</strong> of a <span class="math inline">\(\delta\)</span> level
+set, not the other way around.</p>
+<p><strong>Non-Gaussian symmetric GLMs.</strong> Compute <span class="math inline">\(\delta(\gamma)\)</span> numerically (§6.3); plot
+or search on <span class="math inline">\(\{\gamma : \delta(\gamma) =
+\tau\}\)</span>. Shape follows the <strong>true</strong> outer
+objective; <span class="math inline">\(\varepsilon_d =
+\exp(\delta(\mu^\star) - d/2)\)</span> remains closed
+<strong>once</strong> <span class="math inline">\(C_d\)</span> is
+defined as this level set.</p>
+</div>
+<div id="deviance-and-posterior-level-sets-alternative-geometry" class="section level3">
+<h3>7.5 Deviance and posterior level sets (alternative geometry)</h3>
+<p>The penalty ellipsoid §7.2 and posterior deviance §7.5.1 are
+<strong>alternative</strong> geometries when you do <strong>not</strong>
+yet have <span class="math inline">\(\delta(\gamma)\)</span> on a grid,
+or when you want <span class="math inline">\(C_d\)</span> to follow
+<span class="math inline">\(\pi(\gamma\mid y)\)</span> instead of <span class="math inline">\(\delta\)</span>. The <strong>canonical</strong>
+minorization choice is §7.4: level sets of <span class="math inline">\(\delta\)</span> itself.</p>
+<div id="posterior-relative-deviance-recommended-glm-shape" class="section level4">
+<h4>7.5.1 Posterior relative deviance (recommended GLM shape)</h4>
+<p>Assume <span class="math inline">\(\pi_\gamma\)</span> is unimodal
+and log-concave with unique mode at <span class="math inline">\(\mu^\star\)</span> (S1). Define the
+<strong>relative posterior deviance</strong></p>
+<p><span class="math display">\[
+\boxed{
+D_\pi(\gamma)
+\;:=\;
+2\Bigl[
+\log \pi_\gamma(\mu^\star) - \log \pi_\gamma(\gamma)
+\Bigr]
+\;\ge\; 0.
+}
+\]</span></p>
+<p>This is the usual “twice the log posterior ratio” to the mode
+(Wilks/LRT form at the population block). The <strong>deviance-based
+small set</strong> is</p>
+<p><span class="math display">\[
+\boxed{
+C_d^{(\pi)}
+\;:=\;
+\bigl\{
+\gamma \in \mathbb R^q :
+D_\pi(\gamma) \le d
+\bigr\}.
+}
+\]</span></p>
+<p><strong>Scalar signed deviance residual</strong> (<span class="math inline">\(q=1\)</span>):</p>
+<p><span class="math display">\[
+\boxed{
+r_{\mathrm{dev}}(\gamma)
+\;:=\;
+\operatorname{sign}(\gamma - \mu^\star)\,
+\sqrt{D_\pi(\gamma)},
+\qquad
+C_d^{(\pi)}
+=
+\bigl\{
+\gamma :
+\bigl|r_{\mathrm{dev}}(\gamma)\bigr| \le \sqrt{d}
+\bigr\}.
+}
+\]</span></p>
+<p>Under S1, <span class="math inline">\(D_\pi(\mu^\star + u) =
+D_\pi(\mu^\star - u)\)</span>: contours are <strong>symmetric</strong>
+about <span class="math inline">\(\mu^\star\)</span> but need
+<strong>not</strong> be ellipses when <span class="math inline">\(\pi_\gamma\)</span> is non-Gaussian.</p>
+<p><strong>Laplace link (when the quadratic is only local).</strong>
+Taylor expansion at <span class="math inline">\(\mu^\star\)</span>:</p>
+<p><span class="math display">\[
+-\log \pi_\gamma(\gamma)
+\;=\;
+-\log \pi_\gamma(\mu^\star)
+\;+\;
+\tfrac{1}{2}(\gamma - \mu^\star)^\top \Gamma_{\mathrm{post}} (\gamma -
+\mu^\star)
+\;+\;
+O\bigl(\|\gamma - \mu^\star\|^3\bigr),
+\]</span></p>
+<p>with <span class="math inline">\(\Gamma_{\mathrm{post}} :=
+-\nabla_\gamma^2 \log \pi_\gamma(\mu^\star)\)</span> (§7.3 Option A).
+Hence</p>
+<p><span class="math display">\[
+D_\pi(\gamma)
+\;=\;
+(\gamma - \mu^\star)^\top \Gamma_{\mathrm{post}} (\gamma - \mu^\star)
+\;+\;
+O\bigl(\|\gamma - \mu^\star\|^3\bigr).
+\]</span></p>
+<p>So <strong>small</strong> <span class="math inline">\(d\)</span>:
+<span class="math inline">\(C_d^{(\pi)}\)</span> agrees with the penalty
+ellipsoid <span class="math inline">\(C_d = \{(\gamma-\mu^\star)^\top
+\Gamma_{\mathrm{post}}(\gamma-\mu^\star) \le d\}\)</span>.
+<strong>Moderate/large</strong> <span class="math inline">\(d\)</span>:
+deviance contours follow the <strong>true</strong> posterior geometry;
+the quadratic ellipsoid can <strong>mis-size</strong> <span class="math inline">\(C_d\)</span> (too fat in tails or too thin in
+curved directions).</p>
+<p><strong>Calibrating <span class="math inline">\(d\)</span>.</strong>
+Under a Laplace approximation, <span class="math inline">\(D_\pi(\gamma)
+\approx (\gamma-\mu^\star)^\top
+\Gamma_{\mathrm{post}}(\gamma-\mu^\star)\)</span> and <span class="math inline">\(\Gamma_{\mathrm{post}}^{1/2}(\gamma-\mu^\star)\)</span>
+is approximately standard Normal at the mode, so <span class="math inline">\(D_\pi \sim \chi^2_q\)</span> locally. One may take
+<span class="math inline">\(d = \chi^2_{q,\,1-\alpha}\)</span>
+(asymptotic <span class="math inline">\((1-\alpha)\)</span>-contour).
+This calibrates <strong>posterior mass</strong>, not the minorization
+constant directly.</p>
+</div>
+<div id="gap-deviance-delta-level-set" class="section level4">
+<h4>7.5.2 Gap deviance (= <span class="math inline">\(\delta\)</span>
+level set)</h4>
+<p>With <span class="math inline">\(L_\delta(\gamma) = \delta(\mu^\star)
+- \delta(\gamma)\)</span> as in §7.4,</p>
+<p><span class="math display">\[
+\boxed{
+D_\delta(\gamma)
+\;:=\;
+2\,L_\delta(\gamma)
+\;=\;
+2\bigl[\delta(\mu^\star) - \delta(\gamma)\bigr]
+\;\ge\; 0,
+\qquad
+C_d
+\;=\;
+\bigl\{
+\gamma :
+D_\delta(\gamma) \le d
+\bigr\}.
+}
+\]</span></p>
+<p>This is <strong>identical</strong> to the canonical §7.4 definition
+(not a separate choice). When <span class="math inline">\(\delta\)</span> is quadratic about <span class="math inline">\(\mu^\star\)</span>, <span class="math inline">\(D_\delta(\gamma) =
+(\gamma-\mu^\star)^\top \Gamma_\gamma (\gamma-\mu^\star)\)</span> and
+<span class="math inline">\(C_d\)</span> is the penalty ellipsoid
+§7.2.</p>
+</div>
+<div id="which-geometry-for-c_d" class="section level4">
+<h4>7.5.3 Which geometry for <span class="math inline">\(C_d\)</span>?</h4>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Small set</th>
+<th>Definition</th>
+<th><span class="math inline">\(\varepsilon_d\)</span> on <span class="math inline">\(C_d\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><span class="math inline">\(\delta\)</span> level set
+§7.4</strong></td>
+<td><span class="math inline">\(\{\delta \ge \delta(\mu^\star) -
+d/2\}\)</span></td>
+<td><strong>Closed:</strong> <span class="math inline">\(\exp(\delta(\mu^\star)-d/2)\)</span></td>
+</tr>
+<tr class="even">
+<td>Penalty ellipsoid §7.2</td>
+<td>Quadratic <strong>when</strong> <span class="math inline">\(\delta\)</span> is quadratic</td>
+<td>Same as §7.4 in Gaussian note</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(C_d^{(\pi)}\)</span> §7.5.1</td>
+<td><span class="math inline">\(\{D_\pi \le d\}\)</span> from <span class="math inline">\(\pi_\gamma\)</span></td>
+<td><strong>Numeric</strong> <span class="math inline">\(\min_{C_d}\delta\)</span> in general</td>
+</tr>
+<tr class="even">
+<td>Intersection with drift</td>
+<td><span class="math inline">\(C_d \cap \{V_{\mathrm{drift}} \le
+\cdots\}\)</span></td>
+<td>Numeric / intersect bounds</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Inner problem unchanged.</strong> Whichever <span class="math inline">\(C_d\)</span> defines the <strong>outer</strong>
+set, the inner step still uses <strong>precisions</strong> <span class="math inline">\(\Lambda_q\)</span>, <span class="math inline">\(\Lambda_Q\)</span> and tilted expectations (§2.2)
+— not deviance residuals.</p>
+</div>
+<div id="deviance-residuals-vs-precisions-do-not-mix" class="section level4">
+<h4>7.5.4 Deviance residuals vs precisions (do not mix)</h4>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Object</th>
+<th>Type</th>
+<th>Role in <span class="math inline">\(C_d\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(D_\pi\)</span>, <span class="math inline">\(r_{\mathrm{dev}}\)</span></td>
+<td><strong>Unitless</strong> log-ratio / residual</td>
+<td>Define <strong>shape</strong> of <span class="math inline">\(C_d^{(\pi)}\)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\Gamma_{\mathrm{post}}\)</span>, <span class="math inline">\(\Gamma_\gamma\)</span></td>
+<td><strong>Precision</strong></td>
+<td>Local quadratic <strong>approximation</strong> to <span class="math inline">\(D_\pi\)</span> or <span class="math inline">\(\delta\)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\Lambda_q\)</span>, <span class="math inline">\(\Lambda_Q\)</span></td>
+<td><strong>Precision</strong></td>
+<td>Inner convexity / <span class="math inline">\(\gamma&#39;_\star\)</span> (§6)</td>
+</tr>
+</tbody>
+</table>
+<p>Deviance contours are <strong>not</strong> a substitute for <span class="math inline">\(\Lambda_q\)</span>. They answer “how far from
+<span class="math inline">\(\mu^\star\)</span> in posterior or gap
+units?” — not “how curved is <span class="math inline">\(\log q\)</span>
+in <span class="math inline">\(\gamma&#39;\)</span>?”.</p>
+</div>
+<div id="outer-minimum-when-c_d-neq-delta-level-set" class="section level4">
+<h4>7.5.5 Outer minimum when <span class="math inline">\(C_d \neq
+\delta\)</span> level set</h4>
+<p>On <span class="math inline">\(C_d^{(\pi)}\)</span> (posterior
+deviance only), <span class="math inline">\(\delta(\gamma)\)</span> is
+<strong>not</strong> constant on <span class="math inline">\(\partial
+C_d^{(\pi)}\)</span>. Then</p>
+<p><span class="math display">\[
+\gamma_\star \in \arg\min_{\gamma \in C_d^{(\pi)}} \delta(\gamma),
+\qquad
+\varepsilon_d = \exp\bigl(\delta(\gamma_\star)\bigr),
+\]</span></p>
+<p>with a <strong>numeric</strong> search on the boundary <span class="math inline">\(\{\gamma : D_\pi(\gamma) = d\}\)</span> (or over a
+grid / MCMC hull). <strong>Lower bound:</strong> if <span class="math inline">\(\delta(\gamma) \ge \delta(\mu^\star) -
+\tfrac{1}{2}(\gamma-\mu^\star)^\top
+\Gamma_\gamma(\gamma-\mu^\star)\)</span> on <span class="math inline">\(C_d^{(\pi)}\)</span>, then</p>
+<p><span class="math display">\[
+\min_{C_d^{(\pi)}} \delta
 \;\ge\;
-\exp(c_0)\,\exp(-d/2).
+\delta(\mu^\star) - \frac{1}{2}
+\max_{\gamma \in C_d^{(\pi)}}
+(\gamma - \mu^\star)^\top \Gamma_\gamma (\gamma - \mu^\star),
 \]</span></p>
-<p>Determine <span class="math inline">\(c_0\)</span> from <span class="math inline">\(\delta(\mu^\star)\)</span> when <span class="math inline">\(\gamma&#39;_\star(\mu^\star)=\mu^\star\)</span>:</p>
-<p><span class="math display">\[
-c_0 \approx \delta(\mu^\star)
-\quad\text{if the quadratic matches at the center.}
-\]</span></p>
+<p>and the max Mahalanobis term on a <strong>non-elliptic</strong>
+deviance contour requires optimization (unless <span class="math inline">\(d\)</span> is small enough for Laplace).</p>
+<p><strong>Symmetric balanced logit/probit (§4).</strong> <span class="math inline">\(D_\pi\)</span> is explicit in <span class="math inline">\(\gamma\)</span> from the marginal (integrate
+numerically); <span class="math inline">\(C_d^{(\pi)}\)</span> is
+symmetric but typically <strong>narrower than</strong> a Gaussian
+ellipsoid with the same <span class="math inline">\(d\)</span> in the
+tails — a useful conservative choice for coupling if the quadratic
+ellipsoid was too large.</p>
 <hr />
+</div>
 </div>
 </div>
 <div id="end-to-end-certification-checklist-symmetric-glm" class="section level2">
@@ -1337,18 +1678,28 @@ inner FOC in <strong>precision form</strong> (§6.3); record <span class="math i
 </tr>
 <tr class="even">
 <td>6</td>
-<td>Define <span class="math inline">\(C_d\)</span> by
-<strong>precision</strong> <span class="math inline">\(\Gamma_\gamma\)</span> (§7.3 Option A or B): <span class="math inline">\((\gamma-\mu^\star)^\top \Gamma_\gamma
-(\gamma-\mu^\star) \le d\)</span>.</td>
+<td>Define <span class="math inline">\(C_d\)</span>:
+<strong>canonical</strong> <span class="math inline">\(\delta\)</span>
+level set §7.4; or proxy §7.5</td>
 </tr>
 <tr class="odd">
+<td>(<span class="math inline">\(\pi\)</span> deviance) if <span class="math inline">\(\delta\)</span> not yet on a grid.</td>
+<td></td>
+</tr>
+<tr class="even">
 <td>7</td>
-<td>Minimize <span class="math inline">\(\delta\)</span> over <span class="math inline">\(C_d\)</span>; set <span class="math inline">\(\varepsilon = \exp(\min \delta)\)</span>.</td>
+<td>Minimize <span class="math inline">\(\delta\)</span> over <span class="math inline">\(C_d\)</span> (numeric on deviance boundary if
+needed); set</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\varepsilon_d = \exp(\min
+\delta)\)</span>.</td>
+<td></td>
 </tr>
 <tr class="even">
 <td>8</td>
-<td>Plug <span class="math inline">\(\varepsilon\)</span> into Rosenthal
-coupling (rate note §10.1).</td>
+<td>Plug <span class="math inline">\(\varepsilon_d\)</span> into
+Rosenthal coupling (rate note §10.1).</td>
 </tr>
 </tbody>
 </table>
@@ -1425,14 +1776,18 @@ Schur port</td>
 </tr>
 <tr class="odd">
 <td><span class="math inline">\(C_d\)</span></td>
-<td>Penalty ellipsoid; <span class="math inline">\(\Gamma_\gamma\)</span> from §5.1.1</td>
-<td>Same <strong>precision</strong> definition; §7.3</td>
+<td>Penalty ellipsoid = <span class="math inline">\(\delta\)</span>
+level set when <span class="math inline">\(\delta\)</span>
+quadratic</td>
+<td>General <span class="math inline">\(\delta\)</span> level set §7.4;
+<span class="math inline">\(\pi\)</span> deviance proxy §7.5</td>
 </tr>
 <tr class="even">
-<td>Closed <span class="math inline">\(\varepsilon\)</span></td>
-<td><span class="math inline">\(\sqrt{\det(\Sigma^\star/\Sigma)}\,e^{-d/2}\)</span>
-(Gaussian <span class="math inline">\(q\)</span> only)</td>
-<td>Numeric min; no moment det ratio</td>
+<td>Closed <span class="math inline">\(\varepsilon_d\)</span></td>
+<td><span class="math inline">\(\exp(\delta(\mu^\star)-d/2)\)</span> on
+§7.4 / matched ellipsoid</td>
+<td>Same on §7.4; numeric if <span class="math inline">\(C_d\)</span>
+uses only <span class="math inline">\(D_\pi\)</span></td>
 </tr>
 </tbody>
 </table>
@@ -1453,10 +1808,13 @@ note — not variance bounds on <span class="math inline">\(\Sigma\)</span>).</l
 involutions (link asymmetry); balanced constructions are
 link-specific.</li>
 <li><strong>R implementation:</strong> <code>data-raw/</code> script on
-§4 fixtures computing <span class="math inline">\(\delta\)</span>, <span class="math inline">\(\varepsilon\)</span>, and dominance checks (not in
-<code>tests/testthat/</code> without approval).</li>
+§4 fixtures computing <span class="math inline">\(\delta\)</span>, <span class="math inline">\(\varepsilon_d\)</span>, and dominance checks (not
+in <code>tests/testthat/</code> without approval).</li>
 <li><strong>Drift intersection:</strong> Foster–Lyapunov <span class="math inline">\(C_d\)</span> at prior <span class="math inline">\(\mu_0\)</span> vs penalty ellipsoid at <span class="math inline">\(\mu^\star\)</span> when <span class="math inline">\(\mu_0 \neq \mu^\star\)</span> even under
 approximate symmetry.</li>
+<li><strong>Deviance <span class="math inline">\(C_d\)</span>:</strong>
+closed-form <span class="math inline">\(D_\pi(\gamma)\)</span> for
+balanced logit/probit fixtures (§4); compare <span class="math inline">\(\varepsilon_d\)</span> on <span class="math inline">\(C_d^{(\pi)}\)</span> vs penalty ellipsoid.</li>
 </ol>
 <hr />
 </div>

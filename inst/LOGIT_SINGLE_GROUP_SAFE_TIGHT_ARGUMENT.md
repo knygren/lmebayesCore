@@ -3,8 +3,8 @@
 A condensed rewrite of `LOGIT_SINGLE_GROUP_SAFE_REGION.md`, keeping only
 the definitions, lemmas, and proofs needed to reach the final bound.
 Companion note to `ELLIPSOID_TV_BOUND.md` (general safe/unsafe-region
-machinery) and `vignette("Chapter-C05")` (the three-term TV split this
-note instantiates). Discussion of motivation, alternatives, and
+machinery) and `SAFE_UNSAFE_TV_DECOMPOSITION.md` (the three-term TV split
+this note instantiates). Discussion of motivation, alternatives, and
 generalizations lives in `LOGIT_SINGLE_GROUP_SAFE_REGION.md`; this
 document states the argument itself.
 
@@ -305,7 +305,7 @@ product, not from one term trying to do both jobs at once.
 
 $$
 \big\|P^n(x,\cdot)-\pi(\cdot)\big\|_{TV} \;\le\;
-\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{`Chapter-C05` heuristic}}
+\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{safe/unsafe heuristic §7.1}}
 \;+\; 4\,P^n(x,A^c) \;+\; 2\big|\pi(A^c)-P^n(x,A^c)\big|
 $$
 
@@ -338,7 +338,8 @@ except $\varepsilon$.
 
 - `ELLIPSOID_TV_BOUND.md` — general safe/unsafe decomposition and its
   logit specialization, of which §2–§3 above are the scalar special case.
-- `vignette("Chapter-C05")` — the three-term TV split instantiated in §7.
+- `SAFE_UNSAFE_TV_DECOMPOSITION.md` — the three-term TV split instantiated
+  in §7, and the computable on-$A$ heuristic (§7.1) its first term invokes.
 - `vignette("Chapter-C03")` — Definition 4's update-order convention,
   used in §4 to anchor the drift on $\theta$.
 - Rosenthal, J.S. (1995). *Minorization conditions and convergence rates

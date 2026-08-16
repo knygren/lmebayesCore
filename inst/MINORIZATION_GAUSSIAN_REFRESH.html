@@ -475,12 +475,16 @@ Q(\gamma&#39;) = \phi_q(\gamma&#39;;\, \mu^\star,\, \Sigma^\star),
 \qquad
 q_Q(\gamma&#39;) = \phi_q(\gamma&#39;;\, \mu^\star,\, \Sigma^\star).
 \]</span></p>
-<p><strong>Minorization target.</strong> Find <span class="math inline">\(\varepsilon \in (0,1]\)</span> such that</p>
+<p><strong>Minorization target.</strong> Find <span class="math inline">\(\varepsilon_d \in (0,1]\)</span> such that</p>
 <p><span class="math display">\[
-q(\gamma&#39;, \gamma) \;\ge\; \varepsilon\, q_Q(\gamma&#39;)
+q(\gamma&#39;, \gamma) \;\ge\; \varepsilon_d\, q_Q(\gamma&#39;)
 \qquad
 \forall\,\gamma \in C_d,\;\gamma&#39; \in \mathbb R^q.
 \]</span></p>
+<p>Subscript <span class="math inline">\(d\)</span> marks dependence on
+the level-set radius defining <span class="math inline">\(C_d\)</span>;
+the certified constant is <span class="math inline">\(\varepsilon_d =
+\exp(\min_{\gamma\in C_d}\delta(\gamma))\)</span>.</p>
 <p>Equivalently, with the <strong>log gap</strong></p>
 <p><span class="math display">\[
 g(\gamma&#39;, \gamma)
@@ -488,10 +492,10 @@ g(\gamma&#39;, \gamma)
 \log q(\gamma&#39;, \gamma) - \log q_Q(\gamma&#39;),
 \]</span></p>
 <p>require <span class="math inline">\(g(\gamma&#39;, \gamma) \ge
-\log\varepsilon\)</span> for all <span class="math inline">\((\gamma,\gamma&#39;)\)</span>. Certified
+\log\varepsilon_d\)</span> for all <span class="math inline">\((\gamma,\gamma&#39;)\)</span>. Certified
 constant:</p>
 <p><span class="math display">\[
-\log \varepsilon
+\log \varepsilon_d
 =
 \min_{\gamma \in C_d,\;\gamma&#39; \in \mathbb R^q} g(\gamma&#39;,
 \gamma).
@@ -539,6 +543,26 @@ M(\gamma)),
 <p><span class="math display">\[
 \nabla_{\gamma&#39;}^2 g \succ 0.
 \]</span></p>
+<p><strong>Non-Gaussian <span class="math inline">\(q\)</span>
+(expectation form).</strong> When <span class="math inline">\(q\)</span>
+is not Normal, <span class="math inline">\(\Lambda_q\)</span> is still
+defined by <span class="math inline">\(-\nabla_{\gamma&#39;}^2 \log
+q\)</span>. For Block~2 Gaussian <span class="math inline">\(\kappa\)</span>,</p>
+<p><span class="math display">\[
+\Lambda_q
+=
+\Sigma^{\star-1}
+-
+\Sigma^{\star-1}\,
+\widetilde{\mathrm{Cov}}_{\beta}\bigl(m(\beta)\mid\gamma&#39;,\gamma\bigr)\,
+\Sigma^{\star-1}
+\]</span></p>
+<p>under the tilted measure <span class="math inline">\(\widetilde\pi
+\propto \kappa\,\pi(\beta\mid\gamma,y)\)</span>; see
+<code>MINORIZATION_SYMMETRIC_NON_GAUSSIAN.md</code> §2.2. In the
+<strong>Gaussian closure</strong> above, <span class="math inline">\(\widetilde{\mathrm{Cov}}_{\beta}(m)\)</span>
+collapses so that <span class="math inline">\(\Lambda_q =
+\Sigma^{-1}\)</span> constant.</p>
 <p>So for each fixed <span class="math inline">\(\gamma\)</span>, <span class="math inline">\(g(\cdot,\gamma)\)</span> is <strong>strictly
 convex</strong> on <span class="math inline">\(\mathbb R^q\)</span>; any
 critical point is the <strong>global</strong> minimizer.</p>
@@ -610,6 +634,9 @@ convex, <span class="math inline">\(g(\gamma&#39;,\gamma) \ge
 \delta(\gamma)\)</span> for <strong>every</strong> <span class="math inline">\(\gamma&#39; \in \mathbb R^q\)</span>.</p>
 <div id="closed-form-multivariate" class="section level3">
 <h3>5.1 Closed form (multivariate)</h3>
+<p>Write <span class="math inline">\(\Gamma_M := (\Sigma +
+\Sigma^\star)^{-1}\)</span> (Mahalanobis weight on the <span class="math inline">\(M(\gamma)-\mu^\star\)</span> shift). At the inner
+minimizer,</p>
 <p><span class="math display">\[
 \boxed{
 \delta(\gamma)
@@ -618,7 +645,7 @@ convex, <span class="math inline">\(g(\gamma&#39;,\gamma) \ge
 \;-\;
 \frac{1}{2}
 \bigl(M(\gamma) - \mu^\star\bigr)^\top
-\bigl(\Sigma + \Sigma^\star\bigr)^{-1}
+\Gamma_M
 \bigl(M(\gamma) - \mu^\star\bigr).
 }
 \]</span></p>
@@ -628,7 +655,305 @@ convex, <span class="math inline">\(g(\gamma&#39;,\gamma) \ge
 \tfrac{1}{2}(\gamma&#39;-\mu^\star)^\top\Sigma^{\star-1}(\gamma&#39;-\mu^\star)\)</span>
 and complete the square at <span class="math inline">\(\gamma&#39; =
 \gamma&#39;_\star(\gamma)\)</span>; the cross term vanishes at the
-critical point, leaving the Schur complement <span class="math inline">\((M-\mu^\star)^\top(\Sigma+\Sigma^\star)^{-1}(M-\mu^\star)\)</span>.</p>
+critical point, leaving the Schur complement <span class="math inline">\((M-\mu^\star)^\top\Gamma_M(M-\mu^\star)\)</span>.</p>
+<div id="affine-kernel-mean-quadratic-in-gamma-alone" class="section level4">
+<h4>5.1.1 Affine kernel mean — quadratic in <span class="math inline">\(\gamma\)</span> alone</h4>
+<p>Assume the Normal-conjugate affine map from §9.1 (Block~1 + Block~2
+GLS):</p>
+<p><span class="math display">\[
+M(\gamma) = \mathcal{L}\,\gamma + b(y),
+\qquad
+\mathcal{L} \in \mathbb R^{q\times q},
+\qquad
+b(y) \in \mathbb R^q,
+\]</span></p>
+<p>with refresh center <span class="math inline">\(\mu^\star =
+E[\gamma\mid y]\)</span> (Hypothesis 2). Define the <strong>offset at
+<span class="math inline">\(\mu^\star\)</span></strong> (data / prior
+only, no current <span class="math inline">\(\gamma\)</span>):</p>
+<p><span class="math display">\[
+\boxed{
+b_0(y)
+:=
+M(\mu^\star) - \mu^\star
+=
+\mathcal{L}\,\mu^\star + b(y) - \mu^\star,
+}
+\]</span></p>
+<p>so <span class="math inline">\(M(\gamma)-\mu^\star =
+\mathcal{L}(\gamma-\mu^\star)+b_0(y)\)</span>.</p>
+<p>Substitute into §5.1. Write <span class="math inline">\(\Gamma_M :=
+(\Sigma + \Sigma^\star)^{-1}\)</span> and expand with <span class="math inline">\(u := \gamma - \mu^\star\)</span>:</p>
+<p><span class="math display">\[
+\bigl(M(\gamma)-\mu^\star\bigr)^\top \Gamma_M
+\bigl(M(\gamma)-\mu^\star\bigr)
+=
+\bigl(\mathcal{L} u + b_0\bigr)^\top \Gamma_M \bigl(\mathcal{L} u +
+b_0\bigr)
+=
+u^\top \mathcal{L}^\top \Gamma_M \mathcal{L}\, u
++
+2\, b_0^\top \Gamma_M \mathcal{L}\, u
++
+b_0^\top \Gamma_M b_0.
+\]</span></p>
+<p><strong>Re-center in <span class="math inline">\(\gamma\)</span>.</strong> When <span class="math inline">\(\mathcal{L}^\top \Gamma_M \mathcal{L}\)</span> is
+invertible (e.g. <span class="math inline">\(\mathcal{L}\)</span> full
+rank), define the <strong>penalty centroid</strong> (data-only; not the
+refresh mean in general)</p>
+<p><span class="math display">\[
+\boxed{
+\mu_\delta(y)
+:=
+\mu^\star
+-
+\bigl(\mathcal{L}^\top \Gamma_M \mathcal{L}\bigr)^{-1}
+\mathcal{L}^\top \Gamma_M\, b_0(y),
+}
+\]</span></p>
+<p>and the <strong><span class="math inline">\(\gamma\)</span>-space
+precision</strong></p>
+<p><span class="math display">\[
+\boxed{
+\Gamma_\gamma
+:=
+\mathcal{L}^\top \Gamma_M \mathcal{L}
+=
+\mathcal{L}^\top (\Sigma + \Sigma^\star)^{-1} \mathcal{L}.
+}
+\]</span></p>
+<p>Then the shift satisfies <span class="math inline">\(\mathcal{L}(\gamma-\mu^\star)+b_0
+= \mathcal{L}\bigl(\gamma-\mu_\delta\bigr)\)</span> <strong>iff</strong>
+<span class="math inline">\(\mathcal{L}\)</span> is invertible; in
+general the Mahalanobis term <strong>identically</strong> re-centers
+as</p>
+<p><span class="math display">\[
+\boxed{
+\bigl(M(\gamma)-\mu^\star\bigr)^\top \Gamma_M
+\bigl(M(\gamma)-\mu^\star\bigr)
+=
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr).
+}
+\]</span></p>
+<p><em>Proof.</em> Expand the left-hand side as <span class="math inline">\(u^\top \mathcal{L}^\top \Gamma_M \mathcal{L}\, u +
+2 b_0^\top \Gamma_M \mathcal{L}\, u
++ b_0^\top \Gamma_M b_0\)</span> with <span class="math inline">\(u=\gamma-\mu^\star\)</span>, and complete the
+square in <span class="math inline">\(u\)</span>; the residual constant
+vanishes, leaving <span class="math inline">\((\gamma-\mu_\delta)^\top
+\Gamma_\gamma(\gamma-\mu_\delta)\)</span> with <span class="math inline">\(\mu_\delta\)</span> and <span class="math inline">\(\Gamma_\gamma\)</span> as above. <span class="math inline">\(\square\)</span></p>
+<p><strong>Full <span class="math inline">\(\delta(\gamma)\)</span> in
+<span class="math inline">\(\gamma\)</span>-centered form:</strong></p>
+<p><span class="math display">\[
+\boxed{
+\delta(\gamma)
+=
+\frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
+\;-\;
+\frac{1}{2}
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr).
+}
+\]</span></p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symbol</th>
+<th>Depends on <span class="math inline">\(\gamma\)</span>?</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><span class="math inline">\(\mu_\delta(y)\)</span></td>
+<td>no</td>
+<td>centroid of inner penalty in <span class="math inline">\(\gamma\)</span>-space</td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\Gamma_\gamma\)</span></td>
+<td>no (Normal closure)</td>
+<td>precision on <span class="math inline">\((\gamma-\mu_\delta)\)</span></td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\mu^\star\)</span></td>
+<td>no</td>
+<td>refresh mean <span class="math inline">\(E[\gamma\mid y]\)</span>;
+<span class="math inline">\(\mu_\delta=\mu^\star\)</span> iff <span class="math inline">\(b_0=\mathbf 0\)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(b_0(y)\)</span></td>
+<td>no</td>
+<td><span class="math inline">\(M(\mu^\star)-\mu^\star\)</span>; drives
+<span class="math inline">\(\mu_\delta \neq \mu^\star\)</span></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Zero offset <span class="math inline">\(b_0(y)=\mathbf
+0\)</span></strong> (equivalently <span class="math inline">\(M(\mu^\star)=\mu^\star\)</span>): <span class="math inline">\(\mu_\delta=\mu^\star\)</span> and</p>
+<p><span class="math display">\[
+\delta(\gamma)
+=
+\frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
+\;-\;
+\frac{1}{2}
+(\gamma - \mu^\star)^\top
+\mathcal{L}^\top (\Sigma + \Sigma^\star)^{-1} \mathcal{L}
+(\gamma - \mu^\star).
+\]</span></p>
+<p><strong>Scalar intercept route</strong> (§9.1.2, <span class="math inline">\(\mathcal{L}=\alpha_1\)</span>, <span class="math inline">\(V=\Sigma\)</span>, <span class="math inline">\(\sigma_\star^2=\Sigma^\star\)</span>, <span class="math inline">\(\Gamma_M = 1/(V+\sigma_\star^2)\)</span>):</p>
+<p><span class="math display">\[
+\Gamma_\gamma = \frac{\alpha_1^2}{V + \sigma_\star^2},
+\qquad
+\mu_\delta = \mu^\star - \frac{b_0(y)}{\alpha_1},
+\]</span></p>
+<p><span class="math display">\[
+\delta(\gamma)
+=
+\frac{1}{2}\log \frac{\sigma_\star^2}{V}
+\;-\;
+\frac{\alpha_1^2}{2\,(V + \sigma_\star^2)}
+\bigl(\gamma - \mu_\delta\bigr)^2.
+\]</span></p>
+<p><strong>Convexity in <span class="math inline">\(\gamma\)</span>.</strong> For fixed data, <span class="math inline">\(-\delta(\gamma)\)</span> is concave quadratic in
+<span class="math inline">\(\gamma\)</span> when <span class="math inline">\(\Gamma_\gamma \succ 0\)</span>; the outer worst
+case on the <strong>penalty ellipsoid</strong> <span class="math inline">\(C_d\)</span> (§5.1.2) is on <span class="math inline">\(\partial C_d\)</span> with a closed <span class="math inline">\(\varepsilon_d\)</span> (§6, §9.4).</p>
+</div>
+<div id="penalty-ellipsoid-c_d-small-set-for-coupling" class="section level4">
+<h4>5.1.2 Penalty ellipsoid <span class="math inline">\(C_d\)</span>
+(small set for coupling)</h4>
+<p>Fix a radius <span class="math inline">\(d &gt; 0\)</span>.
+<strong>Canonical definition:</strong> <span class="math inline">\(C_d\)</span> is a <strong>level set of the outer
+objective</strong> <span class="math inline">\(\delta(\gamma)\)</span>
+(the function plugged into the outer minimum). With <span class="math inline">\(L_\delta(\gamma) := \delta(\mu^\star) -
+\delta(\gamma)\)</span>,</p>
+<p><span class="math display">\[
+C_d
+\;:=\;
+\bigl\{
+\gamma :
+\delta(\gamma) \ge \delta(\mu^\star) - \tfrac{d}{2}
+\bigr\}
+\;=\;
+\bigl\{
+\gamma :
+L_\delta(\gamma) \le \tfrac{d}{2}
+\bigr\},
+\qquad
+\varepsilon_d = \exp\bigl(\delta(\mu^\star) - \tfrac{d}{2}\bigr).
+\]</span></p>
+<p>See <code>MINORIZATION_SYMMETRIC_NON_GAUSSIAN.md</code> §7.4. No
+condition on <span class="math inline">\(b_0(y)\)</span> enters this
+definition: <span class="math inline">\(\mu^\star\)</span> is always the
+refresh center and the <strong>anchor</strong> for <span class="math inline">\(L_\delta\)</span> (<span class="math inline">\(L_\delta(\mu^\star)=0\)</span>).</p>
+<p><strong>Gaussian closure (equivalent form).</strong> From §5.1.1,
+<span class="math inline">\(\delta(\gamma) = c_0 -
+\tfrac{1}{2}\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2\)</span> with <span class="math inline">\(c_0 =
+\tfrac{1}{2}\log(\det\Sigma^\star/\det\Sigma)\)</span> and <span class="math inline">\(\|v\|_{\Gamma_M}^2 := v^\top\Gamma_M v\)</span>.
+Then</p>
+<p><span class="math display">\[
+L_\delta(\gamma)
+=
+\tfrac{1}{2}
+\Bigl(
+\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2
+-
+\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2
+\Bigr),
+\]</span></p>
+<p>and <span class="math inline">\(C_d\)</span> is the <strong>shifted
+penalty ellipsoid</strong></p>
+<p><span class="math display">\[
+\boxed{
+C_d
+=
+\bigl\{
+\gamma :
+\|M(\gamma)-\mu^\star\|_{\Gamma_M}^2
+\le
+\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2 + d
+\bigr\}.
+}
+\]</span></p>
+<p>After completing the square (§5.1.1), the same set is <span class="math inline">\((\gamma-\mu_\delta)^\top\Gamma_\gamma(\gamma-\mu_\delta)
+\le d +
+(\mu^\star-\mu_\delta)^\top\Gamma_\gamma(\mu^\star-\mu_\delta)\)</span>;
+<span class="math inline">\(\mu_\delta\)</span> is <strong>algebra
+only</strong>, not a separate center for <span class="math inline">\(C_d\)</span>.</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Feature</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Anchor <span class="math inline">\(\mu^\star\)</span></td>
+<td>Refresh mean; <span class="math inline">\(L_\delta(\mu^\star)=0\)</span>; threshold <span class="math inline">\(\delta(\mu^\star)-d/2\)</span></td>
+</tr>
+<tr class="even">
+<td><span class="math inline">\(\|M(\gamma)-\mu^\star\|_{\Gamma_M}\)</span></td>
+<td>Inner penalty in <span class="math inline">\(\gamma\)</span>
+(§5.1.1)</td>
+</tr>
+<tr class="odd">
+<td><span class="math inline">\(\Gamma_\gamma\)</span></td>
+<td><span class="math inline">\(\mathcal{L}^\top(\Sigma+\Sigma^\star)^{-1}\mathcal{L}\)</span>;
+completed-square precision</td>
+</tr>
+<tr class="even">
+<td>Radius <span class="math inline">\(d\)</span></td>
+<td>Certification knob (analogous to drift threshold in §8 of the rate
+note)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Scalar intercept</strong> (<span class="math inline">\(\Gamma_\gamma =
+\alpha_1^2/(V+\sigma_\star^2)\)</span>, <span class="math inline">\(M(\gamma)=\mu^\star+\alpha_1(\gamma-\mu^\star)+b_0(y)\)</span>):</p>
+<p><span class="math display">\[
+C_d
+=
+\Bigl\{
+\gamma :
+\alpha_1^2(\gamma-\mu^\star)^2 + 2\alpha_1 b_0(y)(\gamma-\mu^\star)
+\le d
+\Bigr\}.
+\]</span></p>
+<p>Evaluate <span class="math inline">\(\mathcal{L}\)</span>, <span class="math inline">\(b_0(y)=M(\mu^\star)-\mu^\star\)</span>, <span class="math inline">\(\Sigma\)</span>, <span class="math inline">\(\Sigma^\star\)</span> (§5.1.1; <span class="math inline">\(\mathcal{L}\)</span> from §9.1).</p>
+<p><strong>On <span class="math inline">\(C_d\)</span>.</strong> By
+construction, <span class="math inline">\(\min_{\gamma\in
+C_d}\delta(\gamma)=\delta(\mu^\star)-d/2\)</span> and <span class="math inline">\(\varepsilon_d=\exp(\delta(\mu^\star)-d/2)\)</span>
+(§6). On the boundary, <span class="math inline">\(\delta(\gamma)=\delta(\mu^\star)-d/2\)</span>.</p>
+<p><strong>Drift intersection (optional).</strong> Foster–Lyapunov drift
+in <code>RATE_Ac_BOUNDS_BY_LIKELIHOOD.md</code> §8 may use a sublevel
+set centered at the <strong>prior</strong> <span class="math inline">\(\mu_0\)</span>. For coupling certified on states
+the chain actually visits, take <span class="math inline">\(C_d \cap
+\{\gamma : V_{\mathrm{drift}}(\gamma) \le d_{\mathrm{drift}}\}\)</span>
+(or choose <span class="math inline">\(d\)</span> so the penalty
+ellipsoid lies inside the drift set).</p>
+<p><strong>Deviance alternative (GLM / non-quadratic <span class="math inline">\(\pi_\gamma\)</span>).</strong> When a global
+quadratic mis-specifies the posterior shape, use a <strong>posterior
+deviance</strong> contour <span class="math inline">\(C_d^{(\pi)} =
+\{\gamma : D_\pi(\gamma) \le d\}\)</span> with <span class="math inline">\(D_\pi(\gamma) =
+2[\log\pi_\gamma(\mu^\star)-\log\pi_\gamma(\gamma)]\)</span> (scalar:
+<span class="math inline">\(|r_{\mathrm{dev}}(\gamma)| \le
+\sqrt{d}\)</span>). Locally <span class="math inline">\(D_\pi \approx
+(\gamma-\mu^\star)^\top
+\Gamma_{\mathrm{post}}(\gamma-\mu^\star)\)</span>; the penalty ellipsoid
+is the <strong>small-<span class="math inline">\(d\)</span></strong>
+limit. See <code>MINORIZATION_SYMMETRIC_NON_GAUSSIAN.md</code>
+§7.4–§7.5; outer <span class="math inline">\(\varepsilon_d\)</span> is
+generally <strong>numeric</strong> on deviance contours.</p>
+</div>
 </div>
 <div id="scalar-specialization" class="section level3">
 <h3>5.2 Scalar specialization</h3>
@@ -677,21 +1002,29 @@ q_Q\bigl(\gamma&#39;_\star(\gamma)\bigr)
 \;
 \exp\!\Bigl(
 -\tfrac{1}{2}
-\bigl\|M(\gamma) - \mu^\star\bigr\|_{(\Sigma + \Sigma^\star)^{-1}}^2
-\Bigr).
+\bigl\|M(\gamma) - \mu^\star\bigr\|_{\Gamma_M}^2
+\Bigr)
+=
+\exp\!\Bigl(
+-\tfrac{1}{2}
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr)
+\Bigr)
 \]</span></p>
+<p>when <span class="math inline">\(M(\gamma)=\mathcal{L}\gamma+b(y)\)</span>
+(§5.1.1).</p>
 <hr />
 </div>
 </div>
-<div id="outer-minimum-certified-varepsilon" class="section level2">
-<h2>6. Outer minimum (certified <span class="math inline">\(\varepsilon\)</span>)</h2>
+<div id="outer-minimum-certified-varepsilon_d" class="section level2">
+<h2>6. Outer minimum (certified <span class="math inline">\(\varepsilon_d\)</span>)</h2>
 <p>The <strong>certified minorization constant</strong> for Hypotheses
 1–2 is</p>
 <p><span class="math display">\[
 \boxed{
 \gamma_\star \in \arg\min_{\gamma \in C_d} \delta(\gamma),
 \qquad
-\varepsilon
+\varepsilon_d
 =
 \exp\bigl(\delta(\gamma_\star)\bigr)
 =
@@ -704,10 +1037,50 @@ q_Q\bigl(\gamma&#39;_\star(\gamma_\star)\bigr)
 \]</span></p>
 <p>Binding triple: <span class="math inline">\((\gamma_\star,\,
 \gamma&#39;_\star(\gamma_\star),\, \delta(\gamma_\star))\)</span>.</p>
+<p><strong><span class="math inline">\(\delta\)</span>-level set <span class="math inline">\(C_d\)</span> (§5.1.2).</strong> By definition of
+<span class="math inline">\(C_d\)</span>,</p>
+<p><span class="math display">\[
+\boxed{
+\min_{\gamma \in C_d} \delta(\gamma)
+=
+\delta(\mu^\star) - \tfrac{d}{2},
+\qquad
+\gamma_\star \in \partial C_d
+\ \text{(any boundary point)}.
+}
+\]</span></p>
+<p><span class="math display">\[
+\boxed{
+\varepsilon_d
+=
+\exp\Bigl(\delta(\mu^\star) - \tfrac{d}{2}\Bigr).
+}
+\]</span></p>
+<p><strong>Gaussian closed form.</strong> With <span class="math inline">\(\delta(\mu^\star)
+= \tfrac{1}{2}\log(\det\Sigma^\star/\det\Sigma)
+- \tfrac{1}{2}\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2\)</span>,</p>
+<p><span class="math display">\[
+\boxed{
+\varepsilon_d
+=
+\sqrt{\det\bigl(\Sigma^\star \Sigma^{-1}\bigr)}
+\;
+\exp\!\Bigl(
+-\tfrac{1}{2}\|M(\mu^\star)-\mu^\star\|_{\Gamma_M}^2
+-\tfrac{d}{2}
+\Bigr).
+}
+\]</span></p>
+<p>When <span class="math inline">\(M(\mu^\star)=\mu^\star\)</span> this
+reduces to <span class="math inline">\(\sqrt{\det(\Sigma^\star\Sigma^{-1})}\,e^{-d/2}\)</span>.</p>
+<p><em>Proof.</em> <span class="math inline">\(L_\delta(\gamma)\le
+d/2\)</span> on <span class="math inline">\(C_d\)</span> with equality
+on <span class="math inline">\(\partial C_d\)</span>; <span class="math inline">\(\delta=\delta(\mu^\star)-L_\delta\)</span>.
+Substitute §5.1.1. <span class="math inline">\(\square\)</span></p>
 <p>For all <span class="math inline">\(\gamma \in C_d\)</span>, <span class="math inline">\(\gamma&#39; \in \mathbb R^q\)</span>:</p>
 <p><span class="math display">\[
 q(\gamma&#39;, \gamma) \;\ge\;
-\varepsilon\, q_Q(\gamma&#39;)
+\varepsilon_d\, q_Q(\gamma&#39;)
 \qquad\text{with}\qquad
 q_Q = \phi_q(\cdot;\,\mu^\star,\,\Sigma^\star).
 \]</span></p>
@@ -716,6 +1089,10 @@ q_Q = \phi_q(\cdot;\,\mu^\star,\,\Sigma^\star).
 <div id="plug-in-summary-hypotheses-12" class="section level2">
 <h2>7. Plug-in summary (Hypotheses 1–2)</h2>
 <table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th>Quantity</th>
@@ -742,12 +1119,19 @@ q_Q = \phi_q(\cdot;\,\mu^\star,\,\Sigma^\star).
 </tr>
 <tr class="odd">
 <td>Inner log gap</td>
-<td><span class="math inline">\(\delta(\gamma)\)</span> from §5</td>
+<td><span class="math inline">\(\delta(\gamma)\)</span> from §5 (§5.1.1:
+<span class="math inline">\((\gamma-\mu_\delta)^\top\Gamma_\gamma(\gamma-\mu_\delta)\)</span>
+term)</td>
 </tr>
 <tr class="even">
-<td>Certified <span class="math inline">\(\varepsilon\)</span></td>
-<td><span class="math inline">\(\exp(\min_{C_d}\delta)\)</span> from
-§6</td>
+<td>Small set <span class="math inline">\(C_d\)</span></td>
+<td>Penalty ellipsoid §5.1.2: <span class="math inline">\((\gamma-\mu_\delta)^\top\Gamma_\gamma(\gamma-\mu_\delta)\le
+d\)</span></td>
+</tr>
+<tr class="odd">
+<td>Certified <span class="math inline">\(\varepsilon_d\)</span></td>
+<td><span class="math inline">\(\sqrt{\det(\Sigma^\star\Sigma^{-1})}\,e^{-d/2}\)</span>
+on <span class="math inline">\(C_d\)</span> (§6)</td>
 </tr>
 </tbody>
 </table>
@@ -762,7 +1146,10 @@ q_Q = \phi_q(\cdot;\,\mu^\star,\,\Sigma^\star).
 =
 \tfrac{1}{2}\log(\sigma_\star^2/V)
 -
-\tfrac{(M(\gamma)-\mu^\star)^2}{2(V+\sigma_\star^2)}.
+\tfrac{\Gamma_\gamma}{2}\bigl(\gamma-\mu_\delta\bigr)^2,
+\qquad
+\varepsilon_d = (\sigma_\star/\sqrt{V})\,e^{-d/2}
+\ \text{on}\ C_d.
 \]</span></p>
 <hr />
 </div>
@@ -786,12 +1173,12 @@ not <span class="math inline">\(\Sigma\)</span>?</strong> <span class="math inli
 1–2 for <span class="math inline">\(Q\)</span>; verify <span class="math inline">\(\Lambda_q \prec \Sigma^{\star-1}\)</span>
 numerically and solve <span class="math inline">\(\nabla_{\gamma&#39;} g
 = 0\)</span> (rate note §10.7).</p></li>
-<li><p><strong>Coupling.</strong> Plug <span class="math inline">\(\varepsilon\)</span> from §6 into Rosenthal’s
+<li><p><strong>Coupling.</strong> Plug <span class="math inline">\(\varepsilon_d\)</span> from §6 into Rosenthal’s
 bound (<code>RATE_Ac_BOUNDS_BY_LIKELIHOOD.md</code> §10.1;
 <code>LOGIT_SINGLE_GROUP_SAFE_REGION.md</code> §4.6).</p></li>
-<li><p><strong>Small set <span class="math inline">\(C_d\)</span>.</strong> Use the posterior ellipsoid
-§9; outer <span class="math inline">\(\min_\gamma
-\delta(\gamma)\)</span> is typically on <span class="math inline">\(\partial C_d\)</span> when <span class="math inline">\(M(\gamma)\)</span> is affine in <span class="math inline">\(\gamma\)</span>.</p></li>
+<li><p><strong>Penalty ellipsoid.</strong> <span class="math inline">\(C_d\)</span> uses the <strong>same</strong> <span class="math inline">\((\mu_\delta,\Gamma_\gamma)\)</span> as the <span class="math inline">\(\gamma\)</span>-quadratic in <span class="math inline">\(\delta\)</span>, so the outer min is closed and
+does not require a separate shape matrix <span class="math inline">\(G\)</span> or generalized eigenvalues (§9.4.1 for
+misaligned alternatives).</p></li>
 </ol>
 <hr />
 </div>
@@ -819,47 +1206,27 @@ in <span class="math inline">\(M(\gamma)=\mathcal{L}\gamma+b(y)\)</span>
 is <strong>not</strong> the rate safe set <span class="math inline">\(A\subseteq(\gamma,\beta)\)</span>-space nor the
 contraction matrix <span class="math inline">\(A(\gamma,\beta)\)</span>
 of <code>CHAPTER_C03_P_AND_A_MATRICES_BY_LIKELIHOOD.md</code>.</p>
-<p>The outer problem §6 minimizes <span class="math inline">\(\delta(\gamma)\)</span> over <span class="math inline">\(\gamma \in C_d\)</span>. Since <span class="math inline">\(\delta(\gamma) = c_0 -
-\tfrac{1}{2}\|M(\gamma)-\mu^\star\|_{(\Sigma+\Sigma^\star)^{-1}}^2\)</span>
-(with <span class="math inline">\(c_0 =
-\tfrac{1}{2}\log\det(\Sigma^\star/\Sigma)\)</span> fixed in <span class="math inline">\(\gamma\)</span>), the worst <span class="math inline">\(\gamma\)</span> <strong>maximizes</strong> the
-squared Mahalanobis shift <span class="math inline">\(\|M(\gamma)-\mu^\star\|_{(\Sigma+\Sigma^\star)^{-1}}^2\)</span>.
-An <strong>ellipsoid</strong> <span class="math inline">\(C_d\)</span>
-centered at <span class="math inline">\(\mu^\star\)</span> makes that
-maximum occur on the <strong>boundary</strong> <span class="math inline">\(\partial C_d\)</span> when <span class="math inline">\(M(\gamma)\)</span> is affine in <span class="math inline">\(\gamma\)</span>.</p>
-<div id="ellipsoid-centered-at-the-posterior-mean" class="section level3">
-<h3>9.1 Ellipsoid centered at the posterior mean</h3>
-<p>Fix <span class="math inline">\(G \succ 0\)</span> (e.g. <span class="math inline">\(G = \Lambda_\gamma\)</span> or the posterior
-precision of <span class="math inline">\(\gamma \mid y\)</span> when
-available). Define</p>
+<p>The outer problem §6 minimizes <span class="math inline">\(\delta(\gamma)\)</span> over <span class="math inline">\(\gamma \in C_d\)</span>. With affine <span class="math inline">\(M(\gamma)\)</span> (§9.1),</p>
 <p><span class="math display">\[
-\boxed{
-C_d
-\;:=\;
-\bigl\{
-\gamma \in \mathbb R^q :
-(\gamma - \mu^\star)^\top G\,(\gamma - \mu^\star) \;\le\; d
-\bigr\}.
-}
+\delta(\gamma)
+=
+\frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
+\;-\;
+\frac{1}{2}
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr)
 \]</span></p>
-<p>This aligns the minorization small set with the refresh center <span class="math inline">\(\mu^\star\)</span> (Hypothesis 2). (Drift in
-<code>RATE_Ac_BOUNDS_BY_LIKELIHOOD.md</code> §8 may still use a Lyapunov
-function centered at the <strong>prior</strong> <span class="math inline">\(\mu_0\)</span>; <span class="math inline">\(C_d\)</span> for <strong>coupling</strong> can be
-this posterior ellipsoid, or its intersection with the drift small
-set.)</p>
-<p><strong>Scalar</strong> (<span class="math inline">\(q=1\)</span>,
-write <span class="math inline">\(G=g\)</span>): <span class="math inline">\(C_d = [\mu^\star - \sqrt{d/g},\,\mu^\star +
-\sqrt{d/g}]\)</span>.</p>
-</div>
+<p>(§5.1.1). The <strong>default</strong> small set <span class="math inline">\(C_d\)</span> uses <strong>this same
+quadratic</strong> (§5.1.2), so the outer minimum is closed (§6).</p>
 <div id="kernel-mean-mgamma-multivariate-normal-conjugate" class="section level3">
-<h3>9.2 Kernel mean <span class="math inline">\(M(\gamma)\)</span> —
+<h3>9.1 Kernel mean <span class="math inline">\(M(\gamma)\)</span> —
 multivariate Normal conjugate</h3>
 <p>Throughout §9, <span class="math inline">\(\gamma, \gamma&#39;,
 \mu_0, \mu^\star, M(\gamma) \in \mathbb R^q\)</span>, <span class="math inline">\(\Sigma, \Sigma^\star \in \mathbb R^{q\times
 q}\)</span>. Block~2 is <span class="math inline">\(\gamma&#39; \mid
 \beta \sim N(m(\beta), \Sigma^\star)\)</span> with <span class="math inline">\(m(\beta) \in \mathbb R^q\)</span> (§1.1).</p>
 <div id="lmerb-hierarchy-notation.md" class="section level4">
-<h4>9.2.1 <code>lmerb</code> hierarchy (<code>notation.md</code>)</h4>
+<h4>9.1.1 <code>lmerb</code> hierarchy (<code>notation.md</code>)</h4>
 <p><strong>Stage 2 (prior on group coefficients).</strong></p>
 <p><span class="math display">\[
 \beta_j \mid \gamma \;\sim\; N\bigl(\mathcal{W}_j \gamma,\, \Psi\bigr),
@@ -1020,8 +1387,8 @@ b_0(y)
 <p><span class="math inline">\(b_0(y)=\mathbf 0\)</span> iff <span class="math inline">\(M(\mu^\star)=\mu^\star\)</span>. In general <span class="math inline">\(b_0 \neq \mathbf 0\)</span>.</p>
 </div>
 <div id="scalar-intercept-re-rate_ac_bounds-0.1" class="section level4">
-<h4>9.2.2 Scalar intercept RE (<code>RATE_Ac_BOUNDS</code> §0.1)</h4>
-<p>Same as §9.2.1 with <span class="math inline">\(P=1\)</span>, <span class="math inline">\(\mathcal{W}_j=1\)</span>, <span class="math inline">\(\Psi=\lambda_b^{-1}\)</span>, shared <span class="math inline">\(\phi\)</span>, and group <strong>likelihood
+<h4>9.1.2 Scalar intercept RE (<code>RATE_Ac_BOUNDS</code> §0.1)</h4>
+<p>Same as §9.1.1 with <span class="math inline">\(P=1\)</span>, <span class="math inline">\(\mathcal{W}_j=1\)</span>, <span class="math inline">\(\Psi=\lambda_b^{-1}\)</span>, shared <span class="math inline">\(\phi\)</span>, and group <strong>likelihood
 precision</strong> <span class="math inline">\(\mathscr{W}_j :=
 n_j/\phi\)</span> (rate note §1; <strong>not</strong> the level-2 design
 <span class="math inline">\(\mathcal{W}_j\)</span>). Then</p>
@@ -1049,184 +1416,122 @@ and <span class="math inline">\(\Sigma = \sigma_\gamma^2 +
 w^2\,\mathrm{Var}(\bar\beta\mid\gamma,y)\)</span> (§1.2).</p>
 </div>
 </div>
-<div id="deltagamma-with-mgamma-substituted-multivariate" class="section level3">
-<h3>9.3 <span class="math inline">\(\delta(\gamma)\)</span> with <span class="math inline">\(M(\gamma)\)</span> substituted (multivariate)</h3>
-<p>Insert <span class="math inline">\(M(\gamma)-\mu^\star =
-\mathcal{L}(\gamma-\mu^\star)+b_0(y)\)</span> into §5.1. Write <span class="math inline">\(\Gamma := (\Sigma + \Sigma^\star)^{-1}\)</span>
-and <span class="math inline">\(u := \gamma - \mu^\star\)</span>:</p>
+<div id="penalty-ellipsoid-c_d-5.1.2" class="section level3">
+<h3>9.2 Penalty ellipsoid <span class="math inline">\(C_d\)</span>
+(§5.1.2)</h3>
+<p>After §9.1 and §5.1.1, <span class="math inline">\(\mu_\delta(y)\)</span> and <span class="math inline">\(\Gamma_\gamma\)</span> are fixed by data. The
+<strong>coupling small set</strong> is</p>
 <p><span class="math display">\[
 \boxed{
+C_d
+=
+\bigl\{
+\gamma :
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr)
+\le d
+\bigr\}.
+}
+\]</span></p>
+<p>This is the sublevel set of the <strong>penalty term</strong> in
+<span class="math inline">\(\delta(\gamma)\)</span>; it is
+<strong>not</strong> required to be centered at the refresh mean <span class="math inline">\(\mu^\star\)</span> unless <span class="math inline">\(b_0(y)=\mathbf 0\)</span>. Choosing <span class="math inline">\(d\)</span> sets how much log-gap slack is
+certified on <span class="math inline">\(C_d\)</span> (§6: <span class="math inline">\(\varepsilon_d =
+\sqrt{\det(\Sigma^\star\Sigma^{-1})}\,e^{-d/2}\)</span>).</p>
+<p><strong>Scalar intercept:</strong> <span class="math inline">\(C_d =
+[\mu_\delta - \sqrt{d/\Gamma_\gamma},\,
+\mu_\delta + \sqrt{d/\Gamma_\gamma}]\)</span>.</p>
+</div>
+<div id="deltagamma-in-gamma-centered-form" class="section level3">
+<h3>9.3 <span class="math inline">\(\delta(\gamma)\)</span> in <span class="math inline">\(\gamma\)</span>-centered form</h3>
+<p>With affine <span class="math inline">\(M(\gamma)=\mathcal{L}\gamma+b(y)\)</span> from
+§9.1, the substitution and re-centering are in
+<strong>§5.1.1</strong>:</p>
+<p><span class="math display">\[
 \delta(\gamma)
 =
 \frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
 \;-\;
 \frac{1}{2}
-\bigl\|
-\mathcal{L}\bigl(\gamma - \mu^\star\bigr) + b_0(y)
-\bigr\|_{\Gamma}^{2}
+\bigl(\gamma - \mu_\delta\bigr)^\top \Gamma_\gamma \bigl(\gamma -
+\mu_\delta\bigr),
+\]</span></p>
+<p><span class="math display">\[
+\Gamma_\gamma
+=
+\mathcal{L}^\top (\Sigma + \Sigma^\star)^{-1} \mathcal{L},
+\qquad
+\mu_\delta
+=
+\mu^\star
+-
+\bigl(\mathcal{L}^\top (\Sigma + \Sigma^\star)^{-1}
+\mathcal{L}\bigr)^{-1}
+\mathcal{L}^\top (\Sigma + \Sigma^\star)^{-1}\, b_0(y).
+\]</span></p>
+<p><strong>Equivalent shift form</strong> (before re-centering): with
+<span class="math inline">\(\Gamma_M := (\Sigma +
+\Sigma^\star)^{-1}\)</span> and <span class="math inline">\(u=\gamma-\mu^\star\)</span>,</p>
+<p><span class="math display">\[
+\delta(\gamma)
 =
 \frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
 \;-\;
 \frac{1}{2}
-\bigl(\mathcal{L} u + b_0\bigr)^\top \Gamma\,\bigl(\mathcal{L} u +
-b_0\bigr).
-}
+\bigl\|\mathcal{L} u + b_0(y)\bigr\|_{\Gamma_M}^{2}.
 \]</span></p>
-<p><strong>Scalar intercept</strong> (<span class="math inline">\(q=1\)</span>, <span class="math inline">\(\mathcal{L}=\alpha_1\)</span>, <span class="math inline">\(V=\Sigma\)</span>, <span class="math inline">\(\sigma_\star^2=\Sigma^\star\)</span>):</p>
+<p><strong>Scalar intercept</strong> (<span class="math inline">\(q=1\)</span>, <span class="math inline">\(\mathcal{L}=\alpha_1\)</span>, <span class="math inline">\(V=\Sigma\)</span>, <span class="math inline">\(\sigma_\star^2=\Sigma^\star\)</span>, <span class="math inline">\(\mu_\delta = \mu^\star -
+b_0/\alpha_1\)</span>):</p>
 <p><span class="math display">\[
 \delta(\gamma)
 =
 \frac{1}{2}\log \frac{\sigma_\star^2}{V}
 \;-\;
-\frac{\bigl(\alpha_1(\gamma - \mu^\star) + b_0(y)\bigr)^2}{2\,(V +
-\sigma_\star^2)}.
+\frac{\alpha_1^2}{2\,(V + \sigma_\star^2)}
+\bigl(\gamma - \mu_\delta\bigr)^2.
 \]</span></p>
-<p>Data enter through <span class="math inline">\(b_j(y)\Rightarrow
-b(y)\Rightarrow b_0(y)\)</span>, through <span class="math inline">\(D_j^\top y_j\)</span> (or <span class="math inline">\(\bar y_j\)</span> in §9.2.2), and through <span class="math inline">\(\mu^\star = E[\gamma\mid y]\)</span>.</p>
 </div>
-<div id="outer-minimum-on-partial-c_d-multivariate" class="section level3">
-<h3>9.4 Outer minimum on <span class="math inline">\(\partial
-C_d\)</span> (multivariate)</h3>
-<p>On <span class="math inline">\(C_d = \{\gamma : u^\top G u \le
-d\}\)</span> with <span class="math inline">\(u=\gamma-\mu^\star\)</span> and <span class="math inline">\(G \succ 0\)</span>, define</p>
-<p><span class="math display">\[
-\psi(u)
-\;:=\;
-\bigl(\mathcal{L} u + b_0\bigr)^\top \Gamma\,\bigl(\mathcal{L} u +
-b_0\bigr),
-\qquad
-M_{\mathcal{L}} := \mathcal{L}^\top \Gamma \mathcal{L},
-\qquad
-r := \mathcal{L}^\top \Gamma b_0,
-\]</span></p>
-<p>so <span class="math inline">\(\psi(u) = u^\top M_{\mathcal{L}} u + 2
-r^\top u + b_0^\top \Gamma b_0\)</span>.</p>
-<p><strong>Proposition (boundary maximizer).</strong> If <span class="math inline">\(M_{\mathcal{L}} \neq 0\)</span> and <span class="math inline">\(G \succ 0\)</span>, then <span class="math inline">\(\psi\)</span> is <strong>convex</strong> in <span class="math inline">\(u\)</span>; its maximum over the ellipsoid <span class="math inline">\(\{u : u^\top G u
-\le d\}\)</span> is attained at a <strong>boundary</strong> point <span class="math inline">\(u_\star^\top G u_\star = d\)</span>. Hence <span class="math inline">\(\gamma_\star = \mu^\star + u_\star \in \partial
-C_d\)</span>.</p>
-<p><em>Proof.</em> <span class="math inline">\(\psi\)</span> is a convex
-quadratic; maximum over a compact convex set occurs at an extreme point;
-for an ellipsoid, extreme points lie on the boundary. <span class="math inline">\(\square\)</span></p>
-<div id="zero-offset-b_0-mathbf-0-multivariate-closed-form" class="section level4">
-<h4>9.4.1 Zero offset <span class="math inline">\(b_0 = \mathbf
-0\)</span> (multivariate closed form)</h4>
-<p>Then <span class="math inline">\(\psi(u) = u^\top M_{\mathcal{L}}
-u\)</span> and</p>
-<p><span class="math display">\[
-\max_{u^\top G u \le d} u^\top M_{\mathcal{L}} u
-\;=\;
-d\,\lambda_{\max}\bigl(G^{-1} M_{\mathcal{L}}\bigr),
-\]</span></p>
-<p>where <span class="math inline">\(\lambda_{\max}(G^{-1}M_{\mathcal{L}})\)</span> is
-the largest <strong>generalized eigenvalue</strong> of <span class="math inline">\((M_{\mathcal{L}}, G)\)</span>. A maximizer is</p>
+<div id="outer-minimum-and-certified-varepsilon_d" class="section level3">
+<h3>9.4 Outer minimum and certified <span class="math inline">\(\varepsilon_d\)</span></h3>
+<p>When <span class="math inline">\(C_d\)</span> is the <strong>penalty
+ellipsoid</strong> (§9.2 = §5.1.2), the outer problem from §6 is
+<strong>closed</strong>:</p>
 <p><span class="math display">\[
 \boxed{
-u_\star
-\;=\;
-\sqrt{\frac{d}{v_\star^\top G v_\star}}\, v_\star,
+\gamma_\star \in \partial C_d
+\ \text{(any boundary point)},
 \qquad
-G^{-1} M_{\mathcal{L}} v_\star
-\;=\;
-\lambda_{\max}\bigl(G^{-1} M_{\mathcal{L}}\bigr)\, v_\star,
-\qquad
-\gamma_\star = \mu^\star + u_\star.
-}
-\]</span></p>
-<p><span class="math display">\[
-\boxed{
 \delta(\gamma_\star)
 =
 \frac{1}{2}\log \frac{\det \Sigma^\star}{\det \Sigma}
 \;-\;
-\frac{d}{2}\,\lambda_{\max}\bigl(G^{-1} \mathcal{L}^\top \Gamma
-\mathcal{L}\bigr).
-}
-\]</span></p>
-<p><strong>Isotropic weight <span class="math inline">\(G = g
-I_q\)</span>.</strong> <span class="math inline">\(\lambda_{\max}(G^{-1}M_{\mathcal{L}}) = g^{-1}
-\lambda_{\max}(M_{\mathcal{L}})\)</span>.</p>
-<p><strong>Scalar intercept (<span class="math inline">\(q=1\)</span>,
-<span class="math inline">\(b_0=0\)</span>).</strong> <span class="math inline">\(M_{\mathcal{L}} =
-\alpha_1^2/(V+\sigma_\star^2)\)</span>, <span class="math inline">\(\lambda_{\max} = M_{\mathcal{L}}/g\)</span>, <span class="math inline">\(u_\star = \pm\sqrt{d/g}\)</span>,</p>
-<p><span class="math display">\[
-\delta(\gamma_\star)
-=
-\frac{1}{2}\log \frac{\sigma_\star^2}{V}
-\;-\;
-\frac{\alpha_1^2\, d}{2\,(V+\sigma_\star^2)\,g}.
-\]</span></p>
-</div>
-<div id="nonzero-offset-b_0-neq-mathbf-0" class="section level4">
-<h4>9.4.2 Nonzero offset <span class="math inline">\(b_0 \neq \mathbf
-0\)</span></h4>
-<p>Maximize <span class="math inline">\(\psi(u)= u^\top M_{\mathcal{L}}
-u + 2 r^\top u + \mathrm{const}\)</span> subject to <span class="math inline">\(u^\top G u = d\)</span>. Lagrange condition at the
-boundary maximizer:</p>
-<p><span class="math display">\[
-\boxed{
-\bigl(M_{\mathcal{L}} - \lambda G\bigr)\, u_\star
-\;=\;
--\,r,
+\frac{d}{2},
 \qquad
-u_\star^\top G u_\star = d,
-\qquad
-\lambda \ \text{chosen so the constraint holds}.
-}
-\]</span></p>
-<p>(Solve numerically, or compare <span class="math inline">\(\psi\)</span> on <span class="math inline">\(\partial C_d\)</span> by parameterization <span class="math inline">\(u = \sqrt{d}\, G^{-1/2} z\)</span>, <span class="math inline">\(\|z\|=1\)</span>.) <strong>Always</strong> check
-the maximizer lies on <span class="math inline">\(\partial C_d\)</span>,
-not in the interior (<span class="math inline">\(\psi\)</span> convex
-<span class="math inline">\(\Rightarrow\)</span> no interior maximum
-unless <span class="math inline">\(\nabla\psi=0\)</span> on the
-ellipsoid).</p>
-</div>
-</div>
-<div id="certified-varepsilon-with-ellipsoid-c_d-multivariate" class="section level3">
-<h3>9.5 Certified <span class="math inline">\(\varepsilon\)</span> with
-ellipsoid <span class="math inline">\(C_d\)</span> (multivariate)</h3>
-<p><span class="math display">\[
-\boxed{
-\varepsilon
-=
-\exp\Bigl(
-\min_{\gamma \in C_d} \delta(\gamma)
-\Bigr)
-=
-\exp\bigl(\delta(\gamma_\star)\bigr),
-\qquad
-\gamma_\star \in \partial C_d \ \text{(§9.4)}.
-}
-\]</span></p>
-<p><strong>Closed form when <span class="math inline">\(b_0=\mathbf
-0\)</span>:</strong></p>
-<p><span class="math display">\[
-\boxed{
-\varepsilon
+\varepsilon_d
 =
 \sqrt{\det\bigl(\Sigma^\star \Sigma^{-1}\bigr)}
 \;
-\exp\!\Bigl(
--\frac{d}{2}\,\lambda_{\max}\bigl(G^{-1} \mathcal{L}^\top \Gamma
-\mathcal{L}\bigr)
-\Bigr).
+\exp\!\Bigl(-\frac{d}{2}\Bigr).
 }
 \]</span></p>
-<p><strong>Scalar intercept, <span class="math inline">\(b_0=0\)</span>,
-equal groups</strong> (<span class="math inline">\(\alpha_1 =
-w\lambda_b/(\lambda_b+\mathscr{W})\)</span>, <span class="math inline">\(\mathscr{W}_j\equiv\mathscr{W}\)</span>):</p>
-<p><span class="math display">\[
-\varepsilon
-=
-\frac{\sigma_\star}{\sqrt{V}}
-\;
-\exp\!\Bigl(
--\frac{\alpha_1^2\, d}{2\,(V+\sigma_\star^2)\,g}
-\Bigr).
-\]</span></p>
+<p><em>Proof.</em> On <span class="math inline">\(C_d\)</span>, <span class="math inline">\((\gamma-\mu_\delta)^\top\Gamma_\gamma(\gamma-\mu_\delta)\le
+d\)</span>; <span class="math inline">\(\delta\)</span> decreases in
+that quadratic, so the minimum over <span class="math inline">\(C_d\)</span> is at <span class="math inline">\(\partial C_d\)</span> with value <span class="math inline">\(c_0-d/2\)</span>. <span class="math inline">\(\square\)</span></p>
 <p>Report the binding triple <span class="math inline">\((\gamma_\star,\,
-\gamma&#39;_\star(\gamma_\star),\, \varepsilon)\)</span> with <span class="math inline">\(\gamma&#39;_\star(\gamma)\)</span> from §4
-(multivariate FOC).</p>
+\gamma&#39;_\star(\gamma_\star),\, \varepsilon_d)\)</span> with <span class="math inline">\(\gamma&#39;_\star(\gamma)\)</span> from §4.</p>
+<div id="misaligned-outer-set-optional" class="section level4">
+<h4>9.4.1 Misaligned outer set (optional)</h4>
+<p>If <span class="math inline">\(C_d\)</span> is instead taken as <span class="math inline">\(\{\gamma : (\gamma-\mu^\star)^\top
+G(\gamma-\mu^\star)
+\le d\}\)</span> with <strong>independent</strong> <span class="math inline">\(G \succ 0\)</span> (e.g. <span class="math inline">\(\Lambda_\gamma\)</span> or a drift Lyapunov
+shape), the penalty quadratic is <strong>not</strong> constant on <span class="math inline">\(C_d\)</span>. Then <span class="math inline">\(\min_{C_d}\delta(\gamma)\)</span> requires
+maximizing <span class="math inline">\((\gamma-\mu_\delta)^\top\Gamma_\gamma(\gamma-\mu_\delta)\)</span>
+over that ellipsoid (generalized eigenvalue / Lagrange methods as in
+earlier drafts). The <strong>default</strong> coupling route uses the
+<strong>matched</strong> penalty ellipsoid §9.2 so §6 applies without
+extra optimization.</p>
 <hr />
+</div>
 </div>
 </div>
 <div id="references" class="section level2">
@@ -1236,6 +1541,8 @@ w\lambda_b/(\lambda_b+\mathscr{W})\)</span>, <span class="math inline">\(\mathsc
 <li><code>RATE_Ac_BOUNDS_BY_LIKELIHOOD.md</code> — §0.1 scalar RE, §8.1
 Block~2, §10.1 coupling, §10.3 two-stage min, §10.5 Normal closure,
 §10.7 multivariate precision form.</li>
+<li><code>MINORIZATION_SYMMETRIC_NON_GAUSSIAN.md</code> — symmetric GLM
+population posteriors (logit/probit fixtures); extension when <span class="math inline">\(q\)</span> is not Gaussian.</li>
 <li><code>LOGIT_SINGLE_GROUP_SAFE_REGION.md</code> — merge construction
 and Theorem 12.</li>
 </ul>

@@ -357,11 +357,11 @@ display: none;
 Effect</h1>
 <p>Companion note to <code>ELLIPSOID_TV_BOUND.md</code> (the general
 safe/unsafe-region machinery, §§1–4, and its logit specialization, §6)
-and to <code>vignette(&quot;Chapter-C05&quot;)</code> (the model-free Theorem 1
-form of the three-term TV bound). This note works a <strong>concrete
-special case</strong> all the way through in closed form, as a template
-for later generalizing back into <code>ELLIPSOID_TV_BOUND.md</code>’s
-§6.</p>
+and to <code>SAFE_UNSAFE_TV_DECOMPOSITION.md</code> (the model-free
+Theorem 1 form of the three-term TV bound). This note works a
+<strong>concrete special case</strong> all the way through in closed
+form, as a template for later generalizing back into
+<code>ELLIPSOID_TV_BOUND.md</code>’s §6.</p>
 <div id="why-this-case-and-how-it-differs-from-6-of-ellipsoid_tv_bound.md" class="section level2">
 <h2>0. Why this case, and how it differs from §6 of
 <code>ELLIPSOID_TV_BOUND.md</code></h2>
@@ -761,113 +761,165 @@ Taking <span class="math inline">\(E[\cdot\mid\theta_0=x]\)</span> and
 iterating the §4.3 drift, <span class="math inline">\(E[V(\theta_{n-1})\mid\theta_0=x]\le\lambda^{n-1}V(x)+C/(1-\lambda)\)</span>,
 gives <strong>fully explicitly</strong>:</p>
 <p><span class="math display">\[
-P^n(x,A^c) \;\le\; \frac{2\lambda^{n-1}V(x) + 2C/(1-\lambda) +
+P^n(x,A^c) \;\le\; \underbrace{\frac{2\lambda^{n-1}V(x) + 2C/(1-\lambda)
++ 2(L\tau^2)^2+\tau^2+1}{K^\star}}_{=:\,U_n(x)}
+\]</span></p>
+<p><strong>4.4<span class="math inline">\(&#39;\)</span> The same bound,
+averaged against the stationary law instead of iterated from <span class="math inline">\(x\)</span>.</strong> Write <span class="math inline">\(g(t):=\pi(A^c\mid\theta=t,y)\in[0,1]\)</span> for
+the exact one-step conditional escape probability, so §4.4’s derivation,
+up to (and not including) “taking <span class="math inline">\(E[\cdot\mid\theta_0=x]\)</span>”, is really a
+<em>pointwise, deterministic</em> statement: for every <span class="math inline">\(t\in\mathbb R\)</span>,</p>
+<p><span class="math display">\[
+g(t) \;\le\; \Psi(t) \;:=\; \frac{2V(t) +
 2(L\tau^2)^2+\tau^2+1}{K^\star}
 \]</span></p>
-<p><strong>4.5 Bounding the gap directly, via an exact
-conditional-kernel identity — and why the naive version is still too
-crude.</strong> Because <span class="math inline">\(b_n\mid\theta_{n-1}\)</span> is drawn
-<strong>exactly</strong> from the target’s own full conditional <span class="math inline">\(\pi(\cdot\mid\theta_{n-1},y)\)</span> — that is
-what makes this a Gibbs sampler rather than an approximation — the
-bounded function</p>
+<p>This single inequality feeds two different averages of <span class="math inline">\(\theta\)</span>. Averaging it against <span class="math inline">\(P_\theta^{(n-1)}(x,\cdot)\)</span> and iterating
+the §4.3 drift, as §4.4 does, gives <span class="math inline">\(P^n(x,A^c)\le U_n(x)\)</span> above. Averaging it
+instead against the <em>stationary</em> law <span class="math inline">\(\pi_\theta\)</span> — using <span class="math inline">\(\theta_{n-1}\sim\pi_\theta \Rightarrow
+b_n\sim\pi(\cdot\mid y)\)</span> exactly (the <span class="math inline">\(b\)</span>-marginal of the target itself, since
+<span class="math inline">\(\pi_\theta\)</span> is stationary for the
+<span class="math inline">\((b,\theta)\)</span>-joint chain) and the
+standard stationary-moment consequence of a Foster–Lyapunov drift, <span class="math inline">\(E_{\pi_\theta}[V]\le C/(1-\lambda)\)</span> (Meyn
+and Tweedie, 1993, Ch. 14: average the §4.3 drift against <span class="math inline">\(\pi_\theta\)</span> itself, <span class="math inline">\(E_{\pi_\theta}[V]=E_{\pi_\theta}\big[E[V(\theta_n)\mid\theta_{n-1}]\big]
+\le\lambda E_{\pi_\theta}[V]+C\)</span>) — gives a genuine
+<strong>marginal</strong> bound on <span class="math inline">\(\pi(A^c)\)</span> itself:</p>
 <p><span class="math display">\[
-g(t) \;:=\; \pi(A^c \mid \theta=t, y) \;\in\; [0,1]
+\pi(A^c) \;=\; E_{\pi_\theta}[g(\theta)] \;\le\;
+E_{\pi_\theta}[\Psi(\theta)]
+\;\le\; \underbrace{\frac{2C/(1-\lambda) +
+2(L\tau^2)^2+\tau^2+1}{K^\star}}_{=:\,U_\infty} \;=\;
+\lim_{n\to\infty}U_n(x)
 \]</span></p>
-<p>is simultaneously (i) the sampler’s one-step probability of landing
-in <span class="math inline">\(A^c\)</span> given <span class="math inline">\(\theta_{n-1}=t\)</span>, and (ii) the target’s own
-conditional probability of <span class="math inline">\(A^c\)</span>
-given <span class="math inline">\(\theta=t\)</span>. Consequently both
-<span class="math inline">\(\pi(A^c) = \int g\,d\pi_\theta\)</span> and
-<span class="math inline">\(P^n(x,A^c) = \int
-g(t)\,dP_\theta^{(n-1)}(x,dt)\)</span> are the <em>same</em> functional
-<span class="math inline">\(g\)</span> integrated against, respectively,
+<p>This closes Open Item 1 below: unlike Proposition 1 (which bounds
+<span class="math inline">\(\pi(A^c\mid\theta,y)\)</span> pointwise in
+<span class="math inline">\(\theta\)</span>, leaving the outer average
+over <span class="math inline">\(\pi(\theta\mid y)\)</span> undone),
+<span class="math inline">\(U_\infty\)</span> is a fully closed-form
+bound on the actual marginal <span class="math inline">\(\pi(A^c\mid
+y)\)</span>, via the same drift machinery already built for <span class="math inline">\(U_n(x)\)</span> rather than a separate
+tail-integral calculation. Both <span class="math inline">\(U_n(x)\)</span> and <span class="math inline">\(U_\infty\)</span> shrink to <span class="math inline">\(0\)</span> as <span class="math inline">\(b^\star\)</span> grows (since <span class="math inline">\(K^\star\to\infty\)</span>), for any fixed <span class="math inline">\(n\)</span> (including <span class="math inline">\(n=\infty\)</span>) — this tail-awareness is
+inherited unchanged from §4.4 and will matter in §4.5.</p>
+<p><strong>4.5 Bounding the gap directly — why bounding the two pieces
+separately (even the <em>rare-event</em> pieces) is still too crude, and
+what a genuine coupling argument buys instead.</strong> Because <span class="math inline">\(b_n\mid\theta_{n-1}\)</span> is drawn
+<strong>exactly</strong> from the target’s own full conditional <span class="math inline">\(\pi(\cdot\mid\theta_{n-1},y)\)</span> — that is
+what makes this a Gibbs sampler rather than an approximation — both
+<span class="math inline">\(\pi(A^c)=\int g\,d\pi_\theta\)</span> and
+<span class="math inline">\(P^n(x,A^c)=\int
+g\,dP_\theta^{(n-1)}(x,\cdot)\)</span> are the <em>same</em> functional
+<span class="math inline">\(g\)</span> (§4.4<span class="math inline">\(&#39;\)</span>) integrated against, respectively,
 the true <span class="math inline">\(\theta\)</span>-marginal <span class="math inline">\(\pi_\theta\)</span> and the sampler’s <span class="math inline">\((n-1)\)</span>-step <span class="math inline">\(\theta\)</span>-marginal kernel started at <span class="math inline">\(x\)</span> (the marginal chain <span class="math inline">\(\{\theta_n\}\)</span> is itself Markov, by the
 same argument <code>Chapter-C03</code> uses for <span class="math inline">\(X_1\)</span>: integrating the intervening <span class="math inline">\(b_n\)</span> out of the composition <span class="math inline">\(b_n\mid\theta_{n-1}\)</span>, <span class="math inline">\(\theta_n\mid b_n\)</span>).</p>
 <p>The immediate bound <span class="math inline">\(\big|\int
 g\,d\pi_\theta - \int g\,dP_\theta^{(n-1)}(x,\cdot)\big|
 \le
 \|g\|_\infty\|P_\theta^{(n-1)}(x,\cdot)-\pi_\theta(\cdot)\|_{TV}\)</span>
-uses only <span class="math inline">\(\|g\|_\infty\le1\)</span> (the
-sup-over-<span class="math inline">\([0,1]\)</span>-test-functions form
-of Definition 2) — but <span class="math inline">\(\|g\|_\infty\)</span>
-is genuinely close to <span class="math inline">\(1\)</span> here (as
-<span class="math inline">\(t\to\pm\infty\)</span>, <span class="math inline">\(\pi(A^c\mid\theta=t,y)\to1\)</span>, since the
-<span class="math inline">\(b\)</span>-posterior follows <span class="math inline">\(\theta\)</span> into the tail), even though <span class="math inline">\(A^c\)</span> itself has small probability under
-both <span class="math inline">\(\pi_\theta\)</span> and <span class="math inline">\(P_\theta^{(n-1)}(x,\cdot)\)</span> whenever <span class="math inline">\(b^\star\)</span> is reasonably large. Using <span class="math inline">\(\|g\|_\infty\le1\)</span> regardless reproduces,
-one level removed, exactly the flaw §4.0 flags for the whole-space
-route: a bound the same size no matter how deep in the tail <span class="math inline">\(A^c\)</span> sits. The fix is the same idea §4.0
-sets aside in favor of a tail-specific argument — but applied here to
-the <em>outer</em> variable <span class="math inline">\(\theta\)</span>:
-split off a bounded <strong>core range</strong> for <span class="math inline">\(\theta\)</span>, where Proposition 1 makes <span class="math inline">\(g\)</span> provably small, from its complement,
-controlled by the same <span class="math inline">\(\theta\)</span>-drift
-machinery as §4.4.</p>
-<p><strong>Core/tail split.</strong> For any <span class="math inline">\(\beta&gt;0\)</span>, let</p>
+uses only <span class="math inline">\(\|g\|_\infty\le1\)</span> — but
+<span class="math inline">\(\|g\|_\infty\)</span> is genuinely close to
+<span class="math inline">\(1\)</span> here (<span class="math inline">\(g(t)\to1\)</span> as <span class="math inline">\(t\to\pm\infty\)</span>: Proposition 1’s
+tilted-Gaussian bound <em>saturates</em> near its tail, it does not
+decay), reproducing exactly the flaw §4.0 flags for the whole-space
+route.</p>
+<p>An earlier version of this argument tried to fix this by splitting
+<span class="math inline">\(\theta\)</span> into a bounded core <span class="math inline">\(B\)</span> (where <span class="math inline">\(g\)</span> is provably small, via Proposition 1)
+and its complement <span class="math inline">\(B^c\)</span> (controlled
+by the §4.4/4.4<span class="math inline">\(&#39;\)</span> drift
+machinery), bounding <span class="math inline">\(\pi(A^c)\)</span>’s and
+<span class="math inline">\(P^n(x,A^c)\)</span>’s restrictions to <span class="math inline">\(B^c\)</span> <strong>separately</strong> and
+adding them. That fix is incomplete: bounding two pieces of the
+<em>gap</em> separately, even when each piece is individually small (a
+rare-event probability restricted to <span class="math inline">\(B^c\)</span>), reduces to <span class="math inline">\(\pi_\theta(B^c)\)</span> and <span class="math inline">\(P_\theta^{(n-1)}(x,B^c)\)</span> each appearing as
+<em>additive, non-cancelling</em> terms of size roughly <span class="math inline">\(C/(1-\lambda)\)</span> divided by <span class="math inline">\(K_B^\star=\beta^2+1\)</span> — a term that does
+<strong>not</strong> vanish as <span class="math inline">\(n\to\infty\)</span> for any fixed <span class="math inline">\(\beta\)</span>, because <span class="math inline">\(\pi_\theta(B^c)\)</span> alone does not go away
+with <span class="math inline">\(n\)</span>. It reintroduces, one level
+removed, exactly the additive-floor problem the whole exercise is meant
+to avoid: the true gap <span class="math inline">\(\pi(A^c)-P^n(x,A^c)\)</span> genuinely <span class="math inline">\(\to0\)</span> as <span class="math inline">\(n\to\infty\)</span> (both pieces converge to the
+<em>same</em> limit <span class="math inline">\(\pi(A^c)\)</span>), but
+a bound built by adding two separately-controlled non-negative
+quantities can never see that cancellation — it is structurally
+incapable of vanishing in <span class="math inline">\(n\)</span> unless
+each piece is <em>individually</em> driven to <span class="math inline">\(0\)</span>, which <span class="math inline">\(\pi_\theta(B^c)\)</span> (an <span class="math inline">\(n\)</span>-free, fixed number) never is.</p>
+<p>What is needed instead is a bound on the <strong>difference</strong>
+that can be small for either of two independent reasons — the chains
+have run long enough to have (with high probability) already coupled,
+<em>or</em> <span class="math inline">\(A^c\)</span> itself is a
+sufficiently rare event — rather than one that needs both conditions to
+hold in the same term simultaneously. This is exactly what a coupling
+argument on the <span class="math inline">\(\theta\)</span>-marginal
+chain supplies.</p>
+<p><strong>Coupling construction.</strong> Let <span class="math inline">\((\theta_n^x)_{n\ge0}\)</span> be the <span class="math inline">\(\theta\)</span>-marginal chain started at <span class="math inline">\(\theta_0^x=x\)</span>, and let <span class="math inline">\((\theta_n^\pi)_{n\ge0}\)</span> be an independent
+copy started from <span class="math inline">\(\theta_0^\pi\sim\pi_\theta\)</span> (so <span class="math inline">\(\theta_n^\pi\sim\pi_\theta\)</span> for every
+<span class="math inline">\(n\)</span>, by stationarity). Couple the two
+using the standard minorization-based construction underlying §4.6’s
+Rosenthal bound: run them independently until both simultaneously lie in
+the small set <span class="math inline">\(C_d\)</span> of §4.6, then
+attempt to merge with probability <span class="math inline">\(\varepsilon\)</span> at each such joint visit
+using the common measure <span class="math inline">\(Q\)</span> from the
+minorization; let <span class="math inline">\(T\)</span> be the
+resulting random <em>coupling time</em>, the first sweep <span class="math inline">\(n\)</span> with <span class="math inline">\(\theta_n^x=\theta_n^\pi\)</span>. Once merged, run
+the two copies of the full <span class="math inline">\((\theta,b)\)</span> chain identically forever, so
+<span class="math inline">\(\theta_{n&#39;}^x=\theta_{n&#39;}^\pi\)</span> for
+all <span class="math inline">\(n&#39;\ge T\)</span>. In particular, on
+the event <span class="math inline">\(\{T\le n-1\}\)</span>, draw <span class="math inline">\(b_n^x\)</span> and <span class="math inline">\(b_n^\pi\)</span> from a single shared random draw
+of <span class="math inline">\(\pi(\cdot\mid\theta_{n-1}^x,y)=\pi(\cdot\mid\theta_{n-1}^\pi,y)\)</span>
+— valid since the two conditionals coincide exactly once <span class="math inline">\(\theta_{n-1}^x=\theta_{n-1}^\pi\)</span> — forcing
+<span class="math inline">\(b_n^x=b_n^\pi\)</span> on that event.</p>
+<p><strong>Proposition 4<span class="math inline">\(&#39;\)</span>
+(Cauchy–Schwarz gap bound).</strong></p>
 <p><span class="math display">\[
-B \;:=\; [\mu_0-\beta,\ \mu_0+\beta], \qquad
-K_B^\star \;:=\; \beta^2+1 \;=\; \inf_{t\in B^c}V(t), \qquad
-\bar g_B \;:=\; \sup_{t\in B}\, \pi(A^c\mid\theta=t,y) \;\le\;
-\sup_{t\in B} G(t)
-\]</span></p>
-<p>where <span class="math inline">\(G(t)\)</span> is Proposition 1’s
-closed-form bound evaluated at <span class="math inline">\(\theta=t\)</span> — a maximum of a continuous
-function over a compact interval, hence finite and numerically
-evaluable, without needing a closed form for where the maximum occurs.
-Writing <span class="math inline">\(h := g\cdot\mathbf{1}_B\)</span> (so
-<span class="math inline">\(0\le h\le\bar g_B\)</span> everywhere, since
-<span class="math inline">\(g\le\bar g_B\)</span> on <span class="math inline">\(B\)</span> and <span class="math inline">\(h=0\)</span> on <span class="math inline">\(B^c\)</span>) and <span class="math inline">\(g\le1\)</span> elsewhere,</p>
-<p><span class="math display">\[
-\Big|\int g\,d\pi_\theta - \int g\,dP_\theta^{(n-1)}(x,\cdot)\Big|
+\big|\pi(A^c)-P^n(x,A^c)\big| \;\le\;
+\Big(\sqrt{P^n(x,A^c)}+\sqrt{\pi(A^c)}\Big)\sqrt{P(T&gt;n-1)}
 \;\le\;
-\underbrace{\Big|\int h\,d\pi_\theta - \int
-h\,dP_\theta^{(n-1)}(x,\cdot)\Big|}_{\le\ \bar
-g_B\,\|P_\theta^{(n-1)}(x,\cdot)-\pi_\theta(\cdot)\|_{TV}}
-\;+\;
-\underbrace{\int_{B^c}g\,d\pi_\theta}_{\le\ \pi_\theta(B^c)}
-\;+\;
-\underbrace{\int_{B^c}g\,dP_\theta^{(n-1)}(x,\cdot)}_{\le\
-P_\theta^{(n-1)}(x,B^c)}
+\Big(\sqrt{U_n(x)}+\sqrt{U_\infty}\Big)\sqrt{R_{n-1}}
 \]</span></p>
-<p>The two tail terms are <span class="math inline">\(\theta\)</span>-drift/Markov bounds, exactly
-§4.4’s technique applied to <span class="math inline">\(\theta\)</span>’s own tail instead of <span class="math inline">\(b\)</span>’s:</p>
+<p>where <span class="math inline">\(R_{n-1}\)</span> is §4.6’s
+Rosenthal expression (below), reinterpreted as a bound on <span class="math inline">\(P(T&gt;n-1)\)</span> rather than directly on a TV
+distance.</p>
+<p><em>Proof.</em> Since <span class="math inline">\(b_n^x=b_n^\pi\)</span> on <span class="math inline">\(\{T\le n-1\}\)</span>, the summand below vanishes
+there, so</p>
 <p><span class="math display">\[
-P_\theta^{(n-1)}(x,B^c) \;\le\;
-\frac{E[V(\theta_{n-1})\mid\theta_0=x]}{K_B^\star}
-\;\le\; \frac{\lambda^{n-1}V(x)+C/(1-\lambda)}{K_B^\star},
-\qquad
-\pi_\theta(B^c) \;\le\; \frac{E_{\pi_\theta}[V(\theta)]}{K_B^\star}
-\;\le\; \frac{C/(1-\lambda)}{K_B^\star}
+\pi(A^c)-P^n(x,A^c) = E\big[\mathbf 1_{A^c}(b_n^\pi)-\mathbf
+1_{A^c}(b_n^x)\big]
+= E\Big[\big(\mathbf 1_{A^c}(b_n^\pi)-\mathbf
+1_{A^c}(b_n^x)\big)\,\mathbf 1_{T&gt;n-1}\Big]
 \]</span></p>
-<p>the second using the standard stationary-moment consequence of a
-Foster–Lyapunov drift, <span class="math inline">\(E_{\pi_\theta}[V]\le
-C/(1-\lambda)\)</span> (Meyn and Tweedie, 1993, Ch. 14): averaging the
-§4.3 drift against <span class="math inline">\(\pi_\theta\)</span>
-itself gives <span class="math inline">\(E_{\pi_\theta}[V] =
-E_{\pi_\theta}\big[E[V(\theta_n)\mid\theta_{n-1}]\big]
-\le \lambda E_{\pi_\theta}[V]+C\)</span>, and <span class="math inline">\(\pi_\theta\)</span>-integrability of <span class="math inline">\(V\)</span> follows from the same
-drift-plus-minorization pair used in §4.6. Altogether:</p>
+<p>Both indicators are nonnegative, so <span class="math inline">\(\big|\pi(A^c)-P^n(x,A^c)\big| \le E[\mathbf
+1_{A^c}(b_n^x)\mathbf 1_{T&gt;n-1}]+E[\mathbf 1_{A^c}(b_n^\pi)\mathbf
+1_{T&gt;n-1}]\)</span>. The event <span class="math inline">\(\{T\le
+n-1\}\)</span> is determined by <span class="math inline">\(\theta_0^x,\dots,\theta_{n-1}^x\)</span>, <span class="math inline">\(\theta_0^\pi,\dots,\theta_{n-1}^\pi\)</span>, and
+independent coupling randomness, all prior to the fresh draw of <span class="math inline">\(b_n^x\mid\theta_{n-1}^x\)</span>; so conditioning
+on <span class="math inline">\(\theta_{n-1}^x\)</span> leaves <span class="math inline">\(\{T&gt;n-1\}\)</span> measurable and <span class="math inline">\(b_n^x\mid\theta_{n-1}^x\)</span> unaffected,
+giving <span class="math inline">\(E[\mathbf 1_{A^c}(b_n^x)\mathbf
+1_{T&gt;n-1}]=E[g(\theta_{n-1}^x)\mathbf 1_{T&gt;n-1}]\)</span>. By
+Cauchy–Schwarz, then <span class="math inline">\(g^2\le g\)</span> (as
+<span class="math inline">\(g\in[0,1]\)</span>),</p>
 <p><span class="math display">\[
-\big|\pi(A^c)-P^n(x,A^c)\big|
-\;\le\;
-\bar g_B\,\big\|P_\theta^{(n-1)}(x,\cdot)-\pi_\theta(\cdot)\big\|_{TV}
-\;+\;
-\frac{\lambda^{n-1}V(x) + 2C/(1-\lambda)}{K_B^\star}
+E[g(\theta_{n-1}^x)\mathbf 1_{T&gt;n-1}]
+\;\le\; \sqrt{E[g(\theta_{n-1}^x)^2]}\,\sqrt{P(T&gt;n-1)}
+\;\le\; \sqrt{E[g(\theta_{n-1}^x)]}\,\sqrt{P(T&gt;n-1)}
+\;=\; \sqrt{P^n(x,A^c)}\,\sqrt{P(T&gt;n-1)},
 \]</span></p>
-<p>Unlike the naive version, the dominant “whole-chain-TV” contribution
-now carries the prefactor <span class="math inline">\(\bar g_B\)</span>
-— which shrinks toward <span class="math inline">\(0\)</span> as <span class="math inline">\(b^\star\)</span> grows with <span class="math inline">\(\beta\)</span> fixed (Proposition 1’s tail bound),
-directly reflecting that <span class="math inline">\(A^c\)</span> is a
-rare event — and <span class="math inline">\(\beta\)</span> is a free
-parameter trading <span class="math inline">\(\bar g_B\)</span> (smaller
-<span class="math inline">\(\beta\)</span> shrinks it) against <span class="math inline">\(K_B^\star=\beta^2+1\)</span> (larger <span class="math inline">\(\beta\)</span> shrinks the two residual terms),
-distinct from and optimized independently of the minorization level
-<span class="math inline">\(d\)</span> in §4.6. This reduces what
-remains to bounding a <strong>scalar</strong> chain’s TV distance —
-<code>Chapter-C03</code>’s setting, except that <span class="math inline">\(\{\theta_n\}\)</span>’s one-step kernel is not
-exactly Gaussian here (the intervening <span class="math inline">\(b_n\)</span>-draw is
-log-concave-with-bounded-score, not Gaussian), so Theorem 3/Corollary 1
-do not apply verbatim; §4.6 supplies the substitute.</p>
-<p><strong>4.6 Rosenthal’s (1995) Theorem 12, applied to the <span class="math inline">\(\theta\)</span>-chain.</strong> Given the §4.3
-drift <span class="math inline">\((\lambda, C)\)</span>, fix any <span class="math inline">\(d &gt; 2C/(1-\lambda)\)</span> and take the small
+<p>and likewise <span class="math inline">\(E[\mathbf
+1_{A^c}(b_n^\pi)\mathbf
+1_{T&gt;n-1}]\le\sqrt{\pi(A^c)}\sqrt{P(T&gt;n-1)}\)</span>. Summing the
+two and substituting §4.4/§4.4<span class="math inline">\(&#39;\)</span>’s <span class="math inline">\(U_n(x)\)</span>, <span class="math inline">\(U_\infty\)</span> bounds gives the stated
+inequality. <span class="math inline">\(\blacksquare\)</span></p>
+<p><strong>Why this genuinely satisfies both requirements at
+once.</strong> As <span class="math inline">\(n\to\infty\)</span> with
+<span class="math inline">\(b^\star\)</span> fixed, <span class="math inline">\(R_{n-1}\to0\)</span> (§4.6) while <span class="math inline">\(\sqrt{U_n(x)}+\sqrt{U_\infty}\)</span> stays
+bounded (it converges to <span class="math inline">\(2\sqrt{U_\infty}\le2\)</span>) — so the
+<em>product</em> vanishes, with no additive, non-vanishing floor of the
+kind the core/tail split left behind. As <span class="math inline">\(b^\star\to\infty\)</span> with <span class="math inline">\(n\)</span> fixed, <span class="math inline">\(U_n(x)\to0\)</span> and <span class="math inline">\(U_\infty\to0\)</span> (§4.4, §4.4<span class="math inline">\(&#39;\)</span>) while <span class="math inline">\(\sqrt{R_{n-1}}\)</span> is unaffected — so the
+bound also shrinks toward <span class="math inline">\(0\)</span> purely
+from <span class="math inline">\(A^c\)</span> becoming rare, without
+needing <span class="math inline">\(n\to\infty\)</span> at all. The two
+requirements are satisfied by two different factors of a product rather
+than by one term trying to do both jobs, and each factor is the
+<em>existing</em> machinery (§4.4/§4.4<span class="math inline">\(&#39;\)</span>’s drift bound, §4.6’s Rosenthal
+bound) — nothing new needed to be derived beyond the coupling argument
+and the Cauchy–Schwarz split itself.</p>
+<p><strong>4.6 Rosenthal’s (1995) Theorem 12, applied to the <span class="math inline">\(\theta\)</span>-chain, as a coupling-time
+bound.</strong> Given the §4.3 drift <span class="math inline">\((\lambda, C)\)</span>, fix any <span class="math inline">\(d &gt; 2C/(1-\lambda)\)</span> and take the small
 set <span class="math inline">\(C_d := \{\theta : V(\theta)\le d\} =
 [\mu_0-\sqrt{d-1},\mu_0+\sqrt{d-1}]\)</span> — a compact interval, since
 sublevel sets of the coercive <span class="math inline">\(V\)</span> are
@@ -886,50 +938,46 @@ on the compact product <span class="math inline">\(C_d\times
 C_d\)</span>, with <span class="math inline">\(Q\)</span> uniform on
 <span class="math inline">\([\theta&#39;_-,\theta&#39;_+]\)</span>. With
 <span class="math inline">\((\lambda,C,\varepsilon,d)\)</span> so
-defined, Rosenthal (1995, Theorem 12) gives, for any <span class="math inline">\(x\)</span> and any <span class="math inline">\(0&lt;r&lt;1\)</span>,</p>
+defined, the coupling construction above — the same one underlying
+Rosenthal (1995, Theorem 12) — satisfies, for any <span class="math inline">\(x\)</span> and any <span class="math inline">\(0&lt;r&lt;1\)</span>,</p>
 <p><span class="math display">\[
-\big\|P_\theta^{(k)}(x,\cdot)-\pi_\theta(\cdot)\big\|_{TV}
-\;\le\;
+P(T&gt;k) \;\le\;
 (1-\varepsilon)^{rk} \;+\; \alpha^{-k}(\alpha\Lambda)^{rk}
-\left[1 + \frac{C}{1-\lambda} + V(x)\right],
+\left[1 + \frac{C}{1-\lambda} + V(x)\right] \;=:\; R_k,
 \]</span></p>
 <p><span class="math display">\[
 \alpha^{-1} := \frac{1+2C+\lambda d}{1+d} \;&lt;\; 1,
 \qquad
 \Lambda := 1+2(\lambda d+C).
 \]</span></p>
-<p>Combining with §4.5 (<span class="math inline">\(k=n-1\)</span>):</p>
+<p>(Rosenthal’s Theorem 12 quotes only the resulting <span class="math inline">\(\|P_\theta^{(k)}(x,\cdot)-\pi_\theta(\cdot)\|_{TV}\le
+R_k\)</span> — the TV consequence of <span class="math inline">\(P(T&gt;k)\le R_k\)</span> via the standard
+coupling inequality — but his proof, via renewal/regeneration on <span class="math inline">\(C_d\)</span>, establishes the bound on <span class="math inline">\(P(T&gt;k)\)</span> itself, which is the form
+Proposition 4<span class="math inline">\(&#39;\)</span> needs.)
+Combining with Proposition 4<span class="math inline">\(&#39;\)</span>
+(<span class="math inline">\(k=n-1\)</span>):</p>
 <p><span class="math display">\[
 \big|\pi(A^c)-P^n(x,A^c)\big|
 \;\le\;
-\bar g_B\left[(1-\varepsilon)^{r(n-1)} \;+\;
+\Big(\sqrt{U_n(x)}+\sqrt{U_\infty}\Big)
+\sqrt{(1-\varepsilon)^{r(n-1)} \;+\;
 \alpha^{-(n-1)}(\alpha\Lambda)^{r(n-1)}
-\left(1 + \frac{C}{1-\lambda} + V(x)\right)\right]
-\;+\;
-\frac{\lambda^{n-1}V(x) + 2C/(1-\lambda)}{K_B^\star}
+\left(1 + \frac{C}{1-\lambda} + V(x)\right)}
 \]</span></p>
-<p>Every constant here is an explicit function of <span class="math inline">\((\lambda,C,\varepsilon,d,r,\beta)\)</span> — <span class="math inline">\((\lambda,C)\)</span> from §4.3, <span class="math inline">\(d\)</span> any fixed value above <span class="math inline">\(2C/(1-\lambda)\)</span>, <span class="math inline">\(\beta\)</span> and <span class="math inline">\(r\)</span> free to optimize — with <strong>only
+<p>Every constant here is an explicit function of <span class="math inline">\((\lambda,C,\varepsilon,d,r)\)</span> — <span class="math inline">\((\lambda,C)\)</span> from §4.3, <span class="math inline">\(d\)</span> any fixed value above <span class="math inline">\(2C/(1-\lambda)\)</span>, <span class="math inline">\(r\)</span> free to optimize — with <strong>only
 <span class="math inline">\(\varepsilon\)</span></strong> left as an
-unclosed numeric quantity (Open Item 2 below): unlike the earlier
-draft’s free-floating “<span class="math inline">\(R\)</span>”,
-Rosenthal’s formula shows exactly how <span class="math inline">\(\varepsilon\)</span> and <span class="math inline">\(d\)</span> combine with the drift constants, so
-pinning down <span class="math inline">\(\varepsilon\)</span> is now the
-<em>entire</em> remaining gap, not one of several abstract pieces. And
-unlike a naive <span class="math inline">\(\|g\|_\infty\le1\)</span>
-bound, the prefactor <span class="math inline">\(\bar g_B\)</span> makes
-the bound genuinely tail-aware: it shrinks as <span class="math inline">\(b^\star\)</span> grows (Proposition 1), rather
-than sitting at the same size regardless of how far <span class="math inline">\(A^c\)</span> is pushed into the tail.</p>
+unclosed numeric quantity (Open Item 2 below).</p>
 <hr />
 </div>
 <div id="assembled-bound" class="section level2">
 <h2>5. Assembled bound</h2>
 <p>Combining §3 (Proposition 1), §4.4/§4.6, and Lemma 1/Theorem 1 of
-<code>vignette(&quot;Chapter-C05&quot;)</code> for the on-<span class="math inline">\(A\)</span> term, with <span class="math inline">\(x=\theta_0\)</span> per §4.1:</p>
+<code>SAFE_UNSAFE_TV_DECOMPOSITION.md</code> for the on-<span class="math inline">\(A\)</span> term, with <span class="math inline">\(x=\theta_0\)</span> per §4.1:</p>
 <p><span class="math display">\[
 \big\|P^n(x,\cdot) - \pi(\cdot)\big\|_{TV}
 \;\le\;
 \underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{on-}A\text{
-gap, Chapter-C05 heuristic}}
+gap, safe/unsafe heuristic §7.1}}
 \;+\;
 4\,P^n(x,A^c)
 \;+\;
@@ -937,18 +985,14 @@ gap, Chapter-C05 heuristic}}
 \]</span></p>
 <p>with <span class="math inline">\(4P^n(x,A^c)\)</span> bounded fully
 explicitly by §4.4 (no abstract constants), and the last term bounded by
-twice the <span class="math inline">\(\bar g_B\)</span>-sharpened
-Rosenthal (1995) Theorem 12 expression of §4.6 — every constant in it
-explicit given <span class="math inline">\((\lambda,C,d,r,\beta)\)</span>, with <span class="math inline">\(\varepsilon\)</span> the sole remaining unclosed
-numeric quantity (Open Item 2). Note that the <span class="math inline">\(\bar g_B\)</span> prefactor there is itself
-computed from Proposition 1 — so <span class="math inline">\(\pi(A^c)\)</span>’s closed form (below) and the
-gap’s leading term share the same underlying tail bound, which is the
-point of §4.5’s split: the sharper the tail is known to be, the sharper
-both become together. <span class="math inline">\(\pi(A^c)\)</span>
-itself — needed for the on-<span class="math inline">\(A\)</span>
-normalization-correction machinery of <code>ELLIPSOID_TV_BOUND.md</code>
-§3, and as a standalone sanity check on <span class="math inline">\(4P^n(x,A^c)\)</span>’s bound — is given in closed
-form by Proposition 1. All four pieces are computable from <span class="math inline">\((\theta_0,\tau,\mu_0,\sigma_0,b^\star,y,\beta)\)</span>,
+twice the Cauchy–Schwarz gap bound of §4.5/§4.6 (Proposition 4<span class="math inline">\(&#39;\)</span> combined with the Rosenthal
+coupling-time bound) — every constant in it explicit given <span class="math inline">\((\lambda,C,d,r)\)</span>, with <span class="math inline">\(\varepsilon\)</span> the sole remaining unclosed
+numeric quantity (Open Item 2). <span class="math inline">\(\pi(A^c)\)</span> itself — needed for the on-<span class="math inline">\(A\)</span> normalization-correction machinery of
+<code>ELLIPSOID_TV_BOUND.md</code> §3, and as a standalone sanity check
+on <span class="math inline">\(4P^n(x,A^c)\)</span>’s bound — is
+available two ways: pointwise in <span class="math inline">\(\theta\)</span> from Proposition 1 (§3), or as the
+fully marginal, closed-form bound <span class="math inline">\(U_\infty\)</span> from §4.4<span class="math inline">\(&#39;\)</span>. All pieces are computable from
+<span class="math inline">\((\theta_0,\tau,\mu_0,\sigma_0,b^\star,y,d,r)\)</span>,
 and every constant is explicit except <span class="math inline">\(\varepsilon\)</span>.</p>
 <hr />
 </div>
@@ -1009,11 +1053,16 @@ open item 2 of §6.4.</li>
 <div id="open-items" class="section level2">
 <h2>7. Open items</h2>
 <ol style="list-style-type: decimal">
-<li><strong>Marginal (not merely <span class="math inline">\(\theta\)</span>-conditional) bound on <span class="math inline">\(\pi(A^c\mid y)\)</span></strong> (§3 Remark).
-Requires an outer bound on <span class="math inline">\(\pi(\theta\mid
-y)\)</span>’s tail; should be closed-form if <span class="math inline">\(\theta\)</span>’s own prior is Gaussian or flat,
-since <span class="math inline">\(\theta\mid b,y\)</span> is then
-exactly Gaussian, but the calculation is not carried out here.</li>
+<li><del>Marginal (not merely <span class="math inline">\(\theta\)</span>-conditional) bound on <span class="math inline">\(\pi(A^c\mid y)\)</span></del> (§3 Remark).
+<strong>Resolved</strong> by §4.4<span class="math inline">\(&#39;\)</span>’s <span class="math inline">\(U_\infty\)</span>: averaging the same pointwise
+escape bound <span class="math inline">\(g(t)\le\Psi(t)\)</span> used
+for <span class="math inline">\(P^n(x,A^c)\)</span> against the
+stationary law <span class="math inline">\(\pi_\theta\)</span> (rather
+than iterating it from <span class="math inline">\(x\)</span>) gives a
+closed-form bound on the true marginal <span class="math inline">\(\pi(A^c\mid y)\)</span>, using only the §4.3
+drift’s stationary-moment consequence — no separate outer-tail
+calculation on <span class="math inline">\(\pi(\theta\mid y)\)</span>
+was needed.</li>
 <li><strong>The minorization constant <span class="math inline">\(\varepsilon\)</span> in §4.6.</strong> The small
 set <span class="math inline">\(C_d\)</span> is pinned down explicitly
 (any sublevel set of <span class="math inline">\(V(\theta)\)</span>),
@@ -1051,18 +1100,14 @@ preserves a bound of the same form with explicit constants.</li>
 §4.6’s Rosenthal bound</strong>, and comparing against the
 Roberts–Tweedie (1999) alternative form, once <span class="math inline">\(\varepsilon\)</span> (item 2) is available
 numerically — not attempted here.</li>
-<li><strong>Optimizing the core-range half-width <span class="math inline">\(\beta\)</span> in §4.5.</strong> <span class="math inline">\(\bar g_B :=
-\sup_{t\in B}\pi(A^c\mid\theta=t,y)\)</span> is non-decreasing in <span class="math inline">\(\beta\)</span> by a trivial sup-over-a-superset
-argument (widening <span class="math inline">\(B\)</span> can only raise
-the supremum), and increases in practice because <span class="math inline">\(\pi(A^c\mid\theta=t,y)\)</span> itself grows with
-<span class="math inline">\(|t-\mu_0|\)</span>; <span class="math inline">\(K_B^\star=\beta^2+1\)</span> grows with <span class="math inline">\(\beta\)</span> too, shrinking the two residual
-drift/Markov terms. So <span class="math inline">\(\beta\to0\)</span>
-leaves the residual terms undamped (small <span class="math inline">\(K_B^\star\)</span>), while <span class="math inline">\(\beta\to\infty\)</span> (past <span class="math inline">\(b^\star\)</span>) sends <span class="math inline">\(\bar g_B\to1\)</span>, undoing the whole point of
-the split — an interior optimum trades the two off, but is not located
-numerically here; the informal guidance is to keep <span class="math inline">\(\beta\)</span> a modest fraction of <span class="math inline">\(b^\star\)</span> (so <span class="math inline">\(\bar g_B\)</span> stays in Proposition 1’s small
-regime) while large enough that <span class="math inline">\(K_B^\star\)</span> makes the residual terms
-negligible at the sample size <span class="math inline">\(n\)</span> of
-interest.</li>
+<li><strong>Sharpening the Cauchy–Schwarz split in §4.5.</strong>
+Proposition 4<span class="math inline">\(&#39;\)</span> bounds <span class="math inline">\(E[g(\theta_{n-1})^2]\)</span> by the crude <span class="math inline">\(E[g(\theta_{n-1})]\)</span> (using only <span class="math inline">\(g\le1\)</span>); using Proposition 1’s sharper
+pointwise bound <span class="math inline">\(g(t)\le G(t)\)</span> on one
+factor of <span class="math inline">\(g^2=g\cdot g\)</span> instead —
+i.e. <span class="math inline">\(E[g(\theta_{n-1})^2]\le
+E[g(\theta_{n-1})G(\theta_{n-1})]\)</span> — would tighten the bound
+further, at the cost of a less clean closed form; not attempted
+here.</li>
 </ol>
 <hr />
 </div>
@@ -1073,9 +1118,10 @@ interest.</li>
 decomposition (§§1–4) and its logit specialization (§6), whose
 ceiling-based split and open closed-form question (§6.4 item 2) this
 note complements with a floor-based, closed-form special case.</li>
-<li><code>vignette(&quot;Chapter-C05&quot;)</code> — the model-free statement of
-Lemma 1, Lemma 6/7, and the practical Theorem-1 form of the three-term
-TV bound assembled in §5 above.</li>
+<li><code>SAFE_UNSAFE_TV_DECOMPOSITION.md</code> — the model-free
+statement of Lemma 1, Lemma 6/7, and the practical Theorem-1 form of the
+three-term TV bound assembled in §5 above, plus the computable on-<span class="math inline">\(A\)</span> heuristic (§7.1) that §5’s first term
+invokes.</li>
 <li><code>vignette(&quot;Chapter-C03&quot;)</code> — Definition 4 and its remark
 (“the second block is updated first, and the first block is updated
 second… all the results below are statements about <span class="math inline">\(X_1\)</span>, the block updated second”), the
@@ -1093,6 +1139,10 @@ the earlier abstract Meyn–Tweedie-<span class="math inline">\(f\)</span>-norm 
 <li>Brascamp, H.J. and Lieb, E.H. (1976). <em>On extensions of the
 Brascamp–Lieb–Luttinger inequality…</em> — the variance bound for
 log-concave densities used in Lemma L5.</li>
+<li>Meyn, S.P. and Tweedie, R.L. (1993). <em>Markov Chains and
+Stochastic Stability</em> — the stationary-moment consequence of a
+Foster–Lyapunov drift, <span class="math inline">\(E_{\pi_\theta}[V]\le
+C/(1-\lambda)\)</span>, used in §4.4<span class="math inline">\(&#39;\)</span> to obtain <span class="math inline">\(U_\infty\)</span>.</li>
 </ul>
 </div>
 </div>

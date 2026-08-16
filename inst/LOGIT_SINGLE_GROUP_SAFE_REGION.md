@@ -2,8 +2,8 @@
 
 Companion note to `ELLIPSOID_TV_BOUND.md` (the general safe/unsafe-region
 machinery, §§1–4, and its logit specialization, §6) and to
-`vignette("Chapter-C05")` (the model-free Theorem 1 form of the three-term
-TV bound). This note works a **concrete special case** all the way through
+`SAFE_UNSAFE_TV_DECOMPOSITION.md` (the model-free Theorem 1 form of the
+three-term TV bound). This note works a **concrete special case** all the way through
 in closed form, as a template for later generalizing back into
 `ELLIPSOID_TV_BOUND.md`'s §6.
 
@@ -623,13 +623,13 @@ numeric quantity (Open Item 2 below).
 ## 5. Assembled bound
 
 Combining §3 (Proposition 1), §4.4/§4.6, and Lemma 1/Theorem 1 of
-`vignette("Chapter-C05")` for the on-$A$ term, with $x=\theta_0$ per
+`SAFE_UNSAFE_TV_DECOMPOSITION.md` for the on-$A$ term, with $x=\theta_0$ per
 §4.1:
 
 $$
 \big\|P^n(x,\cdot) - \pi(\cdot)\big\|_{TV}
 \;\le\;
-\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{on-}A\text{ gap, Chapter-C05 heuristic}}
+\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{on-}A\text{ gap, safe/unsafe heuristic §7.1}}
 \;+\;
 4\,P^n(x,A^c)
 \;+\;
@@ -757,9 +757,10 @@ this case's machinery extends):**
   (§§1–4) and its logit specialization (§6), whose ceiling-based split
   and open closed-form question (§6.4 item 2) this note complements with
   a floor-based, closed-form special case.
-- `vignette("Chapter-C05")` — the model-free statement of Lemma 1,
+- `SAFE_UNSAFE_TV_DECOMPOSITION.md` — the model-free statement of Lemma 1,
   Lemma 6/7, and the practical Theorem-1 form of the three-term TV bound
-  assembled in §5 above.
+  assembled in §5 above, plus the computable on-$A$ heuristic (§7.1) that
+  §5's first term invokes.
 - `vignette("Chapter-C03")` — Definition 4 and its remark ("the second
   block is updated first, and the first block is updated second... all
   the results below are statements about $X_1$, the block updated

@@ -358,11 +358,11 @@ display: none;
 <code>LOGIT_SINGLE_GROUP_SAFE_REGION.md</code>, keeping only the
 definitions, lemmas, and proofs needed to reach the final bound.
 Companion note to <code>ELLIPSOID_TV_BOUND.md</code> (general
-safe/unsafe-region machinery) and <code>vignette(&quot;Chapter-C05&quot;)</code>
-(the three-term TV split this note instantiates). Discussion of
-motivation, alternatives, and generalizations lives in
-<code>LOGIT_SINGLE_GROUP_SAFE_REGION.md</code>; this document states the
-argument itself.</p>
+safe/unsafe-region machinery) and
+<code>SAFE_UNSAFE_TV_DECOMPOSITION.md</code> (the three-term TV split
+this note instantiates). Discussion of motivation, alternatives, and
+generalizations lives in <code>LOGIT_SINGLE_GROUP_SAFE_REGION.md</code>;
+this document states the argument itself.</p>
 <hr />
 <div id="setup" class="section level2">
 <h2>1. Setup</h2>
@@ -635,8 +635,8 @@ jobs at once.</p>
 <h2>7. Assembled bound</h2>
 <p><span class="math display">\[
 \big\|P^n(x,\cdot)-\pi(\cdot)\big\|_{TV} \;\le\;
-\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{`Chapter-C05`
-heuristic}}
+\underbrace{\big\|P^n_A(x,\cdot)-\pi_A(\cdot)\big\|_{TV}}_{\text{safe/unsafe
+heuristic §7.1}}
 \;+\; 4\,P^n(x,A^c) \;+\; 2\big|\pi(A^c)-P^n(x,A^c)\big|
 \]</span></p>
 <p>with the second term from Proposition 3, the third from the combined
@@ -671,8 +671,9 @@ fuller discussion.</li>
 <li><code>ELLIPSOID_TV_BOUND.md</code> — general safe/unsafe
 decomposition and its logit specialization, of which §2–§3 above are the
 scalar special case.</li>
-<li><code>vignette(&quot;Chapter-C05&quot;)</code> — the three-term TV split
-instantiated in §7.</li>
+<li><code>SAFE_UNSAFE_TV_DECOMPOSITION.md</code> — the three-term TV
+split instantiated in §7, and the computable on-<span class="math inline">\(A\)</span> heuristic (§7.1) its first term
+invokes.</li>
 <li><code>vignette(&quot;Chapter-C03&quot;)</code> — Definition 4’s update-order
 convention, used in §4 to anchor the drift on <span class="math inline">\(\theta\)</span>.</li>
 <li>Rosenthal, J.S. (1995). <em>Minorization conditions and convergence

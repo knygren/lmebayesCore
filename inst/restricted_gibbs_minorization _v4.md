@@ -1,27 +1,4 @@
----
-title: "Chapter C05: Total Variation Bounds for Restricted Two-block Gibbs Samplers"
-author: "Kjell Nygren"
-date: "`r Sys.Date()`"
-output:
-  rmarkdown::html_vignette:
-    toc: true
-    number_sections: false
-vignette: >
-  %\VignetteIndexEntry{Chapter C05: Total Variation Bounds for Restricted Two-block Gibbs Samplers}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-```
-
-```{r setup}
-library(lmebayesCore)
-```
+# Restricted Two-Block Gibbs: Minorization on $C_d$ and Distance to $\pi$
 
 *Draft. This pass carries the full outline, the definitions needed to state the
 main results, and the statements of Theorems 1 and 2. Supporting lemmas, closed
@@ -30,9 +7,9 @@ next.*
 
 ---
 
-# 1. Introduction
+## 1. Introduction
 
-## 1.1 Problem and setting
+### 1.1 Problem and setting
 
 We study a two-block Gibbs sampler for the posterior of a Bayesian hierarchical
 generalized linear mixed model (GLMM), and ask how quickly its distribution after
@@ -51,7 +28,7 @@ restriction of $\pi$ to $C_d$, and this transfers to a bound on distance from th
 minorization constant explicitly, for every choice of tail-mass budget $\delta$,
 under hypotheses satisfied by the package's supported GLM families.
 
-## 1.2 Statement of the main results (informal)
+### 1.2 Statement of the main results (informal)
 
 - **Theorem 1** (§2.4): if a Markov kernel minorizes on $C_d$ with constant
   $\varepsilon_d$ and $\pi(\cdot\mid C_d)$ is stationary for the restricted chain,
@@ -63,7 +40,7 @@ under hypotheses satisfied by the package's supported GLM families.
   precision required, and with a nontrivial limit as the population prior becomes
   flat.
 
-## 1.3 Relation to Rosenthal (1995)
+### 1.3 Relation to Rosenthal (1995)
 
 Theorem 1 is an application of Rosenthal (1995), Proposition 2 (uniform ergodicity
 from a Doeblin condition on the whole restricted state space); see `minor.pdf`,
@@ -73,9 +50,9 @@ rather than an existence argument alone.
 
 ---
 
-# 2. The Conditional Bound
+## 2. The Conditional Bound
 
-## 2.1 Two-block Gibbs sampler and the restricted kernel
+### 2.1 Two-block Gibbs sampler and the restricted kernel
 
 **Definition 1 (state space, restricted kernel).** Let $(\gamma,\beta)\in\mathcal X$
 and let $\pi$ be the two-block Gibbs target on $\mathcal X$. Fix $C_d\subseteq
@@ -101,7 +78,7 @@ $$
 $P_1(\cdot\mid C_d)$ on $C_d$. (Must be verified for the chosen restriction; not
 automatic from stationarity of $\pi$ on $\mathcal X$.)
 
-## 2.2 Total variation and L1 distance
+### 2.2 Total variation and L1 distance
 
 **Definition 3.**
 
@@ -111,7 +88,7 @@ $$
 \|\mu-\nu\|_1:=\int|d\mu-d\nu|=2\|\mu-\nu\|_{TV}.
 $$
 
-## 2.3 Truncation: $\pi(\cdot\mid C_d)$ vs. $\pi$
+### 2.3 Truncation: $\pi(\cdot\mid C_d)$ vs. $\pi$
 
 **Lemma 1 (truncation).** With $\mu:=\pi(\cdot\mid C_d)$ and $\nu:=\pi$,
 
@@ -121,7 +98,7 @@ $$
 \|\pi(\cdot\mid C_d)-\pi\|_1=2\,\pi(C_d^c).
 $$
 
-## 2.4 Theorem 1 — geometric convergence of the restricted chain
+### 2.4 Theorem 1 — geometric convergence of the restricted chain
 
 **Theorem 1.** Under Definitions 1–2 and the standing stationarity assumption, for
 $x\in C_d$ and $n\ge1$,
@@ -145,9 +122,9 @@ posterior), and $P_1=q(\cdot\mid\cdot\,;C)$.
 
 ---
 
-# 3. The Hierarchical GLMM Model
+## 3. The Hierarchical GLMM Model
 
-## 3.1 Model and hypotheses
+### 3.1 Model and hypotheses
 
 Work in the two-block hierarchy of `notation.md` / `model_setup()`:
 
@@ -179,7 +156,7 @@ compacts (formerly (H4)) is carried as a standing assumption — the constructio
 §4–§5 writes the minorizing density down explicitly, so that property is a
 consequence, not an input.
 
-## 3.2 Propriety of the flat-prior posterior
+### 3.2 Propriety of the flat-prior posterior
 
 This subsection supplies **(H1) at $\Lambda_\gamma=0$**, needed because the flat
 limit is not covered by the "bounded likelihood" argument available when
@@ -211,7 +188,7 @@ along them by (P2)+(P3) forcing every such direction to move some $\beta_j$ off 
 finite maximum. (P4) is sufficient but not necessary; the sharp condition is stated
 alongside the proof.)*
 
-## 3.3 The mean map and the marginal $\gamma$-chain
+### 3.3 The mean map and the marginal $\gamma$-chain
 
 In two-block Gibbs, the $\gamma$-marginal is itself Markov, with kernel
 
@@ -243,7 +220,7 @@ y)$ — this identification, and the objects it feeds into ($Q$ in §4, the
 minorization profile in §5), are stated where first needed rather than collected
 here.
 
-## 3.4 Theorem 2 — existence of a certified safe set (statement)
+### 3.4 Theorem 2 — existence of a certified safe set (statement)
 
 **Theorem 2.** Under (H1), (H2), (H3a) — and (H3b) as well if $\Lambda_\gamma=0$ —
 for every $\delta>0$ there exist:
@@ -274,7 +251,7 @@ the joint $(\gamma,\beta)$ chain.
 
 ---
 
-# 4. The Refresh Measure $Q$
+## 4. The Refresh Measure $Q$
 
 The refresh measure is fixed **before** any set is chosen — $Q$ depends only on the
 model, not on a tail-mass budget $\delta$ or a truncation level $d$. Write
@@ -308,7 +285,7 @@ Existence of $\Sigma^\star:=P_{11}^{-1}$ and $\gamma^\star$ — i.e. of $Q$ itse
 what §4.1 and §4.2 establish, for a proper population prior and in the flat-prior
 limit respectively.
 
-## 4.1 Proper population prior ($\Lambda_\gamma\succ0$)
+### 4.1 Proper population prior ($\Lambda_\gamma\succ0$)
 
 **Lemma 4 (the covariance of $Q$ exists).** Assume $\Lambda_\gamma\succ0$. Then
 $P_{11}\succeq\Lambda_\gamma\succ0$, so
@@ -343,7 +320,7 @@ is a nondegenerate multivariate normal probability density, strictly positive an
 continuous on all of $\mathbb R^q$, satisfying (Q1) (by the precision-dominance
 identity above, which holds for every GLM family) and (Q2) (by Lemma 5).
 
-## 4.2 Flat-prior limit ($\Lambda_\gamma\downarrow0$)
+### 4.2 Flat-prior limit ($\Lambda_\gamma\downarrow0$)
 
 Write $\Lambda_\gamma=\tau\bar\Lambda$ for fixed $\bar\Lambda\succeq0$ and $\mu_0$,
 and let $\tau\downarrow0$; write $P_{11}(\tau),\Sigma^\star(\tau),\gamma^\star(\tau),
@@ -415,7 +392,7 @@ constants that degrade as $\tau\downarrow0$ — which is exactly why the preflig
 gates on hyper-design rank and group estimability are necessary, not merely
 prudent, whenever the sampler runs with a flat population prior.
 
-## 4.3 Summary: existence and nondegeneracy of $Q$
+### 4.3 Summary: existence and nondegeneracy of $Q$
 
 $Q=N(\gamma^\star,\Sigma^\star)$ exists and is nondegenerate under (H2)+(H3a), with
 $\Lambda_\gamma\succ0$ needed only to reach it by the shorter argument of §4.1; the
@@ -430,7 +407,7 @@ is §5.
 
 ---
 
-# 5. The Minorization Constant and the Certified Set
+## 5. The Minorization Constant and the Certified Set
 
 With $Q$ fixed by §4, define the log-ratio $g(\gamma'\mid\gamma):=\log q(\gamma'\mid\gamma)-\log q_Q(\gamma')$ — finite and jointly continuous, since both densities are strictly positive and continuous.
 
@@ -448,7 +425,7 @@ $$
 $$
 The certified set is a superlevel set of the very function being minimised for the constant, which is what makes the eventual minimum of $\varepsilon$ over $\widetilde C_d$ land on a *known* value ($\varepsilon_d$) rather than an unrelated number — that identification is §5.3.
 
-## 5.1 The minorization profile $\varepsilon(\gamma)$
+### 5.1 The minorization profile $\varepsilon(\gamma)$
 
 Assume (H2), (H3a), $\Lambda_\gamma\succ0$ throughout §5.1–§5.3; §5.4 relaxes to $\Lambda_\gamma=0$.
 
@@ -464,7 +441,7 @@ under (H3a), so it has at most one minimiser.
 
 **Remark 5.1 (range).** $\varepsilon(\gamma)\le1$ always: $q(\cdot\mid\gamma)\ge\varepsilon(\gamma)q_Q$ integrates to $1\ge\varepsilon(\gamma)$, with equality iff $q(\cdot\mid\gamma)=q_Q$.
 
-## 5.2 Convexity, coercivity, and compactness of $\widetilde C_d$
+### 5.2 Convexity, coercivity, and compactness of $\widetilde C_d$
 
 **Lemma 13 (the deficiency is concave; closed form for both derivatives).** Under (H2), $\mathcal D\in C^2$ with
 $$
@@ -501,7 +478,7 @@ Q(\widetilde C_d)\ \ge\ \Pr(\chi^2_q\le2d),
 $$
 from $\bar\Phi\ge0$ (Lemma 13(2)) via the complementarity identity: the $Q$-ellipsoid of squared radius $2d$ is inscribed in $\widetilde C_d$. Both hold for every GLM family with no closure assumption, and both are tail probabilities of the same statistic $\|\gamma-\gamma^\star\|^2_{P_{11}}\sim\chi^2_q$ under $Q$ — the second bound is what §6 uses for exhaustion (Theorem 2, item 1).
 
-## 5.3 The attained constant $\varepsilon_d$
+### 5.3 The attained constant $\varepsilon_d$
 
 **Lemma 16 (the constant on $\widetilde C_d$ is the attained minimum).** For every $d>0$,
 $$
@@ -521,7 +498,7 @@ $$
 $$
 for all $\gamma\in\widetilde C_d$, $A\subseteq\widetilde C_d$ — both factors now explicit functions of $d$, apart from the single scalar $\varepsilon(\gamma^\star)$ (Lemma 11). (Truncating the refresh Gaussian to $\widetilde C_d$ only *raises* the transition density on the retained region; the mass discount $Q(\widetilde C_d)$ accounts exactly for the $Q$-mass $\varepsilon_d\,Q(\widetilde C_d^{\,c})$ that (a) would have deposited outside $\widetilde C_d$, unavailable to a chain confined there.) This is the pair $(\widetilde C_d,\varepsilon)$ instantiating items 1 and 3 of Theorem 2.
 
-## 5.4 Flat-prior limit ($\Lambda_\gamma\downarrow0$)
+### 5.4 Flat-prior limit ($\Lambda_\gamma\downarrow0$)
 
 Write $\varepsilon(\cdot\mid\tau)$, $\widetilde C_d(\tau)$, $\varepsilon_d(\tau)$ for the objects at prior scale $\tau$ (notation of §4.2); assume (H2), (H3a), (H3b) throughout. Every dependence on $\tau$ in §5.1–§5.3 enters only through $Q_\tau$ — the mixing law $\pi(\beta\mid\gamma,y)$ does not involve $\Lambda_\gamma$ at all — which is what lets each result below carry over from §5.1–§5.3 essentially unchanged, read at $\tau=0$.
 
@@ -545,7 +522,7 @@ for $\gamma\in\widetilde C_d(0)$, $A\subseteq\widetilde C_d(0)$. **Theorem 2 hol
 
 **Remark 5.2 (division of labour between §5.1–§5.3 and §5.4).** Positivity, uniqueness, continuity, convexity, and — crucially — compactness of the certified set need only (H2)+(H3a) and are identical in both regimes, because they rest entirely on $\nabla^2\Psi=\sum_jH_j^\top P_bV_j(\gamma)P_bH_j$, which never involves $\Lambda_\gamma$. (H3b) enters exactly once, to place the centre $\gamma^{\star(0)}$ (Lemma 8); everything downstream of the centre then follows the proper-prior argument verbatim.
 
-## 5.5 Closed form under Gaussian closure
+### 5.5 Closed form under Gaussian closure
 
 **Lemma 22 (closed form for the deficiency; LMM only).** Assume the hypotheses of §5.1–§5.3, and in addition Gaussian closure: $q(\cdot\mid\gamma)=N(M(\gamma),\Sigma)$ with $\Sigma$ not depending on $\gamma$. Then
 $$
@@ -567,11 +544,11 @@ $$
 
 ---
 
-# 6. Proof of Theorem 2
+## 6. Proof of Theorem 2
 
 Two ingredients remain beyond §4–§5: that the certified sets $\widetilde C_d$ exhaust $\mathbb R^q$ as $d\to\infty$, so a set can actually be chosen to meet any tail-mass budget $\delta$; and that restricting the two-block sweep to a set $C$ produces a kernel for which $\pi_\gamma(\cdot\mid C)$ is genuinely stationary — the standing assumption Definition 1 (§2.1) required but did not prove.
 
-## 6.1 Assembly of §4–§5
+### 6.1 Assembly of §4–§5
 
 **Lemma 23 (exhaustion).** Under (H1) and the hypotheses of §5.1–§5.3 (or, at $\Lambda_\gamma=0$, of §5.4), the family $\widetilde C_d$ is nondecreasing in $d$ with $\bigcup_{d>0}\widetilde C_d=\mathbb R^q$. Consequently $\pi_\gamma(\widetilde C_d^{\,c})\downarrow0$ as $d\uparrow\infty$, and for every $\delta>0$ there is $d(\delta)<\infty$ with $\pi_\gamma\bigl(\widetilde C_{d(\delta)}^{\,c}\bigr)<\delta$. (Positivity of $\varepsilon$ pointwise — Lemma 11, or 18 at $\tau=0$ — gives $\Psi(\gamma)<\infty$ for every $\gamma$, hence every point eventually enters $\widetilde C_d$; continuity from above of the probability measure $\pi_\gamma$ finishes it. This is the same pointwise positivity that Lemma 11 already established — no separate tightness argument or compactness input is needed.)
 
@@ -596,7 +573,7 @@ $$
 $$
 The minorization constant degrades only **polynomially** in the tail-mass budget $\delta$, with exponent $\rho$ measuring the mismatch between the posterior's spread and the refresh metric $P_{11}$ — cheap whenever $\rho=O(1)$. The metric here is $P_{11}\succeq P_{11}^{\mathrm{RE}}\succ0$, not $\Lambda_\gamma$, so unlike an envelope built from the prior alone, this survives the flat-prior limit under (H3a). Under Gaussian closure, $\rho=(1-\kappa)^{-1}$ exactly (Lemma 22, §5.5).
 
-## 6.2 Lifting to the joint $(\gamma,\beta)$ chain
+### 6.2 Lifting to the joint $(\gamma,\beta)$ chain
 
 Theorem 2 and its proof concern only the $\gamma$-marginal chain. The following closes the gap to the full two-block state space at no cost in rate.
 
@@ -612,21 +589,21 @@ Every bound proved for the $\gamma$-chain therefore transfers to the joint chain
 
 ---
 
-# 7. Scope and Extensions
+## 7. Scope and Extensions
 
 *(Content to follow.)*
 
-## 7.1 Symmetric case: sharper constants
+### 7.1 Symmetric case: sharper constants
 
-## 7.2 What is and is not certified
+### 7.2 What is and is not certified
 
-## 7.3 Open problems
+### 7.3 Open problems
 
 ---
 
-# Appendix — Proofs
+## Appendix — Proofs
 
-## A.1 Proofs for §3.2 (propriety of the flat-prior posterior) and §3.3 (mean map)
+### A.1 Proofs for §3.2 (propriety of the flat-prior posterior) and §3.3 (mean map)
 
 **Proof of Lemma 2 (propriety of the flat-$\gamma$ posterior).**
 
@@ -641,7 +618,6 @@ $$
 (the max is attained since $\ell_j^\infty$ is concave, positively homogeneous, and u.s.c. on the compact unit sphere). This is exactly "finite, unique MLE with positive IRLS weights" — no separation, no flat direction.
 
 *3. Every direction recedes.* Fix $(d_\gamma,d_\beta)\ne0$.
-
 - *Case A: $d_{\beta,j}\ne H_jd_\gamma$ for some $j$.* The quadratic term $-\frac12\sum_j\|\beta_j+td_{\beta,j}-H_j(\gamma+td_\gamma)\|^2_{P_b}$ decreases quadratically in $t$ (since $P_b\succ0$), while $\sum_j\ell_j$ is bounded above by Step 1. So $g\to-\infty$ quadratically.
 - *Case B: $d_{\beta,j}=H_jd_\gamma$ for all $j$.* The quadratic term is constant along the ray — the only direction propriety can fail. Since $d_\gamma\ne0$ here (else $d_\beta=0$, excluded), (P3) gives some $j_0$ with $H_{j_0}d_\gamma\ne0$; by Step 2, $\ell_{j_0}(\beta_{j_0}+tH_{j_0}d_\gamma)\to-\infty$ at least linearly with slope $\le-c_{j_0}\|H_{j_0}d_\gamma\|$, while every other $\ell_k$ stays bounded above. So $g\to-\infty$ at least linearly.
 
@@ -669,7 +645,7 @@ $$
 
 ---
 
-## A.2 Proofs for §4
+### A.2 Proofs for §4
 
 **Proof of Lemma 4 (the covariance of $Q$ exists).** $P_{11}^{\mathrm{RE}}$ is a sum of terms $H_j^\top P_bH_j\succeq0$, so $P_{11}\succeq\Lambda_\gamma\succ0$; inverting reverses the order. $\blacksquare$ (No rank condition is used: a proper prior supplies invertibility on its own.)
 
@@ -680,20 +656,17 @@ $$
 **Proof of Lemma 7 (the limiting covariance exists iff (H3a)).** Monotonicity of $P_{11}(\tau)=\tau\bar\Lambda+P_{11}^{\mathrm{RE}}$ in $\tau$ is immediate, and inversion reverses the psd order. Under (H3a), $P_{11}^{\mathrm{RE}}$ is nonsingular and matrix inversion is continuous there, giving $\Sigma^\star(\tau)\to\Sigma^{\star(0)}$. Without (H3a): for $0\ne v\in\ker P_{11}^{\mathrm{RE}}$, Cauchy–Schwarz gives $(v^\top v)^2=(v^\top P_{11}^{1/2}P_{11}^{-1/2}v)^2\le(v^\top P_{11}v)(v^\top P_{11}^{-1}v)$, so $v^\top\Sigma^\star(\tau)v\ge(v^\top v)^2/(\tau\,v^\top\bar\Lambda v)\to\infty$. $\blacksquare$ ($\Sigma^{\star(0)}=(P_{11}^{\mathrm{RE}})^{-1}$ is the GLS covariance for the hyper-regression of the random effects on the hyper-design with weight $\Psi^{-1}$; the prior term drops out of $M$ entirely in the limit.)
 
 **Proof of Lemma 8 (the limiting centre is a finite vector).**
-
 *Coercivity.* Under (H2)+(H3a)+(H3b), Lemma 2 (§3.2/A.1) makes the flat-limit joint posterior proper, and its Step 4 supplies an exponential envelope $e^{-c\|x-x_0\|}$; marginalizing, $\Phi_0$ grows at least linearly and is coercive. A convex coercive function attains its minimum.
-
 *Uniqueness.* $\nabla^2\Phi_0=P_{11}^{\mathrm{RE}}-\sum_jH_j^\top P_bV_jP_bH_j\succeq0$ always (Lemma 3(a)–(b)); strict positivity — needed for uniqueness — holds wherever the group conditional covariances $V_j$ sit strictly below their Brascamp–Lieb ceiling $P_b^{-1}$. This is supplied, with no measure-zero exclusion, by (P2) — $Z_j$ full column rank for every $j$, already part of Lemma 2's hypotheses (`groupef.rank`) — together with (H2)'s requirement that the GLM weights $w_{j,i}(\eta)>0$ at every finite $\eta$ (true for every canonical-link family, e.g. $\mu(1-\mu)>0$ for logit, $\mu=e^\eta>0$ for Poisson-log). With $V(\beta_j):=-\ell_j(\beta_j)+\frac12(\beta_j-H_j\gamma)^\top P_b(\beta_j-H_j\gamma)$, Brascamp–Lieb's variance formula gives, for any $a$, $a^\top V_j(\gamma)a=\mathrm{Var}_\pi(a^\top\beta_j)\le E_\pi[a^\top(\nabla^2V(\beta_j))^{-1}a]$ — requiring only $\nabla^2V\succ0$ a.e., not a uniform lower bound. Since $\nabla^2V(\beta_j)=Z_j^\top\mathrm{diag}(w(\eta_j))Z_j+P_b$ and $Z_j$ has full column rank with $w>0$ at every finite $\eta_j$, $\nabla^2V(\beta_j)\succ P_b$ — strictly, at *every* finite $\beta_j$, not almost every — so $(\nabla^2V(\beta_j))^{-1}\prec P_b^{-1}$ pointwise everywhere; taking $E_\pi$ of a pointwise-strict inequality under a measure of full support preserves strictness, giving $V_j(\gamma)\prec P_b^{-1}$ as a matrix inequality. For $v\ne0$, (H3a) gives some $j_0$ with $H_{j_0}v\ne0$, and $v^\top\nabla^2\Phi_0v\ge(P_bH_{j_0}v)^\top(P_b^{-1}-V_{j_0}(\gamma))(P_bH_{j_0}v)>0$. So $\nabla^2\Phi_0(\gamma)\succ0$ for every $\gamma$, and a strictly convex coercive function has a unique minimiser.
-
 *Convergence of the modes.* $\Phi_\tau(\gamma)=\Phi_0(\gamma)+\frac\tau2(\gamma-\mu_0)^\top\bar\Lambda(\gamma-\mu_0)\ge\Phi_0(\gamma)$, so minimality gives $\Phi_0(\gamma^\star(\tau))\le\Phi_\tau(\gamma^\star(\tau))\le\Phi_\tau(\gamma^{\star(0)})=\Phi_0(\gamma^{\star(0)})+C\tau$ with $C=\frac12(\gamma^{\star(0)}-\mu_0)^\top\bar\Lambda(\gamma^{\star(0)}-\mu_0)$. Every $\gamma^\star(\tau)$ therefore lies in the sublevel set $\{\Phi_0\le\Phi_0(\gamma^{\star(0)})+C\tau\}$, bounded by coercivity; any limit point $\bar\gamma$ satisfies $\Phi_0(\bar\gamma)\le\Phi_0(\gamma^{\star(0)})$ by continuity, hence $\bar\gamma=\gamma^{\star(0)}$ by uniqueness, and a bounded family with one limit point converges. $\blacksquare$
 
-*(Why Banach is unavailable here. At $\tau=0$, Lemma 3(c) leaves only $\kappa\le1$, and for families whose GLM weights vanish in the tails — logit, probit at large $|\eta|$ — one has $\sup_\gamma\kappa(\gamma)=1$ exactly, so the contraction argument gives nothing globally; Lemma 8 is the variational replacement. If uniform group curvature $-\nabla^2\ell_j\succeq\epsilon_jP_b$ is assumed, Lemma 3(c) instead gives the prior-free ceiling $\kappa_0\le1/(1+\min_j\epsilon_j)<1$ and Banach is restored with a rate that does not degrade as $\tau\downarrow0$.)*
+*(Why Banach is unavailable here.* At $\tau=0$, Lemma 3(c) leaves only $\kappa\le1$, and for families whose GLM weights vanish in the tails — logit, probit at large $|\eta|$ — one has $\sup_\gamma\kappa(\gamma)=1$ exactly, so the contraction argument gives nothing globally; Lemma 8 is the variational replacement. If uniform group curvature $-\nabla^2\ell_j\succeq\epsilon_jP_b$ is assumed, Lemma 3(c) instead gives the prior-free ceiling $\kappa_0\le1/(1+\min_j\epsilon_j)<1$ and Banach is restored with a rate that does not degrade as $\tau\downarrow0$.)*
 
 **Proof of Corollary 9 (the limiting refresh density exists).** Nondegeneracy is Lemma 7 plus finiteness of $\gamma^{\star(0)}$ (Lemma 8). Since $\gamma^\star(\tau)\to\gamma^{\star(0)}$ and $\Sigma^\star(\tau)\to\Sigma^{\star(0)}\succ0$, the Gaussian densities converge pointwise; both are probability densities, so Scheffé's lemma gives $L^1$ (equivalently TV) convergence. $\blacksquare$
 
 ---
 
-## A.3 Proofs for §5
+### A.3 Proofs for §5
 
 Throughout §5.1–§5.3, assume (H2), (H3a), $\Lambda_\gamma\succ0$, so $Q$ exists by Corollary 6.
 
@@ -775,7 +748,7 @@ expanding both triple products using $\Lambda_Q=\Lambda_q+\Delta$. Since $\Lambd
 
 ---
 
-## A.4 Proof of Theorem 2
+### A.4 Proof of Theorem 2
 
 **Proof of Lemma 23 (exhaustion).** $\varepsilon(\gamma)>0$ for every $\gamma$ (Lemma 11, or 18 at $\tau=0$), so $\Psi(\gamma)<\infty$ for every $\gamma$, and every $\gamma$ lies in $\widetilde C_d$ once $d\ge\Psi(\gamma)$ — this gives monotonicity and $\bigcup_d\widetilde C_d=\mathbb R^q$. Since $\pi_\gamma$ is a probability measure (H1) and $\widetilde C_d^{\,c}$ is nonincreasing with empty intersection, continuity from above gives $\pi_\gamma(\widetilde C_d^{\,c})\to0$. The explicit envelope $\pi_\gamma(\widetilde C_d^{\,c})\le\pi_\gamma(\|\gamma-\gamma^\star\|^2_{P_{11}}>2d)$ is the complementarity identity ($\Psi\le\frac12\|\cdot-\gamma^\star\|^2_{P_{11}}$, i.e. $\bar\Phi\ge0$) of Lemma 13(3). $\blacksquare$
 
@@ -785,7 +758,7 @@ expanding both triple products using $\Lambda_Q=\Lambda_q+\Delta$. Since $\Lambd
 
 ---
 
-# References
+## References
 
 - Rosenthal, J. S. (1995). Minorization conditions and convergence rates for Markov
   chain Monte Carlo. *JASA* 90, 558–566.

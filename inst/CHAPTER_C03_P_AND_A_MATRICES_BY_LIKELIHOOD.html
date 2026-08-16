@@ -576,8 +576,8 @@ and <span class="math inline">\(P_b \succ 0\)</span>, hence <span class="math in
 is estimable (the sum <span class="math inline">\(\sum_j H_j^\top P_b
 H_j\)</span> is not rank-deficient relative to the prior).</p>
 </div>
-<div id="i.6-two-eigenvalue-stories-do-not-conflate" class="section level3">
-<h3>I.6 Two eigenvalue stories (do not conflate)</h3>
+<div id="i.6-mixing-rate-vs.-other-curvature-constraints" class="section level3">
+<h3>I.6 Mixing rate vs. other curvature constraints</h3>
 <table>
 <colgroup>
 <col width="25%" />
@@ -596,7 +596,7 @@ H_j\)</span> is not rank-deficient relative to the prior).</p>
 <tbody>
 <tr class="odd">
 <td><strong>Mixing rate</strong> <span class="math inline">\(\lambda^\star &lt; 1\)</span></td>
-<td><span class="math inline">\(A\)</span> via <span class="math inline">\(P_{22}^{-1}\)</span></td>
+<td>Rate matrix <span class="math inline">\(A\)</span> via <span class="math inline">\(P_{22}^{-1}\)</span></td>
 <td><span class="math inline">\(\lambda^\star \uparrow 1\)</span></td>
 <td><span class="math inline">\(\mathcal{W}_j\)</span> <strong>too
 small</strong> (data precision <span class="math inline">\(\to
@@ -604,37 +604,12 @@ small</strong> (data precision <span class="math inline">\(\to
 P_b\)</span>, large <span class="math inline">\(P_{22}^{-1}\)</span>,
 strong coupling</td>
 </tr>
-<tr class="even">
-<td><strong>Safe region</strong> (pilot ceiling)</td>
-<td><span class="math inline">\(\mathcal{W}_j\)</span> or <span class="math inline">\(\lambda_{\max}(D_j&#39;\,\mathrm{diag}(c(\eta))\,D_j)\)</span></td>
-<td>eigenvalues <strong>too large</strong></td>
-<td>Coefficients / <span class="math inline">\(\eta\)</span> in tail
-where <span class="math inline">\(c(\eta)\)</span> or <span class="math inline">\(w_i\)</span> exceeds ceiling —
-<strong>one-sided</strong> for Poisson/cloglog,
-<strong>two-sided</strong> for logit</td>
-</tr>
 </tbody>
 </table>
-<p>Remark 10 (Chapter-C03): any <strong>upper bound</strong> on <span class="math inline">\(P_{22}\)</span> may replace the true <span class="math inline">\(P_{22}\)</span> in TV bounds. For
-<strong>rate</strong> certification, one evaluates <span class="math inline">\(A\)</span> at a working point or uses a comparison
-Gaussian with bounded <span class="math inline">\(P_{22}\)</span>.</p>
-<p><strong>Multivariate pilot-ceiling template (curvature too
-large).</strong> For group <span class="math inline">\(j\)</span>, let
-<span class="math display">\[
-\mathcal{C}_j(\beta_j) \;:=\; Z_j^\top W_j Z_j
-\;=\; \mathcal{W}_j.
-\]</span> Define the <strong>ceiling-safe</strong> set (curvature below
-pilot ceiling <span class="math inline">\(M_j^{\mathrm{pilot}}\)</span>): <span class="math display">\[
-\mathcal{C}_{M,j} \;:=\; \bigl\{\beta_j :
-\lambda_{\max}(\mathcal{C}_j(\beta_j)) \le M_j^{\mathrm{pilot}}\bigr\},
-\qquad
-\mathcal{C}_M \;:=\; \bigcap_{j=1}^{J} \mathcal{C}_{M,j}.
-\]</span> This is a <strong>separate</strong> constraint from the rate
-partition <span class="math inline">\(A / A^c\)</span> in Part IV
-(eigenvalues of <span class="math inline">\(\mathcal{W}_j\)</span>
-<strong>too large</strong> vs. group-average rate too high). Geometry of
-<span class="math inline">\((\mathcal{C}_M)^c\)</span> depends on how
-<span class="math inline">\(w_i(\eta_i)\)</span> varies with <span class="math inline">\(\eta\)</span> (see per-likelihood sections).</p>
+<p>Part IV below develops the <strong>rate partition</strong> <span class="math inline">\(A / A^c\)</span> from <span class="math inline">\(\lambda^\star\)</span> (average shrinkage too
+high). Pilot eigenvalue <strong>ceilings</strong> on <span class="math inline">\(\mathcal{W}_j\)</span> (too large) appear in
+<code>ELLIPSOID_TV_BOUND.md</code> and are <strong>not</strong> part of
+that partition.</p>
 <hr />
 </div>
 </div>
@@ -845,7 +820,7 @@ needed.</p></li>
 Because <span class="math inline">\(\lambda^\star\)</span> is constant,
 Normal offers the <strong>only</strong> likelihood in this note where
 one can make <span class="math inline">\(A^c = \varnothing\)</span> by
-prior/design/threshold choice alone. GLMs have <span class="math inline">\(\lambda^\star(\beta)\)</span> and <span class="math inline">\(A^c\)</span> depending on <span class="math inline">\(\beta\)</span>; see §IV.6.</p></li>
+prior/design/threshold choice alone. GLMs have <span class="math inline">\(\lambda^\star(\beta)\)</span> and <span class="math inline">\(A^c\)</span> depending on <span class="math inline">\(\beta\)</span>; see §IV.5.</p></li>
 </ol>
 <p><strong>Why this case still matters.</strong> Normal is the
 <strong>reference template</strong> for §2.4–§6 and Part IV: same <span class="math inline">\(P\)</span>-block layout, but <span class="math inline">\(W_j\)</span> replaced by likelihood-specific sums.
@@ -1064,7 +1039,16 @@ w_{j,i}(\eta_{j,i})\)</span>.</p>
 <p><span class="math display">\[
 w_i = n_i \,\frac{\exp(2\eta_i)\,(1-\mu_i)}{\mu_i}.
 \]</span></p>
-<p>As <span class="math inline">\(\eta_i \to -\infty\)</span>: <span class="math inline">\(w_i \to 0\)</span>. As <span class="math inline">\(\eta_i \to +\infty\)</span>: <span class="math inline">\(w_i \to n_i\)</span>.</p>
+<p>As <span class="math inline">\(\eta_i \to -\infty\)</span>: <span class="math inline">\(\mu_i \to 0\)</span>, <span class="math inline">\(w_i \to 0\)</span>. As <span class="math inline">\(\eta_i \to +\infty\)</span>: <span class="math inline">\(\mu_i \to 1\)</span>, <span class="math inline">\(1-\mu_i = \exp(-\exp(\eta_i))\)</span>, and <span class="math inline">\(w_i \sim n_i\,\exp(2\eta_i - \exp(\eta_i)) \to
+0\)</span> (Fisher weight decays at <strong>both</strong> tails; the old
+<span class="math inline">\(w_i\to n_i\)</span> limit used the wrong
+link).</p>
+<p><strong>Observed Hessian (mixed binomial).</strong> With both
+successes and failures, <span class="math inline">\(\mathcal
+H_{\mathrm{total}}\to 0\)</span> only as <span class="math inline">\(\eta\to-\infty\)</span>; as <span class="math inline">\(\eta\to+\infty\)</span>, <span class="math inline">\(\partial^2\ell/\partial\eta^2\sim -n_0 e^{\eta}\to
+-\infty\)</span> when <span class="math inline">\(n_0&gt;0\)</span>.
+Fisher weight and observed flattening <strong>diverge</strong> on the
+upper tail — unlike probit (Mills ratio).</p>
 </div>
 <div id="multivariate-p-blocks-3" class="section level3">
 <h3>4.2 Multivariate <span class="math inline">\(P\)</span>-blocks</h3>
@@ -1073,11 +1057,15 @@ z_{j,i}^\top\)</span>.</p>
 </div>
 <div id="multivariate-eigenvalue-conditions-3" class="section level3">
 <h3>4.3 Multivariate eigenvalue conditions</h3>
-<p><strong>Mixing.</strong> <span class="math inline">\(\mathcal{W}_j
-\to 0\)</span> on the <strong>lower</strong> <span class="math inline">\(\eta\)</span>-tail (one-sided).</p>
-<p><strong>Safe region (ceiling — eigenvalues too large).</strong> <span class="math inline">\(\lambda_{\max}(\mathcal{W}_j) &gt;
-M_j^{\mathrm{pilot}}\)</span> occurs on the <strong>upper</strong> <span class="math inline">\(\eta\)</span>-tail (one-sided <span class="math inline">\((\mathcal{C}_M)^c\)</span>). Lower tail is the
-mixing problem, not the ceiling problem.</p>
+<p><strong>Mixing (rate partition).</strong> <span class="math inline">\(\mathcal{W}_j \to 0\)</span> on the
+<strong>lower</strong> <span class="math inline">\(\eta\)</span>-tail
+(observed and Fisher aligned). Fisher <span class="math inline">\(\mathcal{W}_j \to 0\)</span> also as <span class="math inline">\(\eta\to+\infty\)</span>, so <span class="math inline">\(\omega_j\uparrow 1\)</span> there in the
+<strong>rate</strong> formula even though observed curvature
+<strong>diverges</strong> when failures are present — interpret <span class="math inline">\(A/A^c\)</span> with this asymmetry
+(<code>CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md</code> §1.4.5).</p>
+<p><strong>Safe region (ceiling).</strong> <span class="math inline">\(w_i\)</span> is bounded above (<span class="math inline">\(\lesssim 0.65\,n_i\)</span>); pilot ceilings are
+typically inactive. The binding Prop 1 issue is <strong>too-small
+observed curvature on the lower tail</strong>, not an upper-<span class="math inline">\(\eta\)</span> Fisher blow-up.</p>
 </div>
 <div id="specialization-scalar-p_11-diagonal-p_22-3" class="section level3">
 <h3>4.4 Specialization: scalar <span class="math inline">\(P_{11}\)</span>, diagonal <span class="math inline">\(P_{22}\)</span></h3>
@@ -1302,57 +1290,48 @@ P_{11}^{-1/2}\)</span></td>
 <h3>III.2 Per-likelihood weights and safe-region geometry</h3>
 <table>
 <colgroup>
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Likelihood</th>
 <th><span class="math inline">\(w_i\)</span></th>
-<th>Ceiling <span class="math inline">\((\mathcal{C}_M)^c\)</span>
-(eigenvalues <strong>too large</strong>)</th>
-<th>Mixing risk (<span class="math inline">\(\mathcal{W}_j\)</span>
-<strong>too small</strong>; <span class="math inline">\(A^c\)</span>)</th>
+<th>Rate <span class="math inline">\(A^c\)</span> (mixing; <span class="math inline">\(\mathcal{W}_j\)</span> <strong>too
+small</strong>)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>Normal</td>
 <td><span class="math inline">\(1/\phi\)</span></td>
-<td>only if <span class="math inline">\(\phi\)</span> varies</td>
-<td><span class="math inline">\(\phi \to \infty\)</span></td>
+<td>only if <span class="math inline">\(\phi \to \infty\)</span></td>
 </tr>
 <tr class="even">
 <td>Logit</td>
 <td><span class="math inline">\(n_i p(1-p)\)</span></td>
-<td>bounded (<span class="math inline">\(\le n_i/4\)</span>)</td>
 <td>both tails, separation</td>
 </tr>
 <tr class="odd">
 <td>Probit</td>
 <td><span class="math inline">\(n_i \phi^2/(\Phi\Phi)\)</span></td>
-<td>bounded (<span class="math inline">\(\le 2n_i/\pi\)</span>)</td>
 <td>mostly lower tail</td>
 </tr>
 <tr class="even">
 <td>Cloglog</td>
 <td><span class="math inline">\(n_i e^{2\eta}(1-\mu)/\mu\)</span></td>
-<td><strong>upper</strong> tail (one-sided)</td>
 <td>lower tail</td>
 </tr>
 <tr class="odd">
 <td>Poisson</td>
 <td><span class="math inline">\(e^{\eta_i}\)</span></td>
-<td><strong>upper</strong> tail (one-sided)</td>
 <td>lower tail</td>
 </tr>
 <tr class="even">
 <td>Gamma (log)</td>
 <td><span class="math inline">\(1/\phi\)</span></td>
-<td>only if <span class="math inline">\(\phi\)</span> varies</td>
-<td><span class="math inline">\(\phi \to \infty\)</span></td>
+<td>only if <span class="math inline">\(\phi \to \infty\)</span></td>
 </tr>
 </tbody>
 </table>
@@ -1418,9 +1397,7 @@ distinguishes matrix from set). Equivalently, <span class="math inline">\(\lambd
 notes.</p>
 <p>This is where Remark-8 certifies contraction at rate strictly below
 <span class="math inline">\(1\)</span> on <span class="math inline">\(A\)</span> (Corollary 1 of
-<code>Chapter-C03</code>). The pilot <strong>ceiling</strong> set <span class="math inline">\(\mathcal{C}_M\)</span> from §I.6 is a separate
-constraint (curvature too <strong>large</strong>); the two are combined
-in §IV.5.</p>
+<code>Chapter-C03</code>).</p>
 <div id="iv.1-general-construction-multivariate" class="section level3">
 <h3>IV.1 General construction (multivariate)</h3>
 <ol style="list-style-type: decimal">
@@ -1566,13 +1543,10 @@ A = \{\beta : \bar\omega(\beta) &lt; \tau/\lambda_b\},
 A^c = \{\beta : \bar\omega(\beta) \ge \tau/\lambda_b\}.
 \]</span> Each <span class="math inline">\(\omega_j\)</span> is that
 group’s shrinkage weight; <span class="math inline">\(A^c\)</span> is
-where their <strong>mean</strong> is too large. Poisson/cloglog may also
-require <span class="math inline">\((\mathcal{C}_M)^c\)</span> (§IV.5);
-logit <span class="math inline">\(A^c\)</span> is typically
+where their <strong>mean</strong> is too large. Logit <span class="math inline">\(A^c\)</span> is typically
 <strong>two-sided</strong> in <span class="math inline">\(\eta\)</span>
 (separation lowers <span class="math inline">\(W_j\)</span>, raising
-<span class="math inline">\(\omega_j\)</span>), while the ceiling set is
-often inactive.</p>
+<span class="math inline">\(\omega_j\)</span>).</p>
 </div>
 <div id="iv.3-per-likelihood-building-a-example-tau-0.95" class="section level3">
 <h3>IV.3 Per likelihood: building <span class="math inline">\(A\)</span>
@@ -1633,18 +1607,16 @@ b^\star(\kappa)\)</span> with <span class="math inline">\(\kappa\)</span> from <
 <td><span class="math inline">\(\sum_i n_{j,i}\,
 e^{2\eta}(1-\mu)/\mu\)</span></td>
 <td>Same average for <span class="math inline">\(A\)</span>; lower
-floors on <span class="math inline">\(\eta\)</span>. Upper cap <span class="math inline">\(W_j \le M_j\)</span> for <span class="math inline">\(\mathcal{C}_M\)</span>.</td>
-<td>Lower tail for <span class="math inline">\(A^c\)</span>;
-<strong>upper</strong> for <span class="math inline">\((\mathcal{C}_M)^c\)</span></td>
+floors on <span class="math inline">\(\eta\)</span> (§IV.3 Poisson
+detail).</td>
+<td>Lower tail</td>
 </tr>
 <tr class="even">
 <td><strong>Poisson</strong></td>
 <td><span class="math inline">\(\sum_i e^{\eta_{j,i}}\)</span></td>
 <td>Same average; sufficient lower floors <span class="math inline">\(e^{\eta_{j,i}} \ge s_j &gt; 0\)</span> with <span class="math inline">\((1/J)\sum_j 1/(\lambda_b + n_j s_j) &lt;
-c_{0.95}\)</span> (tune <span class="math inline">\(s_j\)</span>). Upper
-cap on <span class="math inline">\(W_j\)</span> for <span class="math inline">\(\mathcal{C}_M\)</span>.</td>
-<td>Lower tail for <span class="math inline">\(A^c\)</span>;
-<strong>upper</strong> for <span class="math inline">\((\mathcal{C}_M)^c\)</span></td>
+c_{0.95}\)</span> (tune <span class="math inline">\(s_j\)</span>).</td>
+<td>Lower tail</td>
 </tr>
 </tbody>
 </table>
@@ -1658,15 +1630,19 @@ c_{0.95}.
 |\eta_{j,i}(\beta)| \le b^\star(\kappa)\ \forall j,i\}\)</span>
 (equivalently, that box is a <strong>sufficient inner</strong> subset of
 the safe region).</p>
-<p><strong>Poisson detail.</strong> Lower floors: choose <span class="math inline">\(s &gt; 0\)</span> with <span class="math display">\[
-\frac{1}{J}\sum_{j=1}^{J} \frac{1}{\lambda_b + n_j s} \;&lt;\; c_{0.95}
-\]</span> (equal <span class="math inline">\(s\)</span> per observation
-if <span class="math inline">\(z=1\)</span>). Then <span class="math inline">\(\eta_{j,i} \ge \log s\)</span> is a
-<strong>sufficient</strong> inner region. Upper ceiling (separate):
-<span class="math inline">\(W_j \le M_j^{\mathrm{pilot}}\)</span>,
-i.e. <span class="math inline">\(\sum_i e^{\eta_{j,i}} \le
-M_j^{\mathrm{pilot}}\)</span> — <strong>one-sided upper</strong> strip
-when combined with the lower floor.</p>
+<p><strong>Poisson detail.</strong> Lower floors: choose <span class="math inline">\(s_j &gt; 0\)</span> for each group with <span class="math display">\[
+\frac{1}{J}\sum_{j=1}^{J} \frac{1}{\lambda_b + n_j s_j} \;&lt;\;
+c_{0.95}.
+\]</span> Then <span class="math inline">\(\eta_{j,i} \ge \log
+s_j\)</span> for all <span class="math inline">\(i \in j\)</span> (when
+<span class="math inline">\(z_{j,i}=1\)</span>, <span class="math inline">\(\beta_j \ge \log s_j\)</span>) is a
+<strong>sufficient</strong> inner region for <span class="math inline">\(A\)</span>. Tune <span class="math inline">\(s_j\)</span> separately when <span class="math inline">\(n_j\)</span> or offsets differ. <strong>Special
+case:</strong> equal <span class="math inline">\(n_j\)</span>,
+exchangeable groups, and <span class="math inline">\(z=1\)</span> allow
+a common <span class="math inline">\(s_j \equiv s\)</span>, reducing the
+average to <span class="math inline">\(1/(\lambda_b + n s) &lt;
+c_{0.95}\)</span> and <span class="math inline">\(\beta_j \ge \log
+s\)</span> for all <span class="math inline">\(j\)</span>.</p>
 </div>
 <div id="iv.4-multivariate-p_mathrmre-1-or-q-1" class="section level3">
 <h3>IV.4 Multivariate (<span class="math inline">\(p_{\mathrm{re}} &gt;
@@ -1683,49 +1659,8 @@ when combined with the lower floor.</p>
 <span class="math inline">\(\lambda_{\max}(A)\)</span> stays <span class="math inline">\(&lt; \tau\)</span>.</li>
 </ol>
 </div>
-<div id="iv.5-combining-a-and-the-pilot-ceiling-mathcalc_m" class="section level3">
-<h3>IV.5 Combining <span class="math inline">\(A\)</span> and the pilot
-ceiling <span class="math inline">\(\mathcal{C}_M\)</span></h3>
-<table>
-<colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Constraint</th>
-<th>Meaning</th>
-<th>Poisson example</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><span class="math inline">\(A\)</span>: <span class="math inline">\(\lambda^\star &lt; 0.95\)</span></td>
-<td>Fast enough Gibbs on <span class="math inline">\(\gamma\)</span></td>
-<td><span class="math inline">\(\eta\)</span> not too
-<strong>small</strong> (<span class="math inline">\(W_j \gg 0\)</span>);
-<span class="math inline">\(A^c\)</span> when average too high</td>
-</tr>
-<tr class="even">
-<td><span class="math inline">\(\mathcal{C}_M\)</span>: <span class="math inline">\(\lambda_{\max}(\mathcal{W}_j) \le
-M_j^{\mathrm{pilot}}\)</span></td>
-<td>Data precision not too <strong>large</strong></td>
-<td><span class="math inline">\(\eta\)</span> not too
-<strong>large</strong></td>
-</tr>
-</tbody>
-</table>
-<p>For TV bounds (<code>Chapter-C05</code>), use <span class="math display">\[
-A^{\mathrm{TV}} \;:=\; A \;\cap\; \mathcal{C}_M,
-\qquad
-(A^{\mathrm{TV}})^c \;=\; A^c \;\cup\; (\mathcal{C}_M)^c.
-\]</span> Logit: <span class="math inline">\((\mathcal{C}_M)^c\)</span>
-often inactive (<span class="math inline">\(w_i \le n_i/4\)</span>).
-Poisson/cloglog: need <strong>both</strong> bounds (strip in <span class="math inline">\(\eta\)</span>). Normal/Gamma(log): only <span class="math inline">\(A / A^c\)</span>.</p>
-</div>
-<div id="iv.6-choosing-tau-global-certification-normal-vs.-small-ac-glm" class="section level3">
-<h3>IV.6 Choosing <span class="math inline">\(\tau\)</span>: global
+<div id="iv.5-choosing-tau-global-certification-normal-vs.-small-ac-glm" class="section level3">
+<h3>IV.5 Choosing <span class="math inline">\(\tau\)</span>: global
 certification (Normal) vs. small <span class="math inline">\(A^c\)</span> (GLM)</h3>
 <p>The certification threshold <span class="math inline">\(\tau\)</span>
 and the priors/design are chosen <strong>together</strong>. The
@@ -1850,8 +1785,8 @@ box</td>
 <li><code>R/two_block_ergodicity.R</code> —
 <code>.two_block_S_P11()</code>,
 <code>.two_block_gen_eigen()</code>.</li>
-<li><code>inst/ELLIPSOID_TV_BOUND.md</code> — pilot ceiling safe regions
-by likelihood.</li>
+<li><code>inst/ELLIPSOID_TV_BOUND.md</code> — TV split and alternate
+safe-region definitions.</li>
 <li><code>inst/P_MATRIX_MARGINAL_PRECISIONS.md</code> — extended <span class="math inline">\(P\)</span>-blocks with dispersion priors.</li>
 </ul>
 </div>

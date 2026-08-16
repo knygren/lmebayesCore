@@ -8,10 +8,21 @@ Part IV (average shrinkage / \(\lambda^\star\)).
 
 **Status.** Draft. §1–§6 give likelihood-specific bounds on
 \(\pi(A^c \mid \gamma, y)\) (tilted-Gaussian tails via certified inner boxes).
-§8–§11 complete the Markov-chain argument: Foster–Lyapunov drift on
-\(\gamma\), bounds on \(P^n(x, A^c)\) and \(\pi(A^c)\), coupling gap, and
-assembled TV. Normal and Gamma(log) are trivial (\(A^c = \varnothing\) when
-certified). Open items in §13.
+These **§1–§6 / §2.2** bounds are **posterior-analytic** and do **not** use
+Foster–Lyapunov drift.
+
+**§8–§11 (Markov chain: drift, escape, coupling gap, TV)** are **invalid**
+for logit/GLM when \(A^c \neq \varnothing\). §8.3 claims geometric drift on
+\(V(\gamma)\); that is **false** in the regime this note is about: the Gibbs
+chain can **get stuck in the tail** (separation, \(\omega_j \uparrow\),
+\(W_j \downarrow\)), which is exactly why \(A^c\) exists and Remark-8
+contraction fails there. A Foster–Lyapunov inequality that ignores tail
+stickiness cannot bound escape or pull the chain back from \(A^c\). The small
+set \(C_d\) with \(d > 2C_{\mathrm{drift}}/(1-\lambda_{\mathrm{drift}})\) (§10.1)
+and gap \(|\pi(A^c)-P^n(x,A^c)|\) (§10.2) **presuppose** that false drift.
+Treat §8–§11 as **withdrawn template** for logit. **Valid:** §1–§6
+(tilted-Gaussian tails) and `LOGIT_STATIC_TAIL_CERTIFICATION.md`. Normal /
+Gamma(log) trivial when certified \(A^c = \varnothing\). Open program §13.
 
 **Companion notes.**
 
@@ -194,8 +205,8 @@ valid choices of \(B\) yield different upper bounds; optimize \(b^\star\) (or
 asymmetric per-group margins) subject to \(B \subseteq A\).
 
 **Poisson / cloglog (lower floors).** Pick margins \(s_j > 0\) (rate floors
-\(e^{\eta_{j,i}} \ge s_j\), equivalently \(\eta_{j,i} \ge \log s_j\)) and
-certify
+\(e^{\eta_{j,i}} \ge s_j\) for Poisson; for cloglog the same **lower** margin
+\(\eta_{j,i} \ge \log s_j\) certifies a working box) and certify
 \[
 \frac{1}{J}\sum_{j=1}^{J} \frac{1}{\lambda_b + n_j s_j} \;<\; c_\tau
 \quad\Longrightarrow\quad
@@ -352,9 +363,12 @@ when many groups are mildly separated even if no single group hits
 ### 3.1 Weights and rate region
 
 \(w_{j,i} = n_{j,i}\, \varphi(\eta_{j,i})^2 / \bigl[\Phi(\eta_{j,i})
-\Phi(-\eta_{j,i})\bigr]^2\), bounded by \(2n_{j,i}/\pi\). **Mostly lower-tail**
-mixing risk: \(W_j \to 0\) as \(\eta_{j,i} \to -\infty\); upper tail is
-bounded. Rate \(A^c\) is again defined by \(\bar\omega(\beta) \ge \tau/\lambda_b\).
+\Phi(-\eta_{j,i})\bigr]^2\), with **global upper bound** \(w_{j,i}\le (2/\pi)\,n_{j,i}\)
+(attained near \(\eta=0\)). **Both tails:** \(w_{j,i}\to 0\) as \(\eta_{j,i}\to\pm\infty\)
+(Hessian \(-\partial^2\ell/\partial\beta^2\to 0\) via inverse Mills ratio; see
+`CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md` §4.1). Low-\(W\) region
+\(E_j(\omega_j)=\{W_j^{\mathrm{sum}}\le\kappa_j\}\) is therefore **two-sided** in
+\(\eta\) (symmetric intercept), like logit. Rate \(A^c\): \(\bar\omega(\beta)\ge\tau/\lambda_b\).
 
 ### 3.2 Score bound
 
@@ -390,7 +404,19 @@ With common intercept RE, take \(\beta_j \ge \beta^{\mathrm{floor}}\) for all
 c_\tau.
 \]
 
-**Proposition P2.** On the one-sided tail \(E_j = \{\beta_j < \beta^{\mathrm{floor}}\}\),
+**Proposition P2 (two-sided tail, Prop 1 analog).** Under §1.4.3 of
+`CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md`, on
+\(E_j(\omega_j)=\{|\beta_j|>b_j^\star(\omega_j)\}\),
+
+\[
+\pi\bigl(E_j(\omega_j) \mid \gamma, y_j\bigr) \;\le\; G_j^{\mathrm{pr}}(\gamma;\omega_j)
+\]
+
+with tilted-Gaussian **two-sided** template (\(G_j^{\mathrm{2s}}\)),
+\(L_j = L_j^{\mathrm{pr}}\), margins \(\pm b_j^\star(\omega_j)\).
+
+**Proposition P2′ (legacy one-sided sufficient).** On \(\{\beta_j < \beta^{\mathrm{floor}}\}\)
+only (sufficient inner route when certifying a lower half-space box),
 
 \[
 \pi(E_j \mid \gamma, y_j) \;\le\; G_j^{\mathrm{pr}}(\gamma)
@@ -424,22 +450,38 @@ floors are calibrated (§IV.3). Necessary bounds without a box are open.
 \(\eta_{j,i} \to -\infty\), so \(\omega_j \uparrow\) and \(\bar\omega\) can
 cross the threshold. Rate unsafe region: \(\bar\omega(\beta) \ge \tau/\lambda_b\).
 
-### 4.2 Score bound on a floor strip
+### 4.2 Score bound on the tail event \(E_j(\omega_j)\)
 
-Fix \(\eta_j^{\mathrm{floor}} \in \mathbb R\) for each group \(j\). On
-\(\{\eta_{j,i} \ge \eta_j^{\mathrm{floor}}\ \forall i \in j\}\),
+**Primary tail** (conditional Prop 1; see `CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md`
+§5): \(E_j(\omega_j)=\{\omega_j(\beta_j)\ge\omega_j\}=\{W_j^{\mathrm{sum}}\le\kappa_j(\omega_j)\}\)
+with \(\kappa_j(\omega_j)=\lambda_b(1-\omega_j)/\omega_j\). On **all** of \(E_j\),
+each \(\eta_{j,i}(\beta_j)\le \eta_{j,i}^\star(\omega_j)\) at the margin
+\(\beta_j^\star(\omega_j)\) solving \(W_j^{\mathrm{sum}}(\beta_j^\star)=\kappa_j\), so
+
+\[
+|y_{j,i} - e^{\eta_{j,i}}| \;\le\; \max\bigl(y_{j,i},\, e^{\eta_{j,i}^\star(\omega_j)}\bigr),
+\qquad
+L_j^{\mathrm{po}}(\omega_j) := \sum_i \max\bigl(y_{j,i},\, e^{\eta_{j,i}^\star(\omega_j)}\bigr).
+\]
+
+Lemma T then applies on the **entire** low-curvature tail \(E_j(\omega_j)\) (Poisson
+score is unbounded on all of \(\mathbb R\) only as \(\eta\to+\infty\), which lies
+**outside** \(E_j\)).
+
+**Safe-box floor (separate).** For certifying \(B\subseteq A\), fix
+\(\eta_j^{\mathrm{floor}}\) with \(\eta_{j,i}\ge\eta_j^{\mathrm{floor}}\) on \(B\).
+On that **high-\(\eta\)** strip,
 
 \[
 |y_{j,i} - e^{\eta_{j,i}}| \;\le\; \max\bigl(\max_i y_{j,i},\, e^{\eta_j^{\mathrm{floor}}}\bigr)
 \;=: M_j^{\mathrm{po}},
 \]
 
-so \(|\ell_j'(\beta_j)| \le n_j M_j^{\mathrm{po}}\) on that strip (sum of
-absolute Poisson scores).
+so \(|\ell_j'(\beta_j)| \le n_j M_j^{\mathrm{po}}\) on \(B\) (not on \(E_j\)).
 
 ### 4.3 Closed-form sufficient bound
 
-Choose \(s_j > 0\) with \(\log s_j = \eta_j^{\mathrm{floor}}\) and certify
+**Safe box certification.** Choose \(s_j > 0\) with \(\log s_j = \eta_j^{\mathrm{floor}}\) and certify
 
 \[
 \frac{1}{J}\sum_{j=1}^{J} \frac{1}{\lambda_b + n_j s_j} \;<\; c_\tau
@@ -450,14 +492,21 @@ B = \prod_{j=1}^{J} [\log s_j, \infty) \;\subseteq\; A.
 (On each group, \(e^{\eta_{j,i}} \ge s_j\) for all \(i \in j\) when
 \(\beta_j \ge \log s_j\) and offsets are fixed.)
 
-**Proposition Po1.** On \(E_j = \{\beta_j < \log s_j\}\),
+**Proposition Po1 (conditional tail).** On the **full** low-\(W\) tail
+\(E_j(\omega_j)\) with \(\beta_j^\star(\omega_j)\) from \(\kappa_j(\omega_j)\),
 
 \[
-\pi(E_j \mid \gamma, y_j) \;\le\; G_j^{\mathrm{po}}(\gamma)
+\pi\bigl(E_j(\omega_j) \mid \gamma, y_j\bigr)
+\;\le\;
+G_j^{\mathrm{po}}(\gamma;\omega_j)
 \]
 
-with tilted-Gaussian template, \(L_j = n_j M_j^{\mathrm{po}}\), lower tail
-only, threshold \(t_j = \log s_j\).
+with tilted-Gaussian template §1.3 of `CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md`,
+\(L_j = L_j^{\mathrm{po}}(\omega_j)\), lower tail only,
+\(t_j = \beta_j^\star(\omega_j)\).
+
+*(Do **not** identify \(E_j\) with \(\{\beta_j < \log s_j\}\) unless
+\(\beta_j^\star(\omega_j)=\log s_j\) from the same \(\kappa_j(\omega_j)\) margin.)*
 
 **Remark (common floor).** When \(n_j \equiv n\) and the design is
 exchangeable across groups (\(z_{j,i}=1\), equal offsets per group), one may
@@ -474,9 +523,11 @@ special case.
 
 under the floor certification above.
 
-**Remark.** Without a floor, the Poisson score is unbounded on all of
-\(\mathbb R\) (Lemma T fails); the floor strip supplies a finite \(L_j\).
-This is structural, not a proof gap.
+**Remark.** Without a floor on \(B\), the Poisson score is unbounded on all of
+\(\mathbb R\) as \(\eta\to+\infty\); that does **not** obstruct Prop Po1 on
+\(E_j(\omega_j)\), where \(\eta\) is **bounded above** by
+\(\eta_{j,i}^\star(\omega_j)\). The safe-box floor strip is for \(B\subseteq A\)
+certification only.
 
 ---
 
@@ -484,33 +535,59 @@ This is structural, not a proof gap.
 
 ### 5.1 Weights and rate region
 
-\(w_{j,i} = n_{j,i}\, e^{2\eta_{j,i}}(1-\mu_{j,i})/\mu_{j,i}\) with
-\(\mu = 1 - e^{-\eta}\). Lower tail: \(W_j \to 0\) as \(\eta \to -\infty\)
-(rate \(A^c\)); same bounding template as Poisson §4 with cloglog weights.
-
-### 5.2 Score bound on a floor strip
-
-On \(\eta_{j,i} \ge \eta_j^{\mathrm{floor}}\), \(\mu_{j,i} \ge
-\mu_{\min,j} := 1 - e^{-\eta_j^{\mathrm{floor}}}\), and
+\(\mu_{j,i} = 1 - \exp\bigl(-\exp(\eta_{j,i})\bigr)\),
 
 \[
-w_{j,i} \;\le\; n_{j,i}\, \frac{e^{2\eta_j^{\mathrm{floor}}}}{\mu_{\min,j}},
-\qquad
-|y_{j,i} - n_{j,i}\mu_{j,i}| \;\le\; n_{j,i}.
+w_{j,i} = n_{j,i}\,\frac{\exp(2\eta_{j,i})\,(1-\mu_{j,i})}{\mu_{j,i}}.
 \]
 
-Hence \(|\ell_j'(\beta_j)| \le L_j^{\mathrm{cl}} := n_j \max(1, \mu_{\min,j}^{-1}
-\cdot e^{2\eta_j^{\mathrm{floor}}})\) on the strip (conservative product bound).
+**Lower tail (rate and Prop 1).** \(W_j^{\mathrm{sum}}\to 0\) as \(\eta_{j,i}\to-\infty\);
+observed \(\mathcal H_{\mathrm{total}}\to 0\) when both \(0\)s and \(1\)s are present.
 
-### 5.3 Closed-form sufficient bound
+**Upper tail (Fisher vs observed).** Fisher \(w\to 0\) as \(\eta\to+\infty\), but with
+any failure \(\partial^2\ell/\partial\eta^2\sim -n_0 e^{\eta}\to -\infty\) and the score
+is unbounded — **not** a Prop 1 flat tail. Do **not** treat the Fisher outer interval
+\(\{W_j^{\mathrm{sum}}\le\kappa\}\) on the upper branch as \(E_j(\omega_j)\).
 
-Pick \(s_j > 0\) with \(s_j \le \mu_{\min,j}\) (e.g.\ \(s_j = \mu_{\min,j}\)
-when \(\eta_j^{\mathrm{floor}} = \log s_j\) on \(\{\eta_{j,i} \ge \log s_j\}\))
-and certify the Poisson-style floor
-\((1/J)\sum_j 1/(\lambda_b + n_j s_j) < c_\tau\). **Proposition C1** —
-identical template to §4.3 with \(L_j^{\mathrm{cl}}\) and lower tail at
-\(\beta_j = \log s_j\). **Special case:** common \(s_j \equiv s\) when groups
-are exchangeable, as in §4.3.
+### 5.2 Score bound on the tail event \(E_j(\omega_j)\)
+
+On the **lower** tail only, \(\eta_{j,i}\le \eta_{j,i}^\star(\omega_j)\) at
+\(\beta_j^\star(\omega_j)\) solving \(W_j^{\mathrm{sum}}(\beta_j^\star)=\kappa_j\) on the
+\(\eta\to-\infty\) branch. With
+
+\[
+L_j^{\mathrm{cl}}(\omega_j)
+:=
+\sum_i \max\bigl(y_{j,i},\,e^{\eta_{j,i}^\star(\omega_j)}\bigr),
+\]
+
+Lemma T applies on \(E_j\) (Poisson-style; see `CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md`
+§1.4.5 / §6).
+
+### 5.3 Safe-box certification (working region \(B\subseteq A\))
+
+Poisson-style **lower floor** \(\beta_j\ge\log s_j\) (equivalently \(\eta_{j,i}\ge
+\log s_j\)) can certify \(B\subseteq A\) when
+
+\[
+\frac{1}{J}\sum_{j=1}^{J} \frac{1}{\lambda_b + n_j s_j} \;<\; c_\tau.
+\]
+
+**Proposition C1 (conditional tail).** On the lower flat tail \(E_j(\omega_j)\) with
+\(\beta_j^\star(\omega_j)\) from \(\kappa_j(\omega_j)\),
+
+\[
+\pi\bigl(E_j(\omega_j) \mid \gamma, y_j\bigr)
+\;\le\;
+G_j^{\mathrm{cl}}(\gamma;\omega_j)
+:=
+G_j^{\mathrm{low}}(\gamma;\omega_j)
+\]
+
+with \(L_j=L_j^{\mathrm{cl}}(\omega_j)\), \(t_j=\beta_j^\star(\omega_j)\).
+
+*(Contrast **probit** §3: Mills ratio \(\lambda(z)[\lambda(z)+z]\to 0\) at both tails
+with mixed data; cloglog does **not** inherit that symmetry.)*
 
 ---
 
@@ -593,6 +670,17 @@ strip, etc.).
 \(\lambda_b^{-1}\) in place of RE variance. \(\blacksquare\)
 
 ### 8.3 Drift condition
+
+**Status (false for logit / \(A^c \neq \varnothing\)).** The boxed drift below
+is copied from `LOGIT_SINGLE_GROUP_SAFE_TIGHT_ARGUMENT.md` §4. It is **wrong**
+as a description of the Gibbs chain when \(A^c \neq \varnothing\): the chain can
+**get stuck in the tail** (logit separation: \(|\eta|\) large, \(W_j \to 0\),
+\(\omega_j \to 1\), \(\lambda^\star \uparrow\)). That stickiness is **why**
+\(A^c\) is unsafe — not an edge case drift fails to cover. §8.3 instead
+composes \(\beta_n \mid \gamma_{n-1}\) with global variance/bias bounds that
+**hide** tail persistence and asserts decay of \(V(\gamma)=(\gamma-\mu_0)^2+1\)
+toward \(\mu_0\). **Do not** use §8.3 or §9–§11 for logit escape, gap, or TV.
+§1–§6 (tilted-Gaussian tails) remain valid as **static** posterior bounds.
 
 Let \(V(\gamma) := (\gamma - \mu_0)^2 + 1\). Then for every
 \(\gamma_{n-1} \in \mathbb R\),
@@ -819,6 +907,15 @@ q_\gamma(\gamma' \mid \gamma).
 
 (One sweep: \(\beta \mid \gamma\), then \(\gamma' \mid \beta \sim
 N(m(\beta), \Sigma_{\mathrm{upd}})\).)
+
+**Status (invalid).** Everything below in §10.1–§10.2 that sets
+\(d > 2C_{\mathrm{drift}}/(1-\lambda_{\mathrm{drift}})\) and
+\(C_d := \{\gamma : V(\gamma) \le d\}\) **presupposes** §8.3 drift, which is
+**false** when the chain can linger in tail / \(A^c\) (see §8.3). Rosenthal
+coupling and **Proposition Gap** are template algebra only — **not** a valid
+bound on \(|\pi(A^c) - P^n(x, A^c)|\) for logit. See `LOGIT_STATIC_TAIL_CERTIFICATION.md`
+for drift-free \(\pi_{\beta \mid y}(A^c)\) bounds; gap without drift is
+open (§13).
 
 Fix \(d > 2C_{\mathrm{drift}}/(1-\lambda_{\mathrm{drift}})\) and the **small
 set** (current state)
@@ -2241,7 +2338,8 @@ default for interior FOC-based \(\gamma'_*(\gamma)\).
 
 Write \(\pi_A(\cdot) := \pi(\cdot \mid \beta \in A)\) and
 \(P_A^n(x,\cdot)\) for the target and \(n\)-step kernel restricted to \(A\)
-(the on-\(A\) comparison term from `vignette("Chapter-C05")` / `ELLIPSOID_TV_BOUND.md`).
+(the on-\(A\) comparison term from `SAFE_UNSAFE_TV_DECOMPOSITION.md` /
+`ELLIPSOID_TV_BOUND.md`).
 
 **Theorem TV (rate safe set).**
 
@@ -2264,7 +2362,7 @@ vanish and TV reduces to the on-\(A\) term only.
 | Likelihood | \(P^n(x,A^c)\), \(\pi(A^c)\) | Gap | On-\(A\) term |
 |---|---|---|---|
 | Normal, Gamma | \(0\) | \(0\) | Heuristic / ellipsoid (§1, §6) |
-| Logit | §9.1 + §2.2–§2.3; §9.3 | §10 | `Chapter-C05` |
+| Logit | §9.1 + §2.2–§2.3; §9.3 | §10 | `SAFE_UNSAFE_TV_DECOMPOSITION.md` §7.1 |
 | Probit | §9.1 + §3; §9.3 | §10 | same |
 | Poisson, cloglog | §9.1 + §4–§5; §9.3 | §10 | same |
 
@@ -2286,10 +2384,21 @@ vanish and TV reduces to the on-\(A\) term only.
 
 ## 13. Open items
 
+0. **Tail stickiness; no drift on \(A^c\) (logit).** The Gibbs chain can **get
+   stuck in the tail** (separation): \(W_j(\beta)\) small, \(\omega_j \nearrow 1\),
+   \(\lambda^\star \nearrow 1\), weak pull of \(\beta_j\) toward \(\gamma\).
+   Foster–Lyapunov drift (§8.3) claiming
+   \(E[V(\gamma_n)\mid\gamma_{n-1}] \le \lambda_{\mathrm{drift}} V + C\) is
+   **false** as a global certificate in that regime — it is incompatible with
+   tail persistence. Hence §9, §10 (\(d > 2C/(1-\lambda)\), gap), §11 TV are
+   **withdrawn** for logit with \(A^c \neq \varnothing\). **Open program:**
+   (i) tight **static** bounds on \(\pi_{\beta \mid y}(A^c)\) depending on
+   geometry/size of \(A\) (§1–§6 + `LOGIT_STATIC_TAIL_CERTIFICATION.md`); (ii)
+   \(|\pi(A^c)-P^n(x,A^c)|\) **without** any false drift input.
 1. **Multi-group logit:** Necessary closed form for \(\pi(A^c \mid \gamma,y)\)
    from \(\bar\omega \ge \tau/\lambda_b\) without a sufficient box.
-2. **Probit / Poisson / cloglog:** Sharpen \(L_j\) constants; two-sided
-   necessary regions for \(\bar\omega\).
+2. **Probit / Poisson / cloglog:** Sharpen \(L_j\) constants; cloglog two-tail
+   margins \(\beta_{j,\pm}^\star\); necessary regions for \(\bar\omega\).
 3. **Non-scalar RE** (\(p_{\mathrm{re}} > 1\)): replace \(\omega_j\) by
    eigenvalues of the group coupling block; rate safe sets use ellipsoids (§12);
    **minorization / coupling:** §10.7 (Gaussian \(Q = N(c,\Sigma_Q)\) on
@@ -2303,8 +2412,8 @@ vanish and TV reduces to the on-\(A\) term only.
    \(\gamma_\star\); Normal closed \(\delta(\gamma)\) (scalar §10.5, vector §10.7);
    GLM uses numeric \(\nabla_{\gamma'} g = 0\) (§10.4); optimize \((c,\Sigma_Q)\),
    \(d\), and \(r\).
-6. **On-\(A\) TV term** (§11): still the `Chapter-C05` heuristic for GLMs;
-   not likelihood-closed in this note.
+6. **On-\(A\) TV term** (§11): still the `SAFE_UNSAFE_TV_DECOMPOSITION.md`
+   §7.1 heuristic for GLMs; not likelihood-closed in this note.
 
 ---
 

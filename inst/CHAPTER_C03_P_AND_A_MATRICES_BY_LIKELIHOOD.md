@@ -612,8 +612,15 @@ Same as §2.4 with \(W_j = \sum_{i\in j} w_{j,i}(\eta_{j,i})\).
 w_i = n_i \,\frac{\exp(2\eta_i)\,(1-\mu_i)}{\mu_i}.
 \]
 
-As \(\eta_i \to -\infty\): \(w_i \to 0\). As \(\eta_i \to +\infty\):
-\(w_i \to n_i\).
+As \(\eta_i \to -\infty\): \(\mu_i \to 0\), \(w_i \to 0\). As \(\eta_i \to +\infty\):
+\(\mu_i \to 1\), \(1-\mu_i = \exp(-\exp(\eta_i))\), and
+\(w_i \sim n_i\,\exp(2\eta_i - \exp(\eta_i)) \to 0\) (Fisher weight decays at **both**
+tails; the old \(w_i\to n_i\) limit used the wrong link).
+
+**Observed Hessian (mixed binomial).** With both successes and failures,
+\(\mathcal H_{\mathrm{total}}\to 0\) only as \(\eta\to-\infty\); as \(\eta\to+\infty\),
+\(\partial^2\ell/\partial\eta^2\sim -n_0 e^{\eta}\to -\infty\) when \(n_0>0\). Fisher
+weight and observed flattening **diverge** on the upper tail — unlike probit (Mills ratio).
 
 ### 4.2 Multivariate \(P\)-blocks
 
@@ -622,12 +629,15 @@ Same multivariate structure as §2.2 with cloglog \(w_{j,i}\) in
 
 ### 4.3 Multivariate eigenvalue conditions
 
-**Mixing.** \(\mathcal{W}_j \to 0\) on the **lower** \(\eta\)-tail (one-sided).
+**Mixing (rate partition).** \(\mathcal{W}_j \to 0\) on the **lower** \(\eta\)-tail
+(observed and Fisher aligned). Fisher \(\mathcal{W}_j \to 0\) also as
+\(\eta\to+\infty\), so \(\omega_j\uparrow 1\) there in the **rate** formula even though
+observed curvature **diverges** when failures are present — interpret \(A/A^c\) with
+this asymmetry (`CONDITIONAL_TAIL_BOUNDS_ONE_DIM_GLMM.md` §1.4.5).
 
-**Safe region (ceiling — eigenvalues too large).**
-\(\lambda_{\max}(\mathcal{W}_j) > M_j^{\mathrm{pilot}}\) occurs on the
-**upper** \(\eta\)-tail (one-sided \((\mathcal{C}_M)^c\)). Lower tail is the mixing
-problem, not the ceiling problem.
+**Safe region (ceiling).** \(w_i\) is bounded above (\(\lesssim 0.65\,n_i\)); pilot
+ceilings are typically inactive. The binding Prop 1 issue is **too-small observed
+curvature on the lower tail**, not an upper-\(\eta\) Fisher blow-up.
 
 ### 4.4 Specialization: scalar \(P_{11}\), diagonal \(P_{22}\)
 

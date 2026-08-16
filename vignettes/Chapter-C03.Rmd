@@ -815,9 +815,16 @@ replicate chain there.
 - `vignette("Chapter-B02")` — the same results stated in engine terms.
 - `vignette("Chapter-B03")` — turning \(\lambda^{*}\) into `m_convergence`.
 - `?two_block_rate`, `?plot_var_convergence`
-- `vignette("Chapter-C05")` — the safe/unsafe region decomposition that
-  generalizes Theorem 2's comparison-density argument to precision
-  structures beyond the exactly-Gaussian case here.
+- `vignette("Chapter-C05")` — a different route past the exactly-Gaussian
+  restriction: Doeblin minorization on a certified set, which yields a
+  geometric total variation bound for the two-block chain restricted to that
+  set on hierarchical GLMM targets, where Theorem 2's eigenvalue machinery
+  does not apply.
+- `inst/SAFE_UNSAFE_TV_DECOMPOSITION.md` in the package sources — the
+  safe/unsafe region decomposition that generalizes Theorem 2's
+  comparison-density argument to precision structures beyond the
+  exactly-Gaussian case here, including the heuristic that feeds
+  Corollary 1's bound into it.
 - `inst/BLOCK_GIBBS_ERGODICITY.md`, `inst/BLOCK_GIBBS_ERGODICITY_ING.md`
   and `inst/ELLIPSOID_TV_BOUND.md` in the package sources, which extend
   this theory to rank conditions, sampled variance components, and
