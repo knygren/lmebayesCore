@@ -1,6 +1,34 @@
 ## Chapter C05 restricted Gibbs: EM fixed point gamma* and Jacobian.
 
+#' Restricted E-step: aggregate joint draws from safe Block~1 simfuncs.
+#' @noRd
+.c05_estep_restricted <- function(design,
+                                  fixef,
+                                  p11,
+                                  measurement_prior_list,
+                                  family,
+                                  beta_set,
+                                  n = 10000L,
+                                  mc_seed = NULL,
+                                  max_tries = NULL) {
+  safe_out <- .c05_safe_group_draw(
+    design = design,
+    fixef = fixef,
+    p11 = p11,
+    measurement_prior_list = measurement_prior_list,
+    family = family,
+    beta_set = beta_set,
+    n = n,
+    max_tries = max_tries,
+    mc_seed = mc_seed
+  )
+  .c05_safe_group_draw_to_estep(safe_out, p11$group_levels)
+}
+
 #' Conditional-mean E-step for the population mean map.
+#' @param beta_set Optional \code{beta_marginal_safe_set}; when supplied, uses
+#'   \code{\link{rNormal_reg_group_safe}} or
+#'   \code{\link{rNormalGLM_reg_group_safe}} by \code{family}.
 #' @noRd
 .c05_estep <- function(design,
                                     fixef,
@@ -9,11 +37,26 @@
                                     family,
                                     estep = c("exact", "aghq", "mc"),
                                     n = 10000L,
-                                    mc_seed = NULL) {
+                                    mc_seed = NULL,
+                                    beta_set = NULL) {
   estep <- match.arg(estep)
   if (identical(estep, "aghq")) {
     stop("estep = \"aghq\" is not implemented yet; use \"mc\".", call. = FALSE)
   }
+
+  if (!is.null(beta_set)) {
+    return(.c05_estep_restricted(
+      design = design,
+      fixef = fixef,
+      p11 = p11,
+      measurement_prior_list = measurement_prior_list,
+      family = family,
+      beta_set = beta_set,
+      n = n,
+      mc_seed = mc_seed
+    ))
+  }
+
   if (!identical(family$family, "gaussian") && identical(estep, "exact")) {
     stop(
       "estep = \"exact\" is only available for gaussian(); ",
@@ -129,7 +172,18 @@
     }
   }
 
-  list(b_mean = b_mean, b_mc_se = b_mc_se, V_list = V_list, estep = estep, n = n)
+  list(
+    b_mean = b_mean,
+    b_mc_se = b_mc_se,
+    V_list = V_list,
+    estep = estep,
+    n = if (identical(estep, "mc")) n else NA_integer_,
+    n_target = NA_integer_,
+    n_tried = NA_integer_,
+    accept_rate = NA_real_,
+    beta_set = beta_set,
+    restricted = FALSE
+  )
 }
 
 #' One C05 mean-map update M(gamma) given conditional means b_j.
@@ -365,10 +419,19 @@
 #' Finds the fixed point of the conditional-mean map (Chapter C05 Stage 1).
 #' Uses conditional means for Block~1, not modes.
 #'
+#' @details
+#' In the restricted certificate, the EM E-step uses conditional means under
+#' the \eqn{\beta}-truncated target on \eqn{\widetilde B(\delta_2)}. Pass
+#' Pass \code{beta_set} from \code{\link{beta_marginal_safe_set}}; routes to
+#' \code{\link{rNormal_reg_group_safe}} (Gaussian) or
+#' \code{\link{rNormalGLM_reg_group_safe}} (non-Gaussian).
+#'
 #' @param design A \code{\link{model_setup}} list.
 #' @param pfamily_list Block~2 prior list from \code{\link{pfamily_list}()}.
 #' @param family A \code{\link[stats]{family}} object.
 #' @param dispprior_list Optional Block~1 dispersion prior for \code{gaussian()}.
+#' @param beta_set Optional \code{\link{beta_marginal_safe_set}}; enables
+#'   widetilde-B rejection MC (see Details).
 #' @param estep E-step tier: \code{"exact"} (default Gaussian closed form),
 #'   \code{"mc"} (simulated conditional means; valid for Gaussian and
 #'   non-Gaussian), or \code{"aghq"} (not yet implemented).
@@ -400,12 +463,17 @@
 #'   \code{kappa_spectrum}, \code{weights}, \code{kappa}, \code{rho},
 #'   \code{Sigma_pi}, \code{eps_star_closure},
 #'   \code{icm} initialization diagnostics, EM diagnostics (\code{tol_eff},
-#'   \code{mc_delta_floor} when \code{estep = "mc"}), and related fields.
+#'   \code{mc_delta_floor} when \code{estep = "mc"}), \code{beta_set},
+#'   \code{restricted}, and related fields.
+#' @seealso \code{\link{group_effects_conditional_mean}},
+#'   \code{\link{rNormal_reg_group_safe}},
+#'   \code{\link{rNormalGLM_reg_group_safe}}
 #' @export
 population_mode <- function(design,
                                              pfamily_list,
                                              family = gaussian(),
                                              dispprior_list = NULL,
+                                             beta_set = NULL,
                                              estep = c("exact", "aghq", "mc"),
                                              acceleration = c("none", "squarem"),
                                              n = 10000L,
@@ -423,6 +491,9 @@ population_mode <- function(design,
   n <- as.integer(n)
   if (!(n >= 1L)) {
     stop("'n' must be at least 1.", call. = FALSE)
+  }
+  if (!is.null(beta_set) && !inherits(beta_set, "beta_marginal_safe_set")) {
+    stop("'beta_set' must be from beta_marginal_safe_set().", call. = FALSE)
   }
 
   prep <- .c05_validate(
@@ -470,7 +541,8 @@ population_mode <- function(design,
       measurement_prior_list = mpl,
       family = family,
       estep = estep,
-      n = n
+      n = n,
+      beta_set = beta_set
     )
     em_iterations <- 1L
     converged <- TRUE
@@ -486,7 +558,8 @@ population_mode <- function(design,
         family = family,
         estep = estep,
         n = n,
-        mc_seed = if (iter == 1L) mc_seed else NULL
+        mc_seed = if (iter == 1L) mc_seed else NULL,
+        beta_set = beta_set
       )
 
       fixef_new <- .c05_mean_map(estep_out$b_mean, p11)
@@ -563,7 +636,12 @@ population_mode <- function(design,
     tol_eff = tol_eff,
     mc_delta_floor = mc_delta_floor,
     estep = estep_out$estep,
-    n = if (identical(estep_out$estep, "mc")) n else NA_integer_,
+    n = estep_out$n,
+    n_target = estep_out$n_target,
+    n_tried = estep_out$n_tried,
+    accept_rate = estep_out$accept_rate,
+    beta_set = beta_set,
+    restricted = isTRUE(estep_out$restricted),
     q = p11$q,
     call = match.call()
   )

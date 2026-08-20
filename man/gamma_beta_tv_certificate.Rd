@@ -12,12 +12,13 @@ gamma_beta_tv_certificate(
   dispprior_list = NULL,
   k = NULL,
   tol = NULL,
+  inner_tol = NULL,
+  total_tol = NULL,
   alpha = NULL,
   display_mode = c("sharp", "general"),
   include_full_pi_gamma = TRUE,
   estep = c("exact", "aghq", "mc"),
   kappa_method = c("laplace", "crude", "none"),
-  mode_method = "marginal_newton",
   acceleration = c("none", "squarem"),
   n = 10000L,
   mc_seed = NULL,
@@ -27,6 +28,7 @@ gamma_beta_tv_certificate(
   em_tol = 1e-10,
   maxit = 200L,
   delta = NULL,
+  optimize_alpha = TRUE,
   verbose = FALSE
 )
 }
@@ -37,32 +39,31 @@ gamma_beta_tv_certificate(
 
 \item{family}{A \code{\link[stats]{family}} object.}
 
-\item{delta_2}{Tail budget for \eqn{r_{\mathrm{Gauss}}(n,\delta_2)} and the
-asymptotic full-\eqn{\pi_\gamma} correction when
-\code{include_full_pi_gamma = TRUE}.}
+\item{delta_2}{Asymptotic tail allowance for the full marginal.}
 
 \item{dispprior_list}{Optional Block~1 dispersion prior for \code{gaussian()}.}
 
-\item{k}{If set, evaluate the inner Rosenthal bound at this sweep count.}
+\item{k}{If set, evaluate at this sweep count only.}
 
-\item{tol}{If set, invert the inner bound for a sweep count (must exceed any
-tail terms you require).}
+\item{tol}{Alias for \code{inner_tol} when inverting for sweep count.}
 
-\item{alpha}{Rosenthal tuning in \eqn{(\lambda^{\mathrm{LB}},1)}; \code{NULL}
-optimizes at \code{k}.}
+\item{inner_tol}{Target for the inner Rosenthal bound.}
+
+\item{total_tol}{Target for full \eqn{\pi_\gamma} bound when
+\code{include_full_pi_gamma = TRUE} (uses \code{total_tol - delta_2}).}
+
+\item{alpha}{If set, skip alpha optimization.}
 
 \item{display_mode}{\code{"sharp"} (default) or \code{"general"}.}
 
-\item{include_full_pi_gamma}{If \code{TRUE}, add \code{delta_2} for the step
-from \eqn{\pi_{\gamma\mid\widetilde B}} to full \eqn{\pi_\gamma}.}
+\item{include_full_pi_gamma}{If \code{TRUE}, report full \eqn{\pi_\gamma}
+bound as inner bound plus \code{delta_2}.}
 
 \item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form),
 \code{"mc"} (simulated conditional means; valid for Gaussian and
 non-Gaussian), or \code{"aghq"} (not yet implemented).}
 
-\item{kappa_method}{Passed to \code{\link{beta_marginal_safe_set}}.}
-
-\item{mode_method}{Ignored (always marginal Newton for this certificate).}
+\item{kappa_method}{Passed to \code{\link{group_precision_floor}}.}
 
 \item{acceleration}{\code{"none"} or \code{"squarem"} (not yet implemented).}
 
@@ -90,23 +91,21 @@ as \code{tol}.}
 \item{delta}{Tail budget for \code{display_mode = "general"} minorization via
 \code{\link{epsilon}} (not used in the default sharp display).}
 
+\item{optimize_alpha}{If \code{TRUE}, minimize over \code{alpha}.}
+
 \item{verbose}{If \code{TRUE}, pass \code{verbose} to
 \code{\link{beta_marginal_safe_set}}.}
 }
 \value{
-An object of class \code{"gamma_beta_tv_certificate"} with
-\code{mode}, \code{beta_set}, \code{epsilon}, \code{floor_spectrum},
-\code{rosenthal}, \code{delta_2}, \code{full_pi_gamma}, \code{certified},
-and \code{call}.
+An object of class \code{"gamma_beta_tv_certificate"}.
 }
 \description{
-Assembles the Rosenthal bound from
-\code{inst/GAMMA_MARGINAL_DRIFT_MINORIZATION_ROSENTHAL.md} (sharpest displayed
-box, section 3.1) using marginal-mode \eqn{\widetilde B(\delta_2)},
-\eqn{\varepsilon(\gamma^\star)}, and floor spectrum \eqn{\kappa_i^{\mathrm{LB}}}.
-Does not modify \code{\link{certificate}} (restricted gamma-only route).
+Orchestrates categories 1--8: \code{\link{population_mode}},
+\code{\link{epsilon_star}}, \code{\link{beta_marginal_mode}},
+\code{\link{beta_marginal_safe_set}}, \code{\link{group_precision_floor}},
+\code{\link{floor_coupling_eigenvalues}}, and
+\code{\link{optimal_rosenthal_tv_bound}}.
 }
 \seealso{
-\code{\link{certificate}}, \code{\link{beta_marginal_safe_set}},
-\code{\link{rosenthal_tv_bound}}
+\code{\link{certificate}}, \code{\link{optimal_rosenthal_tv_bound}}
 }

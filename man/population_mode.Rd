@@ -9,6 +9,7 @@ population_mode(
   pfamily_list,
   family = gaussian(),
   dispprior_list = NULL,
+  beta_set = NULL,
   estep = c("exact", "aghq", "mc"),
   acceleration = c("none", "squarem"),
   n = 10000L,
@@ -28,6 +29,9 @@ population_mode(
 \item{family}{A \code{\link[stats]{family}} object.}
 
 \item{dispprior_list}{Optional Block~1 dispersion prior for \code{gaussian()}.}
+
+\item{beta_set}{Optional \code{\link{beta_marginal_safe_set}}; enables
+widetilde-B rejection MC (see Details).}
 
 \item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form),
 \code{"mc"} (simulated conditional means; valid for Gaussian and
@@ -70,9 +74,22 @@ refresh objects (\code{P11}, \code{Sigma_star}), \code{tilde_J},
 \code{kappa_spectrum}, \code{weights}, \code{kappa}, \code{rho},
 \code{Sigma_pi}, \code{eps_star_closure},
 \code{icm} initialization diagnostics, EM diagnostics (\code{tol_eff},
-\code{mc_delta_floor} when \code{estep = "mc"}), and related fields.
+\code{mc_delta_floor} when \code{estep = "mc"}), \code{beta_set},
+\code{restricted}, and related fields.
 }
 \description{
 Finds the fixed point of the conditional-mean map (Chapter C05 Stage 1).
 Uses conditional means for Block~1, not modes.
+}
+\details{
+In the restricted certificate, the EM E-step uses conditional means under
+the \eqn{\beta}-truncated target on \eqn{\widetilde B(\delta_2)}. Pass
+Pass \code{beta_set} from \code{\link{beta_marginal_safe_set}}; routes to
+\code{\link{rNormal_reg_group_safe}} (Gaussian) or
+\code{\link{rNormalGLM_reg_group_safe}} (non-Gaussian).
+}
+\seealso{
+\code{\link{group_effects_conditional_mean}},
+\code{\link{rNormal_reg_group_safe}},
+\code{\link{rNormalGLM_reg_group_safe}}
 }

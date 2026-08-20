@@ -40,6 +40,7 @@
 #'   }
 #' @seealso \code{\link[glmbayesCore]{rNormal_reg}}, \code{\link[glmbayesCore]{simfunction}},
 #'   \code{\link{normalize_group}}, \code{\link{Prior_SetupGroup}},
+#'   \code{\link{rNormal_reg_group_safe}}, \code{\link{rNormalGLM_reg_group_safe}},
 #'   \code{inst/DESIGN_RGLM_BLOCKS.md}
 #' @example inst/examples/Ex_rNormalGLM_reg_group.R
 #' @name simfuncs_group

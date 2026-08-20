@@ -5,55 +5,54 @@
 \title{Marginal-mode beta safe set for Rosenthal / TV certificates}
 \usage{
 beta_marginal_safe_set(
-  design,
-  pfamily_list,
-  family,
+  design = NULL,
+  pfamily_list = NULL,
+  family = NULL,
   delta_2 = 0.01,
+  beta_mode = NULL,
   dispprior_list = NULL,
   offset = NULL,
   weights = NULL,
-  kappa_method = c("laplace", "crude", "none"),
   tol = 1e-10,
   maxit = 200L,
   verbose = FALSE
 )
 }
 \arguments{
-\item{design}{A \code{\link{model_setup}} list with \code{y}, \code{D},
-\code{group}, \code{W}, and \code{groupef.names}.}
+\item{design}{A \code{\link{model_setup}} list (used if \code{beta_mode} is
+\code{NULL}).}
 
-\item{pfamily_list}{Block~2 prior list from \code{\link{pfamily_list}()}.}
+\item{pfamily_list}{Block~2 prior list (used if \code{beta_mode} is \code{NULL}).}
 
-\item{family}{A \code{\link[stats]{family}} object.}
+\item{family}{A \code{\link[stats]{family}} object (used if \code{beta_mode} is
+\code{NULL}).}
 
 \item{delta_2}{Tail mass budget in \eqn{(0,1)} for the Laplace reference at
 \eqn{r_{\mathrm{Gauss}}}.}
 
-\item{dispprior_list}{Optional Block~1 dispersion prior for \code{gaussian()}.}
+\item{beta_mode}{Optional result of \code{\link{beta_marginal_mode}}; if
+\code{NULL}, marginal mode is computed from \code{design}.}
 
-\item{offset, weights}{Observation \code{offset} and \code{weights}; default
-from \code{design}.}
+\item{dispprior_list, offset, weights}{Passed to \code{\link{beta_marginal_mode}}
+when \code{beta_mode} is \code{NULL}.}
 
-\item{kappa_method}{Passed through for metadata only; joint \eqn{r} does not
-inflate by \eqn{2\kappa_j} on this route.}
+\item{tol, maxit}{Passed to \code{\link{beta_marginal_mode}} when
+\code{beta_mode} is \code{NULL}.}
 
-\item{tol, maxit}{Controls for ICM or marginal Newton mode finding.}
-
-\item{verbose}{If \code{TRUE}, emit \code{\link{message}} notes.}
+\item{verbose}{If \code{TRUE}, emit \code{\link{message}} notes about the
+calibrated level.}
 }
 \value{
-An object of class \code{"beta_marginal_safe_set"} with
-\code{Gamma_lb}, \code{P_b}, \code{level}, marginal \code{mode}
-(\code{beta_dagger}, \code{hessian}), \code{per_group}, \code{engine},
-and certification flags.
+An object of class \code{"beta_marginal_safe_set"} with \code{level},
+\code{beta_mode}, \code{delta_2}, \code{P_b}, and certification metadata.
 }
 \description{
-Build the certified beta-safe set \eqn{\widetilde B(\delta_2) = \{\Xi(\beta)
-\le r_{\mathrm{Gauss}}(n,\delta_2)\}} using the gamma-integrated marginal
-posterior, Newton mode \eqn{\beta^\dagger}, and joint Gaussian-reference
-level calibration. See \code{inst/BETA_MARGINAL_MODE_LEVELSET.md}.
+Build the beta-safe set \eqn{\widetilde B(\delta_2) = \{\Xi(\beta)
+\le r_{\mathrm{Gauss}}(n,\delta_2)\}} at fixed \eqn{\beta^\dagger} from
+\code{\link{beta_marginal_mode}}. Does not compute data-precision floors;
+use \code{\link{group_precision_floor}} for \eqn{\Gamma_j^{\mathrm{LB}}}.
 }
 \seealso{
-\code{\link{group_precision_floor}},
+\code{\link{beta_marginal_mode}}, \code{\link{group_precision_floor}},
 \code{\link{gamma_beta_tv_certificate}}
 }

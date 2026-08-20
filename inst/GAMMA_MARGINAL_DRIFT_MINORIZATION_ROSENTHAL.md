@@ -977,10 +977,10 @@ matrix \(A\) supplies \(\lambda^\star\) directly. The present note is the
    \(\widetilde B\).
 4. **Joint TV:** add \(\delta_2\), \(\delta_{12}\) from
    `JOINT_GAMMA_BETA_TV_CERTIFICATE.md` §6.
-5. **Implementation** (`BETA_MARGINAL_MODE_LEVELSET.md` §7): **`beta_marginal_safe_set()`**,
-   **`floor_coupling_spectrum()`**, **`rosenthal_tv_bound()`**, **`gamma_beta_tv_certificate()`**
-   (sharpest displayed box §691–722); `group_precision_floor()` gains `mode_method` /
-   `level_method`; tail MC check in `data-raw/` remains optional.
+5. **Implementation** (`BETA_MARGINAL_MODE_LEVELSET.md` §7): eight-file API —
+   **`beta_marginal_mode()`**, **`beta_marginal_safe_set()`**, **`group_precision_floor()`**,
+   **`floor_coupling_eigenvalues()`**, **`rosenthal_drift_constants()`**, **`rosenthal_tv_bound()`**,
+   **`optimal_rosenthal_tv_bound()`**, **`gamma_beta_tv_certificate()`**.
 
 ---
 

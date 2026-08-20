@@ -256,11 +256,14 @@ separate API review.
 
 | Item | Location | Notes |
 |------|----------|--------|
-| Marginal safe set | **`beta_marginal_safe_set()`** | `R/beta_marginal_safe_set.R`; Newton mode + joint `r_gauss_joint` |
-| Floor spectrum | **`floor_coupling_spectrum()`** | `R/c05_floor_spectrum.R`; \(\kappa_i^{\mathrm{LB}}(\delta_2)\) from \(\Gamma_j^{\mathrm{LB}}\) |
-| Rosenthal bound | **`rosenthal_tv_bound()`** | `R/c05_rosenthal_tv.R`; sharp vs general `display_mode` |
-| Full certificate | **`gamma_beta_tv_certificate()`** | `R/gamma_beta_tv_certificate.R`; inner + \(\delta_2\) full-\(\pi_\gamma\) row |
-| Legacy floors | `group_precision_floor()` | `mode_method`, `level_method` for parity; default unchanged (`icm` + Prop 2) |
+| Marginal beta mode | **`beta_marginal_mode()`** | `R/beta_marginal_mode.R`; Newton β† (category 3) |
+| Marginal safe set | **`beta_marginal_safe_set()`** | `R/beta_marginal_safe_set.R`; B̃(δ₂) geometry only (category 4) |
+| Data precision floors | **`group_precision_floor()`** | `R/group_precision_floor.R`; Γ_j^LB given `beta_mode` + `beta_set` (category 5) |
+| Floor eigenvalues | **`floor_coupling_eigenvalues()`** | `R/floor_coupling_eigenvalues.R`; κ_i^LB only (category 6) |
+| Rosenthal drift | **`rosenthal_drift_constants()`** | `R/rosenthal_tv_bound.R`; b, λ, U (category 7) |
+| Rosenthal bound | **`rosenthal_tv_bound()`** | fixed `alpha` (category 7) |
+| Optimal tuning | **`optimal_rosenthal_tv_bound()`** | `R/optimal_rosenthal_tv_bound.R`; α, k, tolerances (category 8) |
+| Full certificate | **`gamma_beta_tv_certificate()`** | orchestrator |
 | Scratch check | `data-raw/_chk_sharpest_tv_certificate.R` | Gaussian smoke + spectrum parity |
 
 `certificate()` is unchanged (restricted \(\gamma\)-only Theorem 2 route).

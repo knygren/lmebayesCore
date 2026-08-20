@@ -5,16 +5,18 @@
 \title{Certified group-level data precision lower bounds}
 \usage{
 group_precision_floor(
-  design,
-  pfamily_list,
-  family,
+  design = NULL,
+  pfamily_list = NULL,
+  family = NULL,
+  beta_mode = NULL,
+  beta_set = NULL,
   epsilon = 0.01,
   dispprior_list = NULL,
   offset = NULL,
   weights = NULL,
   kappa_method = c("crude", "laplace", "none"),
   union_over = c("groups", "functionals"),
-  mode_method = c("icm", "marginal_newton"),
+  mode_method = c("marginal_newton", "icm"),
   level_method = c("prop2_groups", "prop2_functionals", "r_gauss_joint"),
   tol = 1e-10,
   maxit = 200L,
@@ -22,55 +24,50 @@ group_precision_floor(
 )
 }
 \arguments{
-\item{design}{A \code{\link{model_setup}} list with \code{y}, \code{D},
-\code{group}, \code{W}, and \code{groupef.names}.}
+\item{design}{Used when \code{beta_mode} and \code{beta_set} are both
+\code{NULL} (legacy standalone path).}
 
-\item{pfamily_list}{Block~2 prior list from \code{\link{pfamily_list}()}.}
+\item{pfamily_list}{Block~2 prior list.}
 
 \item{family}{A \code{\link[stats]{family}} object.}
 
-\item{epsilon}{Total escape probability budget in \eqn{(0,1)}.}
+\item{beta_mode}{Result of \code{\link{beta_marginal_mode}} (preferred).}
+
+\item{beta_set}{Result of \code{\link{beta_marginal_safe_set}} supplying the
+joint level \eqn{r_{\mathrm{Gauss}}}; if \code{NULL}, \code{epsilon} and
+\code{level_method} define the set.}
+
+\item{epsilon}{Escape budget when building levels without \code{beta_set}.}
 
 \item{dispprior_list}{Optional Block~1 dispersion prior for \code{gaussian()}.}
 
 \item{offset, weights}{Observation \code{offset} and \code{weights}; default
 from \code{design}.}
 
-\item{kappa_method}{\code{"crude"} (certified), \code{"laplace"} (diagnostic),
-or \code{"none"}.}
+\item{kappa_method}{\code{"crude"} (certified), \code{"laplace"}, or
+\code{"none"}.}
 
 \item{union_over}{\code{"groups"} or \code{"functionals"} (Prop 2 schemes).}
 
-\item{mode_method}{\code{"icm"} (default, legacy) or \code{"marginal_newton"}.}
+\item{mode_method}{Default \code{"marginal_newton"}; ignored when
+\code{beta_mode} is supplied.}
 
-\item{level_method}{\code{"prop2_groups"} (default), \code{"prop2_functionals"},
-or \code{"r_gauss_joint"}.}
+\item{level_method}{Default \code{"r_gauss_joint"} when \code{beta_set} is
+supplied; otherwise \code{"prop2_groups"} for legacy.}
 
-\item{tol, maxit}{Controls for ICM or marginal Newton mode finding.}
+\item{tol, maxit}{Newton controls (unused beyond initial solve).}
 
-\item{verbose}{If \code{TRUE}, emit \code{\link{message}} notes.}
+\item{verbose}{If \code{TRUE}, emit \code{\link{message}} notes (legacy Prop
+2 path).}
 }
 \value{
-An object of class \code{"group_precision_floor"}: a list with
-\code{Gamma_lb}, \code{P_b}, \code{level}, \code{mode}, \code{per_group},
-and \code{certified}.
+An object of class \code{"group_precision_floor"}.
 }
 \description{
-Compute per-group lower-bound data precision matrices \eqn{\Gamma_j} for a
-two-block GLMM by integrating population parameters out of the prior,
-finding the joint posterior mode, certifying per-group profile level sets at
-total escape budget \code{epsilon}, and minimizing observation weights on
-those sets (exactly for log-concave / monotone canonical GLM weights).
-}
-\details{
-Theoretical basis: \code{inst/LAPLACE_PROFILE_GROUP_MARGINAL_BOUND.md}
-(Assumption (L): Gaussian in \eqn{\beta_{-j}} given \eqn{\beta_j};
-approximate marginal profile with a log-determinant correction; Prop 2 on
-the profile level only; \eqn{\kappa} prices log-det variation).
-For joint \eqn{r_{\mathrm{Gauss}}} level sets see
-\code{\link{beta_marginal_safe_set}} and
-\code{inst/BETA_MARGINAL_MODE_LEVELSET.md}.
+Compute per-group lower-bound data precision matrices \eqn{\Gamma_j} on a
+certified beta level set. Typically used after
+\code{\link{beta_marginal_mode}} and \code{\link{beta_marginal_safe_set}}.
 }
 \seealso{
-\code{\link{beta_marginal_safe_set}}, \code{\link{glmerb_posterior_mode}}
+\code{\link{beta_marginal_safe_set}}, \code{\link{floor_coupling_eigenvalues}}
 }

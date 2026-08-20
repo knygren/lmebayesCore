@@ -1,4 +1,4 @@
-## Floor coupling spectrum kappa_i^LB(delta_2) on beta safe set B-tilde.
+## Floor coupling eigenvalues kappa_i^LB from floor blocks (category 6).
 
 #' @noRd
 .c05_floor_coupling_S <- function(p11, Gamma_lb, P_b = NULL) {
@@ -55,52 +55,56 @@
   0.5 * (S + t(S))
 }
 
-#' Floor coupling eigenvalue spectrum on a beta safe set.
+#' Floor coupling eigenvalues from data-precision lower bounds.
 #'
-#' Builds block-diagonal floor precisions
-#' \eqn{P_{22,j}^{\mathrm{LB}} = P_b + \underline{\mathcal P}_{j,\mathrm{data}}}
-#' from \code{\link{beta_marginal_safe_set}} (or compatible floor output), forms
-#' \deqn{S^{\mathrm{LB}} = \sum_j H_j^\top P_b (P_{22,j}^{\mathrm{LB}})^{-1} P_b H_j,}
-#' and returns \eqn{\kappa_i^{\mathrm{LB}} = \mathrm{eig}(P_{11}^{-1/2} S^{\mathrm{LB}} P_{11}^{-1/2})}
-#' with Foster/Rosenthal drift constants.
+#' Forms \deqn{S^{\mathrm{LB}} = \sum_j H_j^\top P_b (P_{22,j}^{\mathrm{LB}})^{-1} P_b H_j}
+#' and returns \eqn{\kappa_i^{\mathrm{LB}} = \mathrm{eig}(P_{11}^{-1/2} S^{\mathrm{LB}} P_{11}^{-1/2})}.
+#' Rosenthal drift constants are computed separately by
+#' \code{\link{rosenthal_drift_constants}}.
 #'
 #' @param mode A \code{\link{population_mode}} result with \code{p11}.
-#' @param beta_set A \code{\link{beta_marginal_safe_set}} or
-#'   \code{\link{group_precision_floor}} result with \code{Gamma_lb} and
-#'   \code{P_b}.
-#' @return A list with \code{kappa_lb}, \code{kappa_max_lb}, \code{lambda_lb},
-#'   \code{C_beta_plus}, \code{b_drift}, \code{S_lb}, and \code{q}.
-#' @seealso \code{\link{deficiency_spectrum}}, \code{\link{rosenthal_tv_bound}}
+#' @param floor A \code{\link{group_precision_floor}} result with \code{Gamma_lb}.
+#' @return A list with \code{kappa_lb}, \code{kappa_max_lb}, \code{S_lb}, and
+#'   \code{q}.
+#' @seealso \code{\link{rosenthal_drift_constants}}, \code{\link{rosenthal_tv_bound}}
 #' @export
-floor_coupling_spectrum <- function(mode, beta_set) {
+floor_coupling_eigenvalues <- function(mode, floor) {
   if (is.null(mode$p11)) {
     stop("'mode' must be a population_mode() result with 'p11'.", call. = FALSE)
   }
-  if (is.null(beta_set$Gamma_lb)) {
-    stop("'beta_set' must contain 'Gamma_lb'.", call. = FALSE)
+  if (is.null(floor$Gamma_lb)) {
+    stop("'floor' must be a group_precision_floor() result with 'Gamma_lb'.",
+         call. = FALSE)
   }
 
   p11 <- mode$p11
-  P_b <- beta_set$P_b
+  P_b <- floor$P_b
   if (is.null(P_b)) {
     P_b <- p11$P_b
   }
-  S_lb <- .c05_floor_coupling_S(p11, beta_set$Gamma_lb, P_b = P_b)
+  S_lb <- .c05_floor_coupling_S(p11, floor$Gamma_lb, P_b = P_b)
   kappa_lb <- .two_block_gen_eigen(S_lb, p11$P11, strict = FALSE)
   kappa_max_lb <- max(kappa_lb)
-  lambda_lb <- kappa_max_lb^2
-  q <- length(kappa_lb)
-  C_beta_plus <- 0.5 * sum(kappa_lb)
-  b_drift <- 1 - lambda_lb + q / 2 + C_beta_plus
 
   list(
     kappa_lb = kappa_lb,
     kappa_max_lb = kappa_max_lb,
-    lambda_lb = lambda_lb,
-    C_beta_plus = C_beta_plus,
-    b_drift = b_drift,
     S_lb = S_lb,
-    q = q,
-    method = "floor_coupling"
+    q = length(kappa_lb),
+    method = "floor_coupling_eigenvalues"
   )
+}
+
+#' Backward-compatible wrapper combining eigenvalues and drift constants.
+#'
+#' @param mode A \code{\link{population_mode}} result.
+#' @param beta_set A \code{\link{group_precision_floor}} or legacy object with
+#'   \code{Gamma_lb}.
+#' @return List from \code{\link{floor_coupling_eigenvalues}} plus Rosenthal
+#'   drift fields from \code{\link{rosenthal_drift_constants}}.
+#' @export
+floor_coupling_spectrum <- function(mode, beta_set) {
+  ev <- floor_coupling_eigenvalues(mode, beta_set)
+  drift <- rosenthal_drift_constants(ev)
+  c(ev, drift[setdiff(names(drift), names(ev))])
 }

@@ -1695,11 +1695,15 @@ vs worst-case on <span class="math inline">\(\widetilde B\)</span>.</li>
 <li><strong>Joint TV:</strong> add <span class="math inline">\(\delta_2\)</span>, <span class="math inline">\(\delta_{12}\)</span> from
 <code>JOINT_GAMMA_BETA_TV_CERTIFICATE.md</code> §6.</li>
 <li><strong>Implementation</strong>
-(<code>BETA_MARGINAL_MODE_LEVELSET.md</code> §7): marginal Newton mode;
-<code>level_method = &quot;r_gauss_joint&quot;</code> in
-<code>group_precision_floor()</code>; optional
-<code>beta_marginal_safe_set()</code>; tail MC check in
-<code>data-raw/</code>.</li>
+(<code>BETA_MARGINAL_MODE_LEVELSET.md</code> §7): eight-file API —
+<strong><code>beta_marginal_mode()</code></strong>,
+<strong><code>beta_marginal_safe_set()</code></strong>,
+<strong><code>group_precision_floor()</code></strong>,
+<strong><code>floor_coupling_eigenvalues()</code></strong>,
+<strong><code>rosenthal_drift_constants()</code></strong>,
+<strong><code>rosenthal_tv_bound()</code></strong>,
+<strong><code>optimal_rosenthal_tv_bound()</code></strong>,
+<strong><code>gamma_beta_tv_certificate()</code></strong>.</li>
 </ol>
 <hr />
 </div>
