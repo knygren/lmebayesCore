@@ -120,6 +120,12 @@ Theorem 1 holds for any $(\mathcal X,\pi,C_d,P_1)$ satisfying Definitions 1–2.
 apply it with $\mathcal X=\mathbb R^q$, $\pi=\pi_\gamma$ (the $\gamma$-marginal
 posterior), and $P_1=q(\cdot\mid\cdot\,;C)$.
 
+**Remark 1.2 (Rosenthal / Meyn–Tweedie).** Theorem 1 uses **minorization only**
+(Rosenthal Proposition 2 on $C_d$) plus **truncation** (Lemma 1). Full geometric
+ergodicity with **both** minorization and Foster drift — Rosenthal (1995) Theorem 12
+and the Meyn–Tweedie rate $\|P^k-\pi\|_{TV}\le M V(x)\rho^k$ — is documented in
+`inst/GEOMETRIC_ERGODICITY_MT_ROSENTHAL.md`.
+
 ---
 
 ## 3. The Hierarchical GLMM Model

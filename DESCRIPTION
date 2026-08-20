@@ -45,6 +45,8 @@ LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 Depends: MASS, R (>= 3.5.0)
 Suggests:
     bayesrules,
+    CompQuadForm,
+    mgcv,
     glmbayes,
     coda,
     ggplot2,
