@@ -33,15 +33,16 @@ certificate(
 
 \item{dispprior_list}{Optional Block~1 dispersion prior for \code{gaussian()}.}
 
-\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form),
-\code{"mc"} (simulated conditional means; valid for Gaussian and
-non-Gaussian), or \code{"aghq"} (not yet implemented).}
+\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form when
+unrestricted), \code{"mc"} (simulated conditional means; used automatically
+when \code{beta_set} is supplied), or \code{"aghq"} (not yet implemented).}
 
 \item{acceleration}{\code{"none"} or \code{"squarem"} (not yet implemented).}
 
 \item{icm_init}{If \code{TRUE}, run iterated conditional modes (Block~1
 modes via \code{\link[glmbayesCore]{rglmb}}, Block~2 via the C05 mean map)
-before EM. Gaussian Block~1 uses exact conditional modes.}
+before EM. Skipped on the Gaussian exact closed-form path. Gaussian
+Block~1 uses exact conditional modes.}
 
 \item{icm_tol}{ICM convergence tolerance on \eqn{\|\Delta\gamma\|_{P_{11}}}.}
 

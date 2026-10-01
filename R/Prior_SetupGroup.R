@@ -98,6 +98,9 @@
 #' undersized blocks before calling; \code{\link{check_identifiability}}
 #' reports which blocks fail.
 #'
+#' Printing uses \code{\link[glmbayesCore]{print.Prior_SetupGroup}} (registered in
+#' \pkg{glmbayesCore}, not duplicated here).
+#'
 #' @return A named list of class \code{"Prior_SetupGroup"}. Each element is a
 #'   \code{\link[glmbayesCore]{Prior_Setup}} result for one block.
 #' @seealso \code{\link[glmbayesCore]{Prior_Setup}},
@@ -221,55 +224,6 @@ Prior_SetupGroup <- function(
   attr(setups, "group_info") <- meta$group_info
   class(setups) <- c("Prior_SetupGroup", "list")
   setups
-}
-
-#' @rdname Prior_SetupGroup
-#' @method print Prior_SetupGroup
-#' @param x Object of class \code{"Prior_SetupGroup"}.
-#' @param blocks For \code{print.Prior_SetupGroup}: \code{NULL} (default;
-#'   print a short header only), a character vector of block IDs
-#'   (\code{names(x)}), or integer indices. Selected blocks are printed
-#'   with \code{\link[glmbayesCore]{print.PriorSetup}}.
-#' @param ... Further arguments passed to \code{print.PriorSetup} when
-#'   \code{blocks} selects individual blocks.
-#' @return \code{x} invisibly.
-#' @export
-print.Prior_SetupGroup <- function(x, blocks = NULL, ...) {
-  cl <- attr(x, "call")
-  cat("\nCall:\n")
-  if (!is.null(cl)) {
-    print(cl)
-  } else {
-    cat("Prior_SetupGroup()\n")
-  }
-
-  info <- attr(x, "group_info")
-  k <- length(x)
-  ids <- names(x)
-  if (is.null(ids)) {
-    ids <- if (!is.null(info$ids)) info$ids else as.character(seq_len(k))
-  }
-
-  cat("\n--- Row-block prior setup ---\n")
-  form <- attr(x, "formula")
-  if (!is.null(form)) {
-    cat("  formula : ", paste(deparse(form), collapse = "\n"), "\n", sep = "")
-  }
-  cat(sprintf("  blocks  : %d (%s)\n", k, paste(ids, collapse = ", ")))
-  cat("  Each element is a Prior_Setup() result; build pfamilies with\n")
-  cat("  pfamily_list(). Use print(x, blocks = ...) for block details.\n")
-
-  if (!is.null(blocks)) {
-    sel <- .lmebayes_select_named_list_keys(
-      x, blocks, arg = "blocks", what = "group"
-    )
-    for (nm in sel) {
-      cat(sprintf("\n[[%s]]\n", nm))
-      print(x[[nm]], ...)
-    }
-  }
-
-  invisible(x)
 }
 
 #' @noRd

@@ -60,7 +60,7 @@
 .onLoad <- function(libname, pkgname) {
   if (!requireNamespace("glmbayesCore", quietly = TRUE)) {
     stop(
-      "Package 'glmbayesCore' (>= 0.5.1) is required by 'lmebayesCore' but is ",
+      "Package 'glmbayesCore' (>= 0.5.5) is required by 'lmebayesCore' but is ",
       "not installed. Install glmbayesCore first (e.g. ",
       "devtools::install('path/to/glmbayesCore') or install.packages once ",
       "on CRAN).",

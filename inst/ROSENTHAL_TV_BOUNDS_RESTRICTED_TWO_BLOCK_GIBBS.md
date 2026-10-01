@@ -9,24 +9,29 @@ Companion to:
 **Status:** implementation reference for the eight-layer exported API.
 `certificate()` is unchanged (restricted γ-only Theorem 2 route).
 
+**Formal statement.** The certified TV bound evaluated by
+`rosenthal_tv_bound()` / `optimal_rosenthal_tv_bound()` is **Proposition R-Cert**
+in `inst/GAMMA_MARGINAL_DRIFT_MINORIZATION_ROSENTHAL.md` (one-line substitution
+boxes only — general and sharpest displayed).
+
 ---
 
 ## Pipeline (categories 1–8)
 
 ```text
-model_setup + pfamily_list + family
-        │
-        ▼
-(1) population_mode()          ──► γ*, P₁₁, tilde J, EM diagnostics
-        │
-        ▼
-(2) epsilon_star()             ──► ε* minorization constant
+model_setup + pfamily_list + family + delta_2
         │
         ▼
 (3) beta_marginal_mode()       ──► β† (Newton on γ-integrated marginal)
         │
         ▼
 (4) beta_marginal_safe_set()   ──► B̃(δ₂) = {Ξ(β) ≤ r_Gauss(n, δ₂)}
+        │
+        ▼
+(1) population_mode(beta_set)  ──► γ*, P₁₁, tilde J (restricted mean map;
+        │                           ICM init + MC screen on non-Gaussian)
+        ▼
+(2) epsilon_star() / optimize  ──► ε* minorization at restricted γ*
         │
         ▼
 (5) group_precision_floor()    ──► Γ_j^LB on certified level set
@@ -91,11 +96,12 @@ Returns class `"gamma_beta_tv_certificate"` with components:
 ### Step-by-step (inspect intermediates)
 
 ```r
-mode  <- population_mode(design, pfamily_list, family = gaussian())
-eps   <- epsilon_star(mode)
-bstep <- group_effects_conditional_mean(mode = mode)
 bmode <- beta_marginal_mode(design, pfamily_list, family = gaussian())
 bset  <- beta_marginal_safe_set(beta_mode = bmode, delta_2 = 0.01)
+mode  <- population_mode(design, pfamily_list, family = gaussian(),
+                         beta_set = bset, estep = "exact")
+eps   <- epsilon_star(mode, method = "optimize")
+bstep <- group_effects_conditional_mean(mode = mode)
 floor <- group_precision_floor(beta_mode = bmode, beta_set = bset,
                                pfamily_list = plist, family = gaussian())
 ev    <- floor_coupling_eigenvalues(mode, floor)
@@ -130,6 +136,22 @@ and `optimal_rosenthal_tv_bound`), the reported full bound is:
 
 (triangle inequality against the β-truncation term; see
 `GAMMA_MARGINAL_DRIFT_MINORIZATION_ROSENTHAL.md` §0).
+
+### Mode distance and `display_mode`
+
+`display_mode = "sharp"` sets \(V(\gamma_0)=1\), which assumes \(\gamma_0=\gamma^\star\).
+When the chain starts elsewhere, use `"general"` or inflate \(V(\gamma_0)\) via the
+**matrix** strong-convexity bound in
+`GAMMA_MARGINAL_DRIFT_MINORIZATION_ROSENTHAL.md` (§3.1, “Mode distance when
+\(\gamma_0\neq\gamma^\star\)”): \(\|d\|_{\Pi^{\mathrm{LB}}}^2\le g^\top(\Pi^{\mathrm{LB}})^{-1}g\)
+with \(g=\nabla\Phi(\tilde\gamma)\) and \(\Pi^{\mathrm{LB}}=P_{11}-S^{\mathrm{LB}}\) from
+`floor_coupling_eigenvalues()`.
+
+With MC E-steps, the plug-in bound is random; see the same doc for
+\(n^{-1/2}\) propagation via `mc_delta_floor`, the high-probability inflation,
+certified \(V(\gamma_0)\le 1+\tfrac12 B_{\mathrm{cert}}(1+w_{\max}^{\mathrm{LB}})\),
+and the **recommended stopping rule** (fixed-point layer (A) + mode certificate
+(B)–(C), MC-linked `tol_eff` and \(\tau_B\), optional `v0_cert_tol`).
 
 ---
 

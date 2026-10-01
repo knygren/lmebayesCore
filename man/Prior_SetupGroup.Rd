@@ -2,7 +2,6 @@
 % Please edit documentation in R/Prior_SetupGroup.R
 \name{Prior_SetupGroup}
 \alias{Prior_SetupGroup}
-\alias{print.Prior_SetupGroup}
 \title{Prior setup for row-block regressions}
 \usage{
 Prior_SetupGroup(
@@ -27,8 +26,6 @@ Prior_SetupGroup(
   k = 1,
   ...
 )
-
-\method{print}{Prior_SetupGroup}(x, blocks = NULL, ...)
 }
 \arguments{
 \item{formula}{A \code{\link{formula}} with a single response.}
@@ -97,21 +94,16 @@ dimension is 14 or greater. Defaults to 0.05.}
 
 \item{effects_source}{Specifies the method through which the prior means for the effects terms are set. Options are null_effects (prior means set to zero) or full_model (effect means set to match maximum likelihood estimates).}
 
-\item{...}{Further arguments passed to \code{print.PriorSetup} when
-\code{blocks} selects individual blocks.}
+\item{...}{
+    For \code{glm}: arguments to be used to form the default
+    \code{control} argument if it is not supplied directly.
 
-\item{x}{Object of class \code{"Prior_SetupGroup"}.}
-
-\item{blocks}{For \code{print.Prior_SetupGroup}: \code{NULL} (default;
-print a short header only), a character vector of block IDs
-(\code{names(x)}), or integer indices. Selected blocks are printed
-with \code{\link[glmbayesCore]{print.PriorSetup}}.}
+    For \code{weights}: further arguments passed to or from other methods.
+  }
 }
 \value{
 A named list of class \code{"Prior_SetupGroup"}. Each element is a
 \code{\link[glmbayesCore]{Prior_Setup}} result for one block.
-
-\code{x} invisibly.
 }
 \description{
 Runs \code{\link[glmbayesCore]{Prior_Setup}} on each block subset of the data.
@@ -190,6 +182,9 @@ condition derived for the hierarchical case in
 \code{vignette("Chapter-B02", package = "lmebayesCore")}.  Filter or merge
 undersized blocks before calling; \code{\link{check_identifiability}}
 reports which blocks fail.
+
+Printing uses \code{\link[glmbayesCore]{print.Prior_SetupGroup}} (registered in
+\pkg{glmbayesCore}, not duplicated here).
 }
 }
 \examples{

@@ -59,9 +59,9 @@ gamma_beta_tv_certificate(
 \item{include_full_pi_gamma}{If \code{TRUE}, report full \eqn{\pi_\gamma}
 bound as inner bound plus \code{delta_2}.}
 
-\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form),
-\code{"mc"} (simulated conditional means; valid for Gaussian and
-non-Gaussian), or \code{"aghq"} (not yet implemented).}
+\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form when
+unrestricted), \code{"mc"} (simulated conditional means; used automatically
+when \code{beta_set} is supplied), or \code{"aghq"} (not yet implemented).}
 
 \item{kappa_method}{Passed to \code{\link{group_precision_floor}}.}
 
@@ -77,7 +77,8 @@ means is therefore \eqn{O(1/\sqrt{n})} (e.g. \code{n = 10000} targets
 
 \item{icm_init}{If \code{TRUE}, run iterated conditional modes (Block~1
 modes via \code{\link[glmbayesCore]{rglmb}}, Block~2 via the C05 mean map)
-before EM. Gaussian Block~1 uses exact conditional modes.}
+before EM. Skipped on the Gaussian exact closed-form path. Gaussian
+Block~1 uses exact conditional modes.}
 
 \item{icm_tol}{ICM convergence tolerance on \eqn{\|\Delta\gamma\|_{P_{11}}}.}
 

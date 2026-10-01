@@ -41,11 +41,11 @@ cat("1. Ex_rNormal_reg_group toy: OK\n")
 ## ---------------------------------------------------------------------------
 group_info <- glmbayesCore::normalize_group(school, length(y))
 k <- group_info$k
-prior_block <- glmbayesCore:::normalize_prior_for_blocks(
+prior_block <- lmebayesCore:::normalize_prior_for_blocks(
   prior_list = prior_list, prior_lists = NULL,
   group_info = group_info, l1 = l1
 )
-prior_cpp <- glmbayesCore:::.prior_payload_for_rNormalGLMBlocks_cpp(prior_block, l1, k)
+prior_cpp <- lmebayesCore:::.prior_payload_for_rNormalGLMBlocks_cpp(prior_block, l1, k)
 
 low <- glmbayesCore:::.rNormalRegBlocks_cpp(
   n = 1L, y = y, x = x,

@@ -87,22 +87,6 @@ gamma_beta_tv_certificate <- function(design,
     inner_tol <- tol
   }
 
-  mode <- population_mode(
-    design = design,
-    pfamily_list = pfamily_list,
-    family = family,
-    dispprior_list = dispprior_list,
-    estep = estep,
-    acceleration = acceleration,
-    n = n,
-    mc_seed = mc_seed,
-    icm_init = icm_init,
-    icm_tol = icm_tol,
-    icm_maxit = icm_maxit,
-    tol = em_tol,
-    maxit = maxit
-  )
-
   beta_mode <- beta_marginal_mode(
     design = design,
     pfamily_list = pfamily_list,
@@ -116,14 +100,30 @@ gamma_beta_tv_certificate <- function(design,
     verbose = verbose
   )
 
+  mode <- population_mode(
+    design = design,
+    pfamily_list = pfamily_list,
+    family = family,
+    dispprior_list = dispprior_list,
+    beta_set = beta_set,
+    estep = estep,
+    acceleration = acceleration,
+    n = n,
+    mc_seed = mc_seed,
+    icm_init = icm_init,
+    icm_tol = icm_tol,
+    icm_maxit = icm_maxit,
+    tol = em_tol,
+    maxit = maxit
+  )
+
   floor_obj <- group_precision_floor(
     beta_mode = beta_mode,
     beta_set = beta_set,
     kappa_method = kappa_method
   )
 
-  use_closure <- identical(family$family, "gaussian") &&
-    identical(estep, "exact")
+  use_closure <- identical(mode$em_route, "gaussian_exact")
   eps_obj <- if (use_closure) {
     epsilon_star(mode, method = "closure")
   } else {

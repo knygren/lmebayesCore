@@ -17,8 +17,12 @@ population_mode(
   icm_init = TRUE,
   icm_tol = 1e-08,
   icm_maxit = 200L,
+  icm_screen = NULL,
+  mc_alpha = 0.05,
+  mc_stable = 2L,
   tol = 1e-10,
-  maxit = 200L
+  maxit = 200L,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -33,9 +37,9 @@ population_mode(
 \item{beta_set}{Optional \code{\link{beta_marginal_safe_set}}; enables
 widetilde-B rejection MC (see Details).}
 
-\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form),
-\code{"mc"} (simulated conditional means; valid for Gaussian and
-non-Gaussian), or \code{"aghq"} (not yet implemented).}
+\item{estep}{E-step tier: \code{"exact"} (default Gaussian closed form when
+unrestricted), \code{"mc"} (simulated conditional means; used automatically
+when \code{beta_set} is supplied), or \code{"aghq"} (not yet implemented).}
 
 \item{acceleration}{\code{"none"} or \code{"squarem"} (not yet implemented).}
 
@@ -49,21 +53,34 @@ means is therefore \eqn{O(1/\sqrt{n})} (e.g. \code{n = 10000} targets
 
 \item{icm_init}{If \code{TRUE}, run iterated conditional modes (Block~1
 modes via \code{\link[glmbayesCore]{rglmb}}, Block~2 via the C05 mean map)
-before EM. Gaussian Block~1 uses exact conditional modes.}
+before EM. Skipped on the Gaussian exact closed-form path. Gaussian
+Block~1 uses exact conditional modes.}
 
 \item{icm_tol}{ICM convergence tolerance on \eqn{\|\Delta\gamma\|_{P_{11}}}.}
 
 \item{icm_maxit}{Maximum ICM iterations.}
 
+\item{icm_screen}{If \code{TRUE} (default when the E-step is Monte Carlo),
+after ICM run \code{mc_stable} MC mean-map fixed-point checks at the ICM
+\code{fixef}; skip the EM loop when all pass. If \code{NULL}, enabled
+whenever \code{icm_init} is \code{TRUE} and the E-step uses MC.}
+
+\item{mc_alpha}{Two-sided level for the MC fixed-point screen and EM stop
+(\code{tol_eff = max(tol, z_{1-alpha/2} * mc_delta_floor)}).}
+
+\item{mc_stable}{Number of consecutive MC fixed-point passes required at the
+same \code{fixef} (ICM screen and EM stopping rule).}
+
 \item{tol}{Convergence tolerance on the Mahalanobis change in \code{fixef}
-under the C05 metric \eqn{\|\Delta\gamma\|_{P_{11}}}. When
-\code{estep = "mc"}, the effective tolerance is
-\code{max(tol, mc_delta_floor)}, where \code{mc_delta_floor} propagates
-the terminal \code{b_mc_se} (MC standard errors at draw count \code{n})
-through the mean map: EM stops once successive iterates differ by less
-than one MC standard deviation in the \eqn{P_{11}} metric.}
+under the C05 metric \eqn{\|\Delta\gamma\|_{P_{11}}}. When the E-step
+is Monte Carlo, the effective tolerance is
+\code{max(tol, z_{1-alpha/2} * mc_delta_floor)}.}
 
 \item{maxit}{Maximum EM iterations.}
+
+\item{verbose}{If \code{TRUE}, emit \code{message()} diagnostics for ICM
+initialization and each EM record (gradient \eqn{g}, \eqn{\|g\|}, MC
+\eqn{\log \pi(\gamma \mid y)} when joint safe draws are available).}
 }
 \value{
 A list with \code{fixef} (\eqn{\gamma^\star}), \code{gamma_star},
@@ -73,8 +90,9 @@ A list with \code{fixef} (\eqn{\gamma^\star}), \code{gamma_star},
 refresh objects (\code{P11}, \code{Sigma_star}), \code{tilde_J},
 \code{kappa_spectrum}, \code{weights}, \code{kappa}, \code{rho},
 \code{Sigma_pi}, \code{eps_star_closure},
-\code{icm} initialization diagnostics, EM diagnostics (\code{tol_eff},
-\code{mc_delta_floor} when \code{estep = "mc"}), \code{beta_set},
+\code{icm} and \code{icm_screen} diagnostics, EM diagnostics
+(\code{tol_eff}, \code{mc_delta_floor}, \code{em_route}, \code{em_trace}),
+\code{beta_set},
 \code{restricted}, and related fields.
 }
 \description{

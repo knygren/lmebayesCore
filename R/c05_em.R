@@ -22,7 +22,9 @@
     max_tries = max_tries,
     mc_seed = mc_seed
   )
-  .c05_safe_group_draw_to_estep(safe_out, p11$group_levels)
+  out <- .c05_safe_group_draw_to_estep(safe_out, p11$group_levels)
+  out$safe_out <- safe_out
+  out
 }
 
 #' Conditional-mean E-step for the population mean map.
@@ -341,6 +343,308 @@
   sqrt(as.numeric(crossprod(d_gamma, p11$P11 %*% d_gamma)))
 }
 
+#' Stable log-sum-exp.
+#' @noRd
+.c05_logsumexp <- function(x) {
+  x <- x[is.finite(x)]
+  if (!length(x)) {
+    return(-Inf)
+  }
+  m <- max(x)
+  m + log(sum(exp(x - m)))
+}
+
+#' Column names for the stacked \eqn{\gamma} vector.
+#' @noRd
+.c05_gamma_names <- function(p11) {
+  unlist(
+    lapply(p11$re_names, function(k) {
+      cols <- colnames(p11$X_hyper[[k]])
+      if (is.null(cols)) {
+        cols <- seq_len(ncol(p11$X_hyper[[k]]))
+      }
+      paste0(k, "_", cols)
+    }),
+    use.names = FALSE
+  )
+}
+
+#' Log prior \eqn{\log \pi(\gamma)} under the population prior.
+#' @noRd
+.c05_log_logprior_gamma <- function(gamma, p11) {
+  diff0 <- gamma - p11$mu_0
+  q <- length(gamma)
+  chol_L <- chol(p11$Lambda_gamma)
+  logdet <- 2 * sum(log(diag(chol_L)))
+  quad <- sum((backsolve(chol_L, diff0, transpose = TRUE))^2)
+  -0.5 * (q * log(2 * pi) + logdet + quad)
+}
+
+#' Group log-likelihood \eqn{\ell_j(b_j)} at fixed \eqn{b_j}.
+#' @noRd
+.c05_group_loglik <- function(b_j, rows, design, family, measurement_prior_list, jj) {
+  Z_j <- design$D[rows, , drop = FALSE]
+  eta <- as.vector(Z_j %*% b_j)
+  if (!is.null(design$offset) && length(design$offset) >= max(rows)) {
+    eta <- eta + design$offset[rows]
+  }
+  y_j <- design$y[rows]
+  wt <- if (!is.null(design$weights)) design$weights[rows] else rep(1, length(rows))
+
+  if (identical(family$family, "gaussian")) {
+    sigma2 <- measurement_prior_list$group.dispersion
+    sigma2 <- as.numeric(sigma2)
+    sigma2_j <- if (length(sigma2) > 1L) sigma2[[jj]] else sigma2
+    sd_j <- sqrt(sigma2_j / wt)
+    sum(stats::dnorm(y_j, mean = eta, sd = sd_j, log = TRUE) + log(wt))
+  } else if (identical(family$family, "binomial")) {
+    p_j <- 1 / (1 + exp(-eta))
+    if (all(wt == 1)) {
+      sum(stats::dbinom(y_j, size = 1, prob = p_j, log = TRUE))
+    } else {
+      sum(stats::dbinom(y_j, size = wt, prob = p_j, log = TRUE))
+    }
+  } else {
+    stop(
+      "EM log marginal is not implemented for family ",
+      family$family, "().",
+      call. = FALSE
+    )
+  }
+}
+
+#' Log \eqn{\pi(b \mid \gamma) + \ell(b)} summed over groups at a joint draw.
+#' @noRd
+.c05_log_cond_beta_at_bmat <- function(b_mat,
+                                       gamma,
+                                       design,
+                                       p11,
+                                       family,
+                                       measurement_prior_list) {
+  group_levels <- p11$group_levels
+  g_chr <- as.character(design$group)
+  P_b <- p11$P_b
+  chol_Pb <- chol(P_b)
+  logdet_Pb <- 2 * sum(log(diag(chol_Pb)))
+  p_re <- p11$p_re
+  ell <- 0
+  log_prior <- 0
+  for (jj in seq_along(group_levels)) {
+    lev <- group_levels[[jj]]
+    rows <- which(g_chr == lev)
+    b_j <- as.numeric(b_mat[jj, , drop = FALSE])
+    H_j <- p11$H_list[[lev]]
+    mu_j <- as.vector(H_j %*% gamma)
+    diff_b <- b_j - mu_j
+    log_prior <- log_prior - 0.5 * (
+      p_re * log(2 * pi) + logdet_Pb +
+        sum((backsolve(chol_Pb, diff_b, transpose = TRUE))^2)
+    )
+    ell <- ell + .c05_group_loglik(
+      b_j, rows, design, family, measurement_prior_list, jj
+    )
+  }
+  log_prior + ell
+}
+
+#' MC estimate of \eqn{\log \pi(\gamma \mid y)} from joint safe draws.
+#' @noRd
+.c05_log_marginal_logpost <- function(fixef,
+                                      estep_out,
+                                      design,
+                                      p11,
+                                      family,
+                                      measurement_prior_list) {
+  safe_out <- estep_out$safe_out
+  if (is.null(safe_out)) {
+    return(list(log_post = NA_real_, method = NA_character_))
+  }
+  acc <- safe_out$coefficients_all
+  if (is.null(acc)) {
+    b1 <- matrix(safe_out$coefficients, nrow = 1L)
+    acc <- array(
+      b1,
+      dim = c(1L, nrow(b1), ncol(b1)),
+      dimnames = list(NULL, rownames(b1), colnames(b1))
+    )
+  }
+  gamma <- .c05_gamma_from_fixef(fixef, p11)
+  R <- dim(acc)[1L]
+  log_cond <- vapply(seq_len(R), function(r) {
+    b_mat <- acc[r, , , drop = FALSE]
+    dim(b_mat) <- c(dim(acc)[2L], dim(acc)[3L])
+    .c05_log_cond_beta_at_bmat(
+      b_mat, gamma, design, p11, family, measurement_prior_list
+    )
+  }, numeric(1L))
+  log_p_gamma <- .c05_log_logprior_gamma(gamma, p11)
+  list(
+    log_post = log_p_gamma + .c05_logsumexp(log_cond) - log(R),
+    method = "mc_marginal"
+  )
+}
+
+#' EM gradient \eqn{g = P_{11}(\gamma - M(\gamma))} at the current \code{fixef}.
+#' @noRd
+.c05_em_gradient <- function(fixef, estep_out, p11) {
+  gamma <- .c05_gamma_from_fixef(fixef, p11)
+  fixef_M <- .c05_mean_map(estep_out$b_mean, p11)
+  gamma_M <- .c05_gamma_from_fixef(fixef_M, p11)
+  g <- as.numeric(p11$P11 %*% (gamma - gamma_M))
+  gnames <- .c05_gamma_names(p11)
+  names(g) <- gnames
+  names(gamma) <- gnames
+  names(gamma_M) <- gnames
+  diff_g <- gamma - gamma_M
+  list(
+    g = g,
+    gamma = gamma,
+    gamma_M = gamma_M,
+    fixef_M = fixef_M,
+    delta = sqrt(as.numeric(crossprod(diff_g, p11$P11 %*% diff_g)))
+  )
+}
+
+#' One EM diagnostic record (gradient, log marginal, tolerances).
+#' @noRd
+.c05_em_trace_record <- function(iter,
+                                 fixef,
+                                 estep_out,
+                                 design,
+                                 p11,
+                                 family,
+                                 measurement_prior_list,
+                                 tol,
+                                 mc_alpha,
+                                 uses_mc,
+                                 prev_delta = NA_real_,
+                                 prev_log_post = NA_real_) {
+  gr <- .c05_em_gradient(fixef, estep_out, p11)
+  lp <- .c05_log_marginal_logpost(
+    fixef, estep_out, design, p11, family, measurement_prior_list
+  )
+  gnames <- .c05_gamma_names(p11)
+  gamma <- gr$gamma
+  names(gamma) <- gnames
+  g <- gr$g
+  names(g) <- gnames
+  tol_eff <- if (uses_mc) {
+    .c05_em_tol(tol, "mc", estep_out$b_mc_se, p11, mc_alpha = mc_alpha)
+  } else {
+    tol
+  }
+  d_log_post <- if (is.finite(prev_log_post) && is.finite(lp$log_post)) {
+    lp$log_post - prev_log_post
+  } else {
+    NA_real_
+  }
+  slope_g <- if (is.finite(prev_delta) && prev_delta > 0) {
+    gr$delta / prev_delta
+  } else {
+    NA_real_
+  }
+  list(
+    iter = iter,
+    gamma = gr$gamma,
+    g = gr$g,
+    delta = gr$delta,
+    log_post = lp$log_post,
+    log_post_method = lp$method,
+    d_log_post = d_log_post,
+    slope_g = slope_g,
+    tol_eff = tol_eff,
+    pass = isTRUE(gr$delta <= tol_eff)
+  )
+}
+
+#' Format a named numeric vector for EM trace messages.
+#' @noRd
+.c05_format_named_vec <- function(x, digits = 4L) {
+  nm <- names(x)
+  x <- as.vector(x, mode = "double")
+  if (is.null(nm)) {
+    nm <- seq_along(x)
+  }
+  paste0(
+    nm, "=",
+    format(signif(x, digits), trim = TRUE, scientific = FALSE),
+    collapse = ", "
+  )
+}
+
+#' Print EM trace records when \code{verbose = TRUE}.
+#' @noRd
+.c05_verbose_em_trace <- function(record, p11, label = NULL) {
+  gnames <- .c05_gamma_names(p11)
+  gamma_fmt <- stats::setNames(as.numeric(record$gamma), gnames)
+  g_fmt <- stats::setNames(as.numeric(record$g), gnames)
+  if (!is.null(label)) {
+    message(label, ": ", .c05_format_named_vec(gamma_fmt), sep = "")
+  }
+  lp <- if (is.finite(record$log_post)) {
+    signif(record$log_post, 6)
+  } else {
+    "NA"
+  }
+  msg <- paste0(
+    "  iter ", sprintf("%2d", record$iter),
+    " | ||g||=", format(record$delta, digits = 4, scientific = TRUE),
+    " | slope_g=",
+    if (is.finite(record$slope_g)) {
+      format(record$slope_g, digits = 4)
+    } else {
+      "NA"
+    },
+    " | log_post=", lp,
+    " | d_log=",
+    if (is.finite(record$d_log_post)) {
+      paste0(
+        if (record$d_log_post >= 0) "+" else "",
+        format(record$d_log_post, digits = 5)
+      )
+    } else {
+      "NA"
+    },
+    " | tol_eff=", format(record$tol_eff, digits = 4, scientific = TRUE),
+    " | pass=", record$pass
+  )
+  message(msg)
+  message("      g: ", .c05_format_named_vec(g_fmt))
+}
+
+#' Print a \code{population_mode_em_trace} object.
+#' @param x A \code{population_mode_em_trace} object (from
+#'   \code{\link{population_mode}$em_trace}).
+#' @param ... Ignored.
+#' @return \code{x}, invisibly.
+#' @export
+print.population_mode_em_trace <- function(x, ...) {
+  if (!inherits(x, "population_mode_em_trace")) {
+    NextMethod("print")
+  }
+  if (!is.null(x$icm)) {
+    icm <- x$icm
+    message(
+      "ICM init: iters=", icm$iterations,
+      " converged=", icm$converged,
+      " delta=", signif(icm$delta, 4)
+    )
+  }
+  if (!is.null(x$em_start)) {
+    .c05_verbose_em_trace(
+      x$em_start, x$p11,
+      label = "  gamma_start"
+    )
+  }
+  if (length(x$history)) {
+    message("EM history (", length(x$history), " records):")
+    for (rec in x$history) {
+      .c05_verbose_em_trace(rec, x$p11)
+    }
+  }
+  invisible(x)
+}
+
 #' MC noise floor for \eqn{\|\Delta\gamma\|_{P_{11}}} from \code{b_mc_se}.
 #'
 #' Propagates independent elementwise MC standard errors in \code{b_mean}
@@ -371,13 +675,92 @@
   sqrt(max(sq, 0))
 }
 
+#' Whether the E-step uses Monte Carlo (including widetilde-B rejection).
+#' @noRd
+.c05_estep_uses_mc <- function(family, estep, beta_set) {
+  if (!is.null(beta_set)) {
+    return(TRUE)
+  }
+  if (!identical(family$family, "gaussian") && identical(estep, "exact")) {
+    return(TRUE)
+  }
+  identical(estep, "mc")
+}
+
 #' Effective EM tolerance when the E-step is Monte Carlo.
 #' @noRd
-.c05_em_tol <- function(tol, estep, b_mc_se, p11) {
-  if (!identical(estep, "mc")) {
+.c05_em_tol <- function(tol, estep, b_mc_se, p11, mc_alpha = 0.05) {
+  if (!identical(estep, "mc") && is.null(b_mc_se)) {
     return(tol)
   }
-  max(tol, .c05_mc_delta_floor(b_mc_se, p11))
+  floor <- .c05_mc_delta_floor(b_mc_se, p11)
+  if (!is.finite(floor) || floor <= 0) {
+    return(tol)
+  }
+  z <- stats::qnorm(1 - mc_alpha / 2)
+  max(tol, z * floor)
+}
+
+#' MC fixed-point screen at the ICM start (Type I + Type II combined).
+#' @noRd
+.c05_icm_screen <- function(design,
+                            fixef,
+                            p11,
+                            measurement_prior_list,
+                            family,
+                            estep,
+                            n,
+                            mc_seed,
+                            beta_set,
+                            tol,
+                            mc_alpha,
+                            mc_stable) {
+  mc_stable <- as.integer(mc_stable)
+  if (!(mc_stable >= 1L)) {
+    stop("'mc_stable' must be at least 1.", call. = FALSE)
+  }
+
+  delta <- NA_real_
+  mc_delta_floor <- NA_real_
+  tol_eff <- tol
+  estep_out <- NULL
+
+  for (hit in seq_len(mc_stable)) {
+    estep_out <- .c05_estep(
+      design = design,
+      fixef = fixef,
+      p11 = p11,
+      measurement_prior_list = measurement_prior_list,
+      family = family,
+      estep = estep,
+      n = n,
+      mc_seed = if (hit == 1L) mc_seed else NULL,
+      beta_set = beta_set
+    )
+    fixef_new <- .c05_mean_map(estep_out$b_mean, p11)
+    delta <- .c05_gamma_delta(fixef, fixef_new, p11)
+    mc_delta_floor <- .c05_mc_delta_floor(estep_out$b_mc_se, p11)
+    tol_eff <- .c05_em_tol(tol, "mc", estep_out$b_mc_se, p11, mc_alpha = mc_alpha)
+    if (!(delta <= tol_eff)) {
+      return(list(
+        passed = FALSE,
+        hits = hit - 1L,
+        estep_out = estep_out,
+        delta = delta,
+        mc_delta_floor = mc_delta_floor,
+        tol_eff = tol_eff
+      ))
+    }
+  }
+
+  list(
+    passed = TRUE,
+    hits = mc_stable,
+    estep_out = estep_out,
+    delta = delta,
+    mc_delta_floor = mc_delta_floor,
+    tol_eff = tol_eff
+  )
 }
 
 #' Jacobian J, spectrum, and closure objects at the current E-step.
@@ -432,9 +815,9 @@
 #' @param dispprior_list Optional Block~1 dispersion prior for \code{gaussian()}.
 #' @param beta_set Optional \code{\link{beta_marginal_safe_set}}; enables
 #'   widetilde-B rejection MC (see Details).
-#' @param estep E-step tier: \code{"exact"} (default Gaussian closed form),
-#'   \code{"mc"} (simulated conditional means; valid for Gaussian and
-#'   non-Gaussian), or \code{"aghq"} (not yet implemented).
+#' @param estep E-step tier: \code{"exact"} (default Gaussian closed form when
+#'   unrestricted), \code{"mc"} (simulated conditional means; used automatically
+#'   when \code{beta_set} is supplied), or \code{"aghq"} (not yet implemented).
 #' @param acceleration \code{"none"} or \code{"squarem"} (not yet implemented).
 #' @param n Number of \eqn{\beta_j} draws per group when \code{estep = "mc"}.
 #'   The sample mean \eqn{\bar b_j} has elementwise MC standard error
@@ -444,17 +827,26 @@
 #' @param mc_seed Optional seed for the MC E-step (first iteration only).
 #' @param icm_init If \code{TRUE}, run iterated conditional modes (Block~1
 #'   modes via \code{\link[glmbayesCore]{rglmb}}, Block~2 via the C05 mean map)
-#'   before EM. Gaussian Block~1 uses exact conditional modes.
+#'   before EM. Skipped on the Gaussian exact closed-form path. Gaussian
+#'   Block~1 uses exact conditional modes.
 #' @param icm_tol ICM convergence tolerance on \eqn{\|\Delta\gamma\|_{P_{11}}}.
 #' @param icm_maxit Maximum ICM iterations.
+#' @param icm_screen If \code{TRUE} (default when the E-step is Monte Carlo),
+#'   after ICM run \code{mc_stable} MC mean-map fixed-point checks at the ICM
+#'   \code{fixef}; skip the EM loop when all pass. If \code{NULL}, enabled
+#'   whenever \code{icm_init} is \code{TRUE} and the E-step uses MC.
+#' @param mc_alpha Two-sided level for the MC fixed-point screen and EM stop
+#'   (\code{tol_eff = max(tol, z_{1-alpha/2} * mc_delta_floor)}).
+#' @param mc_stable Number of consecutive MC fixed-point passes required at the
+#'   same \code{fixef} (ICM screen and EM stopping rule).
 #' @param tol Convergence tolerance on the Mahalanobis change in \code{fixef}
-#'   under the C05 metric \eqn{\|\Delta\gamma\|_{P_{11}}}. When
-#'   \code{estep = "mc"}, the effective tolerance is
-#'   \code{max(tol, mc_delta_floor)}, where \code{mc_delta_floor} propagates
-#'   the terminal \code{b_mc_se} (MC standard errors at draw count \code{n})
-#'   through the mean map: EM stops once successive iterates differ by less
-#'   than one MC standard deviation in the \eqn{P_{11}} metric.
+#'   under the C05 metric \eqn{\|\Delta\gamma\|_{P_{11}}}. When the E-step
+#'   is Monte Carlo, the effective tolerance is
+#'   \code{max(tol, z_{1-alpha/2} * mc_delta_floor)}.
 #' @param maxit Maximum EM iterations.
+#' @param verbose If \code{TRUE}, emit \code{message()} diagnostics for ICM
+#'   initialization and each EM record (gradient \eqn{g}, \eqn{\|g\|}, MC
+#'   \eqn{\log \pi(\gamma \mid y)} when joint safe draws are available).
 #' @return A list with \code{fixef} (\eqn{\gamma^\star}), \code{gamma_star},
 #'   \code{b_mean}, \code{b_mc_se} (terminal MC standard errors when
 #'   \code{estep = "mc"}), \code{V_list}, \code{n}, model context
@@ -462,8 +854,9 @@
 #'   refresh objects (\code{P11}, \code{Sigma_star}), \code{tilde_J},
 #'   \code{kappa_spectrum}, \code{weights}, \code{kappa}, \code{rho},
 #'   \code{Sigma_pi}, \code{eps_star_closure},
-#'   \code{icm} initialization diagnostics, EM diagnostics (\code{tol_eff},
-#'   \code{mc_delta_floor} when \code{estep = "mc"}), \code{beta_set},
+#'   \code{icm} and \code{icm_screen} diagnostics, EM diagnostics
+#'   (\code{tol_eff}, \code{mc_delta_floor}, \code{em_route}, \code{em_trace}),
+#'   \code{beta_set},
 #'   \code{restricted}, and related fields.
 #' @seealso \code{\link{group_effects_conditional_mean}},
 #'   \code{\link{rNormal_reg_group_safe}},
@@ -481,10 +874,17 @@ population_mode <- function(design,
                                              icm_init = TRUE,
                                              icm_tol = 1e-8,
                                              icm_maxit = 200L,
+                                             icm_screen = NULL,
+                                             mc_alpha = 0.05,
+                                             mc_stable = 2L,
                                              tol = 1e-10,
-                                             maxit = 200L) {
+                                             maxit = 200L,
+                                             verbose = FALSE) {
   estep <- match.arg(estep)
   acceleration <- match.arg(acceleration)
+  if (!is.null(beta_set) && identical(estep, "exact")) {
+    estep <- "mc"
+  }
   if (!identical(acceleration, "none")) {
     stop("acceleration = \"squarem\" is not implemented yet.", call. = FALSE)
   }
@@ -511,8 +911,22 @@ population_mode <- function(design,
   fixef <- lapply(mpl$pop.prior_list, `[[`, "mu")
   names(fixef) <- prep$re_names
 
+  uses_mc <- .c05_estep_uses_mc(family, estep, beta_set)
+  is_gauss_exact <- identical(family$family, "gaussian") &&
+    identical(estep, "exact") &&
+    is.null(beta_set) &&
+    !is.null(p11$lmerb_system)
+
+  if (is.null(icm_screen)) {
+    icm_screen <- isTRUE(icm_init) && uses_mc
+  }
+
   icm <- NULL
-  if (isTRUE(icm_init)) {
+  icm_screen_out <- NULL
+  em_trace <- NULL
+  mc_seed_used <- FALSE
+  estep_at_start <- NULL
+  if (isTRUE(icm_init) && !is_gauss_exact) {
     icm <- .c05_icm_init(
       design = design,
       fixef_start = fixef,
@@ -523,6 +937,23 @@ population_mode <- function(design,
       maxit = icm_maxit
     )
     fixef <- icm$fixef
+    if (isTRUE(verbose)) {
+      message(
+        "ICM init: iters=", icm$iterations,
+        " converged=", icm$converged,
+        " delta=", signif(icm$delta, 4)
+      )
+    }
+  }
+
+  if (uses_mc && !is_gauss_exact) {
+    em_trace <- list(
+      icm = icm,
+      p11 = p11,
+      em_start = NULL,
+      history = list()
+    )
+    class(em_trace) <- "population_mode_em_trace"
   }
 
   converged <- FALSE
@@ -530,9 +961,10 @@ population_mode <- function(design,
   em_iterations <- 0L
   tol_eff <- tol
   mc_delta_floor <- NA_real_
+  em_route <- if (is_gauss_exact) "gaussian_exact" else "em"
+  estep_out <- NULL
 
-  if (identical(family$family, "gaussian") && identical(estep, "exact") &&
-      !is.null(p11$lmerb_system)) {
+  if (is_gauss_exact) {
     fixef <- .c05_mean_map_lmerb(NULL, p11)
     estep_out <- .c05_estep(
       design = design,
@@ -544,13 +976,43 @@ population_mode <- function(design,
       n = n,
       beta_set = beta_set
     )
-    em_iterations <- 1L
+    em_iterations <- 0L
     converged <- TRUE
-    delta <- .c05_gamma_delta(fixef, fixef, p11)
-  } else {
-    for (iter in seq_len(maxit)) {
-      em_iterations <- iter
-      estep_out <- .c05_estep(
+    delta <- 0
+  } else if (isTRUE(icm_screen) && isTRUE(icm_init)) {
+    icm_screen_out <- .c05_icm_screen(
+      design = design,
+      fixef = fixef,
+      p11 = p11,
+      measurement_prior_list = mpl,
+      family = family,
+      estep = estep,
+      n = n,
+      mc_seed = mc_seed,
+      beta_set = beta_set,
+      tol = tol,
+      mc_alpha = mc_alpha,
+      mc_stable = mc_stable
+    )
+    estep_out <- icm_screen_out$estep_out
+    estep_at_start <- estep_out
+    mc_seed_used <- !is.null(mc_seed)
+    delta <- icm_screen_out$delta
+    mc_delta_floor <- icm_screen_out$mc_delta_floor
+    tol_eff <- icm_screen_out$tol_eff
+    if (isTRUE(icm_screen_out$passed)) {
+      converged <- TRUE
+      em_route <- "icm_screen"
+    }
+  }
+
+  if (!is.null(em_trace)) {
+    if (!is.null(estep_at_start)) {
+      estep_for_start <- estep_at_start
+    } else if (!is.null(icm_screen_out)) {
+      estep_for_start <- icm_screen_out$estep_out
+    } else {
+      estep_for_start <- .c05_estep(
         design = design,
         fixef = fixef,
         p11 = p11,
@@ -558,25 +1020,114 @@ population_mode <- function(design,
         family = family,
         estep = estep,
         n = n,
-        mc_seed = if (iter == 1L) mc_seed else NULL,
+        mc_seed = mc_seed,
         beta_set = beta_set
       )
+      estep_at_start <- estep_for_start
+      mc_seed_used <- !is.null(mc_seed)
+    }
+    em_trace$em_start <- .c05_em_trace_record(
+      iter = 0L,
+      fixef = fixef,
+      estep_out = estep_for_start,
+      design = design,
+      p11 = p11,
+      family = family,
+      measurement_prior_list = mpl,
+      tol = tol,
+      mc_alpha = mc_alpha,
+      uses_mc = uses_mc
+    )
+    if (isTRUE(verbose)) {
+      message("EM start (after ICM):")
+      message(
+        "  log_post = MC log pi(gamma|y) when joint safe draws are available"
+      )
+      .c05_verbose_em_trace(em_trace$em_start, p11, label = "  gamma_start")
+    }
+  }
+
+  if (!converged) {
+    em_route <- "em"
+    prev_delta <- NA_real_
+    prev_tol_eff <- NA_real_
+    prev_g_norm <- if (!is.null(em_trace)) em_trace$em_start$delta else NA_real_
+    prev_log_post <- if (!is.null(em_trace)) em_trace$em_start$log_post else NA_real_
+    mc_stable <- as.integer(mc_stable)
+    for (iter in seq_len(maxit)) {
+      em_iterations <- iter
+      reuse_start_estep <- isTRUE(iter == 1L && !is.null(estep_at_start))
+      if (reuse_start_estep) {
+        estep_out <- estep_at_start
+      } else {
+        estep_out <- .c05_estep(
+          design = design,
+          fixef = fixef,
+          p11 = p11,
+          measurement_prior_list = mpl,
+          family = family,
+          estep = estep,
+          n = n,
+          mc_seed = if (iter == 1L && !mc_seed_used) mc_seed else NULL,
+          beta_set = beta_set
+        )
+      }
+
+      if (!is.null(em_trace) && !reuse_start_estep) {
+        trace_rec <- .c05_em_trace_record(
+          iter = iter,
+          fixef = fixef,
+          estep_out = estep_out,
+          design = design,
+          p11 = p11,
+          family = family,
+          measurement_prior_list = mpl,
+          tol = tol,
+          mc_alpha = mc_alpha,
+          uses_mc = uses_mc,
+          prev_delta = prev_g_norm,
+          prev_log_post = prev_log_post
+        )
+        em_trace$history[[length(em_trace$history) + 1L]] <- trace_rec
+        if (isTRUE(verbose)) {
+          .c05_verbose_em_trace(trace_rec, p11)
+        }
+        prev_log_post <- trace_rec$log_post
+        prev_g_norm <- trace_rec$delta
+      } else if (!is.null(em_trace) && reuse_start_estep) {
+        prev_g_norm <- em_trace$em_start$delta
+        prev_log_post <- em_trace$em_start$log_post
+      }
 
       fixef_new <- .c05_mean_map(estep_out$b_mean, p11)
 
       delta <- .c05_gamma_delta(fixef, fixef_new, p11)
-      mc_delta_floor <- if (identical(estep, "mc")) {
+      mc_delta_floor <- if (uses_mc) {
         .c05_mc_delta_floor(estep_out$b_mc_se, p11)
       } else {
         NA_real_
       }
-      tol_eff <- .c05_em_tol(tol, estep, estep_out$b_mc_se, p11)
+      tol_eff <- if (uses_mc) {
+        .c05_em_tol(tol, "mc", estep_out$b_mc_se, p11, mc_alpha = mc_alpha)
+      } else {
+        tol
+      }
 
       fixef <- fixef_new
-      if (delta < tol_eff) {
+      stable_hit <- delta <= tol_eff
+      if (mc_stable <= 1L) {
+        if (stable_hit) {
+          converged <- TRUE
+          break
+        }
+      } else if (stable_hit &&
+                 is.finite(prev_delta) &&
+                 prev_delta <= prev_tol_eff) {
         converged <- TRUE
         break
       }
+      prev_tol_eff <- tol_eff
+      prev_delta <- delta
     }
   }
 
@@ -585,7 +1136,7 @@ population_mode <- function(design,
       "population_mode() did not converge in ", maxit,
       " iterations (final delta = ", signif(delta, 3L)
     )
-    if (identical(estep, "mc") && is.finite(mc_delta_floor)) {
+    if (uses_mc && is.finite(mc_delta_floor)) {
       msg <- paste0(
         msg,
         ", effective tol = ", signif(tol_eff, 3L),
@@ -613,6 +1164,9 @@ population_mode <- function(design,
     b_mc_se = estep_out$b_mc_se,
     V_list = estep_out$V_list,
     icm = icm,
+    icm_screen = icm_screen_out,
+    em_route = em_route,
+    em_trace = em_trace,
     design = design,
     family = family,
     measurement_prior_list = mpl,

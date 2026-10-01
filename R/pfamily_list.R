@@ -14,15 +14,13 @@
 #'   naming (RE coefficient names for \code{Prior_Setup_GLMM}; block IDs
 #'   for \code{Prior_SetupGroup}).  For both methods,
 #'   \code{ptypes = NULL} (default) resolves to \code{"dNormal"}.
-#' @param ... Additional arguments passed to methods. For
-#'   \code{print.pfamily_list()}, passed to \code{print.pfamily}.
+#' @param ... Additional arguments passed to methods.
 #'
-#' @return For \code{pfamily_list()}, an object of class
-#'   \code{"pfamily_list"} (also inherits from \code{"list"}): a named
-#'   list whose elements are objects of class \code{"pfamily"}.
-#'   Attribute \code{"ptypes"} records the resolved prior-family name
-#'   for each component.  For \code{print.pfamily_list()}, \code{x}
-#'   invisibly.
+#' @return An object of class \code{"pfamily_list"} (also inherits from
+#'   \code{"list"}): a named list whose elements are objects of class
+#'   \code{"pfamily"}. Attribute \code{"ptypes"} records the resolved
+#'   prior-family name for each component. Printing uses
+#'   \code{\link[glmbayesCore]{print.pfamily_list}}.
 #'
 #' @details
 #' A \code{pfamily_list} is the prior argument every mixed-model sampler
@@ -83,25 +81,4 @@
 #' @export
 pfamily_list <- function(object, ptypes = NULL, ...) {
   UseMethod("pfamily_list")
-}
-
-#' @rdname pfamily_list
-#' @method print pfamily_list
-#' @param x An object of class \code{"pfamily_list"}.
-#' @param components For \code{print.pfamily_list()}: \code{NULL}
-#'   (default; print all components), a character vector of component
-#'   names (\code{names(x)}, e.g. \code{"(Intercept)"}, slopes), or
-#'   integer indices into \code{x}. Each selected component is printed
-#'   with \code{\link[glmbayesCore]{print.pfamily}}.
-#' @order 4
-#' @export
-print.pfamily_list <- function(x, components = NULL, ...) {
-  sel <- .lmebayes_select_named_list_keys(
-    x, components, arg = "components", what = "component"
-  )
-  for (nm in sel) {
-    cat(sprintf("\n[[%s]]\n", nm))
-    print(x[[nm]], ...)
-  }
-  invisible(x)
 }

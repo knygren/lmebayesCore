@@ -371,6 +371,11 @@ mechanisms in one rate.
 = Doeblin on \(C_d\); second term = **truncation** \(\delta=\pi(C_d^c)\), not Foster
 drift.
 
+**Unified certificate proposition.** For model assumptions, existential construction of
+\(\widetilde B(\delta_2)\) and the restricted sampler, the **one-line substitution** bound,
+and the **sharpest certified** display (smallest \(\widetilde C_d\), start at \(\gamma^\star\)),
+see **Proposition R-Cert** in `inst/GAMMA_MARGINAL_DRIFT_MINORIZATION_ROSENTHAL.md` §3.1.
+
 ### 5.3 Certificate instantiation
 
 On \(\widetilde{\mathcal R}=\widetilde C_d\times \widetilde B(\delta_2)\):

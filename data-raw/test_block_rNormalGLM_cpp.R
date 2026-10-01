@@ -57,11 +57,11 @@ cat("1. Ex_rNormalGLM_reg_group Dobson Poisson: OK\n")
 prior_list_pois <- list(mu = ps$mu, Sigma = ps$Sigma)
 group_info <- glmbayesCore::normalize_group(outcome, length(y_pois))
 k <- group_info$k
-prior_block <- glmbayesCore:::normalize_prior_for_blocks(
+prior_block <- lmebayesCore:::normalize_prior_for_blocks(
   prior_list = prior_list_pois, prior_lists = NULL,
   group_info = group_info, l1 = l1
 )
-prior_cpp <- glmbayesCore:::.prior_payload_for_rNormalGLMBlocks_cpp(prior_block, l1, k)
+prior_cpp <- lmebayesCore:::.prior_payload_for_rNormalGLMBlocks_cpp(prior_block, l1, k)
 famfunc <- glmbayesCore::glmbfamfunc(poisson())
 
 run_low <- function() {

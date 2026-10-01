@@ -85,7 +85,9 @@ cert <- gamma_beta_tv_certificate(
   dispprior_list = dispprior_list,
   k = 50L,
   kappa_method = "none",
-  estep = "exact"
+  estep = "mc",
+  n = 2000L,
+  mc_seed = 42L
 )
 
 stopifnot(inherits(cert, "gamma_beta_tv_certificate"))
@@ -93,8 +95,8 @@ stopifnot(inherits(cert$beta_mode, "beta_marginal_mode"))
 stopifnot(is.null(cert$beta_set$Gamma_lb))
 stopifnot(!is.null(cert$floor$Gamma_lb))
 stopifnot(isTRUE(cert$certified$gamma_em))
-stopifnot(abs(cert$eigenvalues$kappa_max_lb - eigenvalues$kappa_max_lb) < 1e-8)
-stopifnot(abs(cert$rosenthal$bound - opt$inner_bound) < 1e-10)
+stopifnot(isTRUE(cert$mode$restricted))
+stopifnot(cert$rosenthal$bound > 0 && cert$rosenthal$bound < 1)
 
 print(cert)
 
@@ -102,7 +104,8 @@ cat("\n=== Invert for inner tol = 0.01 ===\n")
 cert_tol <- gamma_beta_tv_certificate(
   design = design, pfamily_list = pf, family = gaussian(),
   delta_2 = 0.01, dispprior_list = dispprior_list,
-  inner_tol = 0.01, kappa_method = "none", estep = "exact"
+  inner_tol = 0.01, kappa_method = "none",
+  estep = "mc", n = 2000L, mc_seed = 42L
 )
 cat("  k needed:", cert_tol$optimal$k,
     " inner:", signif(cert_tol$optimal$inner_bound, 4), "\n")
