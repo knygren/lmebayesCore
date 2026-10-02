@@ -24,3 +24,19 @@ dGamma_list <- glmbayesCore::dGamma_list
 #' @importFrom glmbayesCore pfamily_list
 #' @export
 pfamily_list <- glmbayesCore::pfamily_list
+
+## Row-block group samplers (Tier 2) — implemented in glmbayesCore.
+
+#' @inherit glmbayesCore::simfuncs_group title description details params return seealso examples
+#' @seealso \code{\link{rNormal_reg_group_safe}}, \code{\link{rNormalGLM_reg_group_safe}}
+#' @name simfuncs_group
+#' @aliases rNormalGLM_reg_group rNormal_reg_group
+NULL
+
+#' @rdname simfuncs_group
+#' @export
+rNormalGLM_reg_group <- glmbayesCore::rNormalGLM_reg_group
+
+#' @rdname simfuncs_group
+#' @export
+rNormal_reg_group <- glmbayesCore::rNormal_reg_group

@@ -20,26 +20,26 @@ rNormal_reg_group_safe(
 )
 }
 \arguments{
-\item{n}{Number of iid draws per block (\code{n = 1} typical for Gibbs).}
+\item{n}{Number of iid draws per group (\code{n = 1} typical for Gibbs).}
 
 \item{y}{Response vector of length \code{nrow(x)}.}
 
-\item{x}{Design matrix \code{nrow(x)} by \code{ncol(x)}; same \code{ncol} in every block.}
+\item{x}{Design matrix \code{nrow(x)} by \code{ncol(x)}; same \code{ncol} in every group.}
 
 \item{group}{Group partition: \code{factor}/integer length \code{l2}, \code{l2_blocks}
 counts summing to \code{l2}, or list of row index vectors.}
 
-\item{prior_list}{Single prior specification recycled to all blocks, or with
+\item{prior_list}{Single prior specification recycled to all groups, or with
 \code{mu} as \code{l1} by \code{k} matrix or \code{blocks} sublist.}
 
-\item{prior_lists}{Optional list of length \code{k} (or \code{1}) of per-block
+\item{prior_lists}{Optional list of length \code{k} (or \code{1}) of per-group
 \code{prior_list} objects.}
 
 \item{beta_set}{Optional \code{\link{beta_marginal_safe_set}}; when
 \code{NULL}, behaves as \code{\link{rNormal_reg_group}}.}
 
 \item{offset}{Optional numeric vector (length \code{1} or \code{length(y)});
-partitioned across blocks like \code{y}.}
+partitioned across groups like \code{y}.}
 
 \item{weights}{Optional weights; same recycling and blocking as \code{offset}.}
 
@@ -47,7 +47,7 @@ partitioned across blocks like \code{y}.}
 
 \item{mc_seed}{Optional RNG seed.}
 
-\item{Gridtype}{Passed to each block's sampler (Armadillo Gridtype).}
+\item{Gridtype}{Passed to each group's sampler (Armadillo Gridtype).}
 }
 \value{
 Like \code{\link{rNormal_reg_group}}, plus safe-set fields
