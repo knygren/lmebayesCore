@@ -522,7 +522,7 @@ print.two_block_rate_ing <- function(x, ...) {
 
 ## Empirical (not certified) worst-case rate over a completed fit's own
 ## main-stage draws -- mirrors .two_block_pilot_ub_from_coefficients()'s
-## loop-and-pmax() pattern (R/two_block_glmm_pilot_helpers.R), but (a) runs
+## loop-and-pmax() pattern (R/two_block_pilot_helpers.R), but (a) runs
 ## over the *main*-stage draws already returned by rLMM*_reg()/rGLMM_reg()
 ## rather than a separate pilot batch, and (b) plugs each draw's own sampled
 ## RE-precision (fit$popef.dispersion) and/or per-group measurement precision

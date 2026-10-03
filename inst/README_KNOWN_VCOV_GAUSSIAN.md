@@ -256,7 +256,7 @@ Gibbs-sweep code at all (\S6 describes the `_two_bg` leg's C++ chain only);
 | `two_block_rNormal_reg()` | `two_block_rNormal_reg.R` | Runs `n` replicate draws, each a full pass of `m_convergence` inner two-block Gibbs sweeps starting from the exact ICM mean; delegates the actual sweep loop to compiled code via `.two_block_rNormal_reg_cpp()`. |
 | `.two_block_rNormal_reg_cpp()` | `rcpp_wrappers.R` | R-to-C++ bridge: marshals `y, x/Z, block, x_hyper, prior_list_block1, pfamily_list, fixef_start, m_convergence, ...` into the arguments expected by the compiled kernel (\S6) and marshals the result back into R lists/matrices. |
 | `.rLMM_format_v2_out()` | `rLMM_reg.R` | Reshapes the raw sampler output into the staged `fixef.*` / `coefficients` / `ranef.mode` namespaces expected by `rlmerb()`/`rglmerb()`. |
-| `.two_block_as_staged_names()` | `two_block_glmm_pilot_helpers.R` | Name-staging helper shared by both the fixed and pilot output paths. |
+| `.two_block_as_staged_names()` | `two_block_pilot_helpers.R` | Name-staging helper shared by both the fixed and pilot output paths. |
 | `.lmebayes_add_fixef_summaries()` | `mixed_rmerb_helpers.R` | Adds posterior summary statistics (mean/sd/quantiles) for each Block~2 fixed-effect vector to the returned object. |
 
 ---

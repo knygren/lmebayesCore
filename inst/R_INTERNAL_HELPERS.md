@@ -78,7 +78,7 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `two_block_mode_weights` | `two_block_ergodicity.R` | IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic) | rGLMM_reg.R, two_block_glmm_pilot_helpers.R |
+| `two_block_mode_weights` | `two_block_ergodicity.R` | IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic) | rGLMM_reg.R, two_block_pilot_helpers.R |
 | `.two_block_rate_inputs` | `two_block_ergodicity.R` | — | *(unused)* |
 | `.two_block_S_P11` | `two_block_ergodicity.R` | — | *(unused)* |
 | `.two_block_gen_eigen` | `two_block_ergodicity.R` | — | *(unused)* |
@@ -87,16 +87,16 @@ Exported entry points that reach the Z-label chain: `model_setup()` →
 
 ---
 
-## Two-block pilot / GLMM (`two_block_glmm_pilot_helpers.R`, `two_block_pilot_cost.R`)
+## Two-block pilot / GLMM (`two_block_pilot_helpers.R`, `two_block_pilot_cost.R`)
 
 | Function | File | Role | Called from |
 |----------|------|------|-------------|
-| `.two_block_print_pilot_stage_diagnostics` | `two_block_glmm_pilot_helpers.R` | Print pilot-stage diagnostics between pilot and main sampling (UB path) | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_as_staged_names` | `two_block_glmm_pilot_helpers.R` | — | rGLMM_reg.R, rLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_pilot_chisq_test` | `two_block_glmm_pilot_helpers.R` | Hotelling chi-squared test: pilot fixef mean vs start | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_fixef_colmeans` | `two_block_glmm_pilot_helpers.R` | Column means of fixef draws with names copied from fixef mode | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
-| `.two_block_pilot_eigenvalue_ub` | `two_block_glmm_pilot_helpers.R` | Post-pilot eigenvalue upper bounds (per-draw rate maxima) | *(unused)* |
-| `.two_block_pilot_ub_from_coefficients` | `two_block_glmm_pilot_helpers.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_print_pilot_stage_diagnostics` | `two_block_pilot_helpers.R` | Print pilot-stage diagnostics between pilot and main sampling (UB path) | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_as_staged_names` | `two_block_pilot_helpers.R` | — | rGLMM_reg.R, rLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_pilot_chisq_test` | `two_block_pilot_helpers.R` | Hotelling chi-squared test: pilot fixef mean vs start | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_fixef_colmeans` | `two_block_pilot_helpers.R` | Column means of fixef draws with names copied from fixef mode | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
+| `.two_block_pilot_eigenvalue_ub` | `two_block_pilot_helpers.R` | Post-pilot eigenvalue upper bounds (per-draw rate maxima) | *(unused)* |
+| `.two_block_pilot_ub_from_coefficients` | `two_block_pilot_helpers.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_resolve_n_pilot` | `two_block_measurement_prior.R` | — | *(unused)* |
 | `.two_block_pilot_will_run` | `two_block_pilot_cost.R` | Pilot policy for Gaussian LMM / legacy paths; **non-Gaussian GLMM** always pilots via **`rGLMM_reg`** unless `n_pilot = 0L`. | `rGLMM_reg.R`, two_block_lmm_staged_sweep_outer.R |
 | `.two_block_resolve_pilot_plan` | `two_block_pilot_cost.R` | — | rGLMM_reg.R, two_block_lmm_staged_sweep_outer.R |

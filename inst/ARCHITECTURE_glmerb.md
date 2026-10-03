@@ -148,7 +148,7 @@ Many function names exist for batch bookkeeping, pilot staging, and optional par
 | `lmebayes/R/rglmerb_v5.R` | Pilot/main planning; calls `run_short_chains_v5` (C++) |
 | `glmbayesCore/R/rGLMM_reg.R` | Pilot/main orchestration via `rGLMM_sweep` (R engine); two route exports |
 | `glmbayesCore/R/two_block_pilot_cost.R` | `n_pilot`, `m_convergence_pilot` planning |
-| `glmbayesCore/R/two_block_glmm_pilot_helpers.R` | `fixef.init`, pilot UB, staged output names |
+| `glmbayesCore/R/two_block_pilot_helpers.R` | `fixef.init`, pilot UB, staged output names |
 | `glmbayesCore/R/two_block_sweep_history.R` | Per-sweep fixef colMeans tables |
 
 ---

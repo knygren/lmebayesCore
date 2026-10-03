@@ -193,19 +193,9 @@ plot_var_convergence.rLMMNormal_reg <- function(
 plot_var_convergence.rLMMindepNormalGamma_reg <- plot_var_convergence.rLMMNormal_reg
 
 #' @rdname plot_var_convergence
-#' @method plot_var_convergence rGLMM_reg
-#' @export
-plot_var_convergence.rGLMM_reg <- plot_var_convergence.rLMMNormal_reg
-
-#' @rdname plot_var_convergence
 #' @method plot_var_convergence rlmerb
 #' @export
 plot_var_convergence.rlmerb <- plot_var_convergence.rLMMNormal_reg
-
-#' @rdname plot_var_convergence
-#' @method plot_var_convergence rglmerb
-#' @export
-plot_var_convergence.rglmerb <- plot_var_convergence.rLMMNormal_reg
 
 #' @param stage \code{"main"} (default) or \code{"pilot"}; see
 #'   \code{\link{plot_var_convergence.rLMMNormal_reg}}.
@@ -245,16 +235,6 @@ plot_mean_convergence.rLMMNormal_reg <- function(
 plot_mean_convergence.rLMMindepNormalGamma_reg <- plot_mean_convergence.rLMMNormal_reg
 
 #' @rdname plot_mean_convergence
-#' @method plot_mean_convergence rGLMM_reg
-#' @export
-plot_mean_convergence.rGLMM_reg <- plot_mean_convergence.rLMMNormal_reg
-
-#' @rdname plot_mean_convergence
 #' @method plot_mean_convergence rlmerb
 #' @export
 plot_mean_convergence.rlmerb <- plot_mean_convergence.rLMMNormal_reg
-
-#' @rdname plot_mean_convergence
-#' @method plot_mean_convergence rglmerb
-#' @export
-plot_mean_convergence.rglmerb <- plot_mean_convergence.rLMMNormal_reg

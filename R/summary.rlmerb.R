@@ -160,13 +160,6 @@ summary.rlmerb <- function(object, groups = NULL, ...) {
 
 #' @rdname summary.rlmerb
 #' @export
-#' @method summary rglmerb
-summary.rglmerb <- function(object, groups = NULL, ...) {
-  summary.rlmerb(object, groups = groups, ...)
-}
-
-#' @rdname summary.rlmerb
-#' @export
 #' @method print summary.rlmerb
 print.summary.rlmerb <- function(x, digits = max(3, getOption("digits") - 3),
                                  ...) {

@@ -165,7 +165,7 @@ specific to it -- see Section 3. `lmerb()`, `glmerb()`, `rlmerb()`,
 | `.two_block_tv_bound_one()` / `.two_block_erfn()` | `R/two_block_ergodicity.R` | Closed-form single-sweep TV-bound helpers. | -- |
 | `.two_block_cap_inner_sweeps()` | `R/two_block_ergodicity.R` | Coerces/caps the calibrated sweep count to a valid integer range. | -- |
 | `.two_block_uncertified_l_fallback()` | `R/two_block_ergodicity.R` | Fallback sweep-count heuristic when the certified bound is not applicable. | -- |
-| `.two_block_as_staged_names()` | `R/two_block_glmm_pilot_helpers.R` | Final output-name staging shared by both engines' formatting step. | -- |
+| `.two_block_as_staged_names()` | `R/two_block_pilot_helpers.R` | Final output-name staging shared by both engines' formatting step. | -- |
 
 `.lmebayes_resolve_dispersion_ranef()`, `.lmebayes_resolve_dispersion_ranef_fixed_vector()`,
 `.lmebayes_priors_from_pfamily_list()`, `.lmebayes_matrix_args_lmm()`,

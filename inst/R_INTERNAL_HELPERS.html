@@ -445,7 +445,7 @@ rate / TV (<code>two_block_ergodicity.R</code>)</h2>
 <td><code>two_block_mode_weights</code></td>
 <td><code>two_block_ergodicity.R</code></td>
 <td>IRLS/Fisher weights at posterior mode (non-Gaussian rate heuristic)</td>
-<td>rGLMM.R, two_block_glmm_pilot_helpers.R</td>
+<td>rGLMM.R, two_block_pilot_helpers.R</td>
 </tr>
 <tr>
 <td><code>.two_block_rate_inputs</code></td>
@@ -481,8 +481,8 @@ rate / TV (<code>two_block_ergodicity.R</code>)</h2>
 </table>
 <hr />
 <h2
-id="two-block-pilot-glmm-two_block_glmm_pilot_helpers.r-two_block_pilot_cost.r">Two-block
-pilot / GLMM (<code>two_block_glmm_pilot_helpers.R</code>,
+id="two-block-pilot-glmm-two_block_pilot_helpers.r-two_block_pilot_cost.r">Two-block
+pilot / GLMM (<code>two_block_pilot_helpers.R</code>,
 <code>two_block_pilot_cost.R</code>)</h2>
 <table>
 <colgroup>
@@ -502,38 +502,38 @@ pilot / GLMM (<code>two_block_glmm_pilot_helpers.R</code>,
 <tbody>
 <tr>
 <td><code>.two_block_print_pilot_stage_diagnostics</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>Print pilot-stage diagnostics between pilot and main sampling (UB
 path)</td>
 <td>rGLMM.R, two_block_lmm_staged_sweep_outer.R</td>
 </tr>
 <tr>
 <td><code>.two_block_as_staged_names</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>—</td>
 <td>rGLMM.R, rLMMNormal_reg.R, two_block_lmm_staged_sweep_outer.R</td>
 </tr>
 <tr>
 <td><code>.two_block_pilot_chisq_test</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>Hotelling chi-squared test: pilot fixef mean vs start</td>
 <td>rGLMM.R, two_block_lmm_staged_sweep_outer.R</td>
 </tr>
 <tr>
 <td><code>.two_block_fixef_colmeans</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>Column means of fixef draws with names copied from fixef mode</td>
 <td>rGLMM.R, two_block_lmm_staged_sweep_outer.R</td>
 </tr>
 <tr>
 <td><code>.two_block_pilot_eigenvalue_ub</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>Post-pilot eigenvalue upper bounds (per-draw rate maxima)</td>
 <td><em>(unused)</em></td>
 </tr>
 <tr>
 <td><code>.two_block_pilot_ub_from_coefficients</code></td>
-<td><code>two_block_glmm_pilot_helpers.R</code></td>
+<td><code>two_block_pilot_helpers.R</code></td>
 <td>—</td>
 <td>rGLMM.R, two_block_lmm_staged_sweep_outer.R</td>
 </tr>

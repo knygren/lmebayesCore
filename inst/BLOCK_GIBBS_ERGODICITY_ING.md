@@ -410,7 +410,7 @@ every value \((\lambda,\Omega)\) the sampler can ever actually visit.**
   \(\Omega \succeq \Omega_{\min} = 1/\text{disp\_upper}\) bound this section
   needs.
 - **Combined, plus an empirical safeguard.** `.two_block_pilot_ub_from_coefficients()`
-  (`R/rLMM_reg.R`, `R/two_block_glmm_pilot_helpers.R`) calls
+  (`R/rLMM_reg.R`, `R/two_block_pilot_helpers.R`) calls
   `two_block_rate_from_pfamily_list()` with the conservative `dispersion`
   plug-in *at every pilot draw's `b_mode`* and keeps the **maximum**
   observed `lambda_star` across pilot chains (`pmax(max_eigenvalues, ...)`,
