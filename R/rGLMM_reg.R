@@ -98,6 +98,10 @@
 #' @param tv_tol Total-variation tolerance for Theorem~3 calibration.
 #'   \code{n_pilot}, \code{m_convergence_pilot}, and main-stage
 #'   \code{m_convergence} are derived internally.
+#' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
+#'   non-Gaussian family this scales the mode curvature used by
+#'   Corollary 5.1 to set the main-stage sweep count. The likelihood draw
+#'   is unchanged, and the pilot stays on the Theorem~3 schedule.
 #' @param mode_gap_max Pilot inner-sweep calibration when a pilot stage runs.
 #' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved (not yet forwarded).
 #' @param verbose Print stage headers and convergence calibration lines.
@@ -139,7 +143,14 @@
 #'     \item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
 #'       draw.}
 #'     \item{\code{convergence_info}}{Theorem~3 / UB calibration details,
-#'       including \code{draw_engine} and \code{icm_info}.}
+#'       including \code{draw_engine} and \code{icm_info}. For a non-Gaussian
+#'       family, \code{ridge} holds the Corollary 5.1 count at curvature
+#'       weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
+#'       \code{k}, \code{m_convergence}). That count is the main-stage
+#'       length.}
+#'     \item{\code{rwt}}{Ridge weight supplied to the call. It sets the
+#'       non-Gaussian main-stage sweep count and is not applied to the
+#'       likelihood.}
 #'     \item{\code{pilot}}{When a pilot ran: list with \code{n},
 #'       \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
 #'       \code{NULL}.}
@@ -177,10 +188,12 @@ NULL
     mode_gap_max,
     gap_tol,
     pfamily_list,
-    dispprior_list
+    dispprior_list,
+    rwt = 0.01
 ) {
   family <- .two_block_normalize_family(family)
   is_gaussian <- identical(family$family, "gaussian")
+  rwt <- .lmebayes_validate_rwt(rwt)
 
   if (length(n) > 1L) n <- length(n)
   n <- as.integer(n[1L])
@@ -289,7 +302,8 @@ NULL
     ptypes         = pf_summary$ptypes,
     any_non_normal = pf_summary$any_non_normal,
     tv_tol         = tv_tol,
-    gap_tol        = gap_tol
+    gap_tol        = gap_tol,
+    rwt            = rwt
   )
 }
 
@@ -359,6 +373,11 @@ NULL
 }
 
 #' Shared GLMM replicate-chain pipeline (sweep-outer driver)
+#'
+#' @param sweep_fn Sweep function. The default is \code{rGLMM_sweep}.
+#'   \code{.rGLMM_reg_run_pipeline_indexed} passes
+#'   \code{.rGLMM_sweep_indexed}.
+#' @param draw_engine Character stored on \code{convergence_info$draw_engine}.
 #' @noRd
 .rGLMM_reg_run_pipeline <- function(
     inp,
@@ -372,7 +391,9 @@ NULL
     collect_block1,
     engine_label,
     result_class,
-    cl
+    cl,
+    sweep_fn = rGLMM_sweep,
+    draw_engine = "rGLMM_sweep"
 ) {
   n              <- inp$n
   y              <- inp$y
@@ -391,6 +412,7 @@ NULL
   any_non_normal <- inp$any_non_normal
   tv_tol         <- inp$tv_tol
   gap_tol        <- inp$gap_tol
+  rwt            <- inp$rwt
   n_pilot_arg         <- NULL
   m_convergence_pilot <- NULL
 
@@ -458,6 +480,19 @@ NULL
     group_name    = group_name
   )
 
+  sweep_fn_use <- sweep_fn
+  if (!identical(sweep_fn, rGLMM_sweep)) {
+    index_map <- .two_block_index_map(
+      design       = design,
+      re_names     = re_names,
+      group_levels = group_levels,
+      fixef_start  = fixef_mode
+    )
+    sweep_fn_use <- function(...) {
+      sweep_fn(..., index_map = index_map)
+    }
+  }
+
   fixef_mode_ref <- fixef_mode
   b_mode_ref     <- b_start
   progbar_use    <- isTRUE(progbar) || isTRUE(verbose) || isTRUE(stage_verbose)
@@ -469,13 +504,29 @@ NULL
     family       = family,
     b_mode       = b_start,
     group_levels = group_levels,
-    is_gaussian  = is_gaussian
+    is_gaussian  = is_gaussian,
+    rwt          = rwt
   )
 
   m_min <- NULL
   if (!is.null(tv_tol)) {
     m_min <- .two_block_cap_inner_sweeps(
       two_block_l_for_tv(rate, tv_tol, method = "theorem3") + 1L
+    )
+  }
+
+  ## Printed and stored only. The sweeps below still use the Theorem 3 count.
+  ridge <- NULL
+  if (!is_gaussian && !is.null(tv_tol)) {
+    ridge <- .rGLMM_ridge_sweep_bound(
+      design         = design,
+      dispprior_list = dispprior_list,
+      pfamily_list   = pfamily_list,
+      family         = family,
+      b_mode         = b_start,
+      group_levels   = group_levels,
+      rwt            = rwt,
+      tv_tol         = tv_tol
     )
   }
 
@@ -540,8 +591,42 @@ NULL
         "    lambda* = %.4f, tv_tol = %g => m_min = %d (mode start), ",
         "main m_convergence = %d ---\n\n"
       ),
-      engine_label, calib_label, rate$lambda_star, tv_tol, m_min, m_convergence
+      engine_label, calib_label, rate$lambda_star, tv_tol, m_min,
+      if (!is.null(ridge) && is.finite(ridge$m_convergence)) {
+        as.integer(ridge$m_convergence)
+      } else {
+        m_convergence
+      }
     ))
+    if (!is.null(ridge)) {
+      m_txt <- if (is.finite(ridge$m_convergence)) {
+        as.character(ridge$m_convergence)
+      } else {
+        "NA"
+      }
+      lam_txt <- if (is.finite(ridge$lambda_star)) {
+        sprintf("%.4f", ridge$lambda_star)
+      } else {
+        "NA"
+      }
+      q_txt <- if (is.finite(ridge$q)) {
+        as.character(as.integer(ridge$q))
+      } else {
+        "NA"
+      }
+      ing_note <- if (isTRUE(any_non_normal)) {
+        " (likelihood weights only; tau^2 plug-in unchanged)"
+      } else {
+        ""
+      }
+      cat(sprintf(
+        paste0(
+          "--- %s: ridge bound [Corollary 5.1, rwt = %g, main stage]%s:\n",
+          "    lambda*_ridge = %s, q = %s => m_ridge = %s ---\n\n"
+        ),
+        engine_label, ridge$rwt, ing_note, lam_txt, q_txt, m_txt
+      ))
+    }
     if (run_pilot && !is.null(mode_gap_max) && !is.null(m_pilot_from_gap)) {
       cat(sprintf(
         paste0(
@@ -587,7 +672,8 @@ NULL
     mode_gap_max        = if (run_pilot) mode_gap_max else NULL,
     m_pilot_from_gap    = if (run_pilot) m_pilot_from_gap else NULL,
     pilot_cost_opt      = pilot_cost_opt,
-    draw_engine         = "rGLMM_sweep"
+    draw_engine         = draw_engine,
+    ridge               = ridge
   )
 
   m_convergence_used <- m_convergence
@@ -605,7 +691,7 @@ NULL
       ))
     }
 
-    pilot_raw <- rGLMM_sweep(
+    pilot_raw <- sweep_fn_use(
       n_chains       = n_pilot,
       start_fixef    = fixef_mode,
       inner_sweeps   = m_convergence_pilot,
@@ -621,7 +707,8 @@ NULL
       fixef_mode     = fixef_mode_ref,
       b_mode         = b_mode_ref,
       b_start        = b_mode_ref,
-      ptypes         = ptypes
+      ptypes         = ptypes,
+      rwt            = rwt
     )
 
     pilot_chisq <- .two_block_pilot_chisq_test(
@@ -675,6 +762,11 @@ NULL
       convergence_info$m_convergence     <- m_convergence_used
     }
 
+    if (!is.null(ridge) && is.finite(ridge$m_convergence)) {
+      m_convergence_used <- as.integer(ridge$m_convergence)
+      convergence_info$m_convergence <- m_convergence_used
+    }
+
     if (isTRUE(stage_verbose) && run_ub) {
       .two_block_print_pilot_stage_diagnostics(
         n_pilot            = n_pilot,
@@ -698,14 +790,20 @@ NULL
       fixef_mode   = fixef_mode,
       fixef_init   = fixef_mode
     )
-  } else if (isTRUE(verbose)) {
-    cat(sprintf(
-      "--- %s [sweep-outer]: main stage (%d chains; m_convergence = %d) ---\n\n",
-      engine_label, n, m_convergence_used
-    ))
+  } else {
+    if (!is.null(ridge) && is.finite(ridge$m_convergence)) {
+      m_convergence_used <- as.integer(ridge$m_convergence)
+      convergence_info$m_convergence <- m_convergence_used
+    }
+    if (isTRUE(verbose)) {
+      cat(sprintf(
+        "--- %s [sweep-outer]: main stage (%d chains; m_convergence = %d) ---\n\n",
+        engine_label, n, m_convergence_used
+      ))
+    }
   }
 
-  main_raw <- rGLMM_sweep(
+  main_raw <- sweep_fn_use(
     n_chains       = n,
     start_fixef    = fixef_init,
     inner_sweeps   = m_convergence_used,
@@ -722,7 +820,8 @@ NULL
     b_mode         = b_mode_ref,
     b_start        = b_mode_ref,
     ptypes         = ptypes,
-    tau2_start     = tau2_start_main
+    tau2_start     = tau2_start_main,
+    rwt            = rwt
   )
 
   draw_engine_args <- list(
@@ -742,7 +841,8 @@ NULL
     b_mode         = b_mode_ref,
     b_start        = b_mode_ref,
     ptypes         = ptypes,
-    tau2_start     = tau2_start_main
+    tau2_start     = tau2_start_main,
+    rwt            = rwt
   )
 
   main_res <- .rGLMM_format_v6_out(
@@ -754,7 +854,7 @@ NULL
     fixef_init   = fixef_init
   )
 
-  .lmebayes_assemble_reg_result(
+  out <- .lmebayes_assemble_reg_result(
     staged              = main_res,
     call                = cl,
     m_convergence       = m_convergence_used,
@@ -767,7 +867,7 @@ NULL
     design              = design,
     result_class        = result_class,
     parent_class        = "rGLMM_reg",
-    draw_engine         = "rGLMM_sweep",
+    draw_engine         = draw_engine,
     icm_info            = icm_info,
     pilot_draws         = if (run_pilot) pilot_res else NULL,
     n_pilot             = if (run_pilot) n_pilot else NULL,
@@ -777,6 +877,90 @@ NULL
     tv_tol              = if (run_ub) tv_tol else NULL,
     offset              = inp$offset,
     weights             = if (is.null(inp$weights)) 1 else inp$weights
+  )
+  out$rwt <- rwt
+  if (!is.null(main_raw$prior_track)) {
+    out$prior_track <- list(
+      pilot = if (run_pilot) pilot_raw$prior_track else NULL,
+      main  = main_raw$prior_track
+    )
+  }
+  out
+}
+
+#' Indexed GLMM pipeline
+#'
+#' Same arguments as \code{.rGLMM_reg_run_pipeline}. The level-name map is
+#' built once and both the pilot and the main stage use
+#' \code{.rGLMM_sweep_indexed}.
+#' @noRd
+.rGLMM_reg_run_pipeline_indexed <- function(
+    inp,
+    icm_tol,
+    icm_maxit,
+    mode_gap_max,
+    verbose,
+    progbar,
+    stage_verbose,
+    rate_calibration,
+    collect_block1,
+    engine_label,
+    result_class,
+    cl
+) {
+  .rGLMM_reg_run_pipeline(
+    inp              = inp,
+    icm_tol          = icm_tol,
+    icm_maxit        = icm_maxit,
+    mode_gap_max     = mode_gap_max,
+    verbose          = verbose,
+    progbar          = progbar,
+    stage_verbose    = stage_verbose,
+    rate_calibration = rate_calibration,
+    collect_block1   = collect_block1,
+    engine_label     = engine_label,
+    result_class     = result_class,
+    cl               = cl,
+    sweep_fn         = .rGLMM_sweep_indexed,
+    draw_engine      = "rGLMM_sweep_indexed"
+  )
+}
+
+#' C++-heavy GLMM pipeline
+#'
+#' Same arguments as \code{.rGLMM_reg_run_pipeline}. The level-name map is
+#' built once and both the pilot and the main stage use
+#' \code{.rGLMM_sweep_cpp}.
+#' @noRd
+.rGLMM_reg_run_pipeline_cpp <- function(
+    inp,
+    icm_tol,
+    icm_maxit,
+    mode_gap_max,
+    verbose,
+    progbar,
+    stage_verbose,
+    rate_calibration,
+    collect_block1,
+    engine_label,
+    result_class,
+    cl
+) {
+  .rGLMM_reg_run_pipeline(
+    inp              = inp,
+    icm_tol          = icm_tol,
+    icm_maxit        = icm_maxit,
+    mode_gap_max     = mode_gap_max,
+    verbose          = verbose,
+    progbar          = progbar,
+    stage_verbose    = stage_verbose,
+    rate_calibration = rate_calibration,
+    collect_block1   = collect_block1,
+    engine_label     = engine_label,
+    result_class     = result_class,
+    cl               = cl,
+    sweep_fn         = .rGLMM_sweep_cpp,
+    draw_engine      = "rGLMM_sweep_cpp"
   )
 }
 
@@ -789,8 +973,11 @@ NULL
     family,
     b_mode,
     group_levels,
-    is_gaussian
+    is_gaussian,
+    rwt = 0.01
 ) {
+  # Accepted for a later ridge-rate calculation. Not applied in this pass.
+  force(rwt)
   if (is_gaussian) {
     two_block_rate_from_pfamily_list(
       x                 = design$D,
@@ -820,6 +1007,77 @@ NULL
       group_levels      = group_levels
     )
   }
+}
+
+#' Corollary 5.1 sweep index for a start in the admissible set.
+#'
+#' \code{q} is the dimension of \eqn{\gamma}. The returned \code{k} certifies
+#' that block. The engine count is \code{k + 1} because the stored
+#' group-effect draw lags one block update.
+#' @noRd
+.rGLMM_k_cor51 <- function(rho, q, tau) {
+  if (!is.finite(rho) || !is.finite(q) || q < 1 || rho >= 1) {
+    return(NA_integer_)
+  }
+  if (rho <= 0) {
+    return(1L)
+  }
+  z <- 2 * stats::qnorm((1 + tau) / 2)
+  D <- sqrt(q / (1 - rho))
+  if (!is.finite(D) || !is.finite(z) || D <= z) {
+    return(1L)
+  }
+  as.integer(ceiling(log(D / z) / log(1 / rho)))
+}
+
+#' Ridge sweep count at \code{rwt} times the mode curvature.
+#'
+#' This is the main-stage sweep count for a non-Gaussian model. The pilot
+#' stays on the Theorem 3 schedule.
+#' @noRd
+.rGLMM_ridge_sweep_bound <- function(
+    design,
+    dispprior_list,
+    pfamily_list,
+    family,
+    b_mode,
+    group_levels,
+    rwt,
+    tv_tol
+) {
+  mode_w <- two_block_mode_weights(
+    x            = design$D,
+    group        = design$group,
+    b_mode       = b_mode,
+    family       = family,
+    group_levels = group_levels
+  )
+  rate <- two_block_rate_from_pfamily_list(
+    x                 = design$D,
+    group             = design$group,
+    x_hyper           = design$W,
+    prior_list_block1 = dispprior_list,
+    pfamily_list      = pfamily_list,
+    weights           = rwt * mode_w$weights,
+    family            = family,
+    group_levels      = group_levels,
+    warn_slow         = FALSE
+  )
+  rho <- rate$lambda_star
+  q <- rate$dims$q
+  k <- .rGLMM_k_cor51(rho, q, tv_tol)
+  m <- if (!is.finite(k)) {
+    NA_integer_
+  } else {
+    .two_block_cap_inner_sweeps(k + 1L)
+  }
+  list(
+    rwt           = rwt,
+    lambda_star   = rho,
+    q             = q,
+    k             = k,
+    m_convergence = m
+  )
 }
 
 #' Format v6 batch output for staged \code{fixef.*} naming
@@ -877,7 +1135,8 @@ rGLMM_reg_known_vcov <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    collect_block1      = TRUE
+    collect_block1      = TRUE,
+    rwt                 = 0.01
 ) {
   cl <- match.call()
   fn_name <- "rGLMM_reg_known_vcov"
@@ -889,7 +1148,8 @@ rGLMM_reg_known_vcov <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, pfamily_list, dispprior_list
+    gap_tol, pfamily_list, dispprior_list,
+    rwt = rwt
   )
   if (!inp$pf_summary$all_dNormal) {
     stop(
@@ -945,7 +1205,8 @@ rGLMM_reg_estimated_vcov <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    collect_block1      = TRUE
+    collect_block1      = TRUE,
+    rwt                 = 0.01
 ) {
   cl <- match.call()
   fn_name <- "rGLMM_reg_estimated_vcov"
@@ -957,7 +1218,8 @@ rGLMM_reg_estimated_vcov <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, pfamily_list, dispprior_list
+    gap_tol, pfamily_list, dispprior_list,
+    rwt = rwt
   )
   if (inp$pf_summary$all_dNormal) {
     stop(
@@ -1012,7 +1274,8 @@ rGLMM_reg <- function(
     progbar             = FALSE,
     stage_verbose       = FALSE,
     rate_calibration    = NULL,
-    collect_block1      = TRUE
+    collect_block1      = TRUE,
+    rwt                 = 0.01
 ) {
   cl <- match.call()
 
@@ -1023,7 +1286,8 @@ rGLMM_reg <- function(
   inp <- .rGLMM_validate_matrix_inputs(
     n, y, D, group, W, tv_tol,
     group_name, family, mode_gap_max,
-    gap_tol, pfamily_list, dispprior_list
+    gap_tol, pfamily_list, dispprior_list,
+    rwt = rwt
   )
 
   route_fn <- if (inp$pf_summary$all_dNormal) {

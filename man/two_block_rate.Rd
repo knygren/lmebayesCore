@@ -5,7 +5,6 @@
 \alias{two_block_rate}
 \alias{two_block_rate_from_pfamily_list}
 \alias{two_block_rate_ing}
-\alias{print.two_block_rate}
 \alias{print.two_block_rate_ing}
 \title{Two-block Gibbs sampler convergence rate (Remark 8 eigenvalues)}
 \usage{
@@ -20,8 +19,6 @@ two_block_rate(
   group_levels = levels(group),
   warn_slow = TRUE
 )
-
-\method{print}{two_block_rate}(x, tols = c(0.01, 0.001, 1e-06), ...)
 
 two_block_rate_from_pfamily_list(
   x,
@@ -83,11 +80,6 @@ when rownames are absent.}
 potentially slow convergence). Set \code{FALSE} for repeated internal
 rate evaluations (e.g. pilot upper-bound scans).}
 
-\item{tols}{For \code{print.two_block_rate}: numeric vector of TV
-tolerances for the implied \code{m_convergence} table.}
-
-\item{...}{Ignored by the print methods.}
-
 \item{pfamily_list}{Named list of \code{pfamily} objects (one per RE
 component), as in \code{\link{two_block_rNormal_reg}}.}
 
@@ -99,6 +91,8 @@ random-effects-precision extension), or a named list (names a subset of
 \item{omega_ing}{For \code{two_block_rate_ing}: \code{NULL} (no
 measurement-precision extension), or a list as documented in
 \code{\link{.two_block_S_P11_ing}}.}
+
+\item{...}{Ignored.}
 }
 \value{
 For \code{two_block_rate()} / \code{two_block_rate_from_pfamily_list()},
@@ -138,13 +132,6 @@ IRLS-style \code{weights} evaluated at the posterior mode (via the internal
 \code{two_block_mode_weights()} helper used by \code{\link{rGLMM_reg}}) yields a
 local-Gaussian heuristic rate (no theorem applies).
 }
-\section{Methods (by generic)}{
-\itemize{
-\item \code{print(two_block_rate)}: Print a \code{"two_block_rate"} object
-(eigenvalues, \eqn{\lambda^*}, and implied sweeps for common TV
-tolerances).
-
-}}
 \section{Functions}{
 \itemize{
 \item \code{two_block_rate_from_pfamily_list()}: Convergence rate from a \code{pfamily_list}

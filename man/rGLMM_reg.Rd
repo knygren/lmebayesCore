@@ -39,7 +39,8 @@ rGLMM_reg_known_vcov(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  collect_block1 = TRUE
+  collect_block1 = TRUE,
+  rwt = 0.01
 )
 
 rGLMM_reg_estimated_vcov(
@@ -66,7 +67,8 @@ rGLMM_reg_estimated_vcov(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  collect_block1 = TRUE
+  collect_block1 = TRUE,
+  rwt = 0.01
 )
 
 rGLMM_reg(
@@ -93,7 +95,8 @@ rGLMM_reg(
   progbar = FALSE,
   stage_verbose = FALSE,
   rate_calibration = NULL,
-  collect_block1 = TRUE
+  collect_block1 = TRUE,
+  rwt = 0.01
 )
 }
 \arguments{
@@ -182,6 +185,11 @@ is \code{NULL}.}
 \item{rate_calibration}{Optional rate object for \code{stage_verbose}.}
 
 \item{collect_block1}{Collect \code{groupef} draws from main chains.}
+
+\item{rwt}{Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
+non-Gaussian family this scales the mode curvature used by
+Corollary 5.1 to set the main-stage sweep count. The likelihood draw
+is unchanged, and the pilot stays on the Theorem~3 schedule.}
 }
 \value{
 An object of class \code{c("<route>", "rGLMM_reg", "list")}, where
@@ -217,7 +225,14 @@ count.}
 \item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
 draw.}
 \item{\code{convergence_info}}{Theorem~3 / UB calibration details,
-including \code{draw_engine} and \code{icm_info}.}
+including \code{draw_engine} and \code{icm_info}. For a non-Gaussian
+family, \code{ridge} holds the Corollary 5.1 count at curvature
+weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
+\code{k}, \code{m_convergence}). That count is the main-stage
+length.}
+\item{\code{rwt}}{Ridge weight supplied to the call. It sets the
+non-Gaussian main-stage sweep count and is not applied to the
+likelihood.}
 \item{\code{pilot}}{When a pilot ran: list with \code{n},
 \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
 \code{NULL}.}

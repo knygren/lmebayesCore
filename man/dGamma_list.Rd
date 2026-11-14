@@ -50,5 +50,5 @@ posterior-shape quantiles at that group's \code{max_disp_perc}.
 }
 \seealso{
 \code{\link[glmbayesCore]{dGamma}}, \code{\link[glmbayesCore]{Prior_Setup_GLMM}},
-\code{\link[glmbayesCore]{pfamily_list}}, \code{\link[lmebayesCore:rLMM_reg]{rLMM_reg}}
+\code{\link[glmbayesCore]{pfamily_list}}, \samp{rLMM_reg()}
 }

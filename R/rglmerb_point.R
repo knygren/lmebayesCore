@@ -28,7 +28,8 @@ rglmerb_point <- function(
     tol = 1e-10,
     maxit = 200L,
     offset_missing = NULL,
-    weights_missing = NULL
+    weights_missing = NULL,
+    rwt = 0.01
 ) {
   cl <- match.call()
   if (is.null(offset_missing)) offset_missing <- missing(offset)
@@ -124,7 +125,8 @@ rglmerb_point <- function(
     design                = design,
     offset                = off,
     offset2               = offset2,
-    prior.weights         = prior.weights
+    prior.weights         = prior.weights,
+    rwt                   = rwt
   )
   class(out) <- c("rglmerb", "list")
   out

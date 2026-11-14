@@ -209,3 +209,31 @@ rIndepNormalGammaRegBlockInd_cpp_export <- function(n, y, x, block, prior_list, 
     .Call(`_lmebayesCore_rIndepNormalGammaRegBlockInd_cpp_export`, n, y, x, block, prior_list, prior_lists, offset, wt, p_re, n_rss_iter, Gridtype, n_envopt, RSS_ML, use_parallel, use_opencl, progbar, verbose, group_levels, re_names)
 }
 
+two_block_port_block1_prior_mean_cpp_export <- function(spec, fixef, i) {
+    .Call(`_lmebayesCore_two_block_port_block1_prior_mean_cpp_export`, spec, fixef, i)
+}
+
+two_block_port_block1_draw_cpp_export <- function(spec, mu_D) {
+    .Call(`_lmebayesCore_two_block_port_block1_draw_cpp_export`, spec, mu_D)
+}
+
+two_block_port_block1_place_cpp_export <- function(spec, coef) {
+    .Call(`_lmebayesCore_two_block_port_block1_place_cpp_export`, spec, coef)
+}
+
+two_block_port_block2_response_cpp_export <- function(spec, b_i, k) {
+    .Call(`_lmebayesCore_two_block_port_block2_response_cpp_export`, spec, b_i, k)
+}
+
+two_block_port_block2_draw_cpp_export <- function(spec, y_k, k) {
+    .Call(`_lmebayesCore_two_block_port_block2_draw_cpp_export`, spec, y_k, k)
+}
+
+two_block_port_block2_write_cpp_export <- function(spec, fixef_k, i, k, coef) {
+    .Call(`_lmebayesCore_two_block_port_block2_write_cpp_export`, spec, fixef_k, i, k, coef)
+}
+
+two_block_port_sweep_cpp_export <- function(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, tape = NULL, record = FALSE) {
+    .Call(`_lmebayesCore_two_block_port_sweep_cpp_export`, spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, tape, record)
+}
+

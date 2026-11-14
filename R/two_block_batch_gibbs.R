@@ -29,6 +29,9 @@
 }
 
 #' Text progress bar matching glmbayesCore C++ style
+#'
+#' One line, overwritten in place with a carriage return.
+#'
 #' @param current Completed step (1-based, up to \code{total}).
 #' @param total Total number of steps.
 #' @param prefix Optional label printed before the bar (not cleared by \code{\r}).
@@ -48,16 +51,18 @@
   if (!is.finite(fraction)) {
     return(invisible())
   }
-  dotz      <- round(fraction * totaldotz)
-  cat("\r", strrep(" ", 100L), "\r", sep = "")
-  if (nzchar(prefix)) {
-    cat(prefix)
-  }
-  cat(sprintf("%3.0f%% [", fraction * 100), sep = "")
-  cat(paste0(rep("=", dotz), collapse = ""))
-  cat(paste0(rep(" ", totaldotz - dotz), collapse = ""))
-  cat("]", sep = "")
+  dotz <- round(fraction * totaldotz)
+  line <- paste0(
+    prefix,
+    sprintf("%3.0f%% [", fraction * 100),
+    paste0(rep("=", dotz), collapse = ""),
+    paste0(rep(" ", totaldotz - dotz), collapse = ""),
+    "]"
+  )
+  cat("\r", strrep(" ", 120L), "\r", line, sep = "")
   utils::flush.console()
+  flush(stdout())
+  invisible()
 }
 
 #' Finish a progress bar started by \code{.two_block_progress_bar}
@@ -67,6 +72,7 @@
 .two_block_progress_bar_finish <- function(newline = TRUE) {
   if (isTRUE(newline)) {
     cat("\n")
+    flush(stdout())
   }
 }
 
@@ -1426,6 +1432,8 @@ two_block_block2_one_chain_cpp <- function(
 #' @param use_cpp_tau2_row Retained for \code{rGLMM_sweep} API compatibility (unused).
 #' @param use_cpp_b_slice Retained for \code{rGLMM_sweep} API compatibility (unused).
 #' @param use_cpp_iters_ranef_add Retained for API compatibility (unused).
+#' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. Accepted
+#'   and not used by the current Block~1 draw.
 #' @return List with \code{b} and \code{iters_ranef}.
 #' @noRd
 .two_block_block1_all_chains <- function(
@@ -1450,8 +1458,11 @@ two_block_block2_one_chain_cpp <- function(
     use_cpp_reorder = FALSE,
     use_cpp_iters = FALSE,
     use_cpp_mu_all = FALSE,
-    use_cpp_prior_tau2 = FALSE
+    use_cpp_prior_tau2 = FALSE,
+    rwt = 0.01
 ) {
+  # Accepted for a later ridge likelihood. Not applied in this pass.
+  force(rwt)
   if (!is.null(n_cores) && as.integer(n_cores[1L]) >= 2L) {
     warning(
       "Chain-parallel Block 1 (n_cores > 1) is not supported; ",

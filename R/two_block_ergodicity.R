@@ -547,7 +547,7 @@
 #' @example inst/examples/Ex_two_block_rate.R
 #' @name two_block_rate
 #' @aliases two_block_rate_from_pfamily_list two_block_rate_ing
-#'   print.two_block_rate print.two_block_rate_ing
+#'   print.two_block_rate_ing
 #' @export
 two_block_rate <- function(x,
                            group,
@@ -600,41 +600,6 @@ two_block_rate <- function(x,
   )
 }
 
-#' @describeIn two_block_rate Print a \code{"two_block_rate"} object
-#'   (eigenvalues, \eqn{\lambda^*}, and implied sweeps for common TV
-#'   tolerances).
-#' @param tols For \code{print.two_block_rate}: numeric vector of TV
-#'   tolerances for the implied \code{m_convergence} table.
-#' @param ... Ignored by the print methods.
-#' @method print two_block_rate
-#' @export
-print.two_block_rate <- function(x, tols = c(1e-2, 1e-3, 1e-6), ...) {
-  d <- x$dims
-  cat("Two-block Gibbs convergence rate (Nygren 2020, Remark 8)\n")
-  cat(sprintf("  groups J = %d, p_re = %d, q = %d, n_obs = %d  [family: %s]\n",
-              d$J, d$p_re, d$q, d$l2, x$family))
-  if (identical(x$weights_source, "user")) {
-    cat("  (user-supplied weights: local-Gaussian heuristic, not a theorem)\n")
-  }
-  cat("\nEigenvalues of A (q x q):\n")
-  print(signif(x$eigenvalues, 6))
-  cat(sprintf("\nlambda* = %.6g\n", x$lambda_star))
-  cat("\nImplied sweeps per tolerance:\n")
-  cat(sprintf("  %-10s  %18s  %18s  %18s\n",
-              "tol", "(lambda*)^m proxy", "Theorem 3 bound", "Corollary 1 bound"))
-  for (tol in tols) {
-    m_t3 <- tryCatch(two_block_l_for_tv(x, tol, method = "theorem3"),
-                     error = function(e) NA_integer_)
-    m_c1 <- tryCatch(two_block_l_for_tv(x, tol, method = "corollary1"),
-                     error = function(e) NA_integer_)
-    cat(sprintf("  %-10g  %18d  %18s  %18s\n",
-                tol, x$m_for_tol(tol),
-                ifelse(is.na(m_t3), "-", format(m_t3)),
-                ifelse(is.na(m_c1), "-", format(m_c1))))
-  }
-  cat("  (TV bounds assume start at the posterior mean: D0 = 0)\n")
-  invisible(x)
-}
 
 #' @describeIn two_block_rate Convergence rate from a \code{pfamily_list}
 #'   Block~2 spec: thin wrapper that accepts Block~2 priors as \code{pfamily}

@@ -282,6 +282,7 @@ two_block_rate_ing <- function(x,
 
 #' @describeIn two_block_rate Print a \code{"two_block_rate_ing"} object
 #'   (base vs extended \eqn{\lambda^*} and their difference).
+#' @param ... Ignored.
 #' @method print two_block_rate_ing
 #' @export
 print.two_block_rate_ing <- function(x, ...) {

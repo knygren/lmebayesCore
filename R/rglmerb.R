@@ -122,6 +122,10 @@
 #' @param tv_tol Total variation tolerance for convergence calibration.
 #'   Inner Gibbs sweeps and pilot chain counts are derived internally.
 #'   Ignored when \code{simulate = FALSE}.
+#' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. Stored on
+#'   the returned object. For a non-Gaussian family it sets the main-stage
+#'   sweep count through Corollary 5.1. The likelihood draw is unchanged.
+#'   The Gaussian branch checks it and does not forward it.
 #' @param mode_gap_max Pilot inner-sweep calibration (non-Gaussian and
 #'   Gaussian+ING only). Ignored when \code{simulate = FALSE}.
 #' @param collect_block1 Collect \code{groupef} draws from main chains
@@ -158,7 +162,12 @@
 #'     \item{\code{m_convergence}, \code{convergence_info}}{Sweeps run per
 #'       chain and the calibration behind that count (\code{method},
 #'       \code{lambda_star}, \code{draw_engine},
-#'       \code{sim_method_used}, \code{icm_info}).}
+#'       \code{sim_method_used}, \code{icm_info}). For a non-Gaussian
+#'       family, \code{convergence_info$ridge} holds the Corollary 5.1
+#'       count at curvature weights scaled by \code{rwt}, and that count
+#'       is the main-stage length.}
+#'     \item{\code{rwt}}{Ridge weight supplied to the call. Not yet applied
+#'       to the likelihood or the sweep count.}
 #'     \item{\code{pilot}}{Present when a pilot stage ran, holding its size
 #'       \code{n}, the \code{chisq} calibration constant, and its
 #'       \code{draws}. Diagnostic only --- these are not posterior draws.}
@@ -198,9 +207,11 @@ rglmerb <- function(
     verbose             = TRUE,
     progbar             = FALSE,
     sim_method          = "DEFAULT",
-    simulate            = TRUE
+    simulate            = TRUE,
+    rwt                 = 0.01
 ) {
   cl <- match.call()
+  rwt <- .lmebayes_validate_rwt(rwt)
 
   if (!isTRUE(simulate)) {
     out <- rglmerb_point(
@@ -213,7 +224,8 @@ rglmerb <- function(
       verbose           = verbose,
       print_icm_table   = TRUE,
       offset_missing    = missing(offset),
-      weights_missing   = missing(weights)
+      weights_missing   = missing(weights),
+      rwt               = rwt
     )
     out$call <- cl
     return(out)
@@ -299,6 +311,7 @@ rglmerb <- function(
     out$Prior       <- .rlmerb_thin_Prior(prior, disp_info, block1_prior)
     out$design      <- design
     out$family      <- family
+    out$rwt         <- rwt
 
     if (!is.null(out$pilot$n) && out$pilot$n > 0L) {
       .lmebayes_print_fixef_init(
@@ -338,9 +351,11 @@ rglmerb <- function(
     offset         = offset,
     weights        = weights,
     offset_missing = missing(offset),
-    weights_missing = missing(weights)
+    weights_missing = missing(weights),
+    rwt            = rwt
   )
   out$call <- cl
+  out$rwt <- rwt
 
   icm_lbl <- .lmebayes_block2_icm_labels(prior, family)
   .lmebayes_print_icm_fixef_table(

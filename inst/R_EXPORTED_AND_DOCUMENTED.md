@@ -378,8 +378,8 @@ Registered only in **glmbayesCore**; do **not** add to **glmbayes** `NAMESPACE`
 | `pfamily_list.Prior_Setup_GLMM()` | `pfamily_list_Prior_Setup_GLMM.R` | lmebayes | Build Block~2 `pfamily_list` from prior-setup object. |
 | `print.Prior_Setup_GLMM()` | `Prior_Setup_GLMM.R` | lmebayes | Print mixed-model prior-setup object. |
 | `print.model_setup()` | `model_setup.R` | lmebayes | Print mixed-model design object. |
-| `print.two_block_sweep_history()` | `two_block_sweep_history.R` | lmebayes | Print sweep-history diagnostics (`rglmerb()` / `rlmerb()`). |
-| `print.two_block_rate()` | `two_block_ergodicity.R` | Core-only | Print rate object with TV tolerances. |
+| `print.two_block_sweep_history()` | glmbayesCore `two_block_sweep_history.R` | lmebayes | Print sweep-history diagnostics (`rglmerb()` / `rlmerb()`). |
+| `print.two_block_rate()` | glmbayesCore `two_block_ergodicity.R` | Core-only | Print rate object with TV tolerances. |
 | `residuals.summary.rglmb()` | `residuals.rglmb.R` | Core-only | Residuals for `summary.rglmb` object. |
 
 **S3 counts:** **glmbayes** 44; **glmbayesCore** 26; **overlap** 15; **glmbayes-only** 29;

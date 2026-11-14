@@ -92,11 +92,11 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | `rLMM_reg.R` | Four Gaussian LMM replicate-chain routes (`rLMMNormal_reg*`, `rLMMindepNormalGamma_reg*`) plus dispatchers |
 | `rGLMM_reg.R` / `rGLMM_sweep.R` | GLMM replicate-chain routes (known/estimated vcov) and the inner sweep-outer driver behind them |
 | `two_block_rNormal_reg.R`, `two_block_batch_gibbs.R`, `two_block_pilot_cost.R`, `two_block_tau2_ref.R`, `two_block_measurement_prior.R`, `two_block_ergodicity.R`, `two_block_pilot_helpers.R`, `two_block_lmm_staged_sweep_outer.R` | Two-block Gibbs engine internals: Block~2 Normal regression, pilot-chain cost/TV calibration, dispersion reference tracking, ergodicity helpers |
-| `two_block_sweep_history.R` / `plot_convergence.R` | Sweep-history container, `print()` method, and Claim 1 / Claim 3 convergence plots |
+| `two_block_sweep_history.R` / `plot_convergence.R` | Sweep-history container and Claim 1 / Claim 3 convergence plots. `print.two_block_sweep_history()` lives in **glmbayesCore** |
 | `mixed_rmerb_helpers.R` | Internal helpers shared by `rlmerb()` / `rglmerb()` and **lmebayes** formula drivers |
 | `rglmerb_helpers.R` | Internal helpers used only by `rglmerb()` (GLMM matrix args / engine runner) |
 | `rlmerb_point.R` / `rglmerb_point.R` | `simulate = FALSE` point-estimate paths for `rlmerb()` / `rglmerb()` |
-| `print_reg.R` / `print_reg_glmerb.R`, `summary.rlmerb.R` / `summary.rlmerb_glmerb.R`, `plot_convergence_methods.R` / `plot_convergence_methods_glmerb.R` | Print / summary / convergence-plot methods; the `*_glmerb` files hold the `rGLMM_reg` / `rglmerb` methods and must collate after their base file |
+| `print_reg.R` / `print_reg_glmerb.R`, `summary.rlmerb_glmerb.R`, `plot_convergence_methods.R` / `plot_convergence_methods_glmerb.R` | Print and convergence-plot methods. `summary.rlmerb()` and `print.summary.rlmerb()` live in **glmbayesCore**; `summary.rlmerb_glmerb.R` is the `rglmerb` method |
 | `rcpp_wrappers.R` / `rcpp_wrappers_two_block.R` | Positional `.Call` wrappers; two-block Gibbs and block-ING wrappers live in `rcpp_wrappers_two_block.R` |
 | `build_mu_all.R` | Observation-level prior means for ICM / `simulate = FALSE` paths |
 | `lmebayes_posterior_icm.R` | ICM posterior mean/mode (`lmerb_posterior_mean()`, `glmerb_posterior_mode()`) |

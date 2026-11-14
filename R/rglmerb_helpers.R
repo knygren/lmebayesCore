@@ -1,5 +1,14 @@
 ## Internal helpers used only by rglmerb() (glmerb only).
 
+#' @noRd
+.lmebayes_validate_rwt <- function(rwt) {
+  if (!is.numeric(rwt) || length(rwt) != 1L || !is.finite(rwt) ||
+      rwt <= 0 || rwt > 1) {
+    stop("'rwt' must be a single finite value in (0, 1].", call. = FALSE)
+  }
+  as.numeric(rwt)
+}
+
 #' Shared matrix-level arguments for GLMM reg routes
 #' @noRd
 .lmebayes_matrix_args_glmm <- function(
@@ -16,7 +25,8 @@
     offset        = NULL,
     weights       = 1,
     offset_missing = FALSE,
-    weights_missing = FALSE
+    weights_missing = FALSE,
+    rwt           = 0.01
 ) {
   block1_prior <- .lmebayes_block1_prior_list(prior, group.dispersion = NULL)
 
@@ -48,7 +58,8 @@
     verbose         = verbose,
     progbar         = progbar,
     stage_verbose   = verbose,
-    collect_block1  = collect_block1
+    collect_block1  = collect_block1,
+    rwt             = rwt
   )
 }
 
@@ -67,7 +78,8 @@
     offset        = NULL,
     weights       = 1,
     offset_missing = FALSE,
-    weights_missing = FALSE
+    weights_missing = FALSE,
+    rwt           = 0.01
 ) {
   route_key <- .lmebayes_reg_route_key(
     family         = family,
@@ -89,7 +101,8 @@
     offset         = offset,
     weights        = weights,
     offset_missing = offset_missing,
-    weights_missing = weights_missing
+    weights_missing = weights_missing,
+    rwt            = rwt
   )
   out <- do.call(route$export_fn, args)
   disp_none <- list(mode = "none")

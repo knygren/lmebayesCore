@@ -16,7 +16,8 @@ rglmerb_point(
   tol = 1e-10,
   maxit = 200L,
   offset_missing = NULL,
-  weights_missing = NULL
+  weights_missing = NULL,
+  rwt = 0.01
 )
 }
 \arguments{
@@ -47,6 +48,11 @@ sweeps.}
 (unused for the closed-form Gaussian mean).}
 
 \item{offset_missing, weights_missing}{See \code{\link{rlmerb_point}}.}
+
+\item{rwt}{Ridge weight in \code{(0, 1]}, default \code{0.01}. Stored on
+the returned object. For a non-Gaussian family it sets the main-stage
+sweep count through Corollary 5.1. The likelihood draw is unchanged.
+The Gaussian branch checks it and does not forward it.}
 }
 \value{
 An object of class \code{c("rglmerb", "list")} with mode fields,

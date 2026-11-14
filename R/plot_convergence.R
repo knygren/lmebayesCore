@@ -14,7 +14,7 @@
 #' increase toward it as \code{l} grows.
 #'
 #' @param hist Object of class \code{"two_block_sweep_history"} (see
-#'   \code{\link{print.two_block_sweep_history}}). For \code{whitened = TRUE},
+#'   \code{\link[glmbayesCore]{print.two_block_sweep_history}}). For \code{whitened = TRUE},
 #'   \code{hist} must also carry \code{cov_by_sweep}/\code{coef_index}, which
 #'   are only populated by sweeps-outer/chains-inner engines -- i.e. every
 #'   engine driven by \code{\link{rGLMM_sweep}}: the \verb{_run_with_pilot()}
