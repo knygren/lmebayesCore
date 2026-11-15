@@ -147,11 +147,15 @@
                                      group_levels, collect_block1, progbar,
                                      stage_label, b_mode, b_start,
                                      tau2_start, index_map,
-                                     fixef_mode = NULL, diag_sweeps = FALSE) {
+                                     fixef_mode = NULL, diag_sweeps = FALSE,
+                                     rwt = 0) {
   prep <- .two_block_prepare(
     n_chains, start_fixef, design, block1_prior, pfamily_list, family,
     re_names, group_levels, b_start, b_mode, tau2_start, index_map
   )
+  ## The dev C++ export runs at rwt = 0, so both engines see the production
+  ## weights only through this scaling.
+  prep$spec$wt1 <- prep$spec$wt1 * (1 - rwt)
   state <- .dev_two_block_sweep_replay(
     spec         = prep$spec,
     state        = prep$state,
@@ -206,7 +210,7 @@
     "r", n_chains, start_fixef, inner_sweeps, design, block1_prior,
     pfamily_list, family, re_names, group_levels, collect_block1, progbar,
     stage_label, b_mode, b_start, tau2_start, index_map,
-    fixef_mode = fixef_mode, diag_sweeps = diag_sweeps
+    fixef_mode = fixef_mode, diag_sweeps = diag_sweeps, rwt = rwt
   )
 }
 
@@ -245,6 +249,6 @@
     "cpp", n_chains, start_fixef, inner_sweeps, design, block1_prior,
     pfamily_list, family, re_names, group_levels, collect_block1, progbar,
     stage_label, b_mode, b_start, tau2_start, index_map,
-    fixef_mode = fixef_mode, diag_sweeps = diag_sweeps
+    fixef_mode = fixef_mode, diag_sweeps = diag_sweeps, rwt = rwt
   )
 }

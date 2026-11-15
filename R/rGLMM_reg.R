@@ -100,8 +100,12 @@
 #'   \code{m_convergence} are derived internally.
 #' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
 #'   non-Gaussian family this scales the mode curvature used by
-#'   Corollary 5.1 to set the main-stage sweep count. The likelihood draw
-#'   is unchanged, and the pilot stays on the Theorem~3 schedule.
+#'   Corollary 5.1 to set the main-stage sweep count; the pilot stays on
+#'   the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
+#'   sweep) the group likelihood in both stages is raised to the power
+#'   \code{1 - rwt}, so \code{rwt} must be below 1 there until the ridge term
+#'   is added. \code{rGLMM_reg_estimated_vcov} leaves the likelihood
+#'   unchanged.
 #' @param mode_gap_max Pilot inner-sweep calibration when a pilot stage runs.
 #' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved (not yet forwarded).
 #' @param verbose Print stage headers and convergence calibration lines.
@@ -152,8 +156,9 @@
 #'       \code{k}, \code{m_convergence}). That count is the main-stage
 #'       length.}
 #'     \item{\code{rwt}}{Ridge weight supplied to the call. It sets the
-#'       non-Gaussian main-stage sweep count and is not applied to the
-#'       likelihood.}
+#'       non-Gaussian main-stage sweep count and, in
+#'       \code{rGLMM_reg_known_vcov}, scales the group likelihood weights by
+#'       \code{1 - rwt}.}
 #'     \item{\code{pilot}}{When a pilot ran: list with \code{n},
 #'       \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
 #'       \code{NULL}.}

@@ -173,6 +173,7 @@
 }
 
 test_that("two-block stacked Dobson: legacy vs block envelope / gamma / UB constants", {
+  skip("rindepNormalGamma_reg_with_envelope() moved to legacy_code/")
   fix <- .dobson_plant_two_block_fixture()
   n_envopt <- 10000L
   n_draws <- 1L

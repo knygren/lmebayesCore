@@ -166,6 +166,9 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// n - 1, NA when n < 2).
 /// `use_mode` keeps each block's posterior mode instead of its draw (used
 /// only for exact R / C++ comparison).
+/// `rwt` in [0, 1) is the ridge weight: the groups draws use observation
+/// weights `wt1 * (1 - rwt)`, i.e. the group likelihood raised to 1 - rwt.
+/// `rwt = 0` leaves the weights unchanged.
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,
@@ -173,6 +176,7 @@ Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& iters_ranef,
                            int inner_sweeps, bool use_mode, bool progbar,
                            const std::string& stage_label,
+                           double rwt = 0.0,
                            SweepObserver* observer = nullptr);
 
 }  // namespace twoblock

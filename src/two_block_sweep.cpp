@@ -4,7 +4,7 @@
 #include "RcppArmadillo.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 
-#include "progress_utils.h"
+#include "glmbayesCore_calls.h"
 #include "simfuncs_twoblock.h"
 
 using namespace Rcpp;
@@ -69,11 +69,24 @@ void sweep_summary(const List& fixef, const std::vector<int>& col_off, int n,
 
 }  // namespace
 
-List two_block_sweep(const TwoBlockIndexSpec& spec, const NumericVector& b_in,
+List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in,
                      const List& fixef_in, const NumericMatrix& iters_in,
                      const NumericVector& iters_ranef_in, int inner_sweeps,
                      bool use_mode, bool progbar, const std::string& stage_label,
-                     SweepObserver* observer) {
+                     double rwt, SweepObserver* observer) {
+  if (!(rwt >= 0.0 && rwt < 1.0)) {
+    stop("rwt must be in [0, 1); the ridge term needed at rwt = 1 is not implemented yet.");
+  }
+  // spec_in.wt1 shares memory with the R object spec$wt1, and assigning a
+  // same-length sugar expression to an Rcpp vector writes into its existing
+  // memory. Scale a clone and rebind to it instead.
+  TwoBlockIndexSpec spec = spec_in;
+  NumericVector wt_scaled = clone(spec_in.wt1);
+  for (R_xlen_t r = 0; r < wt_scaled.size(); ++r) {
+    wt_scaled[r] *= (1.0 - rwt);
+  }
+  spec.wt1 = wt_scaled;
+
   const IntegerVector dim = b_in.attr("dim");
   if (dim.size() != 3) {
     stop("b must be a J x p_re x n array.");
@@ -132,12 +145,12 @@ List two_block_sweep(const TwoBlockIndexSpec& spec, const NumericVector& b_in,
       }
       iters_ranef[i] = iters_ranef[i] + it1;
       if (progbar) {
-        glmbayes::progress::progress_bar(i + 1.0, static_cast<double>(n),
+        lmecore::progress_bar(i + 1.0, static_cast<double>(n),
                                          prefix_groups);
       }
     }
     if (progbar) {
-      glmbayes::progress::progress_bar_finish(false);
+      lmecore::progress_bar_finish(false);
     }
 
     for (int i = 0; i < n; ++i) {
@@ -160,19 +173,19 @@ List two_block_sweep(const TwoBlockIndexSpec& spec, const NumericVector& b_in,
         iters(i, k) = iters(i, k) + 1.0;
       }
       if (progbar) {
-        glmbayes::progress::progress_bar(i + 1.0, static_cast<double>(n),
+        lmecore::progress_bar(i + 1.0, static_cast<double>(n),
                                          prefix_population);
       }
     }
     if (progbar) {
-      glmbayes::progress::progress_bar_finish(m == inner_sweeps);
+      lmecore::progress_bar_finish(m == inner_sweeps);
     }
     sweep_summary(fixef, col_off, n, p_tot, mi, stacked, sweep_mean, sweep_cov);
     if (progbar && n <= 1) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
           static_cast<double>(m), static_cast<double>(inner_sweeps),
           sweep_progbar_prefix(stage_label, m, inner_sweeps, ""));
-      glmbayes::progress::progress_bar_finish(m == inner_sweeps);
+      lmecore::progress_bar_finish(m == inner_sweeps);
     }
   }
 

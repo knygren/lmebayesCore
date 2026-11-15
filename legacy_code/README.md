@@ -3,6 +3,16 @@
 Files here are excluded from `R CMD build` via `.Rbuildignore`.
 Copy or source manually when experimenting; they are not exported from **glmbayes**.
 
+## `rIndepNormalGammaReg_with_envelope/`
+
+lmebayesCore's former copy of `rIndepNormalGammaReg()` (C++, with an extra
+`return_envelope` flag) and the internal `rindepNormalGamma_reg_with_envelope()`
+diagnostic sampler built on it, with its `.Call` wrapper and Rcpp export.
+Moved out of `R/` and `src/` so lmebayesCore uses glmbayesCore's
+`rIndepNormalGammaReg`. The first block of
+`tests/testthat/test-rIndepNormalGammaRegBlock-iters-parity-two-block.R` is
+skipped while this lives here.
+
 ## `pp_check.glmb.R`
 
 Former S3 method `pp_check.glmb()` (wrapper around **bayesplot** for `glmb` fits).

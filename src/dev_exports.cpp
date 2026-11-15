@@ -32,7 +32,7 @@ Rcpp::List dev_two_block_sweep_cpp_export(const Rcpp::List& spec,
                                               record);
   const Rcpp::List st = glmbayes::sim::twoblock::two_block_sweep(
       s, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar,
-      stage_label, &obs);
+      stage_label, 0.0, &obs);
   return Rcpp::List::create(
       Rcpp::Named("b") = st["b"],
       Rcpp::Named("fixef") = st["fixef"],

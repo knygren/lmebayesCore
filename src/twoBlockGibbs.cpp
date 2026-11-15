@@ -19,6 +19,7 @@
 // rNormalGLM are untouched.
 
 #include "RcppArmadillo.h"
+#include "glmbayesCore_calls.h"
 #include "simfuncs.h"
 #include "progress_utils.h"
 #include "package_ns.h"
@@ -238,7 +239,7 @@ List two_block_rNormal_reg_cpp_export(
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
     if (progbar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
@@ -255,11 +256,11 @@ List two_block_rNormal_reg_cpp_export(
       List block_i;
       if (is_gaussian) {
         // R: rNormal_reg_group(n = 1, ...) with default Gridtype = 2L.
-        block_i = block_rNormalReg_cpp_export(
+        block_i = lmecore::group_rNormalReg(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
       } else {
-        block_i = block_rNormalGLM_cpp_export(
+        block_i = lmecore::group_rNormalGLM(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
           family, link, Gridtype, n_envopt,
           use_parallel, use_opencl, verbose
@@ -295,7 +296,7 @@ List two_block_rNormal_reg_cpp_export(
         NumericVector offset_j(X_j.nrow(), 0.0);
         NumericVector wt_j(X_j.nrow(), 1.0);
 
-        List out_j = rNormalReg(
+        List out_j = lmecore::rNormalReg(
           1, y_j, X_j, pr.mu, pr.P, offset_j, wt_j,
           pr.dispersion, f2_gauss, f3_gauss, pr.mu,
           "gaussian", "identity", 2
@@ -324,7 +325,7 @@ List two_block_rNormal_reg_cpp_export(
   }
 
   if (progbar) {
-    glmbayes::progress::progress_bar_finish();
+    lmecore::progress_bar_finish();
   }
 
   List fixef_last(p_re);
@@ -1470,7 +1471,7 @@ List two_block_rNormal_reg_v2_cpp_export(
   for (int i = 0; i < n; ++i) {
     Rcpp::checkUserInterrupt();
     if (progbar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
@@ -1508,11 +1509,11 @@ List two_block_rNormal_reg_v2_cpp_export(
 
       List block_i;
       if (is_gaussian) {
-        block_i = block_rNormalReg_cpp_export(
+        block_i = lmecore::group_rNormalReg(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
       } else {
-        block_i = block_rNormalGLM_cpp_export(
+        block_i = lmecore::group_rNormalGLM(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
           family, link, Gridtype, n_envopt,
           use_parallel, use_opencl, verbose
@@ -1547,7 +1548,7 @@ List two_block_rNormal_reg_v2_cpp_export(
 
         if (!pr2[j].is_ing) {
           // dNormal: conjugate draw at fixed dispersion (identical to v1).
-          List out_j = rNormalReg(
+          List out_j = lmecore::rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
             "gaussian", "identity", 2
@@ -1560,7 +1561,7 @@ List two_block_rNormal_reg_v2_cpp_export(
           // ING: joint (gamma_k, tau2_k) draw via the likelihood-subgradient
           // envelope sampler (same path as rglmb with a
           // dIndependent_Normal_Gamma pfamily; rIndepNormalGammaReg, n = 1).
-          List out_j = rIndepNormalGammaReg(
+          List out_j = lmecore::rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
             Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
@@ -1607,7 +1608,7 @@ List two_block_rNormal_reg_v2_cpp_export(
   }
 
   if (progbar) {
-    glmbayes::progress::progress_bar_finish();
+    lmecore::progress_bar_finish();
   }
 
   List fixef_last(p_re);
@@ -1787,7 +1788,7 @@ List two_block_rNormal_reg_v3_cpp_export(
     }
 
     if (chain_progbar || inner_progbar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
@@ -1836,11 +1837,11 @@ List two_block_rNormal_reg_v3_cpp_export(
       // Grouping factor levels are handled inside the block_* export.
       List block_i;
       if (is_gaussian) {
-        block_i = block_rNormalReg_cpp_export(
+        block_i = lmecore::group_rNormalReg(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
       } else {
-        block_i = block_rNormalGLM_cpp_export(
+        block_i = lmecore::group_rNormalGLM(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
           family, link, Gridtype, n_envopt,
           use_parallel, use_opencl, verbose
@@ -1877,7 +1878,7 @@ List two_block_rNormal_reg_v3_cpp_export(
 
         if (!pr2[j].is_ing) {
           // dNormal Block 2: conjugate draw of gamma_k at fixed tau2[j].
-          List out_j = rNormalReg(
+          List out_j = lmecore::rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
             "gaussian", "identity", 2
@@ -1889,7 +1890,7 @@ List two_block_rNormal_reg_v3_cpp_export(
         } else {
           // ING Block 2: joint draw of (gamma_k, tau2_k); tau2[j] feeds next
           // sweep's Block 1 prior row via the P1 refresh above.
-          List out_j = rIndepNormalGammaReg(
+          List out_j = lmecore::rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
             Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
@@ -1936,7 +1937,7 @@ List two_block_rNormal_reg_v3_cpp_export(
   }
 
   if (chain_progbar || inner_progbar) {
-    glmbayes::progress::progress_bar_finish();
+    lmecore::progress_bar_finish();
   }
 
   List fixef_last(p_re);
@@ -2202,7 +2203,7 @@ List two_block_rNormal_reg_v4_cpp_export(
     Rcpp::checkUserInterrupt();
 
     if (chain_progbar || inner_progbar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(i + 1), static_cast<double>(n)
       );
     }
@@ -2278,11 +2279,11 @@ List two_block_rNormal_reg_v4_cpp_export(
       // Grouping factor levels are handled inside the block_* export.
       List block_i;
       if (is_gaussian) {
-        block_i = block_rNormalReg_cpp_export(
+        block_i = lmecore::group_rNormalReg(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
       } else {
-        block_i = block_rNormalGLM_cpp_export(
+        block_i = lmecore::group_rNormalGLM(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
           family, link, Gridtype, n_envopt,
           use_parallel, use_opencl, verbose
@@ -2319,7 +2320,7 @@ List two_block_rNormal_reg_v4_cpp_export(
         
         if (!pr2[j].is_ing) {
           // dNormal Block 2: conjugate draw of gamma_k at fixed tau2[j].
-          List out_j = rNormalReg(
+          List out_j = lmecore::rNormalReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].dispersion, f2_gauss, f3_gauss, pr2[j].mu,
             "gaussian", "identity", 2
@@ -2333,7 +2334,7 @@ List two_block_rNormal_reg_v4_cpp_export(
         } else {
           // ING Block 2: joint draw of (gamma_k, tau2_k); tau2[j] feeds next
           // sweep's Block 1 prior row via the P1 refresh above.
-          List out_j = rIndepNormalGammaReg(
+          List out_j = lmecore::rIndepNormalGammaReg(
             1, y_j, X_j, pr2[j].mu, pr2[j].P, offset_j, wt_j,
             pr2[j].shape, pr2[j].rate, pr2[j].max_disp_perc,
             Rcpp::Nullable<NumericVector>(pr2[j].disp_lower),
@@ -2390,7 +2391,7 @@ List two_block_rNormal_reg_v4_cpp_export(
   }  /// End of chain loop
   
   if (chain_progbar || inner_progbar) {
-    glmbayes::progress::progress_bar_finish();
+    lmecore::progress_bar_finish();
   }
   
   List fixef_last(p_re);
@@ -2641,7 +2642,7 @@ List two_block_rNormal_reg_v5_cpp_export(
       Rcpp::checkUserInterrupt();
 
       if (chain_progbar) {
-        glmbayes::progress::progress_bar(
+        lmecore::progress_bar(
           static_cast<double>(i + 1), static_cast<double>(n), prefix_re
         );
       }
@@ -2677,11 +2678,11 @@ List two_block_rNormal_reg_v5_cpp_export(
 
       List block_i;
       if (is_gaussian) {
-        block_i = block_rNormalReg_cpp_export(
+        block_i = lmecore::group_rNormalReg(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3, 2
         );
       } else {
-        block_i = block_rNormalGLM_cpp_export(
+        block_i = lmecore::group_rNormalGLM(
           1, y, x, block, pl1, R_NilValue, offset, wt, f2, f3,
           family, link, Gridtype, n_envopt,
           use_parallel, use_opencl, verbose
@@ -2710,7 +2711,7 @@ List two_block_rNormal_reg_v5_cpp_export(
     }
 
     if (chain_progbar) {
-      glmbayes::progress::progress_bar_finish(false);
+      lmecore::progress_bar_finish(false);
     }
 
     // ---- Block 2 (fixef): all chains ----
@@ -2718,7 +2719,7 @@ List two_block_rNormal_reg_v5_cpp_export(
       Rcpp::checkUserInterrupt();
 
       if (chain_progbar) {
-        glmbayes::progress::progress_bar(
+        lmecore::progress_bar(
           static_cast<double>(i + 1), static_cast<double>(n), prefix_fe
         );
       }
@@ -2770,15 +2771,15 @@ List two_block_rNormal_reg_v5_cpp_export(
     }
 
     if (chain_progbar) {
-      glmbayes::progress::progress_bar_finish(m == m_convergence - 1);
+      lmecore::progress_bar_finish(m == m_convergence - 1);
     }
 
     if (sweep_progbar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(sweep1), static_cast<double>(m_convergence),
         prefix_sweep
       );
-      glmbayes::progress::progress_bar_finish(m == m_convergence - 1);
+      lmecore::progress_bar_finish(m == m_convergence - 1);
     }
 
     sweep_stats[m] = two_block_snapshot_fixef_stats_cpp(

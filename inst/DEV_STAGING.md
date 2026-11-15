@@ -40,6 +40,14 @@ Gaussian models stay on `rGLMM_sweep`. `.rGLMM_reg_run_pipeline` keeps
 `rGLMM_sweep` as its default, so `compare_sweep_indexed.R` still compares
 against the R sweep.
 
+Ridge weight, part 1 of 2: `two_block_sweep` (C++) takes `rwt` in [0, 1)
+and draws the groups block with weights `wt1 * (1 - rwt)` (a local copy of
+the spec; `spec$wt1` is not modified). `.rGLMM_sweep_cpp` forwards `rwt`;
+`.rGLMM_sweep_indexed` and the dev tracked wrappers scale `spec$wt1` in R
+instead, and the R loop `.two_block_sweep_r` and the dev C++ export run
+at `rwt = 0`. Part 2 (the ridge term `rwt * T_m` as a per-group Normal
+prior, which also allows `rwt = 1`) is not implemented yet.
+
 Both indexed loops return `sweep_mean` / `sweep_cov` (cross-chain summary of
 the stacked population coefficients after each sweep); `.two_block_finish`
 turns them into the same `sweep_history` object `rGLMM_sweep` stores.

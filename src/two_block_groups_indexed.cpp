@@ -4,8 +4,9 @@
 #include "RcppArmadillo.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 
+#include <glmbayesCore/glmbayesCore_capi.h>
+
 #include "rng_utils.h"
-#include "simfuncs_groups.h"
 #include "simfuncs_twoblock.h"
 
 using namespace Rcpp;
@@ -38,14 +39,21 @@ NumericMatrix groups_prior_mean(const TwoBlockIndexSpec& spec,
 }
 
 GroupsDraw groups_draw(const TwoBlockIndexSpec& spec, const NumericMatrix& mu_D) {
+  const RObject n1 = wrap(1);
+  const RObject prior_by_block = wrap(true);
+  const RObject family = wrap(spec.family);
+  const RObject link = wrap(spec.link);
+  const RObject gridtype = wrap(spec.gridtype);
+  const RObject n_envopt = wrap(spec.n_envopt);
+  const RObject off = wrap(false);
+  const List P_blocks = List::create(spec.P_D);
   List out;
   {
     glmbayes::rng::RSyncScope rng_sync;
-    out = glmbayes::sim::group::rNormalGLMGroups(
-        1, spec.y, spec.D, spec.offset1, spec.wt1, spec.disp1, mu_D,
-        List::create(spec.P_D), true, spec.obs_rows, spec.f2, spec.f3,
-        spec.family, spec.link, spec.gridtype, spec.n_envopt, false, false,
-        false);
+    out = glmbayesCore_rNormalGLMGroups(
+        n1, spec.y, spec.D, spec.offset1, spec.wt1, spec.disp1, mu_D,
+        P_blocks, prior_by_block, spec.obs_rows, spec.f2, spec.f3,
+        family, link, gridtype, n_envopt, off, off, off);
   }
 
   const List gr = out["group_results"];

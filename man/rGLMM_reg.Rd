@@ -188,8 +188,12 @@ is \code{NULL}.}
 
 \item{rwt}{Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
 non-Gaussian family this scales the mode curvature used by
-Corollary 5.1 to set the main-stage sweep count. The likelihood draw
-is unchanged, and the pilot stays on the Theorem~3 schedule.}
+Corollary 5.1 to set the main-stage sweep count; the pilot stays on
+the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
+sweep) the group likelihood in both stages is raised to the power
+\code{1 - rwt}, so \code{rwt} must be below 1 there until the ridge term
+is added. \code{rGLMM_reg_estimated_vcov} leaves the likelihood
+unchanged.}
 }
 \value{
 An object of class \code{c("<route>", "rGLMM_reg", "list")}, where
@@ -234,8 +238,9 @@ weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
 \code{k}, \code{m_convergence}). That count is the main-stage
 length.}
 \item{\code{rwt}}{Ridge weight supplied to the call. It sets the
-non-Gaussian main-stage sweep count and is not applied to the
-likelihood.}
+non-Gaussian main-stage sweep count and, in
+\code{rGLMM_reg_known_vcov}, scales the group likelihood weights by
+\code{1 - rwt}.}
 \item{\code{pilot}}{When a pilot ran: list with \code{n},
 \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
 \code{NULL}.}

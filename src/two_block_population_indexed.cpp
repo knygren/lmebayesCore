@@ -5,8 +5,9 @@
 #include "RcppArmadillo.h"
 // [[Rcpp::depends(RcppArmadillo)]]
 
+#include <glmbayesCore/glmbayesCore_capi.h>
+
 #include "rng_utils.h"
-#include "simfuncs.h"
 #include "simfuncs_twoblock.h"
 
 using namespace Rcpp;
@@ -29,13 +30,19 @@ PopulationDraw population_draw(const TwoBlockIndexSpec& spec,
                                const NumericVector& y_k, int k) {
   const NumericVector& mu = spec.mu2[k];
   const int n_w = y_k.size();
+  const RObject n1 = wrap(1);
+  const NumericVector offset(n_w, 0.0);
+  const NumericVector wt(n_w, 1.0);
+  const RObject dispersion = wrap(spec.disp2[k]);
+  const RObject family = wrap("gaussian");
+  const RObject link = wrap("identity");
+  const RObject gridtype = wrap(spec.gridtype);
   List out;
   {
     glmbayes::rng::RSyncScope rng_sync;
-    out = glmbayes::sim::rNormalReg(
-        1, y_k, spec.W[k], mu, spec.P2[k], NumericVector(n_w, 0.0),
-        NumericVector(n_w, 1.0), spec.disp2[k], spec.f2_gauss, spec.f3_gauss,
-        mu, "gaussian", "identity", spec.gridtype);
+    out = glmbayesCore_rNormalReg(
+        n1, y_k, spec.W[k], mu, spec.P2[k], offset, wt, dispersion,
+        spec.f2_gauss, spec.f3_gauss, mu, family, link, gridtype);
   }
   const NumericMatrix draw = out["coefficients"];
   const NumericVector mode = out["coef.mode"];

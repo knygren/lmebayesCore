@@ -101,7 +101,6 @@ Kernel loading for exploration uses **opencltools** (`load_kernel_source`, `load
 | `build_mu_all.R` | Observation-level prior means for ICM / `simulate = FALSE` paths |
 | `lmebayes_posterior_icm.R` | ICM posterior mean/mode (`lmerb_posterior_mean()`, `glmerb_posterior_mode()`) |
 | `ing_prior_guard.R` | Truncation-window / ING dispersion prior guardrails |
-| `rindepNormalGamma_reg_with_envelope.R` | Documented internal diagnostic ING sampler that returns envelope artifacts (call via `:::`; not a `glmbayesCore` duplicate) |
 | `lmebayes_reg_route_table.R` | Route dispatch table used by `.lmebayes_run_glmm_engine()` / `.lmebayes_run_lmm_engine()` |
 | `glmmtmb_reference_helpers.R` | Optional `glmmTMB` reference-fit comparison helpers |
 
@@ -212,7 +211,6 @@ under `?two_block_rate`.)
 | `two_block_pilot_sampling_cost()`, `two_block_optimize_pilot_cost()`, `two_block_d0_pilot_start()`, `two_block_m_convergence_for_pilot_start()` | Pilot vs main chain cost optimization |
 | `two_block_align_b_to_xhyper()` / `.two_block_align_b_to_xhyper` (+ `_cpp`) | Align Block~1 draws to `X_hyper` row order |
 | `two_block_block2_one_chain()` / `.two_block_block2_one_chain` (+ `_cpp`) | Single-chain Block~2 update step |
-| `rindepNormalGamma_reg_with_envelope()` | Diagnostic ING sampler that also returns envelope artifacts (parity / development; call via `:::`) |
 
 ### S3 methods
 
@@ -320,7 +318,7 @@ A complete bibliography is in `inst/REFERENCES.bib`.
   that export always sets `$Envelope = NULL` (envelope used internally only).
   Add an option (e.g. `return_envelope = FALSE`) so callers can request
   `Envelope` / `gamma_list` / `UB_list` / `diagnostics`. Core’s documented
-  internal `rindepNormalGamma_reg_with_envelope()` (and its
+  internal `rindepNormalGamma_reg_with_envelope()` (now in `legacy_code/`, with its
   `.rIndepNormalGammaReg_with_envelope_cpp` path) can serve as a template;
   once **glmbayesCore** supports the option, Core can drop or thin the
   duplicate wrapper.

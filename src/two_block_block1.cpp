@@ -3,7 +3,7 @@
 // Migrated incrementally from the R driver in R/two_block_batch_gibbs.R.
 
 #include "simfuncs.h"
-#include "progress_utils.h"
+#include "glmbayesCore_calls.h"
 #include "package_ns.h"
 
 #include <string>
@@ -573,12 +573,12 @@ Rcpp::List two_block_block1_one_chain_impl(
   // ---- draw (.two_block_block1_draw_one_chain; piecewise C++ flags TRUE) ----
   Rcpp::List block_out;
   if (is_gaussian) {
-    block_out = block_rNormalReg_cpp_export(
+    block_out = lmecore::group_rNormalReg(
       1, y, Z, groups, prior_list, R_NilValue, offset, wt,
       f2_gauss, f3_gauss, Gridtype
     );
   } else {
-    block_out = block_rNormalGLM_cpp_export(
+    block_out = lmecore::group_rNormalGLM(
       1, y, Z, groups, prior_list, R_NilValue, offset, wt,
       f2, f3, family, link, Gridtype, n_envopt,
       false, false, false
@@ -735,12 +735,12 @@ Rcpp::List two_block_block1_one_chain_from_mu_P_impl(
 
   Rcpp::List block_out;
   if (is_gaussian) {
-    block_out = block_rNormalReg_cpp_export(
+    block_out = lmecore::group_rNormalReg(
       1, y, Z, groups, prior_list, R_NilValue, offset, wt,
       f2_gauss, f3_gauss, 2
     );
   } else {
-    block_out = block_rNormalGLM_cpp_export(
+    block_out = lmecore::group_rNormalGLM(
       1, y, Z, groups, prior_list, R_NilValue, offset, wt,
       f2, f3, fam_str, link_str, 2, 1,
       false, false, false
@@ -972,7 +972,7 @@ Rcpp::List two_block_block1_all_chains_v2_internal_loop_impl(
 
   for (int chain_i = 1; chain_i <= n; ++chain_i) {
     if (show_bar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(chain_i),
         static_cast<double>(n),
         progbar_prefix
@@ -1012,7 +1012,7 @@ Rcpp::List two_block_block1_all_chains_v2_internal_loop_impl(
   }
 
   if (show_bar) {
-    glmbayes::progress::progress_bar_finish(progbar_finish_newline);
+    lmecore::progress_bar_finish(progbar_finish_newline);
   }
 
   return Rcpp::List::create(
@@ -1139,7 +1139,7 @@ void two_block_block1_all_chains_impl(
 
   for (int chain_i = 1; chain_i <= n; ++chain_i) {
     if (show_bar) {
-      glmbayes::progress::progress_bar(
+      lmecore::progress_bar(
         static_cast<double>(chain_i),
         static_cast<double>(n),
         progbar_prefix
@@ -1179,7 +1179,7 @@ void two_block_block1_all_chains_impl(
   }
 
   if (show_bar) {
-    glmbayes::progress::progress_bar_finish(progbar_finish_newline);
+    lmecore::progress_bar_finish(progbar_finish_newline);
   }
 }
 

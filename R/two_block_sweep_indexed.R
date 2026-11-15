@@ -482,8 +482,9 @@
 #' Indexed two-block sweep, R loop
 #'
 #' Same arguments as \code{rGLMM_sweep}, plus \code{index_map}. Non-Gaussian
-#' families with \code{dNormal} components only. \code{rwt} is accepted and
-#' is not used inside the draw.
+#' families with \code{dNormal} components only. \code{rwt} scales the
+#' groups-block likelihood weights by \code{1 - rwt}, as in
+#' \code{.rGLMM_sweep_cpp}.
 #'
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
@@ -526,6 +527,7 @@
     n_chains, start_fixef, design, block1_prior, pfamily_list, family,
     re_names, group_levels, b_start, b_mode, tau2_start, index_map
   )
+  prep$spec$wt1 <- prep$spec$wt1 * (1 - rwt)
   state <- .two_block_sweep_r(
     spec         = prep$spec,
     state        = prep$state,
@@ -546,7 +548,8 @@
 #' Same arguments and output as \code{.rGLMM_sweep_indexed}. Setup and the
 #' final naming are the shared R steps; the sweep loop is
 #' \code{.two_block_sweep_cpp}, the C++ twin of \code{.two_block_sweep_r}.
-#' \code{rwt} is accepted and is not used inside the draw.
+#' \code{rwt} scales the groups-block likelihood weights by \code{1 - rwt}
+#' inside the C++ loop; it must be below 1 until the ridge term is added.
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -597,7 +600,8 @@
     as.integer(inner_sweeps),
     FALSE,
     isTRUE(progbar),
-    if (is.null(stage_label)) "" else as.character(stage_label[1L])
+    if (is.null(stage_label)) "" else as.character(stage_label[1L]),
+    rwt
   )
   .two_block_finish(
     state, prep$tau2, index_map, design, re_names, collect_block1,

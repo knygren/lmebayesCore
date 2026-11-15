@@ -355,3 +355,8 @@ rindepNormalGamma_reg_with_envelope <- function(
     call = match.call()
   )
 }
+
+## Formerly in R/rcpp_wrappers.R.
+.rIndepNormalGammaReg_with_envelope_cpp <- function(n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar) {
+  .Call(`_lmebayesCore_rIndepNormalGammaReg_with_envelope_cpp_export`, n, y, x, mu, P, offset, wt, shape, rate, max_disp_perc, disp_lower, disp_upper, Gridtype, n_envopt, use_parallel, use_opencl, verbose, progbar)
+}
