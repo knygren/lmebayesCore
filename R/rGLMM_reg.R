@@ -143,7 +143,10 @@
 #'     \item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
 #'       draw.}
 #'     \item{\code{convergence_info}}{Theorem~3 / UB calibration details,
-#'       including \code{draw_engine} and \code{icm_info}. For a non-Gaussian
+#'       including \code{draw_engine} and \code{icm_info}.
+#'       \code{draw_engine} is \code{"rGLMM_sweep_cpp"} on
+#'       \code{rGLMM_reg_known_vcov} (compiled sweep) and
+#'       \code{"rGLMM_sweep"} on \code{rGLMM_reg_estimated_vcov}. For a non-Gaussian
 #'       family, \code{ridge} holds the Corollary 5.1 count at curvature
 #'       weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
 #'       \code{k}, \code{m_convergence}). That count is the main-stage
@@ -308,6 +311,10 @@ NULL
 }
 
 #' Main GLMM sampling pipeline entry (ICM, optional pilot, main sweep)
+#'
+#' Non-Gaussian models whose population components are all \code{dNormal}
+#' run both stages on the indexed C++ sweep (\code{.rGLMM_sweep_cpp});
+#' anything else stays on \code{rGLMM_sweep}.
 #' @noRd
 .rGLMM_reg_run <- function(
     inp,
@@ -323,7 +330,10 @@ NULL
     result_class,
     cl
 ) {
+  use_cpp <- !isTRUE(inp$is_gaussian) && isTRUE(inp$pf_summary$all_dNormal)
   .rGLMM_reg_run_pipeline(
+    sweep_fn           = if (use_cpp) .rGLMM_sweep_cpp else rGLMM_sweep,
+    draw_engine        = if (use_cpp) "rGLMM_sweep_cpp" else "rGLMM_sweep",
     inp                = inp,
     icm_tol            = icm_tol,
     icm_maxit          = icm_maxit,
@@ -375,8 +385,9 @@ NULL
 #' Shared GLMM replicate-chain pipeline (sweep-outer driver)
 #'
 #' @param sweep_fn Sweep function. The default is \code{rGLMM_sweep}.
-#'   \code{.rGLMM_reg_run_pipeline_indexed} passes
-#'   \code{.rGLMM_sweep_indexed}.
+#'   \code{.rGLMM_reg_run_pipeline_indexed} / \code{_cpp} pass the dev
+#'   tracked variants of \code{.rGLMM_sweep_indexed} / \code{.rGLMM_sweep_cpp},
+#'   whose output adds \code{prior_track}.
 #' @param draw_engine Character stored on \code{convergence_info$draw_engine}.
 #' @noRd
 .rGLMM_reg_run_pipeline <- function(
@@ -892,7 +903,8 @@ NULL
 #'
 #' Same arguments as \code{.rGLMM_reg_run_pipeline}. The level-name map is
 #' built once and both the pilot and the main stage use
-#' \code{.rGLMM_sweep_indexed}.
+#' \code{.rGLMM_sweep_indexed}, through its dev tracked variant so the result
+#' carries \code{prior_track}. Development entry point.
 #' @noRd
 .rGLMM_reg_run_pipeline_indexed <- function(
     inp,
@@ -921,7 +933,7 @@ NULL
     engine_label     = engine_label,
     result_class     = result_class,
     cl               = cl,
-    sweep_fn         = .rGLMM_sweep_indexed,
+    sweep_fn         = .dev_rGLMM_sweep_indexed_tracked,
     draw_engine      = "rGLMM_sweep_indexed"
   )
 }
@@ -930,7 +942,8 @@ NULL
 #'
 #' Same arguments as \code{.rGLMM_reg_run_pipeline}. The level-name map is
 #' built once and both the pilot and the main stage use
-#' \code{.rGLMM_sweep_cpp}.
+#' \code{.rGLMM_sweep_cpp}, through its dev tracked variant so the result
+#' carries \code{prior_track}. Development entry point.
 #' @noRd
 .rGLMM_reg_run_pipeline_cpp <- function(
     inp,
@@ -959,7 +972,7 @@ NULL
     engine_label     = engine_label,
     result_class     = result_class,
     cl               = cl,
-    sweep_fn         = .rGLMM_sweep_cpp,
+    sweep_fn         = .dev_rGLMM_sweep_cpp_tracked,
     draw_engine      = "rGLMM_sweep_cpp"
   )
 }

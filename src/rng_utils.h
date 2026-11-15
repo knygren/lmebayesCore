@@ -40,9 +40,26 @@
 #ifndef RNG_UTILS_H
 #define RNG_UTILS_H
 
+#include "RcppArmadillo.h"
+
 namespace glmbayes{
 
 namespace rng {
+
+/// Put one around every R-RNG kernel call made inside a longer C++ loop.
+/// The R callbacks f2/f3 reach Rcpp exports whose own RNGScope reloads
+/// .Random.seed on entry, and Rcpp scopes do not nest. Without a scope that
+/// writes R's RNG state back after each call, the next call restarts from
+/// the stream the previous one already used.
+class RSyncScope {
+ public:
+  RSyncScope() {}
+
+ private:
+  RSyncScope(const RSyncScope&);
+  RSyncScope& operator=(const RSyncScope&);
+  Rcpp::RNGScope scope_;
+};
 
 // Thread-safe uniform RNG [0, 1)
 double runif_safe();

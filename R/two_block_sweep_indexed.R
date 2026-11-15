@@ -1,22 +1,22 @@
-## Portable two-block sweep: the R reference for src/two_block_sweep_cpp.cpp.
+## Indexed two-block sweep: the R reference loop and the R side of the C++
+## loop in src/two_block_sweep.cpp (glmbayes::sim::twoblock::two_block_sweep).
 ##
-## Names are resolved once, in .two_block_port_spec() and
-## .two_block_port_init(). After that every step works on plain numeric
-## matrices, numeric vectors, and 1-based integer index vectors, and each
-## step has a C++ twin of the same name stem with the same inputs and the
-## same output shape:
+## Names are resolved once, in .two_block_spec() and .two_block_init().
+## After that every step works on plain numeric matrices, numeric vectors,
+## and 1-based integer index vectors, and each step has a C++ twin with the
+## same inputs and the same output shape:
 ##
-##   R                                    C++
-##   .two_block_port_block1_prior_mean    port_block1_prior_mean
-##   .two_block_port_block1_draw          port_block1_draw
-##   .two_block_port_block1_place         port_block1_place
-##   .two_block_port_block2_response      port_block2_response
-##   .two_block_port_block2_draw          port_block2_draw
-##   .two_block_port_block2_write         port_block2_write
-##   .two_block_port_sweep_r              port_sweep
+##   R                                  C++ (glmbayes::sim::twoblock)
+##   .two_block_groups_prior_mean       groups_prior_mean
+##   .two_block_groups_draw             groups_draw
+##   .two_block_groups_place            groups_place
+##   .two_block_population_response     population_response
+##   .two_block_population_draw         population_draw
+##   .two_block_population_write        population_write
+##   .two_block_sweep_r                 two_block_sweep
 ##
 ## The draws in both languages come from the same compiled samplers:
-## rNormalGLMBlocks (Block 1) and rNormalReg (Block 2). Names are restored
+## rNormalGLMGroups (groups) and rNormalReg (population). Names are restored
 ## afterwards by .rGLMM_sweep_save_indexed().
 ##
 ## State layout, identical in both languages:
@@ -28,7 +28,7 @@
 #' Plain-number inputs shared by every sweep step
 #'
 #' @param design List with \code{y}, \code{D}, and \code{W}.
-#' @param block1_prior Block~1 prior with \code{P} (\code{p_re x p_re},
+#' @param block1_prior Groups prior with \code{P} (\code{p_re x p_re},
 #'   \code{re_names} order) and optional \code{dispersion}.
 #' @param pfamily_list Named list of \code{dNormal} pfamily objects.
 #' @param family GLM family. Gaussian is not supported.
@@ -37,21 +37,21 @@
 #' @return A list of numeric matrices, numeric vectors, 1-based integer
 #'   vectors, character scalars, and the four family functions.
 #' @noRd
-.two_block_port_spec <- function(design, block1_prior, pfamily_list, family,
-                                 re_names, index_map) {
+.two_block_spec <- function(design, block1_prior, pfamily_list, family,
+                            re_names, index_map) {
   if (is.null(family$family) || is.null(family$link)) {
     stop("'family' must have family and link names.", call. = FALSE)
   }
   if (identical(family$family, "gaussian")) {
     stop(
-      "The portable sweep draws Block 1 with rNormalGLMBlocks. Gaussian models stay on rGLMM_sweep.",
+      "The indexed sweep draws the groups block with rNormalGLMGroups. Gaussian models stay on rGLMM_sweep.",
       call. = FALSE
     )
   }
   ptypes <- vapply(pfamily_list[re_names], function(pf) pf$pfamily, character(1))
   if (any(ptypes != "dNormal")) {
     stop(
-      "The portable sweep draws Block 2 with rNormalReg. A component that is not dNormal stays on rGLMM_sweep.",
+      "The indexed sweep draws the population block with rNormalReg. A component that is not dNormal stays on rGLMM_sweep.",
       call. = FALSE
     )
   }
@@ -79,7 +79,7 @@
   }
   disp1 <- as.numeric(disp1)
   if (length(disp1) != 1L || !is.finite(disp1)) {
-    stop("Block 1 dispersion must be a finite scalar.", call. = FALSE)
+    stop("Groups dispersion must be a finite scalar.", call. = FALSE)
   }
 
   W <- vector("list", p_re)
@@ -104,7 +104,7 @@
     }
     dimnames(P) <- NULL
     if (!all(dim(P) == c(ncol(Wk), ncol(Wk)))) {
-      stop("Block 2 precision for ", nm, " has the wrong dimension.", call. = FALSE)
+      stop("Population precision for ", nm, " has the wrong dimension.", call. = FALSE)
     }
     disp <- pl$dispersion
     if (is.null(disp) || length(disp) != 1L || !is.finite(disp) || disp <= 0) {
@@ -145,7 +145,7 @@
   )
 }
 
-#' Initial sweep state in the portable layout
+#' Initial sweep state in the indexed layout
 #'
 #' @param start_fixef Named list of start vectors. Names of each vector must
 #'   be the stored coefficient order implied by \code{index_map$w_col}.
@@ -153,8 +153,8 @@
 #'   \code{group_levels} and columns to \code{re_names} by name when present.
 #' @return List with \code{b}, \code{fixef}, \code{iters}, \code{iters_ranef}.
 #' @noRd
-.two_block_port_init <- function(n_chains, start_fixef, b_start, spec,
-                                 design, re_names, group_levels) {
+.two_block_init <- function(n_chains, start_fixef, b_start, spec,
+                            design, re_names, group_levels) {
   n_chains <- as.integer(n_chains)
   p_re <- length(re_names)
   J <- length(group_levels)
@@ -194,153 +194,26 @@
   )
 }
 
-#' Block~1 prior mean for chain \code{i}
-#'
-#' Row \code{d_col[k]}, column \code{j} is
-#' \code{sum_c W_k[w_for_group_k[j], c] * fixef_k[i, w_col_k[c]]}, summed over
-#' \code{c} in increasing order.
-#' @return Numeric matrix \code{ncol(D) x J}.
-#' @noRd
-.two_block_port_block1_prior_mean <- function(spec, fixef, i) {
-  l1 <- ncol(spec$D)
-  J <- length(spec$obs_rows)
-  mu_D <- matrix(0, l1, J)
-  for (k in seq_along(spec$d_col)) {
-    Wk <- spec$W[[k]]
-    wg <- spec$w_for_group[[k]]
-    wc <- spec$w_col[[k]]
-    s <- numeric(J)
-    for (c in seq_len(ncol(Wk))) {
-      s <- s + Wk[wg, c] * fixef[[k]][i, wc[c]]
-    }
-    mu_D[spec$d_col[k], ] <- s
-  }
-  mu_D
-}
-
-#' Block~1 draw for one chain
-#' @return List with \code{coef} and \code{coef_mode} (both \code{J x ncol(D)})
-#'   and \code{iters} (mean envelope candidates per group).
-#' @noRd
-.two_block_port_block1_draw <- function(spec, mu_D) {
-  out <- rNormalGLMBlocks_cpp_export(
-    n              = 1L,
-    y              = spec$y,
-    x              = spec$D,
-    offset         = spec$offset1,
-    wt             = spec$wt1,
-    dispersion     = spec$disp1,
-    mu             = mu_D,
-    P_blocks       = list(spec$P_D),
-    prior_by_block = TRUE,
-    row_blocks     = spec$obs_rows,
-    f2             = spec$f2,
-    f3             = spec$f3,
-    family         = spec$family,
-    link           = spec$link,
-    Gridtype       = spec$gridtype,
-    n_envopt       = spec$n_envopt,
-    use_parallel   = FALSE,
-    use_opencl     = FALSE,
-    verbose        = FALSE
-  )
-  it <- vapply(out$group_results, function(g) as.numeric(g$iters)[1L], numeric(1))
-  list(
-    coef      = out$coefficients,
-    coef_mode = out$coef.mode,
-    iters     = sum(it) / length(it)
-  )
-}
-
-#' Columns of a Block~1 draw in stored \code{b} order
-#' @return Numeric matrix \code{J x p_re}.
-#' @noRd
-.two_block_port_block1_place <- function(spec, coef) {
-  out <- coef[, spec$d_col, drop = FALSE]
-  dimnames(out) <- NULL
-  out
-}
-
-#' Block~2 response for component \code{k}, in the row order of \code{W_k}
-#' @return Numeric vector of length \code{nrow(W_k)}.
-#' @noRd
-.two_block_port_block2_response <- function(spec, b_i, k) {
-  b_i[spec$b_for_wrow[[k]], k]
-}
-
-#' Block~2 draw for component \code{k}
-#' @return List with \code{coef} and \code{coef_mode}, numeric vectors in
-#'   \code{W_k} column order.
-#' @noRd
-.two_block_port_block2_draw <- function(spec, y_k, k) {
-  n_w <- length(y_k)
-  out <- rNormalReg_cpp_export(
-    n          = 1L,
-    y          = y_k,
-    x          = spec$W[[k]],
-    mu         = spec$mu2[[k]],
-    P          = spec$P2[[k]],
-    offset     = numeric(n_w),
-    wt         = rep(1, n_w),
-    dispersion = spec$disp2[k],
-    f2         = spec$f2_gauss,
-    f3         = spec$f3_gauss,
-    start      = spec$mu2[[k]],
-    family     = "gaussian",
-    link       = "identity",
-    Gridtype   = spec$gridtype
-  )
-  list(
-    coef      = as.numeric(out$coefficients[1L, ]),
-    coef_mode = as.numeric(out$coef.mode)
-  )
-}
-
-#' Write a Block~2 draw into row \code{i} of the stored fixef matrix
-#' @return \code{fixef_k} with \code{fixef_k[i, w_col_k] <- coef}.
-#' @noRd
-.two_block_port_block2_write <- function(spec, fixef_k, i, k, coef) {
-  fixef_k[i, spec$w_col[[k]]] <- coef
-  fixef_k
-}
-
-#' Empty input and draw log for a portable sweep
-#'
-#' A filled log is also a valid \code{tape}: replaying it reproduces the run.
-#' @return List with \code{mu_D} (\code{ncol(D) x J x n x M}), \code{block1}
-#'   (\code{J x ncol(D) x n x M}), \code{iters1} (\code{n x M}), and lists
-#'   \code{y} (\code{nrow(W_k) x n x M}) and \code{block2}
-#'   (\code{ncol(W_k) x n x M}) over components.
-#' @noRd
-.two_block_port_log_new <- function(spec, n, M) {
-  l1 <- ncol(spec$D)
-  J <- length(spec$obs_rows)
-  list(
-    mu_D   = array(0, c(l1, J, n, M)),
-    block1 = array(0, c(J, l1, n, M)),
-    iters1 = matrix(0, n, M),
-    y      = lapply(spec$W, function(Wk) array(0, c(nrow(Wk), n, M))),
-    block2 = lapply(spec$W, function(Wk) array(0, c(ncol(Wk), n, M)))
-  )
-}
-
 #' Sweep loop in R
 #'
 #' @param use_mode If \code{TRUE}, each block keeps its posterior mode
 #'   instead of its draw. Used only to compare the R and C++ loops exactly.
-#' @param tape \code{NULL}, or a log from \code{.two_block_port_log_new()}
-#'   layout; its \code{block1}, \code{iters1}, and \code{block2} entries
-#'   replace the samplers.
-#' @param record If \code{TRUE}, return the sampler inputs and draws as
-#'   \code{log}.
+#' @param observer \code{NULL}, or a list of functions
+#'   \code{groups_source(m, i)}, \code{population_source(m, i, k)} (return
+#'   \code{NULL} to draw, or a replacement: \code{list(coef, iters)} for
+#'   groups, a coefficient vector for population),
+#'   \code{groups_seen(m, i, mu_D, coef, iters)}, and
+#'   \code{population_seen(m, i, k, y_k, coef)}. Same hooks as the C++
+#'   \code{SweepObserver}; indices are 1-based.
 #' @return State list with \code{b}, \code{fixef}, \code{iters},
-#'   \code{iters_ranef}, \code{log} (\code{NULL} unless \code{record}), and
-#'   \code{prior_sum}, \code{prior_sumsq}: \code{ncol(D) x J x inner_sweeps}
-#'   sums over chains of the Block~1 prior mean and of its square.
+#'   \code{iters_ranef}, and the per-sweep cross-chain summary of the stacked
+#'   population coefficients (components in order, stored column order):
+#'   \code{sweep_mean} (\code{p_tot x inner_sweeps}) and \code{sweep_cov}
+#'   (\code{p_tot x p_tot x inner_sweeps}; \code{NA} when there is one chain).
 #' @noRd
-.two_block_port_sweep_r <- function(spec, state, inner_sweeps, use_mode = FALSE,
-                                    progbar = FALSE, stage_label = "",
-                                    tape = NULL, record = FALSE) {
+.two_block_sweep_r <- function(spec, state, inner_sweeps, use_mode = FALSE,
+                               progbar = FALSE, stage_label = "",
+                               observer = NULL) {
   b <- state$b
   fixef <- state$fixef
   iters <- state$iters
@@ -348,59 +221,53 @@
   J <- dim(b)[1L]
   p_re <- dim(b)[2L]
   n <- dim(b)[3L]
-  l1 <- ncol(spec$D)
   inner_sweeps <- as.integer(inner_sweeps)
   progbar <- isTRUE(progbar)
   stage_label <- if (is.null(stage_label)) "" else as.character(stage_label)[1L]
-  log <- if (isTRUE(record)) .two_block_port_log_new(spec, n, inner_sweeps) else NULL
-  prior_sum <- array(0, c(l1, J, inner_sweeps))
-  prior_sumsq <- array(0, c(l1, J, inner_sweeps))
+  observe <- !is.null(observer)
+  p_tot <- sum(vapply(fixef, ncol, integer(1)))
+  sweep_mean <- matrix(0, p_tot, inner_sweeps)
+  sweep_cov <- array(0, c(p_tot, p_tot, inner_sweeps))
 
   for (m in seq_len(inner_sweeps)) {
-    prefix_b1 <- .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block1")
-    prefix_b2 <- .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block2")
+    prefix_groups <- .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block1")
+    prefix_population <- .two_block_progbar_prefix(stage_label, m, inner_sweeps, "Block2")
     for (i in seq_len(n)) {
-      mu_D <- .two_block_port_block1_prior_mean(spec, fixef, i)
-      prior_sum[, , m] <- prior_sum[, , m] + mu_D
-      prior_sumsq[, , m] <- prior_sumsq[, , m] + mu_D * mu_D
-      if (is.null(tape)) {
-        d1 <- .two_block_port_block1_draw(spec, mu_D)
+      mu_D <- .two_block_groups_prior_mean(spec, fixef, i)
+      src <- if (observe) observer$groups_source(m, i) else NULL
+      if (is.null(src)) {
+        d1 <- .two_block_groups_draw(spec, mu_D)
         coef <- if (isTRUE(use_mode)) d1$coef_mode else d1$coef
         it1 <- d1$iters
       } else {
-        coef <- matrix(tape$block1[, , i, m], nrow = J, ncol = l1)
-        it1 <- tape$iters1[i, m]
+        coef <- src$coef
+        it1 <- src$iters
       }
-      if (!is.null(log)) {
-        log$mu_D[, , i, m] <- mu_D
-        log$block1[, , i, m] <- coef
-        log$iters1[i, m] <- it1
-      }
-      b[, , i] <- .two_block_port_block1_place(spec, coef)
+      if (observe) observer$groups_seen(m, i, mu_D, coef, it1)
+      b[, , i] <- .two_block_groups_place(spec, coef)
       iters_ranef[i] <- iters_ranef[i] + it1
-      if (progbar) .two_block_progress_bar(i, n, prefix = prefix_b1)
+      if (progbar) .two_block_progress_bar(i, n, prefix = prefix_groups)
     }
     if (progbar) .two_block_progress_bar_finish(newline = FALSE)
     for (i in seq_len(n)) {
       b_i <- matrix(b[, , i], nrow = J, ncol = p_re)
       for (k in seq_len(p_re)) {
-        y_k <- .two_block_port_block2_response(spec, b_i, k)
-        if (is.null(tape)) {
-          d2 <- .two_block_port_block2_draw(spec, y_k, k)
+        y_k <- .two_block_population_response(spec, b_i, k)
+        coef <- if (observe) observer$population_source(m, i, k) else NULL
+        if (is.null(coef)) {
+          d2 <- .two_block_population_draw(spec, y_k, k)
           coef <- if (isTRUE(use_mode)) d2$coef_mode else d2$coef
-        } else {
-          coef <- tape$block2[[k]][, i, m]
         }
-        if (!is.null(log)) {
-          log$y[[k]][, i, m] <- y_k
-          log$block2[[k]][, i, m] <- coef
-        }
-        fixef[[k]] <- .two_block_port_block2_write(spec, fixef[[k]], i, k, coef)
+        if (observe) observer$population_seen(m, i, k, y_k, coef)
+        fixef[[k]] <- .two_block_population_write(spec, fixef[[k]], i, k, coef)
         iters[i, k] <- iters[i, k] + 1
       }
-      if (progbar) .two_block_progress_bar(i, n, prefix = prefix_b2)
+      if (progbar) .two_block_progress_bar(i, n, prefix = prefix_population)
     }
     if (progbar) .two_block_progress_bar_finish(newline = (m == inner_sweeps))
+    stacked <- do.call(cbind, fixef)
+    sweep_mean[, m] <- colMeans(stacked)
+    sweep_cov[, , m] <- if (n > 1L) stats::cov(stacked) else NA_real_
     if (progbar && n <= 1L) {
       prefix_sweep <- if (nzchar(stage_label)) {
         sprintf("[%s] sweep %d/%d: ", stage_label, m, inner_sweeps)
@@ -412,46 +279,16 @@
     }
   }
   list(b = b, fixef = fixef, iters = iters, iters_ranef = iters_ranef,
-       log = log, prior_sum = prior_sum, prior_sumsq = prior_sumsq)
+       sweep_mean = sweep_mean, sweep_cov = sweep_cov)
 }
 
-#' Block~1 conditional prior fed to each group, summarized over chains
-#'
-#' @return List with \code{prior_mean} and \code{prior_mean_var}
-#'   (\code{p_re x J x inner_sweeps}: mean and variance over chains of the
-#'   prior mean fed to each group in each sweep), \code{prior_precision}
-#'   (\code{p_re x p_re}, the same for every group, chain, and sweep), and
-#'   \code{prior_var} (named vector \code{diag(solve(prior_precision))}).
-#' @noRd
-.two_block_port_prior_track <- function(state, spec, re_names, group_levels) {
-  n <- dim(state$b)[3L]
-  s <- state$prior_sum[spec$d_col, , , drop = FALSE]
-  q <- state$prior_sumsq[spec$d_col, , , drop = FALSE]
-  prior_mean <- s / n
-  prior_mean_var <- if (n > 1L) {
-    (q - n * prior_mean * prior_mean) / (n - 1L)
-  } else {
-    array(NA_real_, dim(s))
-  }
-  dimnames(prior_mean) <- dimnames(prior_mean_var) <-
-    list(re_names, group_levels, NULL)
-  P <- spec$P_D[spec$d_col, spec$d_col, drop = FALSE]
-  dimnames(P) <- list(re_names, re_names)
-  list(
-    prior_mean      = prior_mean,
-    prior_mean_var  = prior_mean_var,
-    prior_precision = P,
-    prior_var       = stats::setNames(diag(solve(P)), re_names)
-  )
-}
-
-#' Shared argument handling for the R and C++ portable sweeps
+#' Shared argument handling for the R and C++ indexed sweeps
 #' @return List with \code{spec}, \code{state}, and \code{tau2}.
 #' @noRd
-.two_block_port_prepare <- function(n_chains, start_fixef, design, block1_prior,
-                                    pfamily_list, family, re_names,
-                                    group_levels, b_start, b_mode, tau2_start,
-                                    index_map) {
+.two_block_prepare <- function(n_chains, start_fixef, design, block1_prior,
+                               pfamily_list, family, re_names,
+                               group_levels, b_start, b_mode, tau2_start,
+                               index_map) {
   if (!identical(index_map$group_levels, as.character(group_levels)) ||
       !identical(index_map$re_names, as.character(re_names))) {
     stop("'index_map' does not match re_names and group_levels.", call. = FALSE)
@@ -471,10 +308,10 @@
     }
     tau2_start <- tau2_start[re_names]
   }
-  spec <- .two_block_port_spec(
+  spec <- .two_block_spec(
     design, block1_prior, pfamily_list, family, re_names, index_map
   )
-  state <- .two_block_port_init(
+  state <- .two_block_init(
     n_chains, start_fixef, b_start, spec, design, re_names, group_levels
   )
   tau2 <- matrix(as.numeric(tau2_start), nrow = n_chains,
@@ -482,10 +319,69 @@
   list(spec = spec, state = state, tau2 = tau2)
 }
 
-#' Restore names on a portable sweep state and pack the output
+#' Sweep history from the per-sweep summary of an indexed sweep
+#'
+#' Same object \code{rGLMM_sweep} stores: per-sweep chain mean and SD per
+#' coefficient, and the stacked covariance with its \code{coef_index}.
+#' \code{dNormal} components keep a fixed dispersion, so there are no
+#' dispersion statistics.
+#' @param state Sweep state with \code{sweep_mean} and \code{sweep_cov}.
+#' @return Object of class \code{"two_block_sweep_history"}.
 #' @noRd
-.two_block_port_finish <- function(state, tau2, index_map, design, re_names,
-                                   collect_block1, spec) {
+.two_block_sweep_history_indexed <- function(state, index_map, design,
+                                             re_names, stage_label,
+                                             fixef_mode) {
+  stored <- lapply(re_names, function(k) {
+    cn <- colnames(as.matrix(design$W[[k]]))
+    out <- character(length(cn))
+    out[index_map$w_col[[k]]] <- cn
+    out
+  })
+  names(stored) <- re_names
+  coef_index <- data.frame(
+    re_component = rep(re_names, lengths(stored)),
+    covariate    = unlist(stored, use.names = FALSE),
+    stringsAsFactors = FALSE
+  )
+  lbl <- paste(coef_index$re_component, coef_index$covariate, sep = " | ")
+  idx <- split(seq_len(nrow(coef_index)),
+               factor(coef_index$re_component, levels = re_names))
+
+  M <- ncol(state$sweep_mean)
+  sweep_stats <- vector("list", M)
+  sweep_cov <- vector("list", M)
+  for (m in seq_len(M)) {
+    mu <- state$sweep_mean[, m]
+    V <- matrix(state$sweep_cov[, , m], nrow(coef_index), nrow(coef_index))
+    sdv <- sqrt(diag(V))
+    sweep_stats[[m]] <- lapply(re_names, function(k) {
+      list(mean = stats::setNames(mu[idx[[k]]], stored[[k]]),
+           sd   = stats::setNames(sdv[idx[[k]]], stored[[k]]))
+    })
+    names(sweep_stats[[m]]) <- re_names
+    dimnames(V) <- list(lbl, lbl)
+    sweep_cov[[m]] <- list(cov = V, coef_index = coef_index)
+  }
+  .two_block_build_sweep_history(
+    stage_label = stage_label,
+    sweep_stats = sweep_stats,
+    fixef_mode  = fixef_mode,
+    re_names    = re_names,
+    sweep_cov   = sweep_cov,
+    disp_stats  = NULL
+  )
+}
+
+#' Restore names on an indexed sweep state and pack the output
+#' @param stage_label,fixef_mode Stored on \code{sweep_history}.
+#' @param diag_sweeps If \code{TRUE}, print the sweep history, as
+#'   \code{rGLMM_sweep} does.
+#' @return The list from \code{.rGLMM_sweep_save_indexed()} plus
+#'   \code{sweep_history}.
+#' @noRd
+.two_block_finish <- function(state, tau2, index_map, design, re_names,
+                              collect_block1, stage_label = "",
+                              fixef_mode = NULL, diag_sweeps = FALSE) {
   fixef <- state$fixef
   names(fixef) <- re_names
   iters <- state$iters
@@ -501,9 +397,12 @@
     design         = design,
     collect_block1 = collect_block1
   )
-  out$prior_track <- .two_block_port_prior_track(
-    state, spec, re_names, index_map$group_levels
+  out$sweep_history <- .two_block_sweep_history_indexed(
+    state, index_map, design, re_names, stage_label, fixef_mode
   )
+  if (isTRUE(diag_sweeps)) {
+    print(out$sweep_history)
+  }
   out
 }
 
@@ -580,7 +479,7 @@
   )
 }
 
-#' Portable two-block sweep, R loop
+#' Indexed two-block sweep, R loop
 #'
 #' Same arguments as \code{rGLMM_sweep}, plus \code{index_map}. Non-Gaussian
 #' families with \code{dNormal} components only. \code{rwt} is accepted and
@@ -623,11 +522,11 @@
   force(use_cpp_iters_ranef_add)
   force(use_cpp_block2)
 
-  prep <- .two_block_port_prepare(
+  prep <- .two_block_prepare(
     n_chains, start_fixef, design, block1_prior, pfamily_list, family,
     re_names, group_levels, b_start, b_mode, tau2_start, index_map
   )
-  state <- .two_block_port_sweep_r(
+  state <- .two_block_sweep_r(
     spec         = prep$spec,
     state        = prep$state,
     inner_sweeps = inner_sweeps,
@@ -635,7 +534,74 @@
     progbar      = progbar,
     stage_label  = stage_label
   )
-  .two_block_port_finish(
-    state, prep$tau2, index_map, design, re_names, collect_block1, prep$spec
+  .two_block_finish(
+    state, prep$tau2, index_map, design, re_names, collect_block1,
+    stage_label = stage_label, fixef_mode = fixef_mode,
+    diag_sweeps = diag_sweeps
+  )
+}
+
+#' Indexed two-block sweep, C++ loop
+#'
+#' Same arguments and output as \code{.rGLMM_sweep_indexed}. Setup and the
+#' final naming are the shared R steps; the sweep loop is
+#' \code{.two_block_sweep_cpp}, the C++ twin of \code{.two_block_sweep_r}.
+#' \code{rwt} is accepted and is not used inside the draw.
+#' @param index_map Result of \code{.two_block_index_map()}.
+#' @noRd
+.rGLMM_sweep_cpp <- function(
+    n_chains,
+    start_fixef,
+    inner_sweeps,
+    design,
+    block1_prior,
+    pfamily_list,
+    family,
+    re_names,
+    group_levels,
+    collect_block1 = TRUE,
+    progbar        = FALSE,
+    stage_label    = "",
+    diag_sweeps    = FALSE,
+    fixef_mode     = NULL,
+    b_mode         = NULL,
+    b_start        = NULL,
+    ptypes         = NULL,
+    tau2_start     = NULL,
+    use_cpp_tau2_row = TRUE,
+    use_cpp_b_slice = TRUE,
+    use_cpp_iters_ranef_add = TRUE,
+    use_cpp_block2 = TRUE,
+    rwt = 0.01,
+    index_map
+) {
+  force(rwt)
+  force(diag_sweeps)
+  force(fixef_mode)
+  force(ptypes)
+  force(use_cpp_tau2_row)
+  force(use_cpp_b_slice)
+  force(use_cpp_iters_ranef_add)
+  force(use_cpp_block2)
+
+  prep <- .two_block_prepare(
+    n_chains, start_fixef, design, block1_prior, pfamily_list, family,
+    re_names, group_levels, b_start, b_mode, tau2_start, index_map
+  )
+  state <- .two_block_sweep_cpp(
+    prep$spec,
+    prep$state$b,
+    prep$state$fixef,
+    prep$state$iters,
+    prep$state$iters_ranef,
+    as.integer(inner_sweeps),
+    FALSE,
+    isTRUE(progbar),
+    if (is.null(stage_label)) "" else as.character(stage_label[1L])
+  )
+  .two_block_finish(
+    state, prep$tau2, index_map, design, re_names, collect_block1,
+    stage_label = stage_label, fixef_mode = fixef_mode,
+    diag_sweeps = diag_sweeps
   )
 }

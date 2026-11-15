@@ -162,8 +162,10 @@
 #'     \item{\code{m_convergence}, \code{convergence_info}}{Sweeps run per
 #'       chain and the calibration behind that count (\code{method},
 #'       \code{lambda_star}, \code{draw_engine},
-#'       \code{sim_method_used}, \code{icm_info}). For a non-Gaussian
-#'       family, \code{convergence_info$ridge} holds the Corollary 5.1
+#'       \code{sim_method_used}, \code{icm_info}). A non-Gaussian model
+#'       whose population priors are all \code{dNormal} reports
+#'       \code{draw_engine = "rGLMM_sweep_cpp"} (compiled sweep). For a
+#'       non-Gaussian family, \code{convergence_info$ridge} holds the Corollary 5.1
 #'       count at curvature weights scaled by \code{rwt}, and that count
 #'       is the main-stage length.}
 #'     \item{\code{rwt}}{Ridge weight supplied to the call. Not yet applied

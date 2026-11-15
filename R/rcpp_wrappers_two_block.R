@@ -463,3 +463,64 @@
     group_levels, re_names
   )
 }
+
+# -------------------------------------------------------------------------
+#  Two-block indexed sweep (groups / population). Strictly positional, no
+#  validation; `i` and `k` are 1-based. `spec` is from .two_block_spec().
+# -------------------------------------------------------------------------
+
+#' @noRd
+#' @keywords internal
+.rNormalGLMGroups_cpp <- function(n, y, x, offset, wt, dispersion, mu, P_blocks, prior_by_block, row_blocks, f2, f3, family = "binomial", link = "logit", Gridtype = 2L, n_envopt = -1L, use_parallel = TRUE, use_opencl = FALSE, verbose = FALSE) {
+  ## glmbayesCore name; lmebayesCore still registers this kernel as
+  ## rNormalGLMBlocks (same arguments and value).
+  .Call(`_lmebayesCore_rNormalGLMBlocks_cpp_export`, n, y, x, offset, wt, dispersion, mu, P_blocks, prior_by_block, row_blocks, f2, f3, family, link, Gridtype, n_envopt, use_parallel, use_opencl, verbose)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_groups_prior_mean_cpp <- function(spec, fixef, i) {
+  .Call(`_lmebayesCore_two_block_groups_prior_mean_cpp_export`, spec, fixef, i)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_groups_draw_cpp <- function(spec, mu_D) {
+  .Call(`_lmebayesCore_two_block_groups_draw_cpp_export`, spec, mu_D)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_groups_place_cpp <- function(spec, coef) {
+  .Call(`_lmebayesCore_two_block_groups_place_cpp_export`, spec, coef)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_population_response_cpp <- function(spec, b_i, k) {
+  .Call(`_lmebayesCore_two_block_population_response_cpp_export`, spec, b_i, k)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_population_draw_cpp <- function(spec, y_k, k) {
+  .Call(`_lmebayesCore_two_block_population_draw_cpp_export`, spec, y_k, k)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_population_write_cpp <- function(spec, fixef_k, i, k, coef) {
+  .Call(`_lmebayesCore_two_block_population_write_cpp_export`, spec, fixef_k, i, k, coef)
+}
+
+#' @noRd
+#' @keywords internal
+.two_block_sweep_cpp <- function(
+    spec, b, fixef, iters, iters_ranef,
+    inner_sweeps, use_mode = FALSE, progbar = FALSE, stage_label = ""
+) {
+  .Call(`_lmebayesCore_two_block_sweep_cpp_export`,
+    spec, b, fixef, iters, iters_ranef,
+    inner_sweeps, use_mode, progbar, stage_label
+  )
+}

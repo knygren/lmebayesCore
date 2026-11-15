@@ -225,7 +225,10 @@ count.}
 \item{\code{m_convergence}}{Inner Gibbs sweeps per stored main-stage
 draw.}
 \item{\code{convergence_info}}{Theorem~3 / UB calibration details,
-including \code{draw_engine} and \code{icm_info}. For a non-Gaussian
+including \code{draw_engine} and \code{icm_info}.
+\code{draw_engine} is \code{"rGLMM_sweep_cpp"} on
+\code{rGLMM_reg_known_vcov} (compiled sweep) and
+\code{"rGLMM_sweep"} on \code{rGLMM_reg_estimated_vcov}. For a non-Gaussian
 family, \code{ridge} holds the Corollary 5.1 count at curvature
 weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
 \code{k}, \code{m_convergence}). That count is the main-stage

@@ -43,7 +43,7 @@ REG_ROUTE_TABLE <- list(
   glmm_known = list(
     export            = "rGLMM_reg_known_vcov",
     needs_pilot       = FALSE,
-    draw_engine_label = "rGLMM_sweep"
+    draw_engine_label = "rGLMM_sweep_cpp"
   ),
   glmm_estimated = list(
     export            = "rGLMM_reg_estimated_vcov",

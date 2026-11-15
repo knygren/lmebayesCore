@@ -11,6 +11,40 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// dev_two_block_log_new_cpp_export
+Rcpp::List dev_two_block_log_new_cpp_export(const Rcpp::List& spec, int n, int M);
+RcppExport SEXP _lmebayesCore_dev_two_block_log_new_cpp_export(SEXP specSEXP, SEXP nSEXP, SEXP MSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    rcpp_result_gen = Rcpp::wrap(dev_two_block_log_new_cpp_export(spec, n, M));
+    return rcpp_result_gen;
+END_RCPP
+}
+// dev_two_block_sweep_cpp_export
+Rcpp::List dev_two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, Rcpp::Nullable<Rcpp::List> tape, bool record);
+RcppExport SEXP _lmebayesCore_dev_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP tapeSEXP, SEXP recordSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type b(bSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type iters(itersSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type iters_ranef(iters_ranefSEXP);
+    Rcpp::traits::input_parameter< int >::type inner_sweeps(inner_sweepsSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_mode(use_modeSEXP);
+    Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type stage_label(stage_labelSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type tape(tapeSEXP);
+    Rcpp::traits::input_parameter< bool >::type record(recordSEXP);
+    rcpp_result_gen = Rcpp::wrap(dev_two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, tape, record));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rNormalGLM_cpp_export
 Rcpp::List rNormalGLM_cpp_export(int n, const Rcpp::NumericVector& y, const Rcpp::NumericMatrix& x, const Rcpp::NumericVector& mu, const Rcpp::NumericMatrix& P, const Rcpp::NumericVector& offset, const Rcpp::NumericVector& wt, double dispersion, const Rcpp::Function& f2, const Rcpp::Function& f3, const Rcpp::NumericVector& start, const std::string& family, const std::string& link, int Gridtype, int n_envopt, bool use_parallel, bool use_opencl, bool verbose);
 RcppExport SEXP _lmebayesCore_rNormalGLM_cpp_export(SEXP nSEXP, SEXP ySEXP, SEXP xSEXP, SEXP muSEXP, SEXP PSEXP, SEXP offsetSEXP, SEXP wtSEXP, SEXP dispersionSEXP, SEXP f2SEXP, SEXP f3SEXP, SEXP startSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP GridtypeSEXP, SEXP n_envoptSEXP, SEXP use_parallelSEXP, SEXP use_openclSEXP, SEXP verboseSEXP) {
@@ -1193,107 +1227,107 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block1_prior_mean_cpp_export
-NumericMatrix two_block_port_block1_prior_mean_cpp_export(const List& spec, const List& fixef, int i);
-RcppExport SEXP _lmebayesCore_two_block_port_block1_prior_mean_cpp_export(SEXP specSEXP, SEXP fixefSEXP, SEXP iSEXP) {
+// two_block_groups_prior_mean_cpp_export
+Rcpp::NumericMatrix two_block_groups_prior_mean_cpp_export(const Rcpp::List& spec, const Rcpp::List& fixef, int i);
+RcppExport SEXP _lmebayesCore_two_block_groups_prior_mean_cpp_export(SEXP specSEXP, SEXP fixefSEXP, SEXP iSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const List& >::type fixef(fixefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
     Rcpp::traits::input_parameter< int >::type i(iSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block1_prior_mean_cpp_export(spec, fixef, i));
+    rcpp_result_gen = Rcpp::wrap(two_block_groups_prior_mean_cpp_export(spec, fixef, i));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block1_draw_cpp_export
-List two_block_port_block1_draw_cpp_export(const List& spec, const NumericMatrix& mu_D);
-RcppExport SEXP _lmebayesCore_two_block_port_block1_draw_cpp_export(SEXP specSEXP, SEXP mu_DSEXP) {
+// two_block_groups_draw_cpp_export
+Rcpp::List two_block_groups_draw_cpp_export(const Rcpp::List& spec, const Rcpp::NumericMatrix& mu_D);
+RcppExport SEXP _lmebayesCore_two_block_groups_draw_cpp_export(SEXP specSEXP, SEXP mu_DSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type mu_D(mu_DSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block1_draw_cpp_export(spec, mu_D));
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type mu_D(mu_DSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_groups_draw_cpp_export(spec, mu_D));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block1_place_cpp_export
-NumericMatrix two_block_port_block1_place_cpp_export(const List& spec, const NumericMatrix& coef);
-RcppExport SEXP _lmebayesCore_two_block_port_block1_place_cpp_export(SEXP specSEXP, SEXP coefSEXP) {
+// two_block_groups_place_cpp_export
+Rcpp::NumericMatrix two_block_groups_place_cpp_export(const Rcpp::List& spec, const Rcpp::NumericMatrix& coef);
+RcppExport SEXP _lmebayesCore_two_block_groups_place_cpp_export(SEXP specSEXP, SEXP coefSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type coef(coefSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block1_place_cpp_export(spec, coef));
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type coef(coefSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_groups_place_cpp_export(spec, coef));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block2_response_cpp_export
-NumericVector two_block_port_block2_response_cpp_export(const List& spec, const NumericMatrix& b_i, int k);
-RcppExport SEXP _lmebayesCore_two_block_port_block2_response_cpp_export(SEXP specSEXP, SEXP b_iSEXP, SEXP kSEXP) {
+// two_block_population_response_cpp_export
+Rcpp::NumericVector two_block_population_response_cpp_export(const Rcpp::List& spec, const Rcpp::NumericMatrix& b_i, int k);
+RcppExport SEXP _lmebayesCore_two_block_population_response_cpp_export(SEXP specSEXP, SEXP b_iSEXP, SEXP kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type b_i(b_iSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type b_i(b_iSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block2_response_cpp_export(spec, b_i, k));
+    rcpp_result_gen = Rcpp::wrap(two_block_population_response_cpp_export(spec, b_i, k));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block2_draw_cpp_export
-List two_block_port_block2_draw_cpp_export(const List& spec, const NumericVector& y_k, int k);
-RcppExport SEXP _lmebayesCore_two_block_port_block2_draw_cpp_export(SEXP specSEXP, SEXP y_kSEXP, SEXP kSEXP) {
+// two_block_population_draw_cpp_export
+Rcpp::List two_block_population_draw_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& y_k, int k);
+RcppExport SEXP _lmebayesCore_two_block_population_draw_cpp_export(SEXP specSEXP, SEXP y_kSEXP, SEXP kSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type y_k(y_kSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type y_k(y_kSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block2_draw_cpp_export(spec, y_k, k));
+    rcpp_result_gen = Rcpp::wrap(two_block_population_draw_cpp_export(spec, y_k, k));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_block2_write_cpp_export
-NumericMatrix two_block_port_block2_write_cpp_export(const List& spec, const NumericMatrix& fixef_k, int i, int k, const NumericVector& coef);
-RcppExport SEXP _lmebayesCore_two_block_port_block2_write_cpp_export(SEXP specSEXP, SEXP fixef_kSEXP, SEXP iSEXP, SEXP kSEXP, SEXP coefSEXP) {
+// two_block_population_write_cpp_export
+Rcpp::NumericMatrix two_block_population_write_cpp_export(const Rcpp::List& spec, const Rcpp::NumericMatrix& fixef_k, int i, int k, const Rcpp::NumericVector& coef);
+RcppExport SEXP _lmebayesCore_two_block_population_write_cpp_export(SEXP specSEXP, SEXP fixef_kSEXP, SEXP iSEXP, SEXP kSEXP, SEXP coefSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type fixef_k(fixef_kSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type fixef_k(fixef_kSEXP);
     Rcpp::traits::input_parameter< int >::type i(iSEXP);
     Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type coef(coefSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_block2_write_cpp_export(spec, fixef_k, i, k, coef));
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type coef(coefSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_population_write_cpp_export(spec, fixef_k, i, k, coef));
     return rcpp_result_gen;
 END_RCPP
 }
-// two_block_port_sweep_cpp_export
-List two_block_port_sweep_cpp_export(const List& spec, const NumericVector& b, const List& fixef, const NumericMatrix& iters, const NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, Nullable<List> tape, bool record);
-RcppExport SEXP _lmebayesCore_two_block_port_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP tapeSEXP, SEXP recordSEXP) {
+// two_block_sweep_cpp_export
+Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label);
+RcppExport SEXP _lmebayesCore_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const List& >::type spec(specSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type b(bSEXP);
-    Rcpp::traits::input_parameter< const List& >::type fixef(fixefSEXP);
-    Rcpp::traits::input_parameter< const NumericMatrix& >::type iters(itersSEXP);
-    Rcpp::traits::input_parameter< const NumericVector& >::type iters_ranef(iters_ranefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type spec(specSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type b(bSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type fixef(fixefSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type iters(itersSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type iters_ranef(iters_ranefSEXP);
     Rcpp::traits::input_parameter< int >::type inner_sweeps(inner_sweepsSEXP);
     Rcpp::traits::input_parameter< bool >::type use_mode(use_modeSEXP);
     Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type stage_label(stage_labelSEXP);
-    Rcpp::traits::input_parameter< Nullable<List> >::type tape(tapeSEXP);
-    Rcpp::traits::input_parameter< bool >::type record(recordSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_port_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, tape, record));
+    rcpp_result_gen = Rcpp::wrap(two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_lmebayesCore_dev_two_block_log_new_cpp_export", (DL_FUNC) &_lmebayesCore_dev_two_block_log_new_cpp_export, 3},
+    {"_lmebayesCore_dev_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_dev_two_block_sweep_cpp_export, 11},
     {"_lmebayesCore_rNormalGLM_cpp_export", (DL_FUNC) &_lmebayesCore_rNormalGLM_cpp_export, 18},
     {"_lmebayesCore_rNormalGLMBlocks_cpp_export", (DL_FUNC) &_lmebayesCore_rNormalGLMBlocks_cpp_export, 19},
     {"_lmebayesCore_rNormalRegBlocks_cpp_export", (DL_FUNC) &_lmebayesCore_rNormalRegBlocks_cpp_export, 13},
@@ -1346,13 +1380,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lmebayesCore_BlockEnvelopeDispersionBuildInd_cpp_export", (DL_FUNC) &_lmebayesCore_BlockEnvelopeDispersionBuildInd_cpp_export, 15},
     {"_lmebayesCore_BlockEnvelopeSimInd_cpp_export", (DL_FUNC) &_lmebayesCore_BlockEnvelopeSimInd_cpp_export, 4},
     {"_lmebayesCore_rIndepNormalGammaRegBlockInd_cpp_export", (DL_FUNC) &_lmebayesCore_rIndepNormalGammaRegBlockInd_cpp_export, 19},
-    {"_lmebayesCore_two_block_port_block1_prior_mean_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block1_prior_mean_cpp_export, 3},
-    {"_lmebayesCore_two_block_port_block1_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block1_draw_cpp_export, 2},
-    {"_lmebayesCore_two_block_port_block1_place_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block1_place_cpp_export, 2},
-    {"_lmebayesCore_two_block_port_block2_response_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block2_response_cpp_export, 3},
-    {"_lmebayesCore_two_block_port_block2_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block2_draw_cpp_export, 3},
-    {"_lmebayesCore_two_block_port_block2_write_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_block2_write_cpp_export, 5},
-    {"_lmebayesCore_two_block_port_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_port_sweep_cpp_export, 11},
+    {"_lmebayesCore_two_block_groups_prior_mean_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_groups_prior_mean_cpp_export, 3},
+    {"_lmebayesCore_two_block_groups_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_groups_draw_cpp_export, 2},
+    {"_lmebayesCore_two_block_groups_place_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_groups_place_cpp_export, 2},
+    {"_lmebayesCore_two_block_population_response_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_response_cpp_export, 3},
+    {"_lmebayesCore_two_block_population_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_draw_cpp_export, 3},
+    {"_lmebayesCore_two_block_population_write_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_write_cpp_export, 5},
+    {"_lmebayesCore_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_sweep_cpp_export, 9},
     {NULL, NULL, 0}
 };
 
