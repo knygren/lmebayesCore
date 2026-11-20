@@ -88,6 +88,15 @@ struct TwoBlockIndexSpec {
   int gridtype;
   int n_envopt;
 
+  // Ridge prior for the groups block, from .two_block_ridge_attach().
+  // When `ridge` is set, group j is drawn with prior precision ridge_P[[j]]
+  // and prior mean ridge_A[, , j] %*% mu_D[, j] + ridge_c[, j].
+  // ridge_A is an ncol(D) x ncol(D) x J array, ridge_c is ncol(D) x J.
+  bool ridge;
+  Rcpp::NumericVector ridge_A;
+  Rcpp::NumericMatrix ridge_c;
+  Rcpp::List ridge_P;
+
   int l1;    // ncol(D)
   int J;     // number of groups
   int p_re;  // number of components
@@ -133,7 +142,14 @@ class SweepObserver {
 Rcpp::NumericMatrix groups_prior_mean(const TwoBlockIndexSpec& spec,
                                       const Rcpp::List& fixef, int i);
 
-/// One groups draw for every group, given the prior mean `mu_D`.
+/// Ridge prior mean, ncol(D) x J: column j is
+/// ridge_A[, , j] %*% mu_D[, j] + ridge_c[, j], summed over the column of
+/// ridge_A in increasing order. Requires `spec.ridge`.
+Rcpp::NumericMatrix groups_ridge_mean(const TwoBlockIndexSpec& spec,
+                                      const Rcpp::NumericMatrix& mu_D);
+
+/// One groups draw for every group, given the prior mean `mu_D`. With
+/// `spec.ridge`, the draw uses the ridge prior built from `mu_D`.
 GroupsDraw groups_draw(const TwoBlockIndexSpec& spec,
                        const Rcpp::NumericMatrix& mu_D);
 
@@ -168,6 +184,8 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// only for exact R / C++ comparison).
 /// `rwt` in [0, 1) is the ridge weight: the groups draws use observation
 /// weights `wt1 * (1 - rwt)`, i.e. the group likelihood raised to 1 - rwt.
+/// The matching ridge term (rwt times the quadratic expansion at the
+/// reference point) is in the spec's ridge prior when `spec.ridge` is set.
 /// `rwt = 0` leaves the weights unchanged.
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,

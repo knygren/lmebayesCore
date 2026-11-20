@@ -319,6 +319,145 @@
   list(spec = spec, state = state, tau2 = tau2)
 }
 
+#' Ridge prior for the groups block
+#'
+#' The ridge model replaces each group log-likelihood \code{l_j} by
+#' \code{(1 - rwt) l_j + rwt T_j}, where \code{T_j} is the second-order
+#' Taylor polynomial of \code{l_j} at the reference point \code{m_j} (row
+#' \code{j} of \code{b_mode}). The \code{1 - rwt} part is the weight scaling
+#' in the sweep; this function adds \code{rwt T_j} to the prior, giving
+#' precision \code{P_D + rwt C_j} and mean
+#' \code{ridge_A[, , j] \%*\% mu_D[, j] + ridge_c[, j]}. The score and
+#' \code{C_j} (central differences of the score) come from \code{spec$f3}
+#' with the unscaled weights, divided by the dispersion for Gamma as in
+#' \code{rNormalGLM}. Applied for Poisson and Gamma only; other families,
+#' and \code{rwt = 0}, return \code{spec} unchanged.
+#' @param spec Result of \code{.two_block_spec()}, before weight scaling.
+#' @param b_mode \code{J x p_re} reference points, aligned like
+#'   \code{b_start} in \code{.two_block_init()}.
+#' @return \code{spec}, with \code{ridge}, \code{ridge_P}, \code{ridge_A},
+#'   \code{ridge_c} when the ridge applies, and \code{ridge_taylor}: the
+#'   expansion points \code{m}, scores \code{g} (both \code{l1 x J}),
+#'   curvatures \code{C} (\code{l1 x l1 x J}), per-group weights \code{wt}
+#'   and log-likelihoods at the points \code{l_m}, for
+#'   \code{.two_block_ridge_gap}.
+#' @noRd
+.two_block_ridge_attach <- function(spec, b_mode, rwt, re_names,
+                                    group_levels) {
+  rwt <- as.numeric(rwt)[1L]
+  if (!is.finite(rwt) || rwt < 0 || rwt >= 1) {
+    stop("rwt must be in [0, 1); the ridge term needed at rwt = 1 is not implemented yet.",
+         call. = FALSE)
+  }
+  if (rwt == 0 || !(spec$family %in% c("poisson", "Gamma"))) {
+    return(spec)
+  }
+  b0 <- as.matrix(b_mode)
+  if (!is.null(rownames(b0))) {
+    b0 <- b0[group_levels, , drop = FALSE]
+  }
+  if (!is.null(colnames(b0))) {
+    b0 <- b0[, re_names, drop = FALSE]
+  }
+  J <- length(spec$obs_rows)
+  l1 <- ncol(spec$D)
+  if (!all(dim(b0) == c(J, length(spec$d_col)))) {
+    stop("b_mode must be J x p_re.", call. = FALSE)
+  }
+  disp <- if (identical(spec$family, "Gamma")) spec$disp1[1L] else 1
+  zero_mu <- numeric(l1)
+  zero_P <- matrix(0, l1, l1)
+  ridge_P <- vector("list", J)
+  ridge_A <- array(0, c(l1, l1, J))
+  ridge_c <- matrix(0, l1, J)
+  tay_m <- matrix(0, l1, J)
+  tay_g <- matrix(0, l1, J)
+  tay_C <- array(0, c(l1, l1, J))
+  tay_wt <- vector("list", J)
+  tay_l_m <- numeric(J)
+  for (j in seq_len(J)) {
+    r <- spec$obs_rows[[j]]
+    Xr <- spec$D[r, , drop = FALSE]
+    yr <- spec$y[r]
+    ar <- spec$offset1[r]
+    wr <- spec$wt1[r] / disp
+    neg_score <- function(b) {
+      as.numeric(spec$f3(b = b, y = yr, x = Xr, mu = zero_mu, P = zero_P,
+                         alpha = ar, wt = wr))
+    }
+    m <- numeric(l1)
+    m[spec$d_col] <- b0[j, ]
+    g <- -neg_score(m)
+    C <- matrix(0, l1, l1)
+    for (a in seq_len(l1)) {
+      h <- 1e-5 * max(1, abs(m[a]))
+      e <- numeric(l1)
+      e[a] <- h
+      C[, a] <- (neg_score(m + e) - neg_score(m - e)) / (2 * h)
+    }
+    C <- 0.5 * (C + t(C))
+    P_j <- spec$P_D + rwt * C
+    P_inv <- solve(P_j)
+    ridge_P[[j]] <- P_j
+    ridge_A[, , j] <- P_inv %*% spec$P_D
+    ridge_c[, j] <- rwt * as.numeric(P_inv %*% (C %*% m + g))
+    tay_m[, j] <- m
+    tay_g[, j] <- g
+    tay_C[, , j] <- C
+    tay_wt[[j]] <- wr
+    tay_l_m[j] <- -as.numeric(spec$f2(b = m, y = yr, x = Xr, mu = zero_mu,
+                                      P = zero_P, alpha = ar, wt = wr))
+  }
+  spec$ridge <- TRUE
+  spec$ridge_P <- ridge_P
+  spec$ridge_A <- ridge_A
+  spec$ridge_c <- ridge_c
+  spec$ridge_taylor <- list(m = tay_m, g = tay_g, C = tay_C, wt = tay_wt,
+                            l_m = tay_l_m)
+  spec
+}
+
+#' Ridge gap h per chain at the final state
+#'
+#' \code{h = sum_j [l_j(b_j) - T_j(b_j)]}, with \code{T_j} the expansion
+#' stored by \code{.two_block_ridge_attach}. The ridge target at
+#' \code{rwt} is the exact posterior times \code{exp(-rwt h)}, so weights
+#' \code{exp(rwt h)} on the chains target \code{rwt = 0}. \code{spec$f2}
+#' must be called with one coefficient vector at a time.
+#' @param spec Spec with \code{ridge_taylor}.
+#' @param b \code{J x p_re x n} final group draws.
+#' @return Numeric vector of length \code{n}.
+#' @noRd
+.two_block_ridge_gap <- function(spec, b) {
+  tay <- spec$ridge_taylor
+  J <- dim(b)[1L]
+  n <- dim(b)[3L]
+  l1 <- ncol(spec$D)
+  zero_mu <- numeric(l1)
+  zero_P <- matrix(0, l1, l1)
+  h <- numeric(n)
+  bD <- numeric(l1)
+  for (j in seq_len(J)) {
+    r <- spec$obs_rows[[j]]
+    Xr <- spec$D[r, , drop = FALSE]
+    yr <- spec$y[r]
+    ar <- spec$offset1[r]
+    wr <- tay$wt[[j]]
+    m <- tay$m[, j]
+    g <- tay$g[, j]
+    C <- tay$C[, , j]
+    for (i in seq_len(n)) {
+      bD[spec$d_col] <- b[j, , i]
+      d <- bD - m
+      l_b <- -as.numeric(spec$f2(b = bD, y = yr, x = Xr, mu = zero_mu,
+                                 P = zero_P, alpha = ar, wt = wr))
+      h[i] <- h[i] + (l_b - tay$l_m[j]) -
+        (sum(g * d) - 0.5 * sum(d * (C %*% d)))
+    }
+  }
+  h
+}
+
 #' Sweep history from the per-sweep summary of an indexed sweep
 #'
 #' Same object \code{rGLMM_sweep} stores: per-sweep chain mean and SD per
@@ -527,6 +666,10 @@
     n_chains, start_fixef, design, block1_prior, pfamily_list, family,
     re_names, group_levels, b_start, b_mode, tau2_start, index_map
   )
+  prep$spec <- .two_block_ridge_attach(
+    prep$spec, if (is.null(b_mode)) b_start else b_mode, rwt,
+    re_names, group_levels
+  )
   prep$spec$wt1 <- prep$spec$wt1 * (1 - rwt)
   state <- .two_block_sweep_r(
     spec         = prep$spec,
@@ -536,11 +679,15 @@
     progbar      = progbar,
     stage_label  = stage_label
   )
-  .two_block_finish(
+  out <- .two_block_finish(
     state, prep$tau2, index_map, design, re_names, collect_block1,
     stage_label = stage_label, fixef_mode = fixef_mode,
     diag_sweeps = diag_sweeps
   )
+  if (isTRUE(prep$spec$ridge)) {
+    out$ridge_h <- .two_block_ridge_gap(prep$spec, state$b)
+  }
+  out
 }
 
 #' Indexed two-block sweep, C++ loop
@@ -549,7 +696,8 @@
 #' final naming are the shared R steps; the sweep loop is
 #' \code{.two_block_sweep_cpp}, the C++ twin of \code{.two_block_sweep_r}.
 #' \code{rwt} scales the groups-block likelihood weights by \code{1 - rwt}
-#' inside the C++ loop; it must be below 1 until the ridge term is added.
+#' inside the C++ loop; \code{.two_block_ridge_attach} adds the ridge prior
+#' for Poisson and Gamma. It must be below 1.
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -591,6 +739,10 @@
     n_chains, start_fixef, design, block1_prior, pfamily_list, family,
     re_names, group_levels, b_start, b_mode, tau2_start, index_map
   )
+  prep$spec <- .two_block_ridge_attach(
+    prep$spec, if (is.null(b_mode)) b_start else b_mode, rwt,
+    re_names, group_levels
+  )
   state <- .two_block_sweep_cpp(
     prep$spec,
     prep$state$b,
@@ -603,9 +755,13 @@
     if (is.null(stage_label)) "" else as.character(stage_label[1L]),
     rwt
   )
-  .two_block_finish(
+  out <- .two_block_finish(
     state, prep$tau2, index_map, design, re_names, collect_block1,
     stage_label = stage_label, fixef_mode = fixef_mode,
     diag_sweeps = diag_sweeps
   )
+  if (isTRUE(prep$spec$ridge)) {
+    out$ridge_h <- .two_block_ridge_gap(prep$spec, state$b)
+  }
+  out
 }

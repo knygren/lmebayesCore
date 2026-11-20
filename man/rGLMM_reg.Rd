@@ -191,9 +191,10 @@ non-Gaussian family this scales the mode curvature used by
 Corollary 5.1 to set the main-stage sweep count; the pilot stays on
 the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
 sweep) the group likelihood in both stages is raised to the power
-\code{1 - rwt}, so \code{rwt} must be below 1 there until the ridge term
-is added. \code{rGLMM_reg_estimated_vcov} leaves the likelihood
-unchanged.}
+\code{1 - rwt}; for Poisson and Gamma the ridge term at the posterior
+mode is added to the group prior (binomial does not get it yet).
+\code{rwt} must be below 1 there. \code{rGLMM_reg_estimated_vcov}
+leaves the likelihood unchanged.}
 }
 \value{
 An object of class \code{c("<route>", "rGLMM_reg", "list")}, where

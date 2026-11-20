@@ -103,9 +103,10 @@
 #'   Corollary 5.1 to set the main-stage sweep count; the pilot stays on
 #'   the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
 #'   sweep) the group likelihood in both stages is raised to the power
-#'   \code{1 - rwt}, so \code{rwt} must be below 1 there until the ridge term
-#'   is added. \code{rGLMM_reg_estimated_vcov} leaves the likelihood
-#'   unchanged.
+#'   \code{1 - rwt}; for Poisson and Gamma the ridge term at the posterior
+#'   mode is added to the group prior (binomial does not get it yet).
+#'   \code{rwt} must be below 1 there. \code{rGLMM_reg_estimated_vcov}
+#'   leaves the likelihood unchanged.
 #' @param mode_gap_max Pilot inner-sweep calibration when a pilot stage runs.
 #' @param Gridtype,n_envopt,use_parallel,use_opencl Reserved (not yet forwarded).
 #' @param verbose Print stage headers and convergence calibration lines.
@@ -531,7 +532,7 @@ NULL
     )
   }
 
-  ## Printed and stored only. The sweeps below still use the Theorem 3 count.
+  ## Main-stage sweep count for the ridge model; the pilot keeps Theorem 3.
   ridge <- NULL
   if (!is_gaussian && !is.null(tv_tol)) {
     ridge <- .rGLMM_ridge_sweep_bound(
@@ -699,7 +700,26 @@ NULL
   pilot_ub           <- NULL
   tau2_start_main    <- .two_block_tau2_start_from_pfamily(pfamily_list, re_names)
 
+  ridge_m_ok <- !is.null(ridge) && is.finite(ridge$m_convergence)
+  if (isTRUE(progbar_use)) {
+    m_main_plan <- if (ridge_m_ok) as.integer(ridge$m_convergence) else m_convergence
+    rate_txt <- if (ridge_m_ok) {
+      sprintf("ridge rate %.4f at rwt = %g", ridge$lambda_star, ridge$rwt)
+    } else {
+      sprintf("rate %.4f", rate$lambda_star)
+    }
+    may_rise <- if (run_ub && !ridge_m_ok) " (may rise after the pilot)" else ""
+    pilot_txt <- if (run_pilot) {
+      sprintf("pilot %d chains x %d sweeps; ", n_pilot, m_convergence_pilot)
+    } else {
+      ""
+    }
+    message(sprintf("[plan] %smain %d chains x %d sweeps%s; %s",
+                    pilot_txt, n, m_main_plan, may_rise, rate_txt))
+  }
+
   if (run_pilot) {
+    pilot_t0 <- proc.time()[["elapsed"]]
     if (isTRUE(verbose)) {
       cat(sprintf(
         "--- %s [sweep-outer]: pilot stage (%d chains; m_convergence_pilot = %d) ---\n\n",
@@ -726,6 +746,7 @@ NULL
       ptypes         = ptypes,
       rwt            = rwt
     )
+    pilot_secs <- proc.time()[["elapsed"]] - pilot_t0
 
     pilot_chisq <- .two_block_pilot_chisq_test(
       fixef_draws = pilot_raw$fixef_draws,
@@ -783,6 +804,17 @@ NULL
       convergence_info$m_convergence <- m_convergence_used
     }
 
+    est_main_secs <- pilot_secs / (n_pilot * m_convergence_pilot) *
+      n * m_convergence_used
+    if (isTRUE(progbar_use)) {
+      message(sprintf(
+        "[plan] pilot took %s; main %d chains x %d sweeps, estimated %s",
+        .rGLMM_format_secs(pilot_secs), n, m_convergence_used,
+        .rGLMM_format_secs(est_main_secs)
+      ))
+    }
+    .rGLMM_confirm_long_run(est_main_secs)
+
     if (isTRUE(stage_verbose) && run_ub) {
       .two_block_print_pilot_stage_diagnostics(
         n_pilot            = n_pilot,
@@ -839,6 +871,11 @@ NULL
     tau2_start     = tau2_start_main,
     rwt            = rwt
   )
+  if (!is.null(main_raw$ridge_h)) {
+    .rGLMM_report_ridge_distance(
+      .rGLMM_ridge_distance(main_raw$ridge_h, rwt), rwt, show = progbar_use
+    )
+  }
 
   draw_engine_args <- list(
     n_chains       = n,
@@ -1046,6 +1083,101 @@ NULL
     return(1L)
   }
   as.integer(ceiling(log(D / z) / log(1 / rho)))
+}
+
+#' Format elapsed seconds as "12.3 s", "4.5 min" or "1.2 h"
+#' @noRd
+.rGLMM_format_secs <- function(secs) {
+  if (!is.finite(secs)) return("NA")
+  if (secs < 90) return(sprintf("%.1f s", secs))
+  if (secs < 5400) return(sprintf("%.1f min", secs / 60))
+  sprintf("%.1f h", secs / 3600)
+}
+
+#' Ask before a main run estimated to exceed \code{threshold_secs}
+#'
+#' Same rule as the glmbayesCore samplers: a 5-minute threshold, a
+#' \code{[y/N]} prompt in interactive sessions, and automatic continuation
+#' otherwise. Declining stops with an error.
+#' @noRd
+.rGLMM_confirm_long_run <- function(est_secs, threshold_secs = 300) {
+  if (!is.finite(est_secs) || est_secs <= threshold_secs) {
+    return(invisible(TRUE))
+  }
+  message(sprintf("Estimated main run exceeds %s (%s).",
+                  .rGLMM_format_secs(threshold_secs),
+                  .rGLMM_format_secs(est_secs)))
+  if (!interactive()) {
+    message("Non-interactive session: proceeding automatically.")
+    return(invisible(TRUE))
+  }
+  repeat {
+    ans <- tolower(trimws(readline("Do you want to continue? [y/N]: ")))
+    if (ans %in% c("y", "yes", "1", "continue")) {
+      return(invisible(TRUE))
+    }
+    if (ans %in% c("n", "no", "2", "")) {
+      stop("Simulation stopped by user after time estimate. ",
+           "A larger rwt reduces the number of sweeps.", call. = FALSE)
+    }
+    message("Invalid input. Please enter y (continue) or N (stop).")
+  }
+}
+
+#' Distance from the ridge fit to the rwt = 0 posterior
+#'
+#' Importance weights \code{exp(rwt h)} on the final chain states target the
+#' exact posterior (\code{.two_block_ridge_gap}). Pareto k needs the
+#' suggested package loo and is \code{NA} without it.
+#' @param h Ridge gap per chain.
+#' @return List with \code{tv} (estimated total variation distance),
+#'   \code{ess}, \code{n} and \code{k_hat}.
+#' @noRd
+.rGLMM_ridge_distance <- function(h, rwt) {
+  lw <- rwt * h
+  W <- exp(lw - max(lw))
+  W <- W / sum(W)
+  n <- length(W)
+  k_hat <- NA_real_
+  if (requireNamespace("loo", quietly = TRUE)) {
+    k_hat <- tryCatch(
+      suppressWarnings(loo::psis(lw, r_eff = 1)$diagnostics$pareto_k),
+      error = function(e) NA_real_
+    )
+  }
+  list(tv = 0.5 * sum(abs(W - 1 / n)), ess = 1 / sum(W^2), n = n,
+       k_hat = as.numeric(k_hat))
+}
+
+#' Report the ridge distance; warn when Pareto k makes it unreliable
+#' @param rd Result of \code{.rGLMM_ridge_distance}.
+#' @param show Print the summary message.
+#' @return No return value, called for side effects.
+#' @noRd
+.rGLMM_report_ridge_distance <- function(rd, rwt, show) {
+  k <- rd$k_hat
+  if (isTRUE(show)) {
+    k_txt <- if (is.na(k)) "" else sprintf(", Pareto k %.2f", k)
+    note <- if (is.na(k)) {
+      "; install 'loo' to check the reliability of this estimate"
+    } else if (k >= 0.5 && k < 0.7) {
+      "; Pareto k above 0.5, so the estimate is noisy"
+    } else {
+      ""
+    }
+    message(sprintf(
+      "[ridge] distance to the rwt = 0 posterior: TV ~ %.3g (ESS %.0f of %d%s)%s",
+      rd$tv, rd$ess, rd$n, k_txt, note
+    ))
+  }
+  if (!is.na(k) && k >= 0.7) {
+    warning(sprintf(paste0(
+      "Pareto k = %.2f for the ridge importance weights at rwt = %g: the ",
+      "estimated distance to the rwt = 0 posterior (TV ~ %.3g) is unreliable ",
+      "and the true distance may be substantially larger. Rerun with a ",
+      "smaller rwt."), k, rwt, rd$tv), call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 #' Ridge sweep count at \code{rwt} times the mode curvature.

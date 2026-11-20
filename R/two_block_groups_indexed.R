@@ -27,11 +27,34 @@
   mu_D
 }
 
+#' Ridge prior mean for the groups block
+#'
+#' Column \code{j} is \code{ridge_A[, , j] \%*\% mu_D[, j] + ridge_c[, j]},
+#' summed over the columns of \code{ridge_A} in increasing order.
+#' @return Numeric matrix \code{ncol(D) x J}.
+#' @noRd
+.two_block_groups_ridge_mean <- function(spec, mu_D) {
+  l1 <- ncol(spec$D)
+  out <- matrix(0, l1, ncol(mu_D))
+  for (a in seq_len(l1)) {
+    s <- 0
+    for (b in seq_len(l1)) {
+      s <- s + spec$ridge_A[a, b, ] * mu_D[b, ]
+    }
+    out[a, ] <- s + spec$ridge_c[a, ]
+  }
+  out
+}
+
 #' Groups draw for one chain
+#'
+#' With \code{spec$ridge}, each group is drawn under its ridge prior
+#' (\code{.two_block_ridge_attach}) built from \code{mu_D}.
 #' @return List with \code{coef} and \code{coef_mode} (both \code{J x ncol(D)})
 #'   and \code{iters} (mean envelope candidates per group).
 #' @noRd
 .two_block_groups_draw <- function(spec, mu_D) {
+  ridge <- isTRUE(spec$ridge)
   out <- .rNormalGLMGroups_cpp(
     n              = 1L,
     y              = spec$y,
@@ -39,8 +62,8 @@
     offset         = spec$offset1,
     wt             = spec$wt1,
     dispersion     = spec$disp1,
-    mu             = mu_D,
-    P_blocks       = list(spec$P_D),
+    mu             = if (ridge) .two_block_groups_ridge_mean(spec, mu_D) else mu_D,
+    P_blocks       = if (ridge) spec$ridge_P else list(spec$P_D),
     prior_by_block = TRUE,
     row_blocks     = spec$obs_rows,
     f2             = spec$f2,

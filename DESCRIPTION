@@ -51,6 +51,7 @@ Suggests:
     ggplot2,
     bayestestR,
     LearnBayes,
+    loo,
     testthat (>= 3.0.0),
     spelling,
     knitr,

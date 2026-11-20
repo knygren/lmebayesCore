@@ -50,6 +50,7 @@ TwoBlockIndexSpec::TwoBlockIndexSpec(const List& spec)
       link(as<std::string>(spec["link"])),
       gridtype(as<int>(spec["gridtype"])),
       n_envopt(as<int>(spec["n_envopt"])),
+      ridge(false),
       l1(D.ncol()),
       J(obs_rows.size()),
       p_re(d_col.size()) {
@@ -58,6 +59,16 @@ TwoBlockIndexSpec::TwoBlockIndexSpec(const List& spec)
       w_col.size() != p || mu2.size() != p || P2.size() != p ||
       disp2.size() != p_re) {
     stop("spec: every population entry must have one element per component.");
+  }
+  if (spec.containsElementNamed("ridge") && as<bool>(spec["ridge"])) {
+    ridge = true;
+    ridge_A = as<NumericVector>(spec["ridge_A"]);
+    ridge_c = as<NumericMatrix>(spec["ridge_c"]);
+    ridge_P = as<List>(spec["ridge_P"]);
+    if (ridge_A.size() != static_cast<R_xlen_t>(l1) * l1 * J ||
+        ridge_c.nrow() != l1 || ridge_c.ncol() != J || ridge_P.size() != J) {
+      stop("spec: ridge_A, ridge_c and ridge_P must have one entry per group.");
+    }
   }
 }
 

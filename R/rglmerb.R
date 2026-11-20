@@ -126,9 +126,12 @@
 #'   the returned object. For a non-Gaussian family it sets the main-stage
 #'   sweep count through Corollary 5.1. When every population prior is
 #'   \code{dNormal} (compiled sweep), the group likelihood in both stages is
-#'   raised to the power \code{1 - rwt}; the ridge term that completes the
-#'   modified target is not added yet, so \code{rwt} must be below 1 there.
-#'   Other non-Gaussian models leave the likelihood unchanged. The Gaussian
+#'   raised to the power \code{1 - rwt}. For Poisson and Gamma the ridge term
+#'   (\code{rwt} times the quadratic expansion of each group log-likelihood
+#'   at the posterior mode) is added to the group prior, which completes the
+#'   modified target; binomial does not get the ridge term yet. \code{rwt}
+#'   must be below 1 there. Other non-Gaussian models leave the likelihood
+#'   unchanged. The Gaussian
 #'   branch checks it and does not forward it.
 #' @param mode_gap_max Pilot inner-sweep calibration (non-Gaussian and
 #'   Gaussian+ING only). Ignored when \code{simulate = FALSE}.
