@@ -99,12 +99,20 @@
 #'   \code{n_pilot}, \code{m_convergence_pilot}, and main-stage
 #'   \code{m_convergence} are derived internally.
 #' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
-#'   non-Gaussian family this scales the mode curvature used by
-#'   Corollary 5.1 to set the main-stage sweep count; the pilot stays on
-#'   the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
+#'   non-Gaussian family this scales the mode curvature in the ridge rate,
+#'   which sets the main-stage sweep count for a start at the joint
+#'   posterior mode (a priori gradient bound with the gradient-certificate
+#'   starting constant; see
+#'   \file{inst/Gibbs_Convergence_LogConcave_Hierarchical_11_21_26.md},
+#'   Proposition 5.6 and Corollary 5.5). When that count is
+#'   finite and no population component is ING, the pilot is only a timing
+#'   run (about 1\% of \code{n} chains, at least 10, at the same count from
+#'   the mode; its draws are not used by the main stage) and the main stage
+#'   starts at the mode; otherwise the pilot stays on the Theorem~3 schedule. In
+#'   \code{rGLMM_reg_known_vcov} (compiled
 #'   sweep) the group likelihood in both stages is raised to the power
-#'   \code{1 - rwt}; for Poisson and Gamma the ridge term at the posterior
-#'   mode is added to the group prior (binomial does not get it yet).
+#'   \code{1 - rwt}; for Poisson, binomial and Gamma the ridge term at the
+#'   posterior mode is added to the group prior.
 #'   \code{rwt} must be below 1 there. \code{rGLMM_reg_estimated_vcov}
 #'   leaves the likelihood unchanged.
 #' @param mode_gap_max Pilot inner-sweep calibration when a pilot stage runs.
@@ -152,8 +160,9 @@
 #'       \code{draw_engine} is \code{"rGLMM_sweep_cpp"} on
 #'       \code{rGLMM_reg_known_vcov} (compiled sweep) and
 #'       \code{"rGLMM_sweep"} on \code{rGLMM_reg_estimated_vcov}. For a non-Gaussian
-#'       family, \code{ridge} holds the Corollary 5.1 count at curvature
+#'       family, \code{ridge} holds the joint-mode-start count at curvature
 #'       weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
+#'       \code{sum_q}, gradient bound \code{G}, starting constant \code{D},
 #'       \code{k}, \code{m_convergence}). That count is the main-stage
 #'       length.}
 #'     \item{\code{rwt}}{Ridge weight supplied to the call. It sets the
@@ -162,7 +171,9 @@
 #'       \code{1 - rwt}.}
 #'     \item{\code{pilot}}{When a pilot ran: list with \code{n},
 #'       \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
-#'       \code{NULL}.}
+#'       \code{NULL}. After a timing run (\code{convergence_info$n_pilot_source}
+#'       is \code{"timing"}), \code{chisq} is \code{NULL} and \code{draws}
+#'       are kept for inspection only; the main stage does not use them.}
 #'     \item{\code{sweep_history}}{Main-stage sweep history when collected.}
 #'   }
 #'
@@ -532,7 +543,8 @@ NULL
     )
   }
 
-  ## Main-stage sweep count for the ridge model; the pilot keeps Theorem 3.
+  ## Main-stage sweep count for the ridge model from the joint-mode start
+  ## (Proposition 5.6 with Corollary 5.5).
   ridge <- NULL
   if (!is_gaussian && !is.null(tv_tol)) {
     ridge <- .rGLMM_ridge_sweep_bound(
@@ -551,31 +563,50 @@ NULL
   D_max            <- if (!is.null(mode_gap_max)) sqrt(p_dim) * mode_gap_max else 0
   m_pilot_from_gap <- NULL
 
-  if (run_pilot && is.null(m_convergence_pilot) && !is.null(tv_tol)) {
-    erf1_inv_tv <- stats::qnorm((tv_tol + 1) / 2) / sqrt(2)
-    c_tol       <- erf1_inv_tv * 2 * sqrt(2)
-    m_pilot_from_gap <- .two_block_m_pilot_from_gap(rate, D_max, c_tol, m_min)
-    m_convergence_pilot <- m_pilot_from_gap
-  }
+  ## With a finite ridge count and no ING components, the main stage starts at
+  ## the joint mode with a count certified for that start, so the pilot is
+  ## only a timing run:
+  ## a few chains of the main sampler whose draws the main stage does not use.
+  timing_only <- run_pilot && !isTRUE(any_non_normal) &&
+    !is.null(ridge) && is.finite(ridge$m_convergence)
 
-  pilot_plan <- .two_block_resolve_pilot_plan(
-    is_gaussian         = is_gaussian,
-    n                   = n,
-    n_pilot_arg         = n_pilot_arg,
-    gap_tol             = gap_tol,
-    tv_tol              = tv_tol,
-    m_convergence_user  = NULL,
-    m_convergence_pilot = m_convergence_pilot,
-    rate                = rate,
-    p_dim               = p_dim,
-    m_min               = m_min,
-    any_non_normal      = any_non_normal
-  )
+  if (timing_only) {
+    m_convergence_pilot <- as.integer(ridge$m_convergence)
+    pilot_plan <- list(
+      n_pilot         = .rGLMM_timing_chains(n),
+      n_pilot_source  = "timing",
+      m_convergence   = m_convergence_pilot,
+      m_certificate   = NULL,
+      pilot_cost_opt  = NULL,
+      n_pilot_gap_tol = NULL
+    )
+  } else {
+    if (run_pilot && is.null(m_convergence_pilot) && !is.null(tv_tol)) {
+      erf1_inv_tv <- stats::qnorm((tv_tol + 1) / 2) / sqrt(2)
+      c_tol       <- erf1_inv_tv * 2 * sqrt(2)
+      m_pilot_from_gap <- .two_block_m_pilot_from_gap(rate, D_max, c_tol, m_min)
+      m_convergence_pilot <- m_pilot_from_gap
+    }
+
+    pilot_plan <- .two_block_resolve_pilot_plan(
+      is_gaussian         = is_gaussian,
+      n                   = n,
+      n_pilot_arg         = n_pilot_arg,
+      gap_tol             = gap_tol,
+      tv_tol              = tv_tol,
+      m_convergence_user  = NULL,
+      m_convergence_pilot = m_convergence_pilot,
+      rate                = rate,
+      p_dim               = p_dim,
+      m_min               = m_min,
+      any_non_normal      = any_non_normal
+    )
+  }
   n_pilot          <- pilot_plan$n_pilot
   m_convergence    <- pilot_plan$m_convergence
   pilot_cost_opt   <- pilot_plan$pilot_cost_opt
   run_pilot        <- n_pilot > 0L
-  run_ub           <- run_pilot && !is.null(tv_tol)
+  run_ub           <- run_pilot && !is.null(tv_tol) && !timing_only
 
   if (is.null(m_min) && !run_pilot) {
     m_convergence <- 10L
@@ -638,10 +669,13 @@ NULL
       }
       cat(sprintf(
         paste0(
-          "--- %s: ridge bound [Corollary 5.1, rwt = %g, main stage]%s:\n",
-          "    lambda*_ridge = %s, q = %s => m_ridge = %s ---\n\n"
+          "--- %s: ridge bound [Prop. 5.6 / Cor. 5.5, joint-mode start, ",
+          "rwt = %g, main stage]%s:\n",
+          "    lambda*_ridge = %s, q = %s, sum q_j = %d, G = %.3g, D = %.3g",
+          " => m_ridge = %s ---\n\n"
         ),
-        engine_label, ridge$rwt, ing_note, lam_txt, q_txt, m_txt
+        engine_label, ridge$rwt, ing_note, lam_txt, q_txt,
+        as.integer(ridge$sum_q), ridge$G, ridge$D, m_txt
       ))
     }
     if (run_pilot && !is.null(mode_gap_max) && !is.null(m_pilot_from_gap)) {
@@ -655,7 +689,12 @@ NULL
         rate$lambda_star, m_convergence_pilot
       ))
     }
-    if (run_pilot) {
+    if (run_pilot && timing_only) {
+      cat(sprintf(
+        "--- %s: timing run [%d chains x %d sweeps at the mode; draws not reused] ---\n\n",
+        engine_label, n_pilot, m_convergence_pilot
+      ))
+    } else if (run_pilot) {
       .two_block_print_pilot_plan(
         pilot_plan          = pilot_plan,
         n                   = n,
@@ -709,7 +748,9 @@ NULL
       sprintf("rate %.4f", rate$lambda_star)
     }
     may_rise <- if (run_ub && !ridge_m_ok) " (may rise after the pilot)" else ""
-    pilot_txt <- if (run_pilot) {
+    pilot_txt <- if (run_pilot && timing_only) {
+      sprintf("timing run %d chains x %d sweeps; ", n_pilot, m_convergence_pilot)
+    } else if (run_pilot) {
       sprintf("pilot %d chains x %d sweeps; ", n_pilot, m_convergence_pilot)
     } else {
       ""
@@ -748,24 +789,26 @@ NULL
     )
     pilot_secs <- proc.time()[["elapsed"]] - pilot_t0
 
-    pilot_chisq <- .two_block_pilot_chisq_test(
-      fixef_draws = pilot_raw$fixef_draws,
-      re_names    = re_names,
-      fixef_mode  = fixef_mode,
-      n_pilot     = n_pilot
-    )
+    if (!timing_only) {
+      pilot_chisq <- .two_block_pilot_chisq_test(
+        fixef_draws = pilot_raw$fixef_draws,
+        re_names    = re_names,
+        fixef_mode  = fixef_mode,
+        n_pilot     = n_pilot
+      )
 
-    if (isTRUE(stage_verbose) || isTRUE(verbose)) {
-      cat(sprintf(
-        "--- %s: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
-        engine_label,
-        pilot_chisq$p_value, pilot_chisq$df, pilot_chisq$n_pilot
-      ))
+      if (isTRUE(stage_verbose) || isTRUE(verbose)) {
+        cat(sprintf(
+          "--- %s: pilot vs mode chi-squared test: p = %.4g (df = %d, n_pilot = %d) ---\n\n",
+          engine_label,
+          pilot_chisq$p_value, pilot_chisq$df, pilot_chisq$n_pilot
+        ))
+      }
+
+      fixef_init <- .two_block_fixef_colmeans(
+        pilot_raw$fixef_draws, re_names, fixef_mode
+      )
     }
-
-    fixef_init <- .two_block_fixef_colmeans(
-      pilot_raw$fixef_draws, re_names, fixef_mode
-    )
 
     if (isTRUE(any_non_normal)) {
       tau2_start_main <- .two_block_tau2_start_from_dispersion_draws(
@@ -808,7 +851,8 @@ NULL
       n * m_convergence_used
     if (isTRUE(progbar_use)) {
       message(sprintf(
-        "[plan] pilot took %s; main %d chains x %d sweeps, estimated %s",
+        "[plan] %s took %s; main %d chains x %d sweeps, estimated %s",
+        if (timing_only) "timing run" else "pilot",
         .rGLMM_format_secs(pilot_secs), n, m_convergence_used,
         .rGLMM_format_secs(est_main_secs)
       ))
@@ -1064,25 +1108,47 @@ NULL
   }
 }
 
-#' Corollary 5.1 sweep index for a start in the admissible set.
+#' Sweep index from a start at the joint mode of the ridge model
 #'
-#' \code{q} is the dimension of \eqn{\gamma}. The returned \code{k} certifies
-#' that block. The engine count is \code{k + 1} because the stored
-#' group-effect draw lags one block update.
+#' Proposition 5.6 bounds the gradient of the log marginal posterior of
+#' \eqn{\gamma} at the joint mode, \eqn{G \le \sqrt{\rho \sum_j q_j / (1 - \rho)}};
+#' Lemma 5.4 turns it into the starting constant
+#' \eqn{D = (G + \sqrt{G^2 + 4p}) / (2\sqrt{1 - \rho})}, and Corollary 5.5
+#' gives \eqn{k = \lceil \log(D / z_\tau) / \log(1/\rho) \rceil}
+#' (inst/Gibbs_Convergence_LogConcave_Hierarchical_11_21_26.md). The start
+#' must be the joint mode of the ridge model, which holds when the Taylor
+#' centres are the group effects of that mode. The engine count is
+#' \code{k + 1} because the stored group-effect draw lags one block update.
+#' @param rho Ridge rate \eqn{\rho^G(\omega C^Q)}.
+#' @param p Dimension of \eqn{\gamma}.
+#' @param sum_q Total group-effect dimension, \eqn{\sum_j q_j}.
+#' @param tau Total-variation tolerance.
+#' @return \code{list(k, G, D)}; \code{k} is \code{NA} when \code{rho >= 1}.
 #' @noRd
-.rGLMM_k_cor51 <- function(rho, q, tau) {
-  if (!is.finite(rho) || !is.finite(q) || q < 1 || rho >= 1) {
-    return(NA_integer_)
+.rGLMM_k_prop56 <- function(rho, p, sum_q, tau) {
+  if (!is.finite(rho) || !is.finite(p) || p < 1 || !is.finite(sum_q) ||
+      rho >= 1) {
+    return(list(k = NA_integer_, G = NA_real_, D = NA_real_))
   }
   if (rho <= 0) {
-    return(1L)
+    return(list(k = 1L, G = 0, D = sqrt(p)))
   }
+  G <- sqrt(rho * sum_q / (1 - rho))
+  D <- (G + sqrt(G^2 + 4 * p)) / (2 * sqrt(1 - rho))
   z <- 2 * stats::qnorm((1 + tau) / 2)
-  D <- sqrt(q / (1 - rho))
-  if (!is.finite(D) || !is.finite(z) || D <= z) {
-    return(1L)
+  k <- if (!is.finite(D) || !is.finite(z) || D <= z) {
+    1L
+  } else {
+    max(1L, as.integer(ceiling(log(D / z) / log(1 / rho))))
   }
-  as.integer(ceiling(log(D / z) / log(1 / rho)))
+  list(k = k, G = G, D = D)
+}
+
+#' Chains in the timing run: about 1\% of \code{n}, at least 10, at most \code{n}
+#' @noRd
+.rGLMM_timing_chains <- function(n) {
+  n <- as.integer(n)
+  as.integer(min(n, max(10L, n %/% 100L)))
 }
 
 #' Format elapsed seconds as "12.3 s", "4.5 min" or "1.2 h"
@@ -1182,8 +1248,11 @@ NULL
 
 #' Ridge sweep count at \code{rwt} times the mode curvature.
 #'
-#' This is the main-stage sweep count for a non-Gaussian model. The pilot
-#' stays on the Theorem 3 schedule.
+#' This is the main-stage sweep count for a non-Gaussian model, from a start
+#' at the joint (ICM) mode, through \code{.rGLMM_k_prop56}. \code{b_mode} must
+#' be the ICM group effects, which are also the ridge Taylor centres. Without
+#' ING components the pilot is then a timing run at the same count; with ING
+#' components it stays on the Theorem 3 schedule.
 #' @noRd
 .rGLMM_ridge_sweep_bound <- function(
     design,
@@ -1215,7 +1284,9 @@ NULL
   )
   rho <- rate$lambda_star
   q <- rate$dims$q
-  k <- .rGLMM_k_cor51(rho, q, tv_tol)
+  sum_q <- length(group_levels) * ncol(as.matrix(design$D))
+  b56 <- .rGLMM_k_prop56(rho, q, sum_q, tv_tol)
+  k <- b56$k
   m <- if (!is.finite(k)) {
     NA_integer_
   } else {
@@ -1225,6 +1296,9 @@ NULL
     rwt           = rwt,
     lambda_star   = rho,
     q             = q,
+    sum_q         = sum_q,
+    G             = b56$G,
+    D             = b56$D,
     k             = k,
     m_convergence = m
   )

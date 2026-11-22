@@ -124,13 +124,16 @@
 #'   Ignored when \code{simulate = FALSE}.
 #' @param rwt Ridge weight in \code{(0, 1]}, default \code{0.01}. Stored on
 #'   the returned object. For a non-Gaussian family it sets the main-stage
-#'   sweep count through Corollary 5.1. When every population prior is
+#'   sweep count, certified for a start at the joint posterior mode
+#'   (Proposition 5.6 and Corollary 5.5 of
+#'   \file{inst/Gibbs_Convergence_LogConcave_Hierarchical_11_21_26.md}). When
+#'   that holds and no population prior is ING, the pilot only times the run.
+#'   When every population prior is
 #'   \code{dNormal} (compiled sweep), the group likelihood in both stages is
-#'   raised to the power \code{1 - rwt}. For Poisson and Gamma the ridge term
-#'   (\code{rwt} times the quadratic expansion of each group log-likelihood
-#'   at the posterior mode) is added to the group prior, which completes the
-#'   modified target; binomial does not get the ridge term yet. \code{rwt}
-#'   must be below 1 there. Other non-Gaussian models leave the likelihood
+#'   raised to the power \code{1 - rwt}. For Poisson, binomial and Gamma the
+#'   ridge term (\code{rwt} times the quadratic expansion of each group
+#'   log-likelihood at the posterior mode) is added to the group prior, which
+#'   completes the modified target. \code{rwt} must be below 1 there. Other non-Gaussian models leave the likelihood
 #'   unchanged. The Gaussian
 #'   branch checks it and does not forward it.
 #' @param mode_gap_max Pilot inner-sweep calibration (non-Gaussian and
@@ -172,9 +175,10 @@
 #'       \code{sim_method_used}, \code{icm_info}). A non-Gaussian model
 #'       whose population priors are all \code{dNormal} reports
 #'       \code{draw_engine = "rGLMM_sweep_cpp"} (compiled sweep). For a
-#'       non-Gaussian family, \code{convergence_info$ridge} holds the Corollary 5.1
-#'       count at curvature weights scaled by \code{rwt}, and that count
-#'       is the main-stage length.}
+#'       non-Gaussian family, \code{convergence_info$ridge} holds the
+#'       joint-mode-start count at curvature weights scaled by \code{rwt}
+#'       (with the gradient bound \code{G} and starting constant \code{D}),
+#'       and that count is the main-stage length.}
 #'     \item{\code{rwt}}{Ridge weight supplied to the call (see the
 #'       \code{rwt} argument for where it is applied).}
 #'     \item{\code{pilot}}{Present when a pilot stage ran, holding its size

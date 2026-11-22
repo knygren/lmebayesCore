@@ -89,6 +89,104 @@ GroupsDraw groups_draw(const TwoBlockIndexSpec& spec, const NumericMatrix& mu_D)
   return d;
 }
 
+std::vector<GroupData> groups_data(const TwoBlockIndexSpec& spec) {
+  const int l1 = spec.l1;
+  const int J = spec.J;
+  const R_xlen_t l2 = spec.y.size();
+  if (spec.obs_rows.size() != J) {
+    Rcpp::stop("length(obs_rows) must equal the number of groups");
+  }
+  if (spec.disp1.size() != 1 && spec.disp1.size() != J) {
+    Rcpp::stop("length(disp1) must be 1 or the number of groups");
+  }
+  if (spec.offset1.size() != 1 && spec.offset1.size() != l2) {
+    Rcpp::stop("length(offset1) must be 1 or length(y)");
+  }
+  if (spec.wt1.size() != 1 && spec.wt1.size() != l2) {
+    Rcpp::stop("length(wt1) must be 1 or length(y)");
+  }
+  std::vector<GroupData> out(J);
+  for (int j = 0; j < J; ++j) {
+    const IntegerVector rows = spec.obs_rows[j];
+    const int nj = rows.size();
+    GroupData& g = out[j];
+    g.y = NumericVector(nj);
+    g.x = NumericMatrix(nj, l1);
+    g.offset = NumericVector(nj);
+    g.wt = NumericVector(nj);
+    for (int r = 0; r < nj; ++r) {
+      const int row = rows[r] - 1;
+      g.y[r] = spec.y[row];
+      g.offset[r] = spec.offset1.size() == 1 ? spec.offset1[0] : spec.offset1[row];
+      g.wt[r] = spec.wt1.size() == 1 ? spec.wt1[0] : spec.wt1[row];
+      for (int a = 0; a < l1; ++a) {
+        g.x(r, a) = spec.D(row, a);
+      }
+    }
+    g.P = spec.ridge ? as<NumericMatrix>(spec.ridge_P[j]) : spec.P_D;
+    g.disp = spec.disp1.size() == 1 ? spec.disp1[0] : spec.disp1[j];
+  }
+  return out;
+}
+
+NumericVector groups_prior_mean_all(const TwoBlockIndexSpec& spec,
+                                    const List& fixef, int n,
+                                    std::vector<NumericMatrix>* mu_D) {
+  const int l1 = spec.l1;
+  const int J = spec.J;
+  NumericVector out(static_cast<R_xlen_t>(l1) * J * n);
+  out.attr("dim") = IntegerVector::create(l1, J, n);
+  if (mu_D) mu_D->assign(n, NumericMatrix());
+  for (int i = 0; i < n; ++i) {
+    const NumericMatrix mi = groups_prior_mean(spec, fixef, i);
+    const NumericMatrix m = spec.ridge ? groups_ridge_mean(spec, mi) : mi;
+    const R_xlen_t base = static_cast<R_xlen_t>(l1) * J * i;
+    for (int j = 0; j < J; ++j) {
+      for (int a = 0; a < l1; ++a) {
+        out[base + a + static_cast<R_xlen_t>(l1) * j] = m(a, j);
+      }
+    }
+    if (mu_D) (*mu_D)[i] = mi;
+  }
+  return out;
+}
+
+GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
+                                  const GroupData& gd,
+                                  const NumericVector& mu_all, int j,
+                                  const std::vector<int>& chains, bool check) {
+  const int l1 = spec.l1;
+  const int J = spec.J;
+  const int nc = static_cast<int>(chains.size());
+  NumericMatrix mu(l1, nc);
+  for (int c = 0; c < nc; ++c) {
+    const R_xlen_t base =
+        static_cast<R_xlen_t>(l1) * (j + static_cast<R_xlen_t>(J) * chains[c]);
+    for (int a = 0; a < l1; ++a) {
+      mu(a, c) = mu_all[base + a];
+    }
+  }
+  const RObject disp = wrap(gd.disp);
+  const RObject family = wrap(spec.family);
+  const RObject link = wrap(spec.link);
+  const RObject gridtype = wrap(spec.gridtype);
+  const RObject n_envopt = wrap(spec.n_envopt);
+  const RObject check_r = wrap(check);
+  const RObject off = wrap(false);
+  List out;
+  {
+    glmbayes::rng::RSyncScope rng_sync;
+    out = glmbayesCore_rNormalGLMGroupChains(
+        gd.y, gd.x, gd.offset, gd.wt, disp, mu, gd.P, spec.f2, spec.f3,
+        family, link, gridtype, n_envopt, off, check_r, off);
+  }
+  GroupChainsDraw d;
+  d.coef = as<NumericMatrix>(out["coefficients"]);
+  d.coef_mode = as<NumericMatrix>(out["coef.mode"]);
+  d.iters = as<NumericVector>(out["iters"]);
+  return d;
+}
+
 NumericMatrix groups_place(const TwoBlockIndexSpec& spec, const NumericMatrix& coef) {
   const int J = coef.nrow();
   NumericMatrix out(J, spec.p_re);

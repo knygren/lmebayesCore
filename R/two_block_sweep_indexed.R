@@ -196,6 +196,12 @@
 
 #' Sweep loop in R
 #'
+#' Chain-major in both blocks: the loop order of the C++ sweep with
+#' \code{group_major = FALSE}. The C++ default (group-major groups block:
+#' groups outside, chains inside) gives the same conditional draws with the
+#' random number stream used in a different order, so exact comparisons with
+#' this twin need \code{group_major = FALSE} or \code{use_mode = TRUE}.
+#'
 #' @param use_mode If \code{TRUE}, each block keeps its posterior mode
 #'   instead of its draw. Used only to compare the R and C++ loops exactly.
 #' @param observer \code{NULL}, or a list of functions
@@ -330,8 +336,10 @@
 #' \code{ridge_A[, , j] \%*\% mu_D[, j] + ridge_c[, j]}. The score and
 #' \code{C_j} (central differences of the score) come from \code{spec$f3}
 #' with the unscaled weights, divided by the dispersion for Gamma as in
-#' \code{rNormalGLM}. Applied for Poisson and Gamma only; other families,
-#' and \code{rwt = 0}, return \code{spec} unchanged.
+#' \code{rNormalGLM}. Applied for Poisson, binomial and Gamma only; other
+#' families, and \code{rwt = 0}, return \code{spec} unchanged. Binomial needs
+#' a \pkg{glmbayesCore} whose binomial likelihoods do not round the scaled
+#' weights.
 #' @param spec Result of \code{.two_block_spec()}, before weight scaling.
 #' @param b_mode \code{J x p_re} reference points, aligned like
 #'   \code{b_start} in \code{.two_block_init()}.
@@ -349,7 +357,7 @@
     stop("rwt must be in [0, 1); the ridge term needed at rwt = 1 is not implemented yet.",
          call. = FALSE)
   }
-  if (rwt == 0 || !(spec$family %in% c("poisson", "Gamma"))) {
+  if (rwt == 0 || !(spec$family %in% c("poisson", "binomial", "Gamma"))) {
     return(spec)
   }
   b0 <- as.matrix(b_mode)
@@ -697,7 +705,11 @@
 #' \code{.two_block_sweep_cpp}, the C++ twin of \code{.two_block_sweep_r}.
 #' \code{rwt} scales the groups-block likelihood weights by \code{1 - rwt}
 #' inside the C++ loop; \code{.two_block_ridge_attach} adds the ridge prior
-#' for Poisson and Gamma. It must be below 1.
+#' for Poisson, binomial and Gamma. It must be below 1.
+#' Developer options: \code{options(lmebayesCore.group_major = FALSE)}
+#' selects the chain-major groups block (the R twin's loop order), and
+#' \code{options(lmebayesCore.group_check = TRUE)} checks every group-major
+#' mode and envelope against \code{rNormalGLM} (doubles the groups cost).
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -753,7 +765,9 @@
     FALSE,
     isTRUE(progbar),
     if (is.null(stage_label)) "" else as.character(stage_label[1L]),
-    rwt
+    rwt,
+    group_major = !isFALSE(getOption("lmebayesCore.group_major", TRUE)),
+    group_check = isTRUE(getOption("lmebayesCore.group_check", FALSE))
   )
   out <- .two_block_finish(
     state, prep$tau2, index_map, design, re_names, collect_block1,

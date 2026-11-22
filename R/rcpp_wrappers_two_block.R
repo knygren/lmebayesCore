@@ -516,10 +516,11 @@
 .two_block_sweep_cpp <- function(
     spec, b, fixef, iters, iters_ranef,
     inner_sweeps, use_mode = FALSE, progbar = FALSE, stage_label = "",
-    rwt = 0
+    rwt = 0, group_major = TRUE, group_check = FALSE
 ) {
   .Call(`_lmebayesCore_two_block_sweep_cpp_export`,
     spec, b, fixef, iters, iters_ranef,
-    inner_sweeps, use_mode, progbar, stage_label, as.numeric(rwt)
+    inner_sweeps, use_mode, progbar, stage_label, as.numeric(rwt),
+    isTRUE(group_major), isTRUE(group_check)
   )
 }

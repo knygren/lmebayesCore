@@ -352,8 +352,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // two_block_sweep_cpp_export
-Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, double rwt);
-RcppExport SEXP _lmebayesCore_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP rwtSEXP) {
+Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, double rwt, bool group_major, bool group_check);
+RcppExport SEXP _lmebayesCore_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP rwtSEXP, SEXP group_majorSEXP, SEXP group_checkSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -367,7 +367,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type progbar(progbarSEXP);
     Rcpp::traits::input_parameter< const std::string& >::type stage_label(stage_labelSEXP);
     Rcpp::traits::input_parameter< double >::type rwt(rwtSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt));
+    Rcpp::traits::input_parameter< bool >::type group_major(group_majorSEXP);
+    Rcpp::traits::input_parameter< bool >::type group_check(group_checkSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -388,7 +390,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lmebayesCore_two_block_population_response_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_response_cpp_export, 3},
     {"_lmebayesCore_two_block_population_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_draw_cpp_export, 3},
     {"_lmebayesCore_two_block_population_write_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_write_cpp_export, 5},
-    {"_lmebayesCore_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_sweep_cpp_export, 10},
+    {"_lmebayesCore_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_sweep_cpp_export, 12},
     {NULL, NULL, 0}
 };
 

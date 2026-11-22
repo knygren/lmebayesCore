@@ -1,5 +1,7 @@
 // Indexed two-block sweep loop. R twin: .two_block_sweep_r() in
-// R/two_block_sweep_indexed.R; same loop order, same progress output.
+// R/two_block_sweep_indexed.R; same loop order and progress output when
+// group_major is false. The default group-major groups block loops over
+// groups outside and chains inside, with progress counted in groups.
 
 #include "RcppArmadillo.h"
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -73,7 +75,8 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
                      const List& fixef_in, const NumericMatrix& iters_in,
                      const NumericVector& iters_ranef_in, int inner_sweeps,
                      bool use_mode, bool progbar, const std::string& stage_label,
-                     double rwt, SweepObserver* observer) {
+                     double rwt, SweepObserver* observer, bool group_major,
+                     bool group_check) {
   if (!(rwt >= 0.0 && rwt < 1.0)) {
     stop("rwt must be in [0, 1); the ridge term needed at rwt = 1 is not implemented yet.");
   }
@@ -119,6 +122,9 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
   sweep_cov.attr("dim") = IntegerVector::create(p_tot, p_tot, inner_sweeps);
   std::vector<double> stacked(static_cast<std::size_t>(n) * p_tot);
 
+  std::vector<GroupData> gdata;
+  if (group_major) gdata = groups_data(spec);
+
   for (int m = 1; m <= inner_sweeps; ++m) {
     checkUserInterrupt();
     const int mi = m - 1;
@@ -127,30 +133,84 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
     const std::string prefix_population =
         sweep_progbar_prefix(stage_label, m, inner_sweeps, "fixef");
 
-    for (int i = 0; i < n; ++i) {
-      const NumericMatrix mu_D = groups_prior_mean(spec, fixef, i);
-      NumericMatrix coef;
-      double it1 = 0.0;
-      if (!obs.groups_source(mi, i, coef, it1)) {
-        const GroupsDraw d1 = groups_draw(spec, mu_D);
-        coef = use_mode ? d1.coef_mode : d1.coef;
-        it1 = d1.iters;
-      }
-      obs.groups_seen(mi, i, mu_D, coef, it1);
-      const NumericMatrix b_i = groups_place(spec, coef);
-      for (int k = 0; k < p_re; ++k) {
-        for (int j = 0; j < J; ++j) {
-          b[j + J * (k + p_re * i)] = b_i(j, k);
+    if (group_major) {
+      std::vector<NumericMatrix> mu_D;
+      const NumericVector mu_all = groups_prior_mean_all(spec, fixef, n, &mu_D);
+
+      // Replayed chains keep their coef and skip the group loop.
+      std::vector<NumericMatrix> coef(n);
+      std::vector<double> it1(n, 0.0);
+      std::vector<int> active;
+      active.reserve(n);
+      for (int i = 0; i < n; ++i) {
+        if (!obs.groups_source(mi, i, coef[i], it1[i])) {
+          coef[i] = NumericMatrix(J, spec.l1);
+          active.push_back(i);
         }
       }
-      iters_ranef[i] = iters_ranef[i] + it1;
-      if (progbar) {
-        lmecore::progress_bar(i + 1.0, static_cast<double>(n),
-                                         prefix_groups);
+
+      std::vector<double> iters_sum(n, 0.0);
+      if (!active.empty()) {
+        for (int j = 0; j < J; ++j) {
+          const GroupChainsDraw d1 =
+              group_chains_draw(spec, gdata[j], mu_all, j, active, group_check);
+          const NumericMatrix& cj = use_mode ? d1.coef_mode : d1.coef;
+          for (int c = 0; c < static_cast<int>(active.size()); ++c) {
+            const int i = active[c];
+            for (int a = 0; a < spec.l1; ++a) {
+              coef[i](j, a) = cj(c, a);
+            }
+            iters_sum[i] += d1.iters[c];
+          }
+          if (progbar) {
+            lmecore::progress_bar(j + 1.0, static_cast<double>(J),
+                                  prefix_groups);
+          }
+        }
+        for (int i : active) {
+          it1[i] = iters_sum[i] / J;
+        }
       }
-    }
-    if (progbar) {
-      lmecore::progress_bar_finish(false);
+      if (progbar) {
+        lmecore::progress_bar_finish(false);
+      }
+
+      for (int i = 0; i < n; ++i) {
+        obs.groups_seen(mi, i, mu_D[i], coef[i], it1[i]);
+        const NumericMatrix b_i = groups_place(spec, coef[i]);
+        for (int k = 0; k < p_re; ++k) {
+          for (int j = 0; j < J; ++j) {
+            b[j + J * (k + p_re * i)] = b_i(j, k);
+          }
+        }
+        iters_ranef[i] = iters_ranef[i] + it1[i];
+      }
+    } else {
+      for (int i = 0; i < n; ++i) {
+        const NumericMatrix mu_D = groups_prior_mean(spec, fixef, i);
+        NumericMatrix coef;
+        double it1 = 0.0;
+        if (!obs.groups_source(mi, i, coef, it1)) {
+          const GroupsDraw d1 = groups_draw(spec, mu_D);
+          coef = use_mode ? d1.coef_mode : d1.coef;
+          it1 = d1.iters;
+        }
+        obs.groups_seen(mi, i, mu_D, coef, it1);
+        const NumericMatrix b_i = groups_place(spec, coef);
+        for (int k = 0; k < p_re; ++k) {
+          for (int j = 0; j < J; ++j) {
+            b[j + J * (k + p_re * i)] = b_i(j, k);
+          }
+        }
+        iters_ranef[i] = iters_ranef[i] + it1;
+        if (progbar) {
+          lmecore::progress_bar(i + 1.0, static_cast<double>(n),
+                                           prefix_groups);
+        }
+      }
+      if (progbar) {
+        lmecore::progress_bar_finish(false);
+      }
     }
 
     for (int i = 0; i < n; ++i) {

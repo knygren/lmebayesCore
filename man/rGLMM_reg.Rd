@@ -187,12 +187,20 @@ is \code{NULL}.}
 \item{collect_block1}{Collect \code{groupef} draws from main chains.}
 
 \item{rwt}{Ridge weight in \code{(0, 1]}, default \code{0.01}. For a
-non-Gaussian family this scales the mode curvature used by
-Corollary 5.1 to set the main-stage sweep count; the pilot stays on
-the Theorem~3 schedule. In \code{rGLMM_reg_known_vcov} (compiled
+non-Gaussian family this scales the mode curvature in the ridge rate,
+which sets the main-stage sweep count for a start at the joint
+posterior mode (a priori gradient bound with the gradient-certificate
+starting constant; see
+\file{inst/Gibbs_Convergence_LogConcave_Hierarchical_11_21_26.md},
+Proposition 5.6 and Corollary 5.5). When that count is
+finite and no population component is ING, the pilot is only a timing
+run (about 1\\% of \code{n} chains, at least 10, at the same count from
+the mode; its draws are not used by the main stage) and the main stage
+starts at the mode; otherwise the pilot stays on the Theorem~3 schedule. In
+\code{rGLMM_reg_known_vcov} (compiled
 sweep) the group likelihood in both stages is raised to the power
-\code{1 - rwt}; for Poisson and Gamma the ridge term at the posterior
-mode is added to the group prior (binomial does not get it yet).
+\code{1 - rwt}; for Poisson, binomial and Gamma the ridge term at the
+posterior mode is added to the group prior.
 \code{rwt} must be below 1 there. \code{rGLMM_reg_estimated_vcov}
 leaves the likelihood unchanged.}
 }
@@ -234,8 +242,9 @@ including \code{draw_engine} and \code{icm_info}.
 \code{draw_engine} is \code{"rGLMM_sweep_cpp"} on
 \code{rGLMM_reg_known_vcov} (compiled sweep) and
 \code{"rGLMM_sweep"} on \code{rGLMM_reg_estimated_vcov}. For a non-Gaussian
-family, \code{ridge} holds the Corollary 5.1 count at curvature
+family, \code{ridge} holds the joint-mode-start count at curvature
 weights scaled by \code{rwt} (\code{lambda_star}, \code{q},
+\code{sum_q}, gradient bound \code{G}, starting constant \code{D},
 \code{k}, \code{m_convergence}). That count is the main-stage
 length.}
 \item{\code{rwt}}{Ridge weight supplied to the call. It sets the
@@ -244,7 +253,9 @@ non-Gaussian main-stage sweep count and, in
 \code{1 - rwt}.}
 \item{\code{pilot}}{When a pilot ran: list with \code{n},
 \code{m_convergence}, \code{chisq}, and \code{draws}; otherwise
-\code{NULL}.}
+\code{NULL}. After a timing run (\code{convergence_info$n_pilot_source}
+is \code{"timing"}), \code{chisq} is \code{NULL} and \code{draws}
+are kept for inspection only; the main stage does not use them.}
 \item{\code{sweep_history}}{Main-stage sweep history when collected.}
 }
 }

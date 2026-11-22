@@ -69,7 +69,9 @@ Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec,
                                       int inner_sweeps, bool use_mode,
                                       bool progbar,
                                       const std::string& stage_label,
-                                      double rwt) {
+                                      double rwt, bool group_major,
+                                      bool group_check) {
   return two_block_sweep(TwoBlockIndexSpec(spec), b, fixef, iters, iters_ranef,
-                         inner_sweeps, use_mode, progbar, stage_label, rwt);
+                         inner_sweeps, use_mode, progbar, stage_label, rwt,
+                         nullptr, group_major, group_check);
 }

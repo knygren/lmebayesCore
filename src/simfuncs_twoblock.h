@@ -153,6 +153,46 @@ Rcpp::NumericMatrix groups_ridge_mean(const TwoBlockIndexSpec& spec,
 GroupsDraw groups_draw(const TwoBlockIndexSpec& spec,
                        const Rcpp::NumericMatrix& mu_D);
 
+/// One group's rows of the groups block and its prior precision. These do
+/// not change across sweeps, so they are sliced once per two_block_sweep.
+struct GroupData {
+  Rcpp::NumericVector y;
+  Rcpp::NumericMatrix x;
+  Rcpp::NumericVector offset;
+  Rcpp::NumericVector wt;
+  Rcpp::NumericMatrix P;
+  double disp;
+};
+
+/// GroupData for every group, from obs_rows, offset1, wt1, disp1 and P_D
+/// (ridge_P[[j]] when `spec.ridge`).
+std::vector<GroupData> groups_data(const TwoBlockIndexSpec& spec);
+
+/// Groups prior means for all chains: an ncol(D) x J x n array (ridge mean
+/// when `spec.ridge`). Element (a, j, i) is at a + l1 * (j + J * i).
+/// `mu_D`, when given, receives groups_prior_mean for each chain (before the
+/// ridge mean), as passed to SweepObserver::groups_seen.
+Rcpp::NumericVector groups_prior_mean_all(
+    const TwoBlockIndexSpec& spec, const Rcpp::List& fixef, int n,
+    std::vector<Rcpp::NumericMatrix>* mu_D = nullptr);
+
+/// Group `j` drawn for the chains in `chains`: `coef` and `coef_mode` are
+/// chains.size() x ncol(D), `iters` has one entry per chain.
+struct GroupChainsDraw {
+  Rcpp::NumericMatrix coef;
+  Rcpp::NumericMatrix coef_mode;
+  Rcpp::NumericVector iters;
+};
+
+/// One draw of group `j` per chain in `chains`, prior means taken from
+/// `mu_all` (groups_prior_mean_all). `check` compares each chain's mode and
+/// envelope with rNormalGLM and stops on a difference (validation only).
+GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
+                                  const GroupData& gd,
+                                  const Rcpp::NumericVector& mu_all, int j,
+                                  const std::vector<int>& chains,
+                                  bool check = false);
+
 /// Columns of a groups draw in stored `b` order: J x p_re.
 Rcpp::NumericMatrix groups_place(const TwoBlockIndexSpec& spec,
                                  const Rcpp::NumericMatrix& coef);
@@ -187,6 +227,12 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// The matching ridge term (rwt times the quadratic expansion at the
 /// reference point) is in the spec's ridge prior when `spec.ridge` is set.
 /// `rwt = 0` leaves the weights unchanged.
+/// `group_major` (default) runs the groups block as an outer loop over groups
+/// and an inner draw over all chains (group_chains_draw); false keeps the
+/// chain-major loop (groups_draw per chain), which matches the R twin's loop
+/// order. Both give the same conditional draws; the random number stream is
+/// used in a different order. `group_check` is passed to group_chains_draw
+/// (validation only, doubles the groups cost).
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,
@@ -195,7 +241,9 @@ Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            int inner_sweeps, bool use_mode, bool progbar,
                            const std::string& stage_label,
                            double rwt = 0.0,
-                           SweepObserver* observer = nullptr);
+                           SweepObserver* observer = nullptr,
+                           bool group_major = true,
+                           bool group_check = false);
 
 }  // namespace twoblock
 }  // namespace sim
