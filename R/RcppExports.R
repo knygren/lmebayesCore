@@ -61,7 +61,7 @@ two_block_population_write_cpp_export <- function(spec, fixef_k, i, k, coef) {
     .Call(`_lmebayesCore_two_block_population_write_cpp_export`, spec, fixef_k, i, k, coef)
 }
 
-two_block_sweep_cpp_export <- function(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check) {
-    .Call(`_lmebayesCore_two_block_sweep_cpp_export`, spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check)
+two_block_sweep_cpp_export <- function(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check, mode_method, setup_method, warm_method, hess_method) {
+    .Call(`_lmebayesCore_two_block_sweep_cpp_export`, spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check, mode_method, setup_method, warm_method, hess_method)
 }
 

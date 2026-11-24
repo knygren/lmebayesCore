@@ -698,6 +698,285 @@
   out
 }
 
+#' Report where the C++ sweep time went
+#'
+#' One \code{message()} per call: block-1 wall time with the share of each
+#' \code{rNormalGLMGroupChains} part (mode, setup, eval, finalize, simulate)
+#' and of everything else in block 1 ("other": prior means, placement,
+#' progress bar, calls), then block-2 wall time. The parts are zero on the
+#' chain-major path, where only the block totals are reported. A third line
+#' splits mode finding into its parts (\code{group_mode}) when
+#' \code{mode_timing} is non-empty: the "kernel" shares inside vmmin and the
+#' Hessian are the C++ f2/f3 calls, followed by their count and mean cost.
+#' @param timing The \code{timing} element of \code{.two_block_sweep_cpp()}.
+#' @param mode_timing Its \code{mode_timing} element.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_timing_message <- function(timing, stage_label, n_chains,
+                                      inner_sweeps, mode_timing = NULL) {
+  if (is.null(timing)) return(invisible(NULL))
+  tm <- as.list(timing)
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  parts <- c("mode", "setup", "eval", "finalize", "simulate")
+  t_parts <- vapply(parts, function(p) tm[[p]], numeric(1))
+  b1 <- tm[["block1"]]
+  b2 <- tm[["block2"]]
+  head <- sprintf("[%s timing] %d chains x %d sweeps: block1 %.1f s, block2 %.1f s",
+                  lbl, as.integer(n_chains), as.integer(inner_sweeps), b1, b2)
+  if (sum(t_parts) > 0 && b1 > 0) {
+    secs <- c(t_parts, other = max(0, b1 - sum(t_parts)))
+    pct <- 100 * secs / b1
+    detail <- paste(sprintf("%s %.0f%% (%.1f s)", names(secs), pct, secs),
+                    collapse = ", ")
+    mode_line <- ""
+    mt_total <- tm[["mode"]]
+    if (length(mode_timing) > 0L && mt_total > 0) {
+      mt <- as.list(mode_timing)
+      fmt <- function(nm, s) sprintf("%s %.0f%% (%.1f s)", nm, 100 * s / mt_total, s)
+      top <- c("prep", "optim", "vmmin", "hessian", "fit_list", "compare",
+               "standardize")
+      secs <- vapply(top, function(p) mt[[p]], numeric(1))
+      pieces <- character(0)
+      for (p in top) {
+        if (secs[[p]] <= 0) next
+        piece <- fmt(p, secs[[p]])
+        k <- mt[[paste0(p, "_kernel")]]
+        if (!is.null(k) && k > 0) {
+          piece <- paste0(piece, sprintf(" [kernel %.0f%% (%.1f s)]",
+                                         100 * k / mt_total, k))
+        }
+        pieces <- c(pieces, piece)
+      }
+      pieces <- c(pieces, fmt("other", max(0, mt_total - sum(secs))))
+      mode_line <- paste0("\n  mode parts: ", paste(pieces, collapse = ", "))
+      nc <- mt[["calls"]]
+      nk <- mt[["kernel_calls"]]
+      if (!is.null(nc) && nc > 0) {
+        mode_line <- paste0(mode_line, sprintf(
+          "\n  %.0f mode calls, %.0f us each", nc, 1e6 * mt_total / nc))
+        if (!is.null(nk) && nk > 0) {
+          k_all <- mt[["vmmin_kernel"]] + mt[["hessian_kernel"]]
+          mode_line <- paste0(mode_line, sprintf(
+            "; %.1f kernel calls per mode call, %.1f us each",
+            nk / nc, 1e6 * k_all / nk))
+        }
+      }
+    }
+    message(head, "\n  block1 parts: ", detail, mode_line)
+  } else {
+    message(head)
+  }
+  invisible(NULL)
+}
+
+#' Group mode finder selected by \code{options(lmebayesCore.mode_method)}
+#'
+#' @return Integer code for \code{rNormalGLMGroupChains}: 0 \code{"optim"},
+#'   1 \code{"vmmin"} (default), 2 \code{"compare"}.
+#' @noRd
+.two_block_mode_method <- function() {
+  opt <- getOption("lmebayesCore.mode_method", "vmmin")
+  codes <- c(optim = 0L, vmmin = 1L, compare = 2L)
+  if (!is.character(opt) || length(opt) != 1L || !opt %in% names(codes)) {
+    stop("options(lmebayesCore.mode_method) must be \"optim\", \"vmmin\" ",
+         "or \"compare\".")
+  }
+  codes[[opt]]
+}
+
+#' Envelope grid setup selected by \code{options(lmebayesCore.setup_method)}
+#'
+#' @return Integer code for \code{rNormalGLMGroupChains}: 0 \code{"R"},
+#'   1 \code{"cpp"} (default), 2 \code{"compare"}.
+#' @noRd
+.two_block_setup_method <- function() {
+  opt <- getOption("lmebayesCore.setup_method", "cpp")
+  codes <- c(R = 0L, cpp = 1L, compare = 2L)
+  if (!is.character(opt) || length(opt) != 1L || !opt %in% names(codes)) {
+    stop("options(lmebayesCore.setup_method) must be \"R\", \"cpp\" ",
+         "or \"compare\".")
+  }
+  codes[[opt]]
+}
+
+#' Group mode starting point selected by \code{options(lmebayesCore.warm_start)}
+#'
+#' @return Integer code for the sweep: 0 \code{"cold"} (prior mean),
+#'   1 \code{"gaussian"} (default; previous mode plus the Gaussian step
+#'   \code{solve(A1_old, P (mu_new - mu_old))}), 2 \code{"compare"} (both,
+#'   cold kept).
+#' @noRd
+.two_block_warm_method <- function() {
+  opt <- getOption("lmebayesCore.warm_start", "gaussian")
+  codes <- c(cold = 0L, gaussian = 1L, compare = 2L)
+  if (!is.character(opt) || length(opt) != 1L || !opt %in% names(codes)) {
+    stop("options(lmebayesCore.warm_start) must be \"cold\", \"gaussian\" ",
+         "or \"compare\".")
+  }
+  codes[[opt]]
+}
+
+#' Group mode Hessian selected by \code{options(lmebayesCore.hessian)}
+#'
+#' @return Integer code for the sweep: 0 \code{"numeric"} (optimhess finite
+#'   differences), 1 \code{"exact"} (default; \code{X' diag(w) X + P}, finite
+#'   differences when it is not finite or not positive definite),
+#'   2 \code{"compare"} (both, finite differences kept).
+#' @noRd
+.two_block_hess_method <- function() {
+  opt <- getOption("lmebayesCore.hessian", "exact")
+  codes <- c(numeric = 0L, exact = 1L, compare = 2L)
+  if (!is.character(opt) || length(opt) != 1L || !opt %in% names(codes)) {
+    stop("options(lmebayesCore.hessian) must be \"numeric\", \"exact\" ",
+         "or \"compare\".")
+  }
+  codes[[opt]]
+}
+
+#' Report the exact / finite-difference Hessian comparison
+#'
+#' One \code{message()} per call. "flagged" counts group modes where the
+#' exact Hessian differs from the finite-difference one by more than the
+#' tolerance in glmbayesCore's \code{group_mode_vmmin.cpp} (relative
+#' Frobenius norm) or could not be used; "fallbacks" counts exact Hessians
+#' that were not finite or not positive definite.
+#' @param hessian_compare The \code{hessian_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_hess_compare_message <- function(hessian_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  hc <- as.list(hessian_compare)
+  if (length(hc) == 0L || is.null(hc$calls) || hc$calls <= 0) {
+    message(sprintf(paste0("[%s Hessian compare] no comparisons ",
+                           "(chain-major path or optim)"), lbl))
+    return(invisible(NULL))
+  }
+  n <- hc$calls
+  flag <- if (hc$flagged > 0 || hc$fallback > 0) " FLAG" else ""
+  message(
+    sprintf("[%s Hessian compare] %d calls: flagged %d, fallbacks %d%s",
+            lbl, as.integer(n), as.integer(hc$flagged),
+            as.integer(hc$fallback), flag),
+    sprintf("\n  max rel Hessian diff %.3g", hc$max_hess),
+    sprintf("\n  time numeric %.2f s (%.1f us each), exact %.2f s (%.1f us each)",
+            hc$t_numeric, 1e6 * hc$t_numeric / n,
+            hc$t_exact, 1e6 * hc$t_exact / n)
+  )
+  invisible(NULL)
+}
+
+#' Report the warm / cold start comparison
+#'
+#' One \code{message()} per call. "flagged" counts group modes where the
+#' warm-started vmmin exceeds the tolerances in glmbayesCore's
+#' \code{group_mode_vmmin.cpp} relative to the cold start (or did not
+#' converge); "fallbacks" counts warm runs that failed and were redone cold.
+#' @param warm_compare The \code{warm_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_warm_compare_message <- function(warm_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  wc <- as.list(warm_compare)
+  if (length(wc) == 0L || is.null(wc$calls) || wc$calls <= 0) {
+    message(sprintf(paste0("[%s warm compare] no comparisons (chain-major ",
+                           "path, optim, or single sweep)"), lbl))
+    return(invisible(NULL))
+  }
+  n <- wc$calls
+  flag <- if (wc$flagged > 0 || wc$fallback > 0) " FLAG" else ""
+  message(
+    sprintf("[%s warm compare] %d calls: flagged %d, fallbacks %d%s",
+            lbl, as.integer(n), as.integer(wc$flagged),
+            as.integer(wc$fallback), flag),
+    sprintf("\n  max d %.3g, max rel df %.3g, max rel Hessian diff %.3g",
+            wc$max_d, wc$max_df, wc$max_hess),
+    sprintf("\n  time cold %.2f s, warm %.2f s", wc$t_cold, wc$t_warm),
+    sprintf("\n  mean fn/gr calls: cold %.1f/%.1f, warm %.1f/%.1f",
+            wc$fn_cold / n, wc$gr_cold / n, wc$fn_warm / n, wc$gr_warm / n)
+  )
+  invisible(NULL)
+}
+
+#' Report the R / C++ grid setup comparison
+#'
+#' One \code{message()} per call. A difference stops the sweep inside
+#' glmbayesCore, so reaching this message means every compared grid was
+#' identical.
+#' @param setup_compare The \code{setup_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_setup_compare_message <- function(setup_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  n <- if (length(setup_compare) > 0L) setup_compare[["calls"]] else 0
+  if (n <= 0) {
+    message(sprintf("[%s setup compare] no comparisons (chain-major path)",
+                    lbl))
+  } else {
+    message(sprintf(paste0("[%s setup compare] %d calls: gridindex, E_draws, ",
+                           "GIndex, G3, G4 identical"), lbl, as.integer(n)))
+  }
+  invisible(NULL)
+}
+
+#' Report the optim / vmmin mode comparison
+#'
+#' One \code{message()} per call. "exact mismatches" counts group modes where
+#' vmmin with the R f2/f3 differs from \code{optim} in any bit of the mode,
+#' value or Hessian; "flagged" counts those where vmmin with the C++ f2/f3
+#' exceeds the tolerances in glmbayesCore's \code{group_mode_vmmin.cpp}.
+#' Either count above zero adds "FLAG".
+#' @param mode_compare The \code{mode_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_mode_compare_message <- function(mode_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  mc <- as.list(mode_compare)
+  if (length(mc) == 0L || is.null(mc$calls) || mc$calls <= 0) {
+    message(sprintf(paste0("[%s mode compare] no comparisons (chain-major ",
+                           "path or family without C++ f2/f3)"), lbl))
+    return(invisible(NULL))
+  }
+  n <- mc$calls
+  flag <- if (mc$exact_mismatch > 0 || mc$flagged > 0) " FLAG" else ""
+  message(
+    sprintf("[%s mode compare] %d calls: exact mismatches %d, flagged %d%s",
+            lbl, as.integer(n), as.integer(mc$exact_mismatch),
+            as.integer(mc$flagged), flag),
+    sprintf("\n  max d %.3g, max rel df %.3g, max rel Hessian diff %.3g",
+            mc$max_d, mc$max_df, mc$max_hess),
+    sprintf("\n  time optim %.2f s, vmmin (R f2/f3) %.2f s, vmmin (C++) %.2f s",
+            mc$t_optim, mc$t_vmmin_r, mc$t_vmmin_cpp),
+    sprintf("\n  mean fn/gr calls: optim %.1f/%.1f, vmmin (C++) %.1f/%.1f",
+            mc$fn_optim / n, mc$gr_optim / n, mc$fn_vmmin / n,
+            mc$gr_vmmin / n)
+  )
+  invisible(NULL)
+}
+
 #' Indexed two-block sweep, C++ loop
 #'
 #' Same arguments and output as \code{.rGLMM_sweep_indexed}. Setup and the
@@ -707,9 +986,31 @@
 #' inside the C++ loop; \code{.two_block_ridge_attach} adds the ridge prior
 #' for Poisson, binomial and Gamma. It must be below 1.
 #' Developer options: \code{options(lmebayesCore.group_major = FALSE)}
-#' selects the chain-major groups block (the R twin's loop order), and
+#' selects the chain-major groups block (the R twin's loop order),
 #' \code{options(lmebayesCore.group_check = TRUE)} checks every group-major
-#' mode and envelope against \code{rNormalGLM} (doubles the groups cost).
+#' mode and envelope against \code{rNormalGLM} (doubles the groups cost), and
+#' \code{options(lmebayesCore.block_timing = TRUE)} reports where the sweep
+#' time went (\code{.two_block_timing_message}).
+#' The group modes are found with vmmin and the C++ f2/f3;
+#' \code{options(lmebayesCore.mode_method = "optim")} uses \code{optim}
+#' instead, and \code{"compare"} keeps \code{optim} and reports its agreement
+#' with vmmin (\code{.two_block_mode_compare_message}).
+#' The envelope grid is built in C++;
+#' \code{options(lmebayesCore.setup_method = "R")} uses \code{EnvelopeOpt} /
+#' \code{expand.grid} instead, and \code{"compare"} builds both, keeps the R
+#' grid and stops on any difference (\code{.two_block_setup_compare_message}).
+#' After the first sweep, each vmmin search starts from the previous sweep's
+#' mode for that chain and group, moved by the Gaussian step for the change
+#' in prior mean; \code{options(lmebayesCore.warm_start = "cold")} starts
+#' every search at the prior mean, and \code{"compare"} runs both, keeps
+#' the cold result and reports their agreement
+#' (\code{.two_block_warm_compare_message}).
+#' The Hessian at each vmmin mode is \code{X' diag(w) X + P} (the optimhess
+#' finite-difference one when that is not finite or not positive definite);
+#' \code{options(lmebayesCore.hessian = "numeric")} always uses the finite
+#' differences, and \code{"compare"} computes both, keeps the finite
+#' differences and reports their agreement
+#' (\code{.two_block_hess_compare_message}).
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -767,8 +1068,28 @@
     if (is.null(stage_label)) "" else as.character(stage_label[1L]),
     rwt,
     group_major = !isFALSE(getOption("lmebayesCore.group_major", TRUE)),
-    group_check = isTRUE(getOption("lmebayesCore.group_check", FALSE))
+    group_check = isTRUE(getOption("lmebayesCore.group_check", FALSE)),
+    mode_method = .two_block_mode_method(),
+    setup_method = .two_block_setup_method(),
+    warm_method = .two_block_warm_method(),
+    hess_method = .two_block_hess_method()
   )
+  if (isTRUE(getOption("lmebayesCore.block_timing", FALSE))) {
+    .two_block_timing_message(state$timing, stage_label, n_chains,
+                              inner_sweeps, state$mode_timing)
+  }
+  if (identical(getOption("lmebayesCore.mode_method"), "compare")) {
+    .two_block_mode_compare_message(state$mode_compare, stage_label)
+  }
+  if (identical(getOption("lmebayesCore.setup_method"), "compare")) {
+    .two_block_setup_compare_message(state$setup_compare, stage_label)
+  }
+  if (identical(getOption("lmebayesCore.warm_start"), "compare")) {
+    .two_block_warm_compare_message(state$warm_compare, stage_label)
+  }
+  if (identical(getOption("lmebayesCore.hessian"), "compare")) {
+    .two_block_hess_compare_message(state$hessian_compare, stage_label)
+  }
   out <- .two_block_finish(
     state, prep$tau2, index_map, design, re_names, collect_block1,
     stage_label = stage_label, fixef_mode = fixef_mode,

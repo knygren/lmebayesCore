@@ -9,6 +9,10 @@
 #include "glmbayesCore_calls.h"
 #include "simfuncs_twoblock.h"
 
+#include <algorithm>
+#include <chrono>
+#include <vector>
+
 using namespace Rcpp;
 
 namespace glmbayes {
@@ -27,6 +31,25 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 }
 
 namespace {
+
+// Fold one named rNormalGLMGroupChains vector (setup_timing, mode_compare)
+// into `acc` by name: max_* entries take the maximum, all others are summed.
+void named_add(NumericVector& acc, const NumericVector& x) {
+  if (x.size() == 0) return;
+  if (acc.size() == 0) {
+    acc = clone(x);
+    return;
+  }
+  const CharacterVector nm = x.names();
+  for (R_xlen_t i = 0; i < x.size() && i < acc.size(); ++i) {
+    const std::string field = as<std::string>(nm[i]);
+    if (field.compare(0, 4, "max_") == 0) {
+      if (!(x[i] <= acc[i])) acc[i] = x[i];
+    } else {
+      acc[i] += x[i];
+    }
+  }
+}
 
 // Cross-chain mean and covariance (denominator n - 1, NA when n < 2) of the
 // stacked population coefficients after sweep `mi`; components in order,
@@ -76,7 +99,8 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
                      const NumericVector& iters_ranef_in, int inner_sweeps,
                      bool use_mode, bool progbar, const std::string& stage_label,
                      double rwt, SweepObserver* observer, bool group_major,
-                     bool group_check) {
+                     bool group_check, int mode_method, int setup_method,
+                     int warm_method, int hess_method) {
   if (!(rwt >= 0.0 && rwt < 1.0)) {
     stop("rwt must be in [0, 1); the ridge term needed at rwt = 1 is not implemented yet.");
   }
@@ -125,6 +149,29 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
   std::vector<GroupData> gdata;
   if (group_major) gdata = groups_data(spec);
 
+  // Seconds over the whole call: block-1 parts from rNormalGLMGroupChains
+  // (group-major only), then block-1 and block-2 wall time.
+  double t_parts[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
+  double t_block1 = 0.0, t_block2 = 0.0;
+  // rNormalGLMGroupChains setup_timing and mode_compare, combined over calls
+  // (see header).
+  NumericVector setup_parts;
+  NumericVector mode_parts;
+  NumericVector setup_cmp;
+  NumericVector mode_cmp;
+  NumericVector warm_cmp;
+  NumericVector hess_cmp;
+
+  // Previous mode, prior mean and mode Hessian per (chain i, group j), at
+  // index i * J + j; filled only when warm starts are on.
+  const bool warm = group_major && warm_method != 0;
+  const int l1 = spec.l1;
+  const std::size_t n_slots = warm ? static_cast<std::size_t>(n) * J : 0;
+  std::vector<char> warm_has(n_slots, 0);
+  std::vector<double> warm_b(n_slots * l1);
+  std::vector<double> warm_mu(n_slots * l1);
+  std::vector<double> warm_A1(n_slots * l1 * l1);
+
   for (int m = 1; m <= inner_sweeps; ++m) {
     checkUserInterrupt();
     const int mi = m - 1;
@@ -133,6 +180,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
     const std::string prefix_population =
         sweep_progbar_prefix(stage_label, m, inner_sweeps, "fixef");
 
+    auto t_start = std::chrono::steady_clock::now();
     if (group_major) {
       std::vector<NumericMatrix> mu_D;
       const NumericVector mu_all = groups_prior_mean_all(spec, fixef, n, &mu_D);
@@ -151,10 +199,66 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
 
       std::vector<double> iters_sum(n, 0.0);
       if (!active.empty()) {
+        const int na = static_cast<int>(active.size());
         for (int j = 0; j < J; ++j) {
+          NumericMatrix start(0, 0);
+          if (warm) {
+            start = NumericMatrix(l1, na);
+            std::fill(start.begin(), start.end(), NA_REAL);
+            const arma::mat Pj(const_cast<double*>(gdata[j].P.begin()), l1, l1,
+                               false);
+            for (int c = 0; c < na; ++c) {
+              const std::size_t s = static_cast<std::size_t>(active[c]) * J + j;
+              if (!warm_has[s]) continue;
+              const double* mu_new =
+                  &mu_all[static_cast<R_xlen_t>(l1) *
+                          (j + static_cast<R_xlen_t>(J) * active[c])];
+              arma::vec dmu(l1);
+              for (int a = 0; a < l1; ++a) {
+                dmu[a] = mu_new[a] - warm_mu[s * l1 + a];
+              }
+              const arma::mat A1(&warm_A1[s * l1 * l1], l1, l1, false);
+              arma::vec step;
+              if (!arma::solve(step, A1, Pj * dmu,
+                               arma::solve_opts::no_approx)) {
+                continue;
+              }
+              for (int a = 0; a < l1; ++a) {
+                start(a, c) = warm_b[s * l1 + a] + step[a];
+              }
+            }
+          }
           const GroupChainsDraw d1 =
-              group_chains_draw(spec, gdata[j], mu_all, j, active, group_check);
+              group_chains_draw(spec, gdata[j], mu_all, j, active, group_check,
+                                mode_method, setup_method, start, warm_method,
+                                hess_method);
           const NumericMatrix& cj = use_mode ? d1.coef_mode : d1.coef;
+          for (int p = 0; p < 5 && p < d1.timing.size(); ++p) {
+            t_parts[p] += d1.timing[p];
+          }
+          named_add(setup_parts, d1.setup_timing);
+          named_add(mode_parts, d1.mode_timing);
+          named_add(setup_cmp, d1.setup_compare);
+          named_add(mode_cmp, d1.mode_compare);
+          named_add(warm_cmp, d1.warm_compare);
+          named_add(hess_cmp, d1.hessian_compare);
+          if (warm && d1.mode_hessian.nrow() == l1 * l1 &&
+              d1.mode_hessian.ncol() == na) {
+            for (int c = 0; c < na; ++c) {
+              const std::size_t s = static_cast<std::size_t>(active[c]) * J + j;
+              const double* mu_new =
+                  &mu_all[static_cast<R_xlen_t>(l1) *
+                          (j + static_cast<R_xlen_t>(J) * active[c])];
+              for (int a = 0; a < l1; ++a) {
+                warm_b[s * l1 + a] = d1.coef_mode(c, a);
+                warm_mu[s * l1 + a] = mu_new[a];
+              }
+              for (int k = 0; k < l1 * l1; ++k) {
+                warm_A1[s * l1 * l1 + k] = d1.mode_hessian(k, c);
+              }
+              warm_has[s] = 1;
+            }
+          }
           for (int c = 0; c < static_cast<int>(active.size()); ++c) {
             const int i = active[c];
             for (int a = 0; a < spec.l1; ++a) {
@@ -212,7 +316,10 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
         lmecore::progress_bar_finish(false);
       }
     }
+    t_block1 += std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - t_start).count();
 
+    t_start = std::chrono::steady_clock::now();
     for (int i = 0; i < n; ++i) {
       NumericMatrix b_i(J, p_re);
       for (int k = 0; k < p_re; ++k) {
@@ -240,6 +347,8 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
     if (progbar) {
       lmecore::progress_bar_finish(m == inner_sweeps);
     }
+    t_block2 += std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - t_start).count();
     sweep_summary(fixef, col_off, n, p_tot, mi, stacked, sweep_mean, sweep_cov);
     if (progbar && n <= 1) {
       lmecore::progress_bar(
@@ -255,7 +364,18 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
       Named("iters") = iters,
       Named("iters_ranef") = iters_ranef,
       Named("sweep_mean") = sweep_mean,
-      Named("sweep_cov") = sweep_cov);
+      Named("sweep_cov") = sweep_cov,
+      Named("timing") = NumericVector::create(
+          Named("mode") = t_parts[0], Named("setup") = t_parts[1],
+          Named("eval") = t_parts[2], Named("finalize") = t_parts[3],
+          Named("simulate") = t_parts[4], Named("block1") = t_block1,
+          Named("block2") = t_block2),
+      Named("setup_timing") = setup_parts,
+      Named("mode_timing") = mode_parts,
+      Named("setup_compare") = setup_cmp,
+      Named("mode_compare") = mode_cmp,
+      Named("warm_compare") = warm_cmp,
+      Named("hessian_compare") = hess_cmp);
 }
 
 }  // namespace twoblock

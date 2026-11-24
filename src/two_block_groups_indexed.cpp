@@ -154,7 +154,10 @@ NumericVector groups_prior_mean_all(const TwoBlockIndexSpec& spec,
 GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
                                   const GroupData& gd,
                                   const NumericVector& mu_all, int j,
-                                  const std::vector<int>& chains, bool check) {
+                                  const std::vector<int>& chains, bool check,
+                                  int mode_method, int setup_method,
+                                  const NumericMatrix& start,
+                                  int warm_method, int hess_method) {
   const int l1 = spec.l1;
   const int J = spec.J;
   const int nc = static_cast<int>(chains.size());
@@ -173,17 +176,48 @@ GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
   const RObject n_envopt = wrap(spec.n_envopt);
   const RObject check_r = wrap(check);
   const RObject off = wrap(false);
+  const RObject mode_method_r = wrap(mode_method);
+  const RObject setup_method_r = wrap(setup_method);
+  const RObject warm_method_r = wrap(warm_method);
+  const RObject hess_method_r = wrap(hess_method);
+  const bool has_start = start.nrow() == l1 && start.ncol() == nc;
+  const RObject start_r = has_start ? RObject(start) : RObject(R_NilValue);
   List out;
   {
     glmbayes::rng::RSyncScope rng_sync;
     out = glmbayesCore_rNormalGLMGroupChains(
         gd.y, gd.x, gd.offset, gd.wt, disp, mu, gd.P, spec.f2, spec.f3,
-        family, link, gridtype, n_envopt, off, check_r, off);
+        family, link, gridtype, n_envopt, off, check_r, off, mode_method_r,
+        setup_method_r, start_r, warm_method_r, hess_method_r);
   }
   GroupChainsDraw d;
   d.coef = as<NumericMatrix>(out["coefficients"]);
   d.coef_mode = as<NumericMatrix>(out["coef.mode"]);
+  d.mode_hessian = out.containsElementNamed("mode_hessian")
+                       ? as<NumericMatrix>(out["mode_hessian"])
+                       : NumericMatrix(0, 0);
+  d.warm_compare = out.containsElementNamed("warm_compare")
+                       ? as<NumericVector>(out["warm_compare"])
+                       : NumericVector(0);
+  d.hessian_compare = out.containsElementNamed("hessian_compare")
+                          ? as<NumericVector>(out["hessian_compare"])
+                          : NumericVector(0);
   d.iters = as<NumericVector>(out["iters"]);
+  d.timing = out.containsElementNamed("timing")
+                 ? as<NumericVector>(out["timing"])
+                 : NumericVector(5);
+  d.setup_timing = out.containsElementNamed("setup_timing")
+                       ? as<NumericVector>(out["setup_timing"])
+                       : NumericVector(0);
+  d.mode_timing = out.containsElementNamed("mode_timing")
+                      ? as<NumericVector>(out["mode_timing"])
+                      : NumericVector(0);
+  d.setup_compare = out.containsElementNamed("setup_compare")
+                        ? as<NumericVector>(out["setup_compare"])
+                        : NumericVector(0);
+  d.mode_compare = out.containsElementNamed("mode_compare")
+                       ? as<NumericVector>(out["mode_compare"])
+                       : NumericVector(0);
   return d;
 }
 

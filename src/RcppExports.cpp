@@ -352,8 +352,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // two_block_sweep_cpp_export
-Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, double rwt, bool group_major, bool group_check);
-RcppExport SEXP _lmebayesCore_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP rwtSEXP, SEXP group_majorSEXP, SEXP group_checkSEXP) {
+Rcpp::List two_block_sweep_cpp_export(const Rcpp::List& spec, const Rcpp::NumericVector& b, const Rcpp::List& fixef, const Rcpp::NumericMatrix& iters, const Rcpp::NumericVector& iters_ranef, int inner_sweeps, bool use_mode, bool progbar, const std::string& stage_label, double rwt, bool group_major, bool group_check, int mode_method, int setup_method, int warm_method, int hess_method);
+RcppExport SEXP _lmebayesCore_two_block_sweep_cpp_export(SEXP specSEXP, SEXP bSEXP, SEXP fixefSEXP, SEXP itersSEXP, SEXP iters_ranefSEXP, SEXP inner_sweepsSEXP, SEXP use_modeSEXP, SEXP progbarSEXP, SEXP stage_labelSEXP, SEXP rwtSEXP, SEXP group_majorSEXP, SEXP group_checkSEXP, SEXP mode_methodSEXP, SEXP setup_methodSEXP, SEXP warm_methodSEXP, SEXP hess_methodSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -369,7 +369,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type rwt(rwtSEXP);
     Rcpp::traits::input_parameter< bool >::type group_major(group_majorSEXP);
     Rcpp::traits::input_parameter< bool >::type group_check(group_checkSEXP);
-    rcpp_result_gen = Rcpp::wrap(two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check));
+    Rcpp::traits::input_parameter< int >::type mode_method(mode_methodSEXP);
+    Rcpp::traits::input_parameter< int >::type setup_method(setup_methodSEXP);
+    Rcpp::traits::input_parameter< int >::type warm_method(warm_methodSEXP);
+    Rcpp::traits::input_parameter< int >::type hess_method(hess_methodSEXP);
+    rcpp_result_gen = Rcpp::wrap(two_block_sweep_cpp_export(spec, b, fixef, iters, iters_ranef, inner_sweeps, use_mode, progbar, stage_label, rwt, group_major, group_check, mode_method, setup_method, warm_method, hess_method));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -390,7 +394,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lmebayesCore_two_block_population_response_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_response_cpp_export, 3},
     {"_lmebayesCore_two_block_population_draw_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_draw_cpp_export, 3},
     {"_lmebayesCore_two_block_population_write_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_population_write_cpp_export, 5},
-    {"_lmebayesCore_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_sweep_cpp_export, 12},
+    {"_lmebayesCore_two_block_sweep_cpp_export", (DL_FUNC) &_lmebayesCore_two_block_sweep_cpp_export, 16},
     {NULL, NULL, 0}
 };
 

@@ -566,16 +566,17 @@ NULL
   ## With a finite ridge count and no ING components, the main stage starts at
   ## the joint mode with a count certified for that start, so the pilot is
   ## only a timing run:
-  ## a few chains of the main sampler whose draws the main stage does not use.
+  ## a few chains of the main sampler, for at most .rGLMM_timing_sweeps()
+  ## sweeps, whose draws the main stage does not use.
   timing_only <- run_pilot && !isTRUE(any_non_normal) &&
     !is.null(ridge) && is.finite(ridge$m_convergence)
 
   if (timing_only) {
-    m_convergence_pilot <- as.integer(ridge$m_convergence)
+    m_convergence_pilot <- .rGLMM_timing_sweeps(ridge$m_convergence)
     pilot_plan <- list(
       n_pilot         = .rGLMM_timing_chains(n),
       n_pilot_source  = "timing",
-      m_convergence   = m_convergence_pilot,
+      m_convergence   = as.integer(ridge$m_convergence),
       m_certificate   = NULL,
       pilot_cost_opt  = NULL,
       n_pilot_gap_tol = NULL
@@ -1151,6 +1152,18 @@ NULL
   as.integer(min(n, max(10L, n %/% 100L)))
 }
 
+#' Sweeps in the timing run: the main-stage count, at most \code{cap}
+#'
+#' The timing run only measures the cost per chain-sweep, which the main
+#' estimate scales by \code{n * m_convergence}; its draws are not reused.
+#' @param m Main-stage sweep count.
+#' @param cap Largest number of timing sweeps.
+#' @return Integer sweep count.
+#' @noRd
+.rGLMM_timing_sweeps <- function(m, cap = 50L) {
+  as.integer(min(as.integer(m), as.integer(cap)))
+}
+
 #' Format elapsed seconds as "12.3 s", "4.5 min" or "1.2 h"
 #' @noRd
 .rGLMM_format_secs <- function(secs) {
@@ -1251,7 +1264,8 @@ NULL
 #' This is the main-stage sweep count for a non-Gaussian model, from a start
 #' at the joint (ICM) mode, through \code{.rGLMM_k_prop56}. \code{b_mode} must
 #' be the ICM group effects, which are also the ridge Taylor centres. Without
-#' ING components the pilot is then a timing run at the same count; with ING
+#' ING components the pilot is then a timing run of at most
+#' \code{.rGLMM_timing_sweeps()} sweeps; with ING
 #' components it stays on the Theorem 3 schedule.
 #' @noRd
 .rGLMM_ridge_sweep_bound <- function(

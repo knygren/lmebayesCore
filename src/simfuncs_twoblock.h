@@ -177,21 +177,49 @@ Rcpp::NumericVector groups_prior_mean_all(
     std::vector<Rcpp::NumericMatrix>* mu_D = nullptr);
 
 /// Group `j` drawn for the chains in `chains`: `coef` and `coef_mode` are
-/// chains.size() x ncol(D), `iters` has one entry per chain.
+/// chains.size() x ncol(D), `iters` has one entry per chain. `timing` is
+/// seconds in mode, setup, eval, finalize, simulate (rNormalGLMGroupChains).
+/// `setup_timing` and `mode_timing` split setup and mode finding into their
+/// parts, `setup_compare` counts the
+/// R / C++ grid setup comparisons and `mode_compare` is the optim / vmmin
+/// comparison (all named; empty when the installed glmbayesCore does not
+/// return them). `mode_hessian` is ncol(D)^2 x chains.size() (column c is
+/// chain c's mode Hessian A1, column-major), `warm_compare` the warm /
+/// cold start comparison and `hessian_compare` the exact / finite-difference
+/// Hessian comparison.
 struct GroupChainsDraw {
   Rcpp::NumericMatrix coef;
   Rcpp::NumericMatrix coef_mode;
+  Rcpp::NumericMatrix mode_hessian;
   Rcpp::NumericVector iters;
+  Rcpp::NumericVector timing;
+  Rcpp::NumericVector setup_timing;
+  Rcpp::NumericVector mode_timing;
+  Rcpp::NumericVector setup_compare;
+  Rcpp::NumericVector mode_compare;
+  Rcpp::NumericVector warm_compare;
+  Rcpp::NumericVector hessian_compare;
 };
 
 /// One draw of group `j` per chain in `chains`, prior means taken from
 /// `mu_all` (groups_prior_mean_all). `check` compares each chain's mode and
 /// envelope with rNormalGLM and stops on a difference (validation only).
+/// `mode_method`: 0 optim, 1 vmmin with C++ f2/f3, 2 optim compared against
+/// vmmin. `setup_method`: 0 R grid setup, 1 C++, 2 both compared exactly
+/// (rNormalGLMGroupChains). `start` is empty or ncol(D) x chains.size()
+/// starting modes (a column with an NA starts cold); `warm_method`: 0 cold,
+/// 1 warm start, 2 both compared (cold kept). `hess_method`: 0 finite
+/// differences, 1 exact (finite differences if not finite or not PD),
+/// 2 both compared (finite differences kept).
 GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
                                   const GroupData& gd,
                                   const Rcpp::NumericVector& mu_all, int j,
                                   const std::vector<int>& chains,
-                                  bool check = false);
+                                  bool check = false, int mode_method = 0,
+                                  int setup_method = 0,
+                                  const Rcpp::NumericMatrix& start =
+                                      Rcpp::NumericMatrix(0, 0),
+                                  int warm_method = 0, int hess_method = 0);
 
 /// Columns of a groups draw in stored `b` order: J x p_re.
 Rcpp::NumericMatrix groups_place(const TwoBlockIndexSpec& spec,
@@ -233,6 +261,21 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// order. Both give the same conditional draws; the random number stream is
 /// used in a different order. `group_check` is passed to group_chains_draw
 /// (validation only, doubles the groups cost).
+/// The list also has `timing`: seconds over the call in the block-1 parts
+/// mode, setup, eval, finalize, simulate (group-major only; 0 otherwise),
+/// then block1 and block2 wall time. `mode_method` is passed to
+/// group_chains_draw (group-major only), and so is `setup_method`. The list
+/// also has `setup_timing`, `mode_timing` and `setup_compare` (summed over
+/// calls) and
+/// `mode_compare` (zero unless mode_method is 2): counts and times summed
+/// over calls, max_* the maximum.
+/// `warm_method` (group-major only): 0 cold starts; 1 starts each chain's
+/// group mode search from b_old + A1_old^{-1} P (mu_new - mu_old), the
+/// previous sweep's mode, Hessian and prior mean for that chain and group in
+/// this call (the first sweep starts cold); 2 runs both and keeps the cold
+/// result. The list also has `warm_compare`, combined like mode_compare.
+/// `hess_method` (group-major only) is passed to group_chains_draw; the list
+/// also has `hessian_compare`, combined the same way.
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,
@@ -243,7 +286,11 @@ Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            double rwt = 0.0,
                            SweepObserver* observer = nullptr,
                            bool group_major = true,
-                           bool group_check = false);
+                           bool group_check = false,
+                           int mode_method = 0,
+                           int setup_method = 0,
+                           int warm_method = 0,
+                           int hess_method = 0);
 
 }  // namespace twoblock
 }  // namespace sim
