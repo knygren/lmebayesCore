@@ -883,6 +883,20 @@ NULL
       fixef_mode   = fixef_mode,
       fixef_init   = fixef_mode
     )
+    if (!is.null(tv_tol)) {
+      pilot_res$sweep_history <- .two_block_attach_tv(
+        pilot_res$sweep_history,
+        .two_block_tv_by_sweep(
+          m_convergence_pilot, rate = rate, D0 = if (timing_only) 0 else D_max^2
+        ),
+        tv_tol,
+        tv_ridge = if (timing_only) {
+          .two_block_tv_by_sweep(m_convergence_pilot, ridge = ridge)
+        } else {
+          NULL
+        }
+      )
+    }
   } else {
     if (!is.null(ridge) && is.finite(ridge$m_convergence)) {
       m_convergence_used <- as.integer(ridge$m_convergence)
@@ -951,6 +965,18 @@ NULL
     fixef_mode   = fixef_mode,
     fixef_init   = fixef_init
   )
+  if (!is.null(tv_tol)) {
+    main_res$sweep_history <- .two_block_attach_tv(
+      main_res$sweep_history,
+      .two_block_tv_by_sweep(m_convergence_used, rate = rate),
+      tv_tol,
+      tv_ridge = if (ridge_m_ok) {
+        .two_block_tv_by_sweep(m_convergence_used, ridge = ridge)
+      } else {
+        NULL
+      }
+    )
+  }
 
   out <- .lmebayes_assemble_reg_result(
     staged              = main_res,
@@ -1316,6 +1342,65 @@ NULL
     k             = k,
     m_convergence = m
   )
+}
+
+#' Certified TV bound at each sweep of a stage
+#'
+#' The stored group-effect draw lags one block update, so sweep \code{l}
+#' carries the bound at \code{l - 1}, matching \code{m = k + 1}. Ridge path:
+#' \code{2 * pnorm(D * rho^(l - 1) / 2) - 1} (Proposition 5.6). Otherwise the
+#' Theorem 3 bound from \code{rate}; sweep 1 is reported as 1.
+#' @param m Sweeps in the stage.
+#' @param ridge Result of \code{.rGLMM_ridge_sweep_bound}, or \code{NULL}.
+#' @param rate \code{two_block_rate} object used when \code{ridge} is unusable.
+#' @param D0 Squared standardized start distance for the Theorem 3 bound.
+#' @return \code{list(tv_bound, rho)}, or \code{NULL} when neither bound is
+#'   available.
+#' @noRd
+.two_block_tv_by_sweep <- function(m, ridge = NULL, rate = NULL, D0 = 0) {
+  m <- as.integer(m)[1L]
+  if (is.na(m) || m < 1L) return(NULL)
+  l <- seq_len(m)
+  if (!is.null(ridge) && is.finite(ridge$lambda_star) && is.finite(ridge$D) &&
+      ridge$lambda_star < 1) {
+    rho <- max(ridge$lambda_star, 0)
+    tv <- 2 * stats::pnorm(ridge$D * rho^(l - 1L) / 2) - 1
+    return(list(tv_bound = pmin(pmax(tv, 0), 1), rho = rho))
+  }
+  if (is.null(rate) || !inherits(rate, "two_block_rate")) return(NULL)
+  tv <- rep(1, m)
+  if (m > 1L) {
+    tv[-1L] <- two_block_tv_bound(rate, l[-1L] - 1L, method = "theorem3", D0 = D0)
+  }
+  list(tv_bound = tv, rho = rate$lambda_star)
+}
+
+#' Attach per-sweep TV bounds to a sweep history
+#'
+#' \code{tv} (the local-Gaussian bound at the mode) drives the plots'
+#' reference window; the ridge bound, when supplied, is kept alongside for
+#' comparison.
+#' @param hist \code{two_block_sweep_history} object or \code{NULL}.
+#' @param tv Result of \code{.two_block_tv_by_sweep}, or \code{NULL}.
+#' @param tv_ridge Same, from the ridge bound, or \code{NULL}.
+#' @return \code{hist}, with \code{tv_bound}, \code{tv_tol}, \code{rho} and
+#'   \code{tv_source} when \code{tv} is available and the lengths agree, plus
+#'   \code{tv_bound_ridge} and \code{rho_ridge} from \code{tv_ridge}.
+#' @noRd
+.two_block_attach_tv <- function(hist, tv, tv_tol, tv_ridge = NULL) {
+  if (is.null(hist) || is.null(tv) || is.null(tv_tol)) return(hist)
+  n_sw <- hist$n_sweeps
+  if (is.null(n_sw)) n_sw <- length(tv$tv_bound)
+  if (length(tv$tv_bound) != n_sw) return(hist)
+  hist$tv_bound  <- tv$tv_bound
+  hist$tv_tol    <- tv_tol
+  hist$rho       <- tv$rho
+  hist$tv_source <- "local-Gaussian at mode"
+  if (!is.null(tv_ridge) && length(tv_ridge$tv_bound) == n_sw) {
+    hist$tv_bound_ridge <- tv_ridge$tv_bound
+    hist$rho_ridge      <- tv_ridge$rho
+  }
+  hist
 }
 
 #' Format v6 batch output for staged \code{fixef.*} naming

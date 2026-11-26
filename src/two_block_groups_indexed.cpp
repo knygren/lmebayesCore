@@ -202,6 +202,9 @@ GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
   d.hessian_compare = out.containsElementNamed("hessian_compare")
                           ? as<NumericVector>(out["hessian_compare"])
                           : NumericVector(0);
+  d.newton_compare = out.containsElementNamed("newton_compare")
+                         ? as<NumericVector>(out["newton_compare"])
+                         : NumericVector(0);
   d.iters = as<NumericVector>(out["iters"]);
   d.timing = out.containsElementNamed("timing")
                  ? as<NumericVector>(out["timing"])

@@ -185,8 +185,8 @@ Rcpp::NumericVector groups_prior_mean_all(
 /// comparison (all named; empty when the installed glmbayesCore does not
 /// return them). `mode_hessian` is ncol(D)^2 x chains.size() (column c is
 /// chain c's mode Hessian A1, column-major), `warm_compare` the warm /
-/// cold start comparison and `hessian_compare` the exact / finite-difference
-/// Hessian comparison.
+/// cold start comparison, `hessian_compare` the exact / finite-difference
+/// Hessian comparison and `newton_compare` the Newton / vmmin comparison.
 struct GroupChainsDraw {
   Rcpp::NumericMatrix coef;
   Rcpp::NumericMatrix coef_mode;
@@ -199,13 +199,15 @@ struct GroupChainsDraw {
   Rcpp::NumericVector mode_compare;
   Rcpp::NumericVector warm_compare;
   Rcpp::NumericVector hessian_compare;
+  Rcpp::NumericVector newton_compare;
 };
 
 /// One draw of group `j` per chain in `chains`, prior means taken from
 /// `mu_all` (groups_prior_mean_all). `check` compares each chain's mode and
 /// envelope with rNormalGLM and stops on a difference (validation only).
 /// `mode_method`: 0 optim, 1 vmmin with C++ f2/f3, 2 optim compared against
-/// vmmin. `setup_method`: 0 R grid setup, 1 C++, 2 both compared exactly
+/// vmmin, 3 Newton (C++ f2/f3 + exact Hessian), 4 vmmin compared against 3,
+/// 5 Newton (fam f2_f3_f4), 6 vmmin compared against 5. `setup_method`: 0 R grid setup, 1 C++, 2 both compared exactly
 /// (rNormalGLMGroupChains). `start` is empty or ncol(D) x chains.size()
 /// starting modes (a column with an NA starts cold); `warm_method`: 0 cold,
 /// 1 warm start, 2 both compared (cold kept). `hess_method`: 0 finite
@@ -275,7 +277,7 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// this call (the first sweep starts cold); 2 runs both and keeps the cold
 /// result. The list also has `warm_compare`, combined like mode_compare.
 /// `hess_method` (group-major only) is passed to group_chains_draw; the list
-/// also has `hessian_compare`, combined the same way.
+/// also has `hessian_compare` and `newton_compare`, combined the same way.
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,

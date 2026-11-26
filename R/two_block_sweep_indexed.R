@@ -737,8 +737,9 @@
     if (length(mode_timing) > 0L && mt_total > 0) {
       mt <- as.list(mode_timing)
       fmt <- function(nm, s) sprintf("%s %.0f%% (%.1f s)", nm, 100 * s / mt_total, s)
-      top <- c("prep", "optim", "vmmin", "hessian", "fit_list", "compare",
-               "standardize")
+      top <- c("prep", "optim", "vmmin", "hessian", "newton", "fit_list",
+               "compare", "standardize")
+      top <- top[top %in% names(mt)]
       secs <- vapply(top, function(p) mt[[p]], numeric(1))
       pieces <- character(0)
       for (p in top) {
@@ -759,7 +760,8 @@
         mode_line <- paste0(mode_line, sprintf(
           "\n  %.0f mode calls, %.0f us each", nc, 1e6 * mt_total / nc))
         if (!is.null(nk) && nk > 0) {
-          k_all <- mt[["vmmin_kernel"]] + mt[["hessian_kernel"]]
+          k_all <- mt[["vmmin_kernel"]] + mt[["hessian_kernel"]] +
+            if (is.null(mt[["newton_kernel"]])) 0 else mt[["newton_kernel"]]
           mode_line <- paste0(mode_line, sprintf(
             "; %.1f kernel calls per mode call, %.1f us each",
             nk / nc, 1e6 * k_all / nk))
@@ -776,16 +778,74 @@
 #' Group mode finder selected by \code{options(lmebayesCore.mode_method)}
 #'
 #' @return Integer code for \code{rNormalGLMGroupChains}: 0 \code{"optim"},
-#'   1 \code{"vmmin"} (default), 2 \code{"compare"}.
+#'   1 \code{"vmmin"}, 2 \code{"compare"}, 3 \code{"newton"}
+#'   (Newton on the C++ f2/f3 and exact Hessian), 4 \code{"newton_compare"}
+#'   (vmmin kept, compared with 3), 5 \code{"newton_f4"} (default; Newton on
+#'   the allocation-free fam f2_f3_f4 kernels), 6 \code{"newton_f4_compare"}
+#'   (vmmin kept, compared with 5).
 #' @noRd
 .two_block_mode_method <- function() {
-  opt <- getOption("lmebayesCore.mode_method", "vmmin")
-  codes <- c(optim = 0L, vmmin = 1L, compare = 2L)
+  opt <- getOption("lmebayesCore.mode_method", "newton_f4")
+  codes <- c(optim = 0L, vmmin = 1L, compare = 2L, newton = 3L,
+             newton_compare = 4L, newton_f4 = 5L, newton_f4_compare = 6L)
   if (!is.character(opt) || length(opt) != 1L || !opt %in% names(codes)) {
-    stop("options(lmebayesCore.mode_method) must be \"optim\", \"vmmin\" ",
-         "or \"compare\".")
+    stop("options(lmebayesCore.mode_method) must be one of ",
+         paste0("\"", names(codes), "\"", collapse = ", "), ".")
   }
   codes[[opt]]
+}
+
+#' Report the Newton / vmmin mode comparison
+#'
+#' One \code{message()} per call. "flagged" counts group modes where Newton
+#' exceeds the tolerances in glmbayesCore's \code{group_mode_vmmin.cpp}
+#' relative to vmmin, or failed; "cold retries" counts warm Newton runs
+#' redone cold and "fallbacks" cold runs that also failed. With
+#' \code{"newton_f4_compare"} the last line checks the fam f2_f3_f4 kernels
+#' against the C++ f2/f3 and the exact Hessian at the Newton mode.
+#' @param newton_compare The \code{newton_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @param kernel_checks Whether to report the f2_f3_f4 kernel checks.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_newton_compare_message <- function(newton_compare, stage_label,
+                                              kernel_checks = FALSE) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  nc <- as.list(newton_compare)
+  if (length(nc) == 0L || is.null(nc$calls) || nc$calls <= 0) {
+    message(sprintf(paste0("[%s Newton compare] no comparisons (chain-major ",
+                           "path or family without C++ f2/f3)"), lbl))
+    return(invisible(NULL))
+  }
+  n <- nc$calls
+  flag <- if (nc$flagged > 0 || nc$fallback > 0) " FLAG" else ""
+  msg <- c(
+    sprintf(paste0("[%s Newton compare] %d calls: flagged %d, cold retries ",
+                   "%d, fallbacks %d, Newton lower f %d%s"),
+            lbl, as.integer(n), as.integer(nc$flagged),
+            as.integer(nc$cold_retry), as.integer(nc$fallback),
+            as.integer(nc$newton_lower), flag),
+    sprintf("\n  max d %.3g, max rel df %.3g, max rel Hessian diff %.3g",
+            nc$max_d, nc$max_df, nc$max_hess),
+    sprintf("\n  time vmmin %.2f s (%.1f us each), Newton %.2f s (%.1f us each)",
+            nc$t_vmmin, 1e6 * nc$t_vmmin / n,
+            nc$t_newton, 1e6 * nc$t_newton / n),
+    sprintf(paste0("\n  mean Newton iterations %.2f, evaluations %.2f ",
+                   "(%.2f with gradient and Hessian), backtracks %.2f"),
+            nc$iters / n, nc$fevals / n, nc$gevals / n, nc$backtracks / n)
+  )
+  if (isTRUE(kernel_checks)) {
+    msg <- c(msg, sprintf(paste0("\n  f2_f3_f4 kernels: max rel f diff %.3g, ",
+                                 "max grad diff %.3g, max rel Hessian diff ",
+                                 "%.3g"),
+                          nc$max_kf, nc$max_kgrad, nc$max_kH))
+  }
+  message(paste(msg, collapse = ""))
+  invisible(NULL)
 }
 
 #' Envelope grid setup selected by \code{options(lmebayesCore.setup_method)}
@@ -991,10 +1051,15 @@
 #' mode and envelope against \code{rNormalGLM} (doubles the groups cost), and
 #' \code{options(lmebayesCore.block_timing = TRUE)} reports where the sweep
 #' time went (\code{.two_block_timing_message}).
-#' The group modes are found with vmmin and the C++ f2/f3;
-#' \code{options(lmebayesCore.mode_method = "optim")} uses \code{optim}
-#' instead, and \code{"compare"} keeps \code{optim} and reports its agreement
-#' with vmmin (\code{.two_block_mode_compare_message}).
+#' The group modes are found with damped Newton on the fam f2_f3_f4 kernels
+#' (\code{options(lmebayesCore.mode_method = "newton_f4")}), falling back to
+#' vmmin when it fails; \code{"newton"} uses the C++ f2/f3 with the exact
+#' Hessian instead. \code{"vmmin"} uses vmmin and the C++ f2/f3,
+#' \code{"optim"} uses \code{optim}, and \code{"compare"} keeps \code{optim}
+#' and reports its agreement with vmmin
+#' (\code{.two_block_mode_compare_message}); \code{"newton_compare"} and
+#' \code{"newton_f4_compare"} keep vmmin and report its agreement with Newton
+#' (\code{.two_block_newton_compare_message}).
 #' The envelope grid is built in C++;
 #' \code{options(lmebayesCore.setup_method = "R")} uses \code{EnvelopeOpt} /
 #' \code{expand.grid} instead, and \code{"compare"} builds both, keeps the R
@@ -1080,6 +1145,13 @@
   }
   if (identical(getOption("lmebayesCore.mode_method"), "compare")) {
     .two_block_mode_compare_message(state$mode_compare, stage_label)
+  }
+  if (getOption("lmebayesCore.mode_method", "") %in%
+      c("newton_compare", "newton_f4_compare")) {
+    .two_block_newton_compare_message(
+      state$newton_compare, stage_label,
+      kernel_checks = identical(getOption("lmebayesCore.mode_method"),
+                                "newton_f4_compare"))
   }
   if (identical(getOption("lmebayesCore.setup_method"), "compare")) {
     .two_block_setup_compare_message(state$setup_compare, stage_label)
