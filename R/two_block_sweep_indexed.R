@@ -848,6 +848,50 @@
   invisible(NULL)
 }
 
+#' Report the serial / parallel group simulation comparison
+#'
+#' One \code{message()} per call, for
+#' \code{options(glmbayesCore.group_sim = "compare")}: the serial draws are
+#' kept; "flagged" counts chains where glmbayesCore's value-only fam kernel
+#' or the back-transform of the standardized mode differ from the serial
+#' path by more than 1e-10 (relative). The parallel run on the same
+#' envelopes is timed and its candidates per draw reported; its draws are
+#' discarded.
+#' @param sim_compare The \code{sim_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_sim_compare_message <- function(sim_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  sc <- as.list(sim_compare)
+  if (length(sc) == 0L || is.null(sc$calls) || sc$calls <= 0) {
+    message(sprintf(paste0("[%s sim compare] no comparisons (chain-major ",
+                           "path or family without an f2_value kernel)"),
+                    lbl))
+    return(invisible(NULL))
+  }
+  n <- sc$calls
+  flag <- if (sc$flagged > 0) " FLAG" else ""
+  msg <- c(
+    sprintf("[%s sim compare] %d draws: flagged %d%s", lbl, as.integer(n),
+            as.integer(sc$flagged), flag),
+    sprintf("\n  max rel f2 diff %.3g, max rel back-transform diff %.3g",
+            sc$max_kf, sc$max_transform),
+    sprintf(paste0("\n  time serial %.2f s (%.1f us each), parallel %.2f s ",
+                   "(%.1f us each)"),
+            sc$t_serial, 1e6 * sc$t_serial / n,
+            sc$t_parallel, 1e6 * sc$t_parallel / n),
+    sprintf("\n  candidates per draw: serial %.3f, parallel %.3f",
+            sc$iters_serial / n, sc$iters_parallel / n)
+  )
+  message(paste(msg, collapse = ""))
+  invisible(NULL)
+}
+
 #' Envelope grid setup selected by \code{options(lmebayesCore.setup_method)}
 #'
 #' @return Integer code for \code{rNormalGLMGroupChains}: 0 \code{"R"},
@@ -1076,6 +1120,11 @@
 #' differences, and \code{"compare"} computes both, keeps the finite
 #' differences and reports their agreement
 #' (\code{.two_block_hess_compare_message}).
+#' The group draws follow glmbayesCore's
+#' \code{options(glmbayesCore.group_sim)}: \code{"parallel"} (default;
+#' RcppParallel across chains, thread-local RNG, so \code{set.seed()} does
+#' not fix the draws), \code{"serial"} or \code{"compare"}
+#' (\code{.two_block_sim_compare_message}).
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -1155,6 +1204,9 @@
   }
   if (identical(getOption("lmebayesCore.setup_method"), "compare")) {
     .two_block_setup_compare_message(state$setup_compare, stage_label)
+  }
+  if (identical(getOption("glmbayesCore.group_sim"), "compare")) {
+    .two_block_sim_compare_message(state$sim_compare, stage_label)
   }
   if (identical(getOption("lmebayesCore.warm_start"), "compare")) {
     .two_block_warm_compare_message(state$warm_compare, stage_label)

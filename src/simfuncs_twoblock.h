@@ -186,7 +186,8 @@ Rcpp::NumericVector groups_prior_mean_all(
 /// return them). `mode_hessian` is ncol(D)^2 x chains.size() (column c is
 /// chain c's mode Hessian A1, column-major), `warm_compare` the warm /
 /// cold start comparison, `hessian_compare` the exact / finite-difference
-/// Hessian comparison and `newton_compare` the Newton / vmmin comparison.
+/// Hessian comparison, `newton_compare` the Newton / vmmin comparison and
+/// `sim_compare` the serial / parallel simulation comparison.
 struct GroupChainsDraw {
   Rcpp::NumericMatrix coef;
   Rcpp::NumericMatrix coef_mode;
@@ -200,6 +201,7 @@ struct GroupChainsDraw {
   Rcpp::NumericVector warm_compare;
   Rcpp::NumericVector hessian_compare;
   Rcpp::NumericVector newton_compare;
+  Rcpp::NumericVector sim_compare;
 };
 
 /// One draw of group `j` per chain in `chains`, prior means taken from
@@ -277,7 +279,8 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// this call (the first sweep starts cold); 2 runs both and keeps the cold
 /// result. The list also has `warm_compare`, combined like mode_compare.
 /// `hess_method` (group-major only) is passed to group_chains_draw; the list
-/// also has `hessian_compare` and `newton_compare`, combined the same way.
+/// also has `hessian_compare`, `newton_compare` and `sim_compare`, combined
+/// the same way.
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,
