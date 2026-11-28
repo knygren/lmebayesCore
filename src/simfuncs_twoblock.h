@@ -187,8 +187,9 @@ Rcpp::NumericVector groups_prior_mean_all(
 /// return them). `mode_hessian` is ncol(D)^2 x chains.size() (column c is
 /// chain c's mode Hessian A1, column-major), `warm_compare` the warm /
 /// cold start comparison, `hessian_compare` the exact / finite-difference
-/// Hessian comparison, `newton_compare` the Newton / vmmin comparison and
-/// `sim_compare` the serial / parallel simulation comparison.
+/// Hessian comparison, `newton_compare` the Newton / vmmin comparison,
+/// `sim_compare` the serial / parallel simulation comparison and
+/// `eval_compare` the legacy / batch envelope evaluation comparison.
 struct GroupChainsDraw {
   Rcpp::NumericMatrix coef;
   Rcpp::NumericMatrix coef_mode;
@@ -203,6 +204,7 @@ struct GroupChainsDraw {
   Rcpp::NumericVector hessian_compare;
   Rcpp::NumericVector newton_compare;
   Rcpp::NumericVector sim_compare;
+  Rcpp::NumericVector eval_compare;
 };
 
 /// One draw of group `j` per chain in `chains`, prior means taken from
@@ -331,7 +333,8 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// this call (the first sweep starts cold); 2 runs both and keeps the cold
 /// result. The list also has `warm_compare`, combined like mode_compare.
 /// `hess_method` (group-major only) is passed to group_chains_draw; the list
-/// also has `hessian_compare`, `newton_compare` and `sim_compare`, combined
+/// also has `hessian_compare`, `newton_compare`, `sim_compare` and
+/// `eval_compare`, combined
 /// the same way.
 /// The population draws follow population_draw_method(); the factors are
 /// built once per call, and `pop_compare` holds the PopulationCompare fields

@@ -208,6 +208,9 @@ GroupChainsDraw group_chains_draw(const TwoBlockIndexSpec& spec,
   d.sim_compare = out.containsElementNamed("sim_compare")
                       ? as<NumericVector>(out["sim_compare"])
                       : NumericVector(0);
+  d.eval_compare = out.containsElementNamed("eval_compare")
+                       ? as<NumericVector>(out["eval_compare"])
+                       : NumericVector(0);
   d.iters = as<NumericVector>(out["iters"]);
   d.timing = out.containsElementNamed("timing")
                  ? as<NumericVector>(out["timing"])

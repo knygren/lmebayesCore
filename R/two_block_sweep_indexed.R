@@ -892,6 +892,47 @@
   invisible(NULL)
 }
 
+#' Report the envelope evaluation comparison
+#'
+#' One \code{message()} per call, for
+#' \code{options(glmbayesCore.group_eval = "compare")}: glmbayesCore
+#' evaluates every chain's envelope grid with \code{EnvelopeEval} (kept) and
+#' with the batched Poisson evaluation; "flagged" counts chains where the
+#' negative log-posterior or its gradient differs by more than 1e-10
+#' (relative).
+#' @param eval_compare The \code{eval_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_eval_compare_message <- function(eval_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  ec <- as.list(eval_compare)
+  if (length(ec) == 0L || is.null(ec$calls) || ec$calls <= 0) {
+    message(sprintf(paste0("[%s eval compare] no comparisons (chain-major ",
+                           "path, OpenCL, or family without a batched ",
+                           "evaluation)"), lbl))
+    return(invisible(NULL))
+  }
+  n <- ec$calls
+  flag <- if (ec$flagged > 0) " FLAG" else ""
+  msg <- c(
+    sprintf("[%s eval compare] %d chain evaluations: flagged %d%s", lbl,
+            as.integer(n), as.integer(ec$flagged), flag),
+    sprintf("\n  max rel qf diff %.3g, max rel gradient diff %.3g",
+            ec$max_qf, ec$max_grad),
+    sprintf(paste0("\n  time legacy %.2f s (%.1f us each), batch %.2f s ",
+                   "(%.1f us each)"),
+            ec$t_legacy, 1e6 * ec$t_legacy / n,
+            ec$t_batch, 1e6 * ec$t_batch / n)
+  )
+  message(paste(msg, collapse = ""))
+  invisible(NULL)
+}
+
 #' Report the population-block draw comparison
 #'
 #' One \code{message()} per call, for
@@ -1162,6 +1203,11 @@
 #' RcppParallel across chains, thread-local RNG, so \code{set.seed()} does
 #' not fix the draws), \code{"serial"} or \code{"compare"}
 #' (\code{.two_block_sim_compare_message}).
+#' The envelope evaluation follows glmbayesCore's
+#' \code{options(glmbayesCore.group_eval)}: \code{"batch"} (default; all
+#' chains of a group at once, poisson and quasipoisson), \code{"legacy"}
+#' (\code{EnvelopeEval} per chain) or \code{"compare"}
+#' (\code{.two_block_eval_compare_message}).
 #' The population draws factor each component's posterior precision once
 #' per call and draw from that;
 #' \code{options(lmebayesCore.pop_draw = "reg")} calls glmbayesCore
@@ -1250,6 +1296,9 @@
   }
   if (identical(getOption("glmbayesCore.group_sim"), "compare")) {
     .two_block_sim_compare_message(state$sim_compare, stage_label)
+  }
+  if (identical(getOption("glmbayesCore.group_eval"), "compare")) {
+    .two_block_eval_compare_message(state$eval_compare, stage_label)
   }
   if (identical(getOption("lmebayesCore.pop_draw"), "compare")) {
     .two_block_pop_compare_message(state$pop_compare, stage_label)

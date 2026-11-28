@@ -195,6 +195,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
   NumericVector hess_cmp;
   NumericVector newton_cmp;
   NumericVector sim_cmp;
+  NumericVector eval_cmp;
 
   // Previous mode, prior mean and mode Hessian per (chain i, group j), at
   // index i * J + j; filled only when warm starts are on.
@@ -279,6 +280,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
           named_add(hess_cmp, d1.hessian_compare);
           named_add(newton_cmp, d1.newton_compare);
           named_add(sim_cmp, d1.sim_compare);
+          named_add(eval_cmp, d1.eval_compare);
           if (warm && d1.mode_hessian.nrow() == l1 * l1 &&
               d1.mode_hessian.ncol() == na) {
             for (int c = 0; c < na; ++c) {
@@ -414,6 +416,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
       Named("hessian_compare") = hess_cmp,
       Named("newton_compare") = newton_cmp,
       Named("sim_compare") = sim_cmp,
+      Named("eval_compare") = eval_cmp,
       Named("pop_compare") = NumericVector::create(
           Named("calls") = pop_cmp.calls, Named("flagged") = pop_cmp.flagged,
           Named("max_mean") = pop_cmp.max_mean,
