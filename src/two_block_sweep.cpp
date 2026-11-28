@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <vector>
 
 using namespace Rcpp;
@@ -31,6 +32,29 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 }
 
 namespace {
+
+// lmecore::progress_bar rewrites the whole line and flushes per character,
+// so redraw only when the shown percentage or bar length changes (40 dots,
+// as in glmbayesCore's progress_bar), and always at x = N.
+class ThrottledBar {
+ public:
+  ThrottledBar(bool on, double N, const std::string& prefix)
+      : on_(on && N > 0.0), N_(N), prefix_(prefix) {}
+  void update(double x) {
+    if (!on_) return;
+    const double f = x / N_;
+    const long key = std::lround(100.0 * f) * 64 + std::lround(40.0 * f);
+    if (key == last_ && x < N_) return;
+    last_ = key;
+    lmecore::progress_bar(x, N_, prefix_);
+  }
+
+ private:
+  bool on_;
+  double N_;
+  std::string prefix_;
+  long last_ = -1;
+};
 
 // Fold one named rNormalGLMGroupChains vector (setup_timing, mode_compare)
 // into `acc` by name: max_* entries take the maximum, all others are summed.
@@ -149,6 +173,14 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
   std::vector<GroupData> gdata;
   if (group_major) gdata = groups_data(spec);
 
+  const int pop_method = population_draw_method();
+  std::vector<PopulationFactor> pop_f;
+  if (pop_method != POP_REG) {
+    pop_f.reserve(p_re);
+    for (int k = 0; k < p_re; ++k) pop_f.push_back(population_factor(spec, k));
+  }
+  PopulationCompare pop_cmp;
+
   // Seconds over the whole call: block-1 parts from rNormalGLMGroupChains
   // (group-major only), then block-1 and block-2 wall time.
   double t_parts[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
@@ -202,6 +234,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
       std::vector<double> iters_sum(n, 0.0);
       if (!active.empty()) {
         const int na = static_cast<int>(active.size());
+        ThrottledBar bar(progbar, static_cast<double>(J), prefix_groups);
         for (int j = 0; j < J; ++j) {
           NumericMatrix start(0, 0);
           if (warm) {
@@ -270,10 +303,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
             }
             iters_sum[i] += d1.iters[c];
           }
-          if (progbar) {
-            lmecore::progress_bar(j + 1.0, static_cast<double>(J),
-                                  prefix_groups);
-          }
+          bar.update(j + 1.0);
         }
         for (int i : active) {
           it1[i] = iters_sum[i] / J;
@@ -294,6 +324,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
         iters_ranef[i] = iters_ranef[i] + it1[i];
       }
     } else {
+      ThrottledBar bar(progbar, static_cast<double>(n), prefix_groups);
       for (int i = 0; i < n; ++i) {
         const NumericMatrix mu_D = groups_prior_mean(spec, fixef, i);
         NumericMatrix coef;
@@ -311,10 +342,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
           }
         }
         iters_ranef[i] = iters_ranef[i] + it1;
-        if (progbar) {
-          lmecore::progress_bar(i + 1.0, static_cast<double>(n),
-                                           prefix_groups);
-        }
+        bar.update(i + 1.0);
       }
       if (progbar) {
         lmecore::progress_bar_finish(false);
@@ -324,6 +352,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
                     std::chrono::steady_clock::now() - t_start).count();
 
     t_start = std::chrono::steady_clock::now();
+    ThrottledBar pop_bar(progbar, static_cast<double>(n), prefix_population);
     for (int i = 0; i < n; ++i) {
       NumericMatrix b_i(J, p_re);
       for (int k = 0; k < p_re; ++k) {
@@ -335,7 +364,13 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
         const NumericVector y_k = population_response(spec, b_i, k);
         NumericVector coef;
         if (!obs.population_source(mi, i, k, coef)) {
-          const PopulationDraw d2 = population_draw(spec, y_k, k);
+          const PopulationDraw d2 =
+              pop_method == POP_CHOL
+                  ? population_draw_chol(pop_f[k], y_k)
+                  : pop_method == POP_COMPARE
+                        ? population_draw_compare(pop_cmp, spec, pop_f[k],
+                                                  y_k, k)
+                        : population_draw(spec, y_k, k);
           coef = use_mode ? d2.coef_mode : d2.coef;
         }
         obs.population_seen(mi, i, k, y_k, coef);
@@ -343,10 +378,7 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
         population_write(spec, fk, i, k, coef);
         iters(i, k) = iters(i, k) + 1.0;
       }
-      if (progbar) {
-        lmecore::progress_bar(i + 1.0, static_cast<double>(n),
-                                         prefix_population);
-      }
+      pop_bar.update(i + 1.0);
     }
     if (progbar) {
       lmecore::progress_bar_finish(m == inner_sweeps);
@@ -381,7 +413,12 @@ List two_block_sweep(const TwoBlockIndexSpec& spec_in, const NumericVector& b_in
       Named("warm_compare") = warm_cmp,
       Named("hessian_compare") = hess_cmp,
       Named("newton_compare") = newton_cmp,
-      Named("sim_compare") = sim_cmp);
+      Named("sim_compare") = sim_cmp,
+      Named("pop_compare") = NumericVector::create(
+          Named("calls") = pop_cmp.calls, Named("flagged") = pop_cmp.flagged,
+          Named("max_mean") = pop_cmp.max_mean,
+          Named("max_draw") = pop_cmp.max_draw,
+          Named("t_reg") = pop_cmp.t_reg, Named("t_chol") = pop_cmp.t_chol));
 }
 
 }  // namespace twoblock

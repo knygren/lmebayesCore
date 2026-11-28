@@ -36,6 +36,7 @@
  *   - two_block_index_spec.cpp
  *   - two_block_groups_indexed.cpp
  *   - two_block_population_indexed.cpp
+ *   - two_block_population_chol.cpp
  *   - two_block_sweep.cpp
  *
  * @section Migration
@@ -237,6 +238,57 @@ Rcpp::NumericVector population_response(const TwoBlockIndexSpec& spec,
 PopulationDraw population_draw(const TwoBlockIndexSpec& spec,
                                const Rcpp::NumericVector& y_k, int k);
 
+/// Block-2 draw path from getOption("lmebayesCore.pop_draw"): "reg" calls
+/// population_draw; "chol" (or unset) calls population_draw_chol;
+/// "compare" runs both from the same R RNG state, keeps the population_draw
+/// result and fills PopulationCompare. Uses the R API.
+enum PopMethod {
+  POP_REG = 0,
+  POP_CHOL = 1,
+  POP_COMPARE = 2
+};
+int population_draw_method();
+
+/// Posterior of component `k` with W_k, P2_k, mu2_k and disp2_k fixed:
+/// precision Q = W' W / disp2 + P2 = R' R (R upper triangular). Rinv is
+/// R^{-1}, Wt is W' / disp2 and Pmu is P2 mu2, so the mean for response y
+/// is Rinv Rinv' (Wt y + Pmu).
+struct PopulationFactor {
+  int q = 0;
+  int n_w = 0;
+  arma::mat Rinv;
+  arma::mat Wt;
+  arma::vec Pmu;
+};
+PopulationFactor population_factor(const TwoBlockIndexSpec& spec, int k);
+
+/// The population_draw posterior from a PopulationFactor: coef_mode is the
+/// mean, coef is mean + Rinv z with z = q norm_rand() draws from R's RNG,
+/// the same count and order as glmbayesCore rNormalReg.
+PopulationDraw population_draw_chol(const PopulationFactor& f,
+                                    const Rcpp::NumericVector& y_k);
+
+/// Counts and maxima accumulated with POP_COMPARE: calls, flagged
+/// (max_mean or max_draw above 1e-10), max_mean and max_draw
+/// (|chol - reg| / (1 + |reg|) for coef_mode and coef), and seconds in each
+/// path.
+struct PopulationCompare {
+  double calls = 0.0;
+  double flagged = 0.0;
+  double max_mean = 0.0;
+  double max_draw = 0.0;
+  double t_reg = 0.0;
+  double t_chol = 0.0;
+};
+
+/// population_draw and population_draw_chol from the same R RNG state
+/// (.Random.seed saved and restored between them); returns the
+/// population_draw result and leaves the RNG where that draw left it.
+PopulationDraw population_draw_compare(PopulationCompare& pc,
+                                       const TwoBlockIndexSpec& spec,
+                                       const PopulationFactor& f,
+                                       const Rcpp::NumericVector& y_k, int k);
+
 /// fixef_k[i, w_col_k] <- coef, in place.
 void population_write(const TwoBlockIndexSpec& spec, Rcpp::NumericMatrix& fixef_k,
                       int i, int k, const Rcpp::NumericVector& coef);
@@ -281,6 +333,9 @@ std::string sweep_progbar_prefix(const std::string& stage_label, int m,
 /// `hess_method` (group-major only) is passed to group_chains_draw; the list
 /// also has `hessian_compare`, `newton_compare` and `sim_compare`, combined
 /// the same way.
+/// The population draws follow population_draw_method(); the factors are
+/// built once per call, and `pop_compare` holds the PopulationCompare fields
+/// (all zero unless the method is POP_COMPARE).
 Rcpp::List two_block_sweep(const TwoBlockIndexSpec& spec,
                            const Rcpp::NumericVector& b,
                            const Rcpp::List& fixef,

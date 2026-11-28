@@ -892,6 +892,43 @@
   invisible(NULL)
 }
 
+#' Report the population-block draw comparison
+#'
+#' One \code{message()} per call, for
+#' \code{options(lmebayesCore.pop_draw = "compare")}: each population draw
+#' is made by glmbayesCore \code{rNormalReg} (kept) and by the fixed-factor
+#' path from the same R RNG state; "flagged" counts draws where the mean or
+#' the draw differs by more than 1e-10 (relative).
+#' @param pop_compare The \code{pop_compare} element of
+#'   \code{.two_block_sweep_cpp()}.
+#' @return No return value, called for side effects.
+#' @noRd
+.two_block_pop_compare_message <- function(pop_compare, stage_label) {
+  lbl <- if (is.null(stage_label) || !nzchar(stage_label[1L])) {
+    "sweep"
+  } else {
+    as.character(stage_label[1L])
+  }
+  pc <- as.list(pop_compare)
+  if (length(pc) == 0L || is.null(pc$calls) || pc$calls <= 0) {
+    message(sprintf("[%s pop compare] no comparisons", lbl))
+    return(invisible(NULL))
+  }
+  n <- pc$calls
+  flag <- if (pc$flagged > 0) " FLAG" else ""
+  msg <- c(
+    sprintf("[%s pop compare] %d draws: flagged %d%s", lbl, as.integer(n),
+            as.integer(pc$flagged), flag),
+    sprintf("\n  max rel mean diff %.3g, max rel draw diff %.3g",
+            pc$max_mean, pc$max_draw),
+    sprintf(paste0("\n  time rNormalReg %.2f s (%.1f us each), fixed factor ",
+                   "%.2f s (%.1f us each)"),
+            pc$t_reg, 1e6 * pc$t_reg / n, pc$t_chol, 1e6 * pc$t_chol / n)
+  )
+  message(paste(msg, collapse = ""))
+  invisible(NULL)
+}
+
 #' Envelope grid setup selected by \code{options(lmebayesCore.setup_method)}
 #'
 #' @return Integer code for \code{rNormalGLMGroupChains}: 0 \code{"R"},
@@ -1125,6 +1162,12 @@
 #' RcppParallel across chains, thread-local RNG, so \code{set.seed()} does
 #' not fix the draws), \code{"serial"} or \code{"compare"}
 #' (\code{.two_block_sim_compare_message}).
+#' The population draws factor each component's posterior precision once
+#' per call and draw from that;
+#' \code{options(lmebayesCore.pop_draw = "reg")} calls glmbayesCore
+#' \code{rNormalReg} per draw instead, and \code{"compare"} runs both from
+#' the same R RNG state, keeps \code{rNormalReg} and reports their agreement
+#' (\code{.two_block_pop_compare_message}).
 #' @param index_map Result of \code{.two_block_index_map()}.
 #' @noRd
 .rGLMM_sweep_cpp <- function(
@@ -1207,6 +1250,9 @@
   }
   if (identical(getOption("glmbayesCore.group_sim"), "compare")) {
     .two_block_sim_compare_message(state$sim_compare, stage_label)
+  }
+  if (identical(getOption("lmebayesCore.pop_draw"), "compare")) {
+    .two_block_pop_compare_message(state$pop_compare, stage_label)
   }
   if (identical(getOption("lmebayesCore.warm_start"), "compare")) {
     .two_block_warm_compare_message(state$warm_compare, stage_label)
